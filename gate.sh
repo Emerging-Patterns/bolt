@@ -45,5 +45,14 @@ for dir in */; do
     fi
   done
 done
+# the server as an editor runs it: spawned by node, over sockets
+if [ $js_only = 0 ] && command -v node >/dev/null; then
+  mkdir -p lsp/.gate
+  if built=$(bend lsp/main.bend -o lsp/.gate/bend-lsp 2>&1); then
+    check "lsp/tests/spawn.js" "ok" "$(node lsp/tests/spawn.js lsp/.gate/bend-lsp 2>&1)"
+  else
+    check "lsp/main.bend (build)" "" "$built"
+  fi
+fi
 echo "PASS: $pass / $total"
 [ "$pass" = "$total" ]

@@ -63,10 +63,16 @@ def send(h: Stdio, body: String) -> IO(Stdio):
     w : File & Result<&1, &1, U32 & String, Unit> <- File.write(out, Frame.wrap(body))
     send.done(w, inp, buf)
 
+# a File for a descriptor the process already holds. Not File.open on
+# /dev/stdin: an editor may hand the server sockets, which no path opens
+def stdio.fd(n: U32) -> IO(File):
+  import "./fd.c"
+  import "./fd.js"
+
 def open() -> IO(Stdio):
   do IO<Stdio>:
-    inp : File <- IO.try(File, File.open("/dev/stdin", "r"))
-    out : File <- IO.try(File, File.open("/dev/stdout", "w"))
+    inp : File <- stdio.fd(0)
+    out : File <- stdio.fd(1)
     return Stdio{inp, out, []}
 
 def new() -> S.Transport<Stdio>:

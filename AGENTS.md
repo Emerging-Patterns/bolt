@@ -63,6 +63,12 @@ Design specs and plans are not kept in this repo; they live under
 - A foreign effect `def a.b(..) -> IO(T)` with `import "./x.c"` and
   `import "./x.js"` bodies is `a_b_run` + `io_eff(CID_A_B, ..)` in C and
   `function a_b(..)` in JS (lsp/checker/exec.*).
+- A server's stdin and stdout may be sockets (node spawns children that way),
+  and no path opens a socket: wrap descriptors 0 and 1 (lsp/transport/fd.c),
+  never `File.open("/dev/stdin")`. Test a server spawned from node
+  (lsp/tests/spawn.js), not only through pipes.
+- A native Bend binary exits on an option it does not know: a launcher must
+  not add flags (vscode-languageclient's `transport: stdio` adds `--stdio`).
 - A pair `A & B` is never `Data`: a list of pairs is `List<&1, A & B>`.
 - The JS lane overflows its stack on long strings (~65KB). Head such a test
   `# lanes: native`; anything long-running ships as the native binary.
