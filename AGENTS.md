@@ -52,6 +52,13 @@ Design specs and plans are not kept in this repo; they live under
   over `List<T>` does not pass. Keep the cells inside the type (json/value.bend).
 - A big `Nat` literal expands in unary and overflows the stack: write
   `U32.to_nat(100000)`.
+- The argument that shrinks must be the first live (non-template) one:
+  `send_all(replies, h)` passes, `send_all(h, replies)` does not.
+- `Kind` is a keyword: no type of that name.
+- `bend x.bend` runs main after checking. To check only, `bend x.bend -o t.js`.
+- A foreign effect `def a.b(..) -> IO(T)` with `import "./x.c"` and
+  `import "./x.js"` bodies is `a_b_run` + `io_eff(CID_A_B, ..)` in C and
+  `function a_b(..)` in JS (lsp/checker/exec.*).
 - A pair `A & B` is never `Data`: a list of pairs is `List<&1, A & B>`.
 - The JS lane overflows its stack on long strings (~65KB). Head such a test
   `# lanes: native`; anything long-running ships as the native binary.

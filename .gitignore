@@ -1,3 +1,5 @@
 .gate/
 *.gpu
 result
+bin/
+node_modules/
