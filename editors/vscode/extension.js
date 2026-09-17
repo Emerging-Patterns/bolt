@@ -4,7 +4,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const vscode = require("vscode");
-const { LanguageClient, TransportKind } = require("vscode-languageclient/node");
+const { LanguageClient } = require("vscode-languageclient/node");
 
 let client;
 
@@ -26,9 +26,10 @@ function serverPath() {
 }
 
 async function start() {
-  // --gpu off: a native Bend binary takes the GPU when there is one
-  const run = { command: serverPath(), args: ["--gpu", "off"], transport: TransportKind.stdio,
-    options: { env: serverEnv() } };
+  // --gpu off: a native Bend binary takes the GPU when there is one. No
+  // `transport`: stdio is the default for a command, and naming it makes the
+  // client append `--stdio`, which a Bend binary refuses as an unknown option.
+  const run = { command: serverPath(), args: ["--gpu", "off"], options: { env: serverEnv() } };
   client = new LanguageClient("bend", "Bend", { run, debug: run },
     { documentSelector: [{ scheme: "file", language: "bend" }] });
   await client.start();
@@ -36,8 +37,13 @@ async function start() {
 
 async function activate(context) {
   context.subscriptions.push(vscode.commands.registerCommand("bend.restartServer", async () => {
-    if (client) {
-      await client.stop();
+    // a server that already died cannot be stopped; start a fresh one anyway
+    try {
+      if (client) {
+        await client.stop();
+      }
+    } catch (e) {
+      console.error("bend: stopping the old server failed", e);
     }
     await start();
   }));

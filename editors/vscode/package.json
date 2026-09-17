@@ -2,7 +2,7 @@
   "name": "bend-lsp",
   "displayName": "Bend",
   "description": "Bend 2: syntax highlighting, and the checker's errors through bend-lsp",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "ngngardner",
   "private": true,
   "license": "MIT",
