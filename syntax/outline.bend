@@ -10,6 +10,7 @@ type ItemKind is Data:
   ILaw{}
   IType{}
   ICtor{}
+  ILocal{}
 
 # line is 0-based; sig is the header text (a def's through its `:`, a law's
 # whole block, a constructor's line); doc is the comment block right above;

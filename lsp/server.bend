@@ -78,6 +78,8 @@ def hover.of(m: Maybe<&2, Nav.Found>) -> J.Json:
       J.JNull{}
     case Some{Nav.Found{uri, item}}:
       Proto.hover(item)
+    case Some{Nav.Here{uri, local}}:
+      Proto.hover.local(local)
 
 def definition.of(m: Maybe<&2, Nav.Found>) -> J.Json:
   match m:
@@ -85,11 +87,13 @@ def definition.of(m: Maybe<&2, Nav.Found>) -> J.Json:
       J.JNull{}
     case Some{Nav.Found{uri, item}}:
       Proto.location(uri, item)
+    case Some{Nav.Here{uri, local}}:
+      Proto.location.local(uri, local)
 
-def complete.with(~fs: F.Files, +prefix: String, +docs: List<&2, Docs.Doc>, uri: String, line: U32, +col: U32,
+def complete.with(~fs: F.Files, +prefix: String, +docs: List<&2, Docs.Doc>, uri: String, +line: U32, +col: U32,
   id: J.Json) -> IO(Out):
   do IO<Out>:
-    items : List<&2, Outline.Item> <- Nav.candidates(~fs, docs, uri, prefix)
+    items : List<&2, Outline.Item> <- Nav.candidates(~fs, docs, uri, prefix, line)
     return Out{reply(id, Proto.completions(items, line, (col - U32.from_nat(String.length(prefix)) : U32), col)),
       False{}, docs}
 

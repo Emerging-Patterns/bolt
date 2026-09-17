@@ -50,6 +50,11 @@ file behind the alias; anything else from the document, its aliases and (once
 a char is typed) Base. The server filters by prefix and each candidate replaces
 the whole typed name, dots included, as the editor's own word stops at a dot.
 
-Not yet: parameters and locals (the server knows top-level names: defs, laws,
-types, constructors), exact ranges (an item is its line), percent-encoded
+A name that a parameter or a local binds resolves to that binder first
+([syntax](../syntax/)'s scope): hover shows the declaration or the line that
+bound it, definition lands exactly on the binder, completion offers the
+visible locals first. The server knows binding sites, not types: a parameter
+has its annotation, a pattern binder has its pattern.
+
+Not yet: exact ranges for top-level items (an item is its line), percent-encoded
 URIs when matching open documents.

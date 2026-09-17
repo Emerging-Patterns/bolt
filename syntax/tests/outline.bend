@@ -48,6 +48,8 @@ def kind(k: Outline.ItemKind) -> String:
       "type"
     case Outline.ICtor{}:
       "ctor"
+    case Outline.ILocal{}:
+      "local"
 
 def show.go(items: List<&2, Outline.Item>) -> List<&2, String>:
   match items:

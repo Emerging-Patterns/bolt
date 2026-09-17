@@ -5,6 +5,7 @@ import ../json/lex.bend as Lex
 import ./frame.bend as Frame
 import ./report.bend as Rep
 import ../syntax/outline.bend as Outline
+import ../syntax/scope.bend as Scope
 
 def response(id: J.Json, result: J.Json) -> J.Json:
   J.obj([("jsonrpc", J.JStr{"2.0"}), ("id", id), ("result", result)])
@@ -65,6 +66,19 @@ def location(uri: String, item: Outline.Item) -> J.Json:
   Outline.Item{k, name, line, sig, doc, path} = item
   J.obj([("uri", J.JStr{uri}), ("range", line_range(line))])
 
+# a parameter or a local: the text that bound it, and what it is. The server
+# knows binding sites, not types: only a declaration carries one
+def hover.local(l: Scope.Local) -> J.Json:
+  Scope.Local{name, line, col, note, param} = l
+  J.obj([("contents", J.obj([("kind", J.JStr{"markdown"}), ("value", J.JStr{"```bend\n" ++ note ++ "\n```\n\n" ++
+    Bool.pick(String, param, "parameter", "local, bound on line " ++ U32.show((line + 1 : U32)))})]))])
+
+# exactly the binder's name
+def location.local(uri: String, l: Scope.Local) -> J.Json:
+  Scope.Local{name, +line, +col, note, param} = l
+  J.obj([("uri", J.JStr{uri}), ("range", J.obj([("start", position(line, col)),
+    ("end", position(line, (col + U32.from_nat(String.length(name)) : U32)))]))])
+
 # LSP's SymbolKind: module 2, function 12, constant 14, enum member 22, struct 23
 def symbol.kind(k: Outline.ItemKind) -> U32:
   match k:
@@ -78,6 +92,8 @@ def symbol.kind(k: Outline.ItemKind) -> U32:
       23
     case Outline.ICtor{}:
       22
+    case Outline.ILocal{}:
+      13
 
 def symbol(item: Outline.Item) -> J.Json:
   Outline.Item{k, name, +line, sig, doc, path} = item
@@ -108,6 +124,8 @@ def completion.kind(k: Outline.ItemKind) -> U32:
       22
     case Outline.ICtor{}:
       20
+    case Outline.ILocal{}:
+      6
 
 def first_line(s: String) -> String:
   Maybe.default(&2, String, List.head(&2, String, String.lines(s)), "")
