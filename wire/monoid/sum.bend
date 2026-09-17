@@ -1,0 +1,6 @@
+# monoid/sum: 0 and +
+import Base
+import ./service.bend as S
+
+def new() -> S.Monoid:
+  S.Monoid{0, U32.add}

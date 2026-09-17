@@ -1,0 +1,48 @@
+# AGENTS
+
+Read `bend guide` before writing Bend. Then this.
+
+## Layout
+
+    gate.sh            the gate; green before every commit
+    flake.nix          bend-cc: clang 19 for native and GPU builds
+    <project>/         one dir per project
+      LAWS.bend        the claims: human-owned, do not edit to make a proof pass
+      PROOF.bend       the proofs; `bend PROOF.bend` prints "All terms check."
+      tests/*.bend     each ends in the `#|` lines its run must print
+      README.md
+
+Design specs and plans are not kept in this repo; they live under
+`~/.superpowers/projects/bend/`.
+
+## Conventions
+
+- New code comes test-first: write `tests/x.bend` with its `#|` trailer, watch
+  the gate fail, then implement.
+- Dependencies are injected the `wire` way (see wire/README.md): a service is
+  a folder, `x/service.bend` plus one file per implementation exporting
+  `new()`. Tests use `wire/check/kit.bend`.
+- A service file's header says whether it is pure (GPU-safe) or an effect
+  (CPU event loop only). Only pure code may sit under a `!` call.
+- Never `bend --publish` without asking: it uploads to the public hub.
+
+## Bend gotchas (each one cost a failed check here)
+
+- A template cannot destructure its own `~` argument ("an undestructed
+  scrutinee"): pass it to a plain accessor def that destructures it.
+- A pattern binder may not share a name with a top-level def of the module:
+  in a module that defines `now`, write `Clock{f} = c`, not `Clock{now} = c`.
+- Argument quantities are part of a function type: a field typed
+  `@+i:U32 -> U32` only takes defs declared `(+i: U32)`.
+- A template is not checked until something instantiates it: every template
+  needs a test that calls it.
+- User code may not call a law before its def is filled, so Base's mutually
+  recursive arm/go lemma shape does not work here. Give the arm the induction
+  hypothesis as a parameter, and erase its other arguments (`for -at`) so the
+  caller can still recurse on them (see wire/PROOF.bend, Word.xor_assoc).
+- `match` takes parameters and pattern-bound variables only, in binder order;
+  to branch on a computed value, pass it to a helper (see `report` in
+  wire/check/service.bend).
+- The GPU is on by default in a native binary: the CPU lane is `--gpu off`.
+- Link native binaries with `bend-cc` only. The wrapped nix clang links nix's
+  glibc and nvrtc then fails to load `libnvrtc-builtins`.
