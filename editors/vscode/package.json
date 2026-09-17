@@ -2,20 +2,37 @@
   "name": "bend-lsp",
   "displayName": "Bend",
   "description": "Bend 2: syntax highlighting, and the checker's errors through bend-lsp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "ngngardner",
   "private": true,
   "license": "MIT",
-  "engines": { "vscode": "^1.85.0" },
-  "categories": ["Programming Languages"],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
   "main": "./extension.js",
   "activationEvents": [],
   "contributes": {
     "languages": [
-      { "id": "bend", "aliases": ["Bend"], "extensions": [".bend"], "configuration": "./language-configuration.json" }
+      {
+        "id": "bend",
+        "aliases": [
+          "Bend"
+        ],
+        "extensions": [
+          ".bend"
+        ],
+        "configuration": "./language-configuration.json"
+      }
     ],
     "grammars": [
-      { "language": "bend", "scopeName": "source.bend", "path": "./syntaxes/bend.tmLanguage.json" }
+      {
+        "language": "bend",
+        "scopeName": "source.bend",
+        "path": "./syntaxes/bend.tmLanguage.json"
+      }
     ],
     "configuration": {
       "title": "Bend",
@@ -28,8 +45,13 @@
       }
     },
     "commands": [
-      { "command": "bend.restartServer", "title": "Bend: Restart Language Server" }
+      {
+        "command": "bend.restartServer",
+        "title": "Bend: Restart Language Server"
+      }
     ]
   },
-  "dependencies": { "vscode-languageclient": "^9.0.1" }
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  }
 }

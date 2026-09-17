@@ -1,14 +1,77 @@
 {
-  "comments": { "lineComment": "#" },
-  "brackets": [["{", "}"], ["[", "]"], ["(", ")"], ["<", ">"]],
-  "autoClosingPairs": [
-    { "open": "{", "close": "}" }, { "open": "[", "close": "]" }, { "open": "(", "close": ")" },
-    { "open": "\"", "close": "\"", "notIn": ["string"] }
+  "comments": {
+    "lineComment": "#"
+  },
+  "brackets": [
+    [
+      "{",
+      "}"
+    ],
+    [
+      "[",
+      "]"
+    ],
+    [
+      "(",
+      ")"
+    ]
   ],
-  "surroundingPairs": [["{", "}"], ["[", "]"], ["(", ")"], ["\"", "\""]],
+  "autoClosingPairs": [
+    {
+      "open": "{",
+      "close": "}"
+    },
+    {
+      "open": "[",
+      "close": "]"
+    },
+    {
+      "open": "(",
+      "close": ")"
+    },
+    {
+      "open": "\"",
+      "close": "\"",
+      "notIn": [
+        "string"
+      ]
+    }
+  ],
+  "surroundingPairs": [
+    [
+      "{",
+      "}"
+    ],
+    [
+      "[",
+      "]"
+    ],
+    [
+      "(",
+      ")"
+    ],
+    [
+      "\"",
+      "\""
+    ]
+  ],
   "indentationRules": {
     "increaseIndentPattern": "^.*:\\s*(#.*)?$",
     "decreaseIndentPattern": "^\\s*case\\b.*:\\s*$"
   },
-  "onEnterRules": []
+  "onEnterRules": [],
+  "colorizedBracketPairs": [
+    [
+      "{",
+      "}"
+    ],
+    [
+      "[",
+      "]"
+    ],
+    [
+      "(",
+      ")"
+    ]
+  ]
 }

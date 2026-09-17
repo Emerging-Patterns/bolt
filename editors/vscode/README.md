@@ -6,7 +6,7 @@ through bend-lsp (`lsp/` in this repo).
 ```
 ./build.sh                                   # repo root: builds bin/bend-lsp, links ~/.local/bin/bend-lsp
 cd editors/vscode && npm install && npx --yes @vscode/vsce package
-code --install-extension bend-lsp-0.1.0.vsix   # or: Extensions > ... > Install from VSIX
+code --install-extension bend-lsp-0.1.1.vsix   # or: Extensions > ... > Install from VSIX
 ```
 
 Over Remote-SSH, install the VSIX from the remote window, so it lands on the
