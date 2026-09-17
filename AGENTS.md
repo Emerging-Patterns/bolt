@@ -10,6 +10,7 @@ Read `bend guide` before writing Bend. Then this.
       LAWS.bend        the claims: human-owned, do not edit to make a proof pass
       PROOF.bend       the proofs; `bend PROOF.bend` prints "All terms check."
       tests/*.bend     each ends in the `#|` lines its run must print
+                       (LAWS/PROOF are optional; a project needs tests)
       README.md
 
 Design specs and plans are not kept in this repo; they live under
@@ -43,6 +44,17 @@ Design specs and plans are not kept in this repo; they live under
 - `match` takes parameters and pattern-bound variables only, in binder order;
   to branch on a computed value, pass it to a helper (see `report` in
   wire/check/service.bend).
+- No mutual recursion, and a def must be defined above its use. A loop that
+  branches on a computed value either folds the branch into a non-recursive
+  helper that returns the next state (json/lex.bend), or hands the helper a
+  continuation closure `rest` (Base's App.loop).
+- A self-call must shrink one argument, the same one every time: a rose tree
+  over `List<T>` does not pass. Keep the cells inside the type (json/value.bend).
+- A big `Nat` literal expands in unary and overflows the stack: write
+  `U32.to_nat(100000)`.
+- A pair `A & B` is never `Data`: a list of pairs is `List<&1, A & B>`.
+- The JS lane overflows its stack on long strings (~65KB). Head such a test
+  `# lanes: native`; anything long-running ships as the native binary.
 - The GPU is on by default in a native binary: the CPU lane is `--gpu off`.
 - Link native binaries with `bend-cc` only. The wrapped nix clang links nix's
   glibc and nvrtc then fails to load `libnvrtc-builtins`.

@@ -19,14 +19,20 @@ check() { # name, expected, observed
     echo "FAIL: $1"; diff <(echo "$2") <(echo "$3") | sed 's/^/  /'
   fi
 }
-for proof in */PROOF.bend; do
-  [ -f "$proof" ] || continue
-  dir=$(dirname "$proof")
-  check "$proof" "All terms check." "$(bend "$proof" 2>&1)"
+for dir in */; do
+  dir=${dir%/}
+  [ -d "$dir/tests" ] || [ -f "$dir/PROOF.bend" ] || continue
+  if [ -f "$dir/PROOF.bend" ]; then
+    check "$dir/PROOF.bend" "All terms check." "$(bend "$dir/PROOF.bend" 2>&1)"
+  fi
   for t in "$dir"/tests/*.bend; do
     [ -f "$t" ] || continue
     want=$(sed -n 's/^#|//p' "$t")
-    check "$t (js)" "$want" "$(bend "$t" 2>&1)"
+    # a test headed `# lanes: native` is too big for the JS lane's stack
+    native_only=0; grep -q '^# lanes: native' "$t" && native_only=1
+    if [ $native_only = 0 ]; then
+      check "$t (js)" "$want" "$(bend "$t" 2>&1)"
+    fi
     [ $js_only = 1 ] && continue
     bin="$dir/.gate/$(basename "$t" .bend)"
     mkdir -p "$dir/.gate"

@@ -7,6 +7,7 @@ a directory; projects import each other by relative path
 | project | what |
 |---------|------|
 | [wire](wire/) | dependency injection by templates: services, containers, laws; runs on the GPU |
+| [json](json/) | a JSON parser, printer and path accessors |
 
 ## The gate
 
