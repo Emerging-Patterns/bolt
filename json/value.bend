@@ -79,3 +79,11 @@ def u32_or(j: Json, default: U32) -> U32:
       Maybe.default(&2, U32, U32.read(raw), default)
     case other:
       default
+
+# an array's first item
+def first(j: Json) -> Json:
+  match j:
+    case JArr{JCons{h, t}}:
+      h
+    case other:
+      JNull{}

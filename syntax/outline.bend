@@ -236,3 +236,31 @@ def finish(st: St) -> List<&2, Item>:
 
 def items(text: String) -> List<&2, Item>:
   finish(run(String.lines(text), St{Top{}, 0, [], []}))
+
+# lookups
+# -------
+
+def is_import(k: ItemKind) -> Bool:
+  match k:
+    case IImport{}:
+      True{}
+    case other:
+      False{}
+
+# the item of that name; imports are not names of the module
+def find(items: List<&2, Item>, +name: String) -> Maybe<&2, Item>:
+  match items:
+    case Nil{}:
+      None{}
+    case Con{Item{+k, +nm, l, s, d, p}, t}:
+      Bool.pick(Maybe<&2, Item>, Bool.and(Bool.not(is_import(k)), String.eq(nm, name)),
+        Some{Item{k, nm, l, s, d, p}}, find(t, name))
+
+# the path behind an import alias
+def import_path(items: List<&2, Item>, +alias: String) -> Maybe<&2, String>:
+  match items:
+    case Nil{}:
+      None{}
+    case Con{Item{k, nm, l, s, d, p}, t}:
+      Bool.pick(Maybe<&2, String>, Bool.and(is_import(k), String.eq(nm, alias)),
+        Some{p}, import_path(t, alias))

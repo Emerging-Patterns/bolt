@@ -44,3 +44,30 @@ def in_line(line: String, +col: U32) -> String:
 
 def at(source: String, line: U32, col: U32) -> String:
   in_line(Maybe.default(&2, String, List.get(&2, String, String.lines(source), U32.to_nat(line)), ""), col)
+
+# `Alias.rest` cut at its first dot: ("Alias", "rest"); no dot: (name, "")
+def cut.go(cs: List<&2, Char>, acc: List<&2, Char>) -> String & String:
+  match cs:
+    case Nil{}:
+      (text(acc), "")
+    case Con{'.', t}:
+      (text(acc), String.from_list(t))
+    case Con{c, t}:
+      cut.go(t, c <> acc)
+
+def cut(name: String) -> String & String:
+  cut.go(String.to_list(name), [])
+
+def fst(p: String & String) -> String:
+  (h, r) = p
+  h
+
+def snd(p: String & String) -> String:
+  (h, r) = p
+  r
+
+def head(name: String) -> String:
+  fst(cut(name))
+
+def rest(name: String) -> String:
+  snd(cut(name))

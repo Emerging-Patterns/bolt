@@ -1,7 +1,7 @@
 # lsp
 
-A language server for Bend, written in Bend. Milestone 1: open or save a
-`.bend` file and see the real checker's errors.
+A language server for Bend, written in Bend: the real checker's errors on open
+and save, and hover, go-to-definition and document symbols as you type.
 
 ```
 bend lsp/main.bend -o bin/bend-lsp     # from the repo root; clang 14 is enough
@@ -20,12 +20,17 @@ JS lane overflows its stack on a large message. Idle it costs no CPU.
 | service | real | fake |
 |---------|------|------|
 | `transport/` — one message body in, one out | `stdio`: Content-Length framing over bytes | `script`: a list of bodies in; every body sent is printed |
+| `files/` — a file's text by path; where Base lives | `disk` | any `Files` record (see `tests/nav.bend`) |
 | `checker/` — a path's diagnostics | `bend`: a foreign effect (`exec.c`, `exec.js`) running `bend <path> -o <tmp>.js` | `fake`: canned |
 
 The pure parts: `frame.bend` (framing, UTF-8 both ways — Content-Length counts
 bytes and a read may end inside a char, so the transport reads bytes and
 decodes itself), `report.bend` (the checker's text to diagnostics),
-`proto.bend` (the JSON the server sends; URI to path).
+`proto.bend` (the JSON the server sends; URI to path), `docs.bend` (the open
+documents, the loop's state), `path.bend`, and `nav.bend`: a name `Alias.rest`
+is `rest` in the file behind the import `Alias`; any other name is an item of
+the document, or else of Base. Items come from [syntax](../syntax/)'s outline,
+so navigation works in files that do not check, and sees unsaved edits.
 
 ## What the checker gives
 
@@ -36,7 +41,8 @@ decodes itself), `report.bend` (the checker's text to diagnostics),
 - One error per run, a line and no columns: a diagnostic covers its line. An
   error inside an import lands on line 0, naming where it is.
 - The checker reads the file and its imports from disk, so diagnostics follow
-  open and save, not unsaved edits (`change: 0`).
+  open and save, not unsaved edits.
 
-Next: `syntax/`, an error-tolerant lossless parser, for unsaved text, exact
-ranges, symbols; then definition, hover, completion.
+Not yet: parameters and locals (hover knows top-level names: defs, laws, types,
+constructors), completion, exact ranges (an item is its line), percent-encoded
+URIs when matching open documents.
