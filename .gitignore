@@ -4,3 +4,4 @@ result
 bin/
 node_modules/
 *.vsix
+.claude/worktrees/
