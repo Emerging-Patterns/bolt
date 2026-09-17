@@ -56,6 +56,9 @@ Design specs and plans are not kept in this repo; they live under
   `U32.to_nat(100000)`.
 - The argument that shrinks must be the first live (non-template) one:
   `send_all(replies, h)` passes, `send_all(h, replies)` does not.
+- `Bool.pick` evaluates both branches: never put a different recursive call in
+  each (that is exponential). Bind the one recursive call with `+rest = ..`
+  and pick between values built from it.
 - `Kind` is a keyword: no type of that name.
 - Binders and defs share a namespace per module: a def named `other` or `run`
   breaks every `case other:` and every `W{.., run, ..} = st` in the file.

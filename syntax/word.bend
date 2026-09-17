@@ -71,3 +71,17 @@ def head(name: String) -> String:
 
 def rest(name: String) -> String:
   snd(cut(name))
+
+# the leading run of name chars
+def run_of(cs: List<&2, Char>) -> List<&2, Char>:
+  match cs:
+    case Nil{}:
+      Nil{}
+    case Con{+c, t}:
+      Bool.pick(List<&2, Char>, is_name(c), c <> run_of(t), Nil{})
+
+# the name that ends at (line, col): what is being typed, for completion
+def before(source: String, line: U32, col: U32) -> String:
+  text(run_of(List.reverse(&2, Char, String.to_list(String.take(
+    Maybe.default(&2, String, List.get(&2, String, String.lines(source), U32.to_nat(line)), ""),
+    U32.to_nat(col))))))

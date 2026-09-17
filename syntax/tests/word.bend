@@ -18,6 +18,9 @@ def main() -> IO(Unit):
     Check.eq_str(~Report.new(), "past the end of the line", Word.at(source(), 1, 500), "")
     Check.eq_str(~Report.new(), "past the end of the text", Word.at(source(), 9, 0), "")
     Check.eq_str(~Report.new(), "the first line", Word.at(source(), 0, 8), "Base")
+    Check.eq_str(~Report.new(), "typed so far, mid-name", Word.before(source(), 1, 10), "Frame.de")
+    Check.eq_str(~Report.new(), "typed so far, after an alias dot", Word.before(source(), 1, 8), "Frame.")
+    Check.eq_str(~Report.new(), "nothing typed after a paren", Word.before(source(), 1, 15), "")
 
 #|ok inside a qualified name
 #|ok at a name's first char
@@ -28,3 +31,6 @@ def main() -> IO(Unit):
 #|ok past the end of the line
 #|ok past the end of the text
 #|ok the first line
+#|ok typed so far, mid-name
+#|ok typed so far, after an alias dot
+#|ok nothing typed after a paren

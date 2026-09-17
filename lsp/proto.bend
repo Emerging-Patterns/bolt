@@ -25,7 +25,8 @@ def capabilities() -> J.Json:
       ("textDocumentSync", J.obj([("openClose", J.JBool{True{}}), ("change", J.num(1)), ("save", J.JBool{True{}})])),
       ("hoverProvider", J.JBool{True{}}),
       ("definitionProvider", J.JBool{True{}}),
-      ("documentSymbolProvider", J.JBool{True{}})])),
+      ("documentSymbolProvider", J.JBool{True{}}),
+      ("completionProvider", J.obj([("triggerCharacters", J.arr([J.JStr{"."}]))]))])),
     ("serverInfo", J.obj([("name", J.JStr{"bend-lsp"})]))])
 
 def position(line: U32, character: U32) -> J.Json:
@@ -92,6 +93,46 @@ def symbols.go(items: List<&2, Outline.Item>) -> List<&2, J.Json>:
 
 def symbols(items: List<&2, Outline.Item>) -> J.Json:
   J.arr(symbols.go(items))
+
+# LSP's CompletionItemKind: function 3, module 9, enum member 20, constant 21,
+# struct 22
+def completion.kind(k: Outline.ItemKind) -> U32:
+  match k:
+    case Outline.IImport{}:
+      9
+    case Outline.IDef{}:
+      3
+    case Outline.ILaw{}:
+      21
+    case Outline.IType{}:
+      22
+    case Outline.ICtor{}:
+      20
+
+def first_line(s: String) -> String:
+  Maybe.default(&2, String, List.head(&2, String, String.lines(s)), "")
+
+# a candidate replaces everything typed of the name, dots included: the
+# editor's own idea of a word stops at a dot
+def completion(item: Outline.Item, +line: U32, start: U32, col: U32) -> J.Json:
+  Outline.Item{k, +name, l, sig, doc, path} = item
+  J.obj([("label", J.JStr{name}), ("kind", J.num(completion.kind(k))), ("detail", J.JStr{first_line(sig)}),
+    ("documentation", J.obj([("kind", J.JStr{"markdown"}), ("value", J.JStr{doc})])),
+    ("filterText", J.JStr{name}),
+    ("textEdit", J.obj([("range", J.obj([("start", position(line, start)), ("end", position(line, col))])),
+      ("newText", J.JStr{name})]))])
+
+def completions.go(items: List<&2, Outline.Item>, +line: U32, +start: U32, +col: U32) -> List<&2, J.Json>:
+  match items:
+    case Nil{}:
+      Nil{}
+    case Con{item, t}:
+      completion(item, line, start, col) <> completions.go(t, line, start, col)
+
+# isIncomplete: the server filtered by the prefix, so the editor asks again
+# as the prefix grows
+def completions(items: List<&2, Outline.Item>, line: U32, start: U32, col: U32) -> J.Json:
+  J.obj([("isIncomplete", J.JBool{True{}}), ("items", J.arr(completions.go(items, line, start, col)))])
 
 # a file URI's path: the scheme dropped, the %XX bytes decoded as UTF-8
 def unpercent(cs: List<&2, Char>) -> List<&2, U32>:

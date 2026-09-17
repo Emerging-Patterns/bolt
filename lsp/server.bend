@@ -14,6 +14,7 @@ import ./checker/service.bend as C
 import ./files/service.bend as F
 import ./report.bend as Rep
 import ../syntax/outline.bend as Outline
+import ../syntax/word.bend as Word
 
 type Method is Data:
   MInitialize{}
@@ -26,6 +27,7 @@ type Method is Data:
   MHover{}
   MDefinition{}
   MSymbols{}
+  MCompletion{}
   MOther{}
 
 # what one message leads to: the bodies to send, whether to stop, the documents
@@ -42,7 +44,8 @@ def method(+name: String) -> Method:
               Bool.pick(Method, String.eq(name, "textDocument/didClose"), MClose{},
                 Bool.pick(Method, String.eq(name, "textDocument/hover"), MHover{},
                   Bool.pick(Method, String.eq(name, "textDocument/definition"), MDefinition{},
-                    Bool.pick(Method, String.eq(name, "textDocument/documentSymbol"), MSymbols{}, MOther{}))))))))))
+                    Bool.pick(Method, String.eq(name, "textDocument/documentSymbol"), MSymbols{},
+                      Bool.pick(Method, String.eq(name, "textDocument/completion"), MCompletion{}, MOther{})))))))))))
 
 def uri_of(params: J.Json) -> String:
   J.str_or(J.get(J.get(params, "textDocument"), "uri"), "")
@@ -83,6 +86,19 @@ def definition.of(m: Maybe<&2, Nav.Found>) -> J.Json:
     case Some{Nav.Found{uri, item}}:
       Proto.location(uri, item)
 
+def complete.with(~fs: F.Files, +prefix: String, +docs: List<&2, Docs.Doc>, uri: String, line: U32, +col: U32,
+  id: J.Json) -> IO(Out):
+  do IO<Out>:
+    items : List<&2, Outline.Item> <- Nav.candidates(~fs, docs, uri, prefix)
+    return Out{reply(id, Proto.completions(items, line, (col - U32.from_nat(String.length(prefix)) : U32), col)),
+      False{}, docs}
+
+# the candidates for the name being typed at a position
+def complete(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, +line: U32, +col: U32, id: J.Json) -> IO(Out):
+  do IO<Out>:
+    text : String <- Nav.text_of(~fs, docs, uri)
+    complete.with(~fs, Word.before(text, line, col), docs, uri, line, col, id)
+
 def handle.go(~ck: C.Checker, ~fs: F.Files, m: Method, id: J.Json, +params: J.Json, +docs: List<&2, Docs.Doc>) ->
   IO(Out):
   match m:
@@ -114,6 +130,8 @@ def handle.go(~ck: C.Checker, ~fs: F.Files, m: Method, id: J.Json, +params: J.Js
       do IO<Out>:
         items : List<&2, Outline.Item> <- Nav.outline(~fs, docs, uri_of(params))
         return Out{reply(id, Proto.symbols(items)), False{}, docs}
+    case MCompletion{}:
+      complete(~fs, docs, uri_of(params), line_of(params), col_of(params), id)
     case MOther{}:
       IO.pure(Out, Out{unknown(id), False{}, docs})
 

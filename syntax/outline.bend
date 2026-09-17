@@ -264,3 +264,37 @@ def import_path(items: List<&2, Item>, +alias: String) -> Maybe<&2, String>:
     case Con{Item{k, nm, l, s, d, p}, t}:
       Bool.pick(Maybe<&2, String>, Bool.and(is_import(k), String.eq(nm, alias)),
         Some{p}, import_path(t, alias))
+
+def has(names: List<&2, String>, +name: String) -> Bool:
+  match names:
+    case Nil{}:
+      False{}
+    case Con{h, t}:
+      Bool.or(String.eq(h, name), has(t, name))
+
+def starting.go(items: List<&2, Item>, +prefix: String, +qual: String, +seen: List<&2, String>) -> List<&2, Item>:
+  match items:
+    case Nil{}:
+      Nil{}
+    case Con{Item{+k, +nm, l, s, d, p}, t}:
+      +take = Bool.and(Bool.and(Bool.not(is_import(k)), String.starts_with(nm, prefix)), Bool.not(has(seen, nm)))
+      # one recursive call: Bool.pick evaluates both of its branches
+      +rest = starting.go(t, prefix, qual, Bool.pick(List<&2, String>, take, nm <> seen, seen))
+      Bool.pick(List<&2, Item>, take, Item{k, qual ++ nm, l, s, d, p} <> rest, rest)
+
+# the named items whose name starts with prefix, each renamed qual ++ name (the
+# text to insert). A law and the def that fills it share a name: the first
+# stands for both.
+def starting(items: List<&2, Item>, prefix: String, qual: String) -> List<&2, Item>:
+  starting.go(items, prefix, qual, [])
+
+# the import aliases that start with prefix (`import Base` has none)
+def aliases(items: List<&2, Item>, +prefix: String) -> List<&2, Item>:
+  match items:
+    case Nil{}:
+      Nil{}
+    case Con{Item{+k, +nm, l, s, d, +p}, t}:
+      +rest = aliases(t, prefix)
+      Bool.pick(List<&2, Item>,
+        Bool.and(Bool.and(is_import(k), String.starts_with(nm, prefix)), Bool.not(String.eq(nm, p))),
+        Item{k, nm, l, s, d, p} <> rest, rest)

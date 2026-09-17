@@ -1,7 +1,7 @@
 # lsp
 
 A language server for Bend, written in Bend: the real checker's errors on open
-and save, and hover, go-to-definition and document symbols as you type.
+and save, and hover, go-to-definition, document symbols and completion as you type.
 
 ```
 bend lsp/main.bend -o bin/bend-lsp     # from the repo root; clang 14 is enough
@@ -45,6 +45,11 @@ so navigation works in files that do not check, and sees unsaved edits.
 - The checker reads the file and its imports from disk, so diagnostics follow
   open and save, not unsaved edits.
 
-Not yet: parameters and locals (hover knows top-level names: defs, laws, types,
-constructors), completion, exact ranges (an item is its line), percent-encoded
+Completion offers what could finish the name being typed: `Alias.pre` from the
+file behind the alias; anything else from the document, its aliases and (once
+a char is typed) Base. The server filters by prefix and each candidate replaces
+the whole typed name, dots included, as the editor's own word stops at a dot.
+
+Not yet: parameters and locals (the server knows top-level names: defs, laws,
+types, constructors), exact ranges (an item is its line), percent-encoded
 URIs when matching open documents.
