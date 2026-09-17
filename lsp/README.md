@@ -38,6 +38,8 @@ so navigation works in files that do not check, and sees unsaved edits.
   must not execute the file being edited; `tests/checker.bend` holds that.
 - The report is text for people: `tests/report.bend` pins bend 2.0.3's format
   and fails when an update changes it.
+- A `LAWS.bend` alone always has open laws, since `PROOF.bend` beside it fills
+  them: its TODOs are reported only while that `PROOF.bend` does not check clean.
 - One error per run, a line and no columns: a diagnostic covers its line. An
   error inside an import lands on line 0, naming where it is.
 - The checker reads the file and its imports from disk, so diagnostics follow
