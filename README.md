@@ -10,6 +10,9 @@ a directory; projects import each other by relative path
 | [json](json/) | a JSON parser, printer and path accessors |
 | [lsp](lsp/) | a language server for Bend: the checker's errors in your editor |
 
+[editors/vscode](editors/vscode/) is the VS Code client for the language server;
+`./build.sh` builds `bin/bend-lsp` and links it into `~/.local/bin`.
+
 ## The gate
 
 ```

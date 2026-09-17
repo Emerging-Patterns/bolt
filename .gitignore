@@ -3,3 +3,4 @@
 result
 bin/
 node_modules/
+*.vsix

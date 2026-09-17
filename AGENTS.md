@@ -6,6 +6,8 @@ Read `bend guide` before writing Bend. Then this.
 
     gate.sh            the gate; green before every commit
     flake.nix          bend-cc: clang 19 for native and GPU builds
+    build.sh           the binaries people run: bin/bend-lsp -> ~/.local/bin
+    editors/vscode/    the VS Code client (not Bend; never publish it unasked)
     <project>/         one dir per project
       LAWS.bend        the claims: human-owned, do not edit to make a proof pass
       PROOF.bend       the proofs; `bend PROOF.bend` prints "All terms check."
