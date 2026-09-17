@@ -57,6 +57,8 @@ Design specs and plans are not kept in this repo; they live under
 - The argument that shrinks must be the first live (non-template) one:
   `send_all(replies, h)` passes, `send_all(h, replies)` does not.
 - `Kind` is a keyword: no type of that name.
+- Binders and defs share a namespace per module: a def named `other` or `run`
+  breaks every `case other:` and every `W{.., run, ..} = st` in the file.
 - `bend x.bend` runs main after checking. To check only, `bend x.bend -o t.js`.
 - A foreign effect `def a.b(..) -> IO(T)` with `import "./x.c"` and
   `import "./x.js"` bodies is `a_b_run` + `io_eff(CID_A_B, ..)` in C and

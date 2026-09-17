@@ -8,6 +8,7 @@ a directory; projects import each other by relative path
 |---------|------|
 | [wire](wire/) | dependency injection by templates: services, containers, laws; runs on the GPU |
 | [json](json/) | a JSON parser, printer and path accessors |
+| [syntax](syntax/) | a tolerant outline of a Bend source, and the name under a position |
 | [lsp](lsp/) | a language server for Bend: the checker's errors in your editor |
 
 [editors/vscode](editors/vscode/) is the VS Code client for the language server;

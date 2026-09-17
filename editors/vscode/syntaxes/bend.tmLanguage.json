@@ -90,7 +90,7 @@
           "name": "support.type.bend"
         },
         "2": {
-          "name": "support.constant.bend"
+          "name": "variable.other.enummember.bend constant.other.enum.bend"
         }
       }
     },
