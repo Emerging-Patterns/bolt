@@ -11,7 +11,7 @@ import ../lsp/files/disk.bend as Disk
 def lint.text(+path: String, r: Maybe<&2, String>) -> List<&2, F.Finding>:
   match r:
     case None{}:
-      [F.Finding{path, 0, 0, "read", "cannot read this file"}]
+      [F.Finding{path, 0, 0, 0, "read", "cannot read this file"}]
     case Some{text}:
       Rules.all(path, text)
 
@@ -20,10 +20,10 @@ def kept(fs: List<&2, F.Finding>, +skip: List<&2, String>) -> List<&2, F.Finding
   match fs:
     case Nil{}:
       Nil{}
-    case Con{F.Finding{path, line, col, +rule, msg}, rest}:
+    case Con{F.Finding{path, line, col, len, +rule, msg}, rest}:
       +more = kept(rest, skip)
       Bool.pick(List<&2, F.Finding>, List.contains(~String, ~String.eq, skip, rule), more,
-        F.Finding{path, line, col, rule, msg} <> more)
+        F.Finding{path, line, col, len, rule, msg} <> more)
 
 # a file's findings
 def lint(~fs: Files.Files, +path: String, skip: List<&2, String>) -> IO(List<&2, F.Finding>):

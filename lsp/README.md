@@ -42,8 +42,13 @@ so navigation works in files that do not check, and sees unsaved edits.
   them: its TODOs are reported only while that `PROOF.bend` does not check clean.
 - One error per run, a line and no columns: a diagnostic covers its line. An
   error inside an import lands on line 0, naming where it is.
-- The checker reads the file and its imports from disk, so diagnostics follow
+- The checker reads the file and its imports from disk, so its errors follow
   open and save, not unsaved edits.
+
+[lint](../lint/)'s findings ride along as warnings (severity 2, source
+`bend-lint`, the rule as the code). The linter is pure, so it runs on the
+text the editor shows: warnings follow every edit, and each publish carries
+the checker's last errors with the linter's current warnings.
 
 Completion offers what could finish the name being typed: `Alias.pre` from the
 file behind the alias; anything else from the document, its aliases and (once

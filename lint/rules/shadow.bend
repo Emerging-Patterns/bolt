@@ -35,7 +35,8 @@ def check.go(binds: List<&2, Bind.Bind>, +all: List<&2, Bind.Bind>, +path: Strin
       +more = check.go(rest, all, path)
       Bool.pick(List<&2, F.Finding>,
         Bool.and(binds_as_term(kind), declared_above(all, name, line)),
-        F.Finding{path, line, col, "shadow", name ++ " is a def above; imported, this binder would read as it"} <> more,
+        F.Finding{path, line, col, U32.from_nat(String.length(name)), "shadow",
+          name ++ " is a def above; imported, this binder would read as it"} <> more,
         more)
 
 def check.on(b: Bind.Bound, path: String) -> List<&2, F.Finding>:

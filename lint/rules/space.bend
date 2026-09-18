@@ -40,7 +40,7 @@ def width_of(k: Lex.TokKind, +t: String) -> U32:
 
 # a finding when the width is over 120
 def too_wide(+width: U32, +path: String, +n: U32, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
-  Bool.pick(List<&2, F.Finding>, U32.is_gt(width, 120), F.Finding{path, n, 120, "space", "over 120 characters wide"} <> more, more)
+  Bool.pick(List<&2, F.Finding>, U32.is_gt(width, 120), F.Finding{path, n, 120, 0, "space", "over 120 characters wide"} <> more, more)
 
 # one pass over the tokens: a newline closes a line's width
 def widths(toks: List<&2, Lex.Tok>, +path: String, +n: U32, +acc: U32) -> List<&2, F.Finding>:
@@ -54,8 +54,8 @@ def widths(toks: List<&2, Lex.Tok>, +path: String, +n: U32, +acc: U32) -> List<&
 
 def check.line(+path: String, +n: U32, +cs: List<&2, Char>, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
   +len = U32.from_nat(List.length(&2, Char, cs))
-  Bool.pick(List<&2, F.Finding>, trailing(cs), F.Finding{path, n, (len - 1 : U32), "space", "trailing whitespace"} <> more,
-    Bool.pick(List<&2, F.Finding>, has_tab(cs), F.Finding{path, n, 0, "space", "a tab; indent with spaces"} <> more, more))
+  Bool.pick(List<&2, F.Finding>, trailing(cs), F.Finding{path, n, (len - 1 : U32), 1, "space", "trailing whitespace"} <> more,
+    Bool.pick(List<&2, F.Finding>, has_tab(cs), F.Finding{path, n, 0, 1, "space", "a tab; indent with spaces"} <> more, more))
 
 def check.go(lines: List<&2, String>, +path: String, +n: U32) -> List<&2, F.Finding>:
   match lines:

@@ -42,6 +42,11 @@ A native Bend binary rejects arguments it does not know, so `lint/bend-lint`
 is a script: it puts the file list in `BEND_LINT_FILES` (one path a line) and
 the skipped rules in `BEND_LINT_SKIP`, then runs `bin/bend-lint.bin`.
 
+## In the editor
+
+[lsp](../lsp/) runs every rule on each edit and publishes the findings as
+warnings, so they show in VS Code as you type.
+
 ## In the gate
 
 `./gate.sh` ends by linting the whole repo with every rule and must see

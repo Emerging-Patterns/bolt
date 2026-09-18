@@ -10,6 +10,8 @@ import ./proto.bend as Proto
 import ./docs.bend as Docs
 import ./nav.bend as Nav
 import ./semantic.bend as Semantic
+import ../lint/rules.bend as Lint
+import ../lint/finding.bend as Finding
 import ./transport/service.bend as T
 import ./checker/service.bend as C
 import ./files/service.bend as F
@@ -81,11 +83,20 @@ def unknown(id: J.Json) -> List<&2, String>:
     case other:
       [Print.print(Proto.failure(other, "-32601", "method not found"))]
 
-# diagnostics for a document, from the checker
-def checked(+uri: String, ck: C.Checker, docs: List<&2, Docs.Doc>) -> IO(Out):
+# the linter's warnings on the text the editor shows
+def linted(+uri: String, +docs: List<&2, Docs.Doc>) -> List<&2, Finding.Finding>:
+  Lint.all(Proto.path(uri), Maybe.default(&2, String, Docs.get(docs, uri), ""))
+
+# the checker's errors and the linter's warnings published for a document
+def published(+uri: String, +docs: List<&2, Docs.Doc>) -> Out:
+  Out{[Print.print(Proto.publish(uri, Docs.errors(docs, uri), linted(uri, docs)))], False{}, docs}
+
+# diagnostics for a document, the checker run (on the file on disk) and the
+# linter (on the text)
+def checked(+uri: String, ck: C.Checker, +docs: List<&2, Docs.Doc>) -> IO(Out):
   do IO<Out>:
     ds : List<&2, Rep.Diag> <- C.check(ck, Proto.path(uri))
-    return Out{[Print.print(Proto.publish(uri, ds))], False{}, docs}
+    return published(uri, Docs.set_errors(docs, uri, ds))
 
 def hover.of(m: Maybe<&2, Nav.Found>) -> J.Json:
   match m:
@@ -165,12 +176,12 @@ def handle.go(~ck: C.Checker, ~fs: F.Files, m: Method, id: J.Json, +params: J.Js
       checked(uri_of(params), ck,
         Docs.set(docs, uri_of(params), J.str_or(J.get(J.get(params, "textDocument"), "text"), "")))
     case MChange{}:
-      IO.pure(Out, Out{[], False{},
-        Docs.set(docs, uri_of(params), J.str_or(J.get(J.first(J.get(params, "contentChanges")), "text"), ""))})
+      IO.pure(Out, published(uri_of(params),
+        Docs.set(docs, uri_of(params), J.str_or(J.get(J.first(J.get(params, "contentChanges")), "text"), ""))))
     case MSave{}:
       checked(uri_of(params), ck, docs)
     case MClose{}:
-      IO.pure(Out, Out{[Print.print(Proto.publish(uri_of(params), []))], False{}, Docs.del(docs, uri_of(params))})
+      IO.pure(Out, Out{[Print.print(Proto.publish(uri_of(params), [], []))], False{}, Docs.del(docs, uri_of(params))})
     case MHover{}:
       do IO<Out>:
         f : Maybe<&2, Nav.Found> <- Nav.at(~fs, docs, uri_of(params), line_of(params), col_of(params))

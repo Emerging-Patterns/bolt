@@ -57,7 +57,7 @@ def check.go(binds: List<&2, Bind.Bind>, +uses: List<&2, Bind.Use>, +fl: List<&2
       +more = check.go(rest, uses, fl, path)
       +hit = Bool.and(reportable(kind, note, line, fl), Bool.not(String.starts_with(name, "_")))
       Bool.pick(List<&2, F.Finding>, Bool.and(hit, Bool.not(used(uses, line, col))),
-        F.Finding{path, line, col, "unused", what(kind) ++ " " ++ name ++ " is never used"} <> more, more)
+        F.Finding{path, line, col, U32.from_nat(String.length(name)), "unused", what(kind) ++ " " ++ name ++ " is never used"} <> more, more)
 
 def check.on(b: Bind.Bound, fl: List<&2, U32>, path: String) -> List<&2, F.Finding>:
   Bind.Bound{binds, uses, scopes} = b

@@ -9,7 +9,7 @@ def check.go(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
     case Con{Lex.Tok{Lex.TOp{}, +q, l, c}, Con{Lex.Tok{Lex.TUpper{}, +t, l2, c2}, rest}}:
       +more = check.go(rest, path)
       Bool.pick(List<&2, F.Finding>, Bool.and(String.eq(q, "?"), String.eq(t, "TODO")),
-        F.Finding{path, l, c, "hole", "a ?TODO is left here"} <> more, more)
+        F.Finding{path, l, c, 5, "hole", "a ?TODO is left here"} <> more, more)
     case Con{h, rest}:
       check.go(rest, path)
     case Nil{}:

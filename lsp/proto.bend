@@ -7,6 +7,7 @@ import ./report.bend as Rep
 import ../syntax/outline.bend as Outline
 import ../syntax/bind.bend as Bind
 import ./semantic.bend as Semantic
+import ../lint/finding.bend as Lint
 
 # strings as JSON strings
 def strings(ss: List<&2, String>) -> List<&2, J.Json>:
@@ -66,10 +67,30 @@ def diagnostics(ds: List<&2, Rep.Diag>) -> List<&2, J.Json>:
     case Con{d, t}:
       diagnostic(d) <> diagnostics(t)
 
-# the publishDiagnostics notification for a document
-def publish(uri: String, ds: List<&2, Rep.Diag>) -> J.Json:
+# a finding's range: its name, or from its column to the end of the line
+def finding_range(+line: U32, +col: U32, +len: U32) -> J.Json:
+  J.obj([("start", position(line, col)),
+    ("end", Bool.pick(J.Json, U32.is_eq(len, 0), position((line + 1 : U32), 0), position(line, (col + len : U32))))])
+
+# a lint finding as a warning, its rule as the code
+def warning(f: Lint.Finding) -> J.Json:
+  Lint.Finding{path, line, col, len, rule, msg} = f
+  J.obj([("range", finding_range(line, col, len)), ("severity", J.num(2)), ("code", J.JStr{rule}),
+    ("source", J.JStr{"bend-lint"}), ("message", J.JStr{msg})])
+
+# findings as JSON
+def warnings(fs: List<&2, Lint.Finding>) -> List<&2, J.Json>:
+  match fs:
+    case Nil{}:
+      Nil{}
+    case Con{f, t}:
+      warning(f) <> warnings(t)
+
+# the publishDiagnostics notification for a document: the checker's errors,
+# then the linter's warnings
+def publish(uri: String, ds: List<&2, Rep.Diag>, fs: List<&2, Lint.Finding>) -> J.Json:
   notify("textDocument/publishDiagnostics",
-    J.obj([("uri", J.JStr{uri}), ("diagnostics", J.arr(diagnostics(ds)))]))
+    J.obj([("uri", J.JStr{uri}), ("diagnostics", J.arr(List.append(&2, J.Json, diagnostics(ds), warnings(fs))))]))
 
 # a whole line as a range
 def line_range(+line: U32) -> J.Json:
