@@ -1,12 +1,14 @@
-# Bend for VS Code
+# bolt for VS Code
 
-Syntax highlighting for `.bend`, and through `bolt lsp` (`bolt/lsp/` in this
-repo): the checker's errors on open and save, bolt's findings as you type at
-the levels the project's `bolt.bend` sets, hover, definition, completion,
-references, rename and semantic tokens.
+Bend 2 in VS Code: syntax highlighting for `.bend`, and through `bolt lsp`
+(`bolt/lsp/` in this repo) the checker's errors on open and save, bolt's
+findings as you type at the levels the project's `bolt.bend` sets, hover,
+definition, completion, references, rename and semantic tokens.
+
+Install `bolt` first (repo root: `./build.sh`, which links
+`~/.local/bin/bolt`), then the extension from a VSIX:
 
 ```
-./build.sh                                   # repo root: builds bin/bolt.bin, links ~/.local/bin/bolt
 cd editors/vscode && npm install && npx --yes @vscode/vsce package
 code --install-extension bolt-0.3.0.vsix       # or: Extensions > ... > Install from VSIX
 ```

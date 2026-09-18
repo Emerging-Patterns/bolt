@@ -1,9 +1,11 @@
 # bolt
 
-A linter for Bend, written in Bend, over the `syntax/` tree and binder. It
-enforces what the checker does not: comments, unused names, the binder-vs-def
-trap, leftover holes, whitespace, double recursion under `Bool.pick`, and
-laws that reach every pure def.
+The linter, written in Bend over the `syntax/` tree and binder, and the one
+binary (`main.bend`) that is also `bolt check` and `bolt lsp` ([lsp/](lsp/)).
+It enforces what the checker does not: comments, unused names, the
+binder-vs-def trap, leftover holes, whitespace, double recursion under
+`Bool.pick`, and laws that reach every pure def. Install: `./build.sh` at
+the repo root (README.md there).
 
     bolt                every .bend file under the current directory
     bolt a.bend b/      the files given

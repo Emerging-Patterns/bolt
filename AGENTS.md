@@ -1,13 +1,15 @@
 # AGENTS
 
-Read `bend guide` before writing Bend. Then this.
+This is bolt: a linter, checker and language server for Bend 2, and its VS
+Code extension, written in Bend (README.md). Read `bend guide` before
+writing Bend. Then this.
 
 ## Layout
 
     gate.sh            the gate; green before every commit
     flake.nix          bend-cc: clang 19 for native (and GPU) builds; `nix flake check` proves the C toolchain
     build.sh           the one binary people run: bolt (lint, check, lsp) -> ~/.local/bin
-    editors/vscode/    the VS Code client (not Bend; never publish it unasked)
+    editors/vscode/    the VS Code extension (not Bend; never publish it to the marketplace unasked)
     <project>/         one dir per project
       LAWS.bend        the claims: human-owned, do not edit to make a proof pass
       PROOF.bend       the proofs; `bend PROOF.bend` prints "All terms check."
@@ -16,7 +18,7 @@ Read `bend guide` before writing Bend. Then this.
       README.md
 
 Design specs and plans are not kept in this repo; they live under
-`~/.superpowers/projects/bend/`.
+`~/.superpowers/projects/bolt/`.
 
 ## Conventions
 
