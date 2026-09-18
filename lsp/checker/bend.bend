@@ -32,6 +32,8 @@ def settle(open: Bool, +ds: List<&2, Rep.Diag>, path: String) -> IO(List<&2, Rep
         text : String <- bendcheck.exec(proof_path(path))
         return Bool.pick(List<&2, Rep.Diag>, List.is_empty(&2, Rep.Diag, Rep.parse(text)), [], ds)
 
+# the diagnostics of a run, settled when they are only the open laws of a
+# LAWS.bend
 def checked(+ds: List<&2, Rep.Diag>, +path: String) -> IO(List<&2, Rep.Diag>):
   settle(Bool.and(only_todos(ds), String.ends_with(path, "/LAWS.bend")), ds, path)
 
@@ -44,5 +46,6 @@ def check.at(+path: String) -> IO(List<&2, Rep.Diag>):
 def check(path: String) -> IO(List<&2, Rep.Diag>):
   check.at(path)
 
+# the real checker
 def new() -> S.Checker:
   S.Checker{check}

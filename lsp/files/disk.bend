@@ -30,6 +30,7 @@ def slurp.next(got: File & Result<&1, &1, U32 & String, List<&2, U32>>, acc: Lis
   (file, r) = got
   slurp.more(r, file, acc, rest)
 
+# the whole file, read in chunks until one is empty, or the fuel is
 def slurp(fuel: Nat, file: File, acc: List<&2, U32>) -> IO(Maybe<&2, String>):
   match fuel:
     case 0n:
@@ -46,6 +47,7 @@ def read.opened(r: Result<&1, &1, U32 & String, File>) -> IO(Maybe<&2, String>):
     case Done{file}:
       slurp(U32.to_nat(100000), file, [])
 
+# a file's text, or None when it cannot be opened
 def read(path: String) -> IO(Maybe<&2, String>):
   do IO<Maybe<&2, String>>:
     r : Result<&1, &1, U32 & String, File> <- File.open(path, "r")
@@ -59,10 +61,11 @@ def base_path.of(r: Result<&1, &1, U32 & String, String>) -> IO(String):
       IO.pure(String, home ++ "/.bend/current/bend2/base.bend")
 
 # Base, where bend's installer puts it
-def base_path(u: Unit) -> IO(String):
+def base_path(_u: Unit) -> IO(String):
   do IO<String>:
     r : Result<&1, &1, U32 & String, String> <- IO.get_env("HOME")
     base_path.of(r)
 
+# the real file system
 def new() -> S.Files:
   S.Files{read, base_path}

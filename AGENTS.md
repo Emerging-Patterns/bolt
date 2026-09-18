@@ -6,7 +6,7 @@ Read `bend guide` before writing Bend. Then this.
 
     gate.sh            the gate; green before every commit
     flake.nix          bend-cc: clang 19 for native and GPU builds
-    build.sh           the binaries people run: bin/bend-lsp -> ~/.local/bin
+    build.sh           the binaries people run: bend-lsp, bend-lint -> ~/.local/bin
     editors/vscode/    the VS Code client (not Bend; never publish it unasked)
     <project>/         one dir per project
       LAWS.bend        the claims: human-owned, do not edit to make a proof pass
@@ -22,6 +22,10 @@ Design specs and plans are not kept in this repo; they live under
 
 - New code comes test-first: write `tests/x.bend` with its `#|` trailer, watch
   the gate fail, then implement.
+- `bend-lint` (lint/README.md) runs at the end of the gate: keep it clean.
+  Every top-level def, type and law gets a comment right above it (helpers
+  named `x.go` ride on x's); a parameter that is there to be ignored starts
+  with `_`; no let or pattern binder may share a name with a def above it.
 - Dependencies are injected the `wire` way (see wire/README.md): a service is
   a folder, `x/service.bend` plus one file per implementation exporting
   `new()`. Tests use `wire/check/kit.bend`.
@@ -58,10 +62,24 @@ Design specs and plans are not kept in this repo; they live under
   `send_all(replies, h)` passes, `send_all(h, replies)` does not.
 - `Bool.pick` evaluates both branches: never put a different recursive call in
   each (that is exponential). Bind the one recursive call with `+rest = ..`
-  and pick between values built from it.
+  and pick between values built from it. The same goes for any expensive
+  expression in a branch: a scan of the whole token list inside a per-token
+  pick runs for every token (bind's notes were 20 s that way, 20 ms as one
+  pass).
+- A destructure or a `match` needs a variable, never a call:
+  `Out{a, b} = f(x)` is "a match cannot scrutinize a computed value"; bind the
+  call first, or take it apart in a helper that receives it as a parameter.
+- `+x` on a pattern variable that a later row refines can fail with "an
+  annotated term (cannot infer)": alias it, `+r = {rest : Tree.Node}`, and
+  use `r`. A record literal in a `+` let may need the same: `{R{..} : R}`.
+- Only a do-block has typed lets (`x : T = v`); elsewhere annotate with
+  braces, `{v : T}`. A typed do-bind may be reusable: `+n : U32 <- m`.
 - `Kind` is a keyword: no type of that name.
-- Binders and defs share a namespace per module: a def named `other` or `run`
-  breaks every `case other:` and every `W{.., run, ..} = st` in the file.
+- Binders and defs share a namespace per *imported* module: a let or a pattern
+  binder named like a def defined above it in the file parses as a reference
+  to the def once the file is imported ("a pattern (a binder or a
+  constructor)"), though the same file runs fine as a main. Parameters and
+  `for` names are safe. `bend-lint`'s `shadow` rule catches it.
 - `bend x.bend` runs main after checking. To check only, `bend x.bend -o t.js`.
 - A foreign effect `def a.b(..) -> IO(T)` with `import "./x.c"` and
   `import "./x.js"` bodies is `a_b_run` + `io_eff(CID_A_B, ..)` in C and
@@ -70,8 +88,10 @@ Design specs and plans are not kept in this repo; they live under
   and no path opens a socket: wrap descriptors 0 and 1 (lsp/transport/fd.c),
   never `File.open("/dev/stdin")`. Test a server spawned from node
   (lsp/tests/spawn.js), not only through pipes.
-- A native Bend binary exits on an option it does not know: a launcher must
-  not add flags (vscode-languageclient's `transport: stdio` adds `--stdio`).
+- A native Bend binary exits on an option it does not know, and takes no
+  positional arguments at all: a launcher must not add flags
+  (vscode-languageclient's `transport: stdio` adds `--stdio`), and a CLI
+  takes its arguments through the environment (lint/bend-lint).
 - A pair `A & B` is never `Data`: a list of pairs is `List<&1, A & B>`.
 - The JS lane overflows its stack on long strings (~65KB). Head such a test
   `# lanes: native`; anything long-running ships as the native binary.

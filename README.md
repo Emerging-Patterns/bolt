@@ -8,11 +8,13 @@ a directory; projects import each other by relative path
 |---------|------|
 | [wire](wire/) | dependency injection by templates: services, containers, laws; runs on the GPU |
 | [json](json/) | a JSON parser, printer and path accessors |
-| [syntax](syntax/) | a tolerant outline of a Bend source, and the name under a position |
-| [lsp](lsp/) | a language server for Bend: the checker's errors in your editor |
+| [syntax](syntax/) | a tolerant lexer, outline, syntax tree and binder for Bend sources |
+| [lsp](lsp/) | a language server for Bend: diagnostics, navigation, completion, rename, semantic tokens |
+| [lint](lint/) | `bend-lint`: comments, unused names, the binder-vs-def trap, holes, whitespace |
 
 [editors/vscode](editors/vscode/) is the VS Code client for the language server;
-`./build.sh` builds `bin/bend-lsp` and links it into `~/.local/bin`.
+`./build.sh` builds `bin/bend-lsp` and `bend-lint` and links them into
+`~/.local/bin`.
 
 ## The gate
 
@@ -24,7 +26,8 @@ a directory; projects import each other by relative path
 Every project keeps its laws in `LAWS.bend` and their proofs in `PROOF.bend`;
 the gate fails while any law is open. Every `tests/*.bend` ends in the `#|`
 lines its run must print, and must print them on each lane. A test with a `!`
-call also runs on the GPU (capped at 1GB).
+call also runs on the GPU (capped at 1GB). The gate ends by linting the repo
+with `bend-lint`, every rule on.
 
 ## Toolchain
 

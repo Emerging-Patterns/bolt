@@ -5,6 +5,7 @@ import Base
 import ./service.bend as S
 import ../frame.bend as Frame
 
+# the process's stdin and stdout, and the bytes read but not yet framed
 type Stdio is Type:
   Stdio{inp: File, out: File, buf: List<&2, U32>}
 
@@ -57,6 +58,7 @@ def send.done(w: File & Result<&1, &1, U32 & String, Unit>, inp: File, buf: List
   (out, r) = w
   IO.pure(Stdio, Stdio{inp, out, buf})
 
+# a body, framed and written
 def send(h: Stdio, body: String) -> IO(Stdio):
   Stdio{inp, out, buf} = h
   do IO<Stdio>:
@@ -69,11 +71,13 @@ def stdio.fd(n: U32) -> IO(File):
   import "./fd.c"
   import "./fd.js"
 
+# the process's descriptors 0 and 1, wrapped
 def open() -> IO(Stdio):
   do IO<Stdio>:
     inp : File <- stdio.fd(0)
     out : File <- stdio.fd(1)
     return Stdio{inp, out, []}
 
+# the transport over stdio
 def new() -> S.Transport<Stdio>:
   S.Transport{recv, send}

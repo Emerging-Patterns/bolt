@@ -3,9 +3,11 @@ import Base
 import ./service.bend as S
 import ../report.bend as Rep
 
+# one error on line 0 when the path contains `bad`, else none
 def check(path: String) -> IO(List<&2, Rep.Diag>):
   IO.pure(List<&2, Rep.Diag>, Bool.pick(List<&2, Rep.Diag>, String.contains(path, "bad"),
     [Rep.Diag{3, "expected : String\nobserved : U32"}], []))
 
+# the canned checker
 def new() -> S.Checker:
   S.Checker{check}

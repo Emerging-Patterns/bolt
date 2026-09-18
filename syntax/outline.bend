@@ -4,6 +4,8 @@
 # is the point: an editor asks about files that are half-written.
 import Base
 
+# what an item is; ILocal is not read from a source, it is how the server
+# offers a binder as a candidate
 type ItemKind is Data:
   IImport{}
   IDef{}
@@ -18,6 +20,7 @@ type ItemKind is Data:
 type Item is Data:
   Item{kind: ItemKind, name: String, line: U32, sig: String, doc: String, path: String}
 
+# what a line is, by its first chars
 type Cls is Data:
   LBlank{}
   LComment{text: String}
@@ -38,9 +41,11 @@ type Mode is Data:
 type St is Data:
   St{mode: Mode, n: U32, doc: List<&2, String>, out: List<&2, Item>}
 
+# only whitespace?
 def is_blank(s: String) -> Bool:
   List.all(~&2, ~Char, ~Char.is_space, String.to_list(s))
 
+# a line's class
 def classify(+s: String) -> Cls:
   Bool.pick(Cls, is_blank(s), LBlank{},
     Bool.pick(Cls, String.starts_with(s, "#"), LComment{s},
@@ -68,6 +73,7 @@ def name.go(cs: List<&2, Char>, acc: List<&2, Char>) -> List<&2, Char>:
     case Nil{}:
       acc
 
+# the name that starts a header: up to `(`, `<`, `:`, `{` or a space
 def name(s: String) -> String:
   String.from_list(List.reverse(&2, Char, name.go(String.to_list(s), [])))
 
@@ -78,9 +84,11 @@ def lstrip.go(cs: List<&2, Char>) -> List<&2, Char>:
     case other:
       other
 
+# leading spaces dropped
 def lstrip(s: String) -> String:
   String.from_list(lstrip.go(String.to_list(s)))
 
+# not ""?
 def nonempty(s: String) -> Bool:
   Bool.not(String.is_empty(s))
 
@@ -104,9 +112,11 @@ def undoc.all(doc: List<&2, String>, acc: List<&2, String>) -> List<&2, String>:
 def doc_text(doc: List<&2, String>) -> String:
   String.join(undoc.all(doc, []), "\n")
 
+# the pending header lines (reversed) as one text
 def sig_text(sig: List<&2, String>) -> String:
   String.join(List.reverse(&2, String, sig), "\n")
 
+# an item, when there is one, onto the items
 def add(m: Maybe<&2, Item>, out: List<&2, Item>) -> List<&2, Item>:
   match m:
     case None{}:
@@ -124,9 +134,11 @@ def import_item.of(ws: List<&2, String>, s: String, n: U32, doc: String) -> Mayb
     case other:
       None{}
 
+# an `import` line as an item: `import Base`, or `import <path> as <Alias>`
 def import_item(+s: String, n: U32, doc: String) -> Maybe<&2, Item>:
   import_item.of(words(s), s, n, doc)
 
+# the name of a `def` or `@unsafe def` line
 def def_name(+s: String) -> String:
   name(Bool.pick(String, String.starts_with(s, "@"), String.drop(s, 12n), String.drop(s, 4n)))
 
@@ -137,6 +149,7 @@ def starts_upper.of(cs: List<&2, Char>) -> Bool:
     case Nil{}:
       False{}
 
+# does the text start with a capital?
 def starts_upper(s: String) -> Bool:
   starts_upper.of(String.to_list(s))
 
@@ -145,9 +158,11 @@ def ctor.of(+t: String, n: U32) -> Maybe<&2, Item>:
   Bool.pick(Maybe<&2, Item>, Bool.and(starts_upper(t), String.contains(t, "{")),
     Some{Item{ICtor{}, name(t), n, t, "", ""}}, None{})
 
+# an indented line of a type block as a constructor item, when it is one
 def ctor(text: String, n: U32) -> Maybe<&2, Item>:
   ctor.of(lstrip(text), n)
 
+# a def?
 def is_def(k: ItemKind) -> Bool:
   match k:
     case IDef{}:
@@ -170,6 +185,8 @@ def pend_more(+k: ItemKind, +nm: String, +l: U32, +d: String, +sig: List<&2, Str
     St{Top{}, (n + 1 : U32), [], Item{k, nm, l, sig_text(text <> sig), d, ""} <> out},
     St{Pending{k, nm, l, d, text <> sig}, (n + 1 : U32), [], out})
 
+# an indented line: more of a pending header, a constructor of an open
+# type, or nothing
 def indent(mode: Mode, text: String, +n: U32, out: List<&2, Item>) -> St:
   match mode:
     case Pending{k, nm, l, d, sig}:
@@ -188,6 +205,7 @@ def stray(+mode: Mode, text: String, +n: U32, +out: List<&2, Item>) -> St:
     case m:
       St{Top{}, (n + 1 : U32), [], flush(m, out)}
 
+# a `def` line: an item at once when it ends in `:`, else a pending header
 def start_def(+s: String, +n: U32, +doc: String, +out: List<&2, Item>) -> St:
   Bool.pick(St, String.ends_with(s, ":"),
     St{Top{}, (n + 1 : U32), [], Item{IDef{}, def_name(s), n, s, doc, ""} <> out},
@@ -216,14 +234,17 @@ def step.go(cls: Cls, +mode: Mode, +s: String, +n: U32, doc: List<&2, String>, o
     case LLaw{}:
       St{Pending{ILaw{}, name(String.drop(s, 4n)), n, doc_text(doc), [s]}, (n + 1 : U32), [], flush(mode, out)}
     case LType{}:
-      St{InType{}, (n + 1 : U32), [], Item{IType{}, name(String.drop(s, 5n)), n, s, doc_text(doc), ""} <> flush(mode, out)}
+      St{InType{}, (n + 1 : U32), [],
+        Item{IType{}, name(String.drop(s, 5n)), n, s, doc_text(doc), ""} <> flush(mode, out)}
     case LOther{}:
       stray(mode, s, n, out)
 
+# one line, by its class
 def step(+s: String, st: St) -> St:
   St{mode, n, doc, out} = st
   step.go(classify(s), mode, s, n, doc, out)
 
+# every line, in order
 def run(lines: List<&2, String>, st: St) -> St:
   match lines:
     case Nil{}:
@@ -231,16 +252,19 @@ def run(lines: List<&2, String>, st: St) -> St:
     case Con{l, t}:
       run(t, step(l, st))
 
+# the items once the lines are over, a pending header flushed
 def finish(st: St) -> List<&2, Item>:
   St{mode, n, doc, out} = st
   List.reverse(&2, Item, flush(mode, out))
 
+# the top-level items of a source, in order
 def items(text: String) -> List<&2, Item>:
   finish(run(String.lines(text), St{Top{}, 0, [], []}))
 
 # lookups
 # -------
 
+# an import?
 def is_import(k: ItemKind) -> Bool:
   match k:
     case IImport{}:
@@ -266,6 +290,7 @@ def import_path(items: List<&2, Item>, +alias: String) -> Maybe<&2, String>:
       Bool.pick(Maybe<&2, String>, Bool.and(is_import(k), String.eq(nm, alias)),
         Some{p}, import_path(t, alias))
 
+# is the name among these?
 def has(names: List<&2, String>, +name: String) -> Bool:
   match names:
     case Nil{}:

@@ -1,0 +1,48 @@
+# rule doc: every top-level def, type and law has a comment block right above
+# it. Helpers (dotted names like `show.go`) ride on their parent's doc, `main`
+# needs none, PROOF.bend fills laws that LAWS.bend already documents, and a
+# test (under tests/) is documented by its header and its check names.
+import Base
+import ../finding.bend as F
+import ../../syntax/outline.bend as Outline
+
+# does an item of this kind need a comment?
+def needs(k: Outline.ItemKind) -> Bool:
+  match k:
+    case Outline.IDef{}:
+      True{}
+    case Outline.IType{}:
+      True{}
+    case Outline.ILaw{}:
+      True{}
+    case other:
+      False{}
+
+# `main`, and helpers named `x.go`
+def exempt(+name: String) -> Bool:
+  Bool.or(String.eq(name, "main"), String.contains(name, "."))
+
+# an item's kind, for the message
+def what(k: Outline.ItemKind) -> String:
+  match k:
+    case Outline.IType{}:
+      "type"
+    case Outline.ILaw{}:
+      "law"
+    case other:
+      "def"
+
+def check.go(items: List<&2, Outline.Item>, +path: String) -> List<&2, F.Finding>:
+  match items:
+    case Nil{}:
+      Nil{}
+    case Con{Outline.Item{+k, +name, +line, sig, +doc, p}, rest}:
+      +more = check.go(rest, path)
+      Bool.pick(List<&2, F.Finding>,
+        Bool.and(Bool.and(needs(k), Bool.not(exempt(name))), String.is_empty(doc)),
+        F.Finding{path, line, 0, "doc", what(k) ++ " " ++ name ++ " has no comment above it"} <> more, more)
+
+# the rule
+def check(+path: String, text: String) -> List<&2, F.Finding>:
+  Bool.pick(List<&2, F.Finding>, Bool.or(String.ends_with(path, "PROOF.bend"), String.contains(path, "/tests/")),
+    [], check.go(Outline.items(text), path))

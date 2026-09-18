@@ -19,7 +19,7 @@ def fake.at(+path: String) -> Maybe<&2, String>:
 def fake.read(path: String) -> IO(Maybe<&2, String>):
   IO.pure(Maybe<&2, String>, fake.at(path))
 
-def fake.base_path(u: Unit) -> IO(String):
+def fake.base_path(_u: Unit) -> IO(String):
   IO.pure(String, "/base.bend")
 
 def fake() -> F.Files:

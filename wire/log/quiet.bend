@@ -2,8 +2,10 @@
 import Base
 import ./service.bend as S
 
-def say(text: String) -> IO(Unit):
+# nothing
+def say(_text: String) -> IO(Unit):
   IO.pure(Unit, Unit{})
 
+# the log that drops everything
 def new() -> S.Log:
   S.Log{say}

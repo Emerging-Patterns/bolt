@@ -1,9 +1,11 @@
 # lsp/docs: the open documents, by URI: what the editor shows, saved or not.
 import Base
 
+# an open document: its URI and the text the editor shows
 type Doc is Data:
   Doc{uri: String, text: String}
 
+# the documents without the one at a URI
 def del(docs: List<&2, Doc>, +uri: String) -> List<&2, Doc>:
   match docs:
     case Nil{}:
@@ -12,9 +14,11 @@ def del(docs: List<&2, Doc>, +uri: String) -> List<&2, Doc>:
       +rest = del(r, uri)
       Bool.pick(List<&2, Doc>, String.eq(u, uri), rest, Doc{u, t} <> rest)
 
+# a document's text set (opened, or changed)
 def set(docs: List<&2, Doc>, +uri: String, text: String) -> List<&2, Doc>:
   Doc{uri, text} <> del(docs, uri)
 
+# the text of an open document, when it is open
 def get(docs: List<&2, Doc>, +uri: String) -> Maybe<&2, String>:
   match docs:
     case Nil{}:

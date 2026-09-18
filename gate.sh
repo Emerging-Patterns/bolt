@@ -2,7 +2,7 @@
 # The gate: every project's laws hold, and every test prints its `#|` lines on
 # each lane: JS, native CPU, and (when the test has a `!` call) the GPU.
 #   ./gate.sh            all lanes (native lanes run inside `nix develop`)
-#   ./gate.sh --js-only  skip the native lanes
+#   ./gate.sh --js-only  skip the native lanes (and the linter, a native binary)
 set -u
 cd "$(dirname "$0")"
 js_only=0; [ "${1:-}" = "--js-only" ] && js_only=1
@@ -52,6 +52,15 @@ if [ $js_only = 0 ] && command -v node >/dev/null; then
     check "lsp/tests/spawn.js" "ok" "$(node lsp/tests/spawn.js lsp/.gate/bend-lsp 2>&1)"
   else
     check "lsp/main.bend (build)" "" "$built"
+  fi
+fi
+# the linter over the repo itself, every rule
+if [ $js_only = 0 ]; then
+  mkdir -p bin
+  if built=$(bend lint/main.bend -o bin/bend-lint.bin 2>&1); then
+    check "lint (repo)" "clean" "$(lint/bend-lint 2>&1)"
+  else
+    check "lint/main.bend (build)" "" "$built"
   fi
 fi
 echo "PASS: $pass / $total"

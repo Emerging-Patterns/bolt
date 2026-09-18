@@ -6,10 +6,22 @@
 # A name is letters, digits, `_` and `.` (`List.map`, `M.go`). Operator chars
 # group into runs (`->`, `<-`, `=>`, `==`, `++`), except `:`, which always
 # stands alone: `List<U32>:` must not read `>:`.
+#
+# Kinds tell apart what binds from what does not, so a walk over the tokens
+# can branch by constructor: a keyword (TKey), a dotted name (TDotted: never
+# a binder), a capitalized one (TUpper: a constructor before `{`, a type, or
+# a binder), `_` (TWild), and the operators that bind: `:` `=` `<-` `->` `=>`
+# `@` `&`.
 import Base
 
+# the kinds; TName is a plain name (lowercase, undotted): what a pattern can
+# bind
 type TokKind is Data:
   TName{}
+  TUpper{}
+  TDotted{}
+  TWild{}
+  TKey{}
   TNum{}
   TStr{}
   TChar{}
@@ -17,6 +29,13 @@ type TokKind is Data:
   TSpace{}
   TNewline{}
   TOp{}
+  TColon{}
+  TEq{}
+  TBind{}
+  TArrow{}
+  TLam{}
+  TAll{}
+  TAmp{}
   TOpen{}
   TClose{}
   TComma{}
@@ -25,6 +44,7 @@ type TokKind is Data:
 type Tok is Data:
   Tok{kind: TokKind, text: String, line: U32, col: U32}
 
+# what a char is, for the machine
 type Class is Data:
   CAlpha{}
   CDigit{}
@@ -58,6 +78,7 @@ type Mode is Data:
 type St is Data:
   St{mode: Mode, kind: TokKind, line: U32, col: U32, sl: U32, sc: U32, buf: List<&2, Char>, toks: List<&2, Tok>}
 
+# a char's class
 def classify(+c: Char) -> Class:
   match c:
     case '.':
@@ -212,13 +233,57 @@ def begin.kind(cls: Class) -> TokKind:
     case other:
       TOp{}
 
+# the buffered chars as a string, in order
 def word(buf: List<&2, Char>) -> String:
   String.from_list(List.reverse(&2, Char, buf))
 
+# is the text one of Bend's keywords?
+def is_keyword(+t: String) -> Bool:
+  List.contains(~String, ~String.eq,
+    ["def", "type", "law", "match", "case", "do", "return", "for", "exs", "where", "is", "import",
+     "Type", "Data", "Kind", "Quant"], t)
+
+# does the text start with a capital?
+def upper_first(cs: List<&2, Char>) -> Bool:
+  match cs:
+    case Nil{}:
+      False{}
+    case Con{c, t}:
+      Char.is_upper(c)
+
+# a whole name's kind
+def refine_name(+t: String) -> TokKind:
+  Bool.pick(TokKind, is_keyword(t), TKey{},
+    Bool.pick(TokKind, String.contains(t, "."), TDotted{},
+      Bool.pick(TokKind, String.eq(t, "_"), TWild{},
+        Bool.pick(TokKind, upper_first(String.to_list(t)), TUpper{}, TName{}))))
+
+# a whole operator's kind
+def refine_op(+t: String) -> TokKind:
+  Bool.pick(TokKind, String.eq(t, ":"), TColon{},
+    Bool.pick(TokKind, String.eq(t, "="), TEq{},
+      Bool.pick(TokKind, String.eq(t, "<-"), TBind{},
+        Bool.pick(TokKind, String.eq(t, "->"), TArrow{},
+          Bool.pick(TokKind, String.eq(t, "=>"), TLam{},
+            Bool.pick(TokKind, Bool.or(String.eq(t, "@"), Bool.or(String.eq(t, "@+"), String.eq(t, "@-"))), TAll{},
+              Bool.pick(TokKind, String.eq(t, "&"), TAmp{}, TOp{})))))))
+
+# a name's or an operator's kind, once its text is whole
+def refine(kind: TokKind, t: String) -> TokKind:
+  match kind:
+    case TName{}:
+      refine_name(t)
+    case TOp{}:
+      refine_op(t)
+    case other:
+      other
+
 # the token so far joins the others
 def flush(kind: TokKind, sl: U32, sc: U32, +buf: List<&2, Char>, +toks: List<&2, Tok>) -> List<&2, Tok>:
-  Bool.pick(List<&2, Tok>, List.is_empty(&2, Char, buf), toks, Tok{kind, word(buf), sl, sc} <> toks)
+  +t = word(buf)
+  Bool.pick(List<&2, Tok>, List.is_empty(&2, Char, buf), toks, Tok{refine(kind, t), t, sl, sc} <> toks)
 
+# is the class a newline's?
 def is_newline(cls: Class) -> Bool:
   match cls:
     case CNewline{}:
@@ -226,6 +291,7 @@ def is_newline(cls: Class) -> Bool:
     case other:
       False{}
 
+# one char: it continues the current token, or starts a new one
 def step(+c: Char, st: St) -> St:
   St{+mode, +kind, +line, +col, +sl, +sc, +buf, +toks} = st
   +cls = classify(c)
@@ -236,6 +302,7 @@ def step(+c: Char, st: St) -> St:
     St{after(mode, cls), kind, line2, col2, sl, sc, c <> buf, toks},
     St{begin.mode(cls), begin.kind(cls), line2, col2, line, col, [c], flush(kind, sl, sc, buf, toks)})
 
+# every char, in order
 def run(cs: List<&2, Char>, st: St) -> St:
   match cs:
     case Nil{}:
@@ -243,10 +310,12 @@ def run(cs: List<&2, Char>, st: St) -> St:
     case Con{c, t}:
       run(t, step(c, st))
 
+# the tokens once the chars are over, the last one flushed
 def finish(st: St) -> List<&2, Tok>:
   St{mode, kind, line, col, sl, sc, buf, toks} = st
   List.reverse(&2, Tok, flush(kind, sl, sc, buf, toks))
 
+# a source as tokens
 def tokens(source: String) -> List<&2, Tok>:
   finish(run(String.to_list(source), St{Fresh{}, TSpace{}, 0, 0, 0, 0, [], []}))
 
@@ -258,8 +327,79 @@ def text.go(toks: List<&2, Tok>, acc: List<&2, String>) -> List<&2, String>:
     case Con{Tok{k, t, l, c}, rest}:
       text.go(rest, t <> acc)
 
+# the tokens' texts, back to back: the source
 def text(toks: List<&2, Tok>) -> String:
   String.concat(List.reverse(&2, String, text.go(toks, [])))
+
+# an opening bracket?
+def is_open(k: TokKind) -> Bool:
+  match k:
+    case TOpen{}:
+      True{}
+    case other:
+      False{}
+
+# a closing bracket?
+def is_close(k: TokKind) -> Bool:
+  match k:
+    case TClose{}:
+      True{}
+    case other:
+      False{}
+
+# a comma?
+def is_comma(k: TokKind) -> Bool:
+  match k:
+    case TComma{}:
+      True{}
+    case other:
+      False{}
+
+# any identifier: a name, a keyword, a dotted or a capitalized one, `_`
+def is_name(k: TokKind) -> Bool:
+  match k:
+    case TName{}:
+      True{}
+    case TUpper{}:
+      True{}
+    case TDotted{}:
+      True{}
+    case TWild{}:
+      True{}
+    case TKey{}:
+      True{}
+    case other:
+      False{}
+
+# an operator of any kind
+def is_op(k: TokKind) -> Bool:
+  match k:
+    case TOp{}:
+      True{}
+    case TColon{}:
+      True{}
+    case TEq{}:
+      True{}
+    case TBind{}:
+      True{}
+    case TArrow{}:
+      True{}
+    case TLam{}:
+      True{}
+    case TAll{}:
+      True{}
+    case TAmp{}:
+      True{}
+    case other:
+      False{}
+
+# a newline?
+def is_nl(k: TokKind) -> Bool:
+  match k:
+    case TNewline{}:
+      True{}
+    case other:
+      False{}
 
 # not space, a newline or a comment
 def significant(k: TokKind) -> Bool:

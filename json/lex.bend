@@ -2,6 +2,8 @@
 # over the char list, so it needs no fuel and runs as a loop.
 import Base
 
+# the tokens: brackets, `:`, `,`, a string (decoded), or a bare word
+# (a number, true, false, null)
 type Tok is Data:
   TOpenArr{}
   TCloseArr{}
@@ -13,6 +15,8 @@ type Tok is Data:
   TWord{raw: String}
   TBad{}
 
+# what a char is: punctuation (with its token), a quote, whitespace, or a
+# word char
 type Class is Data:
   CPunct{t: Tok}
   CQuote{}
@@ -20,6 +24,8 @@ type Class is Data:
   CSpace{}
   COther{}
 
+# what the machine is inside of: nothing, a bare word, a string, an escape
+# in a string, or a \\u escape with hex digits still owed
 type Mode is Data:
   Idle{}
   Word{}
@@ -31,6 +37,7 @@ type Mode is Data:
 type Lex is Data:
   Lex{mode: Mode, buf: List<&2, Char>, toks: List<&2, Tok>}
 
+# a char's class
 def classify(c: Char) -> Class:
   match c:
     case '[':
@@ -60,6 +67,7 @@ def classify(c: Char) -> Class:
     case _:
       COther{}
 
+# the buffered chars (reversed) as a string
 def text(buf: List<&2, Char>) -> String:
   String.from_list(List.reverse(&2, Char, buf))
 
@@ -79,11 +87,13 @@ def unescape(c: Char) -> Char:
     case other:
       other
 
+# a hex digit's value
 def hex(c: Char) -> U32:
   +x = Char.to_u32(c)
   Bool.pick(U32, U32.is_le(x, 57), (x - 48 : U32),
     Bool.pick(U32, U32.is_ge(x, 97), (x - 87 : U32), (x - 55 : U32)))
 
+# the char after a backslash in a string
 def escape(c: Char, buf: List<&2, Char>, toks: List<&2, Tok>) -> Lex:
   match c:
     case 'u':
@@ -91,6 +101,7 @@ def escape(c: Char, buf: List<&2, Char>, toks: List<&2, Tok>) -> Lex:
     case other:
       Lex{Str{}, unescape(other) <> buf, toks}
 
+# one hex digit of a \\uXXXX escape; the code point once four are in
 def unicode(left: Nat, acc: U32, c: Char, buf: List<&2, Char>, toks: List<&2, Tok>) -> Lex:
   match left:
     case 0n:
@@ -98,6 +109,7 @@ def unicode(left: Nat, acc: U32, c: Char, buf: List<&2, Char>, toks: List<&2, To
     case 1n+p:
       Lex{Uni{p, (acc * 16 + hex(c) : U32)}, buf, toks}
 
+# one char, by the mode and the char's class
 def step(mode: Mode, cls: Class, c: Char, buf: List<&2, Char>, toks: List<&2, Tok>) -> Lex:
   match mode cls:
     case Idle{} CPunct{t}:
@@ -131,10 +143,12 @@ def step(mode: Mode, cls: Class, c: Char, buf: List<&2, Char>, toks: List<&2, To
     case Uni{left, acc} other:
       unicode(left, acc, c, buf, toks)
 
+# one char into the machine
 def feed(+c: Char, st: Lex) -> Lex:
   Lex{mode, buf, toks} = st
   step(mode, classify(c), c, buf, toks)
 
+# every char, in order
 def run(cs: List<&2, Char>, st: Lex) -> Lex:
   match cs:
     case Nil{}:
@@ -153,5 +167,6 @@ def finish(st: Lex) -> List<&2, Tok>:
     case other:
       List.reverse(&2, Tok, TBad{} <> toks)
 
+# a text as tokens
 def tokens(s: String) -> List<&2, Tok>:
   finish(run(String.to_list(s), Lex{Idle{}, [], []}))

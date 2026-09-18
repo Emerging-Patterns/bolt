@@ -17,6 +17,7 @@ def escape.char(c: Char) -> String:
     case other:
       String.from_list([other])
 
+# the chars of a string with `"`, `\\` and control chars escaped
 def escape(cs: List<&2, Char>) -> String:
   match cs:
     case Nil{}:
@@ -24,9 +25,11 @@ def escape(cs: List<&2, Char>) -> String:
     case Con{c, t}:
       escape.char(c) ++ escape(t)
 
+# a string in quotes, escaped
 def quote(s: String) -> String:
   "\"" ++ escape(String.to_list(s)) ++ "\""
 
+# a value as compact JSON
 def print(j: V.Json) -> String:
   match j:
     case V.JNull{}:

@@ -11,9 +11,11 @@ type Frame is Data:
   FArr{items: V.Json}
   FObj{pairs: V.Json, key: Maybe<&2, String>}
 
+# the parser's state: an error was seen, the finished root, the open frames
 type P is Data:
   P{bad: Bool, root: Maybe<&2, V.Json>, stack: List<&2, Frame>}
 
+# a bare word as a value: null, true, false, else a number kept as text
 def word(+raw: String) -> V.Json:
   Bool.pick(V.Json, String.eq(raw, "null"), V.JNull{},
     Bool.pick(V.Json, String.eq(raw, "true"), V.JBool{True{}},
@@ -35,6 +37,7 @@ def put(stack: List<&2, Frame>, root: Maybe<&2, V.Json>, v: V.Json, bad: Bool) -
     case Con{FObj{pairs, Some{k}}, rest} r val:
       P{bad, r, FObj{V.JPair{k, val, pairs}, None{}} <> rest}
 
+# a `]`: the innermost frame must be an array
 def close_arr(stack: List<&2, Frame>, root: Maybe<&2, V.Json>, bad: Bool) -> P:
   match stack:
     case Con{FArr{items}, rest}:
@@ -42,6 +45,7 @@ def close_arr(stack: List<&2, Frame>, root: Maybe<&2, V.Json>, bad: Bool) -> P:
     case other:
       P{True{}, root, Nil{}}
 
+# a `}`: the innermost frame must be an object with no key waiting
 def close_obj(stack: List<&2, Frame>, root: Maybe<&2, V.Json>, bad: Bool) -> P:
   match stack:
     case Con{FObj{pairs, None{}}, rest}:
@@ -49,6 +53,7 @@ def close_obj(stack: List<&2, Frame>, root: Maybe<&2, V.Json>, bad: Bool) -> P:
     case other:
       P{True{}, root, Nil{}}
 
+# one token
 def step(tok: Lex.Tok, st: P) -> P:
   match tok:
     case Lex.TOpenArr{}:
@@ -77,6 +82,7 @@ def step(tok: Lex.Tok, st: P) -> P:
       P{bad, root, stack} = st
       P{True{}, root, stack}
 
+# every token, in order
 def run(toks: List<&2, Lex.Tok>, st: P) -> P:
   match toks:
     case Nil{}:
@@ -84,6 +90,7 @@ def run(toks: List<&2, Lex.Tok>, st: P) -> P:
     case Con{t, rest}:
       run(rest, step(t, st))
 
+# the root, when nothing went wrong and nothing stayed open
 def result(bad: Bool, stack: List<&2, Frame>, root: Maybe<&2, V.Json>) -> Maybe<&2, V.Json>:
   match bad stack root:
     case False{} Nil{} Some{j}:
@@ -91,9 +98,11 @@ def result(bad: Bool, stack: List<&2, Frame>, root: Maybe<&2, V.Json>) -> Maybe<
     case b s r:
       None{}
 
+# the value once the tokens are over
 def finish(st: P) -> Maybe<&2, V.Json>:
   P{bad, root, stack} = st
   result(bad, stack, root)
 
+# a text as a value, or None when it is not JSON
 def parse(s: String) -> Maybe<&2, V.Json>:
   finish(run(Lex.tokens(s), P{False{}, None{}, Nil{}}))

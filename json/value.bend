@@ -5,6 +5,7 @@
 # defs below, never by hand.
 import Base
 
+# a JSON value; JNil, JCons and JPair are the cells of arrays and objects
 type Json is Data:
   JNull{}
   JBool{b: Bool}
@@ -34,6 +35,7 @@ def arr.go(items: List<&2, Json>) -> Json:
     case Con{h, t}:
       JCons{h, arr.go(t)}
 
+# an array from a list
 def arr(items: List<&2, Json>) -> Json:
   JArr{arr.go(items)}
 
@@ -44,9 +46,11 @@ def obj.go(pairs: List<&1, String & Json>) -> Json:
     case Con{(k, v), t}:
       JPair{k, v, obj.go(t)}
 
+# an object from pairs
 def obj(pairs: List<&1, String & Json>) -> Json:
   JObj{obj.go(pairs)}
 
+# a number
 def num(n: U32) -> Json:
   JNum{U32.show(n)}
 
@@ -59,6 +63,8 @@ def find(cells: Json, +key: String) -> Json:
     case other:
       JNull{}
 
+# an object's value at a key; JNull when it is not an object or has no such
+# key
 def get(j: Json, key: String) -> Json:
   match j:
     case JObj{pairs}:
@@ -66,6 +72,7 @@ def get(j: Json, key: String) -> Json:
     case other:
       JNull{}
 
+# a string's text, else the default
 def str_or(j: Json, default: String) -> String:
   match j:
     case JStr{s}:
@@ -73,6 +80,7 @@ def str_or(j: Json, default: String) -> String:
     case other:
       default
 
+# a number as a U32, else the default
 def u32_or(j: Json, default: U32) -> U32:
   match j:
     case JNum{raw}:

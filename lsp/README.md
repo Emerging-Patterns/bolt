@@ -50,11 +50,22 @@ file behind the alias; anything else from the document, its aliases and (once
 a char is typed) Base. The server filters by prefix and each candidate replaces
 the whole typed name, dots included, as the editor's own word stops at a dot.
 
-A name that a parameter or a local binds resolves to that binder first
-([syntax](../syntax/)'s scope): hover shows the declaration or the line that
-bound it, definition lands exactly on the binder, completion offers the
-visible locals first. The server knows binding sites, not types: a parameter
-has its annotation, a pattern binder has its pattern.
+A name that a binder of the document binds (a parameter, a let, a pattern, a
+field, ..) resolves to that binder first ([syntax](../syntax/)'s bind): hover
+shows the declaration or the line that bound it, definition lands exactly on
+the binder, completion offers the visible names first. The server knows
+binding sites, not types: a parameter has its annotation, a pattern binder has
+its pattern.
 
-Not yet: exact ranges for top-level items (an item is its line), percent-encoded
-URIs when matching open documents.
+References and rename work within a document: a binder's every use, or an
+item's declaration and its uses in the file. Only a name bound in the
+document renames (a Base name, or one behind an alias, is refused with a
+message); uses of the item from other files through an alias are not touched.
+Semantic tokens (`semantic.bend`) classify every name by what it refers to,
+so a parameter stays a parameter at each use and a constructor of the file
+is one wherever it appears; a name from elsewhere is read by its shape
+(`Bool.pick` a function, `U32` a type, `Nil{` a constructor). Comments,
+strings and numbers are left to the editor's grammar.
+
+Not yet: exact ranges for top-level items (an item is its line), rename
+across files, percent-encoded URIs when matching open documents.

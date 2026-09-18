@@ -2,8 +2,10 @@
 import Base
 import ./service.bend as S
 
-def now(u: Unit) -> IO(Nat):
+# the wall clock
+def now(_u: Unit) -> IO(Nat):
   IO.now()
 
+# the real clock
 def new() -> S.Clock:
   S.Clock{now}

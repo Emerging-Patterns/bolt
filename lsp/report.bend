@@ -11,6 +11,7 @@ import Base
 type Diag is Data:
   Diag{line: U32, msg: String}
 
+# a line of the checker's report, by what it starts with
 type Line is Data:
   KError{rest: String}
   KLocation{place: String}
@@ -20,13 +21,16 @@ type Line is Data:
 type St is Data:
   St{seen: Bool, located: Bool, msg: List<&2, String>, line: U32, place: String, out: List<&2, Diag>}
 
+# a report line's kind
 def classify(+s: String) -> Line:
   Bool.pick(Line, String.starts_with(s, "Error:"), KError{String.drop(s, 6n)},
     Bool.pick(Line, String.starts_with(s, "Location:"), KLocation{String.drop(s, 9n)}, KOther{s}))
 
+# not whitespace?
 def not_space(c: Char) -> Bool:
   Bool.not(Char.is_space(c))
 
+# every whitespace char dropped
 def strip(s: String) -> String:
   String.from_list(List.filter(~Char, ~not_space, String.to_list(s)))
 
@@ -38,6 +42,7 @@ def lstrip.go(cs: List<&2, Char>) -> List<&2, Char>:
     case other:
       other
 
+# leading whitespace dropped
 def lstrip(s: String) -> String:
   String.from_list(lstrip.go(String.to_list(s)))
 
@@ -50,6 +55,7 @@ def marker.of(parts: List<&2, String>) -> Maybe<&2, U32>:
     case other:
       None{}
 
+# the line number a source line of the report carries (`9>|`), when it does
 def marker(s: String) -> Maybe<&2, U32>:
   marker.of(String.split(s, '>'))
 
@@ -57,13 +63,17 @@ def marker(s: String) -> Maybe<&2, U32>:
 def clean(+s: String) -> String:
   Bool.pick(String, String.starts_with(s, "- "), String.drop(s, 2n), s)
 
+# a non-empty line onto the message
 def push(+s: String, +msg: List<&2, String>) -> List<&2, String>:
   Bool.pick(List<&2, String>, String.is_empty(s), msg, s <> msg)
 
+# the message lines (reversed) as text, headed by where it is when that is
+# another file
 def message(+place: String, msg: List<&2, String>) -> String:
   +body = String.join(List.reverse(&2, String, msg), "\n")
   Bool.pick(String, String.contains(place, "/"), "in " ++ place ++ ":\n" ++ body, body)
 
+# the 0-based line for a diagnostic: line 0 for an error in an import
 def line_of(place: String, +line: U32) -> U32:
   Bool.pick(U32, Bool.or(String.contains(place, "/"), U32.is_eq(line, 0)), 0, (line - 1 : U32))
 
@@ -73,7 +83,8 @@ def flush(seen: Bool, msg: List<&2, String>, +line: U32, +place: String, +out: L
   Bool.pick(List<&2, Diag>, Bool.and(seen, Bool.not(String.eq(text, "no main to run"))),
     Diag{line_of(place, line), text} <> out, out)
 
-def step.go(k: Line, located: Bool, seen: Bool, msg: List<&2, String>, +line: U32, place: String, out: List<&2, Diag>) -> St:
+def step.go(k: Line, located: Bool, seen: Bool, msg: List<&2, String>, +line: U32, place: String,
+  out: List<&2, Diag>) -> St:
   match k located seen:
     case KError{rest} l s:
       St{True{}, False{}, push(lstrip(rest), []), 0, "", flush(s, msg, line, place, out)}
@@ -86,10 +97,12 @@ def step.go(k: Line, located: Bool, seen: Bool, msg: List<&2, String>, +line: U3
     case KOther{text} l False{}:
       St{False{}, l, msg, line, place, out}
 
+# one report line
 def step(s: String, st: St) -> St:
   St{seen, located, msg, line, place, out} = st
   step.go(classify(s), located, seen, msg, line, place, out)
 
+# every report line, in order
 def run(lines: List<&2, String>, st: St) -> St:
   match lines:
     case Nil{}:
@@ -97,9 +110,11 @@ def run(lines: List<&2, String>, st: St) -> St:
     case Con{l, t}:
       run(t, step(l, st))
 
+# the diagnostics once the lines are over, a pending one flushed
 def finish(st: St) -> List<&2, Diag>:
   St{seen, located, msg, line, place, out} = st
   List.reverse(&2, Diag, flush(seen, msg, line, place, out))
 
+# the checker's text as diagnostics
 def parse(text: String) -> List<&2, Diag>:
   finish(run(String.lines(text), St{False{}, False{}, [], 0, "", []}))

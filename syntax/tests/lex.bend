@@ -11,6 +11,28 @@ def kind(k: Lex.TokKind) -> String:
   match k:
     case Lex.TName{}:
       "n"
+    case Lex.TUpper{}:
+      "N"
+    case Lex.TDotted{}:
+      "d"
+    case Lex.TWild{}:
+      "w"
+    case Lex.TKey{}:
+      "k"
+    case Lex.TColon{}:
+      ":"
+    case Lex.TEq{}:
+      "="
+    case Lex.TBind{}:
+      "<"
+    case Lex.TArrow{}:
+      ">"
+    case Lex.TLam{}:
+      "l"
+    case Lex.TAll{}:
+      "@"
+    case Lex.TAmp{}:
+      "&"
     case Lex.TNum{}:
       "#"
     case Lex.TStr{}:
@@ -56,7 +78,7 @@ def main() -> IO(Unit):
 
 #|ok lossless
 #|ok lossless on an unclosed string
-#|n:def@0 n:f@4 (:(@5 o:+@6 n:x@7 o::@8 n:U32@10 ):)@13 o:->@15 n:List@18 o:<&@22 #:2@24 ,:,@25 n:U32@27 o:>@30 o::@31
-#|n:case@2 #:1n@7 o:+@9 n:p@10 o::@11
-#|n:M.go@4 (:(@8 n:x@9 ,:,@10 s:"a\"b"@12 ,:,@18 c:'c'@20 ):)@23 o:++@25 (:{@28 o:==@29 ):}@31 o:<>@33 #:1.5@36
-#|n:y@2 o:=@4 n:a@6 (:[@7 #:5@8 ):]@9 o:<-@11 #:42@14
+#|k:def@0 n:f@4 (:(@5 o:+@6 n:x@7 :::@8 N:U32@10 ):)@13 >:->@15 N:List@18 o:<&@22 #:2@24 ,:,@25 N:U32@27 o:>@30 :::@31
+#|k:case@2 #:1n@7 o:+@9 n:p@10 :::@11
+#|d:M.go@4 (:(@8 n:x@9 ,:,@10 s:"a\"b"@12 ,:,@18 c:'c'@20 ):)@23 o:++@25 (:{@28 o:==@29 ):}@31 o:<>@33 #:1.5@36
+#|n:y@2 =:=@4 n:a@6 (:[@7 #:5@8 ):]@9 <:<-@11 #:42@14

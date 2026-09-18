@@ -1,8 +1,8 @@
 {
   "name": "bend-lsp",
   "displayName": "Bend",
-  "description": "Bend 2: syntax highlighting, and the checker's errors through bend-lsp",
-  "version": "0.1.5",
+  "description": "Bend 2: highlighting, diagnostics, hover, definition, completion, references, rename and semantic tokens through bend-lsp",
+  "version": "0.2.0",
   "publisher": "ngngardner",
   "private": true,
   "license": "MIT",
@@ -48,6 +48,46 @@
       {
         "command": "bend.restartServer",
         "title": "Bend: Restart Language Server"
+      }
+    ],
+    "semanticTokenScopes": [
+      {
+        "language": "bend",
+        "scopes": {
+          "keyword": [
+            "keyword.control.bend"
+          ],
+          "function": [
+            "entity.name.function.bend"
+          ],
+          "type": [
+            "support.type.bend"
+          ],
+          "enumMember": [
+            "constant.language.constructor.bend"
+          ],
+          "parameter": [
+            "variable.parameter.bend"
+          ],
+          "variable": [
+            "variable.other.bend"
+          ],
+          "property": [
+            "variable.other.property.bend"
+          ],
+          "string": [
+            "string.quoted.bend"
+          ],
+          "number": [
+            "constant.numeric.bend"
+          ],
+          "comment": [
+            "comment.line.bend"
+          ],
+          "typeParameter": [
+            "entity.name.type.parameter.bend"
+          ]
+        }
       }
     ]
   },

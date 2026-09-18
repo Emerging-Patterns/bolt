@@ -10,6 +10,7 @@ import ../../syntax/word.bend as Word
 import ../../json/parse.bend as Parse
 import ../../json/value.bend as J
 
+# the document a hover is answered against
 def source() -> String:
   String.join([
     "# a module", "import Base", "import ./math.bend as M", "",
@@ -20,9 +21,11 @@ def source() -> String:
     "# LAW: zero is neutral", "law add_zero:", "  for x: Nat", "  {Nat.add(x, 0n) == x : Nat}", "",
     "def main() -> U32:", "  long.header(area(Circle{2}), 3)"], "\n")
 
+# the hover request
 def message() -> String:
   "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"file:///w/app/main.bend\"},\"position\":{\"line\":28,\"character\":17}}}"
 
+# an item's line, 0 when there is none
 def line_of(item: Maybe<&2, Outline.Item>) -> U32:
   match item:
     case None{}:
@@ -30,6 +33,7 @@ def line_of(item: Maybe<&2, Outline.Item>) -> U32:
     case Some{Outline.Item{k, name, line, sig, doc, path}}:
       line
 
+# a parsed message, or null
 def parsed(m: Maybe<&2, J.Json>) -> J.Json:
   Maybe.default(&2, J.Json, m, J.JNull{})
 
@@ -41,6 +45,7 @@ def leaf(+i: U32) -> U32:
     Word.at(source(), J.u32_or(J.get(pos, "line"), 0), J.u32_or(J.get(pos, "character"), 0))))
     + J.u32_or(J.get(msg, "id"), 0) + (i .&. 0) : U32)
 
+# the requests of a 2^n batch, answered and summed
 def fold(+n: Nat, +i: U32) -> U32:
   match n:
     case 0n:
@@ -49,6 +54,7 @@ def fold(+n: Nat, +i: U32) -> U32:
       a b = fold(p, (i * 2 : U32)) fold(p, (i * 2 + 1 : U32))
       (a + b : U32)
 
+# DEPTH from the environment: the batch is 2^depth requests
 def depth(r: Result<&1, &1, U32 & String, String>) -> U32:
   match r:
     case Fail{e}:

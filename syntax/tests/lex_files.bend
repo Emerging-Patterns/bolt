@@ -9,7 +9,8 @@ import ../../wire/check/print.bend as Report
 
 # passes when the file was read and its tokens spell it back
 def lossless.on(path: String, +text: String) -> IO(Unit):
-  Check.eq_str(~Report.new(), path, Lex.text(Lex.tokens(text)) ++ Bool.pick(String, String.is_empty(text), "<unread>", ""), text)
+  Check.eq_str(~Report.new(), path,
+    Lex.text(Lex.tokens(text)) ++ Bool.pick(String, String.is_empty(text), "<unread>", ""), text)
 
 def lossless(~fs: F.Files, +path: String) -> IO(Unit):
   do IO<Unit>:

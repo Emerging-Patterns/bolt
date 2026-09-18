@@ -51,6 +51,7 @@ def decode.end(st: Dec) -> String:
   Dec{need, acc, out} = st
   String.from_list(List.reverse(&2, Char, out))
 
+# UTF-8 bytes as a string (a bad byte is skipped)
 def decode(bs: List<&2, U32>) -> String:
   decode.end(decode.run(bs, Dec{0n, 0, []}))
 
@@ -63,6 +64,7 @@ def width(+x: U32) -> U32:
     Bool.pick(U32, U32.is_lt(x, 2048), 2,
       Bool.pick(U32, U32.is_lt(x, 65536), 3, 4)))
 
+# how many UTF-8 bytes the chars take, plus n
 def byte_len(cs: List<&2, Char>, n: U32) -> U32:
   match cs:
     case Nil{}:
@@ -80,7 +82,8 @@ def encode.char(w: U32, +x: U32, rest: List<&2, U32>) -> List<&2, U32>:
     case 3:
       (224 .|. (x >> 12n) : U32) <> (128 .|. ((x >> 6n) .&. 63) : U32) <> (128 .|. (x .&. 63) : U32) <> rest
     case other:
-      (240 .|. (x >> 18n) : U32) <> (128 .|. ((x >> 12n) .&. 63) : U32) <> (128 .|. ((x >> 6n) .&. 63) : U32) <> (128 .|. (x .&. 63) : U32) <> rest
+      (240 .|. (x >> 18n) : U32) <> (128 .|. ((x >> 12n) .&. 63) : U32) <> (128 .|. ((x >> 6n) .&. 63) : U32)
+        <> (128 .|. (x .&. 63) : U32) <> rest
 
 def encode.one(+x: U32, rest: List<&2, U32>) -> List<&2, U32>:
   encode.char(width(x), x, rest)
@@ -92,6 +95,7 @@ def encode.go(cs: List<&2, Char>) -> List<&2, U32>:
     case Con{c, t}:
       encode.one(Char.to_u32(c), encode.go(t))
 
+# a string as UTF-8 bytes
 def encode(s: String) -> List<&2, U32>:
   encode.go(String.to_list(s))
 
@@ -112,6 +116,7 @@ type Cut is Data:
   More{}
   Ready{body: List<&2, U32>, rest: List<&2, U32>}
 
+# bytes as chars, one each (for the ASCII header)
 def chars(bs: List<&2, U32>, acc: List<&2, Char>) -> List<&2, Char>:
   match bs:
     case Nil{}:
@@ -125,6 +130,8 @@ def line_len(line: List<&2, U32>, +len: U32) -> U32:
   Bool.pick(U32, String.starts_with(s, "Content-Length: "),
     Maybe.default(&2, U32, U32.read(String.drop(s, 16n)), len), len)
 
+# the header block read up to its blank line: Content-Length, and the bytes
+# after; not whole yet when the blank line has not come
 def header(bs: List<&2, U32>, line: List<&2, U32>, len: U32) -> Head:
   match bs line:
     case Nil{} l:
@@ -138,6 +145,8 @@ def header(bs: List<&2, U32>, line: List<&2, U32>, len: U32) -> Head:
     case Con{c, t} l:
       header(t, c <> l, len)
 
+# the first n bytes (reversed onto acc) and the rest, or not yet when there
+# are fewer
 def split(n: Nat, xs: List<&2, U32>, acc: List<&2, U32>) -> Cut:
   match n xs:
     case 0n rest:
@@ -154,5 +163,7 @@ def cut.body(h: Head) -> Cut:
     case Head{len, rest}:
       split(U32.to_nat(len), rest, [])
 
+# the front of a buffer: a whole message body and the bytes after it, or
+# not yet
 def cut(buf: List<&2, U32>) -> Cut:
   cut.body(header(buf, [], 0))

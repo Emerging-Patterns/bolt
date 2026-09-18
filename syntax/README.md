@@ -10,11 +10,24 @@ What an editor needs to know about a Bend source without checking it.
 - `word.bend`: the name under a (line, col), and the name being typed there.
 - `lex.bend`: a lossless lexer with positions (the texts spell the source
   back, whatever it is).
-- `scope.bend`: the parameters and locals visible at a line, with where each
-  was bound. Tokens and indentation, not an expression tree: parameters from
-  the def header, body binders by line shape (`case`, `for`, lets, do-binds,
-  lambdas), blocks by indentation. Names and binding sites, not types.
+  Token kinds tell apart what binds from what does not (keywords, dotted and
+  capitalized names, `_`, and the operators `:` `=` `<-` `->` `=>` `@` `&`),
+  so a walk can branch by constructor.
+- `tree.bend`: a concrete syntax tree: statements by line and indentation,
+  groups by brackets (`(..)`, `[..]`, `{..}` and type arguments `<..>`),
+  cells inside the type. One stack machine over the tokens, tolerant by
+  construction: an unclosed bracket is closed by the next line at column 0
+  (so damage stays in one item) or the end of the file, a stray close
+  bracket is a leaf. Trivia stays in the token stream. Not a term-level AST
+  with operator precedence: nothing has needed one; a precedence pass can be
+  layered on a group later.
+- `bind.bend`: where every name is bound and what every other name refers
+  to. One walk threads an environment through Bend's binding forms (item
+  names, telescopes, `case` patterns, `for`/`exs`, lets of every shape,
+  do-binds, `x =>`, `@x:` and `&x:`), each statement recording the names in
+  scope. A use resolves to a binder of the file, an item of the file, an
+  item behind an import alias, or nothing (Base, or unknown). Names and
+  binding sites, not types.
 
-Not here yet: an expression-level tree. Nothing has needed one: hover,
-definition, symbols, completion and locals all run on the outline, the lexer
-and the scope. Rename, references and semantic tokens would be the reasons.
+The tree and the binder are what [lsp](../lsp/) navigates, references,
+renames and colours with, and what [lint](../lint/) checks.

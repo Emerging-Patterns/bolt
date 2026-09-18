@@ -6,6 +6,7 @@ def push(+seg: String, +acc: List<&2, String>) -> List<&2, String>:
   Bool.pick(List<&2, String>, String.eq(seg, ".."), List.tail(&2, String, acc),
     Bool.pick(List<&2, String>, Bool.or(String.eq(seg, "."), String.is_empty(seg)), acc, seg <> acc))
 
+# every segment pushed, in order
 def norm(segs: List<&2, String>, acc: List<&2, String>) -> List<&2, String>:
   match segs:
     case Nil{}:

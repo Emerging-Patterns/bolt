@@ -5,18 +5,19 @@
 import Base
 import ../syntax/outline.bend as Outline
 import ../syntax/word.bend as Word
-import ../syntax/scope.bend as Scope
+import ../syntax/bind.bend as Bind
 import ./files/service.bend as F
 import ./docs.bend as Docs
 import ./path.bend as Path
 import ./proto.bend as Proto
 
-# what a name names: an item and the document it lives in, or a parameter or
-# local of the document itself
+# what a name names: an item and the document it lives in, or a binder of
+# the document itself (a parameter, a local, a field, ..)
 type Found is Data:
   Found{uri: String, item: Outline.Item}
-  Here{uri: String, local: Scope.Local}
+  Here{uri: String, bind: Bind.Bind}
 
+# an item, when there is one, in a document
 def found(m: Maybe<&2, Outline.Item>, uri: String) -> Maybe<&2, Found>:
   match m:
     case None{}:
@@ -37,16 +38,19 @@ def load.miss(~fs: F.Files, open: Maybe<&2, String>, path: String) -> IO(String)
 def load(~fs: F.Files, docs: List<&2, Docs.Doc>, uri: String, path: String) -> IO(String):
   load.miss(~fs, Docs.get(docs, uri), path)
 
+# the item of a name in a file
 def in_file(~fs: F.Files, docs: List<&2, Docs.Doc>, +path: String, name: String) -> IO(Maybe<&2, Found>):
   do IO<Maybe<&2, Found>>:
     text : String <- load(~fs, docs, "file://" ++ path, path)
     return found(Outline.find(Outline.items(text), name), "file://" ++ path)
 
+# the item of a name in Base
 def in_base(~fs: F.Files, docs: List<&2, Docs.Doc>, name: String) -> IO(Maybe<&2, Found>):
   do IO<Maybe<&2, Found>>:
     path : String <- F.base_path(fs)
     in_file(~fs, docs, path, name)
 
+# an item of the document, else of Base
 def own(~fs: F.Files, m: Maybe<&2, Outline.Item>, docs: List<&2, Docs.Doc>, uri: String, name: String) ->
   IO(Maybe<&2, Found>):
   match m:
@@ -55,6 +59,7 @@ def own(~fs: F.Files, m: Maybe<&2, Outline.Item>, docs: List<&2, Docs.Doc>, uri:
     case None{}:
       in_base(~fs, docs, name)
 
+# through an import alias when the name has one, else the document's own
 def via(~fs: F.Files, imp: Maybe<&2, String>, docs: List<&2, Docs.Doc>, +uri: String, +name: String,
   items: List<&2, Outline.Item>) -> IO(Maybe<&2, Found>):
   match imp:
@@ -63,6 +68,7 @@ def via(~fs: F.Files, imp: Maybe<&2, String>, docs: List<&2, Docs.Doc>, +uri: St
     case None{}:
       own(~fs, Outline.find(items, name), docs, uri, name)
 
+# a name against a document's items
 def among(~fs: F.Files, +items: List<&2, Outline.Item>, docs: List<&2, Docs.Doc>, uri: String, +name: String) ->
   IO(Maybe<&2, Found>):
   via(~fs, Outline.import_path(items, Word.head(name)), docs, uri, name, items)
@@ -73,28 +79,78 @@ def resolve(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, name: String)
     text : String <- load(~fs, docs, uri, Proto.path(uri))
     among(~fs, Outline.items(text), docs, uri, name)
 
-# a parameter or a local shadows any item of the same name
-def at.name(~fs: F.Files, l: Maybe<&2, Scope.Local>, docs: List<&2, Docs.Doc>, uri: String, name: String) ->
-  IO(Maybe<&2, Found>):
-  match l:
-    case Some{local}:
-      IO.pure(Maybe<&2, Found>, Some{Here{uri, local}})
+# a binder, when there is one, in a document
+def here(m: Maybe<&2, Bind.Bind>, uri: String) -> Maybe<&2, Found>:
+  match m:
+    case None{}:
+      None{}
+    case Some{b}:
+      Some{Here{uri, b}}
+
+# a binder of the document, or a use of one, is answered from the document;
+# a use of anything else is looked up as an item; nothing at all falls back
+# to the word under the cursor (a half-typed name)
+def at.site(~fs: F.Files, site: Maybe<&2, Bind.Site>, +binds: List<&2, Bind.Bind>, docs: List<&2, Docs.Doc>,
+  uri: String, +name: String) -> IO(Maybe<&2, Found>):
+  match site:
+    case Some{Bind.SBind{b}}:
+      IO.pure(Maybe<&2, Found>, Some{Here{uri, b}})
+    case Some{Bind.SUse{Bind.Use{n, l, c, Bind.TLocal{tl, tc}}}}:
+      IO.pure(Maybe<&2, Found>, here(Bind.binder(binds, tl, tc), uri))
+    case Some{Bind.SUse{Bind.Use{n, l, c, tg}}}:
+      resolve(~fs, docs, uri, n)
     case None{}:
       resolve(~fs, docs, uri, name)
 
-def at.word(~fs: F.Files, +name: String, text: String, docs: List<&2, Docs.Doc>, uri: String, line: U32) ->
-  IO(Maybe<&2, Found>):
-  at.name(~fs, Scope.lookup(text, line, name), docs, uri, name)
+def at.bound(~fs: F.Files, b: Bind.Bound, docs: List<&2, Docs.Doc>, uri: String, name: String, +line: U32,
+  +col: U32) -> IO(Maybe<&2, Found>):
+  Bind.Bound{+binds, uses, scopes} = b
+  at.site(~fs, Bind.at(Bind.Bound{binds, uses, scopes}, line, col), binds, docs, uri, name)
 
-def at.in(~fs: F.Files, +text: String, docs: List<&2, Docs.Doc>, uri: String, +line: U32, col: U32) ->
+def at.in(~fs: F.Files, +text: String, docs: List<&2, Docs.Doc>, uri: String, +line: U32, +col: U32) ->
   IO(Maybe<&2, Found>):
-  at.word(~fs, Word.at(text, line, col), text, docs, uri, line)
+  at.bound(~fs, Bind.bound(text), docs, uri, Word.at(text, line, col), line, col)
 
 # what the name under a position of a document names
 def at(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, line: U32, col: U32) -> IO(Maybe<&2, Found>):
   do IO<Maybe<&2, Found>>:
     text : String <- load(~fs, docs, uri, Proto.path(uri))
     at.in(~fs, text, docs, uri, line, col)
+
+# references and rename
+# ---------------------
+
+# the positions a name is at in its document, and whether the name is the
+# document's own (a binder, or an item of it) -- only those can be renamed
+type Sites is Data:
+  Sites{mine: Bool, at: List<&2, Bind.Pos>}
+
+def sites.of(site: Maybe<&2, Bind.Site>, +b: Bind.Bound) -> Sites:
+  match site:
+    case None{}:
+      Sites{False{}, []}
+    case Some{Bind.SBind{Bind.Bind{name, l, c, Bind.KItem{}, note}}}:
+      Sites{True{}, Bind.item_sites(b, name)}
+    case Some{Bind.SBind{Bind.Bind{name, l, c, Bind.KCtor{}, note}}}:
+      Sites{True{}, Bind.item_sites(b, name)}
+    case Some{Bind.SBind{Bind.Bind{name, l, c, k, note}}}:
+      Sites{True{}, Bind.sites(b, l, c)}
+    case Some{Bind.SUse{Bind.Use{n, l, c, Bind.TLocal{tl, tc}}}}:
+      Sites{True{}, Bind.sites(b, tl, tc)}
+    case Some{Bind.SUse{Bind.Use{n, l, c, Bind.TItem{name}}}}:
+      Sites{True{}, Bind.item_sites(b, name)}
+    case Some{Bind.SUse{Bind.Use{n, l, c, other}}}:
+      Sites{False{}, Bind.named_sites(b, n)}
+
+def sites.in(+text: String, +line: U32, +col: U32) -> Sites:
+  +b = Bind.bound(text)
+  sites.of(Bind.at(b, line, col), b)
+
+# the positions of the name at a position of a document
+def sites(~fs: F.Files, docs: List<&2, Docs.Doc>, +uri: String, line: U32, col: U32) -> IO(Sites):
+  do IO<Sites>:
+    text : String <- load(~fs, docs, uri, Proto.path(uri))
+    return sites.in(text, line, col)
 
 # the items of a document
 def outline(~fs: F.Files, docs: List<&2, Docs.Doc>, +uri: String) -> IO(List<&2, Outline.Item>):
@@ -105,6 +161,7 @@ def outline(~fs: F.Files, docs: List<&2, Docs.Doc>, +uri: String) -> IO(List<&2,
 # completion
 # ----------
 
+# the items of a file that start with a prefix, renamed for insertion
 def starting_in(~fs: F.Files, docs: List<&2, Docs.Doc>, +path: String, prefix: String, qual: String) ->
   IO(List<&2, Outline.Item>):
   do IO<List<&2, Outline.Item>>:
@@ -121,14 +178,16 @@ def from_base(~fs: F.Files, typed: Bool, docs: List<&2, Docs.Doc>, prefix: Strin
         path : String <- F.base_path(fs)
         starting_in(~fs, docs, path, prefix, "")
 
-# a local as a candidate: its note stands for a signature
-def as_items(ls: List<&2, Scope.Local>) -> List<&2, Outline.Item>:
+# a binder as a candidate: its note stands for a signature
+def as_items(ls: List<&2, Bind.Bind>) -> List<&2, Outline.Item>:
   match ls:
     case Nil{}:
       Nil{}
-    case Con{Scope.Local{name, line, col, note, param}, t}:
-      Outline.Item{Outline.ILocal{}, name, line, note, Bool.pick(String, param, "parameter", "local"), ""} <> as_items(t)
+    case Con{Bind.Bind{name, line, col, kind, note}, t}:
+      Outline.Item{Outline.ILocal{}, name, line, note, Proto.kind_name(kind), ""} <> as_items(t)
 
+# candidates for a plain prefix: visible names, the document's items, its
+# aliases, then Base
 def unqualified(~fs: F.Files, +items: List<&2, Outline.Item>, docs: List<&2, Docs.Doc>, +prefix: String,
   locals: List<&2, Outline.Item>) -> IO(List<&2, Outline.Item>):
   do IO<List<&2, Outline.Item>>:
@@ -153,7 +212,7 @@ def candidates.among(~fs: F.Files, +items: List<&2, Outline.Item>, docs: List<&2
 
 def candidates.in(~fs: F.Files, +text: String, docs: List<&2, Docs.Doc>, uri: String, prefix: String, line: U32) ->
   IO(List<&2, Outline.Item>):
-  candidates.among(~fs, Outline.items(text), docs, uri, prefix, as_items(Scope.visible(text, line)))
+  candidates.among(~fs, Outline.items(text), docs, uri, prefix, as_items(Bind.visible(Bind.bound(text), line)))
 
 # what could complete the prefix typed at a line of a document: the locals
 # visible there, then items, each named by the text to insert
@@ -163,5 +222,6 @@ def candidates(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, prefix: St
     text : String <- load(~fs, docs, uri, Proto.path(uri))
     candidates.in(~fs, text, docs, uri, prefix, line)
 
+# a document's text
 def text_of(~fs: F.Files, docs: List<&2, Docs.Doc>, +uri: String) -> IO(String):
   load(~fs, docs, uri, Proto.path(uri))

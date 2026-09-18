@@ -9,6 +9,7 @@ import ../json/print.bend as Print
 import ./proto.bend as Proto
 import ./docs.bend as Docs
 import ./nav.bend as Nav
+import ./semantic.bend as Semantic
 import ./transport/service.bend as T
 import ./checker/service.bend as C
 import ./files/service.bend as F
@@ -16,6 +17,7 @@ import ./report.bend as Rep
 import ../syntax/outline.bend as Outline
 import ../syntax/word.bend as Word
 
+# the methods the server answers; MOther is anything else
 type Method is Data:
   MInitialize{}
   MShutdown{}
@@ -28,12 +30,16 @@ type Method is Data:
   MDefinition{}
   MSymbols{}
   MCompletion{}
+  MReferences{}
+  MRename{}
+  MSemantic{}
   MOther{}
 
 # what one message leads to: the bodies to send, whether to stop, the documents
 type Out is Data:
   Out{replies: List<&2, String>, quit: Bool, docs: List<&2, Docs.Doc>}
 
+# a method by its name
 def method(+name: String) -> Method:
   Bool.pick(Method, String.eq(name, "initialize"), MInitialize{},
     Bool.pick(Method, String.eq(name, "shutdown"), MShutdown{},
@@ -45,17 +51,25 @@ def method(+name: String) -> Method:
                 Bool.pick(Method, String.eq(name, "textDocument/hover"), MHover{},
                   Bool.pick(Method, String.eq(name, "textDocument/definition"), MDefinition{},
                     Bool.pick(Method, String.eq(name, "textDocument/documentSymbol"), MSymbols{},
-                      Bool.pick(Method, String.eq(name, "textDocument/completion"), MCompletion{}, MOther{})))))))))))
+                      Bool.pick(Method, String.eq(name, "textDocument/completion"), MCompletion{},
+                        Bool.pick(Method, String.eq(name, "textDocument/references"), MReferences{},
+                          Bool.pick(Method, String.eq(name, "textDocument/rename"), MRename{},
+                            Bool.pick(Method, String.eq(name, "textDocument/semanticTokens/full"), MSemantic{},
+                              MOther{}))))))))))))))
 
+# the document a request is about
 def uri_of(params: J.Json) -> String:
   J.str_or(J.get(J.get(params, "textDocument"), "uri"), "")
 
+# the line of a request's position
 def line_of(params: J.Json) -> U32:
   J.u32_or(J.get(J.get(params, "position"), "line"), 0)
 
+# the character of a request's position
 def col_of(params: J.Json) -> U32:
   J.u32_or(J.get(J.get(params, "position"), "character"), 0)
 
+# one reply body
 def reply(id: J.Json, result: J.Json) -> List<&2, String>:
   [Print.print(Proto.response(id, result))]
 
@@ -67,6 +81,7 @@ def unknown(id: J.Json) -> List<&2, String>:
     case other:
       [Print.print(Proto.failure(other, "-32601", "method not found"))]
 
+# diagnostics for a document, from the checker
 def checked(+uri: String, ck: C.Checker, docs: List<&2, Docs.Doc>) -> IO(Out):
   do IO<Out>:
     ds : List<&2, Rep.Diag> <- C.check(ck, Proto.path(uri))
@@ -78,8 +93,8 @@ def hover.of(m: Maybe<&2, Nav.Found>) -> J.Json:
       J.JNull{}
     case Some{Nav.Found{uri, item}}:
       Proto.hover(item)
-    case Some{Nav.Here{uri, local}}:
-      Proto.hover.local(local)
+    case Some{Nav.Here{uri, b}}:
+      Proto.hover.local(b)
 
 def definition.of(m: Maybe<&2, Nav.Found>) -> J.Json:
   match m:
@@ -87,8 +102,8 @@ def definition.of(m: Maybe<&2, Nav.Found>) -> J.Json:
       J.JNull{}
     case Some{Nav.Found{uri, item}}:
       Proto.location(uri, item)
-    case Some{Nav.Here{uri, local}}:
-      Proto.location.local(uri, local)
+    case Some{Nav.Here{uri, b}}:
+      Proto.location.local(uri, b)
 
 def complete.with(~fs: F.Files, +prefix: String, +docs: List<&2, Docs.Doc>, uri: String, +line: U32, +col: U32,
   id: J.Json) -> IO(Out):
@@ -102,6 +117,40 @@ def complete(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, +line: U32, 
   do IO<Out>:
     text : String <- Nav.text_of(~fs, docs, uri)
     complete.with(~fs, Word.before(text, line, col), docs, uri, line, col, id)
+
+def references.of(s: Nav.Sites, uri: String, name: String) -> J.Json:
+  Nav.Sites{mine, at} = s
+  Proto.locations(uri, name, at)
+
+# only a name bound in the document renames; the editor shows the refusal
+def rename.of(s: Nav.Sites, id: J.Json, uri: String, name: String, new: String) -> List<&2, String>:
+  Nav.Sites{mine, at} = s
+  match mine:
+    case True{}:
+      reply(id, Proto.rename(uri, name, new, at))
+    case False{}:
+      [Print.print(Proto.failure(id, "-32803", "only a name bound in this file can be renamed"))]
+
+# every position of the name at a position
+def references(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, +line: U32, +col: U32, id: J.Json) -> IO(Out):
+  do IO<Out>:
+    text : String <- Nav.text_of(~fs, docs, uri)
+    s : Nav.Sites <- Nav.sites(~fs, docs, uri, line, col)
+    return Out{reply(id, references.of(s, uri, Word.at(text, line, col))), False{}, docs}
+
+# the edit renaming the name at a position, or a refusal
+def renamed(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, +line: U32, +col: U32, id: J.Json, new: String) ->
+  IO(Out):
+  do IO<Out>:
+    text : String <- Nav.text_of(~fs, docs, uri)
+    s : Nav.Sites <- Nav.sites(~fs, docs, uri, line, col)
+    return Out{rename.of(s, id, uri, Word.at(text, line, col), new), False{}, docs}
+
+# the document's semantic tokens
+def semantic(~fs: F.Files, +docs: List<&2, Docs.Doc>, uri: String, id: J.Json) -> IO(Out):
+  do IO<Out>:
+    text : String <- Nav.text_of(~fs, docs, uri)
+    return Out{reply(id, Proto.semantic(Semantic.data(text))), False{}, docs}
 
 def handle.go(~ck: C.Checker, ~fs: F.Files, m: Method, id: J.Json, +params: J.Json, +docs: List<&2, Docs.Doc>) ->
   IO(Out):
@@ -136,15 +185,24 @@ def handle.go(~ck: C.Checker, ~fs: F.Files, m: Method, id: J.Json, +params: J.Js
         return Out{reply(id, Proto.symbols(items)), False{}, docs}
     case MCompletion{}:
       complete(~fs, docs, uri_of(params), line_of(params), col_of(params), id)
+    case MReferences{}:
+      references(~fs, docs, uri_of(params), line_of(params), col_of(params), id)
+    case MRename{}:
+      renamed(~fs, docs, uri_of(params), line_of(params), col_of(params), id, J.str_or(J.get(params, "newName"), ""))
+    case MSemantic{}:
+      semantic(~fs, docs, uri_of(params), id)
     case MOther{}:
       IO.pure(Out, Out{unknown(id), False{}, docs})
 
+# one message: its method, id and params to handle.go
 def handle(~ck: C.Checker, ~fs: F.Files, +msg: J.Json, docs: List<&2, Docs.Doc>) -> IO(Out):
   handle.go(~ck, ~fs, method(J.str_or(J.get(msg, "method"), "")), J.get(msg, "id"), J.get(msg, "params"), docs)
 
+# a parsed message, or null when it did not parse
 def decoded(m: Maybe<&2, J.Json>) -> J.Json:
   Maybe.default(&2, J.Json, m, J.JNull{})
 
+# every reply sent, in order
 def send_all(~H: Type, ~tr: T.Transport<H>, replies: List<&2, String>, h: H) -> IO(H):
   match replies:
     case Nil{}:
@@ -154,6 +212,7 @@ def send_all(~H: Type, ~tr: T.Transport<H>, replies: List<&2, String>, h: H) -> 
         h2 : H <- T.send(H, tr, h, body)
         send_all(~H, ~tr, t, h2)
 
+# the loop goes on with the documents, unless the message said to quit
 def next(-H: Type, quit: Bool, h: H, docs: List<&2, Docs.Doc>, rest: H -> List<&2, Docs.Doc> -> IO(Unit)) ->
   IO(Unit):
   match quit:
@@ -162,12 +221,14 @@ def next(-H: Type, quit: Bool, h: H, docs: List<&2, Docs.Doc>, rest: H -> List<&
     case False{}:
       rest(h, docs)
 
+# the replies sent, then the loop goes on
 def answer(~H: Type, ~tr: T.Transport<H>, out: Out, h: H, rest: H -> List<&2, Docs.Doc> -> IO(Unit)) -> IO(Unit):
   Out{replies, quit, docs} = out
   do IO<Unit>:
     h2 : H <- send_all(~H, ~tr, replies, h)
     next(H, quit, h2, docs, rest)
 
+# one message body handled and answered; none means the peer is gone
 def turn(~H: Type, ~tr: T.Transport<H>, ~ck: C.Checker, ~fs: F.Files, m: Maybe<&2, String>, h: H,
   docs: List<&2, Docs.Doc>, rest: H -> List<&2, Docs.Doc> -> IO(Unit)) -> IO(Unit):
   match m:
@@ -178,6 +239,7 @@ def turn(~H: Type, ~tr: T.Transport<H>, ~ck: C.Checker, ~fs: F.Files, m: Maybe<&
         out : Out <- handle(~ck, ~fs, decoded(Parse.parse(body)), docs)
         answer(~H, ~tr, out, h, rest)
 
+# what recv gave: the handle and maybe a body
 def got(~H: Type, ~tr: T.Transport<H>, ~ck: C.Checker, ~fs: F.Files, r: H & Maybe<&2, String>,
   docs: List<&2, Docs.Doc>, rest: H -> List<&2, Docs.Doc> -> IO(Unit)) -> IO(Unit):
   (h, m) = r

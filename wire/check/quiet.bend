@@ -2,8 +2,10 @@
 import Base
 import ./service.bend as S
 
-def say(name: String) -> IO(Unit):
+# nothing
+def say(_name: String) -> IO(Unit):
   IO.pure(Unit, Unit{})
 
+# the reporter that says nothing
 def new() -> S.Reporter:
   S.Reporter{say, say}
