@@ -52,10 +52,10 @@
       # a plain one: no telemetry, no self-update, this version only.
       bend = pkgs.stdenvNoCC.mkDerivation rec {
         pname = "bend";
-        version = "2.0.3";
+        version = "2.0.5";
         src = pkgs.fetchurl {
           url = "https://bend-lang.com/dl/${version}.tar.gz";
-          sha256 = "f967e73ca5481bd49940dcd966705082a43c209ac1bdb390b849c8652fff5a17";
+          sha256 = "4db70e77ce1b1027f1d0e15dee025921fa794a9b415add4350ec7c64acf2775b";
         };
         sourceRoot = ".";
         installPhase = ''
