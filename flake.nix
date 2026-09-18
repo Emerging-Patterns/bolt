@@ -47,9 +47,50 @@
         [ "$got" = "4000 4 1" ] || { echo "got: $got"; exit 1; }
         echo "$got" > $out
       '';
+      # bend 2 itself: a release tarball of TypeScript that bun runs, with no
+      # dependencies of its own. The launcher from bend-lang.com is replaced by
+      # a plain one: no telemetry, no self-update, this version only.
+      bend = pkgs.stdenvNoCC.mkDerivation rec {
+        pname = "bend";
+        version = "2.0.3";
+        src = pkgs.fetchurl {
+          url = "https://bend-lang.com/dl/${version}.tar.gz";
+          sha256 = "f967e73ca5481bd49940dcd966705082a43c209ac1bdb390b849c8652fff5a17";
+        };
+        sourceRoot = ".";
+        installPhase = ''
+          mkdir -p $out/share/bend $out/bin
+          cp -r bend2 guide $out/share/bend/
+          cat > $out/bin/bend <<EOF
+          #!${pkgs.runtimeShell}
+          exec ${pkgs.bun}/bin/bun $out/share/bend/bend2/main.ts "\$@"
+          EOF
+          chmod +x $out/bin/bend
+        '';
+      };
+      # bolt: bend emits the C, clang 19 builds it; the `bolt` script sits
+      # beside the binary and finds bend on its PATH (for `bolt check` and
+      # the server's diagnostics)
+      bolt = pkgs.stdenv.mkDerivation {
+        pname = "bolt";
+        version = "0.3.0";  # keep with editors/vscode/package.json
+        src = self;
+        nativeBuildInputs = [ bend llvm.clang pkgs.makeWrapper ];
+        buildPhase = ''
+          bend bolt/main.bend -o bolt.c
+          clang -std=c11 -O3 bolt.c -lpthread -lm -o bolt.bin
+        '';
+        installPhase = ''
+          mkdir -p $out/bin
+          cp bolt.bin $out/bin/bolt.bin
+          cp bolt/bolt $out/bin/bolt
+          wrapProgram $out/bin/bolt --prefix PATH : ${pkgs.lib.makeBinPath [ bend pkgs.findutils pkgs.coreutils ]}
+        '';
+      };
     in {
-      packages.${system}.bend-cc = bend-cc;
-      checks.${system}.c = c-check;
+      packages.${system} = { inherit bend bolt bend-cc; default = bolt; };
+      apps.${system}.default = { type = "app"; program = "${bolt}/bin/bolt"; };
+      checks.${system} = { c = c-check; inherit bolt; };
       devShells.${system}.default = pkgs.mkShellNoCC {
         packages = [ bend-cc ];
         shellHook = "export CC=bend-cc";

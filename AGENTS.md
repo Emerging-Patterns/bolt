@@ -7,7 +7,9 @@ writing Bend. Then this.
 ## Layout
 
     gate.sh            the gate; green before every commit
-    flake.nix          bend-cc: clang 19 for native (and GPU) builds; `nix flake check` proves the C toolchain
+    flake.nix          packages bend 2 and bolt (nix profile install); bend-cc: clang 19 for native
+                       (and GPU) builds; `nix flake check` builds bolt and proves the C toolchain
+                       (nix sees tracked files only: git add first)
     build.sh           the one binary people run: bolt (lint, check, lsp) -> ~/.local/bin
     editors/vscode/    the VS Code extension (not Bend; never publish it to the marketplace unasked)
     <project>/         one dir per project

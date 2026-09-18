@@ -17,8 +17,16 @@ written in Bend, with a VS Code extension.
 
 ## Install
 
-You need `bend` (`curl -fsSL https://bend-lang.com/install.sh | sh`) and a C
-compiler (clang 14+ or gcc), since bolt is one native binary.
+With nix, nothing else is needed: the flake packages bend 2 (the release
+tarball, run by bun; no telemetry, no self-update) and builds bolt from it.
+
+```
+nix profile install github:Emerging-Patterns/bolt   # bolt, with bend on its PATH
+nix run github:Emerging-Patterns/bolt               # or just run it, here
+```
+
+Without nix, you need `bend` (`curl -fsSL https://bend-lang.com/install.sh | sh`)
+and clang 14+, since bolt is one native binary:
 
 ```
 git clone https://github.com/Emerging-Patterns/bolt
@@ -103,7 +111,9 @@ cores here.
 
 Native builds need clang; GPU builds clang 19+ and CUDA 12 at
 `/usr/local/cuda`. `flake.nix` provides that clang as `bend-cc`, and
-`gate.sh` enters the dev shell on its own. `nix flake check` builds and
-runs, in the sandbox, a C program that needs what bend's generated C needs
-(C11 atomics, pthreads, libm, mmap) with the same clang 19. To build by
-hand: `nix develop`, then `bend x.bend -o x`.
+`gate.sh` enters the dev shell on its own. `nix flake check` builds bolt
+the packaged way, and builds and runs, in the sandbox, a C program that
+needs what bend's generated C needs (C11 atomics, pthreads, libm, mmap)
+with the same clang 19. Nix sees tracked files only: `git add` a new file
+before trusting that check. To build by hand: `nix develop`, then
+`bend x.bend -o x`.
