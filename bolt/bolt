@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# bolt [file..]: lints the files given, or every .bend file under the current
+# directory, as the nearest bolt.bend of each asks. A native Bend binary takes
+# no arguments, so the list rides in BOLT_FILES, one path a line. Exits 1 when
+# anything was an error.
+set -eu
+bin="$(dirname "$(readlink -f "$0")")/../bin/bolt.bin"
+if [ $# -eq 0 ]; then
+  set -- $(find . -name '*.bend' -not -path '*/.gate/*' -not -path '*/node_modules/*' -not -path '*/.scratch/*' \
+    -not -path '*/.claude/*' | sort)
+fi
+out=$(BOLT_FILES="$(printf '%s\n' "$@")" "$bin" --gpu off)
+printf '%s\n' "$out"
+case "$(printf '%s\n' "$out" | tail -n 1)" in
+  clean|"0 errors"*) exit 0 ;;
+  *) exit 1 ;;
+esac

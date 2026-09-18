@@ -6,7 +6,7 @@ Read `bend guide` before writing Bend. Then this.
 
     gate.sh            the gate; green before every commit
     flake.nix          bend-cc: clang 19 for native and GPU builds
-    build.sh           the binaries people run: bend-lsp, bend-lint -> ~/.local/bin
+    build.sh           the binaries people run: bend-lsp, bolt -> ~/.local/bin
     editors/vscode/    the VS Code client (not Bend; never publish it unasked)
     <project>/         one dir per project
       LAWS.bend        the claims: human-owned, do not edit to make a proof pass
@@ -22,7 +22,8 @@ Design specs and plans are not kept in this repo; they live under
 
 - New code comes test-first: write `tests/x.bend` with its `#|` trailer, watch
   the gate fail, then implement.
-- `bend-lint` (lint/README.md) runs at the end of the gate: keep it clean.
+- `bolt` (bolt/README.md) runs at the end of the gate, every rule an error
+  by the root bolt.bend: keep it clean.
   Every top-level def, type and law gets a comment right above it (helpers
   named `x.go` ride on x's); a parameter that is there to be ignored starts
   with `_`; no let or pattern binder may share a name with a def above it;
@@ -62,7 +63,7 @@ Design specs and plans are not kept in this repo; they live under
 - The argument that shrinks must be the first live (non-template) one:
   `send_all(replies, h)` passes, `send_all(h, replies)` does not.
 - `Bool.pick` evaluates both branches: never put a different recursive call in
-  each (that is exponential; `bend-lint`'s `pick` rule catches it). Bind the
+  each (that is exponential; `bolt`'s `pick` rule catches it). Bind the
   one recursive call with `+rest = ..` and pick between values built from it. The same goes for any expensive
   expression in a branch: a scan of the whole token list inside a per-token
   pick runs for every token (bind's notes were 20 s that way, 20 ms as one
@@ -80,7 +81,7 @@ Design specs and plans are not kept in this repo; they live under
   binder named like a def defined above it in the file parses as a reference
   to the def once the file is imported ("a pattern (a binder or a
   constructor)"), though the same file runs fine as a main. Parameters and
-  `for` names are safe. `bend-lint`'s `shadow` rule catches it.
+  `for` names are safe. `bolt`'s `shadow` rule catches it.
 - `bend x.bend` runs main after checking. To check only, `bend x.bend -o t.js`.
 - A foreign effect `def a.b(..) -> IO(T)` with `import "./x.c"` and
   `import "./x.js"` bodies is `a_b_run` + `io_eff(CID_A_B, ..)` in C and
@@ -92,8 +93,10 @@ Design specs and plans are not kept in this repo; they live under
 - A native Bend binary exits on an option it does not know, and takes no
   positional arguments at all: a launcher must not add flags
   (vscode-languageclient's `transport: stdio` adds `--stdio`), and a CLI
-  takes its arguments through the environment (lint/bend-lint).
+  takes its arguments through the environment (bolt/bolt).
 - A pair `A & B` is never `Data`: a list of pairs is `List<&1, A & B>`.
+- `x.of` and `x_of` mangle to the same C name ("two names mangle to
+  FID_.."): never both in one module.
 - The JS lane overflows its stack on long strings (~65KB). Head such a test
   `# lanes: native`; anything long-running ships as the native binary.
 - The GPU is on by default in a native binary: the CPU lane is `--gpu off`.

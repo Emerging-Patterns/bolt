@@ -1,4 +1,4 @@
-# lint/rules: each rule on a small source, and the whole set on a clean one
+# bolt/rules: each rule on a small source, and the whole set on a clean one
 import Base
 import ../rules.bend as Rules
 import ../rules/doc.bend as Doc
@@ -9,6 +9,7 @@ import ../rules/space.bend as Space
 import ../rules/pick.bend as Pick
 import ../rules/law.bend as Law
 import ../file.bend as File
+import ../config.bend as Config
 import ../finding.bend as F
 import ../../wire/check/kit.bend as Check
 import ../../wire/check/print.bend as Report
@@ -119,6 +120,47 @@ def lawful() -> List<&2, File.File>:
    File.File{"./p/tests/t.bend", "def z(a: U32) -> U32:\n  a\n"},
    File.File{"./q/n.bend", "def y(a: U32) -> U32:\n  a\n"}]
 
+# a bolt.bend: a group set, a rule set apart, a typo
+def config() -> String:
+  String.join([
+    "import Base",
+    "",
+    "# comments and width are errors",
+    "def style() -> String:",
+    "  \"error\"",
+    "",
+    "# but width is advice",
+    "def space() -> String:",
+    "  \"warn\"",
+    "",
+    "# a slip is silent",
+    "def unused() -> String:",
+    "  \"off\"",
+    "",
+    "# a typo",
+    "def laws() -> String:",
+    "  \"wran\""], "\n")
+
+# graded findings as lines
+def shown(gs: List<&2, F.Graded>) -> List<&2, String>:
+  match gs:
+    case Nil{}:
+      Nil{}
+    case Con{g, rest}:
+      F.show_graded(g) <> shown(rest)
+
+# the level word of a rule under the config
+def at(cfg: Config.Config, +rule: String) -> String:
+  Config.show(Config.level(cfg, Rules.group(rule), rule))
+
+# the levels of every rule, `rule=level`
+def levels(+cfg: Config.Config, rules: List<&2, String>) -> String:
+  match rules:
+    case Nil{}:
+      ""
+    case Con{+r, rest}:
+      r ++ "=" ++ at(cfg, r) ++ " " ++ levels(cfg, rest)
+
 def main() -> IO(Unit):
   do IO<Unit>:
     Check.eq_str(~Report.new(), "doc: undotted defs, types and laws, not helpers or main",
@@ -144,6 +186,22 @@ def main() -> IO(Unit):
       lines(Law.check(lawful())),
       "./p/m.bend:4:1: law: def g is named by no law; ./p/o.bend:1:1: law: type O: no law reaches this module; ./p/o.bend:4:1: law: def h is named by no law")
     Check.eq_str(~Report.new(), "law: a project without laws is not under it", lines(Law.check([File.File{"./q/n.bend", "def y() -> U32:\n  1\n"}])), "")
+    Check.eq_str(~Report.new(), "config: defaults are correctness at error, the rest at warn",
+      levels(Config.none(), ["shadow", "hole", "pick", "unused", "doc", "space", "law"]),
+      "shadow=error hole=error pick=error unused=warning doc=warning space=warning law=warning ")
+    Check.eq_str(~Report.new(), "config: a group sets its rules, a rule set apart wins, a typo is an error",
+      levels(Config.parse(config()), ["doc", "space", "unused", "law", "shadow"]),
+      "doc=error space=warning unused=off law=error shadow=error ")
+    Check.eq_str(~Report.new(), "config: the bolt.bend candidates, nearest first, up to the top",
+      String.join(Config.candidates(64n, Config.dir_of("a/b/c.bend")), " "), "a/b/bolt.bend a/bolt.bend bolt.bend")
+    Check.eq_str(~Report.new(), "config: an absolute path stops at /",
+      String.join(Config.candidates(64n, Config.dir_of("/w/x.bend")), " "), "/w/bolt.bend /bolt.bend")
+    Check.eq_str(~Report.new(), "config: the nearest file that exists is the config",
+      at(Config.nearest([None{}, Some{config()}, Some{"def style() -> String:\n  \"off\"\n"}]), "doc"), "error")
+    Check.eq_str(~Report.new(), "graded: findings at their levels, the off ones dropped",
+      String.join(shown(Rules.graded(Config.parse(config()),
+        List.append(&2, F.Finding, Doc.check("a.bend", undocumented()), Unused.check("a.bend", unused())))), "; "),
+      "a.bend:7:1: error: doc: def dec has no comment above it; a.bend:13:1: error: doc: type T has no comment above it; a.bend:16:1: error: doc: law l has no comment above it")
     Check.eq_str(~Report.new(), "all rules on a clean file", lines(Rules.all("a.bend", "# one\ndef one() -> U32:\n  1\n")), "")
 
 #|ok doc: undotted defs, types and laws, not helpers or main
@@ -157,4 +215,10 @@ def main() -> IO(Unit):
 #|ok pick: a def in both branches, at any depth; not when bound above
 #|ok law: pure defs under a LAWS.bend that no law names; types by module
 #|ok law: a project without laws is not under it
+#|ok config: defaults are correctness at error, the rest at warn
+#|ok config: a group sets its rules, a rule set apart wins, a typo is an error
+#|ok config: the bolt.bend candidates, nearest first, up to the top
+#|ok config: an absolute path stops at /
+#|ok config: the nearest file that exists is the config
+#|ok graded: findings at their levels, the off ones dropped
 #|ok all rules on a clean file

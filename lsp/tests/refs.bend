@@ -36,7 +36,7 @@ def inbox() -> List<&2, String>:
 def main() -> IO(Unit):
   Server.serve(~Script.Script, ~Script.new(), ~FakeChecker.new(), ~fake(), 100n, Script.Script{inbox()}, [])
 
-#|{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///w/a.bend","diagnostics":[{"range":{"start":{"line":2,"character":0},"end":{"line":3,"character":0}},"severity":2,"code":"doc","source":"bend-lint","message":"type Shape has no comment above it"}]}}
+#|{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///w/a.bend","diagnostics":[{"range":{"start":{"line":2,"character":0},"end":{"line":3,"character":0}},"severity":2,"code":"doc","source":"bolt","message":"type Shape has no comment above it"}]}}
 #|{"jsonrpc":"2.0","id":1,"result":[{"uri":"file:///w/a.bend","range":{"start":{"line":6,"character":10},"end":{"line":6,"character":11}}},{"uri":"file:///w/a.bend","range":{"start":{"line":7,"character":8},"end":{"line":7,"character":9}}},{"uri":"file:///w/a.bend","range":{"start":{"line":9,"character":7},"end":{"line":9,"character":8}}}]}
 #|{"jsonrpc":"2.0","id":2,"result":{"changes":{"file:///w/a.bend":[{"range":{"start":{"line":6,"character":10},"end":{"line":6,"character":11}},"newText":"shape"},{"range":{"start":{"line":7,"character":8},"end":{"line":7,"character":9}},"newText":"shape"},{"range":{"start":{"line":9,"character":7},"end":{"line":9,"character":8}},"newText":"shape"}]}}}
 #|{"jsonrpc":"2.0","id":3,"result":[{"uri":"file:///w/a.bend","range":{"start":{"line":6,"character":4},"end":{"line":6,"character":8}}},{"uri":"file:///w/a.bend","range":{"start":{"line":12,"character":2},"end":{"line":12,"character":6}}}]}

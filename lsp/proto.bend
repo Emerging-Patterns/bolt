@@ -7,7 +7,8 @@ import ./report.bend as Rep
 import ../syntax/outline.bend as Outline
 import ../syntax/bind.bend as Bind
 import ./semantic.bend as Semantic
-import ../lint/finding.bend as Lint
+import ../bolt/finding.bend as Lint
+import ../bolt/config.bend as Config
 
 # strings as JSON strings
 def strings(ss: List<&2, String>) -> List<&2, J.Json>:
@@ -72,25 +73,26 @@ def finding_range(+line: U32, +col: U32, +len: U32) -> J.Json:
   J.obj([("start", position(line, col)),
     ("end", Bool.pick(J.Json, U32.is_eq(len, 0), position((line + 1 : U32), 0), position(line, (col + len : U32))))])
 
-# a lint finding as a warning, its rule as the code
-def warning(f: Lint.Finding) -> J.Json:
-  Lint.Finding{path, line, col, len, rule, msg} = f
-  J.obj([("range", finding_range(line, col, len)), ("severity", J.num(2)), ("code", J.JStr{rule}),
-    ("source", J.JStr{"bend-lint"}), ("message", J.JStr{msg})])
+# a graded lint finding as a diagnostic: an error or a warning by its level,
+# its rule as the code
+def finding(g: Lint.Graded) -> J.Json:
+  Lint.Graded{level, Lint.Finding{path, line, col, len, rule, msg}} = g
+  J.obj([("range", finding_range(line, col, len)), ("severity", J.num(Bool.pick(U32, Config.is_error(level), 1, 2))),
+    ("code", J.JStr{rule}), ("source", J.JStr{"bolt"}), ("message", J.JStr{msg})])
 
 # findings as JSON
-def warnings(fs: List<&2, Lint.Finding>) -> List<&2, J.Json>:
-  match fs:
+def findings(gs: List<&2, Lint.Graded>) -> List<&2, J.Json>:
+  match gs:
     case Nil{}:
       Nil{}
-    case Con{f, t}:
-      warning(f) <> warnings(t)
+    case Con{g, t}:
+      finding(g) <> findings(t)
 
 # the publishDiagnostics notification for a document: the checker's errors,
-# then the linter's warnings
-def publish(uri: String, ds: List<&2, Rep.Diag>, fs: List<&2, Lint.Finding>) -> J.Json:
+# then the linter's findings
+def publish(uri: String, ds: List<&2, Rep.Diag>, gs: List<&2, Lint.Graded>) -> J.Json:
   notify("textDocument/publishDiagnostics",
-    J.obj([("uri", J.JStr{uri}), ("diagnostics", J.arr(List.append(&2, J.Json, diagnostics(ds), warnings(fs))))]))
+    J.obj([("uri", J.JStr{uri}), ("diagnostics", J.arr(List.append(&2, J.Json, diagnostics(ds), findings(gs))))]))
 
 # a whole line as a range
 def line_range(+line: U32) -> J.Json:

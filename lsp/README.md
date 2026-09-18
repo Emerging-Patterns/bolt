@@ -45,10 +45,11 @@ so navigation works in files that do not check, and sees unsaved edits.
 - The checker reads the file and its imports from disk, so its errors follow
   open and save, not unsaved edits.
 
-[lint](../lint/)'s findings ride along as warnings (severity 2, source
-`bend-lint`, the rule as the code). The linter is pure, so it runs on the
-text the editor shows: warnings follow every edit, and each publish carries
-the checker's last errors with the linter's current warnings.
+[bolt](../bolt/)'s findings ride along (source `bolt`, the rule as the code),
+each at the level the nearest `bolt.bend` gives its rule: errors as severity
+1, warnings as 2, off ones dropped. The linter is pure, so it runs on the
+text the editor shows: findings follow every edit, and each publish carries
+the checker's last errors with the linter's current findings.
 
 Completion offers what could finish the name being typed: `Alias.pre` from the
 file behind the alias; anything else from the document, its aliases and (once

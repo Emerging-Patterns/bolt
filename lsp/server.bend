@@ -10,8 +10,9 @@ import ./proto.bend as Proto
 import ./docs.bend as Docs
 import ./nav.bend as Nav
 import ./semantic.bend as Semantic
-import ../lint/rules.bend as Lint
-import ../lint/finding.bend as Finding
+import ../bolt/rules.bend as Lint
+import ../bolt/finding.bend as Finding
+import ../bolt/config.bend as Config
 import ./transport/service.bend as T
 import ./checker/service.bend as C
 import ./files/service.bend as F
@@ -83,20 +84,31 @@ def unknown(id: J.Json) -> List<&2, String>:
     case other:
       [Print.print(Proto.failure(other, "-32601", "method not found"))]
 
-# the linter's warnings on the text the editor shows
-def linted(+uri: String, +docs: List<&2, Docs.Doc>) -> List<&2, Finding.Finding>:
-  Lint.all(Proto.path(uri), Maybe.default(&2, String, Docs.get(docs, uri), ""))
+# a bolt.bend is bolt's configuration, not source to lint
+def is_config(+path: String) -> Bool:
+  Bool.or(String.eq(path, "bolt.bend"), String.ends_with(path, "/bolt.bend"))
 
-# the checker's errors and the linter's warnings published for a document
-def published(+uri: String, +docs: List<&2, Docs.Doc>) -> Out:
-  Out{[Print.print(Proto.publish(uri, Docs.errors(docs, uri), linted(uri, docs)))], False{}, docs}
+# the linter's findings on the text the editor shows, at the levels the
+# nearest bolt.bend gives them
+def linted(~fs: F.Files, +uri: String, +docs: List<&2, Docs.Doc>) -> IO(List<&2, Finding.Graded>):
+  +path = Proto.path(uri)
+  do IO<List<&2, Finding.Graded>>:
+    rs : List<&2, Maybe<&2, String>> <- F.read_all(~fs, Config.candidates(64n, Config.dir_of(path)))
+    return Bool.pick(List<&2, Finding.Graded>, is_config(path), [],
+      Lint.graded(Config.nearest(rs), Lint.all(path, Maybe.default(&2, String, Docs.get(docs, uri), ""))))
+
+# the checker's errors and the linter's findings published for a document
+def published(~fs: F.Files, +uri: String, +docs: List<&2, Docs.Doc>) -> IO(Out):
+  do IO<Out>:
+    gs : List<&2, Finding.Graded> <- linted(~fs, uri, docs)
+    return Out{[Print.print(Proto.publish(uri, Docs.errors(docs, uri), gs))], False{}, docs}
 
 # diagnostics for a document, the checker run (on the file on disk) and the
 # linter (on the text)
-def checked(+uri: String, ck: C.Checker, +docs: List<&2, Docs.Doc>) -> IO(Out):
+def checked(~fs: F.Files, +uri: String, ck: C.Checker, +docs: List<&2, Docs.Doc>) -> IO(Out):
   do IO<Out>:
     ds : List<&2, Rep.Diag> <- C.check(ck, Proto.path(uri))
-    return published(uri, Docs.set_errors(docs, uri, ds))
+    published(~fs, uri, Docs.set_errors(docs, uri, ds))
 
 def hover.of(m: Maybe<&2, Nav.Found>) -> J.Json:
   match m:
@@ -173,13 +185,13 @@ def handle.go(~ck: C.Checker, ~fs: F.Files, m: Method, id: J.Json, +params: J.Js
     case MExit{}:
       IO.pure(Out, Out{[], True{}, docs})
     case MOpen{}:
-      checked(uri_of(params), ck,
+      checked(~fs, uri_of(params), ck,
         Docs.set(docs, uri_of(params), J.str_or(J.get(J.get(params, "textDocument"), "text"), "")))
     case MChange{}:
-      IO.pure(Out, published(uri_of(params),
-        Docs.set(docs, uri_of(params), J.str_or(J.get(J.first(J.get(params, "contentChanges")), "text"), ""))))
+      published(~fs, uri_of(params),
+        Docs.set(docs, uri_of(params), J.str_or(J.get(J.first(J.get(params, "contentChanges")), "text"), "")))
     case MSave{}:
-      checked(uri_of(params), ck, docs)
+      checked(~fs, uri_of(params), ck, docs)
     case MClose{}:
       IO.pure(Out, Out{[Print.print(Proto.publish(uri_of(params), [], []))], False{}, Docs.del(docs, uri_of(params))})
     case MHover{}:

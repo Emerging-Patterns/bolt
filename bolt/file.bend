@@ -1,4 +1,4 @@
-# lint/file: a file the linter read, as the project rules see the set of them
+# bolt/file: a file the linter read, as the project rules see the set of them
 import Base
 
 # a path as given, and the text at it

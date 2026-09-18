@@ -30,4 +30,4 @@ What an editor needs to know about a Bend source without checking it.
   binding sites, not types.
 
 The tree and the binder are what [lsp](../lsp/) navigates, references,
-renames and colours with, and what [lint](../lint/) checks.
+renames and colours with, and what [bolt](../bolt/) checks.

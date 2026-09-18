@@ -14,3 +14,14 @@ def read(f: Files, path: String) -> IO(Maybe<&2, String>):
 def base_path(f: Files) -> IO(String):
   Files{r, b} = f
   b(Unit{})
+
+# every path read, in order (a missing file is a None)
+def read_all(~f: Files, paths: List<&2, String>) -> IO(List<&2, Maybe<&2, String>>):
+  match paths:
+    case Nil{}:
+      IO.pure(List<&2, Maybe<&2, String>>, [])
+    case Con{p, rest}:
+      do IO<List<&2, Maybe<&2, String>>>:
+        r : Maybe<&2, String> <- read(f, p)
+        more : List<&2, Maybe<&2, String>> <- read_all(~f, rest)
+        return r <> more

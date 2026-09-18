@@ -1,17 +1,51 @@
-# lint
+# bolt
 
 A linter for Bend, written in Bend, over the `syntax/` tree and binder. It
 enforces what the checker does not: comments, unused names, the binder-vs-def
 trap, leftover holes, whitespace, double recursion under `Bool.pick`, and
 laws that reach every pure def.
 
-    bend-lint                       every .bend file under the current directory
-    bend-lint a.bend b/             the files given
-    bend-lint --skip doc,space ..   without those rules
+    bolt                every .bend file under the current directory
+    bolt a.bend b/      the files given
 
-Each finding is one line, `path:line:col: rule: message`, with line and
-column 1-based so a terminal can jump to it. The exit code is 1 when anything
-was found. `./build.sh` puts `bend-lint` on `~/.local/bin`.
+Each finding is one line, `path:line:col: level: rule: message`, with line
+and column 1-based so a terminal can jump to it; then `clean` or the counts.
+The exit code is 1 when anything was an error. `./build.sh` puts `bolt` on
+`~/.local/bin`.
+
+## bolt.bend
+
+What bolt enforces, and how hard, is the project's to say, in a `bolt.bend`
+at its root. Each file is graded by the nearest `bolt.bend` above it (its
+directory, then each parent), so a monorepo can set one at the top and a
+project can override below. The file is plain Bend that `bend` can check: a
+def a setting, its body one string, `"off"`, `"warn"` or `"error"`.
+
+```
+# every rule an error
+def correctness() -> String:
+  "error"
+def style() -> String:
+  "error"
+# but width is advice here
+def space() -> String:
+  "warn"
+```
+
+A group sets every rule in it; a rule set by name wins over its group; an
+unset group has its default. The groups:
+
+| group         | rules                  | default |
+|---------------|------------------------|---------|
+| `correctness` | `shadow` `hole` `pick` | error   |
+| `suspicious`  | `unused`               | warn    |
+| `style`       | `doc` `space`          | warn    |
+| `laws`        | `law`                  | warn    |
+
+An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
+read, never linted. Without one, the defaults apply. This repo's
+[bolt.bend](../bolt.bend) sets every group to error: the gate must see
+`clean`.
 
 ## Rules
 
@@ -55,16 +89,17 @@ linter read at once (`rules.bend`'s `project`).
 
 ## How it takes its arguments
 
-A native Bend binary rejects arguments it does not know, so `lint/bend-lint`
-is a script: it puts the file list in `BEND_LINT_FILES` (one path a line) and
-the skipped rules in `BEND_LINT_SKIP`, then runs `bin/bend-lint.bin`.
+A native Bend binary rejects arguments it does not know, so `bolt/bolt` is
+a script: it puts the file list in `BOLT_FILES` (one path a line), then
+runs `bin/bolt.bin`.
 
 ## In the editor
 
-[lsp](../lsp/) runs every rule on each edit and publishes the findings as
-warnings, so they show in VS Code as you type.
+[lsp](../lsp/) runs the per-file rules on each edit and publishes the
+findings at the levels the nearest `bolt.bend` gives them: errors red,
+warnings yellow, off ones not at all. The project rules (`law`) need every
+file, so they run in bolt alone.
 
 ## In the gate
 
-`./gate.sh` ends by linting the whole repo with every rule and must see
-`clean`.
+`./gate.sh` ends by running bolt over the whole repo and must see `clean`.
