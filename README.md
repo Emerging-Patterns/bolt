@@ -10,7 +10,7 @@ a directory; projects import each other by relative path
 | [json](json/) | a JSON parser, printer and path accessors |
 | [syntax](syntax/) | a tolerant lexer, outline, syntax tree and binder for Bend sources |
 | [lsp](lsp/) | a language server for Bend: diagnostics, navigation, completion, rename, semantic tokens |
-| [lint](lint/) | `bend-lint`: comments, unused names, the binder-vs-def trap, holes, whitespace; warnings in the editor |
+| [lint](lint/) | `bend-lint`: comments, unused names, the binder-vs-def trap, holes, whitespace, double recursion, law coverage; warnings in the editor |
 
 [editors/vscode](editors/vscode/) is the VS Code client for the language server;
 `./build.sh` builds `bin/bend-lsp` and `bend-lint` and links them into

@@ -112,3 +112,21 @@ def Laws.sum_unit_right(a):
     case U32{x}:
       Equal.cong(Word(32n), U32, w => U32{w}, Word.add(32n, x, Word.zero(32n)),
         x, Word.add_zero(32n, x))
+
+def Laws.one_at(_i):
+  {==}
+
+def Laws.index_at(_i):
+  {==}
+
+def Laws.one_leaf(_i):
+  {==}
+
+def Laws.index_leaf(_i):
+  {==}
+
+def Laws.fold_leaf(_i):
+  {==}
+
+def Laws.fold_split(_p, _i):
+  {==}

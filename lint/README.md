@@ -2,7 +2,8 @@
 
 A linter for Bend, written in Bend, over the `syntax/` tree and binder. It
 enforces what the checker does not: comments, unused names, the binder-vs-def
-trap, leftover holes, and whitespace.
+trap, leftover holes, whitespace, double recursion under `Bool.pick`, and
+laws that reach every pure def.
 
     bend-lint                       every .bend file under the current directory
     bend-lint a.bend b/             the files given
@@ -15,7 +16,9 @@ was found. `./build.sh` puts `bend-lint` on `~/.local/bin`.
 ## Rules
 
 Each rule is a module under `rules/` with `check(path, text) -> List<Finding>`,
-listed in `rules.bend`. Adding a rule is adding a file and a line.
+listed in `rules.bend`. Adding a rule is adding a file and a line. A project
+rule has `check(files) -> List<Finding>` instead and sees every file the
+linter read at once (`rules.bend`'s `project`).
 
 - `doc` — every top-level def, type and law has a comment block right above
   it. Helpers (dotted names like `show.go`) ride on their parent's, `main`
@@ -35,6 +38,20 @@ listed in `rules.bend`. Adding a rule is adding a file and a line.
 - `space` — trailing whitespace, a tab, or a line over 120 wide. Width counts
   a string literal as two characters: a long fixture or message does not make
   a line hard to read, code does. `#|` trailers are data and exempt.
+- `pick` — a def calls itself in both branches of a `Bool.pick`. Bool.pick is
+  a function: both branches run whatever the condition, so two recursive
+  calls a step is 2^n work (a per-token scan took 20 s this way and 20 ms as
+  one pass). Bind the call once above the pick (`+more = go(rest)`) and pick
+  between `x <> more` and `more`.
+- `law` (project) — in a project that states laws (a directory with a
+  LAWS.bend), a pure def that no law names. A law names a def when its
+  statement mentions it, through the law file's import alias (`M.join` in
+  `wire/LAWS.bend` names `join` of `wire/monoid/service.bend`); laws in any
+  file count, PROOF.bend's lemmas included. A type is covered once any law
+  reaches its module: a law about an instance names the accessors, never the
+  service type. Out of scope: helpers (dotted names), `main`, tests, the law
+  files, and a module that touches IO (a law cannot state it). A project
+  without a LAWS.bend is not under law.
 
 ## How it takes its arguments
 

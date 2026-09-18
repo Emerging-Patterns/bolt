@@ -25,7 +25,8 @@ Design specs and plans are not kept in this repo; they live under
 - `bend-lint` (lint/README.md) runs at the end of the gate: keep it clean.
   Every top-level def, type and law gets a comment right above it (helpers
   named `x.go` ride on x's); a parameter that is there to be ignored starts
-  with `_`; no let or pattern binder may share a name with a def above it.
+  with `_`; no let or pattern binder may share a name with a def above it;
+  a project with a LAWS.bend has every pure def named by some law.
 - Dependencies are injected the `wire` way (see wire/README.md): a service is
   a folder, `x/service.bend` plus one file per implementation exporting
   `new()`. Tests use `wire/check/kit.bend`.
@@ -61,8 +62,8 @@ Design specs and plans are not kept in this repo; they live under
 - The argument that shrinks must be the first live (non-template) one:
   `send_all(replies, h)` passes, `send_all(h, replies)` does not.
 - `Bool.pick` evaluates both branches: never put a different recursive call in
-  each (that is exponential). Bind the one recursive call with `+rest = ..`
-  and pick between values built from it. The same goes for any expensive
+  each (that is exponential; `bend-lint`'s `pick` rule catches it). Bind the
+  one recursive call with `+rest = ..` and pick between values built from it. The same goes for any expensive
   expression in a branch: a scan of the whole token list inside a per-token
   pick runs for every token (bind's notes were 20 s that way, 20 ms as one
   pass).
