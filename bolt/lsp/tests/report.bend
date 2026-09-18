@@ -2,8 +2,8 @@
 # own output: when a bend update changes the format, this test says so.
 import Base
 import ../report.bend as Rep
-import ../../wire/check/kit.bend as Check
-import ../../wire/check/print.bend as Report
+import ../../../core/check/kit.bend as Check
+import ../../../core/check/print.bend as Report
 
 def show.go(ds: List<&2, Rep.Diag>) -> String:
   match ds:

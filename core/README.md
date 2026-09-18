@@ -1,12 +1,11 @@
-# wire
+# core
 
-Dependency injection for Bend, in the spirit of Python's
-[lagom](https://lagom-di.readthedocs.io): consumers say what they need, a
-container says what they get. Bend has no reflection, so nothing is resolved at
-runtime: dependencies are `~` template arguments, inlined at compile time. An
-injected service costs nothing, can be called any number of times (a closure
-could be called once), a missing or ill-typed one is a checker error at the
-wiring site, and its contract can be a proven law.
+Dependency injection for Bend: consumers say what they need, a container says
+what they get. Bend has no reflection, so nothing is resolved at runtime:
+dependencies are `~` template arguments, inlined at compile time. An injected
+service costs nothing, can be called any number of times (a closure could be
+called once), a missing or ill-typed one is a checker error at the wiring site,
+and its contract can be a proven law.
 
 ## The convention
 
@@ -68,9 +67,9 @@ leaves with an injected monoid and an injected leaf, on the device. An
 Consumers: `par/fold.bend` (`fold(~m, ~leaf, n, i)`, a parallel fold) and
 `check/kit.bend` (`eq_u32`, `eq_str`, the test kit).
 
-`check` is wire used on itself: the kit's reporter is an injected service, and
-wire's tests run on the kit. Other projects test with
-`../wire/check/kit.bend` and `../wire/check/print.bend`.
+`check` is core used on itself: the kit's reporter is an injected service, and
+core's tests run on the kit. Other projects test with
+`../core/check/kit.bend` and `../core/check/print.bend`.
 
 ## Laws
 

@@ -1,8 +1,8 @@
 # syntax/lex: source to tokens with positions; every char lands in one token
 import Base
 import ../lex.bend as Lex
-import ../../wire/check/kit.bend as Check
-import ../../wire/check/print.bend as Report
+import ../../core/check/kit.bend as Check
+import ../../core/check/print.bend as Report
 
 def source() -> String:
   "def f(+x: U32) -> List<&2, U32>: # note\n  case 1n+p:\n    M.go(x, \"a\\\"b\", 'c') ++ {==} <> 1.5\n  y = a[5] <- 42\n"

@@ -5,8 +5,8 @@ Read `bend guide` before writing Bend. Then this.
 ## Layout
 
     gate.sh            the gate; green before every commit
-    flake.nix          bend-cc: clang 19 for native and GPU builds
-    build.sh           the binaries people run: bend-lsp, bolt -> ~/.local/bin
+    flake.nix          bend-cc: clang 19 for native (and GPU) builds; `nix flake check` proves the C toolchain
+    build.sh           the one binary people run: bolt (lint, check, lsp) -> ~/.local/bin
     editors/vscode/    the VS Code client (not Bend; never publish it unasked)
     <project>/         one dir per project
       LAWS.bend        the claims: human-owned, do not edit to make a proof pass
@@ -28,9 +28,9 @@ Design specs and plans are not kept in this repo; they live under
   named `x.go` ride on x's); a parameter that is there to be ignored starts
   with `_`; no let or pattern binder may share a name with a def above it;
   a project with a LAWS.bend has every pure def named by some law.
-- Dependencies are injected the `wire` way (see wire/README.md): a service is
+- Dependencies are injected the `core` way (see core/README.md): a service is
   a folder, `x/service.bend` plus one file per implementation exporting
-  `new()`. Tests use `wire/check/kit.bend`.
+  `new()`. Tests use `core/check/kit.bend`.
 - A service file's header says whether it is pure (GPU-safe) or an effect
   (CPU event loop only). Only pure code may sit under a `!` call.
 - Never `bend --publish` without asking: it uploads to the public hub.
@@ -48,10 +48,10 @@ Design specs and plans are not kept in this repo; they live under
 - User code may not call a law before its def is filled, so Base's mutually
   recursive arm/go lemma shape does not work here. Give the arm the induction
   hypothesis as a parameter, and erase its other arguments (`for -at`) so the
-  caller can still recurse on them (see wire/PROOF.bend, Word.xor_assoc).
+  caller can still recurse on them (see core/PROOF.bend, Word.xor_assoc).
 - `match` takes parameters and pattern-bound variables only, in binder order;
   to branch on a computed value, pass it to a helper (see `report` in
-  wire/check/service.bend).
+  core/check/service.bend).
 - No mutual recursion, and a def must be defined above its use. A loop that
   branches on a computed value either folds the branch into a non-recursive
   helper that returns the next state (json/lex.bend), or hands the helper a
@@ -85,11 +85,11 @@ Design specs and plans are not kept in this repo; they live under
 - `bend x.bend` runs main after checking. To check only, `bend x.bend -o t.js`.
 - A foreign effect `def a.b(..) -> IO(T)` with `import "./x.c"` and
   `import "./x.js"` bodies is `a_b_run` + `io_eff(CID_A_B, ..)` in C and
-  `function a_b(..)` in JS (lsp/checker/exec.*).
+  `function a_b(..)` in JS (bolt/lsp/checker/exec.*).
 - A server's stdin and stdout may be sockets (node spawns children that way),
-  and no path opens a socket: wrap descriptors 0 and 1 (lsp/transport/fd.c),
+  and no path opens a socket: wrap descriptors 0 and 1 (bolt/lsp/transport/fd.c),
   never `File.open("/dev/stdin")`. Test a server spawned from node
-  (lsp/tests/spawn.js), not only through pipes.
+  (bolt/lsp/tests/spawn.js), not only through pipes.
 - A native Bend binary exits on an option it does not know, and takes no
   positional arguments at all: a launcher must not add flags
   (vscode-languageclient's `transport: stdio` adds `--stdio`), and a CLI

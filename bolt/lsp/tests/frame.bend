@@ -1,8 +1,8 @@
 # lsp/frame: Content-Length framing over bytes, and UTF-8 both ways
 import Base
 import ../frame.bend as Frame
-import ../../wire/check/kit.bend as Check
-import ../../wire/check/print.bend as Report
+import ../../../core/check/kit.bend as Check
+import ../../../core/check/print.bend as Report
 
 # what a cut found: the body and how many bytes are left, or "more"
 def show(c: Frame.Cut) -> String:

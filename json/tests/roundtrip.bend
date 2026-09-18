@@ -2,8 +2,8 @@
 import Base
 import ../parse.bend as Parse
 import ../print.bend as Print
-import ../../wire/check/kit.bend as Check
-import ../../wire/check/print.bend as Report
+import ../../core/check/kit.bend as Check
+import ../../core/check/print.bend as Report
 
 # parses and prints back; a parse failure prints as "<bad>"
 def again(text: String) -> String:

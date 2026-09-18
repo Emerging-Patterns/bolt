@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The gate: every project's laws hold, and every test prints its `#|` lines on
-# each lane: JS, native CPU, and (when the test has a `!` call) the GPU.
+# each lane: JS and native (CPU; a GPU run is 2-5x slower and is not gated).
 #   ./gate.sh            all lanes (native lanes run inside `nix develop`)
 #   ./gate.sh --js-only  skip the native lanes (and the linter, a native binary)
 set -u
@@ -19,7 +19,11 @@ check() { # name, expected, observed
     echo "FAIL: $1"; diff <(echo "$2") <(echo "$3") | sed 's/^/  /'
   fi
 }
-for dir in */; do
+# the C toolchain, built and run in the sandbox (flake.nix)
+if [ $js_only = 0 ]; then
+  check "nix flake check" "" "$(nix flake check 2>&1 | grep -v '^warning: Git tree' | grep -i 'error' || true)"
+fi
+for dir in */ */*/; do
   dir=${dir%/}
   [ -d "$dir/tests" ] || [ -f "$dir/PROOF.bend" ] || continue
   if [ -f "$dir/PROOF.bend" ]; then
@@ -40,24 +44,16 @@ for dir in */; do
       check "$t (build)" "" "$built"; continue
     fi
     check "$t (cpu)" "$want" "$("$bin" --gpu off 2>&1)"
-    if grep -q '!(' "$t"; then
-      check "$t (gpu)" "$want" "$("$bin" --gpu 1GB 2>&1)"
-    fi
   done
 done
-# the server as an editor runs it: spawned by node, over sockets
-if [ $js_only = 0 ] && command -v node >/dev/null; then
-  mkdir -p lsp/.gate
-  if built=$(bend lsp/main.bend -o lsp/.gate/bend-lsp 2>&1); then
-    check "lsp/tests/spawn.js" "ok" "$(node lsp/tests/spawn.js lsp/.gate/bend-lsp 2>&1)"
-  else
-    check "lsp/main.bend (build)" "" "$built"
-  fi
-fi
-# bolt over the repo itself
+# the one binary: the server as an editor runs it (spawned by node, over
+# sockets), and bolt over the repo itself
 if [ $js_only = 0 ]; then
   mkdir -p bin
   if built=$(bend bolt/main.bend -o bin/bolt.bin 2>&1); then
+    if command -v node >/dev/null; then
+      check "bolt/lsp/tests/spawn.js" "ok" "$(node bolt/lsp/tests/spawn.js bin/bolt.bin 2>&1)"
+    fi
     check "bolt (repo)" "clean" "$(bolt/bolt 2>&1)"
   else
     check "bolt/main.bend (build)" "" "$built"

@@ -2,10 +2,10 @@
 # syntax/lex on real files of this repo (run from its root): lossless on each
 import Base
 import ../lex.bend as Lex
-import ../../lsp/files/service.bend as F
-import ../../lsp/files/disk.bend as Disk
-import ../../wire/check/kit.bend as Check
-import ../../wire/check/print.bend as Report
+import ../../bolt/lsp/files/service.bend as F
+import ../../bolt/lsp/files/disk.bend as Disk
+import ../../core/check/kit.bend as Check
+import ../../core/check/print.bend as Report
 
 # passes when the file was read and its tokens spell it back
 def lossless.on(path: String, +text: String) -> IO(Unit):
@@ -19,12 +19,12 @@ def lossless(~fs: F.Files, +path: String) -> IO(Unit):
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    lossless(~Disk.new(), "lsp/server.bend")
+    lossless(~Disk.new(), "bolt/lsp/server.bend")
     lossless(~Disk.new(), "syntax/outline.bend")
-    lossless(~Disk.new(), "wire/PROOF.bend")
+    lossless(~Disk.new(), "core/PROOF.bend")
     lossless(~Disk.new(), "json/lex.bend")
 
-#|ok lsp/server.bend
+#|ok bolt/lsp/server.bend
 #|ok syntax/outline.bend
-#|ok wire/PROOF.bend
+#|ok core/PROOF.bend
 #|ok json/lex.bend

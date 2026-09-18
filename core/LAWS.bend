@@ -1,4 +1,4 @@
-# wire: the laws. The human states them; PROOF.bend must prove them.
+# core: the laws. The human states them; PROOF.bend must prove them.
 import Base
 import ./monoid/service.bend as M
 import ./monoid/sum.bend as Sum

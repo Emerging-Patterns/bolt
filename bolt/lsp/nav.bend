@@ -3,9 +3,9 @@
 # item of the document, or else of Base. Open documents are read from the
 # store (what the editor shows), everything else through the files service.
 import Base
-import ../syntax/outline.bend as Outline
-import ../syntax/word.bend as Word
-import ../syntax/bind.bend as Bind
+import ../../syntax/outline.bend as Outline
+import ../../syntax/word.bend as Word
+import ../../syntax/bind.bend as Bind
 import ./files/service.bend as F
 import ./docs.bend as Docs
 import ./path.bend as Path

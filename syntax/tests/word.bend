@@ -1,8 +1,8 @@
 # syntax/word: the name under a position
 import Base
 import ../word.bend as Word
-import ../../wire/check/kit.bend as Check
-import ../../wire/check/print.bend as Report
+import ../../core/check/kit.bend as Check
+import ../../core/check/print.bend as Report
 
 def source() -> String:
   "import Base\n  Frame.decode(body) ++ Nat.show(List.length(&2, U32, rest))\n"

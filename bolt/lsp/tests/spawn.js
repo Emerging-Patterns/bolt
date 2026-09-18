@@ -1,10 +1,11 @@
 // lsp over real stdio, launched the way an editor launches it: spawned by
 // node, whose child stdio are sockets, not pipes (a pipe-only test once hid
-// that the server could not open /dev/stdin). Usage: node spawn.js <bend-lsp>
+// that the server could not open /dev/stdin). Usage: node spawn.js <bolt.bin>
 const { spawn } = require("child_process");
 const path = require("path");
 
-const server = spawn(process.argv[2], ["--gpu", "off"], { stdio: ["pipe", "pipe", "inherit"] });
+const server = spawn(process.argv[2], ["--gpu", "off"],
+  { stdio: ["pipe", "pipe", "inherit"], env: { ...process.env, BOLT_CMD: "lsp" } });
 let buf = Buffer.alloc(0);
 const waiting = [];
 server.stdout.on("data", (chunk) => {

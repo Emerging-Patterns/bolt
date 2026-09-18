@@ -2,8 +2,8 @@
 import Base
 import ../tree.bend as Tree
 import ../lex.bend as Lex
-import ../../wire/check/kit.bend as Check
-import ../../wire/check/print.bend as Report
+import ../../core/check/kit.bend as Check
+import ../../core/check/print.bend as Report
 
 def show(src: String) -> String:
   Tree.show(Tree.parse(src))

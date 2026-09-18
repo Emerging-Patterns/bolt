@@ -1,8 +1,8 @@
 {
-  "name": "bend-lsp",
+  "name": "bolt",
   "displayName": "Bend",
-  "description": "Bend 2: highlighting, diagnostics, hover, definition, completion, references, rename and semantic tokens through bend-lsp",
-  "version": "0.2.0",
+  "description": "Bend 2: highlighting, diagnostics, hover, definition, completion, references, rename, semantic tokens and lint through bolt",
+  "version": "0.3.0",
   "publisher": "ngngardner",
   "private": true,
   "license": "MIT",
@@ -40,7 +40,7 @@
         "bend.server.path": {
           "type": "string",
           "default": "",
-          "description": "Path to the bend-lsp binary. Empty: `bend-lsp` on PATH, then ~/.local/bin/bend-lsp."
+          "description": "Path to bolt. Empty: ~/.local/bin/bolt, then `bolt` on PATH."
         }
       }
     },

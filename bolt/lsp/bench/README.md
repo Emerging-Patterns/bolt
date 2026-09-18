@@ -16,7 +16,7 @@ this pure part is everything the GPU could take.
 
 - *fold ms*: `IO.now()` around the fold, inside the process — compute only.
 - *wall ms*: the whole process, which adds the runtime's start and CUDA's.
-- Median of 3 runs. `./lsp/bench/run.sh 18` reproduces it.
+- Median of 3 runs. `./bolt/lsp/bench/run.sh 18` reproduces it.
 
 Ryzen 9 5900X (12 cores, 24 threads), RTX 3060 12 GB (CUDA 12.5, idle before
 each run; at 100% utilization during the GPU runs, the process listed by
@@ -50,7 +50,7 @@ each run; at 100% utilization during the GPU runs, the process listed by
 - **Why.** The work is parsing: strings are linked lists of chars, every step
   is a branch on a constructor, and neighbouring leaves take different paths.
   Bend's guide says as much — the GPU wins on uniform numeric work
-  (mandelbrot, nbody) and loses on divergent work (n-queens). wire's
+  (mandelbrot, nbody) and loses on divergent work (n-queens). core's
   `par/fold.bend` is the uniform kind, and there the GPU does win on this
   machine (2^32 leaves: 4.0 s against 5.3 s on all cores).
 - **What the GPU does beat is one core**, from about 1,000 requests up (3.8x at

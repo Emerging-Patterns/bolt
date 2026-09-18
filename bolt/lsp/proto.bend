@@ -1,14 +1,14 @@
 # lsp/proto: the messages the server sends, and the little it reads of a URI.
 import Base
-import ../json/value.bend as J
-import ../json/lex.bend as Lex
+import ../../json/value.bend as J
+import ../../json/lex.bend as Lex
 import ./frame.bend as Frame
 import ./report.bend as Rep
-import ../syntax/outline.bend as Outline
-import ../syntax/bind.bend as Bind
+import ../../syntax/outline.bend as Outline
+import ../../syntax/bind.bend as Bind
 import ./semantic.bend as Semantic
-import ../bolt/finding.bend as Lint
-import ../bolt/config.bend as Config
+import ../finding.bend as Lint
+import ../config.bend as Config
 
 # strings as JSON strings
 def strings(ss: List<&2, String>) -> List<&2, J.Json>:

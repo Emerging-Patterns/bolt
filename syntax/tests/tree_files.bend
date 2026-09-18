@@ -5,10 +5,10 @@
 import Base
 import ../lex.bend as Lex
 import ../tree.bend as Tree
-import ../../lsp/files/service.bend as F
-import ../../lsp/files/disk.bend as Disk
-import ../../wire/check/kit.bend as Check
-import ../../wire/check/print.bend as Report
+import ../../bolt/lsp/files/service.bend as F
+import ../../bolt/lsp/files/disk.bend as Disk
+import ../../core/check/kit.bend as Check
+import ../../core/check/print.bend as Report
 
 def significant(toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
   match toks:
@@ -45,16 +45,16 @@ def faithful(~fs: F.Files, +path: String) -> IO(Unit):
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    faithful(~Disk.new(), "lsp/server.bend")
+    faithful(~Disk.new(), "bolt/lsp/server.bend")
     faithful(~Disk.new(), "syntax/tree.bend")
-    faithful(~Disk.new(), "wire/PROOF.bend")
-    faithful(~Disk.new(), "wire/LAWS.bend")
+    faithful(~Disk.new(), "core/PROOF.bend")
+    faithful(~Disk.new(), "core/LAWS.bend")
     faithful(~Disk.new(), "json/parse.bend")
-    faithful(~Disk.new(), "lsp/tests/session.bend")
+    faithful(~Disk.new(), "bolt/lsp/tests/session.bend")
 
-#|ok lsp/server.bend
+#|ok bolt/lsp/server.bend
 #|ok syntax/tree.bend
-#|ok wire/PROOF.bend
-#|ok wire/LAWS.bend
+#|ok core/PROOF.bend
+#|ok core/LAWS.bend
 #|ok json/parse.bend
-#|ok lsp/tests/session.bend
+#|ok bolt/lsp/tests/session.bend

@@ -1,8 +1,8 @@
 # syntax/bind: binders, their scopes, and what each name refers to
 import Base
 import ../bind.bend as Bind
-import ../../wire/check/kit.bend as Check
-import ../../wire/check/print.bend as Report
+import ../../core/check/kit.bend as Check
+import ../../core/check/print.bend as Report
 
 def source() -> String:
   String.join([

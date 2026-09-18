@@ -1,24 +1,24 @@
-# lsp/server: the loop. Everything outside the process is an injected wire
+# lsp/server: the loop. Everything outside the process is an injected core
 # service: the transport the messages ride on, the checker behind the
 # diagnostics, the files behind imports and Base. The open documents are the
 # loop's state. Diagnostics run on open and save, against the file on disk.
 import Base
-import ../json/value.bend as J
-import ../json/parse.bend as Parse
-import ../json/print.bend as Print
+import ../../json/value.bend as J
+import ../../json/parse.bend as Parse
+import ../../json/print.bend as Print
 import ./proto.bend as Proto
 import ./docs.bend as Docs
 import ./nav.bend as Nav
 import ./semantic.bend as Semantic
-import ../bolt/rules.bend as Lint
-import ../bolt/finding.bend as Finding
-import ../bolt/config.bend as Config
+import ../rules.bend as Lint
+import ../finding.bend as Finding
+import ../config.bend as Config
 import ./transport/service.bend as T
 import ./checker/service.bend as C
 import ./files/service.bend as F
 import ./report.bend as Rep
-import ../syntax/outline.bend as Outline
-import ../syntax/word.bend as Word
+import ../../syntax/outline.bend as Outline
+import ../../syntax/word.bend as Word
 
 # the methods the server answers; MOther is anything else
 type Method is Data:

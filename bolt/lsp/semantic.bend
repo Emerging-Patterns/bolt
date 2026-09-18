@@ -5,8 +5,8 @@
 # from elsewhere is read by its shape: `Bool.pick` a function, `U32` a type,
 # `Nil{` a constructor.
 import Base
-import ../syntax/lex.bend as Lex
-import ../syntax/bind.bend as Bind
+import ../../syntax/lex.bend as Lex
+import ../../syntax/bind.bend as Bind
 
 # the legend, by index: keyword 0, function 1, type 2, enumMember 3,
 # parameter 4, variable 5, property 6, string 7, number 8, comment 9,

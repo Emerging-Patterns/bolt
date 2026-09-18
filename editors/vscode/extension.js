@@ -1,5 +1,5 @@
-// The VS Code client for bend-lsp: starts the native server on stdio for
-// .bend files. All the language work is in the server (../../lsp).
+// The VS Code client for Bend: starts bolt's language server (`bolt lsp`) on
+// stdio for .bend files. All the language work is in the server (../../bolt/lsp).
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -21,15 +21,15 @@ function serverPath() {
   if (set) {
     return set.replace(/^~(?=$|\/)/, os.homedir());
   }
-  const local = path.join(os.homedir(), ".local/bin/bend-lsp");
-  return fs.existsSync(local) ? local : "bend-lsp";
+  const local = path.join(os.homedir(), ".local/bin/bolt");
+  return fs.existsSync(local) ? local : "bolt";
 }
 
 async function start() {
-  // --gpu off: a native Bend binary takes the GPU when there is one. No
+  // `bolt lsp`: the bolt script runs the binary with --gpu off. No
   // `transport`: stdio is the default for a command, and naming it makes the
-  // client append `--stdio`, which a Bend binary refuses as an unknown option.
-  const run = { command: serverPath(), args: ["--gpu", "off"], options: { env: serverEnv() } };
+  // client append `--stdio`, which the binary refuses as an unknown option.
+  const run = { command: serverPath(), args: ["lsp"], options: { env: serverEnv() } };
   client = new LanguageClient("bend", "Bend", { run, debug: run },
     { documentSelector: [{ scheme: "file", language: "bend" }] });
   await client.start();

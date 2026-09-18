@@ -4,18 +4,20 @@ A language server for Bend, written in Bend: the real checker's errors on open
 and save, and hover, go-to-definition, document symbols and completion as you type.
 
 ```
-bend lsp/main.bend -o bin/bend-lsp     # from the repo root; clang 14 is enough
-bin/bend-lsp --gpu off                 # speaks LSP on stdio
+./build.sh          # from the repo root: bin/bolt.bin, ~/.local/bin/bolt; clang 14 is enough
+bolt lsp            # speaks LSP on stdio
 ```
 
-Run it with `--gpu off`: a native Bend binary takes the GPU when there is one,
-and a language server has no use for a CUDA context. It ships native only: the
-JS lane overflows its stack on a large message. Idle it costs no CPU.
+It is one command of [bolt](../)'s binary (`lsp/run.bend` is its
+entry). The script runs the binary with `--gpu off`: a native Bend binary
+takes the GPU when there is one, and a language server has no use for a CUDA
+context. It ships native only: the JS lane overflows its stack on a large
+message. Idle it costs no CPU.
 
 ## How it is wired
 
 `server.bend` is the loop; everything outside the process is a
-[wire](../wire/) service, so a test is a whole session over fakes:
+[core](../../core/) service, so a test is a whole session over fakes:
 
 | service | real | fake |
 |---------|------|------|
@@ -29,7 +31,7 @@ decodes itself), `report.bend` (the checker's text to diagnostics),
 `proto.bend` (the JSON the server sends; URI to path), `docs.bend` (the open
 documents, the loop's state), `path.bend`, and `nav.bend`: a name `Alias.rest`
 is `rest` in the file behind the import `Alias`; any other name is an item of
-the document, or else of Base. Items come from [syntax](../syntax/)'s outline,
+the document, or else of Base. Items come from [syntax](../../syntax/)'s outline,
 so navigation works in files that do not check, and sees unsaved edits.
 
 ## What the checker gives
@@ -45,7 +47,7 @@ so navigation works in files that do not check, and sees unsaved edits.
 - The checker reads the file and its imports from disk, so its errors follow
   open and save, not unsaved edits.
 
-[bolt](../bolt/)'s findings ride along (source `bolt`, the rule as the code),
+[bolt](../)'s findings ride along (source `bolt`, the rule as the code),
 each at the level the nearest `bolt.bend` gives its rule: errors as severity
 1, warnings as 2, off ones dropped. The linter is pure, so it runs on the
 text the editor shows: findings follow every edit, and each publish carries
@@ -57,7 +59,7 @@ a char is typed) Base. The server filters by prefix and each candidate replaces
 the whole typed name, dots included, as the editor's own word stops at a dot.
 
 A name that a binder of the document binds (a parameter, a let, a pattern, a
-field, ..) resolves to that binder first ([syntax](../syntax/)'s bind): hover
+field, ..) resolves to that binder first ([syntax](../../syntax/)'s bind): hover
 shows the declaration or the line that bound it, definition lands exactly on
 the binder, completion offers the visible names first. The server knows
 binding sites, not types: a parameter has its annotation, a pattern binder has

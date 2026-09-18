@@ -11,8 +11,8 @@ import ../rules/law.bend as Law
 import ../file.bend as File
 import ../config.bend as Config
 import ../finding.bend as F
-import ../../wire/check/kit.bend as Check
-import ../../wire/check/print.bend as Report
+import ../../core/check/kit.bend as Check
+import ../../core/check/print.bend as Report
 
 def lines(fs: List<&2, F.Finding>) -> String:
   String.join(F.show_all(fs), "; ")

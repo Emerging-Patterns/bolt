@@ -29,5 +29,5 @@ What an editor needs to know about a Bend source without checking it.
   item behind an import alias, or nothing (Base, or unknown). Names and
   binding sites, not types.
 
-The tree and the binder are what [lsp](../lsp/) navigates, references,
+The tree and the binder are what [lsp](../bolt/lsp/) navigates, references,
 renames and colours with, and what [bolt](../bolt/) checks.

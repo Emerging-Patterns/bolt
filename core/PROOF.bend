@@ -1,4 +1,4 @@
-# wire: the proofs. `bend PROOF.bend` is the gate.
+# core: the proofs. `bend PROOF.bend` is the gate.
 import Base
 import ./monoid/service.bend as M
 import ./monoid/sum.bend as Sum

@@ -2,8 +2,8 @@
 # does not understand
 import Base
 import ../outline.bend as Outline
-import ../../wire/check/kit.bend as Check
-import ../../wire/check/print.bend as Report
+import ../../core/check/kit.bend as Check
+import ../../core/check/print.bend as Report
 
 def source() -> String:
   String.join([

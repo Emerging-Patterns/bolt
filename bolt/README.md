@@ -7,6 +7,8 @@ laws that reach every pure def.
 
     bolt                every .bend file under the current directory
     bolt a.bend b/      the files given
+    bolt check a.bend   the checker's errors, in the same shape
+    bolt lsp            the language server
 
 Each finding is one line, `path:line:col: level: rule: message`, with line
 and column 1-based so a terminal can jump to it; then `clean` or the counts.
@@ -80,22 +82,25 @@ linter read at once (`rules.bend`'s `project`).
 - `law` (project) — in a project that states laws (a directory with a
   LAWS.bend), a pure def that no law names. A law names a def when its
   statement mentions it, through the law file's import alias (`M.join` in
-  `wire/LAWS.bend` names `join` of `wire/monoid/service.bend`); laws in any
+  `core/LAWS.bend` names `join` of `core/monoid/service.bend`); laws in any
   file count, PROOF.bend's lemmas included. A type is covered once any law
   reaches its module: a law about an instance names the accessors, never the
   service type. Out of scope: helpers (dotted names), `main`, tests, the law
   files, and a module that touches IO (a law cannot state it). A project
   without a LAWS.bend is not under law.
 
-## How it takes its arguments
+## One binary
 
-A native Bend binary rejects arguments it does not know, so `bolt/bolt` is
-a script: it puts the file list in `BOLT_FILES` (one path a line), then
-runs `bin/bolt.bin`.
+`bolt` is also `bolt check file..` (the checker, `bend`, on each file, its
+errors in the same shape, `path:line:1: error: message`) and `bolt lsp`
+(the [language server](lsp/), over stdio). A native Bend binary rejects
+arguments it does not know, so `bolt/bolt` is a script: it puts the
+subcommand in `BOLT_CMD` and the file list in `BOLT_FILES` (one path a
+line), then runs `bin/bolt.bin`, whose `main.bend` dispatches.
 
 ## In the editor
 
-[lsp](../lsp/) runs the per-file rules on each edit and publishes the
+[lsp](lsp/) runs the per-file rules on each edit and publishes the
 findings at the levels the nearest `bolt.bend` gives them: errors red,
 warnings yellow, off ones not at all. The project rules (`law`) need every
 file, so they run in bolt alone.

@@ -2,8 +2,8 @@
 import Base
 import ../path.bend as Path
 import ../docs.bend as Docs
-import ../../wire/check/kit.bend as Check
-import ../../wire/check/print.bend as Report
+import ../../../core/check/kit.bend as Check
+import ../../../core/check/print.bend as Report
 
 def docs() -> List<&2, Docs.Doc>:
   Docs.set(Docs.set(Docs.set([], "a", "1"), "b", "2"), "a", "3")

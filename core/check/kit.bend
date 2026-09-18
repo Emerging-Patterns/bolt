@@ -1,5 +1,5 @@
 # check/kit: a tiny test kit. Its Reporter is an injected effect service, so
-# the kit's own output is swappable -- wire dogfoods itself here.
+# the kit's own output is swappable -- core dogfoods itself here.
 import Base
 import ./service.bend as S
 

@@ -5,10 +5,10 @@
 # the item. Prints the checksum, then the milliseconds the fold took (the
 # process's start, and the GPU's, are outside that span).
 import Base
-import ../../syntax/outline.bend as Outline
-import ../../syntax/word.bend as Word
-import ../../json/parse.bend as Parse
-import ../../json/value.bend as J
+import ../../../syntax/outline.bend as Outline
+import ../../../syntax/word.bend as Word
+import ../../../json/parse.bend as Parse
+import ../../../json/value.bend as J
 
 # the document a hover is answered against
 def source() -> String:
