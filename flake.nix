@@ -1,5 +1,7 @@
 {
-  description = "bolt: the C toolchain for native builds (and, by hand, GPU ones)";
+  # the flake carries the C toolchain bolt builds with; bend itself is not
+  # packaged in nix (`bend` installs from bend-lang.com)
+  description = "bolt: a linter, checker and language server for Bend 2";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
