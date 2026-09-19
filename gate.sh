@@ -11,6 +11,9 @@ if [ $js_only = 0 ] && ! command -v bend-cc >/dev/null; then
 fi
 export CC=bend-cc
 pass=0; total=0
+# bend 2.0.16 reports its unsafe annotations on stderr after the check; that
+# is not the program's output, and a test's `#|` lines do not carry it
+run() { local out; out=$("$@" 2>&1); local st=$?; printf '%s\n' "$out" | grep -v '^All terms check, with [0-9]* unsafe annotation'; return $st; }
 check() { # name, expected, observed
   total=$((total + 1))
   if [ "$2" = "$3" ]; then
@@ -27,7 +30,7 @@ for dir in */ */*/; do
   dir=${dir%/}
   [ -d "$dir/tests" ] || [ -f "$dir/PROOF.bend" ] || continue
   if [ -f "$dir/PROOF.bend" ]; then
-    check "$dir/PROOF.bend" "All terms check." "$(bend "$dir/PROOF.bend" 2>&1)"
+    check "$dir/PROOF.bend" "All terms check." "$(bend "$dir/PROOF.bend" 2>&1 | sed 's/^All terms check, with [0-9]* unsafe annotations\{0,1\}\.$/All terms check./')"
   fi
   for t in "$dir"/tests/*.bend; do
     [ -f "$t" ] || continue
@@ -35,12 +38,12 @@ for dir in */ */*/; do
     # a test headed `# lanes: native` is too big for the JS lane's stack
     native_only=0; grep -q '^# lanes: native' "$t" && native_only=1
     if [ $native_only = 0 ]; then
-      check "$t (js)" "$want" "$(bend "$t" 2>&1)"
+      check "$t (js)" "$want" "$(run bend "$t")"
     fi
     [ $js_only = 1 ] && continue
     bin="$dir/.gate/$(basename "$t" .bend)"
     mkdir -p "$dir/.gate"
-    if ! built=$(bend "$t" -o "$bin" 2>&1); then
+    if ! built=$(run bend "$t" -o "$bin"); then
       check "$t (build)" "" "$built"; continue
     fi
     check "$t (cpu)" "$want" "$("$bin" --gpu off 2>&1)"
@@ -50,7 +53,7 @@ done
 # sockets), and bolt over the repo itself
 if [ $js_only = 0 ]; then
   mkdir -p bin
-  if built=$(bend bolt/main.bend -o bin/bolt.bin 2>&1); then
+  if built=$(run bend bolt/main.bend -o bin/bolt.bin); then
     if command -v node >/dev/null; then
       check "bolt/lsp/tests/spawn.js" "ok" "$(node bolt/lsp/tests/spawn.js bin/bolt.bin 2>&1)"
     fi
