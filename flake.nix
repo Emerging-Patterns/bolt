@@ -16,12 +16,15 @@
       llvm = pkgs.llvmPackages_19;
       # bend needs clang 19+ for a GPU build. The wrapped nix clang links nix's
       # glibc, and then nvrtc cannot load the system libstdc++; so: the
-      # unwrapped clang, its resource dir, and the system's dynamic linker.
+      # unwrapped clang, its resource dir, the system's dynamic linker and the
+      # system's ld (bend's wrapper puts nix's clang on PATH, whose wrapped ld
+      # would add a runpath to nix's glibc; CC=bend-cc still wins for a GPU build).
       # The gate runs the CPU lane only; a GPU build is `bend x.bend -o x` in
       # the dev shell, run with `--gpu 1GB`.
       bend-cc = pkgs.writeShellScriptBin "bend-cc" ''
         exec ${llvm.clang-unwrapped}/bin/clang \
           -resource-dir ${llvm.clang}/resource-root \
+          --ld-path=/usr/bin/ld \
           -Wl,--dynamic-linker=/lib64/ld-linux-x86-64.so.2 "$@"
       '';
       # what bend's generated C needs of a toolchain: C11 with atomics,
