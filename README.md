@@ -17,8 +17,9 @@ written in Bend, with a VS Code extension.
 
 ## Install
 
-With nix, nothing else is needed: the flake packages bend 2 (the release
-tarball, run by bun; no telemetry, no self-update) and builds bolt from it.
+With nix, nothing else is needed: the flake takes bend 2 from its own
+flake (`github:bendlang/bend`: the release archive, patched for nix) and
+builds bolt from it.
 
 ```
 nix profile install github:Emerging-Patterns/bolt   # bolt, with bend on its PATH

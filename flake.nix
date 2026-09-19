@@ -1,11 +1,15 @@
 {
-  # the flake carries the C toolchain bolt builds with; bend itself is not
-  # packaged in nix (`bend` installs from bend-lang.com)
+  # the flake carries the C toolchain bolt builds with; bend itself comes
+  # from bendlang/bend's own flake (the release archive, patched for nix)
   description = "bolt: a linter, checker and language server for Bend 2";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+  inputs.bend = {
+    url = "github:bendlang/bend";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, ... }@inputs:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
@@ -47,27 +51,9 @@
         [ "$got" = "4000 4 1" ] || { echo "got: $got"; exit 1; }
         echo "$got" > $out
       '';
-      # bend 2 itself: a release tarball of TypeScript that bun runs, with no
-      # dependencies of its own. The launcher from bend-lang.com is replaced by
-      # a plain one: no telemetry, no self-update, this version only.
-      bend = pkgs.stdenvNoCC.mkDerivation rec {
-        pname = "bend";
-        version = "2.0.5";
-        src = pkgs.fetchurl {
-          url = "https://bend-lang.com/dl/${version}.tar.gz";
-          sha256 = "4db70e77ce1b1027f1d0e15dee025921fa794a9b415add4350ec7c64acf2775b";
-        };
-        sourceRoot = ".";
-        installPhase = ''
-          mkdir -p $out/share/bend $out/bin
-          cp -r bend2 guide $out/share/bend/
-          cat > $out/bin/bend <<EOF
-          #!${pkgs.runtimeShell}
-          exec ${pkgs.bun}/bin/bun $out/share/bend/bend2/main.ts "\$@"
-          EOF
-          chmod +x $out/bin/bend
-        '';
-      };
+      # bend 2 itself, from its own flake: the wrapper puts nix's clang on
+      # PATH for `bend -o`, and bend-cc on CC still wins for a GPU build
+      bend = inputs.bend.packages.${system}.default;
       # bolt: bend emits the C, clang 19 builds it; the `bolt` script sits
       # beside the binary and finds bend on its PATH (for `bolt check` and
       # the server's diagnostics)
@@ -92,7 +78,7 @@
       apps.${system}.default = { type = "app"; program = "${bolt}/bin/bolt"; };
       checks.${system} = { c = c-check; inherit bolt; };
       devShells.${system}.default = pkgs.mkShellNoCC {
-        packages = [ bend-cc ];
+        packages = [ bend bend-cc ];
         shellHook = "export CC=bend-cc";
       };
     };
