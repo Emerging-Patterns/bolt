@@ -1,14 +1,10 @@
-# Sibling of Emerging-Patterns/ez release workflow; keep shape aligned.
-#
-# ez has no release workflows yet. Copy this pair (release.yml + tag.yml)
-# as the shared pattern: annotated vX.Y.Z tag → GitHub Release. No native
-# package attach (bolt's flake build OOMs on typical GHA RAM). GitHub
-# already ships a source archive on the release.
-#
-# This file runs on a pushed v* tag (a human `git tag -a && git push`,
-# or tag.yml). Tag + GitHub Release only:
+# On a pushed v* tag (a human `git tag -a && git push`, or tag.yml):
+# open a GitHub Release. Tag + GitHub Release only:
 #   - do not publish the VS Code extension (AGENTS.md)
 #   - do not `bend --publish`
+#
+# No native package attach: bolt's flake build OOMs on typical GHA RAM.
+# GitHub already ships a source archive on the release.
 #
 # Notes: CHANGELOG.md section for this version if present, else GitHub's
 # generated notes from commits since the previous tag.

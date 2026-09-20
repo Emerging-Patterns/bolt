@@ -1,13 +1,9 @@
-# Sibling of Emerging-Patterns/ez tag workflow; keep shape aligned.
-#
 # Cuts an annotated vX.Y.Z tag (and the GitHub Release: a GITHUB_TOKEN
-# tag push does not start release.yml). Same pattern ez should copy.
+# tag push does not start release.yml).
 #
 # How to cut a release
-#   1. Land the version on the default branch. bolt: flake.nix and
-#      editors/vscode/package.json must be the same X.Y.Z. ez: whichever
-#      file holds the version (likely flake.nix only — drop the vscode
-#      check below).
+#   1. Land the version on the default branch. flake.nix and
+#      editors/vscode/package.json must be the same X.Y.Z.
 #   2. Actions → Tag → Run workflow, from that branch:
 #        - leave version empty and bump=none → tag what the files say
 #        - version=X.Y.Z → tag that (fails if the files disagree)
