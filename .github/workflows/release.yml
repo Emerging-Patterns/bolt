@@ -1,13 +1,11 @@
-# On a pushed v* tag (a human `git tag -a && git push`, or tag.yml):
+# On a pushed v* tag (`git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`):
 # open a GitHub Release. Tag + GitHub Release only:
 #   - do not publish the VS Code extension (AGENTS.md)
 #   - do not `bend --publish`
 #
 # No native package attach: bolt's flake build OOMs on typical GHA RAM.
 # GitHub already ships a source archive on the release.
-#
-# Notes: CHANGELOG.md section for this version if present, else GitHub's
-# generated notes from commits since the previous tag.
+# Notes are GitHub-generated from commits since the previous tag.
 
 name: release
 
@@ -23,37 +21,20 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Require vX.Y.Z
+        id: tag
         run: |
           set -euo pipefail
-          tag="${GITHUB_REF_NAME}"
-          if ! echo "$tag" | grep -qxE 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?'; then
-            echo "skip: $tag is not a vX.Y.Z tag"
-            exit 0
-          fi
-          if gh release view "$tag" >/dev/null 2>&1; then
-            echo "release $tag already exists"
-            exit 0
-          fi
-          ver="${tag#v}"
-          extra=()
-          case "$tag" in
-            *-*) extra+=(--prerelease) ;;
-          esac
-          if [ -f CHANGELOG.md ]; then
-            awk -v ver="$ver" '
-              $0 ~ "^##[ \\[]+v?" ver {found=1; print; next}
-              found && /^## / {exit}
-              found {print}
-            ' CHANGELOG.md > /tmp/release-notes.md
-          fi
-          if [ -s /tmp/release-notes.md ]; then
-            gh release create "$tag" --title "$tag" --notes-file /tmp/release-notes.md "${extra[@]}"
+          if echo "${GITHUB_REF_NAME}" | grep -qxE 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?'; then
+            echo "ok=1" >> "$GITHUB_OUTPUT"
           else
-            gh release create "$tag" --title "$tag" --generate-notes "${extra[@]}"
+            echo "skip: ${GITHUB_REF_NAME} is not a vX.Y.Z tag"
+            echo "ok=0" >> "$GITHUB_OUTPUT"
           fi
+      - name: GitHub Release
+        if: steps.tag.outputs.ok == '1'
+        uses: softprops/action-gh-release@v3
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
