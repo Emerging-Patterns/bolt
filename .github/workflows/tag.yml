@@ -14,8 +14,6 @@
 #
 # Publishes bolt/main.bend to bendhub. The 0x hash goes in the GitHub
 # Release name (`bolt X.Y.Z (0x…)`) and README; the git tag stays vX.Y.Z.
-# Does not publish the VS Code extension.
-# Does not build bolt (native compile OOMs on typical GHA).
 
 name: tag
 
