@@ -2,8 +2,8 @@
 # (a GITHUB_TOKEN tag does not start release.yml).
 #
 # How to cut a release
-#   1. Land the version on the default branch. flake.nix and
-#      editors/vscode/package.json must be the same X.Y.Z.
+#   1. Land the version on the default branch. Every path in
+#      .github/hub.env VERSION_FILES must be the same X.Y.Z.
 #   2. Actions → Tag → Run workflow, from that branch:
 #        - leave version empty and bump=none → tag what the files say
 #        - version=X.Y.Z → tag that (fails if the files disagree)
@@ -12,10 +12,10 @@
 #   3. Or tag locally: `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`
 #      (release.yml then publishes and opens the GitHub Release).
 #
-# Publishes bolt/main.bend to bendhub. The 0x hash goes in the GitHub
-# Release name (`bolt X.Y.Z (0x…)`) and README; the git tag stays vX.Y.Z.
-# Does not publish the VS Code extension.
-# Does not build bolt (native compile OOMs on typical GHA).
+# Publishes ENTRY in .github/hub.env to bendhub. The 0x hash goes in
+# the GitHub Release name (`NAME X.Y.Z (0x…)`) and README; the git
+# tag stays vX.Y.Z. Does not publish the VS Code extension.
+# Does not build a native binary (that compile OOMs on typical GHA).
 
 name: tag
 
@@ -53,78 +53,22 @@ jobs:
         env:
           VERSION_IN: ${{ inputs.version }}
           BUMP: ${{ inputs.bump }}
-        run: |
-          set -euo pipefail
-
-          flake_ver=$(grep -oE 'version = "[0-9]+\.[0-9]+\.[0-9]+"' flake.nix \
-            | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-          pkg_ver=$(python3 -c 'import json; print(json.load(open("editors/vscode/package.json"))["version"])')
-          if [ -z "$flake_ver" ] || [ -z "$pkg_ver" ]; then
-            echo "could not read version from flake.nix and editors/vscode/package.json"
-            exit 1
-          fi
-          if [ "$flake_ver" != "$pkg_ver" ]; then
-            echo "version mismatch: flake.nix=$flake_ver editors/vscode/package.json=$pkg_ver"
-            echo "keep them equal (see flake.nix comment) before tagging"
-            exit 1
-          fi
-          file_ver="$flake_ver"
-
-          ver=$(printf '%s' "$VERSION_IN" | tr -d '[:space:]')
-          ver="${ver#v}"
-          bump_files=0
-          if [ -n "$ver" ]; then
-            :
-          elif [ "${BUMP:-none}" != none ]; then
-            IFS=. read -r maj min pat <<< "$file_ver"
-            case "$BUMP" in
-              major) ver="$((maj + 1)).0.0" ;;
-              minor) ver="$maj.$((min + 1)).0" ;;
-              patch) ver="$maj.$min.$((pat + 1))" ;;
-              *) echo "unknown bump: $BUMP"; exit 1 ;;
-            esac
-            bump_files=1
-          else
-            ver="$file_ver"
-          fi
-
-          if ! echo "$ver" | grep -qxE '[0-9]+\.[0-9]+\.[0-9]+'; then
-            echo "version must be X.Y.Z, got: $ver"
-            exit 1
-          fi
-          if [ "$bump_files" -eq 0 ] && [ "$ver" != "$file_ver" ]; then
-            echo "asked to tag v$ver but files are $file_ver"
-            echo "bump flake.nix and editors/vscode/package.json first, or use bump="
-            exit 1
-          fi
-
-          if [ "$bump_files" -eq 1 ]; then
-            sed -i -E 's/version = "[0-9]+\.[0-9]+\.[0-9]+"/version = "'"$ver"'"/' flake.nix
-            sed -i -E 's/"version": "[0-9]+\.[0-9]+\.[0-9]+"/"version": "'"$ver"'"/' editors/vscode/package.json
-            if ! grep -q "version = \"$ver\"" flake.nix; then
-              echo "failed to write flake.nix version $ver"
-              exit 1
-            fi
-            if ! grep -q "\"version\": \"$ver\"" editors/vscode/package.json; then
-              echo "failed to write package.json version $ver"
-              exit 1
-            fi
-          fi
-
-          echo "version=$ver" >> "$GITHUB_OUTPUT"
-          echo "bump_files=$bump_files" >> "$GITHUB_OUTPUT"
+        run: .github/scripts/hub.sh version
       - uses: DeterminateSystems/nix-installer-action@v23
       - name: Publish to bendhub
         id: hub
         uses: ./.github/actions/publish-hub
       - name: Write hub identity into README
-        run: .github/scripts/hub.sh readme "${{ steps.hub.outputs.hash }}"
+        run: .github/scripts/hub.sh readme "${{ steps.hub.outputs.hash }}" "${{ steps.hub.outputs.entry }}"
+      - name: Release name
+        id: title
+        run: .github/scripts/hub.sh name "${{ steps.ver.outputs.version }}" "${{ steps.hub.outputs.hash }}"
       - name: Commit version and hub identity
         id: commit
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: Release v${{ steps.ver.outputs.version }}
-          file_pattern: flake.nix editors/vscode/package.json README.md
+          file_pattern: ${{ steps.ver.outputs.version_files }} README.md
           branch: ${{ github.ref_name }}
           disable_globbing: true
           commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
@@ -132,6 +76,6 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.ver.outputs.version }}
-          name: bolt ${{ steps.ver.outputs.version }} (${{ steps.hub.outputs.hash }})
+          name: ${{ steps.title.outputs.name }}
           generate_release_notes: true
           target_commitish: ${{ steps.commit.outputs.commit_hash || github.sha }}
