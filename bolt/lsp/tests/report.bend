@@ -1,5 +1,6 @@
-# lsp/report: the checker's text, as diagnostics. The fixtures are bend 2.0.3's
-# own output: when a bend update changes the format, this test says so.
+# lsp/report: the checker's text, as diagnostics. The Error: fixtures match
+# bend 2.0.20 (unchanged since 2.0.3); the unsafe/foreign verdict is 2.0.17+.
+# When a bend update changes the format, this test says so.
 import Base
 import ../report.bend as Rep
 import ../../../core/check/kit.bend as Check
@@ -36,6 +37,8 @@ def twice() -> String:
 def main() -> IO(Unit):
   do IO<Unit>:
     Check.eq_str(~Report.new(), "clean output has no diagnostics", show("All terms check.\n"), "")
+    Check.eq_str(~Report.new(), "an unsafe/foreign verdict is not a diagnostic",
+      show("All terms check, but 2 defs rely on unsafe or foreign code:\n- spin\n- main\n"), "")
     Check.eq_str(~Report.new(), "a module with no main is clean", show("Error: no main to run\n"), "")
     Check.eq_str(~Report.new(), "a type error lands on its marked line, 0-based", show(type_error()),
       "[3|expected : String\nobserved : U32\nContext:\nx : U32]")
@@ -48,6 +51,7 @@ def main() -> IO(Unit):
     Check.eq_str(~Report.new(), "two errors are two diagnostics", show(twice()), "[0|message  : one][6|message  : two]")
 
 #|ok clean output has no diagnostics
+#|ok an unsafe/foreign verdict is not a diagnostic
 #|ok a module with no main is clean
 #|ok a type error lands on its marked line, 0-based
 #|ok a syntax error has no def name

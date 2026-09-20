@@ -1,8 +1,9 @@
 # rule unsafe (project-wide): an `@unsafe def` that a LAWS.bend or PROOF.bend
 # reaches by relative imports, over the files bolt read. The checker skips its
-# termination check, prints "All terms check, with N unsafe annotation(s)."
-# and exits 0, so a gate that only reads the exit status goes green on a
-# proof that is not sound (a def that never returns proves anything). Recurse
+# termination check, prints "All terms check, but N defs rely on unsafe or
+# foreign code:" (2.0.16: "with N unsafe annotation(s).") and exits 0, so a
+# gate that only reads the exit status goes green on a proof that is not
+# sound (a def that never returns proves anything). Recurse
 # on a shrinking argument, or on a fuel, and drop the `@unsafe`; or keep the
 # def out of what the laws import. An `@unsafe` def no law file reaches is
 # not this rule's business. The rule reads each file's digest
