@@ -11,7 +11,8 @@ writing Bend. Then this.
                        bend-cc: clang 19 for native (and GPU) builds; `nix flake check`
                        builds bolt and proves the C toolchain
                        (nix sees tracked files only: git add first)
-    build.sh           the one binary people run: bolt (lint, check, lsp) -> ~/.local/bin
+    build.sh           the one binary people run: bin/bolt.bin (lint, check, lsp),
+                       linked into ~/.local/bin as `bolt`
     editors/vscode/    the VS Code extension (not Bend; never publish it to the marketplace unasked)
     <project>/         one dir per project
       LAWS.bend        the claims: human-owned, do not edit to make a proof pass
@@ -102,15 +103,21 @@ Design specs and plans are not kept in this repo; they live under
   and no path opens a socket: wrap descriptors 0 and 1 (bolt/lsp/transport/fd.c),
   never `File.open("/dev/stdin")`. Test a server spawned from node
   (bolt/lsp/tests/spawn.js), not only through pipes.
-- A native Bend binary exits on an option it does not know, and takes no
-  positional arguments at all: a launcher must not add flags
-  (vscode-languageclient's `transport: stdio` adds `--stdio`), and a CLI
-  takes its arguments through the environment (bolt/bolt).
+- A *compiled* Bend binary passes its whole command line to `IO.args()`,
+  flags included (2.0.16; 2.0.5 did not, which is where "a Bend binary takes
+  no arguments" came from). The runtime keeps only its own — `--threads`,
+  `--gpu`, `--gpu-build`, `--help` — and strips them wherever they stand, so
+  `bolt lsp --gpu off` reaches `IO.args()` as `[lsp]`; `--` hands even those
+  to the program. `IO.args()` has no argv[0], so a binary cannot find itself
+  by it. The *interpreted* lane differs: `bend f.bend a b` passes positional
+  arguments but bend's own CLI rejects flags it does not know.
 - A pair `A & B` is never `Data`: a list of pairs is `List<&1, A & B>`.
 - `x.of` and `x_of` mangle to the same C name ("two names mangle to
   FID_.."): never both in one module.
 - The JS lane overflows its stack on long strings (~65KB). Head such a test
   `# lanes: native`; anything long-running ships as the native binary.
 - The GPU is on by default in a native binary: the CPU lane is `--gpu off`.
+  Every launcher of `bolt lsp` passes it (gate.sh, bolt/lsp/tests/spawn.js,
+  the VS Code extension, the nix wrapper).
 - Link native binaries with `bend-cc` only. The wrapped nix clang links nix's
   glibc and nvrtc then fails to load `libnvrtc-builtins`.

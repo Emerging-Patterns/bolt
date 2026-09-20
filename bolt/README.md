@@ -10,7 +10,7 @@ foreign defs missing a lane, and laws that reach every pure def. Install: `./bui
 the repo root (README.md there).
 
     bolt                every .bend file under the current directory
-    bolt a.bend b/      the files given
+    bolt a.bend b.bend  the files given
     bolt check a.bend   the checker's errors, in the same shape
     bolt lsp            the language server
 
@@ -180,10 +180,16 @@ beside the groups.
 
 `bolt` is also `bolt check file..` (the checker, `bend`, on each file, its
 errors in the same shape, `path:line:1: error: message`) and `bolt lsp`
-(the [language server](lsp/), over stdio). A native Bend binary rejects
-arguments it does not know, so `bolt/bolt` is a script: it puts the
-subcommand in `BOLT_CMD` and the file list in `BOLT_FILES` (one path a
-line), then runs `bin/bolt.bin`, whose `main.bend` dispatches.
+(the [language server](lsp/), over stdio). `main.bend` reads the command
+line with `IO.args()` (`args.bend`) and dispatches on the first word; a
+first word that names no subcommand is a file, and with no files at all
+`bolt` lints every `.bend` file under the current directory
+(`glob.bend`, which never descends into a hidden directory or
+`node_modules`, and reads a directory through the `walk/` service — a
+foreign effect, `dir.c` and `dir.js`). A run that found errors exits 1.
+Bend's runtime takes its own flags out of the line
+before the program sees it, so `bolt lsp --gpu off` reaches `main` as
+`lsp` and keeps the server on the cores.
 
 ## In the editor
 
