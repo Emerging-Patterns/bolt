@@ -35,9 +35,9 @@ tests, so they live beside the project rather than under it --
 ## The gate
 
     nix develop                    bend 2 and bend-cc, with CC=bend-cc set
-    EZ_CAP=16 ez test              every lane, every proof; green before every commit
-    EZ_CAP=16 ez test --js-only    skip the native lanes
-    EZ_CAP=16 ez test --full       ignore the cache
+    ez test                        every lane, every proof; green before every commit
+    ez test --js-only              skip the native lanes
+    ez test --full                 ignore the cache
     ez build bin/bolt.bin          the binary people run
 
 Run all of it from the repo root. `gate.sh` used to re-exec itself under
@@ -49,8 +49,9 @@ still `bin/ez.out`.
 `*/tests/*.bend`, runs it on both lanes -- JS, where `bend` interprets it, and
 native, where it is compiled first -- against the `#|` trailer the file ends
 in, checks every `PROOF.bend` in the tree, runs each `bend` inside a memory
-cgroup (`EZ_CAP` gigabytes, 8 by default; bolt's native lane peaks near 8.4, so
-this repo wants 16), compiles a project's tests into one binary rather than one
+cgroup (`EZ_CAP` gigabytes, 8 by default, which is enough here: the heaviest
+compile is bolt's own native test aggregate at 5.6 GB), compiles a project's
+tests into one binary rather than one
 each, and caches a lane on the content of everything it reads. It replaced
 `gate.sh` and `build.sh`, 299 lines of shell that did the same work worse, and
 nothing in this repo is a shell script now.
