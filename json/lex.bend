@@ -90,9 +90,11 @@ def escape(c: Char, buf: List<&2, Char>, toks: List<&2, Tok>) -> Lex:
 def unicode(left: Nat, acc: U32, c: Char, buf: List<&2, Char>, toks: List<&2, Tok>) -> Lex:
   match left:
     case 0n:
-      Lex{Str{}, Char.from_u32((acc * 16 + hex(c) : U32)) <> buf, toks}
+      +d = hex(c)
+      Lex{Str{}, Char.from_u32((acc * 16 + d : U32)) <> buf, toks}
     case 1n+p:
-      Lex{Uni{p, (acc * 16 + hex(c) : U32)}, buf, toks}
+      +d = hex(c)
+      Lex{Uni{p, (acc * 16 + d : U32)}, buf, toks}
 
 # one char, by the mode and the char's class
 def step(mode: Mode, cls: Class, c: Char, buf: List<&2, Char>, toks: List<&2, Tok>) -> Lex:

@@ -163,8 +163,9 @@ beside the groups.
   claim about every input.
 - `unsafe` (project) — an `@unsafe def` that a LAWS.bend or PROOF.bend
   reaches through its imports. There the checker prints "All terms check,
-  with N unsafe annotations." and exits 0, so a gate that reads the exit
-  status goes green on an unproven claim.
+  but N defs rely on unsafe or foreign code:" and a `- name` list (2.0.16
+  counted marks: "with N unsafe annotations.") and exits 0, so a gate that
+  reads the exit status goes green on an unproven claim.
 - `law` (project) — in a project that states laws (a directory with a
   LAWS.bend), a pure def that no law names. A law names a def when its
   statement mentions it, through the law file's import alias (`M.join` in

@@ -244,7 +244,9 @@ def unpercent(cs: List<&2, Char>) -> List<&2, U32>:
     case Nil{}:
       Nil{}
     case Con{'%', Con{a, Con{b, t}}}:
-      (Lex.hex(a) * 16 + Lex.hex(b) : U32) <> unpercent(t)
+      +hi = Lex.hex(a)
+      +lo = Lex.hex(b)
+      (hi * 16 + lo : U32) <> unpercent(t)
     case Con{c, t}:
       Frame.encode.one(Char.to_u32(c), unpercent(t))
 

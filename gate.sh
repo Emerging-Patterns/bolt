@@ -82,9 +82,9 @@ gate: killed at the ${gb} GB cap; raise BOLT_GATE_CAP_NATIVE or BOLT_GATE_CAP_JS
   return $st
 }
 # bend 2.0.17+ names the defs that rely on @unsafe or foreign code
-# ("All terms check, but N def(s) rely on unsafe or foreign code:" and a
-# `- name` list). 2.0.16 counted marks ("All terms check, with N unsafe
-# annotation(s)."). That is not the program's output, and a test's `#|`
+# ("All terms check, but N defs rely on unsafe or foreign code:" — or
+# "1 def relies" — and a `- name` list). 2.0.16 counted marks ("All terms
+# check, with N unsafe annotation(s)."). That is not the program's output, and a test's `#|`
 # lines do not carry it. A PROOF.bend is the exception -- the clean
 # verdict is its whole answer -- so it takes run_raw and rewrites the
 # note as "All terms check."

@@ -21,7 +21,8 @@ type Tally is Data:
 def literal(kids: Tree.Node) -> Maybe<&2, U32>:
   match kids:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TStr{}, t, l, c}}, rest}:
-      Some{(T.width(t) - 2 : U32)}
+      +w = T.width(t)
+      Some{(w - 2 : U32)}
     case other:
       None{}
 
@@ -46,7 +47,9 @@ def tally(body: Tree.Node, +n: U32, +chars: U32) -> Tally:
   match body:
     case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, b}, rest}:
       +m = literal(T.pattern(kids))
-      tally(rest, (n + one(m) : U32), (chars + size(m) : U32))
+      +k = one(m)
+      +ch = size(m)
+      tally(rest, (n + k : U32), (chars + ch : U32))
     case Tree.NCons{h, rest}:
       tally(rest, n, chars)
     case other:

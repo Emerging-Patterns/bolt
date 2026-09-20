@@ -32,7 +32,8 @@ def literal(kids: Tree.Node) -> U32:
 def tally(body: Tree.Node, +n: U32) -> U32:
   match body:
     case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, b}, rest}:
-      tally(rest, (n + literal(T.pattern(kids)) : U32))
+      +k = literal(T.pattern(kids))
+      tally(rest, (n + k : U32))
     case Tree.NCons{h, rest}:
       tally(rest, n)
     case other:
