@@ -3,8 +3,10 @@
 The linter, written in Bend over the `syntax/` tree and binder, and the one
 binary (`main.bend`) that is also `bolt check` and `bolt lsp` ([lsp/](lsp/)).
 It enforces what the checker does not: comments, unused names, the
-binder-vs-def trap, leftover holes, whitespace, double recursion under
-`Bool.pick`, and laws that reach every pure def. Install: `./build.sh` at
+binder-vs-def trap, leftover holes, whitespace, recursion that is strict
+where it should stop early or quadratic where it should be linear, unary
+`Nat` blowups, silent wrong answers (`Map.put`, `\033`, unreachable arms),
+foreign defs missing a lane, and laws that reach every pure def. Install: `./build.sh` at
 the repo root (README.md there).
 
     bolt                every .bend file under the current directory
@@ -39,24 +41,41 @@ def space() -> String:
 A group sets every rule in it; a rule set by name wins over its group; an
 unset group has its default. The groups:
 
-| group         | rules                  | default |
-|---------------|------------------------|---------|
-| `correctness` | `shadow` `hole` `pick` | error   |
-| `suspicious`  | `unused`               | warn    |
-| `style`       | `doc` `space`          | warn    |
-| `laws`        | `law`                  | warn    |
+| group         | rules                                                                      | default |
+|---------------|----------------------------------------------------------------------------|---------|
+| `correctness` | `shadow` `hole` `pick` `put` `arms` `escape` `twice` `strings` `foreign`    | error   |
+| `suspicious`  | `unused` `strict` `concat` `nat` `fuel` `index`                            | warn    |
+| `style`       | `doc` `space`                                                              | warn    |
+| `laws`        | `law` `closed` `unsafe`                                                    | warn    |
+| `pedantic`    | `tail`                                                                     | off     |
 
-An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
+`pedantic` is advice that is noisy on idiomatic code: off until a project
+asks for it. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
 read, never linted. Without one, the defaults apply. This repo's
 [bolt.bend](../bolt.bend) sets every group to error: the gate must see
 `clean`.
 
 ## Rules
 
-Each rule is a module under `rules/` with `check(path, text) -> List<Finding>`,
-listed in `rules.bend`. Adding a rule is adding a file and a line. A project
-rule has `check(files) -> List<Finding>` instead and sees every file the
-linter read at once (`rules.bend`'s `project`).
+Each rule is a module under `rules/<group>/` with `check(src) -> List<Finding>`,
+listed in `rules.bend`: the directory a rule sits in is the group it belongs
+to. Adding a rule is adding a file and a line. A project rule has
+`check(ds) -> List<Finding>` instead and sees every file the linter read at
+once, as digests (`rules.bend`'s `project`).
+
+A rule is handed a [`Src`](src.bend), not the text: the path, the text, and
+the file's tokens, tree, binder and outline, each read once for the whole
+set. A tree parse of a 156 KB file costs 1.5 s here, so twenty rules that
+each parsed the text made the linter twenty times slower than it is now.
+A project rule is handed one [`Digest`](rules/digest.bend) a file instead:
+its phases use the whole list several times, and a `+` reuse copies what it
+is given, so handing them the parsed `Src` duplicated every tree (100 files
+cost 362 s, growing faster than the count; 28 s now). The digest carries
+only what those rules ask: the paths, the top-level defs and types, what the
+laws name, the imports and the `@unsafe` defs.
+What the rules share, `rules/calls.bend` (the recursion rules),
+`rules/tokens.bend`, `rules/imports.bend` and `rules/digest.bend`, sits
+beside the groups.
 
 - `doc` — every top-level def, type and law has a comment block right above
   it. Helpers (dotted names like `show.go`) ride on their parent's, `main`
@@ -76,11 +95,57 @@ linter read at once (`rules.bend`'s `project`).
 - `space` — trailing whitespace, a tab, or a line over 120 wide. Width counts
   a string literal as two characters: a long fixture or message does not make
   a line hard to read, code does. `#|` trailers are data and exempt.
-- `pick` — a def calls itself in both branches of a `Bool.pick`. Bool.pick is
-  a function: both branches run whatever the condition, so two recursive
-  calls a step is 2^n work (a per-token scan took 20 s this way and 20 ms as
-  one pass). Bind the call once above the pick (`+more = go(rest)`) and pick
-  between `x <> more` and `more`.
+- `pick` — a def calls itself in a branch of a `Bool.pick`. Bool.pick is a
+  function: both branches run whatever the condition. In both branches, two
+  recursive calls a step is 2^n work (a per-token scan took 20 s this way and
+  20 ms as one pass); in one branch, the call runs even when the condition
+  says stop, so a search never exits early. Bind the call once above the pick
+  (`+more = go(rest)`) and pick between `x <> more` and `more`, or hand a
+  helper that matches on the Bool.
+- `strict` — a self-call inside `Bool.and`/`Bool.or`, or either side of
+  `&&`/`||`. They are functions too: both sides always run, so there is no
+  short-circuit (a game's overlap test went 31 -> 55 fps once the call moved
+  out). Bind the call above, or match on the first Bool.
+- `concat` — a self-call whose argument grows a carried parameter by
+  appending (`acc ++ x`, `List.append(&2, T, acc, ..)`): each step copies the
+  accumulator, so the walk is quadratic. Prepend with `<>` and reverse once.
+- `index` — `List.get`/`String.get` at a computed index inside a def that
+  calls itself: the list is walked again each step. Walk the cells instead
+  (one sort phase went 39 s -> 0.9 s).
+- `put` — `Map.put`. It is Base's internal helper: at a leaf it keeps the old
+  key and replaces the value without comparing, so a new key silently
+  overwrites another entry. `Map.set` compares.
+- `escape` — `\0` then a digit in a literal (`"\033"`). Bend has no octal
+  escape: that is NUL followed by the digits. Write `\u{1B}`.
+- `nat` — a `Nat` literal of 1000 or more. `Nat` is unary, so `4294967295n`
+  as fuel or infinity is that many cells. Use `U32`, or `U32.to_nat` at run
+  time.
+- `strings` — a `match` over string-literal arms totalling more than 64
+  characters: compile time and memory blow up with the characters (45 chars
+  cost 0.8 s and 0.35 GB here, 480 chars 12 s and 4.8 GB). Map the string to
+  a sum type once.
+- `twice` — a case pattern that opens with the same literal twice
+  (`case 10 <> 10 <> ..`) in a recursive def: the checker hangs. Match one
+  element a step.
+- `arms` — a later `Nat` arm that an earlier `kn+p` already matches, so it is
+  unreachable. The checker takes it silently and the answer is wrong: put the
+  narrow arms first.
+- `foreign` — a foreign def with a `.c` body and no `.js` body, or the
+  reverse: the missing lane cannot run it. A file headed `# lanes: native`
+  needs no `.js`.
+- `fuel` — a `Nat` literal passed to a def's `fuel`/`gas`/`steps`/`budget`
+  parameter. Input past it is cut short with no error: derive the fuel from
+  the input.
+- `tail` (pedantic) — a self-call that is not a tail call, in a def whose
+  first live parameter is a `List` or a `String`. On a long one the JS lane
+  overflows its stack (a 48 KB header crashed a server; ~4,900 entries and
+  ~64K elements elsewhere). Carry an accumulator.
+- `closed` — a law in a LAWS.bend with no `for`: one computed case, not a
+  claim about every input.
+- `unsafe` (project) — an `@unsafe def` that a LAWS.bend or PROOF.bend
+  reaches through its imports. There the checker prints "All terms check,
+  with N unsafe annotations." and exits 0, so a gate that reads the exit
+  status goes green on an unproven claim.
 - `law` (project) — in a project that states laws (a directory with a
   LAWS.bend), a pure def that no law names. A law names a def when its
   statement mentions it, through the law file's import alias (`M.join` in

@@ -4,8 +4,10 @@
 # error that points at the pattern: "a pattern (a binder or a constructor)".
 # Parameters and `for` names are declared, not parsed as terms, and are safe.
 import Base
-import ../finding.bend as F
-import ../../syntax/bind.bend as Bind
+import ../../src.bend as Src
+import ../../../lazy/lazy.bend as Lazy
+import ../../finding.bend as F
+import ../../../syntax/bind.bend as Bind
 
 # is the binder parsed as a term (where a def's name wins)?
 def binds_as_term(k: Bind.BindKind) -> Bool:
@@ -23,7 +25,7 @@ def declared_above(binds: List<&2, Bind.Bind>, +name: String, +line: U32) -> Boo
     case Nil{}:
       False{}
     case Con{Bind.Bind{+n, +l, c, Bind.KItem{}, note}, rest}:
-      Bool.or(Bool.and(String.eq(n, name), U32.is_lt(l, line)), declared_above(rest, name, line))
+      Lazy.or_else(Bool.and(String.eq(n, name), U32.is_lt(l, line)), _u => declared_above(rest, name, line))
     case Con{other, rest}:
       declared_above(rest, name, line)
 
@@ -44,5 +46,6 @@ def check.on(b: Bind.Bound, path: String) -> List<&2, F.Finding>:
   check.go(binds, binds, path)
 
 # the rule
-def check(path: String, text: String) -> List<&2, F.Finding>:
-  check.on(Bind.bound(text), path)
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
+  check.on(bound, path)

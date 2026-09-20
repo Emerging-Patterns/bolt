@@ -3,8 +3,9 @@
 # needs none, PROOF.bend fills laws that LAWS.bend already documents, and a
 # test (under tests/) is documented by its header and its check names.
 import Base
-import ../finding.bend as F
-import ../../syntax/outline.bend as Outline
+import ../../src.bend as Src
+import ../../finding.bend as F
+import ../../../syntax/outline.bend as Outline
 
 # does an item of this kind need a comment?
 def needs(k: Outline.ItemKind) -> Bool:
@@ -43,6 +44,7 @@ def check.go(items: List<&2, Outline.Item>, +path: String) -> List<&2, F.Finding
         F.Finding{path, line, 0, 0, "doc", what(k) ++ " " ++ name ++ " has no comment above it"} <> more, more)
 
 # the rule
-def check(+path: String, text: String) -> List<&2, F.Finding>:
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{+path, text, toks, tree, bound, items} = s
   Bool.pick(List<&2, F.Finding>, Bool.or(String.ends_with(path, "PROOF.bend"), String.contains(path, "/tests/")),
-    [], check.go(Outline.items(text), path))
+    [], check.go(items, path))

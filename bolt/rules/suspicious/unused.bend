@@ -5,10 +5,12 @@
 # (hypotheses the proof takes by position), and the parameters of a foreign
 # def, which its C and JS bodies read.
 import Base
-import ../finding.bend as F
-import ../../syntax/bind.bend as Bind
-import ../../syntax/tree.bend as Tree
-import ../../syntax/lex.bend as Lex
+import ../../src.bend as Src
+import ../../../lazy/lazy.bend as Lazy
+import ../../finding.bend as F
+import ../../../syntax/bind.bend as Bind
+import ../../../syntax/tree.bend as Tree
+import ../../../syntax/lex.bend as Lex
 
 # the header lines of defs whose body is `import "./x.c"`
 def foreign(root: Tree.Node) -> List<&2, U32>:
@@ -36,7 +38,7 @@ def used(uses: List<&2, Bind.Use>, +line: U32, +col: U32) -> Bool:
     case Nil{}:
       False{}
     case Con{Bind.Use{n, l, c, Bind.TLocal{+tl, +tc}}, rest}:
-      Bool.or(Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col)), used(rest, line, col))
+      Lazy.or_else(Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col)), _u => used(rest, line, col))
     case Con{other, rest}:
       used(rest, line, col)
 
@@ -64,5 +66,6 @@ def check.on(b: Bind.Bound, fl: List<&2, U32>, path: String) -> List<&2, F.Findi
   check.go(binds, uses, fl, path)
 
 # the rule
-def check(path: String, +text: String) -> List<&2, F.Finding>:
-  check.on(Bind.bound(text), foreign(Tree.parse(text)), path)
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
+  check.on(bound, foreign(tree), path)

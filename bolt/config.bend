@@ -3,7 +3,7 @@
 # caller, then `nearest`). The file is plain Bend that
 # `bend` can check: a def a setting, its body one string. A group sets every
 # rule in it, a rule set by name wins over its group, and an unset group has
-# its default (correctness at error, the rest at warn):
+# its default (correctness at error, pedantic off, the rest at warn):
 #
 #     # every rule an error
 #     def correctness() -> String:
@@ -16,6 +16,7 @@
 #
 # A level is "off", "warn" or "error".
 import Base
+import ../lazy/lazy.bend as Lazy
 import ../syntax/lex.bend as Lex
 import ../syntax/tree.bend as Tree
 import ../syntax/bind.bend as Bind
@@ -136,7 +137,7 @@ def candidates(fuel: Nat, +dir: String) -> List<&2, String>:
     case 0n:
       Nil{}
     case 1n+f:
-      (dir ++ "bolt.bend") <> Bool.pick(List<&2, String>, is_top(dir), [], candidates(f, parent(dir)))
+      (dir ++ "bolt.bend") <> Lazy.stop(List<&2, String>, is_top(dir), [], _u => candidates(f, parent(dir)))
 
 # the first file that was there, parsed; none, the defaults
 def nearest(rs: List<&2, Maybe<&2, String>>) -> Config:
@@ -162,7 +163,8 @@ def set_level(sets: List<&2, Set>, +name: String) -> Maybe<&2, Level>:
 
 # a group's level when nothing sets it
 def default(+group: String) -> Level:
-  Bool.pick(Level, String.eq(group, "correctness"), Error{}, Warn{})
+  Bool.pick(Level, String.eq(group, "correctness"), Error{},
+    Bool.pick(Level, String.eq(group, "pedantic"), Off{}, Warn{}))
 
 # the rule's own setting, else its group's, else the group's default
 def level.of(+sets: List<&2, Set>, +group: String, rule: String) -> Level:

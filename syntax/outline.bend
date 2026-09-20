@@ -3,6 +3,7 @@
 # nothing: it is skipped, and the items around it still stand. That tolerance
 # is the point: an editor asks about files that are half-written.
 import Base
+import ../lazy/lazy.bend as Lazy
 
 # what an item is; ILocal is not read from a source, it is how the server
 # offers a binder as a candidate
@@ -278,8 +279,8 @@ def find(items: List<&2, Item>, +name: String) -> Maybe<&2, Item>:
     case Nil{}:
       None{}
     case Con{Item{+k, +nm, l, s, d, p}, t}:
-      Bool.pick(Maybe<&2, Item>, Bool.and(Bool.not(is_import(k)), String.eq(nm, name)),
-        Some{Item{k, nm, l, s, d, p}}, find(t, name))
+      Lazy.stop(Maybe<&2, Item>, Bool.and(Bool.not(is_import(k)), String.eq(nm, name)),
+        Some{Item{k, nm, l, s, d, p}}, _u => find(t, name))
 
 # the path behind an import alias
 def import_path(items: List<&2, Item>, +alias: String) -> Maybe<&2, String>:
@@ -287,8 +288,8 @@ def import_path(items: List<&2, Item>, +alias: String) -> Maybe<&2, String>:
     case Nil{}:
       None{}
     case Con{Item{k, nm, l, s, d, p}, t}:
-      Bool.pick(Maybe<&2, String>, Bool.and(is_import(k), String.eq(nm, alias)),
-        Some{p}, import_path(t, alias))
+      Lazy.stop(Maybe<&2, String>, Bool.and(is_import(k), String.eq(nm, alias)),
+        Some{p}, _u => import_path(t, alias))
 
 # is the name among these?
 def has(names: List<&2, String>, +name: String) -> Bool:
@@ -296,7 +297,7 @@ def has(names: List<&2, String>, +name: String) -> Bool:
     case Nil{}:
       False{}
     case Con{h, t}:
-      Bool.or(String.eq(h, name), has(t, name))
+      Lazy.or_else(String.eq(h, name), _u => has(t, name))
 
 def starting.go(items: List<&2, Item>, +prefix: String, +qual: String, +seen: List<&2, String>) -> List<&2, Item>:
   match items:

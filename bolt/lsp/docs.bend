@@ -2,6 +2,7 @@
 # and the checker's last word on each (its errors come from the file on disk,
 # the linter's warnings from the text, so both are needed to publish).
 import Base
+import ../../lazy/lazy.bend as Lazy
 import ./report.bend as Rep
 
 # an open document: its URI, the text the editor shows, the checker's errors
@@ -24,7 +25,7 @@ def errors(docs: List<&2, Doc>, +uri: String) -> List<&2, Rep.Diag>:
     case Nil{}:
       Nil{}
     case Con{Doc{u, t, e}, r}:
-      Bool.pick(List<&2, Rep.Diag>, String.eq(u, uri), e, errors(r, uri))
+      Lazy.stop(List<&2, Rep.Diag>, String.eq(u, uri), e, _u => errors(r, uri))
 
 # a document's text set (opened, or changed); its errors stay
 def set(+docs: List<&2, Doc>, +uri: String, text: String) -> List<&2, Doc>:
@@ -36,7 +37,7 @@ def get(docs: List<&2, Doc>, +uri: String) -> Maybe<&2, String>:
     case Nil{}:
       None{}
     case Con{Doc{u, t, e}, r}:
-      Bool.pick(Maybe<&2, String>, String.eq(u, uri), Some{t}, get(r, uri))
+      Lazy.stop(Maybe<&2, String>, String.eq(u, uri), Some{t}, _u => get(r, uri))
 
 # a document's errors set, from a run of the checker
 def set_errors(+docs: List<&2, Doc>, +uri: String, errors: List<&2, Rep.Diag>) -> List<&2, Doc>:

@@ -7,7 +7,7 @@
 # when there were errors.
 import Base
 import ./finding.bend as F
-import ./file.bend as File
+import ./src.bend as Src
 import ./rules.bend as Rules
 import ./config.bend as Config
 import ./lsp/files/service.bend as Files
@@ -29,31 +29,33 @@ def read_all(~fs: Files.Files, paths: List<&2, String>) -> IO(List<&2, Read>):
         more : List<&2, Read> <- read_all(~fs, rest)
         return Read{path, r} <> more
 
-# a file's findings from the per-file rules; unreadable, one finding
-def lint.text(+path: String, r: Maybe<&2, String>) -> List<&2, F.Finding>:
-  match r:
-    case None{}:
-      [F.Finding{path, 0, 0, 0, "read", "cannot read this file"}]
-    case Some{text}:
-      Rules.all(path, text)
-
-# every file's findings from the per-file rules
-def per_file(rs: List<&2, Read>) -> List<&2, F.Finding>:
+# one finding for each file that could not be read
+def unread(rs: List<&2, Read>) -> List<&2, F.Finding>:
   match rs:
     case Nil{}:
       Nil{}
-    case Con{Read{path, r}, rest}:
-      List.concat(&2, F.Finding, [lint.text(path, r), per_file(rest)])
+    case Con{Read{+path, None{}}, rest}:
+      F.Finding{path, 0, 0, 0, "read", "cannot read this file"} <> unread(rest)
+    case Con{Read{path, Some{text}}, rest}:
+      unread(rest)
 
-# the files that were read, for the project rules
-def files_of(rs: List<&2, Read>) -> List<&2, File.File>:
+# every file that was read, parsed once for every rule
+def srcs_of(rs: List<&2, Read>) -> List<&2, Src.Src>:
   match rs:
     case Nil{}:
       Nil{}
     case Con{Read{path, None{}}, rest}:
-      files_of(rest)
+      srcs_of(rest)
     case Con{Read{path, Some{text}}, rest}:
-      File.File{path, text} <> files_of(rest)
+      Src.of(path, text) <> srcs_of(rest)
+
+# every file's findings from the per-file rules
+def per_file(ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
+  match ss:
+    case Nil{}:
+      Nil{}
+    case Con{s, rest}:
+      List.concat(&2, F.Finding, [Rules.on(s), per_file(rest)])
 
 # a finding graded by the config nearest its file
 def grade(~fs: Files.Files, f: F.Finding) -> IO(List<&2, F.Graded>):
@@ -98,7 +100,8 @@ def sources(ps: List<&2, String>) -> List<&2, String>:
 
 # every finding of every rule on the files read
 def findings(+rs: List<&2, Read>) -> List<&2, F.Finding>:
-  List.concat(&2, F.Finding, [per_file(rs), Rules.project(files_of(rs))])
+  +ss = srcs_of(rs)
+  List.concat(&2, F.Finding, [unread(rs), per_file(ss), Rules.project(ss)])
 
 # how many are errors
 def errors(gs: List<&2, F.Graded>) -> U32:

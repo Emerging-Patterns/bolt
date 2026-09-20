@@ -3,8 +3,9 @@
 # fixture does not make a line hard to read, code does. Expectation trailers
 # (`#|` lines) are data and exempt.
 import Base
-import ../finding.bend as F
-import ../../syntax/lex.bend as Lex
+import ../../src.bend as Src
+import ../../finding.bend as F
+import ../../../syntax/lex.bend as Lex
 
 # is there a tab among the chars?
 def has_tab(cs: List<&2, Char>) -> Bool:
@@ -65,5 +66,6 @@ def check.go(lines: List<&2, String>, +path: String, +n: U32) -> List<&2, F.Find
       check.line(path, n, String.to_list(line), check.go(rest, path, (n + 1 : U32)))
 
 # the rule
-def check(+path: String, +text: String) -> List<&2, F.Finding>:
-  List.append(&2, F.Finding, check.go(String.lines(text), path, 0), widths(Lex.tokens(text), path, 0, 0))
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{+path, text, toks, tree, bound, items} = s
+  List.append(&2, F.Finding, check.go(String.lines(text), path, 0), widths(toks, path, 0, 0))

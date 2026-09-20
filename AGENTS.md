@@ -67,12 +67,19 @@ Design specs and plans are not kept in this repo; they live under
   `U32.to_nat(100000)`.
 - The argument that shrinks must be the first live (non-template) one:
   `send_all(replies, h)` passes, `send_all(h, replies)` does not.
-- `Bool.pick` evaluates both branches: never put a different recursive call in
-  each (that is exponential; `bolt`'s `pick` rule catches it). Bind the
-  one recursive call with `+rest = ..` and pick between values built from it. The same goes for any expensive
-  expression in a branch: a scan of the whole token list inside a per-token
-  pick runs for every token (bind's notes were 20 s that way, 20 ms as one
-  pass).
+- `Bool.pick`, `Bool.and`, `Bool.or`, `&&` and `||` are defs, so every
+  argument is evaluated before the call. Never put a different recursive call
+  in each branch (that is exponential; `bolt`'s `pick` rule catches it), and
+  do not hide a search's recursion in one branch either: it runs whatever the
+  condition says, so the search never exits early (native, 100 searches over
+  100k cells: 0.10 s for a hit at the head, 0.11 s at the end). Bind the one
+  recursive call with `+rest = ..` and pick between values built from it, or
+  take the early exit from `lazy/lazy.bend` (`Lazy.stop`, `Lazy.or_else`,
+  `Lazy.and_then`: the last argument is a `Unit -> T` thunk, applied only on
+  the branch that needs it; the same search costs 0.00 s). The same goes for
+  any expensive expression in a branch: a scan of the whole token list inside
+  a per-token pick runs for every token (bind's notes were 20 s that way,
+  20 ms as one pass). `bolt`'s `strict` rule catches the Bool.and/or shape.
 - A destructure or a `match` needs a variable, never a call:
   `Out{a, b} = f(x)` is "a match cannot scrutinize a computed value"; bind the
   call first, or take it apart in a helper that receives it as a parameter.

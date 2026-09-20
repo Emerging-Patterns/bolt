@@ -1,8 +1,9 @@
 # rule hole: a `?TODO` left in code. LAWS.bend is exempt: by convention its
 # laws are open claims, filled by PROOF.bend beside it.
 import Base
-import ../finding.bend as F
-import ../../syntax/lex.bend as Lex
+import ../../src.bend as Src
+import ../../finding.bend as F
+import ../../../syntax/lex.bend as Lex
 
 def check.go(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
   match toks:
@@ -16,5 +17,6 @@ def check.go(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
       Nil{}
 
 # the rule
-def check(+path: String, text: String) -> List<&2, F.Finding>:
-  Bool.pick(List<&2, F.Finding>, String.ends_with(path, "LAWS.bend"), [], check.go(Lex.tokens(text), path))
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{+path, text, toks, tree, bound, items} = s
+  Bool.pick(List<&2, F.Finding>, String.ends_with(path, "LAWS.bend"), [], check.go(toks, path))

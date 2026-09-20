@@ -4,6 +4,7 @@
 # accepts, and which keeps laws provable. Build and read them through the
 # defs below, never by hand.
 import Base
+import ../lazy/lazy.bend as Lazy
 
 # a JSON value; JNil, JCons and JPair are the cells of arrays and objects
 type Json is Data:
@@ -59,7 +60,7 @@ def num(n: U32) -> Json:
 def find(cells: Json, +key: String) -> Json:
   match cells:
     case JPair{+k, v, r}:
-      Bool.pick(Json, String.eq(k, key), v, find(r, key))
+      Lazy.stop(Json, String.eq(k, key), v, _u => find(r, key))
     case other:
       JNull{}
 

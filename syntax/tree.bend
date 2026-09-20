@@ -10,6 +10,7 @@
 # that. The cells (NNil, NCons) live inside the type, as json/value does, so
 # every walk is a structural recursion on one argument.
 import Base
+import ../lazy/lazy.bend as Lazy
 import ./lex.bend as Lex
 
 # what a statement is, by its shape: SDef `def f(..)` (also `@unsafe def`),
@@ -185,7 +186,7 @@ def all_gt(cs: List<&2, Char>) -> Bool:
     case Nil{}:
       True{}
     case Con{+c, t}:
-      Bool.and(Char.is_eq(c, '>'), all_gt(t))
+      Lazy.and_then(Char.is_eq(c, '>'), _u => all_gt(t))
 
 # a token that closes a group: `)`, `]`, `}` or a run of `>`
 def closes_with(k: Lex.TokKind, +t: String) -> Bool:

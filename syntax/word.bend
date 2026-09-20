@@ -3,6 +3,7 @@
 # alias rides in front: `Frame.decode`). A position right after a name counts
 # as on it, as editors put the cursor there.
 import Base
+import ../lazy/lazy.bend as Lazy
 
 # i: the column of the next char; start: where the current run began; run: the
 # current name, reversed; hit: the name found
@@ -91,7 +92,7 @@ def run_of(cs: List<&2, Char>) -> List<&2, Char>:
     case Nil{}:
       Nil{}
     case Con{+c, t}:
-      Bool.pick(List<&2, Char>, is_name(c), c <> run_of(t), Nil{})
+      Lazy.stop(List<&2, Char>, Bool.not(is_name(c)), Nil{}, _u => c <> run_of(t))
 
 # the name that ends at (line, col): what is being typed, for completion
 def before(source: String, line: U32, col: U32) -> String:
