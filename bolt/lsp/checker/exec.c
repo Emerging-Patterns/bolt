@@ -1,8 +1,8 @@
-// bendcheck.exec: runs `bend <path> -o <tmp>.js` and answers everything it
-// printed. With -o, bend checks and emits but never runs the program's main:
-// a language server must not execute the file being edited. The child gets
-// /dev/null for stdin and a pipe for stdout and stderr, so it cannot touch
-// the server's own stdio, which is the protocol.
+// bendcheck.exec: runs `bend <path> --check-only` and answers everything it
+// printed. --check-only checks the file and its imports and never runs
+// main: a language server must not execute the file being edited. The child
+// gets /dev/null for stdin and a pipe for stdout and stderr, so it cannot
+// touch the server's own stdio, which is the protocol.
 #include <fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -10,11 +10,6 @@
 Term bendcheck_exec_run(Env e, Term* f, IoWork* w) {
   uint64_t n = 0;
   char* path = io_cstr(e, f[0], &n);
-  char tmp[] = "/tmp/bend-lsp-XXXXXX.js";
-  int tfd = mkstemps(tmp, 3);
-  if (tfd >= 0) {
-    close(tfd);
-  }
   size_t len = 0;
   size_t cap = 4096;
   char* buf = malloc(cap);
@@ -28,7 +23,7 @@ Term bendcheck_exec_run(Env e, Term* f, IoWork* w) {
       dup2(fds[1], 2);
       close(fds[0]);
       close(fds[1]);
-      execlp("bend", "bend", path, "-o", tmp, (char*)NULL);
+      execlp("bend", "bend", path, "--check-only", (char*)NULL);
       _exit(127);
     }
     close(fds[1]);
@@ -46,7 +41,6 @@ Term bendcheck_exec_run(Env e, Term* f, IoWork* w) {
       waitpid(pid, &status, 0);
     }
   }
-  unlink(tmp);
   free(path);
   Term s = io_str(e, buf, len);
   free(buf);

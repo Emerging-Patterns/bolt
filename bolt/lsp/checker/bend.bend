@@ -3,7 +3,7 @@ import Base
 import ./service.bend as S
 import ../report.bend as Rep
 
-# everything `bend <path> -o <tmp>.js` printed; it checks, and never runs main
+# everything `bend <path> --check-only` printed; it checks, and never runs main
 def bendcheck.exec(path: String) -> IO(String):
   import "./exec.c"
   import "./exec.js"

@@ -81,12 +81,29 @@ gate: killed at the ${gb} GB cap; raise BOLT_GATE_CAP_NATIVE or BOLT_GATE_CAP_JS
   printf '%s\n' "$out"
   return $st
 }
-# bend 2.0.16 reports its unsafe annotations on stderr after the check; that is
-# not the program's output, and a test's `#|` lines do not carry it. A
-# PROOF.bend is the exception -- that line is its whole answer -- so it takes
-# run_raw and normalises the count away itself.
+# bend 2.0.17+ names the defs that rely on @unsafe or foreign code
+# ("All terms check, but N def(s) rely on unsafe or foreign code:" and a
+# `- name` list). 2.0.16 counted marks ("All terms check, with N unsafe
+# annotation(s)."). That is not the program's output, and a test's `#|`
+# lines do not carry it. A PROOF.bend is the exception -- the clean
+# verdict is its whole answer -- so it takes run_raw and rewrites the
+# note as "All terms check."
+verdict() { # stdin: checker text. $1=1 keep a clean line, else drop the note
+  awk -v keep="${1:-0}" '
+    /^All terms check, with [0-9]* unsafe annotation/ {
+      if (keep) print "All terms check.";
+      next
+    }
+    /^All terms check, but [0-9]+ def/ {
+      if (keep) print "All terms check.";
+      skip=1; next
+    }
+    skip && /^- / { next }
+    { skip=0; print }
+  '
+}
 run() { local out st; out=$(run_raw "$@"); st=$?
-  printf '%s\n' "$out" | grep -v '^All terms check, with [0-9]* unsafe annotation'
+  printf '%s\n' "$out" | verdict 0
   return $st
 }
 
@@ -216,7 +233,7 @@ for dir in */ */*/; do
     else
       before=$pass
       check "$dir/PROOF.bend" "All terms check." \
-        "$(run_raw $cap_js bend "$dir/PROOF.bend" | sed 's/^All terms check, with [0-9]* unsafe annotations\{0,1\}\.$/All terms check./')"
+        "$(run_raw $cap_js bend "$dir/PROOF.bend" | verdict 1)"
       [ $pass -gt $before ] && : > "$cache/$k"
     fi
   fi
