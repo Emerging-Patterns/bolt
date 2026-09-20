@@ -30,15 +30,11 @@ fold's own milliseconds:
 `bend` builds it directly rather than `ez build`, because `ez build` builds
 the entry the ledger names and this is not that entry.
 
-**`request.bend` does not build on bend 2.0.20.** It was written against
-2.0.3, and 2.0.20 rejects the bare operators on line 46:
-
-    - expected : a defined name
-    - observed : U32../../../json/value.u32_or
-
-So the table below is a record of what was measured, not something you can
-re-run today without fixing that line first. The shell script that used to sit
-here could not have run either: it would have reported `build failed`.
+On Bend 2.0.20 the operators on line 46 failed to check: `J.u32_or`, imported
+through `../`, sat inside a typed annotation and was read as
+`U32../../../json/value.u32_or`. 2.0.22 accepts that form —
+`bend bolt/lsp/bench/request.bend --check-only` prints "All terms check."
+The table below is still the 2.0.3 measurement; it was not re-run here.
 
 The *fold ms* column comes straight off that second line. The *wall ms*
 column is the whole process, so it needs an external timer. The sweep and the
