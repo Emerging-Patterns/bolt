@@ -20,7 +20,9 @@ writing Bend. Then this.
                        `ez test` runs each on its own, and caches none of them
     .github/workflows/ ci: the gate, on a pull request and on a push to main.
                        tag and release: a vX.Y.Z tag and a GitHub Release,
-                       nothing published and nothing built
+                       nothing built and nothing uploaded.
+                       publish: `ez publish`, the hub upload, workflow_dispatch
+                       only, on an existing tag -- a person running it is the ask
     editors/vscode/    the VS Code extension (not Bend; never publish it to the marketplace unasked)
     <project>/         one dir per project
       LAWS.bend        the claims: human-owned, do not edit to make a proof pass
@@ -96,7 +98,14 @@ Design specs and plans are not kept in this repo; they live under
   `new()`. Tests use `core/check/kit.bend`.
 - A service file's header says whether it is pure (GPU-safe) or an effect
   (CPU event loop only). Only pure code may sit under a `!` call.
-- Never `bend --publish` without asking: it uploads to the public hub.
+- Never `bend --publish`, and never `ez publish`: both upload to the public
+  hub, and an upload is public and cannot be taken back. An agent does not
+  publish bolt, in CI or on a machine, and does not ask to be allowed to: the
+  one way bolt reaches the hub is a human running `.github/workflows/publish.yml`
+  from Actions on an existing tag, and that dispatch *is* the ask. Nothing
+  else in this repo uploads anything -- a pushed tag opens a GitHub Release
+  and stops. To exercise the publish path without publishing, point it at a
+  dead port: `BEND_HUB=http://127.0.0.1:1`.
 
 ## Bend gotchas (each one cost a failed check here)
 

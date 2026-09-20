@@ -1,7 +1,13 @@
 # On a pushed v* tag (`git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`):
 # open a GitHub Release. Tag + GitHub Release only:
 #   - do not publish the VS Code extension (AGENTS.md)
-#   - do not `bend --publish`
+#   - do not upload to the Bend hub
+#
+# The hub upload is `publish.yml`, and it is deliberately not here. Pushing a
+# tag is cheap and reversible; a package on the hub is neither, so the two do
+# not share a trigger. `publish.yml` is workflow_dispatch only, takes an
+# existing tag, and runs `ez publish`: a person running it is the ask
+# AGENTS.md means. A tag that turns out to be wrong costs a deleted release.
 #
 # Nothing is attached but the source archive GitHub already ships. The two
 # documented ways in are `nix profile install` and one `bend` line
