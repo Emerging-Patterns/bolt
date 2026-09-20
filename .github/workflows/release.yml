@@ -1,7 +1,7 @@
 # On a pushed v* tag (`git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`):
-# open a GitHub Release. Tag + GitHub Release only:
-#   - do not publish the VS Code extension (AGENTS.md)
-#   - do not `bend --publish`
+# publish bolt/main.bend to bendhub and open a GitHub Release.
+# The 0x hash goes in the release name (`bolt X.Y.Z (0x…)`); the git tag
+# stays vX.Y.Z. Does not publish the VS Code extension.
 #
 # No native package attach: bolt's flake build OOMs on typical GHA RAM.
 # GitHub already ships a source archive on the release.
@@ -21,7 +21,39 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: DeterminateSystems/nix-installer-action@v23
+      - name: Publish to bendhub
+        id: hub
+        uses: ./.github/actions/publish-hub
+      - name: Release name
+        id: title
+        env:
+          TAG: ${{ github.ref_name }}
+          HASH: ${{ steps.hub.outputs.hash }}
+        run: |
+          set -euo pipefail
+          ver="${TAG#v}"
+          .github/scripts/hub.sh name "$ver" "$HASH"
       - uses: softprops/action-gh-release@v3
         with:
+          name: ${{ steps.title.outputs.name }}
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
+      - name: Write hub identity into README on default branch
+        env:
+          HASH: ${{ steps.hub.outputs.hash }}
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git checkout main
+          .github/scripts/hub.sh readme "$HASH"
+      - uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: Hub identity ${{ steps.hub.outputs.hash }}
+          file_pattern: README.md
+          branch: main
+          disable_globbing: true
+          commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>

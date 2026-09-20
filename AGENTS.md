@@ -39,7 +39,8 @@ Design specs and plans are not kept in this repo; they live under
   `new()`. Tests use `core/check/kit.bend`.
 - A service file's header says whether it is pure (GPU-safe) or an effect
   (CPU event loop only). Only pure code may sit under a `!` call.
-- Never `bend --publish` without asking: it uploads to the public hub.
+- Publish to the hub only from the release workflow, or when Noah asks.
+  `bend --publish` uploads to the public hub.
 
 ## Bend gotchas (each one cost a failed check here)
 

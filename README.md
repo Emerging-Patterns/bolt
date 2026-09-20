@@ -17,8 +17,18 @@ written in Bend, with a VS Code extension.
 
 ## Install
 
-You need `bend` (`curl -fsSL https://bend-lang.com/install.sh | sh`)
-and clang 14+, since bolt is one native binary:
+You need `bend` (`curl -fsSL https://bend-lang.com/install.sh | sh`):
+
+```
+bend 0x…/bolt/main.bend
+bend 0x…/bolt/main.bend check a.bend
+bend 0x…/bolt/main.bend lsp
+```
+
+`0x…` is written by the GitHub Release after it publishes `bolt/main.bend`
+to the hub.
+
+To build the native binary (clang 14+):
 
 ```
 git clone https://github.com/Emerging-Patterns/bolt
@@ -27,16 +37,14 @@ cd bolt
 bolt                # lints every .bend file under the current directory
 ```
 
-Or with nix, nothing else is needed: the flake takes bend 2 from its own
-flake (`github:bendlang/bend`: the release archive, patched for nix) and
-builds bolt from it.
+Or with nix:
 
 ```
 nix profile install github:Emerging-Patterns/bolt   # bolt, with bend on its PATH
 nix run github:Emerging-Patterns/bolt               # or just run it, here
 ```
 
-The VS Code extension, from the same checkout:
+The VS Code extension, from a checkout:
 
 ```
 cd editors/vscode && npm install && npx --yes @vscode/vsce package
@@ -51,11 +59,13 @@ run `Bend: Restart Language Server`.
 ## Use
 
 ```
-bolt                   every .bend file under the current directory
-bolt a.bend b.bend     the files given
-bolt check a.bend      the checker's errors, in the same shape
-bolt lsp               the language server, over stdio
+bend 0x…/bolt/main.bend                 every .bend file under the current directory
+bend 0x…/bolt/main.bend a.bend b.bend   the files given
+bend 0x…/bolt/main.bend check a.bend    the checker's errors, in the same shape
+bend 0x…/bolt/main.bend lsp             the language server, over stdio
 ```
+
+A native `bolt` (`./build.sh`) is the same words without the hub path.
 
 Each finding is one line, `path:line:col: level: rule: message`, then
 `clean` or the counts; the exit code is 1 when anything was an error.

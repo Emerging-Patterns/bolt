@@ -6,8 +6,8 @@ It enforces what the checker does not: comments, unused names, the
 binder-vs-def trap, leftover holes, whitespace, recursion that is strict
 where it should stop early or quadratic where it should be linear, unary
 `Nat` blowups, silent wrong answers (`Map.put`, `\033`, unreachable arms),
-foreign defs missing a lane, and laws that reach every pure def. Install: `./build.sh` at
-the repo root (README.md there).
+foreign defs missing a lane, and laws that reach every pure def. Install: the
+hub path in the root README.md, or `./build.sh` there.
 
     bolt                every .bend file under the current directory
     bolt a.bend b.bend  the files given
