@@ -19,8 +19,8 @@ written in Bend, with a VS Code extension.
 
 You need `bend` (`curl -fsSL https://bend-lang.com/install.sh | sh`).
 
-Write a `main.bend` that imports bolt from the hub
-(`import 0x<hash>/… as Name`, as `bend --publish` prints):
+1. Write a small `main.bend` that imports from the bendhub hash
+   (`import 0x<hash>/… as Name`, as `bend --publish` prints):
 
 ```
 import Base
@@ -30,15 +30,10 @@ def main() -> IO(Unit):
   Bolt.main()
 ```
 
+2. Run:
+
 ```
 bend main.bend
-```
-
-`check` and `lsp` are arguments to that same `main`:
-
-```
-bend main.bend check a.bend
-bend main.bend lsp
 ```
 
 To build the native binary (clang 14+):
