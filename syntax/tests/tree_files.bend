@@ -24,13 +24,18 @@ def flaws(n: Tree.Node) -> U32:
     case Tree.Leaf{Lex.Tok{k, t, l, c}}:
       Bool.pick(U32, Lex.is_close(k), 1, 0)
     case Tree.Group{open, kids, close}:
-      (flaws(kids) + Bool.pick(U32, Maybe.is_some(&2, Lex.Tok, close), 0, 1) : U32)
+      +a = flaws(kids)
+      (a + Bool.pick(U32, Maybe.is_some(&2, Lex.Tok, close), 0, 1) : U32)
     case Tree.Stmt{kind, kids, body}:
-      (flaws(kids) + flaws(body) : U32)
+      +a = flaws(kids)
+      +b = flaws(body)
+      (a + b : U32)
     case Tree.NNil{}:
       0
     case Tree.NCons{h, t}:
-      (flaws(h) + flaws(t) : U32)
+      +a = flaws(h)
+      +b = flaws(t)
+      (a + b : U32)
 
 def faithful.on(path: String, +text: String) -> IO(Unit):
   +tree = Tree.parse(text)

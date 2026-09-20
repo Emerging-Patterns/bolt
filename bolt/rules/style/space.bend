@@ -51,7 +51,8 @@ def widths(toks: List<&2, Lex.Tok>, +path: String, +n: U32, +acc: U32) -> List<&
     case Con{Lex.Tok{Lex.TNewline{}, t, l, c}, rest}:
       too_wide(acc, path, n, widths(rest, path, (n + 1 : U32), 0))
     case Con{Lex.Tok{k, t, l, c}, rest}:
-      widths(rest, path, n, (acc + width_of(k, t) : U32))
+      +w = width_of(k, t)
+      widths(rest, path, n, (acc + w : U32))
 
 def check.line(+path: String, +n: U32, +cs: List<&2, Char>, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
   +len = U32.from_nat(List.length(&2, Char, cs))

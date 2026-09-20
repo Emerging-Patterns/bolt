@@ -70,7 +70,8 @@ def byte_len(cs: List<&2, Char>, n: U32) -> U32:
     case Nil{}:
       n
     case Con{c, t}:
-      byte_len(t, (n + width(Char.to_u32(c)) : U32))
+      +w = width(Char.to_u32(c))
+      byte_len(t, (n + w : U32))
 
 # a code point's bytes, by its width, in front of the rest
 def encode.char(w: U32, +x: U32, rest: List<&2, U32>) -> List<&2, U32>:
