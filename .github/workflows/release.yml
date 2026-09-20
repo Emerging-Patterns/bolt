@@ -1,9 +1,9 @@
 # On a pushed v* tag (`git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`):
-# publish ENTRY in .github/hub.env to bendhub and open a GitHub Release.
-# The 0x hash goes in the release name (`NAME X.Y.Z (0x…)`); the git tag
+# publish bolt/main.bend to bendhub and open a GitHub Release.
+# The 0x hash goes in the release name (`bolt X.Y.Z (0x…)`); the git tag
 # stays vX.Y.Z. Does not publish the VS Code extension.
 #
-# No native package attach: a native compile OOMs on typical GHA RAM.
+# No native package attach: bolt's flake build OOMs on typical GHA RAM.
 # GitHub already ships a source archive on the release.
 # Notes are GitHub-generated from commits since the previous tag.
 
@@ -42,20 +42,18 @@ jobs:
           name: ${{ steps.title.outputs.name }}
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
-      - name: Write hub identity into README on the default branch
+      - name: Write hub identity into README on main
         env:
           HASH: ${{ steps.hub.outputs.hash }}
-          ENTRY: ${{ steps.hub.outputs.entry }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
-          git fetch origin "$DEFAULT_BRANCH"
-          git checkout "$DEFAULT_BRANCH"
-          .github/scripts/hub.sh readme "$HASH" "$ENTRY"
+          git fetch origin main
+          git checkout main
+          .github/scripts/hub.sh readme "$HASH"
       - uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: Hub identity ${{ steps.hub.outputs.hash }}
           file_pattern: README.md
-          branch: ${{ github.event.repository.default_branch }}
+          branch: main
           disable_globbing: true
           commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>

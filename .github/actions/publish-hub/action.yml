@@ -1,15 +1,15 @@
-name: Publish to bendhub
-description: Publish ENTRY from .github/hub.env; emit the 0x hash
+name: Publish bolt to bendhub
+description: Publish bolt/main.bend with the flake's bend; emit the 0x hash
 
 outputs:
   hash:
     description: Content hash, 0x plus hex
     value: ${{ steps.hub.outputs.hash }}
   entry:
-    description: Path inside the package
+    description: Path inside the package, usually bolt/main.bend
     value: ${{ steps.hub.outputs.entry }}
   identity:
-    description: 0xhash plus the published path
+    description: 0xhash/bolt/main.bend
     value: ${{ steps.hub.outputs.identity }}
 
 runs:
@@ -18,7 +18,7 @@ runs:
     - name: Check hub glue
       shell: bash
       run: .github/scripts/hub.sh selftest
-    - name: Publish hub entry
+    - name: Publish bolt/main.bend
       id: hub
       shell: bash
       run: nix develop -c .github/scripts/hub.sh publish
