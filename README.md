@@ -27,17 +27,6 @@ bend bolt/main.bend -o bin/bolt.bin      # the whole build
 bin/bolt.bin                             # lints every .bend under the current directory
 ```
 
-That one `bend` line is the entire build. bolt has no dependency on the hub --
-not one `import 0x` line -- so nothing is fetched, `BEND_LIB` need not be set,
-and no other tool has to be installed first. One thing to know about the
-output: `bend` prints "All terms check." before it emits any C, so a build
-that dies partway reads exactly like one that worked minus the binary. If
-`bin/bolt.bin` is not there afterwards, that is what happened.
-
-Run a `bolt` you built, not one you installed a while ago. A binary from an
-older release answers `clean` to every rule it does not implement yet, which
-looks exactly like a clean repo.
-
 Or with nix, nothing else is needed: the flake takes bend 2 from its own
 flake (`github:bendlang/bend`: the release archive, patched for nix) and
 builds bolt from it.
