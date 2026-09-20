@@ -112,16 +112,16 @@ def call(fs: List<&2, Fuel>, +name: String, +as: List<&2, Tree.Node>, +path: Str
       Nil{}
     case Con{Fuel{+fn, at}, rest}:
       +more = call(rest, name, as, path)
-      Bool.pick(List<&2, F.Finding>, String.eq(fn, name), List.append(&2, F.Finding, literal(arg(as, at), path), more),
-        more)
+      Lazy.stop(List<&2, F.Finding>, Bool.not(String.eq(fn, name)), more,
+        _u => List.append(&2, F.Finding, literal(arg(as, at), path), more))
 
 # every call at any depth of a chain, but the def's own (self)
 def calls(n: Tree.Node, +fs: List<&2, Fuel>, +self: String, +path: String) -> List<&2, F.Finding>:
   match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{open, +kids, close}, rest}}:
       +more = List.concat(&2, F.Finding, [calls(kids, fs, self, path), calls(rest, fs, self, path)])
-      Bool.pick(List<&2, F.Finding>, Bool.and(Lex.is_name(k), Bool.not(String.eq(t, self))),
-        List.append(&2, F.Finding, call(fs, t, args(kids), path), more), more)
+      Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Lex.is_name(k), Bool.not(String.eq(t, self)))), more,
+        _u => List.append(&2, F.Finding, call(fs, t, args(kids), path), more))
     case Tree.NCons{Tree.Group{open, kids, close}, rest}:
       List.concat(&2, F.Finding, [calls(kids, fs, self, path), calls(rest, fs, self, path)])
     case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:

@@ -6,6 +6,7 @@ import Base
 import ../../syntax/lex.bend as Lex
 import ../../syntax/tree.bend as Tree
 import ../../syntax/bind.bend as Bind
+import ../../lazy/lazy.bend as Lazy
 
 # a def: its name, its own tokens (the signature) and the statements under it
 type Def is Data:
@@ -166,7 +167,8 @@ def type_head(p: Tree.Node, +after: Bool) -> String:
 def walked.go(ps: List<&2, Tree.Node>, found: Maybe<&2, String>) -> String:
   match ps found:
     case Con{+p, rest} None{}:
-      walked.go(rest, Bool.pick(Maybe<&2, String>, is_live(p), Some{type_head(p, False{})}, None{}))
+      walked.go(rest, Lazy.stop(Maybe<&2, String>, Bool.not(is_live(p)), None{},
+        _u => Some{type_head(p, False{})}))
     case Con{p, rest} Some{t}:
       t
     case Nil{} Some{t}:

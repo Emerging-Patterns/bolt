@@ -1,10 +1,11 @@
-# bolt/rules, the recursion set: pick (one branch), strict, tail, concat and
-# index, each on a small source that fires, one that does not, and its
-# exemptions
+# bolt/rules, the recursion set: pick (one branch), strict, eager, tail,
+# concat and index, each on a small source that fires, one that does not, and
+# its exemptions
 import Base
 import ../src.bend as Src
 import ../rules/correctness/pick.bend as Pick
 import ../rules/suspicious/strict.bend as Strict
+import ../rules/suspicious/eager.bend as Eager
 import ../rules/pedantic/tail.bend as Tail
 import ../rules/suspicious/concat.bend as Concat
 import ../rules/suspicious/index.bend as Index
@@ -83,6 +84,41 @@ def stricted() -> String:
     "      0",
     "    case Con{h, t}:",
     "      Bool.pick(U32, a && U32.is_eq(h, 0), (h + cond(t, a) : U32), cond(t, a))"], "\n")
+
+def eagered() -> String:
+  String.join([
+    "def cost(xs: List<&2, U32>) -> U32:",
+    "  match xs:",
+    "    case Nil{}:",
+    "      0",
+    "    case Con{h, t}:",
+    "      (h + cost(t) : U32)",
+    "",
+    "def hit(xs: List<&2, U32>, +b: U32) -> U32:",
+    "  Bool.pick(U32, U32.is_eq(b, 0), 0, cost(xs))",
+    "",
+    "def cheap(xs: List<&2, U32>, +b: U32) -> U32:",
+    "  Bool.pick(U32, String.eq(U32.show(b), \"0\"), 0, 1)",
+    "",
+    "def bound(xs: List<&2, U32>, +b: U32) -> U32:",
+    "  +c = cost(xs)",
+    "  Bool.pick(U32, U32.is_eq(b, 0), 0, c)",
+    "",
+    "def selfish(xs: List<&2, U32>, +b: U32) -> U32:",
+    "  match xs:",
+    "    case Nil{}:",
+    "      0",
+    "    case Con{h, t}:",
+    "      Bool.pick(U32, U32.is_eq(h, b), h, selfish(t, b))",
+    "",
+    "def flat(+b: U32) -> U32:",
+    "  (b + 1 : U32)",
+    "",
+    "def calm(xs: List<&2, U32>, +b: U32) -> U32:",
+    "  Bool.pick(U32, U32.is_eq(b, 0), 0, flat(b))",
+    "",
+    "def ladder(xs: List<&2, U32>, +b: U32) -> U32:",
+    "  Bool.pick(U32, U32.is_eq(b, 0), 0, Bool.pick(U32, U32.is_eq(cost(xs), 0), 1, 2))"], "\n")
 
 def tailed() -> String:
   String.join([
@@ -194,6 +230,10 @@ def main() -> IO(Unit):
     Check.eq_str(~Report.new(), "strict: a self-call under &&, || and Bool.or; not bound above, not in another argument",
       lines(Strict.check(Src.of("a.bend", stricted()))),
       "a.bend:6:27: strict: digits recurses inside Bool.and/or; both sides always run (no short-circuit); a.bend:13:32: strict: has0 recurses inside Bool.and/or; both sides always run (no short-circuit); a.bend:20:7: strict: all0 recurses inside Bool.and/or; both sides always run (no short-circuit)")
+    Check.eq_str(~Report.new(), "eager: a looping def called in a pick branch; not a self-call, not Base, not bound above, not a flat helper or a nested condition",
+      lines(Eager.check(Src.of("a.bend", eagered()))),
+      "a.bend:9:38: eager: cost runs in both branches; Bool.pick runs it whatever the condition; bind it above, or Lazy.stop")
+    Check.eq_str(~Report.new(), "eager: a proof file is exempt", lines(Eager.check(Src.of("x/PROOF.bend", eagered()))), "")
     Check.eq_str(~Report.new(), "strict: a proof file is exempt", lines(Strict.check(Src.of("x/PROOF.bend", stricted()))), "")
     Check.eq_str(~Report.new(), "tail: non-tail self-calls over a list or string; not tail calls, trees, or pick arguments",
       lines(Tail.check(Src.of("a.bend", tailed()))),
@@ -208,6 +248,8 @@ def main() -> IO(Unit):
 
 #|ok pick: one branch recurses; nested under a reported pick is quiet; bound above is not
 #|ok strict: a self-call under &&, || and Bool.or; not bound above, not in another argument
+#|ok eager: a looping def called in a pick branch; not a self-call, not Base, not bound above, not a flat helper or a nested condition
+#|ok eager: a proof file is exempt
 #|ok strict: a proof file is exempt
 #|ok tail: non-tail self-calls over a list or string; not tail calls, trees, or pick arguments
 #|ok tail: a law file is exempt

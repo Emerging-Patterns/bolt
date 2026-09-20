@@ -156,8 +156,8 @@ def starts_upper(s: String) -> Bool:
 
 # an indented line of a type block: `Ctor{..}`
 def ctor.of(+t: String, n: U32) -> Maybe<&2, Item>:
-  Bool.pick(Maybe<&2, Item>, Bool.and(starts_upper(t), String.contains(t, "{")),
-    Some{Item{ICtor{}, name(t), n, t, "", ""}}, None{})
+  Lazy.stop(Maybe<&2, Item>, Bool.not(Bool.and(starts_upper(t), String.contains(t, "{"))), None{},
+    _u => Some{Item{ICtor{}, name(t), n, t, "", ""}})
 
 # an indented line of a type block as a constructor item, when it is one
 def ctor(text: String, n: U32) -> Maybe<&2, Item>:
@@ -208,9 +208,10 @@ def stray(+mode: Mode, text: String, +n: U32, +out: List<&2, Item>) -> St:
 
 # a `def` line: an item at once when it ends in `:`, else a pending header
 def start_def(+s: String, +n: U32, +doc: String, +out: List<&2, Item>) -> St:
+  +nm = def_name(s)
   Bool.pick(St, String.ends_with(s, ":"),
-    St{Top{}, (n + 1 : U32), [], Item{IDef{}, def_name(s), n, s, doc, ""} <> out},
-    St{Pending{IDef{}, def_name(s), n, doc, [s]}, (n + 1 : U32), [], out})
+    St{Top{}, (n + 1 : U32), [], Item{IDef{}, nm, n, s, doc, ""} <> out},
+    St{Pending{IDef{}, nm, n, doc, [s]}, (n + 1 : U32), [], out})
 
 # a comment continues the block above it only at the top level
 def doc_above(mode: Mode, doc: List<&2, String>) -> List<&2, String>:

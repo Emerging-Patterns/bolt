@@ -12,6 +12,7 @@ import ../../finding.bend as F
 import ../../../syntax/lex.bend as Lex
 import ../../../syntax/tree.bend as Tree
 import ../calls.bend as Calls
+import ../../../lazy/lazy.bend as Lazy
 
 # is the operator `&&` or `||`?
 def logic(+t: String) -> Bool:
@@ -64,7 +65,8 @@ def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Fi
       List.concat(&2, F.Finding, List.reverse(&2, List<&2, F.Finding>, acc))
     case Con{Calls.Def{+name, +sig, body}, rest}:
       check.go(rest, path,
-        Bool.pick(List<&2, F.Finding>, Calls.exempt(path, sig), [], walk(body, name, path, False{}, False{})) <> acc)
+        Lazy.stop(List<&2, F.Finding>, Calls.exempt(path, sig), [],
+          _u => walk(body, name, path, False{}, False{})) <> acc)
 
 # the rule
 def check(s: Src.Src) -> List<&2, F.Finding>:

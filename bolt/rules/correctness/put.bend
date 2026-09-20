@@ -35,7 +35,7 @@ def calls(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
       Nil{}
 
 def check.on(+toks: List<&2, Lex.Tok>, path: String) -> List<&2, F.Finding>:
-  Bool.pick(List<&2, F.Finding>, defines(toks), [], calls(toks, path))
+  Lazy.stop(List<&2, F.Finding>, defines(toks), [], _u => calls(toks, path))
 
 # the rule
 def check(s: Src.Src) -> List<&2, F.Finding>:

@@ -159,6 +159,14 @@ def tail_uses(uses: List<&2, Bind.Use>) -> List<&2, Bind.Use>:
 type Step is Data:
   Step{typ: Maybe<&2, U32>, cur: Cursor}
 
+# the class of a name: the use that sits on its head, else its own shape
+def use_class(+hu: Bool, +us: List<&2, Bind.Use>, +all: List<&2, Bind.Bind>, +name: String, +braced: Bool) -> U32:
+  match hu:
+    case True{}:
+      head_use_class(us, all, braced)
+    case False{}:
+      by_shape(name, braced)
+
 # a name token's type, taking the binder or the use that sits on it, and the
 # cursor after it
 def name_step(cur: Cursor, +all: List<&2, Bind.Bind>, +name: String, +line: U32, +col: U32, +braced: Bool) -> Step:
@@ -167,7 +175,7 @@ def name_step(cur: Cursor, +all: List<&2, Bind.Bind>, +name: String, +line: U32,
   +us = Bool.pick(List<&2, Bind.Use>, behind_use(uses, line, col), tail_uses(uses), uses)
   +hb = at_head_bind(bs, line, col)
   +hu = at_head_use(us, line, col)
-  +of_use = Bool.pick(U32, hu, head_use_class(us, all, braced), by_shape(name, braced))
+  +of_use = use_class(hu, us, all, name, braced)
   +typ = Bool.pick(U32, hb, head_bind_kind(bs), of_use)
   Step{Some{typ}, Cursor{Bool.pick(List<&2, Bind.Bind>, hb, tail_binds(bs), bs),
     Bool.pick(List<&2, Bind.Use>, hu, tail_uses(us), us)}}

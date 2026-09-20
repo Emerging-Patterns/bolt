@@ -10,6 +10,7 @@ import ../../src.bend as Src
 import ../../finding.bend as F
 import ../../../syntax/lex.bend as Lex
 import ../../../syntax/tree.bend as Tree
+import ../../../lazy/lazy.bend as Lazy
 import ../tokens.bend as T
 
 # the string arms of a match, and their characters
@@ -62,7 +63,8 @@ def report(t: Tally, +path: String, +l: U32, +c: U32) -> List<&2, F.Finding>:
 # a statement: a match is tallied
 def on_stmt(+kids: Tree.Node, +body: Tree.Node, +path: String) -> List<&2, F.Finding>:
   +hit = T.keyword(kids, "match")
-  Bool.pick(List<&2, F.Finding>, hit, report(tally(body, 0, 0), path, Tree.line(kids), Tree.col(kids)), [])
+  Lazy.stop(List<&2, F.Finding>, Bool.not(hit), [],
+    _u => report(tally(body, 0, 0), path, Tree.line(kids), Tree.col(kids)))
 
 # every statement, at any depth
 def walk(n: Tree.Node, +path: String) -> List<&2, F.Finding>:

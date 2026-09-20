@@ -11,6 +11,7 @@ import ../../finding.bend as F
 import ../../../syntax/lex.bend as Lex
 import ../../../syntax/tree.bend as Tree
 import ../../../syntax/bind.bend as Bind
+import ../../../lazy/lazy.bend as Lazy
 import ../tokens.bend as T
 
 # the literal a list pattern opens with: `x <> ..` or `Con{x, ..}`
@@ -68,7 +69,7 @@ def check.def(m: Maybe<&2, String>, +body: Tree.Node, path: String) -> List<&2, 
     case None{}:
       Nil{}
     case Some{+name}:
-      Bool.pick(List<&2, F.Finding>, T.mentions(body, name), walk(body, path), [])
+      Lazy.stop(List<&2, F.Finding>, Bool.not(T.mentions(body, name)), [], _u => walk(body, path))
 
 def check.go(root: Tree.Node, +path: String) -> List<&2, F.Finding>:
   match root:

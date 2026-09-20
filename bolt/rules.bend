@@ -20,6 +20,7 @@ import ./rules/style/space.bend as Space
 import ./rules/correctness/pick.bend as Pick
 import ./rules/laws/law.bend as Law
 import ./rules/suspicious/strict.bend as Strict
+import ./rules/suspicious/eager.bend as Eager
 import ./rules/pedantic/tail.bend as Tail
 import ./rules/suspicious/concat.bend as Concat
 import ./rules/suspicious/index.bend as Index
@@ -44,6 +45,7 @@ def on(+s: Src.Src) -> List<&2, F.Finding>:
     Space.check(s),
     Pick.check(s),
     Strict.check(s),
+    Eager.check(s),
     Tail.check(s),
     Concat.check(s),
     Index.check(s),
@@ -72,7 +74,7 @@ def group(+rule: String) -> String:
   Bool.pick(String, List.contains(~String, ~String.eq,
       ["shadow", "hole", "pick", "put", "arms", "escape", "twice", "strings", "foreign"], rule), "correctness",
     Bool.pick(String, List.contains(~String, ~String.eq,
-        ["unused", "strict", "concat", "nat", "fuel", "index"], rule), "suspicious",
+        ["unused", "strict", "eager", "concat", "nat", "fuel", "index"], rule), "suspicious",
       Bool.pick(String, List.contains(~String, ~String.eq, ["doc", "space"], rule), "style",
         Bool.pick(String, List.contains(~String, ~String.eq, ["law", "closed", "unsafe"], rule), "laws",
           Bool.pick(String, String.eq(rule, "tail"), "pedantic", "correctness")))))

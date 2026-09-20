@@ -17,6 +17,7 @@
 # anything else is free (Base, or unknown).
 import Base
 import ./lex.bend as Lex
+import ../lazy/lazy.bend as Lazy
 import ./tree.bend as Tree
 
 # what a binder is: an item's or a constructor's name, a parameter, a type's
@@ -191,7 +192,8 @@ def resolve.local(m: Maybe<&2, Bind>, +name: String, ns: Names) -> Target:
       +cs = String.to_list(name)
       +head = head_of(cs)
       Bool.pick(Target, has(its, name), TItem{name},
-        Bool.pick(Target, Bool.and(String.contains(name, "."), has(als, head)), TQual{head, rest_of(cs)}, TFree{}))
+        Lazy.stop(Target, Bool.not(Bool.and(String.contains(name, "."), has(als, head))), TFree{},
+          _u => TQual{head, rest_of(cs)}))
 
 # what a name at a point refers to, given what is in scope
 def resolve(env: List<&2, Bind>, +name: String, ns: Names) -> Target:

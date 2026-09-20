@@ -118,3 +118,8 @@ needs what bend's generated C needs (C11 atomics, pthreads, libm, mmap)
 with the same clang 19. Nix sees tracked files only: `git add` a new file
 before trusting that check. To build by hand: `nix develop`, then
 `bend x.bend -o x`.
+
+## License
+
+MIT ([LICENSE](LICENSE)). Bend itself is Apache-2.0 and is not vendored
+here: `flake.nix` takes it from bendlang/bend's own flake.

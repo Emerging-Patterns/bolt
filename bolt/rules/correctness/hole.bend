@@ -4,6 +4,7 @@ import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
 import ../../../syntax/lex.bend as Lex
+import ../../../lazy/lazy.bend as Lazy
 
 def check.go(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
   match toks:
@@ -19,4 +20,4 @@ def check.go(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
 # the rule
 def check(s: Src.Src) -> List<&2, F.Finding>:
   Src.Src{+path, text, toks, tree, bound, items} = s
-  Bool.pick(List<&2, F.Finding>, String.ends_with(path, "LAWS.bend"), [], check.go(toks, path))
+  Lazy.stop(List<&2, F.Finding>, String.ends_with(path, "LAWS.bend"), [], _u => check.go(toks, path))

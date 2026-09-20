@@ -8,6 +8,7 @@ import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
 import ../../../syntax/tree.bend as Tree
+import ../../../lazy/lazy.bend as Lazy
 import ../../../syntax/bind.bend as Bind
 
 # does a law's body bind anything (a `for` or `exs` line)?
@@ -43,4 +44,4 @@ def check.go(root: Tree.Node, +path: String) -> List<&2, F.Finding>:
 # the rule
 def check(s: Src.Src) -> List<&2, F.Finding>:
   Src.Src{+path, text, toks, tree, bound, items} = s
-  Bool.pick(List<&2, F.Finding>, String.ends_with(path, "LAWS.bend"), check.go(tree, path), [])
+  Lazy.stop(List<&2, F.Finding>, Bool.not(String.ends_with(path, "LAWS.bend")), [], _u => check.go(tree, path))

@@ -10,6 +10,7 @@ import ../../src.bend as Src
 import ../../finding.bend as F
 import ../../../syntax/lex.bend as Lex
 import ../../../syntax/tree.bend as Tree
+import ../../../lazy/lazy.bend as Lazy
 import ../tokens.bend as T
 
 # what an arm matches: from k up (text is its pattern), exactly k, or other
@@ -111,7 +112,7 @@ def single(kids: Tree.Node) -> Bool:
 def walk(n: Tree.Node, +path: String) -> List<&2, F.Finding>:
   match n:
     case Tree.NCons{Tree.Stmt{kind, kids, +body}, rest}:
-      +mine = Bool.pick(List<&2, F.Finding>, single(kids), arms(body, None{}, path), [])
+      +mine = Lazy.stop(List<&2, F.Finding>, Bool.not(single(kids)), [], _u => arms(body, None{}, path))
       List.concat(&2, F.Finding, [mine, walk(body, path), walk(rest, path)])
     case Tree.NCons{h, rest}:
       walk(rest, path)

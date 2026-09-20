@@ -13,6 +13,7 @@ import ../../src.bend as Src
 import ../../finding.bend as F
 import ../../../syntax/lex.bend as Lex
 import ../../../syntax/tree.bend as Tree
+import ../../../lazy/lazy.bend as Lazy
 import ../calls.bend as Calls
 
 # is a statement's chain exactly a call of the name, `name(..)`?
@@ -54,8 +55,8 @@ def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Fi
       List.concat(&2, F.Finding, List.reverse(&2, List<&2, F.Finding>, acc))
     case Con{Calls.Def{+name, +sig, body}, rest}:
       check.go(rest, path,
-        Bool.pick(List<&2, F.Finding>, Bool.and(Calls.seq(sig), Bool.not(Calls.exempt(path, sig))),
-          walk(body, name, path, False{}), []) <> acc)
+        Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Calls.seq(sig), Bool.not(Calls.exempt(path, sig)))), [],
+          _u => walk(body, name, path, False{})) <> acc)
 
 # the rule
 def check(s: Src.Src) -> List<&2, F.Finding>:

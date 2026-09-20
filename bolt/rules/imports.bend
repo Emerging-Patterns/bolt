@@ -7,6 +7,7 @@
 import Base
 import ../src.bend as Src
 import ../../syntax/outline.bend as Outline
+import ../../lazy/lazy.bend as Lazy
 
 # paths
 # -----
@@ -65,7 +66,7 @@ def targets(items: List<&2, Outline.Item>, +from: String) -> List<&2, String>:
       Nil{}
     case Con{Outline.Item{Outline.IImport{}, name, line, sig, doc, +path}, rest}:
       +more = targets(rest, from)
-      Bool.pick(List<&2, String>, String.starts_with(path, "."), resolve(from, path) <> more, more)
+      Lazy.stop(List<&2, String>, Bool.not(String.starts_with(path, ".")), more, _u => resolve(from, path) <> more)
     case Con{other, rest}:
       targets(rest, from)
 

@@ -10,6 +10,7 @@ import ../../finding.bend as F
 import ../../../syntax/lex.bend as Lex
 import ../../../syntax/tree.bend as Tree
 import ../calls.bend as Calls
+import ../../../lazy/lazy.bend as Lazy
 
 # is the chain exactly one number?
 def literal(n: Tree.Node) -> Bool:
@@ -46,8 +47,9 @@ def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Fi
       List.concat(&2, F.Finding, List.reverse(&2, List<&2, F.Finding>, acc))
     case Con{Calls.Def{+name, +sig, +body}, rest}:
       check.go(rest, path,
-        Bool.pick(List<&2, F.Finding>, Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig))),
-          walk(body, path), []) <> acc)
+        Lazy.stop(List<&2, F.Finding>,
+          Bool.not(Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))), [],
+          _u => walk(body, path)) <> acc)
 
 # the rule
 def check(s: Src.Src) -> List<&2, F.Finding>:

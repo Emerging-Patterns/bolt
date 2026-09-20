@@ -44,7 +44,7 @@ unset group has its default. The groups:
 | group         | rules                                                                      | default |
 |---------------|----------------------------------------------------------------------------|---------|
 | `correctness` | `shadow` `hole` `pick` `put` `arms` `escape` `twice` `strings` `foreign`    | error   |
-| `suspicious`  | `unused` `strict` `concat` `nat` `fuel` `index`                            | warn    |
+| `suspicious`  | `unused` `strict` `eager` `concat` `nat` `fuel` `index`                     | warn    |
 | `style`       | `doc` `space`                                                              | warn    |
 | `laws`        | `law` `closed` `unsafe`                                                    | warn    |
 | `pedantic`    | `tail`                                                                     | off     |
@@ -106,6 +106,14 @@ beside the groups.
   `&&`/`||`. They are functions too: both sides always run, so there is no
   short-circuit (a game's overlap test went 31 -> 55 fps once the call moved
   out). Bind the call above, or match on the first Bool.
+- `eager` — a branch of a `Bool.pick` holds a call to another def of the
+  same file. Bool.pick is a def too, so the branch runs whatever the
+  condition says (a game's overlap test in a branch went 31 -> 55 fps once
+  it moved out; one `gaps(..)` in a branch here cost 88 s of a 100 s run).
+  `pick` sees only the self-call and `strict` only Bool.and/or, so the call
+  to a neighbour is this rule's. Bind it above the pick, or take the branch
+  through `Lazy.stop`/`Lazy.or_else`. A call into Base is not counted: a def
+  of the file is the cheap proxy for work the file itself wrote.
 - `concat` — a self-call whose argument grows a carried parameter by
   appending (`acc ++ x`, `List.append(&2, T, acc, ..)`): each step copies the
   accumulator, so the walk is quadratic. Prepend with `<>` and reverse once.

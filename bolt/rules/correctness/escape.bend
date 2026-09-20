@@ -7,6 +7,7 @@ import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
 import ../../../syntax/lex.bend as Lex
+import ../../../lazy/lazy.bend as Lazy
 
 # an octal digit's value, or none
 def octal(c: Char) -> Maybe<&2, U32>:
@@ -51,16 +52,17 @@ def hex(+n: U32) -> String:
 # the finding for `\0` at a column, the digits after it in ds
 def finding(+ds: List<&2, Char>, +path: String, +line: U32, +col: U32) -> F.Finding:
   +digits = String.from_list(ds)
-  Bool.pick(F.Finding, List.is_empty(&2, Char, ds),
+  Lazy.stop(F.Finding, List.is_empty(&2, Char, ds),
     F.Finding{path, line, col, 3, "escape", "\\0 then digits is NUL and the digits, not octal: write \\u{..}"},
-    F.Finding{path, line, col, (U32.from_nat(String.length(digits)) + 2 : U32), "escape",
+    _u => F.Finding{path, line, col, (U32.from_nat(String.length(digits)) + 2 : U32), "escape",
       "\\0" ++ digits ++ " is NUL then \"" ++ digits ++ "\", not octal: write \\u{" ++ hex(value(ds, 0)) ++ "}"})
 
 # after a `\0` at a column: a finding when a digit follows
 def after(ds: List<&2, Char>, +path: String, +line: U32, +col: U32, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
   match ds:
     case Con{+d, t}:
-      Bool.pick(List<&2, F.Finding>, Char.is_digit(d), finding(run(d <> t, 2n), path, line, col) <> more, more)
+      Lazy.stop(List<&2, F.Finding>, Bool.not(Char.is_digit(d)), more,
+        _u => finding(run(d <> t, 2n), path, line, col) <> more)
     case Nil{}:
       more
 

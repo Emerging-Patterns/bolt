@@ -265,7 +265,7 @@ def close_all(+stack: List<&2, Frame>) -> List<&2, Frame>:
 def close_tok(+stack: List<&2, Frame>, +close: Lex.Tok) -> List<&2, Frame>:
   Lex.Tok{k, +t, l, c} = close
   +n = depth_to(stack, t)
-  Bool.pick(List<&2, Frame>, Nat.is_eq(n, 0n), put(stack, Leaf{close}), close_n(n, stack, Some{close}))
+  Lazy.stop(List<&2, Frame>, Nat.is_eq(n, 0n), put(stack, Leaf{close}), _u => close_n(n, stack, Some{close}))
 
 # `>>` closes two angle groups
 def close_gts(cs: List<&2, Char>, stack: List<&2, Frame>, +l: U32, +c: U32) -> List<&2, Frame>:
@@ -275,11 +275,20 @@ def close_gts(cs: List<&2, Char>, stack: List<&2, Frame>, +l: U32, +c: U32) -> L
     case Con{ch, t}:
       close_gts(t, close_tok(stack, Lex.Tok{Lex.TOp{}, ">", l, c}), l, (c + 1 : U32))
 
+# the close a bracket makes, given whether it is a run of `>`: a match, so
+# only the side taken runs
+def close_any.at(+gt: Bool, +stack: List<&2, Frame>, +close: Lex.Tok, +t: String, +l: U32, +c: U32)
+  -> List<&2, Frame>:
+  match gt:
+    case True{}:
+      close_gts(String.to_list(t), stack, l, c)
+    case False{}:
+      close_tok(stack, close)
+
 # a close bracket, or a run of `>`, closes what it can
 def close_any(+stack: List<&2, Frame>, +close: Lex.Tok) -> List<&2, Frame>:
   Lex.Tok{k, +t, +l, +c} = close
-  Bool.pick(List<&2, Frame>, String.starts_with(t, ">"),
-    close_gts(String.to_list(t), stack, l, c), close_tok(stack, close))
+  close_any.at(String.starts_with(t, ">"), stack, close, t, l, c)
 
 # a finished statement lands in the body of the frame below
 def put_stmt(stack: List<&2, Frame>, n: Node) -> List<&2, Frame>:
@@ -367,7 +376,8 @@ def in_group(stack: List<&2, Frame>) -> Bool:
 # a new statement at column c, once the ones it ends are finished; inside a
 # group a line is just more tokens
 def open_stmt(+stack: List<&2, Frame>, +c: U32) -> List<&2, Frame>:
-  Bool.pick(List<&2, Frame>, in_group(stack), stack, FStmt{c, NNil{}, NNil{}} <> end_n(deeper(stack, c), stack))
+  Lazy.stop(List<&2, Frame>, in_group(stack), stack,
+    _u => FStmt{c, NNil{}, NNil{}} <> end_n(deeper(stack, c), stack))
 
 # a significant token that starts a line: at column 0 it closes every open
 # group (unless it is a bracket closing one of them); outside a group it opens
@@ -375,22 +385,22 @@ def open_stmt(+stack: List<&2, Frame>, +c: U32) -> List<&2, Frame>:
 def fresh(+stack: List<&2, Frame>, +tok: Lex.Tok) -> List<&2, Frame>:
   Lex.Tok{k, t, l, +c} = tok
   +cuts = Bool.and(Bool.and(in_group(stack), U32.is_eq(c, 0)), Nat.is_eq(depth_to(stack, t), 0n))
-  open_stmt(Bool.pick(List<&2, Frame>, cuts, close_all(stack), stack), c)
+  open_stmt(Lazy.stop(List<&2, Frame>, Bool.not(cuts), stack, _u => close_all(stack)), c)
 
 # an open bracket or a leaf into the innermost frame
 def push(+stack: List<&2, Frame>, +tok: Lex.Tok, glued: Bool) -> List<&2, Frame>:
   Lex.Tok{+k, +t, l, c} = tok
-  Bool.pick(List<&2, Frame>, closes_with(k, t), close_any(stack, tok),
+  Lazy.stop(List<&2, Frame>, Bool.not(closes_with(k, t)),
     Bool.pick(List<&2, Frame>, Bool.or(Lex.is_open(k), opens_angle(k, t, glued)), FGroup{tok, NNil{}} <> stack,
-      put(stack, Leaf{tok})))
+      put(stack, Leaf{tok})),
+    _u => close_any(stack, tok))
 
 # glued: the previous token was a name with nothing between
 def step(+tok: Lex.Tok, st: B, glued: Bool) -> B:
   Lex.Tok{+k, t, l, c} = tok
   B{+fr, +stack} = st
-  Bool.pick(B, Lex.significant(k),
-    B{False{}, push(Bool.pick(List<&2, Frame>, fr, fresh(stack, tok), stack), tok, glued)},
-    B{Bool.or(fr, Lex.is_nl(k)), stack})
+  Lazy.stop(B, Bool.not(Lex.significant(k)), B{Bool.or(fr, Lex.is_nl(k)), stack},
+    _u => B{False{}, push(Lazy.stop(List<&2, Frame>, Bool.not(fr), stack, _u2 => fresh(stack, tok)), tok, glued)})
 
 # an identifier of any kind (what `<` glues to)
 def is_name_tok(tok: Lex.Tok) -> Bool:

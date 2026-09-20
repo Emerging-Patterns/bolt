@@ -10,6 +10,7 @@ import ../../finding.bend as F
 import ../../../syntax/lex.bend as Lex
 import ../../../syntax/tree.bend as Tree
 import ../calls.bend as Calls
+import ../../../lazy/lazy.bend as Lazy
 
 # a chain that is exactly one lowercase name: its token
 def lone(n: Tree.Node) -> Maybe<&2, Lex.Tok>:
@@ -62,7 +63,7 @@ def walk(n: Tree.Node, +name: String, +params: List<&2, String>, +path: String) 
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +me = Bool.and(String.eq(o, "("), String.eq(t, name))
       List.concat(&2, F.Finding, [
-        Bool.pick(List<&2, F.Finding>, me, hits(Calls.args(kids), params, path, []), []),
+        Lazy.stop(List<&2, F.Finding>, Bool.not(me), [], _u => hits(Calls.args(kids), params, path, [])),
         walk(kids, name, params, path), walk(rest, name, params, path)])
     case Tree.NCons{Tree.Group{open, kids, close}, rest}:
       List.concat(&2, F.Finding, [walk(kids, name, params, path), walk(rest, name, params, path)])
@@ -80,7 +81,8 @@ def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Fi
       List.concat(&2, F.Finding, List.reverse(&2, List<&2, F.Finding>, acc))
     case Con{Calls.Def{+name, +sig, body}, rest}:
       check.go(rest, path,
-        Bool.pick(List<&2, F.Finding>, Calls.exempt(path, sig), [], walk(body, name, Calls.names(sig), path)) <> acc)
+        Lazy.stop(List<&2, F.Finding>, Calls.exempt(path, sig), [],
+          _u => walk(body, name, Calls.names(sig), path)) <> acc)
 
 # the rule
 def check(s: Src.Src) -> List<&2, F.Finding>:

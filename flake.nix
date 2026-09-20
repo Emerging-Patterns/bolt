@@ -75,6 +75,11 @@
           cp bolt/bolt $out/bin/bolt
           wrapProgram $out/bin/bolt --prefix PATH : ${pkgs.lib.makeBinPath [ bend pkgs.findutils pkgs.coreutils ]}
         '';
+        meta = {
+          description = "A linter, checker and language server for Bend 2";
+          license = pkgs.lib.licenses.mit;
+          mainProgram = "bolt";
+        };
       };
     in {
       packages.${system} = { inherit bend bolt bend-cc; default = bolt; };

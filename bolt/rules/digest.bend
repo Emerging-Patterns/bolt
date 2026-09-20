@@ -12,6 +12,7 @@ import ../../syntax/lex.bend as Lex
 import ../../syntax/tree.bend as Tree
 import ../../syntax/bind.bend as Bind
 import ../../syntax/outline.bend as Outline
+import ../../lazy/lazy.bend as Lazy
 import ./imports.bend as Imports
 
 # what a file holds
@@ -79,8 +80,8 @@ def mentions(toks: List<&2, Lex.Tok>, +as: List<&2, Alias>, +file: String) -> Li
       Nil{}
     case Con{Lex.Tok{k, +t, l, c}, rest}:
       +more = mentions(rest, as, file)
-      Bool.pick(List<&2, Mention>, Lex.is_name(k),
-        mention(alias_path(as, Bind.head_of(String.to_list(t))), file, t) <> more, more)
+      Lazy.stop(List<&2, Mention>, Bool.not(Lex.is_name(k)), more,
+        _u => mention(alias_path(as, Bind.head_of(String.to_list(t))), file, t) <> more)
 
 # the mentions of every law statement of a tree
 def law_mentions(root: Tree.Node, +as: List<&2, Alias>, +file: String) -> List<&2, Mention>:

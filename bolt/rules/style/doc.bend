@@ -6,6 +6,7 @@ import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
 import ../../../syntax/outline.bend as Outline
+import ../../../lazy/lazy.bend as Lazy
 
 # does an item of this kind need a comment?
 def needs(k: Outline.ItemKind) -> Bool:
@@ -46,5 +47,5 @@ def check.go(items: List<&2, Outline.Item>, +path: String) -> List<&2, F.Finding
 # the rule
 def check(s: Src.Src) -> List<&2, F.Finding>:
   Src.Src{+path, text, toks, tree, bound, items} = s
-  Bool.pick(List<&2, F.Finding>, Bool.or(String.ends_with(path, "PROOF.bend"), String.contains(path, "/tests/")),
-    [], check.go(items, path))
+  Lazy.stop(List<&2, F.Finding>, Bool.or(String.ends_with(path, "PROOF.bend"), String.contains(path, "/tests/")),
+    [], _u => check.go(items, path))
