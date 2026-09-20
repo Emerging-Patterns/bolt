@@ -1,13 +1,8 @@
-# Sibling of Emerging-Patterns/ez CI; keep shape aligned.
+# One `check` job: `nix develop -c ./gate.sh --js-only`.
 #
-# Same job as ez (ubuntu-latest, Determinate nix-installer-action@v23,
-# one `check` job). bolt's default branch is main (ez: master).
-#
-# ez does not run full `nix flake check` (avoids a heavy native
-# compile); it builds `.#checks.*.tests`. bolt's flake check builds
-# the bolt package (~8 GB peak) and OOMs on typical GHA RAM (~7 GB),
-# and there is no light `checks.*.tests` attr, so this job runs the
-# JS-lane gate instead (~2.5 GB): laws and tests, no native compile.
+# `nix flake check` builds the bolt package (~8 GB peak) and OOMs on
+# typical GHA RAM (~7 GB). The JS-lane gate is the light check: laws
+# and tests, no native compile (~2.5 GB).
 
 name: ci
 

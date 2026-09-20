@@ -1,13 +1,9 @@
-# Sibling of Emerging-Patterns/ez tag workflow; keep shape aligned.
-#
-# Cuts an annotated vX.Y.Z tag (and the GitHub Release: a GITHUB_TOKEN
-# tag push does not start release.yml). Same pattern ez should copy.
+# Cuts a vX.Y.Z tag and GitHub Release from workflow_dispatch
+# (a GITHUB_TOKEN tag does not start release.yml).
 #
 # How to cut a release
-#   1. Land the version on the default branch. bolt: flake.nix and
-#      editors/vscode/package.json must be the same X.Y.Z. ez: whichever
-#      file holds the version (likely flake.nix only — drop the vscode
-#      check below).
+#   1. Land the version on the default branch. flake.nix and
+#      editors/vscode/package.json must be the same X.Y.Z.
 #   2. Actions → Tag → Run workflow, from that branch:
 #        - leave version empty and bump=none → tag what the files say
 #        - version=X.Y.Z → tag that (fails if the files disagree)
@@ -49,10 +45,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-      - name: Check versions, tag, and release
+          ref: ${{ github.ref_name }}
+      - name: Resolve version
+        id: ver
         env:
-          GH_TOKEN: ${{ github.token }}
           VERSION_IN: ${{ inputs.version }}
           BUMP: ${{ inputs.bump }}
         run: |
@@ -100,15 +96,6 @@ jobs:
             exit 1
           fi
 
-          git fetch --tags --force
-          if git rev-parse "refs/tags/v$ver" >/dev/null 2>&1; then
-            echo "tag v$ver already exists"
-            exit 1
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
           if [ "$bump_files" -eq 1 ]; then
             sed -i -E 's/version = "[0-9]+\.[0-9]+\.[0-9]+"/version = "'"$ver"'"/' flake.nix
             sed -i -E 's/"version": "[0-9]+\.[0-9]+\.[0-9]+"/"version": "'"$ver"'"/' editors/vscode/package.json
@@ -120,23 +107,23 @@ jobs:
               echo "failed to write package.json version $ver"
               exit 1
             fi
-            git add flake.nix editors/vscode/package.json
-            git commit -m "Release v$ver"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
 
-          git tag -a "v$ver" -m "v$ver"
-          git push origin "v$ver"
-
-          if [ -f CHANGELOG.md ]; then
-            awk -v ver="$ver" '
-              $0 ~ "^##[ \\[]+v?" ver {found=1; print; next}
-              found && /^## / {exit}
-              found {print}
-            ' CHANGELOG.md > /tmp/release-notes.md
-          fi
-          if [ -s /tmp/release-notes.md ]; then
-            gh release create "v$ver" --title "v$ver" --notes-file /tmp/release-notes.md
-          else
-            gh release create "v$ver" --title "v$ver" --generate-notes
-          fi
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "bump_files=$bump_files" >> "$GITHUB_OUTPUT"
+      - name: Commit version bump
+        id: commit
+        if: steps.ver.outputs.bump_files == '1'
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: Release v${{ steps.ver.outputs.version }}
+          file_pattern: flake.nix editors/vscode/package.json
+          branch: ${{ github.ref_name }}
+          disable_globbing: true
+          commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          generate_release_notes: true
+          target_commitish: ${{ steps.commit.outputs.commit_hash || github.sha }}
