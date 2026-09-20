@@ -1,29 +1,13 @@
 // The VS Code client for Bend: starts bolt's language server (`bolt lsp`) on
-// stdio for .bend files. All the language work is in the server (../../bolt/lsp).
-const fs = require("fs");
+// stdio for .bend files. All the language work is in the server (../../bolt/lsp),
+// and finding the binary is in locate.js, which knows nothing of vscode so a
+// test can drive it (tests/locate.js).
 const os = require("os");
-const path = require("path");
 const vscode = require("vscode");
 const { LanguageClient } = require("vscode-languageclient/node");
+const { locate, serverEnv } = require("./locate.js");
 
 let client;
-
-// The server runs `bend`, and bend's launcher runs `bun`: an extension host
-// started from a desktop or over SSH often lacks the shell's PATH.
-function serverEnv() {
-  const home = os.homedir();
-  const extra = [".local/bin", ".bend/bin", ".bun/bin", ".nix-profile/bin"].map((d) => path.join(home, d));
-  return { ...process.env, PATH: [...extra, process.env.PATH ?? ""].join(path.delimiter) };
-}
-
-function serverPath() {
-  const set = vscode.workspace.getConfiguration("bend").get("server.path");
-  if (set) {
-    return set.replace(/^~(?=$|\/)/, os.homedir());
-  }
-  const local = path.join(os.homedir(), ".local/bin/bolt");
-  return fs.existsSync(local) ? local : "bolt";
-}
 
 async function start() {
   // `bolt lsp --gpu off`: the server stays on the cores, where this work is
@@ -31,10 +15,26 @@ async function start() {
   // `--gpu off` out of the line before the program reads it. No `transport`:
   // stdio is the default for a command, and naming it would only make the
   // client append a `--stdio` the server has no use for.
-  const run = { command: serverPath(), args: ["lsp", "--gpu", "off"], options: { env: serverEnv() } };
+  const setting = vscode.workspace.getConfiguration("bend").get("server.path");
+  const run = {
+    command: locate({ setting }),
+    args: ["lsp", "--gpu", "off"],
+    options: { env: serverEnv(process.env, os.homedir()) },
+  };
   client = new LanguageClient("bend", "Bend", { run, debug: run },
     { documentSelector: [{ scheme: "file", language: "bend" }] });
   await client.start();
+}
+
+// start, and put a bolt that is missing or wrongly configured in front of the
+// user rather than in a log they have no reason to open: locate's message
+// names every path it tried.
+async function launch() {
+  try {
+    await start();
+  } catch (e) {
+    vscode.window.showErrorMessage("bend: " + e.message);
+  }
 }
 
 async function activate(context) {
@@ -47,9 +47,9 @@ async function activate(context) {
     } catch (e) {
       console.error("bend: stopping the old server failed", e);
     }
-    await start();
+    await launch();
   }));
-  await start();
+  await launch();
 }
 
 function deactivate() {

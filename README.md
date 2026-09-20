@@ -24,8 +24,7 @@ and clang 14+, since bolt is one native binary:
 git clone https://github.com/Emerging-Patterns/bolt
 cd bolt
 bend bolt/main.bend -o bin/bolt.bin      # the whole build
-ln -sfn "$PWD/bin/bolt.bin" ~/.local/bin/bolt
-bolt                                     # lints every .bend under the current directory
+bin/bolt.bin                             # lints every .bend under the current directory
 ```
 
 That one `bend` line is the entire build. bolt has no dependency on the hub --
@@ -52,13 +51,16 @@ The VS Code extension, from the same checkout:
 
 ```
 cd editors/vscode && npm install && npx --yes @vscode/vsce package
-code --install-extension bolt-0.3.0.vsix   # or: Extensions > ... > Install from VSIX
+code --install-extension bolt-0.4.0.vsix   # or: Extensions > ... > Install from VSIX
 ```
 
 Over Remote-SSH, install it from the remote window, so it lands on the
-machine where `bend` and `bolt` are. The extension finds `~/.local/bin/bolt`
-(or `bolt` on PATH; `bend.server.path` overrides). After rebuilding bolt,
-run `Bend: Restart Language Server`.
+machine where `bend` and `bolt` are. The extension finds `bolt` on the PATH --
+`~/.nix-profile/bin`, `~/.local/bin`, `~/.bend/bin` and `~/.bun/bin` included,
+since an extension host often has none of the shell's PATH -- and failing that
+the `bin/bolt.bin` of a checkout it is run from; `bend.server.path` overrides
+both (editors/vscode/README.md). After rebuilding bolt, run
+`Bend: Restart Language Server`.
 
 ## Use
 

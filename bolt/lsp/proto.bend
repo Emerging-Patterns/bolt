@@ -47,7 +47,7 @@ def capabilities() -> J.Json:
       ("semanticTokensProvider", J.obj([
         ("legend", J.obj([("tokenTypes", J.arr(strings(Semantic.legend()))), ("tokenModifiers", J.arr([]))])),
         ("full", J.JBool{True{}})]))])),
-    ("serverInfo", J.obj([("name", J.JStr{"bend-lsp"})]))])
+    ("serverInfo", J.obj([("name", J.JStr{"bolt"})]))])
 
 # an LSP position (0-based line and character)
 def position(line: U32, character: U32) -> J.Json:

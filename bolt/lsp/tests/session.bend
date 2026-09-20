@@ -21,7 +21,7 @@ def inbox() -> List<&2, String>:
 def main() -> IO(Unit):
   Server.serve(~Script.Script, ~Script.new(), ~FakeChecker.new(), ~Disk.new(), 100n, Script.Script{inbox()}, [])
 
-#|{"jsonrpc":"2.0","id":1,"result":{"capabilities":{"textDocumentSync":{"openClose":true,"change":1,"save":true},"hoverProvider":true,"definitionProvider":true,"documentSymbolProvider":true,"completionProvider":{"triggerCharacters":["."]},"referencesProvider":true,"renameProvider":true,"semanticTokensProvider":{"legend":{"tokenTypes":["keyword","function","type","enumMember","parameter","variable","property","string","number","comment","typeParameter"],"tokenModifiers":[]},"full":true}},"serverInfo":{"name":"bend-lsp"}}}
+#|{"jsonrpc":"2.0","id":1,"result":{"capabilities":{"textDocumentSync":{"openClose":true,"change":1,"save":true},"hoverProvider":true,"definitionProvider":true,"documentSymbolProvider":true,"completionProvider":{"triggerCharacters":["."]},"referencesProvider":true,"renameProvider":true,"semanticTokensProvider":{"legend":{"tokenTypes":["keyword","function","type","enumMember","parameter","variable","property","string","number","comment","typeParameter"],"tokenModifiers":[]},"full":true}},"serverInfo":{"name":"bolt"}}}
 #|{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///w/my%20bad.bend","diagnostics":[{"range":{"start":{"line":3,"character":0},"end":{"line":4,"character":0}},"severity":1,"source":"bend","message":"expected : String\nobserved : U32"}]}}
 #|{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///w/good.bend","diagnostics":[]}}
 #|{"jsonrpc":"2.0","id":2,"error":{"code":-32601,"message":"method not found"}}

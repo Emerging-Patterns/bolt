@@ -2,7 +2,7 @@
   "name": "bolt",
   "displayName": "Bend",
   "description": "Bend 2: highlighting, diagnostics, hover, definition, completion, references, rename, semantic tokens and lint through bolt",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "publisher": "ngngardner",
   "private": true,
   "license": "MIT",
@@ -40,7 +40,7 @@
         "bend.server.path": {
           "type": "string",
           "default": "",
-          "description": "Path to bolt. Empty: ~/.local/bin/bolt, then `bolt` on PATH."
+          "description": "Path to bolt. Empty: `bolt` on PATH (which includes ~/.nix-profile/bin, ~/.local/bin, ~/.bend/bin and ~/.bun/bin), then bin/bolt.bin of a checkout this extension is being run from."
         }
       }
     },

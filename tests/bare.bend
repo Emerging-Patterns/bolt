@@ -9,10 +9,13 @@
 # and nothing of ez in front of it -- because the day bolt grows a dependency
 # on its own tooling is a day nobody would notice otherwise.
 #
-# The binary it leaves behind is the one the two checks after it need, and
-# neither can be answered without it: the server has to be spawned by node,
-# over sockets, to show it never opens a path for its own stdio, and the linter
-# has to be the compiled binary that bolt.bend is written for.
+# The binary it leaves behind is the one the three checks after it need, and
+# none can be answered without it: the server has to be spawned by node, over
+# sockets, to show it never opens a path for its own stdio; the linter has to
+# be the compiled binary that bolt.bend is written for; and the VS Code
+# extension's binary resolution is only worth anything if what it resolves to
+# starts a server, so tests/locate.js ends by starting one on the path it
+# resolved.
 #
 # This is an end-to-end test, so `ez test` runs it on its own and never caches
 # it, and it is the slow one, because the compile it drives is a whole build of
@@ -37,9 +40,13 @@ def main() -> IO(Unit):
     spawned : String <- R.exec(["node", "bolt/lsp/tests/spawn.js", "bin/bolt.bin"])
     Check.eq_str(~Report.new(), "the server answers node, spawned over sockets",
       R.text(spawned), "ok")
+    located : String <- R.exec(["node", "tests/locate.js", "bin/bolt.bin"])
+    Check.eq_str(~Report.new(), "the extension finds bolt with no symlink to help it",
+      R.text(located), "ok")
     linted : String <- R.exec(["bin/bolt.bin", "--gpu", "off"])
     Check.eq_str(~Report.new(), "bolt lints its own repo clean", R.text(linted), "clean")
 
 #|ok bolt builds with bare bend and no BEND_LIB
 #|ok the server answers node, spawned over sockets
+#|ok the extension finds bolt with no symlink to help it
 #|ok bolt lints its own repo clean

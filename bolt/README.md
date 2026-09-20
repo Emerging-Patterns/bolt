@@ -16,8 +16,8 @@ foreign defs missing a lane, and laws that reach every pure def. Install:
 
 Each finding is one line, `path:line:col: level: rule: message`, with line
 and column 1-based so a terminal can jump to it; then `clean` or the counts.
-The exit code is 1 when anything was an error. `ln -sfn "$PWD/bin/bolt.bin"
-~/.local/bin/bolt` puts it on the PATH as `bolt`.
+The exit code is 1 when anything was an error. `nix profile install
+github:Emerging-Patterns/bolt` is what puts it on the PATH as `bolt`.
 
 ## bolt.bend
 

@@ -73,7 +73,7 @@
       # this work (bolt/lsp/bench).
       bolt = pkgs.stdenv.mkDerivation {
         pname = "bolt";
-        version = "0.3.0";  # keep with editors/vscode/package.json
+        version = "0.4.0";  # keep with editors/vscode/package.json
         src = self;
         nativeBuildInputs = [ bend pkgs.makeWrapper ];
         buildPhase = ''
