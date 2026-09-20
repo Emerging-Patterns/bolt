@@ -20,13 +20,10 @@ written in Bend, with a VS Code extension.
 You need `bend` (`curl -fsSL https://bend-lang.com/install.sh | sh`):
 
 ```
-bend 0x…/bolt/main.bend
-bend 0x…/bolt/main.bend check a.bend
-bend 0x…/bolt/main.bend lsp
+bend 0x729eecea86ea5a2cdba3a2856a313bca/bolt/main.bend
+bend 0x729eecea86ea5a2cdba3a2856a313bca/bolt/main.bend check a.bend
+bend 0x729eecea86ea5a2cdba3a2856a313bca/bolt/main.bend lsp
 ```
-
-`0x…` is written by the GitHub Release after it publishes `bolt/main.bend`
-to the hub.
 
 To build the native binary (clang 14+):
 
@@ -59,10 +56,10 @@ run `Bend: Restart Language Server`.
 ## Use
 
 ```
-bend 0x…/bolt/main.bend                 every .bend file under the current directory
-bend 0x…/bolt/main.bend a.bend b.bend   the files given
-bend 0x…/bolt/main.bend check a.bend    the checker's errors, in the same shape
-bend 0x…/bolt/main.bend lsp             the language server, over stdio
+bend 0x729eecea86ea5a2cdba3a2856a313bca/bolt/main.bend                 every .bend file under the current directory
+bend 0x729eecea86ea5a2cdba3a2856a313bca/bolt/main.bend a.bend b.bend   the files given
+bend 0x729eecea86ea5a2cdba3a2856a313bca/bolt/main.bend check a.bend    the checker's errors, in the same shape
+bend 0x729eecea86ea5a2cdba3a2856a313bca/bolt/main.bend lsp             the language server, over stdio
 ```
 
 A native `bolt` (`./build.sh`) is the same words without the hub path.

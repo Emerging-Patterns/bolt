@@ -3,6 +3,7 @@
 # write it into README, emit GitHub Actions outputs.
 set -euo pipefail
 
+HERE=$(cd "$(dirname "$0")" && pwd)
 # Users run this file from the hub: `bend 0x…/bolt/main.bend`.
 ENTRY="bolt/main.bend"
 
@@ -101,6 +102,15 @@ cmd_selftest() {
   [ "$out" = "$h" ] || die "parse_hash: $out"
   out=$(parse_entry $'import '"$h"'/bolt/main.bend as Main\n')
   [ "$out" = "bolt/main.bend" ] || die "parse_entry: $out"
+  tmp=$(mktemp -d)
+  printf '%s\n' 'bend 0x…/bolt/main.bend' > "$tmp/README.md"
+  (
+    cd "$tmp"
+    "$HERE/hub.sh" readme "$h"
+    got=$(cat README.md)
+    [ "$got" = "bend $h/bolt/main.bend" ] || die "readme: $got"
+  )
+  rm -rf "$tmp"
   echo "hub.sh selftest ok"
 }
 
