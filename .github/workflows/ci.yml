@@ -1,46 +1,21 @@
 # Sibling of Emerging-Patterns/ez CI; keep shape aligned.
 #
-# Copy to ez with two diffs:
-#   - default branch (bolt: main, ez: master)
-#   - the check-step commands (bolt: flake check + JS gate; ez: flake
-#     check / its package tests)
-#
-# Native `./gate.sh` (CPU lanes) is not run here. Those compiles peak
-# ~8 GB+, which exceeds typical GitHub-hosted RAM (~7 GB) and OOMs.
-# `nix flake check` already builds the bolt package and c-check; the
-# JS gate covers laws and tests at ~2.5 GB.
+# bolt default branch is main (ez: master). Same job: install nix,
+# then `nix flake check -L` (bolt package + c-check). No extra jobs.
+# Native `./gate.sh` is omitted: those compiles peak ~8 GB+ and OOM
+# on typical GHA RAM (~7 GB). Flake check is the native build.
 
 name: ci
 
 on:
   pull_request:
-    branches: [main]
   push:
     branches: [main]
-
-permissions:
-  contents: read
 
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-
-      - uses: DeterminateSystems/nix-installer-action@v23
-
-      # flake check compiles bolt natively (~8 GB peak). Extra swap
-      # keeps that off the OOM killer on ~7 GB runners. max-jobs = 1
-      # so c-check and the bolt package do not peak at once.
-      - name: Add swap
-        run: |
-          sudo fallocate -l 8G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-
-      - name: Nix flake check
-        run: nix flake check --print-build-logs --max-jobs 1
-
-      - name: Bend gate (JS only)
-        run: nix develop --command ./gate.sh --js-only
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - run: nix flake check -L
