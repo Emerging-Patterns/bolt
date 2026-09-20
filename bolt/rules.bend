@@ -28,6 +28,7 @@ import ./rules/correctness/put.bend as Put
 import ./rules/correctness/escape.bend as Escape
 import ./rules/suspicious/nat.bend as Nat_
 import ./rules/correctness/strings.bend as Strings
+import ./rules/correctness/chars.bend as Chars
 import ./rules/correctness/twice.bend as Twice
 import ./rules/correctness/arms.bend as Arms
 import ./rules/correctness/foreign.bend as Foreign
@@ -53,6 +54,7 @@ def on(+s: Src.Src) -> List<&2, F.Finding>:
     Escape.check(s),
     Nat_.check(s),
     Strings.check(s),
+    Chars.check(s),
     Twice.check(s),
     Arms.check(s),
     Foreign.check(s),
@@ -72,7 +74,7 @@ def project(srcs: List<&2, Src.Src>) -> List<&2, F.Finding>:
 # the group a rule is in
 def group(+rule: String) -> String:
   Bool.pick(String, List.contains(~String, ~String.eq,
-      ["shadow", "hole", "pick", "put", "arms", "escape", "twice", "strings", "foreign"], rule), "correctness",
+      ["shadow", "hole", "pick", "put", "arms", "escape", "twice", "strings", "chars", "foreign"], rule), "correctness",
     Bool.pick(String, List.contains(~String, ~String.eq,
         ["unused", "strict", "eager", "concat", "nat", "fuel", "index"], rule), "suspicious",
       Bool.pick(String, List.contains(~String, ~String.eq, ["doc", "space"], rule), "style",

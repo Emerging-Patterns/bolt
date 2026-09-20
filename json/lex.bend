@@ -37,55 +37,40 @@ type Mode is Data:
 type Lex is Data:
   Lex{mode: Mode, buf: List<&2, Char>, toks: List<&2, Tok>}
 
+# a char's class, by code point. Written as comparisons rather than as
+# `case '[':` arms: a character literal in a pattern is a U32 literal inside a
+# constructor pattern, and bend's C backend pays about 90 MB for each one.
+def classify.go(+x: U32) -> Class:
+  Bool.pick(Class, U32.is_eq(x, 91), CPunct{TOpenArr{}},  # '['
+  Bool.pick(Class, U32.is_eq(x, 93), CPunct{TCloseArr{}},  # ']'
+  Bool.pick(Class, U32.is_eq(x, 123), CPunct{TOpenObj{}},  # '{'
+  Bool.pick(Class, U32.is_eq(x, 125), CPunct{TCloseObj{}},  # '}'
+  Bool.pick(Class, U32.is_eq(x, 58), CPunct{TColon{}},  # ':'
+  Bool.pick(Class, U32.is_eq(x, 44), CPunct{TComma{}},  # ','
+  Bool.pick(Class, U32.is_eq(x, 34), CQuote{},  # '"'
+  Bool.pick(Class, U32.is_eq(x, 92), CBack{},  # '\\'
+  Bool.pick(Class, U32.is_eq(x, 32), CSpace{},  # ' '
+  Bool.pick(Class, U32.is_eq(x, 10), CSpace{},  # '\n'
+  Bool.pick(Class, U32.is_eq(x, 13), CSpace{},  # '\r'
+  Bool.pick(Class, U32.is_eq(x, 9), CSpace{},  # '\t'
+    COther{}))))))))))))
+
 # a char's class
 def classify(c: Char) -> Class:
-  match c:
-    case '[':
-      CPunct{TOpenArr{}}
-    case ']':
-      CPunct{TCloseArr{}}
-    case '{':
-      CPunct{TOpenObj{}}
-    case '}':
-      CPunct{TCloseObj{}}
-    case ':':
-      CPunct{TColon{}}
-    case ',':
-      CPunct{TComma{}}
-    case '"':
-      CQuote{}
-    case '\\':
-      CBack{}
-    case ' ':
-      CSpace{}
-    case '\n':
-      CSpace{}
-    case '\r':
-      CSpace{}
-    case '\t':
-      CSpace{}
-    case _:
-      COther{}
+  classify.go(Char.to_u32(c))
 
 # the buffered chars (reversed) as a string
 def text(buf: List<&2, Char>) -> String:
   String.from_list(List.reverse(&2, Char, buf))
 
 # the char an escape stands for; an unknown escape stands for itself
-def unescape(c: Char) -> Char:
-  match c:
-    case 'n':
-      '\n'
-    case 'r':
-      '\r'
-    case 't':
-      '\t'
-    case 'b':
-      Char.from_u32(8)
-    case 'f':
-      Char.from_u32(12)
-    case other:
-      other
+def unescape(+c: Char) -> Char:
+  +x = Char.to_u32(c)
+  Bool.pick(Char, U32.is_eq(x, 110), '\n',  # 'n'
+  Bool.pick(Char, U32.is_eq(x, 114), '\r',  # 'r'
+  Bool.pick(Char, U32.is_eq(x, 116), '\t',  # 't'
+  Bool.pick(Char, U32.is_eq(x, 98), Char.from_u32(8),  # 'b'
+  Bool.pick(Char, U32.is_eq(x, 102), Char.from_u32(12), c)))))  # 'f'
 
 # a hex digit's value
 def hex(c: Char) -> U32:

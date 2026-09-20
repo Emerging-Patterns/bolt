@@ -41,13 +41,13 @@ def space() -> String:
 A group sets every rule in it; a rule set by name wins over its group; an
 unset group has its default. The groups:
 
-| group         | rules                                                                      | default |
-|---------------|----------------------------------------------------------------------------|---------|
-| `correctness` | `shadow` `hole` `pick` `put` `arms` `escape` `twice` `strings` `foreign`    | error   |
-| `suspicious`  | `unused` `strict` `eager` `concat` `nat` `fuel` `index`                     | warn    |
-| `style`       | `doc` `space`                                                              | warn    |
-| `laws`        | `law` `closed` `unsafe`                                                    | warn    |
-| `pedantic`    | `tail`                                                                     | off     |
+| group         | rules                                                                            | default |
+|---------------|----------------------------------------------------------------------------------|---------|
+| `correctness` | `shadow` `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign` | error   |
+| `suspicious`  | `unused` `strict` `eager` `concat` `nat` `fuel` `index`                          | warn    |
+| `style`       | `doc` `space`                                                                    | warn    |
+| `laws`        | `law` `closed` `unsafe`                                                          | warn    |
+| `pedantic`    | `tail`                                                                           | off     |
 
 `pedantic` is advice that is noisy on idiomatic code: off until a project
 asks for it. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
@@ -132,6 +132,17 @@ beside the groups.
   characters: compile time and memory blow up with the characters (45 chars
   cost 0.8 s and 0.35 GB here, 480 chars 12 s and 4.8 GB). Map the string to
   a sum type once.
+- `chars` — a `match` with more than eight character-literal arms
+  (`case '.':`). `Char` is `Chr{code: U32}`, so each arm is a U32 literal
+  inside a constructor pattern, and the C backend pays about 90 MB for one
+  (eighteen arms cost 1.57 GB and 8.3 s here, 0.10 GB and 0.7 s once
+  rewritten), compounding through every def downstream. It is the literals,
+  not the arms: a match over eighteen constructors costs nothing measurable.
+  Compare `Char.to_u32(c)` instead. Bind the fallback above the comparisons
+  so `eager` does not fire on it, and take `+c: Char`, since the code point
+  and the fallback both consume it. Where the arms carry linear values, as
+  `bolt/lsp/frame.bend`'s do, leave the match alone: a cascade would break
+  linearity and do every branch's work.
 - `twice` — a case pattern that opens with the same literal twice
   (`case 10 <> 10 <> ..`) in a recursive def: the checker hangs. Match one
   element a step.

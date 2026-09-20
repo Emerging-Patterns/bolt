@@ -1,11 +1,12 @@
-# bolt/tokens: the put, escape, nat, strings, twice and arms rules, each on a
-# small source that fires, one that stays quiet, and its exemption
+# bolt/tokens: the put, escape, nat, strings, chars, twice and arms rules,
+# each on a small source that fires, one that stays quiet, and its exemption
 import Base
 import ../src.bend as Src
 import ../rules/correctness/put.bend as Put
 import ../rules/correctness/escape.bend as Escape
 import ../rules/suspicious/nat.bend as NatLit
 import ../rules/correctness/strings.bend as Strings
+import ../rules/correctness/chars.bend as Chars
 import ../rules/correctness/twice.bend as Twice
 import ../rules/correctness/arms.bend as Arms
 import ../finding.bend as F
@@ -118,6 +119,48 @@ def strings_src() -> String:
     "    case _:",
     "      0"], "\n")
 
+def chars_src() -> String:
+  String.join([
+    "def classify(c: Char) -> U32:",
+    "  match c:",
+    "    case '.':",
+    "      1",
+    "    case ',':",
+    "      2",
+    "    case ':':",
+    "      3",
+    "    case ';':",
+    "      4",
+    "    case '(':",
+    "      5",
+    "    case ')':",
+    "      6",
+    "    case '[':",
+    "      7",
+    "    case ']':",
+    "      8",
+    "    case '{':",
+    "      9",
+    "    case _:",
+    "      0",
+    "",
+    "# a few is fine: 'a' 'b' 'c' in a comment",
+    "def side(c: Char) -> U32:",
+    "  match c:",
+    "    case 'l':",
+    "      1",
+    "    case 'r':",
+    "      2",
+    "    case _:",
+    "      0",
+    "",
+    "def word(s: String) -> U32:",
+    "  match s:",
+    "    case \"a\":",
+    "      1",
+    "    case _:",
+    "      0"], "\n")
+
 def twice_src() -> String:
   String.join([
     "def search(bytes: List<&2, U32>, offset: Nat) -> Maybe<&2, Nat>:",
@@ -213,6 +256,9 @@ def main() -> IO(Unit):
     Check.eq_str(~Report.new(), "strings: a match over long string literals; not short ones, numbers, and a nested match apart",
       lines(Strings.check(Src.of("a.bend", strings_src()))),
       "a.bend:2:3: strings: a match over 3 string literals (79 characters) blows up compile time and memory; map the string to a sum type once (a lookup table)")
+    Check.eq_str(~Report.new(), "chars: a match over many char literals; not a few, and not string arms",
+      lines(Chars.check(Src.of("a.bend", chars_src()))),
+      "a.bend:2:3: chars: a match over 9 character literals blows up compile time and memory; compare Char.to_u32(c) instead")
     Check.eq_str(~Report.new(), "twice: a list pattern opening with the same literal twice, in a recursive def only",
       lines(Twice.check(Src.of("a.bend", twice_src()))),
       String.join([
@@ -231,5 +277,6 @@ def main() -> IO(Unit):
 #|ok escape: \0 then digits in a string or char; not \\0, \0 alone, \u{..} or a comment
 #|ok nat: a Nat literal of 1000 or more; not 999n, a U32, a string or a comment
 #|ok strings: a match over long string literals; not short ones, numbers, and a nested match apart
+#|ok chars: a match over many char literals; not a few, and not string arms
 #|ok twice: a list pattern opening with the same literal twice, in a recursive def only
 #|ok arms: a Nat arm under a wider n+p arm; not narrower first, and multi-scrutinee skipped

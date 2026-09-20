@@ -2,20 +2,14 @@
 import Base
 import ./value.bend as V
 
-def escape.char(c: Char) -> String:
-  match c:
-    case '"':
-      "\\\""
-    case '\\':
-      "\\\\"
-    case '\n':
-      "\\n"
-    case '\r':
-      "\\r"
-    case '\t':
-      "\\t"
-    case other:
-      String.from_list([other])
+def escape.char(+c: Char) -> String:
+  +x = Char.to_u32(c)
+  Bool.pick(String, U32.is_eq(x, 34), "\\\"",  # '"'
+  Bool.pick(String, U32.is_eq(x, 92), "\\\\",  # '\\'
+  Bool.pick(String, U32.is_eq(x, 10), "\\n",  # '\n'
+  Bool.pick(String, U32.is_eq(x, 13), "\\r",  # '\r'
+  Bool.pick(String, U32.is_eq(x, 9), "\\t",  # '\t'
+    String.from_list([c]))))))
 
 # the chars of a string with `"`, `\\` and control chars escaped
 def escape(cs: List<&2, Char>) -> String:

@@ -78,47 +78,37 @@ type Mode is Data:
 type St is Data:
   St{mode: Mode, kind: TokKind, line: U32, col: U32, sl: U32, sc: U32, buf: List<&2, Char>, toks: List<&2, Tok>}
 
+# the class of a code point, given the class any other character would get.
+# Written as comparisons rather than as `case '.':` arms: a character literal
+# in a pattern is a U32 literal inside a constructor pattern, and bend's C
+# backend pays about 90 MB for each one -- these eighteen cost 1.57 GB as
+# literal arms and 0.10 GB written this way.
+def classify.go(+x: U32, other: Class) -> Class:
+  Bool.pick(Class, U32.is_eq(x, 46), CDot{},  # '.'
+  Bool.pick(Class, U32.is_eq(x, 34), CQuote{},  # '"'
+  Bool.pick(Class, U32.is_eq(x, 39), CTick{},  # '\''
+  Bool.pick(Class, U32.is_eq(x, 92), CBack{},  # '\\'
+  Bool.pick(Class, U32.is_eq(x, 35), CHash{},  # '#'
+  Bool.pick(Class, U32.is_eq(x, 32), CSpace{},  # ' '
+  Bool.pick(Class, U32.is_eq(x, 9), CSpace{},  # '\t'
+  Bool.pick(Class, U32.is_eq(x, 13), CSpace{},  # '\r'
+  Bool.pick(Class, U32.is_eq(x, 10), CNewline{},  # '\n'
+  Bool.pick(Class, U32.is_eq(x, 58), CColon{},  # ':'
+  Bool.pick(Class, U32.is_eq(x, 44), CComma{},  # ','
+  Bool.pick(Class, U32.is_eq(x, 40), COpen{},  # '('
+  Bool.pick(Class, U32.is_eq(x, 91), COpen{},  # '['
+  Bool.pick(Class, U32.is_eq(x, 123), COpen{},  # '{'
+  Bool.pick(Class, U32.is_eq(x, 41), CClose{},  # ')'
+  Bool.pick(Class, U32.is_eq(x, 93), CClose{},  # ']'
+  Bool.pick(Class, U32.is_eq(x, 125), CClose{},  # '}'
+  Bool.pick(Class, U32.is_eq(x, 95), CAlpha{},  # '_'
+    other))))))))))))))))))
+
 # a char's class
 def classify(+c: Char) -> Class:
-  match c:
-    case '.':
-      CDot{}
-    case '"':
-      CQuote{}
-    case '\'':
-      CTick{}
-    case '\\':
-      CBack{}
-    case '#':
-      CHash{}
-    case ' ':
-      CSpace{}
-    case '\t':
-      CSpace{}
-    case '\r':
-      CSpace{}
-    case '\n':
-      CNewline{}
-    case ':':
-      CColon{}
-    case ',':
-      CComma{}
-    case '(':
-      COpen{}
-    case '[':
-      COpen{}
-    case '{':
-      COpen{}
-    case ')':
-      CClose{}
-    case ']':
-      CClose{}
-    case '}':
-      CClose{}
-    case '_':
-      CAlpha{}
-    case other:
-      Bool.pick(Class, Char.is_alpha(other), CAlpha{}, Bool.pick(Class, Char.is_digit(other), CDigit{}, COp{}))
+  +other = Bool.pick(Class, Char.is_alpha(c), CAlpha{},
+    Bool.pick(Class, Char.is_digit(c), CDigit{}, COp{}))
+  classify.go(Char.to_u32(c), other)
 
 # does a char of this class continue the token the machine is inside of?
 def continues(m: Mode, cls: Class) -> Bool:
