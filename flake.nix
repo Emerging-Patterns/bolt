@@ -57,9 +57,9 @@
       # bend 2 itself, from its own flake: the wrapper puts nix's clang on
       # PATH for `bend -o`, and bend-cc on CC still wins for a GPU build
       bend = inputs.bend.packages.${system}.default;
-      # bolt: bend emits the C, clang 19 builds it; the `bolt` script sits
-      # beside the binary and finds bend on its PATH (for `bolt check` and
-      # the server's diagnostics)
+      # bolt: bend emits the C, clang 19 builds it; the wrapper puts bend on
+      # its PATH (for `bolt check` and the server's diagnostics) and keeps it
+      # off the GPU, which is slower for this work (bolt/lsp/bench)
       bolt = pkgs.stdenv.mkDerivation {
         pname = "bolt";
         version = "0.3.0";  # keep with editors/vscode/package.json
@@ -71,9 +71,9 @@
         '';
         installPhase = ''
           mkdir -p $out/bin
-          cp bolt.bin $out/bin/bolt.bin
-          cp bolt/bolt $out/bin/bolt
-          wrapProgram $out/bin/bolt --prefix PATH : ${pkgs.lib.makeBinPath [ bend pkgs.findutils pkgs.coreutils ]}
+          cp bolt.bin $out/bin/bolt
+          wrapProgram $out/bin/bolt --prefix PATH : ${pkgs.lib.makeBinPath [ bend ]} \
+            --add-flags "--gpu off"
         '';
         meta = {
           description = "A linter, checker and language server for Bend 2";

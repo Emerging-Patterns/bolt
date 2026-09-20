@@ -2,7 +2,7 @@
 # errors in bolt's shape, `path:line:1: error: message` (bend reports no
 # column; a message's further lines are indented under it), then the count.
 import Base
-import ./args.bend as Args
+import ./status.bend as Status
 import ./lsp/report.bend as Rep
 import ./lsp/checker/service.bend as Checker
 import ./lsp/checker/bend.bend as BendChecker
@@ -63,9 +63,9 @@ def summary(+n: U32) -> String:
   Bool.pick(String, U32.is_eq(n, 0), "clean",
     U32.show(n) ++ Bool.pick(String, U32.is_eq(n, 1), " error", " errors") ++ ", 0 warnings")
 
-# the checker over the files in BOLT_FILES
-def run() -> IO(Unit):
+# the checker over the files given, exiting 1 when any of them had an error
+def run(paths: List<&2, String>) -> IO(Unit):
   do IO<Unit>:
-    paths : List<&2, String> <- Args.files()
-    n : U32 <- check_all(~BendChecker.new(), paths)
+    +n : U32 <- check_all(~BendChecker.new(), paths)
     IO.print(summary(n))
+    Status.stop(U32.is_gt(n, 0))

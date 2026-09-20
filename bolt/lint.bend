@@ -1,10 +1,9 @@
-# bolt/lint: `bolt` itself: every rule over the files named in BOLT_FILES
-# (one a line; the bolt script fills it from its arguments, as a native Bend
-# binary takes no arguments of its own). The per-file rules run on each
-# file, the project rules on the set; each finding is graded by the
-# bolt.bend nearest its file (bolt/config.bend), and a bolt.bend is read,
-# never linted. Prints the findings, then the counts; the script exits 1
-# when there were errors.
+# bolt/lint: `bolt` itself: every rule over the files it was given, or every
+# `.bend` file under the current directory when it was given none
+# (bolt/glob.bend). The per-file rules run on each file, the project rules on
+# the set; each finding is graded by the bolt.bend nearest its file
+# (bolt/config.bend), and a bolt.bend is read, never linted. Prints the
+# findings, then the counts, and exits 1 when there were errors.
 import Base
 import ./finding.bend as F
 import ./src.bend as Src
@@ -12,7 +11,10 @@ import ./rules.bend as Rules
 import ./config.bend as Config
 import ./lsp/files/service.bend as Files
 import ./lsp/files/disk.bend as Disk
-import ./args.bend as Args
+import ./glob.bend as Glob
+import ./walk/service.bend as Walk
+import ./walk/disk.bend as WalkDisk
+import ./status.bend as Status
 
 # a path and what was read at it
 type Read is Data:
@@ -128,11 +130,21 @@ def show_all(gs: List<&2, F.Graded>) -> List<&2, String>:
     case Con{g, rest}:
       F.show_graded(g) <> show_all(rest)
 
-# the linter, over the files in BOLT_FILES
-def run() -> IO(Unit):
+# the files to lint: those given, or the whole tree when none were
+def chosen(~w: Walk.Walk, paths: List<&2, String>) -> IO(List<&2, String>):
+  match paths:
+    case Nil{}:
+      Glob.find(~w, ".")
+    case Con{p, rest}:
+      IO.pure(List<&2, String>, p <> rest)
+
+# the linter, over the files given, or the tree below
+def run(paths: List<&2, String>) -> IO(Unit):
   do IO<Unit>:
-    paths : List<&2, String> <- Args.files()
-    rs : List<&2, Read> <- read_all(~Disk.new(), sources(paths))
+    files : List<&2, String> <- chosen(~WalkDisk.new(), paths)
+    rs : List<&2, Read> <- read_all(~Disk.new(), sources(files))
     +gs : List<&2, F.Graded> <- grade_all(~Disk.new(), findings(rs))
     print_all(show_all(gs))
-    IO.print(summary(U32.from_nat(List.length(&2, F.Graded, gs)), errors(gs)))
+    +e : U32 = errors(gs)
+    IO.print(summary(U32.from_nat(List.length(&2, F.Graded, gs)), e))
+    Status.stop(U32.is_gt(e, 0))

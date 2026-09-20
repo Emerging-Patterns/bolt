@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Builds the binary people run (not the gate's): bin/bolt.bin, behind the
-# bolt/bolt script, linked into ~/.local/bin as `bolt` (`bolt`, `bolt check`,
-# `bolt lsp`). It has no `!` call, so the system clang (14+) will do.
+# Builds the binary people run (not the gate's): bin/bolt.bin, linked into
+# ~/.local/bin as `bolt` (`bolt`, `bolt check file..`, `bolt lsp`). It has no
+# `!` call, so the system clang (14+) will do.
 #
 # The compile peaks near 8 GB. bend prints "All terms
 # check." before it emits any C, so a build the kernel kills for memory reads
@@ -21,5 +21,5 @@ if [ ! -x bin/bolt.bin ]; then
   fi
   exit "${st:-1}"
 fi
-ln -sfn "$PWD/bolt/bolt" "$HOME/.local/bin/bolt"
+ln -sfn "$PWD/bin/bolt.bin" "$HOME/.local/bin/bolt"
 echo "built bin/bolt.bin -> ~/.local/bin/bolt"

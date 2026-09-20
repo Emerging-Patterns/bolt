@@ -266,7 +266,7 @@ if [ $js_only = 0 ]; then
   if [ $built = 1 ]; then
     command -v node >/dev/null &&
       check "bolt/lsp/tests/spawn.js" "ok" "$(node bolt/lsp/tests/spawn.js bin/bolt.bin 2>&1)"
-    check "bolt (repo)" "clean" "$(bolt/bolt 2>&1)"
+    check "bolt (repo)" "clean" "$(bin/bolt.bin --gpu off 2>&1)"
   fi
 fi
 took=$(( $(date +%s) - started ))

@@ -26,10 +26,12 @@ function serverPath() {
 }
 
 async function start() {
-  // `bolt lsp`: the bolt script runs the binary with --gpu off. No
-  // `transport`: stdio is the default for a command, and naming it makes the
-  // client append `--stdio`, which the binary refuses as an unknown option.
-  const run = { command: serverPath(), args: ["lsp"], options: { env: serverEnv() } };
+  // `bolt lsp --gpu off`: the server stays on the cores, where this work is
+  // 2-5x faster than on the GPU (bolt/lsp/bench); bend's runtime takes
+  // `--gpu off` out of the line before the program reads it. No `transport`:
+  // stdio is the default for a command, and naming it would only make the
+  // client append a `--stdio` the server has no use for.
+  const run = { command: serverPath(), args: ["lsp", "--gpu", "off"], options: { env: serverEnv() } };
   client = new LanguageClient("bend", "Bend", { run, debug: run },
     { documentSelector: [{ scheme: "file", language: "bend" }] });
   await client.start();

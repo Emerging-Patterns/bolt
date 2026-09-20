@@ -1,7 +1,9 @@
-# bolt: the one binary behind the `bolt` script. BOLT_CMD picks what runs:
-# `lint` (or nothing) lints the files in BOLT_FILES, `check` runs the checker
-# on them, `lsp` serves an editor over stdio. Build it native (`bend
-# bolt/main.bend -o bin/bolt.bin`).
+# bolt: the one binary. Its first argument picks what runs: `lint`, or a word
+# that is no subcommand, or nothing, lints the files named after it (every
+# `.bend` file under the current directory when none are); `check` runs the
+# checker on them; `lsp` serves an editor over stdio. Build it native (`bend
+# bolt/main.bend -o bin/bolt.bin`), and run the server on the cores
+# (`bolt lsp --gpu off`): the runtime takes `--gpu` out of the line itself.
 import Base
 import ./args.bend as Args
 import ./lint.bend as Lint
@@ -13,27 +15,23 @@ type Cmd is Data:
   CLint{}
   CCheck{}
   CLsp{}
-  CUnknown{name: String}
 
-# a subcommand by its name
+# a subcommand by its name; the empty name (no subcommand) is `lint`
 def command(+name: String) -> Cmd:
-  Bool.pick(Cmd, Bool.or(String.eq(name, "lint"), String.is_empty(name)), CLint{},
-    Bool.pick(Cmd, String.eq(name, "check"), CCheck{},
-      Bool.pick(Cmd, String.eq(name, "lsp"), CLsp{}, CUnknown{name})))
+  Bool.pick(Cmd, String.eq(name, "check"), CCheck{},
+    Bool.pick(Cmd, String.eq(name, "lsp"), CLsp{}, CLint{}))
 
-# what a subcommand runs
-def dispatch(cmd: Cmd) -> IO(Unit):
+# what a subcommand runs, over the files after it
+def dispatch(cmd: Cmd, paths: List<&2, String>) -> IO(Unit):
   match cmd:
     case CLint{}:
-      Lint.run()
+      Lint.run(paths)
     case CCheck{}:
-      Check.run()
+      Check.run(paths)
     case CLsp{}:
       Lsp.run()
-    case CUnknown{name}:
-      IO.print("bolt: no such command: " ++ name)
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    name : String <- Args.command()
-    dispatch(command(name))
+    +av : List<&2, String> <- Args.argv()
+    dispatch(command(Args.command(av)), Args.files(av))

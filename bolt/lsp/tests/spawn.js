@@ -4,8 +4,8 @@
 const { spawn } = require("child_process");
 const path = require("path");
 
-const server = spawn(process.argv[2], ["--gpu", "off"],
-  { stdio: ["pipe", "pipe", "inherit"], env: { ...process.env, BOLT_CMD: "lsp" } });
+const server = spawn(process.argv[2], ["lsp", "--gpu", "off"],
+  { stdio: ["pipe", "pipe", "inherit"] });
 let buf = Buffer.alloc(0);
 const waiting = [];
 server.stdout.on("data", (chunk) => {
