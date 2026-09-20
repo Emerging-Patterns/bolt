@@ -17,12 +17,28 @@ written in Bend, with a VS Code extension.
 
 ## Install
 
-You need `bend` (`curl -fsSL https://bend-lang.com/install.sh | sh`):
+You need `bend` (`curl -fsSL https://bend-lang.com/install.sh | sh`).
+
+Write a `main.bend` that imports bolt from the hub
+(`import 0x<hash>/… as Name`, as `bend --publish` prints):
 
 ```
-bend 0x729eecea86ea5a2cdba3a2856a313bca/bolt/main.bend
-bend 0x729eecea86ea5a2cdba3a2856a313bca/bolt/main.bend check a.bend
-bend 0x729eecea86ea5a2cdba3a2856a313bca/bolt/main.bend lsp
+import Base
+import 0x729eecea86ea5a2cdba3a2856a313bca/bolt/main.bend as Bolt
+
+def main() -> IO(Unit):
+  Bolt.main()
+```
+
+```
+bend main.bend
+```
+
+`check` and `lsp` are arguments to that same `main`:
+
+```
+bend main.bend check a.bend
+bend main.bend lsp
 ```
 
 To build the native binary (clang 14+):
@@ -56,13 +72,13 @@ run `Bend: Restart Language Server`.
 ## Use
 
 ```
-bend 0x729eecea86ea5a2cdba3a2856a313bca/bolt/main.bend                 every .bend file under the current directory
-bend 0x729eecea86ea5a2cdba3a2856a313bca/bolt/main.bend a.bend b.bend   the files given
-bend 0x729eecea86ea5a2cdba3a2856a313bca/bolt/main.bend check a.bend    the checker's errors, in the same shape
-bend 0x729eecea86ea5a2cdba3a2856a313bca/bolt/main.bend lsp             the language server, over stdio
+bend main.bend                 every .bend file under the current directory
+bend main.bend a.bend b.bend   the files given
+bend main.bend check a.bend    the checker's errors, in the same shape
+bend main.bend lsp             the language server, over stdio
 ```
 
-A native `bolt` (`./build.sh`) is the same words without the hub path.
+A native `bolt` (`./build.sh`) is the same words without the wrapper file.
 
 Each finding is one line, `path:line:col: level: rule: message`, then
 `clean` or the counts; the exit code is 1 when anything was an error.

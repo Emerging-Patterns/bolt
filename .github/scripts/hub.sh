@@ -102,12 +102,12 @@ cmd_selftest() {
   out=$(parse_entry $'import '"$h"'/bolt/main.bend as Main\n')
   [ "$out" = "bolt/main.bend" ] || die "parse_entry: $out"
   tmp=$(mktemp -d)
-  printf '%s\n' 'bend 0x…/bolt/main.bend' > "$tmp/README.md"
+  printf '%s\n' "import 0x…/bolt/main.bend as Bolt" > "$tmp/README.md"
   (
     cd "$tmp"
     "$HERE/hub.sh" readme "$h"
     got=$(cat README.md)
-    [ "$got" = "bend $h/bolt/main.bend" ] || die "readme: $got"
+    [ "$got" = "import $h/bolt/main.bend as Bolt" ] || die "readme: $got"
   )
   rm -rf "$tmp"
   echo "hub.sh selftest ok"
