@@ -23,9 +23,21 @@ and clang 14+, since bolt is one native binary:
 ```
 git clone https://github.com/Emerging-Patterns/bolt
 cd bolt
-./build.sh          # builds bin/bolt.bin and links ~/.local/bin/bolt
-bolt                # lints every .bend file under the current directory
+bend bolt/main.bend -o bin/bolt.bin      # the whole build; about 8 GB at its peak
+ln -sfn "$PWD/bin/bolt.bin" ~/.local/bin/bolt
+bolt                                     # lints every .bend under the current directory
 ```
+
+That one `bend` line is the entire build. bolt has no dependency on the hub --
+not one `import 0x` line -- so nothing is fetched, `BEND_LIB` need not be set,
+and no other tool has to be installed first. The compile peaks near 8 GB, and
+`bend` prints "All terms check." before it emits any C, so a build the kernel
+kills for memory reads exactly like one that worked minus the binary: if
+`bin/bolt.bin` is not there afterwards, that is what happened.
+
+Run a `bolt` you built, not one you installed a while ago. A binary from an
+older release answers `clean` to every rule it does not implement yet, which
+looks exactly like a clean repo.
 
 Or with nix, nothing else is needed: the flake takes bend 2 from its own
 flake (`github:bendlang/bend`: the release archive, patched for nix) and
@@ -78,3 +90,22 @@ The groups are `correctness` (`shadow`, `hole`, `pick`; error by default),
 `suspicious` (`unused`), `style` (`doc`, `space`) and `laws` (`law`), the
 rest warn by default. Every rule, and the config in full, is in
 [bolt/README.md](bolt/README.md).
+
+## Develop
+
+The gate is [ez](https://github.com/Emerging-Patterns/ez), a separate binary
+from a separate repo:
+
+```
+EZ_CAP=16 ez test        every */tests/*.bend on both lanes, every PROOF.bend
+ez build bin/bolt.bin    the binary people run
+```
+
+`ez test` runs each test on the JS lane and the native lane against the `#|`
+trailer the file ends in, checks every proof, caps each `bend` at `EZ_CAP`
+gigabytes, and caches a lane on the content of everything it reads, so a second
+run over an unchanged tree is seconds. There is no shell script in this repo.
+
+ez is a convenience, not a requirement: it buys the ledger above, the cache and
+the caps. bolt itself has no dependency on it, and `tests/bare.bend` proves that
+on every run by building bolt with bare `bend` and `BEND_LIB` unset.

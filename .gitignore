@@ -6,3 +6,5 @@ node_modules/
 *.vsix
 .claude/worktrees/
 .scratch/
+.ez/
+.worktrees/

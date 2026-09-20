@@ -57,17 +57,27 @@
       # bend 2 itself, from its own flake: the wrapper puts nix's clang on
       # PATH for `bend -o`, and bend-cc on CC still wins for a GPU build
       bend = inputs.bend.packages.${system}.default;
-      # bolt: bend emits the C, clang 19 builds it; the wrapper puts bend on
-      # its PATH (for `bolt check` and the server's diagnostics) and keeps it
-      # off the GPU, which is slower for this work (bolt/lsp/bench)
+      # bolt, built the one way anything builds it: `bend <entry> -o <binary>`.
+      # That is not a shorter spelling of emitting the C and compiling it by
+      # hand -- it is the same compile. bend runs the C it emits through
+      # `-std=c11 -O3 <file> -lpthread -lm -o <bin>`, which is flag for flag
+      # what the two-step form here used to spell out, so the two-step form
+      # bought nothing and only let this build drift from every other one.
+      # It does hand the choice of clang to bend, which takes $CC first and
+      # then the newest `clang-<n>` on the PATH -- here clang 21, from bend's
+      # own wrapper, where the two-step form named clang 19. Measured over
+      # this repo, seven runs each, that is 1.69 s against 1.73 s at the
+      # median: no difference worth a line of nix.
+      # The wrapper puts bend on the binary's PATH (for `bolt check` and the
+      # server's diagnostics) and keeps it off the GPU, which is slower for
+      # this work (bolt/lsp/bench).
       bolt = pkgs.stdenv.mkDerivation {
         pname = "bolt";
         version = "0.3.0";  # keep with editors/vscode/package.json
         src = self;
-        nativeBuildInputs = [ bend llvm.clang pkgs.makeWrapper ];
+        nativeBuildInputs = [ bend pkgs.makeWrapper ];
         buildPhase = ''
-          bend bolt/main.bend -o bolt.c
-          clang -std=c11 -O3 bolt.c -lpthread -lm -o bolt.bin
+          bend bolt/main.bend -o bolt.bin
         '';
         installPhase = ''
           mkdir -p $out/bin

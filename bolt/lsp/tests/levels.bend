@@ -1,5 +1,5 @@
 # lsp/levels: a finding's severity comes from the bolt.bend nearest the
-# document (here lsp/tests/fix/bolt.bend, above the repo's): style is an
+# document (here lsp/fixtures/levels/bolt.bend, above the repo's): style is an
 # error, suspicious is off; and a bolt.bend itself is never linted
 import Base
 import ../server.bend as Server
@@ -14,10 +14,10 @@ def open(uri: String, text: String) -> String:
   "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" ++ uri ++ "\",\"text\":\"" ++ text ++ "\"}}}"
 
 def inbox() -> List<&2, String>:
-  [open("file://bolt/lsp/tests/fix/deep/a.bend", opened()),
-   open("file://bolt/lsp/tests/fix/bolt.bend", opened())]
+  [open("file://bolt/lsp/fixtures/levels/deep/a.bend", opened()),
+   open("file://bolt/lsp/fixtures/levels/bolt.bend", opened())]
 
 def main() -> IO(Unit):
   Server.serve(~Script.Script, ~Script.new(), ~FakeChecker.new(), ~Disk.new(), 100n, Script.Script{inbox()}, [])
-#|{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://bolt/lsp/tests/fix/deep/a.bend","diagnostics":[{"range":{"start":{"line":2,"character":4},"end":{"line":2,"character":5}},"severity":1,"code":"space","source":"bolt","message":"trailing whitespace"}]}}
-#|{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://bolt/lsp/tests/fix/bolt.bend","diagnostics":[]}}
+#|{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://bolt/lsp/fixtures/levels/deep/a.bend","diagnostics":[{"range":{"start":{"line":2,"character":4},"end":{"line":2,"character":5}},"severity":1,"code":"space","source":"bolt","message":"trailing whitespace"}]}}
+#|{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://bolt/lsp/fixtures/levels/bolt.bend","diagnostics":[]}}

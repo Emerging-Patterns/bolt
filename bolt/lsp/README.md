@@ -4,8 +4,8 @@ A language server for Bend, written in Bend: the real checker's errors on open
 and save, and hover, go-to-definition, document symbols and completion as you type.
 
 ```
-./build.sh          # from the repo root: bin/bolt.bin, ~/.local/bin/bolt; clang 14 is enough
-bolt lsp --gpu off  # speaks LSP on stdio, on the cores
+bend bolt/main.bend -o bin/bolt.bin   # from the repo root; clang 14 is enough
+bolt lsp --gpu off                    # speaks LSP on stdio, on the cores
 ```
 
 It is one command of [bolt](../)'s binary (`lsp/run.bend` is its

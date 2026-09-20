@@ -1,0 +1,3 @@
+[package]
+name = "bolt"
+entry = "bolt/main.bend"

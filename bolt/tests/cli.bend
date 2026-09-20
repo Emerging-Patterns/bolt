@@ -1,6 +1,7 @@
-# bolt/cli: the command line as `IO.args()` hands it over — which word is the
+# bolt/cli: the command line as the runtime hands it over — which word is the
 # subcommand and which are files — and the glob behind a bare `bolt`, over a
-# canned tree (walk/fake.bend).
+# canned tree (walk/fake.bend). The words are passed in rather than read: a
+# test that reads its own command line cannot share a binary with another.
 import Base
 import ../args.bend as Args
 import ../glob.bend as Glob

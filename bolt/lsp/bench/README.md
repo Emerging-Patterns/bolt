@@ -16,7 +16,34 @@ this pure part is everything the GPU could take.
 
 - *fold ms*: `IO.now()` around the fold, inside the process — compute only.
 - *wall ms*: the whole process, which adds the runtime's start and CUDA's.
-- Median of 3 runs. `./bolt/lsp/bench/run.sh 18` reproduces it.
+- Median of 3 runs, taken by hand.
+
+To reproduce, build `request.bend` and run it once per depth and lane. The
+binary reads `DEPTH` from the environment and prints its checksum, then the
+fold's own milliseconds:
+
+    bend bolt/lsp/bench/request.bend -o bin/bench-request
+    DEPTH=18 ./bin/bench-request --gpu off --threads 1
+    DEPTH=18 ./bin/bench-request --gpu off
+    DEPTH=18 ./bin/bench-request --gpu 4GB
+
+`bend` builds it directly rather than `ez build`, because `ez build` builds
+the entry the ledger names and this is not that entry.
+
+**`request.bend` does not build on bend 2.0.20.** It was written against
+2.0.3, and 2.0.20 rejects the bare operators on line 46:
+
+    - expected : a defined name
+    - observed : U32../../../json/value.u32_or
+
+So the table below is a record of what was measured, not something you can
+re-run today without fixing that line first. The shell script that used to sit
+here could not have run either: it would have reported `build failed`.
+
+The *fold ms* column comes straight off that second line. The *wall ms*
+column is the whole process, so it needs an external timer. The sweep and the
+median used to be a shell script; they are three lines of whatever shell you
+are sitting in, and nothing in bolt is built or gated on them.
 
 Ryzen 9 5900X (12 cores, 24 threads), RTX 3060 12 GB (CUDA 12.5, idle before
 each run; at 100% utilization during the GPU runs, the process listed by

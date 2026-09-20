@@ -29,7 +29,7 @@ const fail = (why) => { console.error("FAIL: " + why); server.kill(); process.ex
 setTimeout(() => fail("timed out"), 20000);
 
 (async () => {
-  const fixture = path.join(__dirname, "fixtures", "mistyped.bend");
+  const fixture = path.join(__dirname, "..", "fixtures", "mistyped.bend");
   const uri = "file://" + fixture;
   send({ jsonrpc: "2.0", id: 1, method: "initialize", params: { note: "é€😀" } });
   const init = await recv();
@@ -37,9 +37,9 @@ setTimeout(() => fail("timed out"), 20000);
   send({ jsonrpc: "2.0", method: "textDocument/didOpen",
     params: { textDocument: { uri, text: require("fs").readFileSync(fixture, "utf8") } } });
   const diags = (await recv()).params.diagnostics;
-  if (diags.length !== 1 || diags[0].range.start.line !== 3) fail("diagnostics: " + JSON.stringify(diags));
+  if (diags.length !== 1 || diags[0].range.start.line !== 4) fail("diagnostics: " + JSON.stringify(diags));
   send({ jsonrpc: "2.0", id: 2, method: "textDocument/hover",
-    params: { textDocument: { uri }, position: { line: 2, character: 5 } } });
+    params: { textDocument: { uri }, position: { line: 3, character: 5 } } });
   const hover = (await recv()).result;
   if (!hover || !hover.contents.value.includes("def f(x: U32) -> String:")) fail("hover: " + JSON.stringify(hover));
   send({ jsonrpc: "2.0", id: 3, method: "shutdown" });

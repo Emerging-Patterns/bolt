@@ -6,8 +6,8 @@ It enforces what the checker does not: comments, unused names, the
 binder-vs-def trap, leftover holes, whitespace, recursion that is strict
 where it should stop early or quadratic where it should be linear, unary
 `Nat` blowups, silent wrong answers (`Map.put`, `\033`, unreachable arms),
-foreign defs missing a lane, and laws that reach every pure def. Install: `./build.sh` at
-the repo root (README.md there).
+foreign defs missing a lane, and laws that reach every pure def. Install:
+`bend bolt/main.bend -o bin/bolt.bin` at the repo root (README.md there).
 
     bolt                every .bend file under the current directory
     bolt a.bend b.bend  the files given
@@ -16,8 +16,8 @@ the repo root (README.md there).
 
 Each finding is one line, `path:line:col: level: rule: message`, with line
 and column 1-based so a terminal can jump to it; then `clean` or the counts.
-The exit code is 1 when anything was an error. `./build.sh` puts `bolt` on
-`~/.local/bin`.
+The exit code is 1 when anything was an error. `ln -sfn "$PWD/bin/bolt.bin"
+~/.local/bin/bolt` puts it on the PATH as `bolt`.
 
 ## bolt.bend
 
@@ -200,4 +200,8 @@ file, so they run in bolt alone.
 
 ## In the gate
 
-`./gate.sh` ends by running bolt over the whole repo and must see `clean`.
+`tests/bare.bend` ends by running bolt over the whole repo and must see
+`clean`. The binary it lints with is the one it has just built from the tree
+under test, never whatever `bolt` is on the PATH: a bolt from an older release
+answers `clean` to every rule it does not implement yet, which reads exactly
+like a repo with nothing wrong in it.
