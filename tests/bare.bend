@@ -15,8 +15,8 @@
 # has to be the compiled binary that bolt.bend is written for.
 #
 # This is an end-to-end test, so `ez test` runs it on its own and never caches
-# it. It is the slow one: the compile it drives takes about 44 s and peaks at
-# 3.0 GB, well inside `ez test`'s default 8 GB cap.
+# it, and it is the slow one, because the compile it drives is a whole build of
+# bolt.
 import Base
 import ../run/run.bend as R
 import ../core/check/kit.bend as Check

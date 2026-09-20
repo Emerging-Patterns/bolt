@@ -23,18 +23,17 @@ and clang 14+, since bolt is one native binary:
 ```
 git clone https://github.com/Emerging-Patterns/bolt
 cd bolt
-bend bolt/main.bend -o bin/bolt.bin      # the whole build; 44 s, 3.0 GB at its peak
+bend bolt/main.bend -o bin/bolt.bin      # the whole build
 ln -sfn "$PWD/bin/bolt.bin" ~/.local/bin/bolt
 bolt                                     # lints every .bend under the current directory
 ```
 
 That one `bend` line is the entire build. bolt has no dependency on the hub --
 not one `import 0x` line -- so nothing is fetched, `BEND_LIB` need not be set,
-and no other tool has to be installed first. The compile peaked at 3.0 GB and
-44 s when this was measured (bend 2.0.20, 2026-09-20), and `bend` prints
-"All terms check." before it emits any C, so a build the kernel kills for
-memory reads exactly like one that worked minus the binary: if `bin/bolt.bin`
-is not there afterwards, that is what happened.
+and no other tool has to be installed first. One thing to know about the
+output: `bend` prints "All terms check." before it emits any C, so a build
+that dies partway reads exactly like one that worked minus the binary. If
+`bin/bolt.bin` is not there afterwards, that is what happened.
 
 Run a `bolt` you built, not one you installed a while ago. A binary from an
 older release answers `clean` to every rule it does not implement yet, which

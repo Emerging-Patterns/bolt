@@ -49,8 +49,8 @@ still `bin/ez.out`.
 `*/tests/*.bend`, runs it on both lanes -- JS, where `bend` interprets it, and
 native, where it is compiled first -- against the `#|` trailer the file ends
 in, checks every `PROOF.bend` in the tree, runs each `bend` inside a memory
-cgroup (`EZ_CAP` gigabytes, 8 by default, which is enough here: the heaviest
-compile is bolt's own native test aggregate at 5.6 GB), compiles a project's
+cgroup (`EZ_CAP` gigabytes, 8 by default, which this repo has never needed
+raising), compiles a project's
 tests into one binary rather than one
 each, and caches a lane on the content of everything it reads. It replaced
 `gate.sh` and `build.sh`, 299 lines of shell that did the same work worse, and
