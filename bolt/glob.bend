@@ -38,7 +38,8 @@ def bends(es: List<&2, String>, +dir: String) -> List<&2, String>:
       Bool.pick(List<&2, String>, String.ends_with(e, ".bend"), under(dir, e) <> more, more)
 
 # every `.bend` file under the directories still queued, the fuel bounding how
-# many directories are read
+# many directories are read. What is found is put in front of what came before,
+# not after it, so the walk stays linear; `find` sorts at the end regardless.
 def walk(~w: Walk.Walk, fuel: Nat, queue: List<&2, String>, acc: List<&2, String>) -> IO(List<&2, String>):
   match fuel:
     case 0n:
@@ -51,7 +52,7 @@ def walk(~w: Walk.Walk, fuel: Nat, queue: List<&2, String>, acc: List<&2, String
           do IO<List<&2, String>>:
             +es : List<&2, String> <- Walk.entries(w, dir)
             walk(~w, f, List.append(&2, String, rest, dirs(es, dir)),
-              List.append(&2, String, acc, bends(es, dir)))
+              List.append(&2, String, bends(es, dir), acc))
 
 # every `.bend` file under a directory, sorted
 def find(~w: Walk.Walk, dir: String) -> IO(List<&2, String>):
