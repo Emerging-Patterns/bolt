@@ -25,6 +25,8 @@
 # That is the whole of the 122 lines of bash this replaces, and it is tested
 # in ez's own gate rather than here.
 #
+# The gate runs here too, before the upload: see the step comment below.
+#
 # ez is checked out beside bolt and built with the `bend` this repo pins,
 # exactly as `ci.yml` does it: same reasoning, and the same `bend` that would
 # do the publishing. There is no published ez release to fetch.
@@ -64,10 +66,23 @@ jobs:
       - name: Build ez
         working-directory: bolt
         run: nix develop -c env BEND_LIB=../ez/.ez/lib bend ../ez/ez/main.bend -o ../ez.bin
+      # the gate, before the upload and not after it. ci.yml runs on a push
+      # to main, but a tag can be cut from anywhere, and what reaches the hub
+      # cannot be taken back: a bolt that fails its own tests is exactly what
+      # must not become a permanent package. `bend --publish` would catch a
+      # bolt that does not check, and nothing else.
+      - name: ez test
+        working-directory: bolt
+        run: nix develop -c ../ez.bin test
       - name: ez publish
         working-directory: bolt
         shell: bash
+        # the tag reaches bash as an environment variable, never as `${{ }}`
+        # spliced into the script: an input is a string a person typed, and
+        # one interpolated into a `run:` block runs as shell.
+        env:
+          TAG: ${{ inputs.tag }}
         run: |
           nix develop -c ../ez.bin publish | tee "$RUNNER_TEMP/published"
-          { echo "### bolt ${{ inputs.tag }} is on the hub"; echo; echo '```';
+          { echo "### bolt $TAG is on the hub"; echo; echo '```';
             cat "$RUNNER_TEMP/published"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

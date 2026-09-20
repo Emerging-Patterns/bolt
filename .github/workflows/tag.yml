@@ -16,8 +16,7 @@
 #
 # Does not publish the VS Code extension. Does not upload to the Bend hub:
 # that is `publish.yml`, workflow_dispatch only, on a tag this has already
-# cut. Does not
-# build bolt: what a tag carries is the source, and the two ways in are
+# cut. Does not build bolt: what a tag carries is the source, and the two ways in are
 # `nix profile install` and one `bend` line (README.md), neither of which
 # wants a binary attached to a release.
 
