@@ -109,7 +109,8 @@ def errors(gs: List<&2, F.Graded>) -> U32:
     case Nil{}:
       0
     case Con{F.Graded{l, f}, rest}:
-      (Bool.pick(U32, Config.is_error(l), 1, 0) + errors(rest) : U32)
+      +more = errors(rest)
+      (Bool.pick(U32, Config.is_error(l), 1, 0) + more : U32)
 
 # `1 error`, `2 errors`
 def count(+n: U32, +what: String) -> String:
