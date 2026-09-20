@@ -1,0 +1,88 @@
+# Sends bolt to the public Bend hub, and only when a person asks for it.
+#
+# This is the one workflow in the repo that uploads anything. The upload is
+# public and cannot be taken back, so nothing triggers it but a human on
+# Actions -> Publish -> Run workflow. There is no `push:` here and there never
+# will be: `release.yml` opens the GitHub Release on a tag and stops there, so
+# a tag that turns out to be wrong costs a deleted release and not a package
+# on the hub forever.
+#
+# What it publishes is a tag, never a branch and never a loose commit. The
+# `ref` is `refs/tags/<tag>`, so a branch name or a SHA does not resolve and
+# the checkout fails before a hub is ever named. What the hub holds should be
+# a thing that has a name in this repo's history.
+#
+# The upload itself is `ez publish` (ez/pub/pub.bend), the same ez the gate is:
+#   - it refuses on a dirty tree, untracked non-ignored files included, before
+#     it speaks to anything. A fresh checkout is clean, so this only fires when
+#     a step above has written into the tree -- which is the moment you want it
+#     to fire, since the package's file set is read off the working tree.
+#   - the `0x` name it reports is the one ez computed from that file set.
+#     bend's own output is checked against it, not grepped for it: bend 2.0.21
+#     prints three lines and two of them carry a `0x` name mid-line, so the
+#     first thing that looks like a hash is the wrong answer. A disagreement,
+#     or an output ez cannot read, stops the command and reports no name.
+# That is the whole of the 122 lines of bash this replaces, and it is tested
+# in ez's own gate rather than here.
+#
+# The gate runs here too, before the upload: see the step comment below.
+#
+# ez is checked out beside bolt and built with the `bend` this repo pins,
+# exactly as `ci.yml` does it: same reasoning, and the same `bend` that would
+# do the publishing. There is no published ez release to fetch.
+
+name: publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The existing tag to publish, e.g. v0.4.0"
+        required: true
+        type: string
+
+# one upload at a time: two of these racing would mine two proofs of work for
+# the same package and tell you about it twice
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          path: bolt
+      - uses: actions/checkout@v4
+        with:
+          repository: Emerging-Patterns/ez
+          path: ez
+      - uses: DeterminateSystems/nix-installer-action@v23
+      - name: Build ez
+        working-directory: bolt
+        run: nix develop -c env BEND_LIB=../ez/.ez/lib bend ../ez/ez/main.bend -o ../ez.bin
+      # the gate, before the upload and not after it. ci.yml runs on a push
+      # to main, but a tag can be cut from anywhere, and what reaches the hub
+      # cannot be taken back: a bolt that fails its own tests is exactly what
+      # must not become a permanent package. `bend --publish` would catch a
+      # bolt that does not check, and nothing else.
+      - name: ez test
+        working-directory: bolt
+        run: nix develop -c ../ez.bin test
+      - name: ez publish
+        working-directory: bolt
+        shell: bash
+        # the tag reaches bash as an environment variable, never as `${{ }}`
+        # spliced into the script: an input is a string a person typed, and
+        # one interpolated into a `run:` block runs as shell.
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          nix develop -c ../ez.bin publish | tee "$RUNNER_TEMP/published"
+          { echo "### bolt $TAG is on the hub"; echo; echo '```';
+            cat "$RUNNER_TEMP/published"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
