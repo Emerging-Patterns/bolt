@@ -45,8 +45,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          fetch-tags: true
           ref: ${{ github.ref_name }}
       - name: Resolve version
         id: ver
@@ -98,11 +96,6 @@ jobs:
             exit 1
           fi
 
-          if git rev-parse "refs/tags/v$ver" >/dev/null 2>&1; then
-            echo "tag v$ver already exists"
-            exit 1
-          fi
-
           if [ "$bump_files" -eq 1 ]; then
             sed -i -E 's/version = "[0-9]+\.[0-9]+\.[0-9]+"/version = "'"$ver"'"/' flake.nix
             sed -i -E 's/"version": "[0-9]+\.[0-9]+\.[0-9]+"/"version": "'"$ver"'"/' editors/vscode/package.json
@@ -132,6 +125,5 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.ver.outputs.version }}
-          name: v${{ steps.ver.outputs.version }}
           generate_release_notes: true
           target_commitish: ${{ steps.commit.outputs.commit_hash || github.sha }}
