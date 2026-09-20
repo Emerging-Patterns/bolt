@@ -94,7 +94,7 @@ Design specs and plans are not kept in this repo; they live under
   to the def once the file is imported ("a pattern (a binder or a
   constructor)"), though the same file runs fine as a main. Parameters and
   `for` names are safe. `bolt`'s `shadow` rule catches it.
-- `bend x.bend` runs main after checking. To check only, `bend x.bend -o t.js`.
+- `bend x.bend` runs main after checking. To check only, `bend x.bend -o t.js` or `bend <file.bend> --check-only`.
 - A foreign effect `def a.b(..) -> IO(T)` with `import "./x.c"` and
   `import "./x.js"` bodies is `a_b_run` + `io_eff(CID_A_B, ..)` in C and
   `function a_b(..)` in JS (bolt/lsp/checker/exec.*).

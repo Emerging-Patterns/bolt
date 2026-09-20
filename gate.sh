@@ -126,7 +126,7 @@ closure() { local -A seen=(); local queue=("$@") f d
   printf '%s\n' "${!seen[@]}" | sort
 }
 # a new bend, or a new clang, invalidates every key
-tool_key=$( { bend --version; readlink -f "$(command -v bend-cc || echo -)"; } 2>/dev/null | sha256sum | cut -c1-16)
+tool_key=$( { bend version; readlink -f "$(command -v bend-cc || echo -)"; } 2>/dev/null | sha256sum | cut -c1-16)
 cache=.gate/cache; mkdir -p "$cache"
 key() { local lane=$1; shift
   { echo "$lane $tool_key"; closure "$@" | tr '\n' '\0' | xargs -0 -r sha256sum; } | sha256sum | cut -c1-32
