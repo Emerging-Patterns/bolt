@@ -1,8 +1,23 @@
-# One `check` job: `nix develop -c ./gate.sh --js-only`.
+# One `check` job: the gate, `ez test`, both lanes (AGENTS.md).
 #
-# `nix flake check` builds the bolt package (~8 GB peak) and OOMs on
-# typical GHA RAM (~7 GB). The JS-lane gate is the light check: laws
-# and tests, no native compile (~2.5 GB).
+# The gate is ez, a separate binary from a separate repo, so CI checks it out
+# and builds it: ez is Bend, it vendors the one package it imports, and
+# `bend ez/main.bend -o ez.bin` is its whole build, no network and about a
+# minute. Building it here rather than fetching a binary also means it is
+# built by the `bend` this repo pins, which is the same `bend` it then runs
+# every lane with. There is no published ez release to fetch anyway.
+#
+# The two checkouts are siblings because bolt lints and tests everything under
+# its own root: a copy of ez inside it would be swept up by both.
+#
+# Both lanes run, not the JS half. What the native lane is for cannot be
+# answered without a native compile -- that `bend bolt/main.bend -o
+# bin/bolt.bin` still builds bolt with nothing else installed, that the server
+# survives being spawned over sockets by node, that the extension finds the
+# binary, that bolt lints this repo clean (tests/bare.bend), and that the
+# packaged build and the C toolchain under it still work (tests/flake.bend) --
+# and each of those compiles fits a runner. The light half was a workaround
+# for a memory ceiling that measurement did not find.
 
 name: ci
 
@@ -16,5 +31,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: bolt
+      - uses: actions/checkout@v4
+        with:
+          repository: Emerging-Patterns/ez
+          path: ez
       - uses: DeterminateSystems/nix-installer-action@v23
-      - run: nix develop -c ./gate.sh --js-only
+      - name: Build the gate
+        working-directory: bolt
+        run: nix develop -c env BEND_LIB=../ez/.ez/lib bend ../ez/ez/main.bend -o ../ez.bin
+      - name: ez test
+        working-directory: bolt
+        run: nix develop -c ../ez.bin test

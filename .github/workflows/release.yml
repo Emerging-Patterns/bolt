@@ -3,8 +3,9 @@
 #   - do not publish the VS Code extension (AGENTS.md)
 #   - do not `bend --publish`
 #
-# No native package attach: bolt's flake build OOMs on typical GHA RAM.
-# GitHub already ships a source archive on the release.
+# Nothing is attached but the source archive GitHub already ships. The two
+# documented ways in are `nix profile install` and one `bend` line
+# (README.md), and neither reads a binary off a release.
 # Notes are GitHub-generated from commits since the previous tag.
 
 name: release

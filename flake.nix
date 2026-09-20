@@ -95,8 +95,14 @@
       packages.${system} = { inherit bend bolt bend-cc; default = bolt; };
       apps.${system}.default = { type = "app"; program = "${bolt}/bin/bolt"; };
       checks.${system} = { c = c-check; inherit bolt; };
+      # the shell the gate runs in. node is here because two of the end-to-end
+      # tests drive one -- the server spawned over sockets, and the extension's
+      # binary resolution -- and a gate that borrowed whatever node the machine
+      # happened to have would answer a different question on every machine.
+      # bolt itself needs none of this: `bend bolt/main.bend -o bin/bolt.bin`
+      # is the whole build (tests/bare.bend).
       devShells.${system}.default = pkgs.mkShellNoCC {
-        packages = [ bend bend-cc ];
+        packages = [ bend bend-cc pkgs.nodejs ];
         shellHook = "export CC=bend-cc";
       };
     };

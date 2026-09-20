@@ -10,10 +10,10 @@
 #
 # The old gate grepped this run's output for the word "error". The status is
 # the stronger reading of the same thing: `nix flake check` exits non-zero when
-# any check fails. This is also the one job nothing here can cap -- with a
-# nix-daemon running the build happens in nix-daemon.service, not in any cgroup
-# a test could make, and it is a compile of its own near 19 GB. Capping it is a
-# MemoryMax drop-in on nix-daemon.service, not a change this repo can make.
+# any check fails. This is also the one job nothing here can cap: with a
+# nix-daemon running, the build happens in nix-daemon.service and not in any
+# cgroup a test could make. Capping it is a MemoryMax drop-in on
+# nix-daemon.service, not a change this repo can make.
 import Base
 import ../run/run.bend as R
 import ../core/check/kit.bend as Check

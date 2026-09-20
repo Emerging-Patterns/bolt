@@ -18,6 +18,9 @@ writing Bend. Then this.
     tests/*.bend       the end-to-end tests: that bolt still builds with bare
                        `bend`, and that the packaged build still builds.
                        `ez test` runs each on its own, and caches none of them
+    .github/workflows/ ci: the gate, on a pull request and on a push to main.
+                       tag and release: a vX.Y.Z tag and a GitHub Release,
+                       nothing published and nothing built
     editors/vscode/    the VS Code extension (not Bend; never publish it to the marketplace unasked)
     <project>/         one dir per project
       LAWS.bend        the claims: human-owned, do not edit to make a proof pass
@@ -34,7 +37,7 @@ tests, so they live beside the project rather than under it --
 
 ## The gate
 
-    nix develop                    bend 2 and bend-cc, with CC=bend-cc set
+    nix develop                    bend 2, bend-cc and node, with CC=bend-cc set
     ez test                        every lane, every proof; green before every commit
     ez test --js-only              skip the native lanes
     ez test --full                 ignore the cache
@@ -59,6 +62,11 @@ nothing in this repo is a shell script now.
 ez is a separate binary built from a separate repo, so it still runs and still
 reports when bolt itself is broken, which is the whole of the argument that
 used to keep `gate.sh` around.
+
+CI runs the same thing. `.github/workflows/ci.yml` checks ez out beside bolt,
+builds it with the `bend` this repo pins, and runs `ez test` in `nix develop`:
+both lanes, every proof and `nix flake check` with them, since each compile the
+native lane drives fits a runner.
 
 **ez is not a prerequisite for bolt.** bolt has no hub dependency, so
 `bend bolt/main.bend -o bin/bolt.bin` is the entire build: no ez, no nix, no

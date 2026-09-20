@@ -2,18 +2,22 @@
 # (a GITHUB_TOKEN tag does not start release.yml).
 #
 # How to cut a release
-#   1. Land the version on the default branch. flake.nix and
-#      editors/vscode/package.json must be the same X.Y.Z.
-#   2. Actions → Tag → Run workflow, from that branch:
-#        - leave version empty and bump=none → tag what the files say
-#        - version=X.Y.Z → tag that (fails if the files disagree)
-#        - bump=patch|minor|major → rewrite the version files, commit,
+#   1. Land the version on the default branch. Five files name it and all
+#      five must agree: flake.nix, editors/vscode/package.json, its
+#      package-lock.json, and the VSIX named in README.md and in
+#      editors/vscode/README.md.
+#   2. Actions -> Tag -> Run workflow, from that branch:
+#        - leave version empty and bump=none -> tag what the files say
+#        - version=X.Y.Z -> tag that (fails if the files disagree)
+#        - bump=patch|minor|major -> rewrite the version files, commit,
 #          tag the new X.Y.Z
 #   3. Or tag locally: `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`
 #      (release.yml then opens the GitHub Release).
 #
-# Does not publish the VS Code extension. Does not `bend --publish`.
-# Does not build bolt (native compile OOMs on typical GHA).
+# Does not publish the VS Code extension. Does not `bend --publish`. Does not
+# build bolt: what a tag carries is the source, and the two ways in are
+# `nix profile install` and one `bend` line (README.md), neither of which
+# wants a binary attached to a release.
 
 name: tag
 
@@ -54,19 +58,36 @@ jobs:
         run: |
           set -euo pipefail
 
-          flake_ver=$(grep -oE 'version = "[0-9]+\.[0-9]+\.[0-9]+"' flake.nix \
-            | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-          pkg_ver=$(python3 -c 'import json; print(json.load(open("editors/vscode/package.json"))["version"])')
-          if [ -z "$flake_ver" ] || [ -z "$pkg_ver" ]; then
-            echo "could not read version from flake.nix and editors/vscode/package.json"
-            exit 1
-          fi
-          if [ "$flake_ver" != "$pkg_ver" ]; then
-            echo "version mismatch: flake.nix=$flake_ver editors/vscode/package.json=$pkg_ver"
-            echo "keep them equal (see flake.nix comment) before tagging"
-            exit 1
-          fi
-          file_ver="$flake_ver"
+          # every file that names the version, as `path<TAB>X.Y.Z`. The two
+          # READMEs name it as the VSIX `npx vsce package` writes, whose name
+          # is package.json's version, so they go stale the same way.
+          versions() {
+            printf 'flake.nix\t%s\n' \
+              "$(grep -oE 'version = "[0-9]+\.[0-9]+\.[0-9]+"' flake.nix \
+                 | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
+            for j in editors/vscode/package.json editors/vscode/package-lock.json; do
+              printf '%s\t%s\n' "$j" "$(node -p "require('./$j').version")"
+            done
+            for r in README.md editors/vscode/README.md; do
+              printf '%s\t%s\n' "$r" \
+                "$(grep -oE 'bolt-[0-9]+\.[0-9]+\.[0-9]+\.vsix' "$r" \
+                   | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
+            done
+          }
+
+          # the one version the files name, or the disagreement, by name
+          agreed() {
+            local seen
+            seen=$(versions | cut -f2 | sort -u)
+            if [ "$(printf '%s\n' "$seen" | wc -l)" -ne 1 ] || [ -z "$seen" ]; then
+              echo "the version files disagree:" >&2
+              versions >&2
+              return 1
+            fi
+            printf '%s\n' "$seen"
+          }
+
+          file_ver=$(agreed)
 
           ver=$(printf '%s' "$VERSION_IN" | tr -d '[:space:]')
           ver="${ver#v}"
@@ -91,20 +112,22 @@ jobs:
             exit 1
           fi
           if [ "$bump_files" -eq 0 ] && [ "$ver" != "$file_ver" ]; then
-            echo "asked to tag v$ver but files are $file_ver"
-            echo "bump flake.nix and editors/vscode/package.json first, or use bump="
+            echo "asked to tag v$ver but the files are $file_ver"
+            echo "bump them first, or use bump="
             exit 1
           fi
 
           if [ "$bump_files" -eq 1 ]; then
             sed -i -E 's/version = "[0-9]+\.[0-9]+\.[0-9]+"/version = "'"$ver"'"/' flake.nix
-            sed -i -E 's/"version": "[0-9]+\.[0-9]+\.[0-9]+"/"version": "'"$ver"'"/' editors/vscode/package.json
-            if ! grep -q "version = \"$ver\"" flake.nix; then
-              echo "failed to write flake.nix version $ver"
-              exit 1
-            fi
-            if ! grep -q "\"version\": \"$ver\"" editors/vscode/package.json; then
-              echo "failed to write package.json version $ver"
+            # npm owns package.json and package-lock.json together; sed on one
+            # of them is how they drifted apart before
+            ( cd editors/vscode && npm version "$ver" \
+                --no-git-tag-version --allow-same-version >/dev/null )
+            sed -i -E 's/bolt-[0-9]+\.[0-9]+\.[0-9]+\.vsix/bolt-'"$ver"'.vsix/g' \
+              README.md editors/vscode/README.md
+            written=$(agreed)
+            if [ "$written" != "$ver" ]; then
+              echo "wrote $ver but the files now say $written"
               exit 1
             fi
           fi
@@ -117,7 +140,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: Release v${{ steps.ver.outputs.version }}
-          file_pattern: flake.nix editors/vscode/package.json
+          file_pattern: flake.nix editors/vscode/package.json editors/vscode/package-lock.json README.md editors/vscode/README.md
           branch: ${{ github.ref_name }}
           disable_globbing: true
           commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
