@@ -17,16 +17,7 @@ written in Bend, with a VS Code extension.
 
 ## Install
 
-With nix, nothing else is needed: the flake takes bend 2 from its own
-flake (`github:bendlang/bend`: the release archive, patched for nix) and
-builds bolt from it.
-
-```
-nix profile install github:Emerging-Patterns/bolt   # bolt, with bend on its PATH
-nix run github:Emerging-Patterns/bolt               # or just run it, here
-```
-
-Without nix, you need `bend` (`curl -fsSL https://bend-lang.com/install.sh | sh`)
+You need `bend` (`curl -fsSL https://bend-lang.com/install.sh | sh`)
 and clang 14+, since bolt is one native binary:
 
 ```
@@ -34,6 +25,15 @@ git clone https://github.com/Emerging-Patterns/bolt
 cd bolt
 ./build.sh          # builds bin/bolt.bin and links ~/.local/bin/bolt
 bolt                # lints every .bend file under the current directory
+```
+
+Or with nix, nothing else is needed: the flake takes bend 2 from its own
+flake (`github:bendlang/bend`: the release archive, patched for nix) and
+builds bolt from it.
+
+```
+nix profile install github:Emerging-Patterns/bolt   # bolt, with bend on its PATH
+nix run github:Emerging-Patterns/bolt               # or just run it, here
 ```
 
 The VS Code extension, from the same checkout:
