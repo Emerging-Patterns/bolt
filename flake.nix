@@ -19,13 +19,12 @@
       ez = inputs.ez.lib.${system};
       bend = inputs.bend.packages.${system}.default;
       bend-cc = ez.bend-cc;
-      # keep with editors/vscode/package.json
-      # ez.mkPackage's BEND_LIB is ez.bendLib, whose sha256sum check rejects
-      # this lock. nix/bend-lib.nix checks the digest ez recorded.
+      # ez.bendLib checks sha256sum. This lock's digests are ez's, so the
+      # package build uses nix/bend-lib.nix for BEND_LIB.
       bolt = (ez.mkPackage {
         inherit bend;
         src = self;
-        version = "0.4.0";
+        version = "0.4.0";  # keep with editors/vscode/package.json and bolt/version.bend
         wrapFlags = [ "--gpu" "off" ];
         meta = {
           description = "A linter, checker and language server for Bend 2";
