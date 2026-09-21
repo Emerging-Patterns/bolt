@@ -1,4 +1,5 @@
-# One `check` job: the gate, `ez test`, both lanes (AGENTS.md).
+# `check` is the gate, `ez test`, both lanes (AGENTS.md). `flake` is
+# `nix flake check` from Emerging-Patterns/actions; it does not replace the gate.
 #
 # The gate is ez, a separate binary from a separate repo, so CI checks it out
 # and builds it: ez is Bend, it vendors the one package it imports, and
@@ -44,3 +45,5 @@ jobs:
       - name: ez test
         working-directory: bolt
         run: nix develop -c env BEND_LIB=.ez/lib ../ez.bin fetch && nix develop -c ../ez.bin test
+  flake:
+    uses: Emerging-Patterns/actions/.github/workflows/nix-flake-check.yml@9523e8b294ae014fade5861c32d5ab911866acb2
