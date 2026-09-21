@@ -26,6 +26,21 @@ def Laws.args_check_lsp():
 def Laws.args_files():
   {==}
 
+def Laws.args_check_many():
+  {==}
+
+def Laws.args_dash():
+  {==}
+
+def Laws.args_help():
+  {==}
+
+def Laws.args_help_lint():
+  {==}
+
+def Laws.args_help_root():
+  {==}
+
 def Laws.args_argv():
   {==}
 

@@ -24,9 +24,8 @@ A `#|` equality for a proveable claim is a bug. A directory with
 
 ## Layout
 
-    ez.toml            the ledger: bolt's name and its entry, `bolt/main.bend`.
-                       bolt has no hub dependency -- not one `import 0x` line --
-                       so there is nothing else in it
+    ez.toml            the ledger: bolt's name, its entry `bolt/main.bend`, and
+                       the shake hub pin (`0xba6940aab8a335b70bf79944bd9b53c4`)
     flake.nix          bend 2 (from bendlang/bend's flake) and bolt (nix profile install);
                        bend-cc: clang 19 for native (and GPU) builds; `nix flake check`
                        builds bolt and proves the C toolchain
@@ -87,11 +86,12 @@ builds it with the `bend` this repo pins, and runs `ez test` in `nix develop`:
 both lanes, every proof and `nix flake check` with them, since each compile the
 native lane drives fits a runner.
 
-**ez is not a prerequisite for bolt.** bolt has no hub dependency, so
+**ez is not a prerequisite for bolt.**
 `bend bolt/main.bend -o bin/bolt.bin` is the entire build: no ez, no nix, no
-`BEND_LIB`. `tests/bare.bend` runs exactly that line on every gate run, with
-those variables taken out of the environment, so the day bolt grows a
-dependency on its own tooling is the day the gate says so.
+`BEND_LIB`. bend fetches bolt's one hub import (shake) itself.
+`tests/bare.bend` runs exactly that line on every gate run, with those
+variables taken out of the environment, so the day bolt grows a dependency
+on its own tooling is the day the gate says so.
 
 Design specs and plans are not kept in this repo; they live under
 `~/.superpowers/projects/bolt/`.

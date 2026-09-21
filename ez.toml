@@ -1,3 +1,7 @@
 [package]
 name = "bolt"
 entry = "bolt/main.bend"
+
+[deps.shake]
+hash = "0xba6940aab8a335b70bf79944bd9b53c4"
+entry = "main.bend"

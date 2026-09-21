@@ -57,6 +57,17 @@
       # bend 2 itself, from its own flake: the wrapper puts nix's clang on
       # PATH for `bend -o`, and bend-cc on CC still wins for a GPU build
       bend = inputs.bend.packages.${system}.default;
+      # shake v0.1.1, the hub package bolt's CLI imports. The nix sandbox
+      # cannot fetch 0x imports, so the file is pinned here and offered as
+      # BEND_LIB.
+      shake = pkgs.fetchurl {
+        url = "https://hub.bend-lang.com/0xba6940aab8a335b70bf79944bd9b53c4/main.bend";
+        hash = "sha256-TFoJu7F6YniadT3LRtrQwy+LVoEXbqJBzCk1EKr+Jng=";
+      };
+      shakeLib = pkgs.runCommand "bolt-shake-lib" { inherit shake; } ''
+        mkdir -p $out/0xba6940aab8a335b70bf79944bd9b53c4
+        cp $shake $out/0xba6940aab8a335b70bf79944bd9b53c4/main.bend
+      '';
       # bolt, built the one way anything builds it: `bend <entry> -o <binary>`.
       # That is not a shorter spelling of emitting the C and compiling it by
       # hand -- it is the same compile. bend runs the C it emits through
@@ -76,6 +87,7 @@
         version = "0.4.0";  # keep with editors/vscode/package.json
         src = self;
         nativeBuildInputs = [ bend pkgs.makeWrapper ];
+        BEND_LIB = shakeLib;
         buildPhase = ''
           bend bolt/main.bend -o bolt.bin
         '';

@@ -13,6 +13,7 @@ foreign defs missing a lane, and laws that reach every def (IO included). Instal
     bolt a.bend b.bend  the files given
     bolt check a.bend   the checker's errors, in the same shape
     bolt lsp            the language server
+    bolt help           usage
 
 Each finding is one line, `path:line:col: level: rule: message`, with line
 and column 1-based so a terminal can jump to it; then `clean` or the counts.
@@ -181,15 +182,17 @@ beside the groups.
 
 `bolt` is also `bolt check file..` (the checker, `bend`, on each file, its
 errors in the same shape, `path:line:1: error: message`) and `bolt lsp`
-(the [language server](lsp/), over stdio). `main.bend` reads the command
-line with `IO.args()` (`args.bend`) and dispatches on the first word; a
-first word that names no subcommand is a file, and with no files at all
-`bolt` lints every `.bend` file under the current directory
+(the [language server](lsp/), over stdio). `main.bend` parses the command
+line with [shake](https://github.com/Emerging-Patterns/shake)
+(`import 0xba6940aab8a335b70bf79944bd9b53c4/main.bend`) and dispatches on
+the selected command; a first word that names no subcommand is a file, so
+`bolt a.bend b.bend` lints those files, and with no files at all `bolt`
+lints every `.bend` file under the current directory
 (`glob.bend`, which never descends into a hidden directory or
 `node_modules`, and reads a directory through the `walk/` service — a
-foreign effect, `dir.c` and `dir.js`). A run that found errors exits 1.
-Bend's runtime takes its own flags out of the line
-before the program sees it, so `bolt lsp --gpu off` reaches `main` as
+foreign effect, `dir.c` and `dir.js`). `bolt help` prints usage. A run
+that found errors exits 1. Bend's runtime takes its own flags out of the
+line before the program sees it, so `bolt lsp --gpu off` reaches `main` as
 `lsp` and keeps the server on the cores.
 
 ## In the editor

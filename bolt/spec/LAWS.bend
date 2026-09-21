@@ -102,6 +102,26 @@ law args_check_lsp:
 law args_files:
   {C.args.split(["a.bend", "b.bend"]) == "[] a.bend b.bend" : String}
 
+# LAW: check takes every leftover file
+law args_check_many:
+  {C.args.split(["check", "a.bend", "b.bend"]) == "[check] a.bend b.bend" : String}
+
+# LAW: words after `--` are files
+law args_dash:
+  {C.args.split(["--", "a.bend", "b.bend"]) == "[] a.bend b.bend" : String}
+
+# LAW: `help` is NeedHelp at the root
+law args_help:
+  {Args.shown(["help"]) == "err help " : String}
+
+# LAW: `help lint` is NeedHelp at lint
+law args_help_lint:
+  {Args.shown(["help", "lint"]) == "err help lint" : String}
+
+# LAW: the root usage page is this exact text
+law args_help_root:
+  {Args.help_text([]) == C.args.help_root() : String}
+
 # LAW: argv is IO.args, widened
 law args_argv:
   {Args.argv() == (do IO<List<&2, String>>:

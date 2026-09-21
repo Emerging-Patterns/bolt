@@ -58,6 +58,7 @@ bolt                   every .bend file under the current directory
 bolt a.bend b.bend     the files given
 bolt check a.bend      the checker's errors, in the same shape
 bolt lsp               the language server, over stdio
+bolt help              usage
 ```
 
 Each finding is one line, `path:line:col: level: rule: message`, then
