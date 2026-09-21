@@ -368,44 +368,9 @@ def finish(st: St) -> List<&2, Item>:
   St{mode, n, doc, out} = st
   List.reverse(&2, Item, flush(mode, out))
 
-# the line so far, closed and put in front of the lines
-def items.lines.close(st: String & List<&2, String>) -> String & List<&2, String>:
-  (acc, out) = st
-  (SNil{}, String.reverse(acc) <> out)
-
-# the char, in front of the reversed line
-def items.lines.push(h: Char, st: String & List<&2, String>) -> String & List<&2, String>:
-  (acc, out) = st
-  (SCon{h, acc}, out)
-
-# a newline closes the line; any other char joins it, reversed
-def items.lines.step(nl: Bool, h: Char, st: String & List<&2, String>) -> String & List<&2, String>:
-  match nl:
-    case True{}:
-      items.lines.close(st)
-    case False{}:
-      items.lines.push(h, st)
-
-# the last line, in front of the lines so far
-def items.lines.end(st: String & List<&2, String>) -> List<&2, String>:
-  (acc, out) = st
-  String.reverse(acc) <> out
-
-# the lines, last first, one char at a time
-def items.lines.go(s: String, st: String & List<&2, String>) -> List<&2, String>:
-  match s:
-    case SNil{}:
-      items.lines.end(st)
-    case SCon{+h, t}:
-      items.lines.go(t, items.lines.step(Char.is_eq(h, '\n'), h, st))
-
-# the lines of a source, in order
-def items.lines(s: String) -> List<&2, String>:
-  List.reverse(&2, String, items.lines.go(s, (SNil{}, [])))
-
 # the top-level items of a source, in order
 def items(text: String) -> List<&2, Item>:
-  finish(run(items.lines(text), St{Top{}, 0, [], []}))
+  finish(run(String.lines(text), St{Top{}, 0, [], []}))
 
 # lookups
 # -------
