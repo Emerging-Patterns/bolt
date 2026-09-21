@@ -18,20 +18,43 @@ def is_name(+c: Char) -> Bool:
 def text(run: List<&2, Char>) -> String:
   String.from_list(List.reverse(&2, Char, run))
 
-# a run that ends at column i holds col when start <= col <= i
-def close(+i: U32, +start: U32, +run: List<&2, Char>, +hit: Maybe<&2, String>, +col: U32) -> Maybe<&2, String>:
-  Bool.pick(Maybe<&2, String>,
-    Bool.and(Bool.and(Maybe.is_none(&2, String, hit), Bool.not(List.is_empty(&2, Char, run))),
-      Bool.and(U32.is_le(start, col), U32.is_le(col, i))),
-    Some{text(run)}, hit)
+# the run holds the column: keep it; otherwise the hit so far
+def close.yes(ok: Bool, run: List<&2, Char>, hit: Maybe<&2, String>) -> Maybe<&2, String>:
+  match ok:
+    case True{}:
+      Some{text(run)}
+    case False{}:
+      hit
+
+# an empty run leaves the hit; otherwise the run if start <= col <= i
+def close.run(run: List<&2, Char>, +start: U32, +i: U32, +col: U32, hit: Maybe<&2, String>) -> Maybe<&2, String>:
+  match run:
+    case Nil{}:
+      hit
+    case h <> t:
+      close.yes(Bool.and(U32.is_le(start, col), U32.is_le(col, i)), h <> t, hit)
+
+# a run that ends at column i holds col when start <= col <= i, unless one already did
+def close(+i: U32, +start: U32, run: List<&2, Char>, hit: Maybe<&2, String>, +col: U32) -> Maybe<&2, String>:
+  match hit:
+    case Some{s}:
+      Some{s}
+    case None{}:
+      close.run(run, start, i, col, None{})
+
+# a name char joins the run; any other char ends it
+def step.on(name: Bool, c: Char, +i: U32, +start: U32, run: List<&2, Char>, hit: Maybe<&2, String>, +col: U32) -> W:
+  match name:
+    case True{}:
+      W{(i + 1 : U32), start, c <> run, hit}
+    case False{}:
+      W{(i + 1 : U32), (i + 1 : U32), [], close(i, start, run, hit, col)}
 
 # one char: it extends the run of name chars, or ends it (a run holding the
 # column is the answer)
 def step(+c: Char, st: W, +col: U32) -> W:
-  W{+i, +start, +run, +hit} = st
-  Bool.pick(W, is_name(c),
-    W{(i + 1 : U32), start, c <> run, hit},
-    W{(i + 1 : U32), (i + 1 : U32), [], close(i, start, run, hit, col)})
+  W{i, start, run, hit} = st
+  step.on(is_name(c), c, i, start, run, hit, col)
 
 # every char, in order
 def scan(cs: List<&2, Char>, st: W, +col: U32) -> W:
