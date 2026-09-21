@@ -1,9 +1,7 @@
-# the packaged build, and the C toolchain under it (flake.nix). `nix flake
-# check` builds `checks.bolt` -- bend emits the C and clang 19 compiles it, the
-# way a `nix profile install` does -- and `checks.c`, which compiles and runs a
-# C11 program over atomics, pthreads, libm and mmap inside the sandbox. Neither
-# is anything the two lanes of `ez test` answer: they say the source checks and
-# runs, not that the thing people install still builds.
+# the packaged build (flake.nix). `nix flake check` builds `checks.bolt` --
+# bend emits the C and compiles it, the way a `nix profile install` does.
+# That is not anything the two lanes of `ez test` answer: they say the source
+# checks and runs, not that the thing people install still builds.
 #
 # nix sees tracked files only, so a change has to be `git add`ed before this
 # says anything about it.

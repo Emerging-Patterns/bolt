@@ -15,7 +15,7 @@
 # bin/bolt.bin` still builds bolt with nothing else installed, that the server
 # survives being spawned over sockets by node, that the extension finds the
 # binary, that bolt lints this repo clean (tests/bare.bend), and that the
-# packaged build and the C toolchain under it still work (tests/flake.bend) --
+# packaged build still works (tests/flake.bend) --
 # and each of those compiles fits a runner. The light half was a workaround
 # for a memory ceiling that measurement did not find.
 

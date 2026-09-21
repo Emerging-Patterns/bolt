@@ -20,6 +20,29 @@
         "type": "github"
       }
     },
+    "ez": {
+      "inputs": {
+        "bend": [
+          "bend"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1790016710,
+        "narHash": "sha256-6ZUA05LIhKkY+iS2d7dlBw6PDlRHCxaO0vu/hVCGlhY=",
+        "owner": "Emerging-Patterns",
+        "repo": "ez",
+        "rev": "61cdee440a20e7f250f64e1bd28ea201a2858c70",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Emerging-Patterns",
+        "repo": "ez",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1789546076,
@@ -39,6 +62,7 @@
     "root": {
       "inputs": {
         "bend": "bend",
+        "ez": "ez",
         "nixpkgs": "nixpkgs"
       }
     }
