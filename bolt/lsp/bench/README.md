@@ -83,4 +83,4 @@ each run; at 100% utilization during the GPU runs, the process listed by
   without the `!`. All cores are 11.6x one core at 262,144 requests, with no
   start-up cost and no VRAM.
 
-The server therefore stays on the cores: `bolt lsp` is `--gpu off` unless the line sets `--gpu`.
+The server therefore stays a CPU binary, launched `--gpu off`.
