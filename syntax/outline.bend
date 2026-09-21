@@ -143,27 +143,58 @@ def classify.space.go(space: Bool, x: U32, t: String) -> Cls:
 def classify.space(+x: U32, t: String) -> Cls:
   classify.space.go(Char.is_space(Char.from_u32(x)), x, t)
 
-def classify.hash.go(is_hash: Bool, x: U32, t: String) -> Cls:
+# a column-0 keyword keeps the line; the class comes from its first character
+def classify.hold.keys(+x: U32, c: Char, +t: String) -> Cls & String:
+  (classify.keys(x, t), SCon{c, t})
+
+# whitespace that is not a leading space keeps the line: the class may not
+def classify.hold.gap.keep(+x: U32, c: Char, +t: String) -> Cls & String:
+  (classify.white.enter(t, x), SCon{c, t})
+
+# a leading space is blank or indented, and that class already carries the line
+def classify.hold.gap(indent: Bool, x: U32, c: Char, t: String) -> Cls & String:
+  match indent:
+    case True{}:
+      (classify.white.enter(t, x), SNil{})
+    case False{}:
+      classify.hold.gap.keep(x, c, t)
+
+# whitespace, else a keyword
+def classify.hold.space(space: Bool, +x: U32, c: Char, t: String) -> Cls & String:
+  match space:
+    case True{}:
+      classify.hold.gap(U32.is_eq(x, 32), x, c, t) # ' '
+    case False{}:
+      classify.hold.keys(x, c, t)
+
+# a comment keeps its text; anything else is whitespace or a keyword
+def classify.hold.hash(is_hash: Bool, space: Bool, x: U32, c: Char, t: String) -> Cls & String:
   match is_hash:
     case True{}:
-      LComment{SCon{Char.from_u32(x), t}}
+      (LComment{SCon{c, t}}, SNil{})
     case False{}:
-      classify.space(x, t)
+      classify.hold.space(space, x, c, t)
 
-# a comment when the line opens with `#`, else whitespace or a keyword
-def classify.hash(+x: U32, t: String) -> Cls:
-  classify.hash.go(U32.is_eq(x, 35), x, t) # '#'
+# the first character, then the rest of the line
+def classify.hold.open(+x: U32, +c: Char, t: String) -> Cls & String:
+  classify.hold.hash(U32.is_eq(x, 35), Char.is_space(c), x, c, t) # '#'
 
-def classify.go(s: String) -> Cls:
+# the class, and the line when the class does not already carry it
+def classify.hold(s: String) -> Cls & String:
   match s:
     case SNil{}:
-      LBlank{}
-    case SCon{c, t}:
-      classify.hash(Char.to_u32(c), t)
+      (LBlank{}, SNil{})
+    case SCon{+c, t}:
+      classify.hold.open(Char.to_u32(c), c, t)
+
+# the class, dropping a line the caller does not keep
+def classify.cls(p: Cls & String) -> Cls:
+  (cls, _s) = p
+  cls
 
 # a line's class, from its first character
 def classify(s: String) -> Cls:
-  classify.go(s)
+  classify.cls(classify.hold(s))
 
 # a name runs to the first of ( < : { or a space
 def name.go(cs: List<&2, Char>, acc: List<&2, Char>) -> List<&2, Char>:
@@ -330,7 +361,16 @@ def doc_above(mode: Mode, doc: List<&2, String>) -> List<&2, String>:
     case other:
       []
 
-def step.go(cls: Cls, +mode: Mode, +s: String, +n: U32, doc: List<&2, String>, out: List<&2, Item>) -> St:
+# a law header, pending the block under it
+def step.law(+s: String, +n: U32, doc: String, mode: Mode, out: List<&2, Item>) -> St:
+  St{Pending{ILaw{}, name(String.drop(s, 4n)), n, doc, [s]}, (n + 1 : U32), [], flush(mode, out)}
+
+# a type header, and the block that follows it
+def step.ty(+s: String, +n: U32, doc: String, mode: Mode, out: List<&2, Item>) -> St:
+  St{InType{}, (n + 1 : U32), [],
+    Item{IType{}, name(String.drop(s, 5n)), n, s, doc, ""} <> flush(mode, out)}
+
+def step.go(cls: Cls, +mode: Mode, s: String, +n: U32, doc: List<&2, String>, out: List<&2, Item>) -> St:
   match cls:
     case LBlank{}:
       St{Top{}, (n + 1 : U32), [], flush(mode, out)}
@@ -343,17 +383,21 @@ def step.go(cls: Cls, +mode: Mode, +s: String, +n: U32, doc: List<&2, String>, o
     case LDef{}:
       start_def(s, n, doc_text(doc), flush(mode, out))
     case LLaw{}:
-      St{Pending{ILaw{}, name(String.drop(s, 4n)), n, doc_text(doc), [s]}, (n + 1 : U32), [], flush(mode, out)}
+      step.law(s, n, doc_text(doc), mode, out)
     case LType{}:
-      St{InType{}, (n + 1 : U32), [],
-        Item{IType{}, name(String.drop(s, 5n)), n, s, doc_text(doc), ""} <> flush(mode, out)}
+      step.ty(s, n, doc_text(doc), mode, out)
     case LOther{}:
       stray(mode, s, n, out)
 
+# the class and the line, applied to the outline
+def step.use(p: Cls & String, mode: Mode, +n: U32, doc: List<&2, String>, out: List<&2, Item>) -> St:
+  (cls, s) = p
+  step.go(cls, mode, s, n, doc, out)
+
 # one line, by its class
-def step(+s: String, st: St) -> St:
+def step(s: String, st: St) -> St:
   St{mode, n, doc, out} = st
-  step.go(classify(s), mode, s, n, doc, out)
+  step.use(classify.hold(s), mode, n, doc, out)
 
 # every line, in order
 def run(lines: List<&2, String>, st: St) -> St:
