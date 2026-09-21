@@ -12,14 +12,7 @@ import 0xa3c2445eb44c5d8406e6229be518fccb/value.bend as J
 
 # the document a hover is answered against
 def source() -> String:
-  String.join([
-    "# a module", "import Base", "import ./math.bend as M", "",
-    "# a shape", "type Shape<-A: Type> is Data:", "  Circle{r: U32}", "  Square{s: U32}", "",
-    "# the area", "def area(x: Shape) -> U32:", "  match x:", "    case Circle{+r}:", "      (3 * r * r : U32)",
-    "    case Square{+s}:", "      (s * s : U32)", "",
-    "def long.header(", "  a: U32, b: U32", ") -> U32:", "  area(Square{a})", "",
-    "# LAW: zero is neutral", "law add_zero:", "  for x: Nat", "  {Nat.add(x, 0n) == x : Nat}", "",
-    "def main() -> U32:", "  long.header(area(Circle{2}), 3)"], "\n")
+  "# a module\nimport Base\nimport ./math.bend as M\n\n# a shape\ntype Shape<-A: Type> is Data:\n  Circle{r: U32}\n  Square{s: U32}\n\n# the area\ndef area(x: Shape) -> U32:\n  match x:\n    case Circle{+r}:\n      (3 * r * r : U32)\n    case Square{+s}:\n      (s * s : U32)\n\ndef long.header(\n  a: U32, b: U32\n) -> U32:\n  area(Square{a})\n\n# LAW: zero is neutral\nlaw add_zero:\n  for x: Nat\n  {Nat.add(x, 0n) == x : Nat}\n\ndef main() -> U32:\n  long.header(area(Circle{2}), 3)"
 
 # the hover request
 def message() -> String:
