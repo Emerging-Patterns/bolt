@@ -46,15 +46,124 @@ type St is Data:
 def is_blank(s: String) -> Bool:
   List.all(~&2, ~Char, ~Char.is_space, String.to_list(s))
 
-# a line's class
-def classify(+s: String) -> Cls:
-  Bool.pick(Cls, is_blank(s), LBlank{},
-    Bool.pick(Cls, String.starts_with(s, "#"), LComment{s},
-      Bool.pick(Cls, String.starts_with(s, " "), LIndent{s},
-        Bool.pick(Cls, String.starts_with(s, "import "), LImport{},
-          Bool.pick(Cls, Bool.or(String.starts_with(s, "def "), String.starts_with(s, "@unsafe def ")), LDef{},
-            Bool.pick(Cls, String.starts_with(s, "law "), LLaw{},
-              Bool.pick(Cls, String.starts_with(s, "type "), LType{}, LOther{})))))))
+# the class when the prefix matches, else other
+def classify.kw(hit: Bool, yes: Cls) -> Cls:
+  match hit:
+    case True{}:
+      yes
+    case False{}:
+      LOther{}
+
+# leading spaces (reversed) in front of the rest of the line
+def classify.rebuild(acc: List<&2, Char>, rest: String) -> String:
+  match acc:
+    case Nil{}:
+      rest
+    case Con{h, t}:
+      classify.rebuild(t, SCon{h, rest})
+
+# an indented line when the first char is a space, else other
+def classify.white.hit(indent: Bool, acc: List<&2, Char>, h: Char, rest: String) -> Cls:
+  match indent:
+    case True{}:
+      LIndent{classify.rebuild(acc, SCon{h, rest})}
+    case False{}:
+      LOther{}
+
+# whitespace after a leading space-class char. `space` says `h` is whitespace;
+# `acc` is the whitespace before `h`, reversed; `indent` when that line opened
+# with a space
+def classify.white(t: String, space: Bool, h: Char, indent: Bool, acc: List<&2, Char>) -> Cls:
+  match t space:
+    case SNil{} True{}:
+      LBlank{}
+    case SNil{} False{}:
+      classify.white.hit(indent, acc, h, SNil{})
+    case SCon{+h2, r} True{}:
+      classify.white(r, Char.is_space(h2), h2, indent, h <> acc)
+    case SCon{h2, r} False{}:
+      classify.white.hit(indent, acc, h, SCon{h2, r})
+
+# a line whose first char is whitespace
+def classify.white.enter(t: String, +x: U32) -> Cls:
+  classify.white(t, True{}, Char.from_u32(x), U32.is_eq(x, 32), []) # ' '
+
+# `type `, once the `t` is known
+def classify.ktype(hit: Bool, t: String) -> Cls:
+  match hit:
+    case True{}:
+      classify.kw(String.starts_with(t, "ype "), LType{})
+    case False{}:
+      LOther{}
+
+# `law `, else `type `
+def classify.klaw(hit: Bool, +x: U32, t: String) -> Cls:
+  match hit:
+    case True{}:
+      classify.kw(String.starts_with(t, "aw "), LLaw{})
+    case False{}:
+      classify.ktype(U32.is_eq(x, 116), t) # 't'
+
+# `@unsafe def `, else `law `
+def classify.kat(hit: Bool, +x: U32, t: String) -> Cls:
+  match hit:
+    case True{}:
+      classify.kw(String.starts_with(t, "unsafe def "), LDef{})
+    case False{}:
+      classify.klaw(U32.is_eq(x, 108), x, t) # 'l'
+
+# `def `, else `@unsafe def `
+def classify.kdef(hit: Bool, +x: U32, t: String) -> Cls:
+  match hit:
+    case True{}:
+      classify.kw(String.starts_with(t, "ef "), LDef{})
+    case False{}:
+      classify.kat(U32.is_eq(x, 64), x, t) # '@'
+
+# `import `, else `def `
+def classify.kimp(hit: Bool, +x: U32, t: String) -> Cls:
+  match hit:
+    case True{}:
+      classify.kw(String.starts_with(t, "mport "), LImport{})
+    case False{}:
+      classify.kdef(U32.is_eq(x, 100), x, t) # 'd'
+
+# a column-0 keyword, from the first character's code
+def classify.keys(+x: U32, t: String) -> Cls:
+  classify.kimp(U32.is_eq(x, 105), x, t) # 'i'
+
+def classify.space.go(space: Bool, x: U32, t: String) -> Cls:
+  match space:
+    case True{}:
+      classify.white.enter(t, x)
+    case False{}:
+      classify.keys(x, t)
+
+# whitespace, else a keyword
+def classify.space(+x: U32, t: String) -> Cls:
+  classify.space.go(Char.is_space(Char.from_u32(x)), x, t)
+
+def classify.hash.go(is_hash: Bool, x: U32, t: String) -> Cls:
+  match is_hash:
+    case True{}:
+      LComment{SCon{Char.from_u32(x), t}}
+    case False{}:
+      classify.space(x, t)
+
+# a comment when the line opens with `#`, else whitespace or a keyword
+def classify.hash(+x: U32, t: String) -> Cls:
+  classify.hash.go(U32.is_eq(x, 35), x, t) # '#'
+
+def classify.go(s: String) -> Cls:
+  match s:
+    case SNil{}:
+      LBlank{}
+    case SCon{c, t}:
+      classify.hash(Char.to_u32(c), t)
+
+# a line's class, from its first character
+def classify(s: String) -> Cls:
+  classify.go(s)
 
 # a name runs to the first of ( < : { or a space
 def name.go(cs: List<&2, Char>, acc: List<&2, Char>) -> List<&2, Char>:
