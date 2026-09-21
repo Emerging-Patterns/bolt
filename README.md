@@ -17,14 +17,23 @@ written in Bend, with a VS Code extension.
 
 ## Install
 
-You need `bend` (`curl -fsSL https://bend-lang.com/install.sh | sh`)
-and clang 14+, since bolt is one native binary:
+You need [Bend](https://github.com/bendlang/bend), built from source, and
+clang 14+, since bolt is one native binary:
 
 ```
 git clone https://github.com/Emerging-Patterns/bolt
 cd bolt
 bend bolt/main.bend -o bin/bolt.bin      # the whole build
 bin/bolt.bin                             # lints every .bend under the current directory
+```
+
+Run and install with [ez](https://github.com/Emerging-Patterns/ez):
+
+```
+ezx Emerging-Patterns/bolt
+# or
+ez tool install Emerging-Patterns/bolt
+bolt
 ```
 
 Or with nix, nothing else is needed: the flake takes bend 2 from its own
