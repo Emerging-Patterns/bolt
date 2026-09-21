@@ -18,20 +18,43 @@ def is_name(+c: Char) -> Bool:
 def text(run: List<&2, Char>) -> String:
   String.from_list(List.reverse(&2, Char, run))
 
-# a run that ends at column i holds col when start <= col <= i
-def close(+i: U32, +start: U32, +run: List<&2, Char>, +hit: Maybe<&2, String>, +col: U32) -> Maybe<&2, String>:
-  Bool.pick(Maybe<&2, String>,
-    Bool.and(Bool.and(Maybe.is_none(&2, String, hit), Bool.not(List.is_empty(&2, Char, run))),
-      Bool.and(U32.is_le(start, col), U32.is_le(col, i))),
-    Some{text(run)}, hit)
+# the run holds the column: keep it; otherwise the hit so far
+def close.yes(ok: Bool, run: List<&2, Char>, hit: Maybe<&2, String>) -> Maybe<&2, String>:
+  match ok:
+    case True{}:
+      Some{text(run)}
+    case False{}:
+      hit
+
+# an empty run leaves the hit; otherwise the run if start <= col <= i
+def close.run(run: List<&2, Char>, +start: U32, +i: U32, +col: U32, hit: Maybe<&2, String>) -> Maybe<&2, String>:
+  match run:
+    case Nil{}:
+      hit
+    case h <> t:
+      close.yes(Bool.and(U32.is_le(start, col), U32.is_le(col, i)), h <> t, hit)
+
+# a run that ends at column i holds col when start <= col <= i, unless one already did
+def close(+i: U32, +start: U32, run: List<&2, Char>, hit: Maybe<&2, String>, +col: U32) -> Maybe<&2, String>:
+  match hit:
+    case Some{s}:
+      Some{s}
+    case None{}:
+      close.run(run, start, i, col, None{})
+
+# a name char joins the run; any other char ends it
+def step.on(name: Bool, c: Char, +i: U32, +start: U32, run: List<&2, Char>, hit: Maybe<&2, String>, +col: U32) -> W:
+  match name:
+    case True{}:
+      W{(i + 1 : U32), start, c <> run, hit}
+    case False{}:
+      W{(i + 1 : U32), (i + 1 : U32), [], close(i, start, run, hit, col)}
 
 # one char: it extends the run of name chars, or ends it (a run holding the
 # column is the answer)
 def step(+c: Char, st: W, +col: U32) -> W:
-  W{+i, +start, +run, +hit} = st
-  Bool.pick(W, is_name(c),
-    W{(i + 1 : U32), start, c <> run, hit},
-    W{(i + 1 : U32), (i + 1 : U32), [], close(i, start, run, hit, col)})
+  W{i, start, run, hit} = st
+  step.on(is_name(c), c, i, start, run, hit, col)
 
 # every char, in order
 def scan(cs: List<&2, Char>, st: W, +col: U32) -> W:
@@ -50,9 +73,57 @@ def finish(st: W, col: U32) -> String:
 def in_line(line: String, +col: U32) -> String:
   finish(scan(String.to_list(line), W{0, 0, [], None{}}, col), col)
 
+# lines still to skip after this char; a newline counts as one
+def at.skip.n(nl: Bool, n: U32) -> U32:
+  match nl:
+    case True{}:
+      (n - 1 : U32)
+    case False{}:
+      n
+
+# the next char starts the wanted line when this one was its preceding newline
+def at.skip.done(nl: Bool, n: U32) -> Bool:
+  match nl:
+    case True{}:
+      U32.is_eq(n, 1)
+    case False{}:
+      False{}
+
+# the source with `n` lines skipped. `done` means this string is the line
+def at.skip(s: String, +n: U32, done: Bool) -> String:
+  match s done:
+    case SNil{} _:
+      SNil{}
+    case SCon{h, t} True{}:
+      SCon{h, t}
+    case SCon{+h, t} False{}:
+      at.skip(t, at.skip.n(Char.is_eq(h, '\n'), n), at.skip.done(Char.is_eq(h, '\n'), n))
+
+# the char joins the line unless it is a newline
+def at.take.push(nl: Bool, acc: String, h: Char) -> String:
+  match nl:
+    case True{}:
+      acc
+    case False{}:
+      SCon{h, acc}
+
+# one line, reversed into acc, up to the next newline
+def at.take(s: String, acc: String, stop: Bool) -> String:
+  match s stop:
+    case SNil{} _:
+      String.reverse(acc)
+    case SCon{h, t} True{}:
+      String.reverse(acc)
+    case SCon{+h, t} False{}:
+      at.take(t, at.take.push(Char.is_eq(h, '\n'), acc, h), Char.is_eq(h, '\n'))
+
+# line `line` of a source, "" when it is past the end
+def at.line(s: String, +line: U32) -> String:
+  at.take(at.skip(s, line, U32.is_eq(line, 0)), SNil{}, False{})
+
 # the name under a (line, col) of a source, "" when none
 def at(source: String, line: U32, col: U32) -> String:
-  in_line(Maybe.default(&2, String, List.get(&2, String, String.lines(source), U32.to_nat(line)), ""), col)
+  in_line(at.line(source, line), col)
 
 # `Alias.rest` cut at its first dot: ("Alias", "rest"); no dot: (name, "")
 def cut.go(cs: List<&2, Char>, acc: List<&2, Char>) -> String & String:
