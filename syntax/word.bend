@@ -99,31 +99,27 @@ def at.skip(s: String, +n: U32, done: Bool) -> String:
     case SCon{+h, t} False{}:
       at.skip(t, at.skip.n(Char.is_eq(h, '\n'), n), at.skip.done(Char.is_eq(h, '\n'), n))
 
-# the char joins the line unless it is a newline
-def at.take.push(nl: Bool, acc: String, h: Char) -> String:
+# a newline ends the line; any other char is part of it
+def at.advance(nl: Bool, h: Char, st: W, +col: U32) -> W:
   match nl:
     case True{}:
-      acc
+      st
     case False{}:
-      SCon{h, acc}
+      step(h, st, col)
 
-# one line, reversed into acc, up to the next newline
-def at.take(s: String, acc: String, stop: Bool) -> String:
+# the name at col, from here up to the next newline
+def at.read(s: String, stop: Bool, st: W, +col: U32) -> String:
   match s stop:
     case SNil{} _:
-      String.reverse(acc)
+      finish(st, col)
     case SCon{h, t} True{}:
-      String.reverse(acc)
+      finish(st, col)
     case SCon{+h, t} False{}:
-      at.take(t, at.take.push(Char.is_eq(h, '\n'), acc, h), Char.is_eq(h, '\n'))
-
-# line `line` of a source, "" when it is past the end
-def at.line(s: String, +line: U32) -> String:
-  at.take(at.skip(s, line, U32.is_eq(line, 0)), SNil{}, False{})
+      at.read(t, Char.is_eq(h, '\n'), at.advance(Char.is_eq(h, '\n'), h, st, col), col)
 
 # the name under a (line, col) of a source, "" when none
-def at(source: String, line: U32, col: U32) -> String:
-  in_line(at.line(source, line), col)
+def at(source: String, +line: U32, col: U32) -> String:
+  at.read(at.skip(source, line, U32.is_eq(line, 0)), False{}, W{0, 0, [], None{}}, col)
 
 # `Alias.rest` cut at its first dot: ("Alias", "rest"); no dot: (name, "")
 def cut.go(cs: List<&2, Char>, acc: List<&2, Char>) -> String & String:
