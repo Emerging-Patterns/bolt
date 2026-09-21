@@ -50,9 +50,57 @@ def finish(st: W, col: U32) -> String:
 def in_line(line: String, +col: U32) -> String:
   finish(scan(String.to_list(line), W{0, 0, [], None{}}, col), col)
 
+# lines still to skip after this char; a newline counts as one
+def at.skip.n(nl: Bool, n: U32) -> U32:
+  match nl:
+    case True{}:
+      (n - 1 : U32)
+    case False{}:
+      n
+
+# the next char starts the wanted line when this one was its preceding newline
+def at.skip.done(nl: Bool, n: U32) -> Bool:
+  match nl:
+    case True{}:
+      U32.is_eq(n, 1)
+    case False{}:
+      False{}
+
+# the source with `n` lines skipped. `done` means this string is the line
+def at.skip(s: String, +n: U32, done: Bool) -> String:
+  match s done:
+    case SNil{} _:
+      SNil{}
+    case SCon{h, t} True{}:
+      SCon{h, t}
+    case SCon{+h, t} False{}:
+      at.skip(t, at.skip.n(Char.is_eq(h, '\n'), n), at.skip.done(Char.is_eq(h, '\n'), n))
+
+# the char joins the line unless it is a newline
+def at.take.push(nl: Bool, acc: String, h: Char) -> String:
+  match nl:
+    case True{}:
+      acc
+    case False{}:
+      SCon{h, acc}
+
+# one line, reversed into acc, up to the next newline
+def at.take(s: String, acc: String, stop: Bool) -> String:
+  match s stop:
+    case SNil{} _:
+      String.reverse(acc)
+    case SCon{h, t} True{}:
+      String.reverse(acc)
+    case SCon{+h, t} False{}:
+      at.take(t, at.take.push(Char.is_eq(h, '\n'), acc, h), Char.is_eq(h, '\n'))
+
+# line `line` of a source, "" when it is past the end
+def at.line(s: String, +line: U32) -> String:
+  at.take(at.skip(s, line, U32.is_eq(line, 0)), SNil{}, False{})
+
 # the name under a (line, col) of a source, "" when none
 def at(source: String, line: U32, col: U32) -> String:
-  in_line(Maybe.default(&2, String, List.get(&2, String, String.lines(source), U32.to_nat(line)), ""), col)
+  in_line(at.line(source, line), col)
 
 # `Alias.rest` cut at its first dot: ("Alias", "rest"); no dot: (name, "")
 def cut.go(cs: List<&2, Char>, acc: List<&2, Char>) -> String & String:
