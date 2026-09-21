@@ -27,9 +27,8 @@
 #
 # The gate runs here too, before the upload: see the step comment below.
 #
-# ez is checked out beside bolt and built with the `bend` this repo pins,
-# exactly as `ci.yml` does it: same reasoning, and the same `bend` that would
-# do the publishing. There is no published ez release to fetch.
+# ez is checked out beside bolt and built with the `bend` this repo pins.
+# There is no published ez release to fetch.
 
 name: publish
 
@@ -66,11 +65,11 @@ jobs:
       - name: Build ez
         working-directory: bolt
         run: nix develop -c env BEND_LIB=../ez/.ez/lib bend ../ez/ez/main.bend -o ../ez.bin
-      # the gate, before the upload and not after it. ci.yml runs on a push
-      # to main, but a tag can be cut from anywhere, and what reaches the hub
-      # cannot be taken back: a bolt that fails its own tests is exactly what
-      # must not become a permanent package. `bend --publish` would catch a
-      # bolt that does not check, and nothing else.
+      # the gate, before the upload and not after it. A tag can be cut from
+      # anywhere, and what reaches the hub cannot be taken back: a bolt that
+      # fails its own tests is exactly what must not become a permanent
+      # package. `bend --publish` would catch a bolt that does not check,
+      # and nothing else.
       - name: ez test
         working-directory: bolt
         run: nix develop -c env BEND_LIB=.ez/lib ../ez.bin fetch && nix develop -c ../ez.bin test

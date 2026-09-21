@@ -32,11 +32,12 @@ A `#|` equality for a proveable claim is a bug. A directory with
     ez.lock.toml       the resolved pin: rev, narHash, and file digests
     flake.nix          bolt via ez's nix lib (bend follows bendlang/bend; bend-cc,
                        BEND_LIB from ez.lock.toml, and the package build come from ez);
-                       `nix flake check` builds the bolt package
+                       `nix flake check` builds the bolt package and runs
+                       checks.test (`ez test --unit-only` through mkProofs)
                        (nix sees tracked files only: git add first)
     tests/*.bend       stay-list host/integration only (bare, flake).
                        `ez test` runs each on its own, and caches none of them
-    .github/workflows/ ci: the gate, on a pull request and on a push to main.
+    .github/workflows/ ci: `nix flake check`, on a pull request and on a push to main.
                        tag and release: a vX.Y.Z tag and a GitHub Release,
                        nothing built and nothing uploaded.
                        publish: `ez publish`, the hub upload, workflow_dispatch
@@ -57,8 +58,10 @@ tests, so they live beside the project rather than under it --
 
 ## The gate
 
+    nix flake check                the bolt package and checks.test
+                                   (mkProofs runs `ez test --unit-only`)
     nix develop                    bend 2, bend-cc and node, with CC=bend-cc set
-    ez test                        every lane, every proof; green before every commit
+    ez test                        every lane, every proof, and the top-level tests/
     ez test --js-only              skip the native lanes
     ez test --full                 ignore the cache
     ez build bin/bolt.bin          the binary people run
@@ -83,10 +86,8 @@ ez is a separate binary built from a separate repo, so it still runs and still
 reports when bolt itself is broken, which is the whole of the argument that
 used to keep `gate.sh` around.
 
-CI runs the same thing. `.github/workflows/ci.yml` checks ez out beside bolt,
-builds it with the `bend` this repo pins, and runs `ez test` in `nix develop`:
-both lanes, every proof and `nix flake check` with them, since each compile the
-native lane drives fits a runner.
+CI is that flake check. `.github/workflows/ci.yml` runs `nix flake check`:
+the bolt package and checks.test.
 
 **ez is not a prerequisite for bolt.**
 `bend bolt/main.bend -o bin/bolt.bin` is the entire build: no ez, no nix.
