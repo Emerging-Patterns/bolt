@@ -256,3 +256,15 @@ def Laws.report_two():
 
 def Laws.refs_session():
   {==}
+
+def Laws.nav_session():
+  {==}
+
+def Laws.completion_session():
+  {==}
+
+def Laws.session_session():
+  {==}
+
+def Laws.lint_session():
+  {==}

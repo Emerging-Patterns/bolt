@@ -553,6 +553,97 @@ def refs.inbox() -> List<&2, String>:
    refs.ask("6", "rename", "6", "20", ",\"newName\":\"Word\""),
    "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"textDocument/semanticTokens/full\",\"params\":{\"textDocument\":{\"uri\":\"file:///w/a.bend\"}}}"]
 
+def nav.math() -> String:
+  "import Base\n\n# squares a number\ndef square(+x: U32) -> U32:\n  (x * x : U32)\n\ntype Shape is Data:\n  Circle{r: U32}\n"
+
+def nav.base() -> String:
+  "# shows a number\ndef U32.show(n: U32) -> String:\n  \"\"\n"
+
+def nav.at(+path: String) -> Maybe<&2, String>:
+  Bool.pick(Maybe<&2, String>, String.eq(path, "/w/lib/math.bend"), Some{nav.math()},
+    Bool.pick(Maybe<&2, String>, String.eq(path, "/base.bend"), Some{nav.base()}, None{}))
+
+def nav.read(path: String) -> IO(Maybe<&2, String>):
+  IO.pure(Maybe<&2, String>, nav.at(path))
+
+def nav.files() -> Files.Files:
+  Files.Files{nav.read, fake.base_path}
+
+def nav.main() -> String:
+  "import Base\\nimport ../lib/math.bend as M\\n\\n# doubles\\ndef twice(x: U32) -> U32:\\n  M.square(x)\\n\\ndef main() -> String:\\n  U32.show(twice(M.Circle{2}))\\n"
+
+def nav.edited() -> String:
+  "import Base\\n\\n# triples now\\ndef twice(x: U32) -> U32:\\n  x\\n\\ndef main() -> U32:\\n  twice(1)\\n"
+
+def nav.ask(id: String, method: String, line: String, col: String) -> String:
+  "{\"jsonrpc\":\"2.0\",\"id\":" ++ id ++ ",\"method\":\"textDocument/" ++ method ++ "\",\"params\":{\"textDocument\":{\"uri\":\"file:///w/app/main.bend\"},\"position\":{\"line\":" ++ line ++ ",\"character\":" ++ col ++ "}}}"
+
+def nav.inbox() -> List<&2, String>:
+  ["{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"file:///w/app/main.bend\",\"text\":\"" ++ nav.main() ++ "\"}}}",
+   nav.ask("1", "hover", "5", "5"),
+   nav.ask("2", "definition", "5", "5"),
+   nav.ask("3", "hover", "8", "20"),
+   nav.ask("4", "hover", "8", "6"),
+   nav.ask("5", "definition", "8", "13"),
+   nav.ask("6", "hover", "4", "12"),
+   nav.ask("7", "documentSymbol", "0", "0"),
+   nav.ask("9", "hover", "5", "11"),
+   nav.ask("10", "definition", "5", "11"),
+   "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{\"textDocument\":{\"uri\":\"file:///w/app/main.bend\"},\"contentChanges\":[{\"text\":\"" ++ nav.edited() ++ "\"}]}}",
+   nav.ask("8", "hover", "7", "3")]
+
+def completion.math() -> String:
+  "import Base\n\n# squares a number\ndef square(+x: U32) -> U32:\n  (x * x : U32)\n\ndef sqrt(x: U32) -> U32:\n  x\n\ndef cube(x: U32) -> U32:\n  x\n"
+
+def completion.base() -> String:
+  "law U32.show:\n  U32 -> String\n\ndef U32.show.go(n: U32) -> String:\n  \"\"\n\n# shows a number\ndef U32.show(n):\n  \"\"\n\ndef U32.add(a: U32, b: U32) -> U32:\n  a\n\ndef Nat.show(n: Nat) -> String:\n  \"\"\n"
+
+def completion.at(+path: String) -> Maybe<&2, String>:
+  Bool.pick(Maybe<&2, String>, String.eq(path, "/w/lib/math.bend"), Some{completion.math()},
+    Bool.pick(Maybe<&2, String>, String.eq(path, "/base.bend"), Some{completion.base()}, None{}))
+
+def completion.read(path: String) -> IO(Maybe<&2, String>):
+  IO.pure(Maybe<&2, String>, completion.at(path))
+
+def completion.files() -> Files.Files:
+  Files.Files{completion.read, fake.base_path}
+
+def completion.main() -> String:
+  "import Base\\nimport ../lib/math.bend as M\\n\\ndef mine(x: U32) -> U32:\\n  M.sq\\n  U32.s\\n  m\\n  x\\n"
+
+def completion.ask(id: String, line: String, col: String) -> String:
+  "{\"jsonrpc\":\"2.0\",\"id\":" ++ id ++ ",\"method\":\"textDocument/completion\",\"params\":{\"textDocument\":{\"uri\":\"file:///w/app/main.bend\"},\"position\":{\"line\":" ++ line ++ ",\"character\":" ++ col ++ "}}}"
+
+def completion.inbox() -> List<&2, String>:
+  ["{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"file:///w/app/main.bend\",\"text\":\"" ++ completion.main() ++ "\"}}}",
+   completion.ask("1", "4", "6"),
+   completion.ask("2", "5", "7"),
+   completion.ask("3", "6", "3"),
+   completion.ask("4", "7", "3")]
+
+def session.inbox() -> List<&2, String>:
+  ["{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}",
+   "{\"jsonrpc\":\"2.0\",\"method\":\"initialized\",\"params\":{}}",
+   "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"file:///w/my%20bad.bend\",\"text\":\"x\"}}}",
+   "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didSave\",\"params\":{\"textDocument\":{\"uri\":\"file:///w/good.bend\"}}}",
+   "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"workspace/symbol\",\"params\":{}}",
+   "not json at all",
+   "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didClose\",\"params\":{\"textDocument\":{\"uri\":\"file:///w/my%20bad.bend\"}}}",
+   "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"shutdown\"}",
+   "{\"jsonrpc\":\"2.0\",\"method\":\"exit\"}",
+   "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"initialize\"}"]
+
+def lint.opened() -> String:
+  "import Base\\n\\ndef f(x: U32) -> U32:\\n  y = 1\\n  x\\n"
+
+def lint.edited() -> String:
+  "import Base\\n\\n# the identity\\ndef f(x: U32) -> U32:\\n  x\\n"
+
+def lint.inbox() -> List<&2, String>:
+  ["{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"file:///w/bad.bend\",\"text\":\"" ++ lint.opened() ++ "\"}}}",
+   "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{\"textDocument\":{\"uri\":\"file:///w/bad.bend\"},\"contentChanges\":[{\"text\":\"" ++ lint.edited() ++ "\"}]}}",
+   "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didSave\",\"params\":{\"textDocument\":{\"uri\":\"file:///w/bad.bend\"}}}"]
+
 def tok.strings_src() -> String:
   String.join([
     "def kind(v: String) -> U32:",

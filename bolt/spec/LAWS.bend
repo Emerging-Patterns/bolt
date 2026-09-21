@@ -506,3 +506,57 @@ law refs_session:
       "{\"jsonrpc\":\"2.0\",\"id\":6,\"error\":{\"code\":-32803,\"message\":\"only a name bound in this file can be renamed\"}}",
       "{\"jsonrpc\":\"2.0\",\"id\":7,\"result\":{\"data\":[0,0,6,0,0,0,7,4,2,0,2,0,4,0,0,0,5,5,2,0,0,6,2,0,0,0,3,4,0,0,1,2,6,3,0,0,7,1,6,0,0,3,3,2,0,3,0,3,0,0,0,4,4,1,0,0,6,1,4,0,0,3,3,2,0,0,8,3,2,0,1,2,5,0,0,0,6,1,4,0,1,4,4,0,0,0,5,6,3,0,0,7,1,5,0,1,7,1,4,0,0,4,1,5,0,0,4,3,2,0,2,0,3,0,0,0,4,4,1,0,0,10,3,2,0,1,2,4,1,0,0,5,6,3,0]}}"
     ]) : IO(Unit)}
+
+# LAW: hover, definition and symbols over fake files
+law nav_session:
+  {Server.serve(~Script.Script, ~Script.new(), ~FakeChecker.new(), ~C.nav.files(), 100n,
+    Script.Script{C.nav.inbox()}, [])
+    == C.io.prints([
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/app/main.bend\",\"diagnostics\":[]}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"```bend\\ndef square(+x: U32) -> U32:\\n```\\n\\nsquares a number\"}}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"uri\":\"file:///w/lib/math.bend\",\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}}}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"```bend\\nCircle{r: U32}\\n```\"}}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":4,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"```bend\\ndef U32.show(n: U32) -> String:\\n```\\n\\nshows a number\"}}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":5,\"result\":{\"uri\":\"file:///w/app/main.bend\",\"range\":{\"start\":{\"line\":4,\"character\":0},\"end\":{\"line\":5,\"character\":0}}}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":6,\"result\":null}",
+      "{\"jsonrpc\":\"2.0\",\"id\":7,\"result\":[{\"name\":\"Base\",\"kind\":2,\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":1,\"character\":0}},\"selectionRange\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":1,\"character\":0}}},{\"name\":\"M\",\"kind\":2,\"range\":{\"start\":{\"line\":1,\"character\":0},\"end\":{\"line\":2,\"character\":0}},\"selectionRange\":{\"start\":{\"line\":1,\"character\":0},\"end\":{\"line\":2,\"character\":0}}},{\"name\":\"twice\",\"kind\":12,\"range\":{\"start\":{\"line\":4,\"character\":0},\"end\":{\"line\":5,\"character\":0}},\"selectionRange\":{\"start\":{\"line\":4,\"character\":0},\"end\":{\"line\":5,\"character\":0}}},{\"name\":\"main\",\"kind\":12,\"range\":{\"start\":{\"line\":7,\"character\":0},\"end\":{\"line\":8,\"character\":0}},\"selectionRange\":{\"start\":{\"line\":7,\"character\":0},\"end\":{\"line\":8,\"character\":0}}}]}",
+      "{\"jsonrpc\":\"2.0\",\"id\":9,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"```bend\\nx: U32\\n```\\n\\nparameter\"}}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":10,\"result\":{\"uri\":\"file:///w/app/main.bend\",\"range\":{\"start\":{\"line\":4,\"character\":10},\"end\":{\"line\":4,\"character\":11}}}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/app/main.bend\",\"diagnostics\":[]}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":8,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"```bend\\ndef twice(x: U32) -> U32:\\n```\\n\\ntriples now\"}}}"
+    ]) : IO(Unit)}
+
+# LAW: completion over fake files
+law completion_session:
+  {Server.serve(~Script.Script, ~Script.new(), ~FakeChecker.new(), ~C.completion.files(), 100n,
+    Script.Script{C.completion.inbox()}, [])
+    == C.io.prints([
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/app/main.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":2,\"code\":\"doc\",\"source\":\"bolt\",\"message\":\"def mine has no comment above it\"}]}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"isIncomplete\":true,\"items\":[{\"label\":\"M.square\",\"kind\":3,\"detail\":\"def square(+x: U32) -> U32:\",\"documentation\":{\"kind\":\"markdown\",\"value\":\"squares a number\"},\"filterText\":\"M.square\",\"textEdit\":{\"range\":{\"start\":{\"line\":4,\"character\":2},\"end\":{\"line\":4,\"character\":6}},\"newText\":\"M.square\"}},{\"label\":\"M.sqrt\",\"kind\":3,\"detail\":\"def sqrt(x: U32) -> U32:\",\"documentation\":{\"kind\":\"markdown\",\"value\":\"\"},\"filterText\":\"M.sqrt\",\"textEdit\":{\"range\":{\"start\":{\"line\":4,\"character\":2},\"end\":{\"line\":4,\"character\":6}},\"newText\":\"M.sqrt\"}}]}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"isIncomplete\":true,\"items\":[{\"label\":\"U32.show\",\"kind\":21,\"detail\":\"law U32.show:\",\"documentation\":{\"kind\":\"markdown\",\"value\":\"\"},\"filterText\":\"U32.show\",\"textEdit\":{\"range\":{\"start\":{\"line\":5,\"character\":2},\"end\":{\"line\":5,\"character\":7}},\"newText\":\"U32.show\"}},{\"label\":\"U32.show.go\",\"kind\":3,\"detail\":\"def U32.show.go(n: U32) -> String:\",\"documentation\":{\"kind\":\"markdown\",\"value\":\"\"},\"filterText\":\"U32.show.go\",\"textEdit\":{\"range\":{\"start\":{\"line\":5,\"character\":2},\"end\":{\"line\":5,\"character\":7}},\"newText\":\"U32.show.go\"}}]}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{\"isIncomplete\":true,\"items\":[{\"label\":\"mine\",\"kind\":3,\"detail\":\"def mine(x: U32) -> U32:\",\"documentation\":{\"kind\":\"markdown\",\"value\":\"\"},\"filterText\":\"mine\",\"textEdit\":{\"range\":{\"start\":{\"line\":6,\"character\":2},\"end\":{\"line\":6,\"character\":3}},\"newText\":\"mine\"}}]}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":4,\"result\":{\"isIncomplete\":true,\"items\":[{\"label\":\"x\",\"kind\":6,\"detail\":\"x: U32\",\"documentation\":{\"kind\":\"markdown\",\"value\":\"parameter\"},\"filterText\":\"x\",\"textEdit\":{\"range\":{\"start\":{\"line\":7,\"character\":2},\"end\":{\"line\":7,\"character\":3}},\"newText\":\"x\"}}]}}"
+    ]) : IO(Unit)}
+
+# LAW: a script session over the fake checker
+law session_session:
+  {Server.serve(~Script.Script, ~Script.new(), ~FakeChecker.new(), ~C.fake.files(), 100n,
+    Script.Script{C.session.inbox()}, [])
+    == C.io.prints([
+      "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"capabilities\":{\"textDocumentSync\":{\"openClose\":true,\"change\":1,\"save\":true},\"hoverProvider\":true,\"definitionProvider\":true,\"documentSymbolProvider\":true,\"completionProvider\":{\"triggerCharacters\":[\".\"]},\"referencesProvider\":true,\"renameProvider\":true,\"semanticTokensProvider\":{\"legend\":{\"tokenTypes\":[\"keyword\",\"function\",\"type\",\"enumMember\",\"parameter\",\"variable\",\"property\",\"string\",\"number\",\"comment\",\"typeParameter\"],\"tokenModifiers\":[]},\"full\":true}},\"serverInfo\":{\"name\":\"bolt\"}}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/my%20bad.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":1,\"source\":\"bend\",\"message\":\"expected : String\\nobserved : U32\"}]}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/good.bend\",\"diagnostics\":[]}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":2,\"error\":{\"code\":-32601,\"message\":\"method not found\"}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/my%20bad.bend\",\"diagnostics\":[]}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":null}"
+    ]) : IO(Unit)}
+
+# LAW: lint findings follow the open text
+law lint_session:
+  {Server.serve(~Script.Script, ~Script.new(), ~FakeChecker.new(), ~C.fake.files(), 100n,
+    Script.Script{C.lint.inbox()}, [])
+    == C.io.prints([
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/bad.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":1,\"source\":\"bend\",\"message\":\"expected : String\\nobserved : U32\"},{\"range\":{\"start\":{\"line\":2,\"character\":0},\"end\":{\"line\":3,\"character\":0}},\"severity\":2,\"code\":\"doc\",\"source\":\"bolt\",\"message\":\"def f has no comment above it\"},{\"range\":{\"start\":{\"line\":3,\"character\":2},\"end\":{\"line\":3,\"character\":3}},\"severity\":2,\"code\":\"unused\",\"source\":\"bolt\",\"message\":\"local y is never used\"}]}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/bad.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":1,\"source\":\"bend\",\"message\":\"expected : String\\nobserved : U32\"}]}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/bad.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":1,\"source\":\"bend\",\"message\":\"expected : String\\nobserved : U32\"}]}}"
+    ]) : IO(Unit)}
