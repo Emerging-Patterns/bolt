@@ -57,17 +57,27 @@
       # bend 2 itself, from its own flake: the wrapper puts nix's clang on
       # PATH for `bend -o`, and bend-cc on CC still wins for a GPU build
       bend = inputs.bend.packages.${system}.default;
-      # shake v0.1.1, the git-backed ledger dep bolt's CLI imports. The nix
-      # sandbox cannot fetch 0x imports, so the same rev and narHash as
-      # ez.toml are fetched here and offered as BEND_LIB.
+      # git-backed ledger deps the source imports. The nix sandbox cannot
+      # fetch 0x imports, so the same rev and narHash as ez.toml are fetched
+      # here and offered as BEND_LIB.
       shakeSrc = pkgs.fetchgit {
         url = "https://github.com/Emerging-Patterns/shake";
         rev = "cb02b47e80fdab81dbaa8c3cec2356f7a22d02b0";
         hash = "sha256-G4uW2UV4Me6lJYxGU5rfn2kvJKs+/un4Hc0OjcirL7A=";
       };
-      shakeLib = pkgs.runCommand "bolt-shake-lib" { inherit shakeSrc; } ''
+      ezjsonSrc = pkgs.fetchgit {
+        url = "https://github.com/Emerging-Patterns/ezjson";
+        rev = "8b688362f6f3de0598b76ff0349c878ffb3d3b2d";
+        hash = "sha256-FIblPhvLYJ8q8mdmGXsI2qkXZ3tP50WGcxr+X5PaTxg=";
+      };
+      depsLib = pkgs.runCommand "bolt-deps-lib" { inherit shakeSrc ezjsonSrc; } ''
         mkdir -p $out/0x65bf91e14c96bf0c25491d716ec9f68c
+        mkdir -p $out/0xa3c2445eb44c5d8406e6229be518fccb
         cp $shakeSrc/shake/main.bend $out/0x65bf91e14c96bf0c25491d716ec9f68c/main.bend
+        cp $ezjsonSrc/ezjson/lazy.bend $ezjsonSrc/ezjson/lex.bend \
+          $ezjsonSrc/ezjson/main.bend $ezjsonSrc/ezjson/parse.bend \
+          $ezjsonSrc/ezjson/print.bend $ezjsonSrc/ezjson/value.bend \
+          $out/0xa3c2445eb44c5d8406e6229be518fccb/
       '';
       # bolt, built the one way anything builds it: `bend <entry> -o <binary>`.
       # That is not a shorter spelling of emitting the C and compiling it by
@@ -88,7 +98,7 @@
         version = "0.4.0";  # keep with editors/vscode/package.json
         src = self;
         nativeBuildInputs = [ bend pkgs.makeWrapper ];
-        BEND_LIB = shakeLib;
+        BEND_LIB = depsLib;
         buildPhase = ''
           bend bolt/main.bend -o bolt.bin
         '';
@@ -113,8 +123,8 @@
       # binary resolution -- and a gate that borrowed whatever node the machine
       # happened to have would answer a different question on every machine.
       # bolt itself needs none of this: `bend bolt/main.bend -o bin/bolt.bin`
-      # is the whole build once shake is on BEND_LIB (tests/bare.bend).
-      # The package build above takes shake from the store. The shell does
+      # is the whole build once the ledger deps are on BEND_LIB (tests/bare.bend).
+      # The package build above takes them from the store. The shell does
       # not: `ez fetch` writes the lock into `.ez/lib`, and a store path is
       # read-only (CI failed that way). Same as ez's own default shell.
       devShells.${system}.default = pkgs.mkShellNoCC {
