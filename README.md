@@ -27,8 +27,7 @@ bend bolt/main.bend -o bin/bolt.bin      # the whole build
 bin/bolt.bin                             # lints every .bend under the current directory
 ```
 
-Run and install with [ez](https://github.com/Emerging-Patterns/ez). `ezx` is
-`ez tool run`:
+Run and install with [ez](https://github.com/Emerging-Patterns/ez):
 
 ```
 ezx Emerging-Patterns/bolt
