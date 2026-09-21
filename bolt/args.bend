@@ -1,5 +1,5 @@
 # bolt/args: bolt's command line, parsed by shake. `bolt [lint] [file..]`,
-# `bolt check file..`, `bolt lsp`. A rest positional at the root (and on
+# `bolt check file..`, `bolt lsp`, `bolt --version`. A rest positional at the root (and on
 # `lint` / `check`) takes every leftover word, so `bolt a.bend b.bend` lints
 # those files. `help` is shake's usage page; `--help` stays with the Bend
 # runtime. A compiled binary does pass its arguments through; the runtime
@@ -7,6 +7,7 @@
 # `--help`), wherever they stand, and `--` hands even those to the program.
 import Base
 import 0x65bf91e14c96bf0c25491d716ec9f68c/main.bend as Shake
+import ./version.bend as Ver
 
 # the line at the quantity the rest of bolt reads it at (IO.args gives each
 # argument once)
@@ -27,10 +28,15 @@ def argv() -> IO(List<&2, String>):
 def spec.files(+help: String) -> Shake.Arg:
   Shake.rest("files", help, False{}, None{}, [])
 
+# the release number
+def version() -> String:
+  Ver.text()
+
 # bolt's program spec
 def spec() -> Shake.Cli:
-  Shake.app("bolt", "A linter, checker and language server for Bend 2.", None{},
-    [spec.files("Files to lint")],
+  Shake.app("bolt", "A linter, checker and language server for Bend 2.", Some{version()},
+    [Shake.flag("version", None{}, Some{"version"}, "Print the version"),
+     spec.files("Files to lint")],
     [Shake.sub("lint", "Lint files", [spec.files("Files to lint")], []),
      Shake.sub("check", "Check files", [spec.files("Files to check")], []),
      Shake.sub("lsp", "Serve an editor over stdio", [], [])])

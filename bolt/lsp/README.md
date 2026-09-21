@@ -5,16 +5,17 @@ and save, and hover, go-to-definition, document symbols and completion as you ty
 
 ```
 bend bolt/main.bend -o bin/bolt.bin   # from the repo root; clang 14 is enough
-bolt lsp --gpu off                    # speaks LSP on stdio, on the cores
+bolt lsp                              # speaks LSP on stdio, on the cores
+bolt lsp --gpu on                     # the same, on the device
 ```
 
 It is one command of [bolt](../)'s binary (`lsp/run.bend` is its
-entry). Every launcher runs it `bolt lsp --gpu off` (the VS Code extension,
-`tests/spawn.js`, the gate; the nix wrapper adds the flag itself): a native
-Bend binary takes the GPU when there is one, and a language server has no
-use for a CUDA context. The runtime takes `--gpu off` out of the line, so
-`IO.args()` still reads just `lsp`. It ships native only: the JS lane
-overflows its stack on a large message. Idle it costs no CPU.
+entry). `bolt lsp` with no `--gpu` is `--gpu off`: a native binary takes
+the device when the line asks and one is present, and a language server
+stays on the cores unless the line says `--gpu on` or a size (`--gpu 4GB`).
+The runtime takes `--gpu` out of the line, so `IO.args()` still reads just
+`lsp`. It ships native only: the JS lane overflows its stack on a large
+message. Idle it costs no CPU.
 
 ## How it is wired
 

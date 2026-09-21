@@ -1,10 +1,11 @@
 # bolt: the one binary. Shake parses the line: `lint`, or a word that is no
 # subcommand, or nothing, lints the files named after it (every `.bend` file
 # under the current directory when none are); `check` runs the checker on
-# them; `lsp` serves an editor over stdio; `help` prints usage. Build it
-# native (`bend bolt/main.bend -o bin/bolt.bin`), and run the server on the
-# cores (`bolt lsp --gpu off`): the runtime takes `--gpu` out of the line
-# itself.
+# them; `lsp` serves an editor over stdio; `help` prints usage; `--version`
+# prints the release. Build it native (`bend bolt/main.bend -o
+# bin/bolt.bin`). `bolt lsp` runs on the cores: with no `--gpu` it is
+# `--gpu off`, and `--gpu on` or `--gpu 4GB` asks for the device. The
+# runtime takes `--gpu` out of the line itself.
 import Base
 import 0x65bf91e14c96bf0c25491d716ec9f68c/main.bend as Shake
 import ./args.bend as Args
@@ -33,9 +34,16 @@ def dispatch(cmd: Cmd, paths: List<&2, String>) -> IO(Unit):
     case CLsp{}:
       Lsp.run()
 
-# a successful parse: the selected command and its files
+def run.at(ask: Bool, +m: Shake.Matched) -> IO(Unit):
+  match ask:
+    case True{}:
+      IO.print("bolt " ++ Args.version())
+    case False{}:
+      dispatch(command(String.join(Shake.path_of(m), "/")), Shake.get_all(m, "files"))
+
+# a successful parse: the version, or the selected command and its files
 def run(+m: Shake.Matched) -> IO(Unit):
-  dispatch(command(String.join(Shake.path_of(m), "/")), Shake.get_all(m, "files"))
+  run.at(Shake.on(m, "version"), m)
 
 # a hard error
 def fail.err(e: Shake.ParseErr) -> IO(Unit):

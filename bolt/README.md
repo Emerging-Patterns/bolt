@@ -192,8 +192,9 @@ lints every `.bend` file under the current directory
 `node_modules`, and reads a directory through the `walk/` service — a
 foreign effect, `dir.c` and `dir.js`). `bolt help` prints usage. A run
 that found errors exits 1. Bend's runtime takes its own flags out of the
-line before the program sees it, so `bolt lsp --gpu off` reaches `main` as
-`lsp` and keeps the server on the cores.
+line before the program sees it, so `bolt lsp` reaches `main` as `lsp`.
+With no `--gpu` that launch is `--gpu off` (the cores); `--gpu on` or
+`--gpu 4GB` asks for the device.
 
 ## In the editor
 

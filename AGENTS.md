@@ -193,7 +193,8 @@ Design specs and plans are not kept in this repo; they live under
   flags included (2.0.16; 2.0.5 did not, which is where "a Bend binary takes
   no arguments" came from). The runtime keeps only its own — `--threads`,
   `--gpu`, `--gpu-build`, `--help` — and strips them wherever they stand, so
-  `bolt lsp --gpu off` reaches `IO.args()` as `[lsp]`; `--` hands even those
+  `bolt lsp --gpu off` reaches `IO.args()` as `[lsp]` (`bolt lsp` with no
+  `--gpu` is that same launch); `--` hands even those
   to the program. `IO.args()` has no argv[0], so a binary cannot find itself
   by it. The *interpreted* lane differs: `bend f.bend a b` passes positional
   arguments but bend's own CLI rejects flags it does not know.
@@ -203,7 +204,9 @@ Design specs and plans are not kept in this repo; they live under
 - The JS lane overflows its stack on long strings (~65KB). Head such a test
   `# lanes: native`; anything long-running ships as the native binary.
 - The GPU is on by default in a native binary: the CPU lane is `--gpu off`.
-  Every launcher of `bolt lsp` passes it (tests/bare.bend, bolt/lsp/tests/spawn.js,
-  the VS Code extension, the nix wrapper).
+  `bolt lsp` with no `--gpu` starts again as `--gpu off` before the runtime
+  chooses a device; `--gpu on` or `--gpu 4GB` is left as written. Launchers
+  may still pass `--gpu off` (tests/bare.bend, bolt/lsp/tests/spawn.js, the
+  VS Code extension, the nix wrapper).
 - Link native binaries with `bend-cc` only. The wrapped nix clang links nix's
   glibc and nvrtc then fails to load `libnvrtc-builtins`.

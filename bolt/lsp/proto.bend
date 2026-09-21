@@ -9,6 +9,7 @@ import ../../syntax/bind.bend as Bind
 import ./semantic.bend as Semantic
 import ../finding.bend as Lint
 import ../config.bend as Config
+import ../version.bend as Ver
 
 # strings as JSON strings
 def strings(ss: List<&2, String>) -> List<&2, J.Json>:
@@ -47,7 +48,7 @@ def capabilities() -> J.Json:
       ("semanticTokensProvider", J.obj([
         ("legend", J.obj([("tokenTypes", J.arr(strings(Semantic.legend()))), ("tokenModifiers", J.arr([]))])),
         ("full", J.JBool{True{}})]))])),
-    ("serverInfo", J.obj([("name", J.JStr{"bolt"})]))])
+    ("serverInfo", J.obj([("name", J.JStr{"bolt"}), ("version", J.JStr{Ver.text()})]))])
 
 # an LSP position (0-based line and character)
 def position(line: U32, character: U32) -> J.Json:
