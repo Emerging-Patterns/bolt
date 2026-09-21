@@ -68,8 +68,8 @@ Consumers: `par/fold.bend` (`fold(~m, ~leaf, n, i)`, a parallel fold) and
 `check/kit.bend` (`eq_u32`, `eq_str`, the test kit).
 
 `check` is core used on itself: the kit's reporter is an injected service, and
-core's tests run on the kit. Other projects test with
-`../core/check/kit.bend` and `../core/check/print.bend`.
+the kit's own equalities are laws. Other projects that still print a check
+do it with `../core/check/kit.bend` and `../core/check/print.bend`.
 
 ## Laws
 

@@ -63,9 +63,13 @@ def marker(s: String) -> Maybe<&2, U32>:
 def clean(+s: String) -> String:
   Bool.pick(String, String.starts_with(s, "- "), String.drop(s, 2n), s)
 
-# a non-empty line onto the message
+# bend's "N is available: run bend update" is not part of a diagnostic
+def is_nag(+s: String) -> Bool:
+  String.contains(s, "is available: run bend update")
+
+# a non-empty, non-nag line onto the message
 def push(+s: String, +msg: List<&2, String>) -> List<&2, String>:
-  Bool.pick(List<&2, String>, String.is_empty(s), msg, s <> msg)
+  Bool.pick(List<&2, String>, Bool.or(String.is_empty(s), is_nag(s)), msg, s <> msg)
 
 # the message lines (reversed) as text, headed by where it is when that is
 # another file

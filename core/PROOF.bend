@@ -130,3 +130,54 @@ def Laws.fold_leaf(_i):
 
 def Laws.fold_split(_p, _i):
   {==}
+
+def Laws.fake_clock_now():
+  {==}
+
+def Laws.fake_clock_via_service():
+  {==}
+
+def Laws.real_clock_now():
+  {==}
+
+def Laws.real_clock_new():
+  {==}
+
+def Laws.real_log_say():
+  {==}
+
+def Laws.quiet_log_say():
+  {==}
+
+def Laws.quiet_log_own():
+  {==}
+
+def Laws.eq_u32_pass():
+  {==}
+
+def Laws.eq_u32_fail():
+  {==}
+
+def Laws.eq_str_pass():
+  {==}
+
+def Laws.eq_str_fail():
+  {==}
+
+def Laws.eq_u32_quiet():
+  {==}
+
+def Laws.print_pass():
+  {==}
+
+def Laws.print_fail():
+  {==}
+
+def Laws.report_pass():
+  {==}
+
+def Laws.report_fail():
+  {==}
+
+def Laws.quiet_say():
+  {==}

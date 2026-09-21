@@ -5,8 +5,8 @@ written in Bend, with a VS Code extension.
 
 - `bolt` lints: comments on every def, unused names, the binder-vs-def trap,
   leftover holes, whitespace, double recursion under `Bool.pick`, and laws
-  that reach every pure def. A `bolt.bend` at the project root says which
-  rules, and how hard (off, warn, error), oxlint-style by group.
+  that reach every def (IO included). A `bolt.bend` at the project root says
+  which rules, and how hard (off, warn, error), oxlint-style by group.
 - `bolt check file..` runs Bend's checker and prints its errors in the same
   shape, `path:line:col: error: message`.
 - `bolt lsp` is the language server: the checker's errors on open and save,
@@ -92,10 +92,14 @@ ez test                  every */tests/*.bend on both lanes, every PROOF.bend
 ez build bin/bolt.bin    the binary people run
 ```
 
-`ez test` runs each test on the JS lane and the native lane against the `#|`
-trailer the file ends in, checks every proof, caps each `bend` at `EZ_CAP`
-gigabytes, and caches a lane on the content of everything it reads, so a second
-run over an unchanged tree is seconds. There is no shell script in this repo.
+`ez test` checks every `PROOF.bend`, then runs each stay-list
+host/integration test on the JS lane and the native lane against the `#|`
+trailer the file ends in, caps each `bend` at `EZ_CAP` gigabytes, and caches
+a lane on the content of everything it reads, so a second run over an
+unchanged tree is seconds. There is no shell script in this repo. If Bend
+can state a claim as a law (including an IO equality), it goes in
+`LAWS.bend` / `PROOF.bend`. `tests/*.bend` / `#|` exist only for claims
+Bend cannot prove.
 
 ez is a convenience, not a requirement: it buys the ledger above, the cache and
 the caps. bolt itself has no dependency on it, and `tests/bare.bend` proves that

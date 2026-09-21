@@ -1,5 +1,5 @@
-# walk/fake: a canned tree, for the tests: a source file at the top and one
-# two levels down, beside directories the walk must not descend into.
+# walk/fake: a canned tree: a source file at the top and one two levels down,
+# beside directories the walk must not descend into.
 import Base
 import ./service.bend as S
 

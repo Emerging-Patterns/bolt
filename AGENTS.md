@@ -4,6 +4,24 @@ This is bolt: a linter, checker and language server for Bend 2, and its VS
 Code extension, written in Bend (README.md). Read `bend guide` before
 writing Bend. Then this.
 
+## Hard rule
+
+If Bend can state it as a law (including an IO equality
+`{main() == IO.print("…") : IO(Unit)}`), it goes in `LAWS.bend` /
+`PROOF.bend`.
+
+`tests/*.bend` and `#|` exist only for claims Bend cannot prove:
+host/integration (bend, nix, node, disk, process). The stay list is
+`tests/bare.bend`, `tests/flake.bend`, `bolt/lsp/tests/checker.bend`,
+`syntax/tests/lex_files.bend`, `syntax/tests/tree_files.bend`,
+`bolt/lsp/tests/levels.bend`, plus companions
+(`bolt/lsp/tests/spawn.js`, `tests/locate.js`, `run/run.bend`) and
+`lazy/tests/lazy.bend` (a thunk that must not run: Bend cannot state
+“this side was skipped”).
+
+A `#|` equality for a proveable claim is a bug. A directory with
+`LAWS.bend` and `PROOF.bend` is complete. Do not add `tests/`.
+
 ## Layout
 
     ez.toml            the ledger: bolt's name and its entry, `bolt/main.bend`.
@@ -13,10 +31,9 @@ writing Bend. Then this.
                        bend-cc: clang 19 for native (and GPU) builds; `nix flake check`
                        builds bolt and proves the C toolchain
                        (nix sees tracked files only: git add first)
-    run/               one effect, for the tests above bolt rather than inside
-                       it: a program run with its arguments
-    tests/*.bend       the end-to-end tests: that bolt still builds with bare
-                       `bend`, and that the packaged build still builds.
+    run/               one effect, for host/integration tests above bolt rather
+                       than inside it: a program run with its arguments
+    tests/*.bend       stay-list host/integration only (bare, flake).
                        `ez test` runs each on its own, and caches none of them
     .github/workflows/ ci: the gate, on a pull request and on a push to main.
                        tag and release: a vX.Y.Z tag and a GitHub Release,
@@ -25,12 +42,12 @@ writing Bend. Then this.
                        only, on an existing tag -- a person running it is the ask
     editors/vscode/    the VS Code extension (not Bend; never publish it to the marketplace unasked)
     <project>/         one dir per project
-      LAWS.bend        the claims: human-owned, do not edit to make a proof pass
+      LAWS.bend        the claims: human-owned, do not edit to make a proof pass.
+                       Closed equalities (including `IO(T)`) live here.
       PROOF.bend       the proofs; `bend PROOF.bend` prints "All terms check."
                        (every one in the tree is gated, so a fixture holding a
                        proof that is meant to fail cannot live here)
-      tests/*.bend     each ends in the `#|` lines its run must print
-                       (LAWS/PROOF are optional; a project needs tests)
+                       no `tests/` unless the claim is on the stay list
       README.md
 
 Anything under a `tests/` directory is a test. Fixtures a test reads are not
@@ -81,8 +98,8 @@ Design specs and plans are not kept in this repo; they live under
 
 ## Conventions
 
-- New code comes test-first: write `tests/x.bend` with its `#|` trailer, watch
-  the gate fail, then implement.
+- New proveable behavior is a law in `LAWS.bend`, then a filling in
+  `PROOF.bend`. Watch `bend PROOF.bend` fail, then prove.
 - `bolt` (bolt/README.md) runs at the end of the gate, every rule an error
   by the root bolt.bend: keep it clean. The binary the gate lints with is the
   one `tests/bare.bend` has just built from this tree, never whatever `bolt`
@@ -92,10 +109,12 @@ Design specs and plans are not kept in this repo; they live under
   Every top-level def, type and law gets a comment right above it (helpers
   named `x.go` ride on x's); a parameter that is there to be ignored starts
   with `_`; no let or pattern binder may share a name with a def above it;
-  a project with a LAWS.bend has every pure def named by some law.
+  a project with a LAWS.bend has every def named by some law, IO included.
+  Helpers (dotted names), tests, and the law files themselves are out of
+  scope.
 - Dependencies are injected the `core` way (see core/README.md): a service is
   a folder, `x/service.bend` plus one file per implementation exporting
-  `new()`. Tests use `core/check/kit.bend`.
+  `new()`.
 - A service file's header says whether it is pure (GPU-safe) or an effect
   (CPU event loop only). Only pure code may sit under a `!` call.
 - Never `bend --publish`, and never `ez publish`: both upload to the public
@@ -116,7 +135,7 @@ Design specs and plans are not kept in this repo; they live under
 - Argument quantities are part of a function type: a field typed
   `@+i:U32 -> U32` only takes defs declared `(+i: U32)`.
 - A template is not checked until something instantiates it: every template
-  needs a test that calls it.
+  needs a use that calls it (a law is enough).
 - User code may not call a law before its def is filled, so Base's mutually
   recursive arm/go lemma shape does not work here. Give the arm the induction
   hypothesis as a parameter, and erase its other arguments (`for -at`) so the

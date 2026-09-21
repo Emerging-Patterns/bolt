@@ -1,11 +1,12 @@
 # rule law (project-wide): in a project that states laws (a directory with a
-# LAWS.bend), every pure def is named by some law. A def a law never mentions
-# has no stated property: it is the coverage gap. A type is covered once any
-# law reaches its module (a law about an instance names the accessors, never
-# the service type). Out of scope: helpers (dotted names), `main`, tests, the
-# law files themselves, and a module that touches IO (a law cannot state it).
-# The rule reads each file's digest (bolt/rules/digest.bend), never the parsed
-# source: its phases use the list three times, and a `+` reuse copies it.
+# LAWS.bend), every def is named by some law, IO included. A def a law never
+# mentions has no stated property: it is the coverage gap. A type is covered
+# once any law reaches its module (a law about an instance names the
+# accessors, never the service type). Out of scope: helpers (dotted names),
+# tests, and the law files themselves. `main` is a def: a law that names it
+# covers it. The rule reads each file's digest (bolt/rules/digest.bend),
+# never the parsed source: its phases use the list three times, and a `+`
+# reuse copies it.
 import Base
 import ../../../lazy/lazy.bend as Lazy
 import ../../finding.bend as F
@@ -68,7 +69,7 @@ def gaps(ts: List<&2, Digest.Top>, +ms: List<&2, Digest.Mention>, +p: String, +p
     case Con{Digest.Top{Outline.IDef{}, +name, +line}, rest}:
       +more = gaps(rest, ms, p, path)
       Bool.pick(List<&2, F.Finding>,
-        Bool.or(Bool.or(String.contains(name, "."), String.eq(name, "main")), has_item(ms, p, name)), more,
+        Bool.or(String.contains(name, "."), has_item(ms, p, name)), more,
         F.Finding{path, line, 0, 0, "law", "def " ++ name ++ " is named by no law"} <> more)
     case Con{Digest.Top{Outline.IType{}, +name, +line}, rest}:
       +more = gaps(rest, ms, p, path)
