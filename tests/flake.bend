@@ -15,14 +15,14 @@
 # cgroup a test could make. Capping it is a MemoryMax drop-in on
 # nix-daemon.service, not a change this repo can make.
 import Base
-import ../run/run.bend as R
+import 0x29fbb19f01e963cc6271864b7e442159/main.bend as Snap
 import ../core/check/kit.bend as Check
 import ../core/check/print.bend as Report
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    checked : String <- R.exec(["nix", "flake", "check"])
+    checked : String <- Snap.exec(["nix", "flake", "check"])
     Check.eq_str(~Report.new(), "nix flake check: the package and its C toolchain build",
-      R.code(checked), "0")
+      Snap.code(checked), "0")
 
 #|ok nix flake check: the package and its C toolchain build

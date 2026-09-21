@@ -57,9 +57,9 @@
       # bend 2 itself, from its own flake: the wrapper puts nix's clang on
       # PATH for `bend -o`, and bend-cc on CC still wins for a GPU build
       bend = inputs.bend.packages.${system}.default;
-      # git-backed ledger deps the source imports. The nix sandbox cannot
-      # fetch 0x imports, so the same rev and narHash as ez.toml are fetched
-      # here and offered as BEND_LIB.
+      # git-backed ledger deps. The nix sandbox cannot fetch 0x imports, so
+      # the same rev and narHash as ez.toml are fetched here and offered as
+      # BEND_LIB.
       shakeSrc = pkgs.fetchgit {
         url = "https://github.com/Emerging-Patterns/shake";
         rev = "cb02b47e80fdab81dbaa8c3cec2356f7a22d02b0";
@@ -70,14 +70,24 @@
         rev = "8b688362f6f3de0598b76ff0349c878ffb3d3b2d";
         hash = "sha256-FIblPhvLYJ8q8mdmGXsI2qkXZ3tP50WGcxr+X5PaTxg=";
       };
-      depsLib = pkgs.runCommand "bolt-deps-lib" { inherit shakeSrc ezjsonSrc; } ''
+      snapSrc = pkgs.fetchgit {
+        url = "https://github.com/Emerging-Patterns/snap";
+        rev = "9c2aee9f139c353201ca3b086b15703ca7c63e30";
+        hash = "sha256-0paitFZb+gr17vw3JbvKoEDGHyRF5I+Y7SvdY1Y7IjU=";
+      };
+      depsLib = pkgs.runCommand "bolt-deps-lib" { inherit shakeSrc ezjsonSrc snapSrc; } ''
         mkdir -p $out/0x65bf91e14c96bf0c25491d716ec9f68c
         mkdir -p $out/0xa3c2445eb44c5d8406e6229be518fccb
+        mkdir -p $out/0x29fbb19f01e963cc6271864b7e442159
         cp $shakeSrc/shake/main.bend $out/0x65bf91e14c96bf0c25491d716ec9f68c/main.bend
         cp $ezjsonSrc/ezjson/lazy.bend $ezjsonSrc/ezjson/lex.bend \
           $ezjsonSrc/ezjson/main.bend $ezjsonSrc/ezjson/parse.bend \
           $ezjsonSrc/ezjson/print.bend $ezjsonSrc/ezjson/value.bend \
           $out/0xa3c2445eb44c5d8406e6229be518fccb/
+        cp $snapSrc/snap/main.bend $snapSrc/snap/exec.c $snapSrc/snap/exec.js \
+          $snapSrc/snap/start.c $snapSrc/snap/start.js \
+          $snapSrc/snap/par.c $snapSrc/snap/par.js \
+          $out/0x29fbb19f01e963cc6271864b7e442159/
       '';
       # bolt, built the one way anything builds it: `bend <entry> -o <binary>`.
       # That is not a shorter spelling of emitting the C and compiling it by
