@@ -1,3 +1,12 @@
 [package]
 name = "bolt"
 entry = "bolt/main.bend"
+
+[deps.shake]
+hash = "0x65bf91e14c96bf0c25491d716ec9f68c"
+git = "https://github.com/Emerging-Patterns/shake"
+rev = "cb02b47e80fdab81dbaa8c3cec2356f7a22d02b0"
+tag = "v0.1.1"
+root = "shake"
+narHash = "sha256-G4uW2UV4Me6lJYxGU5rfn2kvJKs+/un4Hc0OjcirL7A="
+entry = "shake/main.bend"

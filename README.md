@@ -58,6 +58,7 @@ bolt                   every .bend file under the current directory
 bolt a.bend b.bend     the files given
 bolt check a.bend      the checker's errors, in the same shape
 bolt lsp               the language server, over stdio
+bolt help              usage
 ```
 
 Each finding is one line, `path:line:col: level: rule: message`, then
@@ -103,4 +104,4 @@ Bend cannot prove.
 
 ez is a convenience, not a requirement: it buys the ledger above, the cache and
 the caps. bolt itself has no dependency on it, and `tests/bare.bend` proves that
-on every run by building bolt with bare `bend` and `BEND_LIB` unset.
+on every run by building bolt with bare `bend` from the git-pinned shake rev.

@@ -73,7 +73,7 @@ jobs:
       # bolt that does not check, and nothing else.
       - name: ez test
         working-directory: bolt
-        run: nix develop -c ../ez.bin test
+        run: nix develop -c env BEND_LIB=.ez/lib ../ez.bin fetch && nix develop -c ../ez.bin test
       - name: ez publish
         working-directory: bolt
         shell: bash

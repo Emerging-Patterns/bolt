@@ -50,6 +50,16 @@ def show.lines(fs: List<&2, F.Finding>) -> String:
 def args.split(+av: List<&2, String>) -> String:
   "[" ++ Args.command(av) ++ "] " ++ String.join(Args.files(av), " ")
 
+def args.help_root() -> String:
+  "bolt\n" ++
+  "A linter, checker and language server for Bend 2.\n\n" ++
+  "Usage: bolt [FILES]... [COMMAND]\n\n" ++
+  "Commands:\n" ++
+  "  lint   Lint files\n" ++
+  "  check  Check files\n" ++
+  "  lsp    Serve an editor over stdio\n" ++
+  "  help   Print this message or the help of the given subcommand(s)\n\n"
+
 def rules.undocumented() -> String:
   String.join([
     "import Base",

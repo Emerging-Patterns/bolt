@@ -57,6 +57,18 @@
       # bend 2 itself, from its own flake: the wrapper puts nix's clang on
       # PATH for `bend -o`, and bend-cc on CC still wins for a GPU build
       bend = inputs.bend.packages.${system}.default;
+      # shake v0.1.1, the git-backed ledger dep bolt's CLI imports. The nix
+      # sandbox cannot fetch 0x imports, so the same rev and narHash as
+      # ez.toml are fetched here and offered as BEND_LIB.
+      shakeSrc = pkgs.fetchgit {
+        url = "https://github.com/Emerging-Patterns/shake";
+        rev = "cb02b47e80fdab81dbaa8c3cec2356f7a22d02b0";
+        hash = "sha256-G4uW2UV4Me6lJYxGU5rfn2kvJKs+/un4Hc0OjcirL7A=";
+      };
+      shakeLib = pkgs.runCommand "bolt-shake-lib" { inherit shakeSrc; } ''
+        mkdir -p $out/0x65bf91e14c96bf0c25491d716ec9f68c
+        cp $shakeSrc/shake/main.bend $out/0x65bf91e14c96bf0c25491d716ec9f68c/main.bend
+      '';
       # bolt, built the one way anything builds it: `bend <entry> -o <binary>`.
       # That is not a shorter spelling of emitting the C and compiling it by
       # hand -- it is the same compile. bend runs the C it emits through
@@ -76,6 +88,7 @@
         version = "0.4.0";  # keep with editors/vscode/package.json
         src = self;
         nativeBuildInputs = [ bend pkgs.makeWrapper ];
+        BEND_LIB = shakeLib;
         buildPhase = ''
           bend bolt/main.bend -o bolt.bin
         '';
@@ -100,10 +113,16 @@
       # binary resolution -- and a gate that borrowed whatever node the machine
       # happened to have would answer a different question on every machine.
       # bolt itself needs none of this: `bend bolt/main.bend -o bin/bolt.bin`
-      # is the whole build (tests/bare.bend).
+      # is the whole build once shake is on BEND_LIB (tests/bare.bend).
+      # The package build above takes shake from the store. The shell does
+      # not: `ez fetch` writes the lock into `.ez/lib`, and a store path is
+      # read-only (CI failed that way). Same as ez's own default shell.
       devShells.${system}.default = pkgs.mkShellNoCC {
-        packages = [ bend bend-cc pkgs.nodejs ];
-        shellHook = "export CC=bend-cc";
+        packages = [ bend bend-cc pkgs.nodejs pkgs.git ];
+        shellHook = ''
+          export CC=bend-cc
+          export BEND_LIB=$PWD/.ez/lib
+        '';
       };
     };
 }
