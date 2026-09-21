@@ -6,7 +6,7 @@
 # takes only its own out of the line (`--threads`, `--gpu`, `--gpu-build`,
 # `--help`), wherever they stand, and `--` hands even those to the program.
 import Base
-import 0xba6940aab8a335b70bf79944bd9b53c4/main.bend as Shake
+import 0x65bf91e14c96bf0c25491d716ec9f68c/main.bend as Shake
 
 # the line at the quantity the rest of bolt reads it at (IO.args gives each
 # argument once)

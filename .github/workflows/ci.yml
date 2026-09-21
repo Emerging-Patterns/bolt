@@ -43,4 +43,4 @@ jobs:
         run: nix develop -c env BEND_LIB=../ez/.ez/lib bend ../ez/ez/main.bend -o ../ez.bin
       - name: ez test
         working-directory: bolt
-        run: nix develop -c ../ez.bin test
+        run: nix develop -c ../ez.bin fetch && nix develop -c ../ez.bin test

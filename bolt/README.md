@@ -184,7 +184,7 @@ beside the groups.
 errors in the same shape, `path:line:1: error: message`) and `bolt lsp`
 (the [language server](lsp/), over stdio). `main.bend` parses the command
 line with [shake](https://github.com/Emerging-Patterns/shake)
-(`import 0xba6940aab8a335b70bf79944bd9b53c4/main.bend`) and dispatches on
+(`import 0x65bf91e14c96bf0c25491d716ec9f68c/main.bend`) and dispatches on
 the selected command; a first word that names no subcommand is a file, so
 `bolt a.bend b.bend` lints those files, and with no files at all `bolt`
 lints every `.bend` file under the current directory

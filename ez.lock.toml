@@ -1,0 +1,16 @@
+[lock]
+version = "2"
+hub = "https://hub.bend-lang.com"
+bend = "2.0.24"
+
+[packages."0x65bf91e14c96bf0c25491d716ec9f68c".source]
+kind = "git"
+url = "https://github.com/Emerging-Patterns/shake"
+rev = "cb02b47e80fdab81dbaa8c3cec2356f7a22d02b0"
+entry = "shake/main.bend"
+root = "shake"
+narHash = "sha256-G4uW2UV4Me6lJYxGU5rfn2kvJKs+/un4Hc0OjcirL7A="
+tag = "v0.1.1"
+
+[packages."0x65bf91e14c96bf0c25491d716ec9f68c".files]
+"main.bend" = "7322c10d37bba496c527a2eaf81ef0e67a2ad0e429f41a288d203c282543ace8"

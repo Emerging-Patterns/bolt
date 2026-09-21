@@ -57,16 +57,17 @@
       # bend 2 itself, from its own flake: the wrapper puts nix's clang on
       # PATH for `bend -o`, and bend-cc on CC still wins for a GPU build
       bend = inputs.bend.packages.${system}.default;
-      # shake v0.1.1, the hub package bolt's CLI imports. The nix sandbox
-      # cannot fetch 0x imports, so the file is pinned here and offered as
-      # BEND_LIB.
-      shake = pkgs.fetchurl {
-        url = "https://hub.bend-lang.com/0xba6940aab8a335b70bf79944bd9b53c4/main.bend";
-        hash = "sha256-TFoJu7F6YniadT3LRtrQwy+LVoEXbqJBzCk1EKr+Jng=";
+      # shake v0.1.1, the git-backed ledger dep bolt's CLI imports. The nix
+      # sandbox cannot fetch 0x imports, so the same rev and narHash as
+      # ez.toml are fetched here and offered as BEND_LIB.
+      shakeSrc = pkgs.fetchgit {
+        url = "https://github.com/Emerging-Patterns/shake";
+        rev = "cb02b47e80fdab81dbaa8c3cec2356f7a22d02b0";
+        hash = "sha256-G4uW2UV4Me6lJYxGU5rfn2kvJKs+/un4Hc0OjcirL7A=";
       };
-      shakeLib = pkgs.runCommand "bolt-shake-lib" { inherit shake; } ''
-        mkdir -p $out/0xba6940aab8a335b70bf79944bd9b53c4
-        cp $shake $out/0xba6940aab8a335b70bf79944bd9b53c4/main.bend
+      shakeLib = pkgs.runCommand "bolt-shake-lib" { inherit shakeSrc; } ''
+        mkdir -p $out/0x65bf91e14c96bf0c25491d716ec9f68c
+        cp $shakeSrc/shake/main.bend $out/0x65bf91e14c96bf0c25491d716ec9f68c/main.bend
       '';
       # bolt, built the one way anything builds it: `bend <entry> -o <binary>`.
       # That is not a shorter spelling of emitting the C and compiling it by
@@ -112,9 +113,10 @@
       # binary resolution -- and a gate that borrowed whatever node the machine
       # happened to have would answer a different question on every machine.
       # bolt itself needs none of this: `bend bolt/main.bend -o bin/bolt.bin`
-      # is the whole build (tests/bare.bend).
+      # is the whole build once shake is on BEND_LIB (tests/bare.bend).
       devShells.${system}.default = pkgs.mkShellNoCC {
-        packages = [ bend bend-cc pkgs.nodejs ];
+        packages = [ bend bend-cc pkgs.nodejs pkgs.git ];
+        BEND_LIB = shakeLib;
         shellHook = "export CC=bend-cc";
       };
     };

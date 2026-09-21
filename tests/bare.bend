@@ -1,12 +1,10 @@
 # bolt from nothing: the binary people run, built by `bend` and nothing else.
 #
-# `bend bolt/main.bend -o bin/bolt.bin` is the entire build. bolt's one hub
-# import is shake; bend fetches that package itself. `ez` is a convenience
-# over that one line and never a prerequisite, in either direction: a project
-# that depends on bolt needs no ez either. This holds that down as a build
-# rather than as a comment -- the build below runs with BEND_LIB unset and
-# nothing of ez in front of it -- because the day bolt grows a dependency on
-# its own tooling is a day nobody would notice otherwise.
+# `bend bolt/main.bend -o bin/bolt.bin` is the entire build. shake is a
+# git-backed ledger dep, so this test clones that pinned rev and lays it out
+# as BEND_LIB itself -- no ez, no nix. `ez` is a convenience over that one
+# line and never a prerequisite, in either direction: a project that depends
+# on bolt needs no ez either.
 #
 # The binary it leaves behind is the one the three checks after it need, and
 # none can be answered without it: the server has to be spawned by node, over
@@ -24,17 +22,27 @@ import ../run/run.bend as R
 import ../core/check/kit.bend as Check
 import ../core/check/print.bend as Report
 
-# the build, with every variable ez would have set taken back out of the
-# environment first. `env -u` is coreutils, execvp'd like any other program.
+# the 0x name ez computed for shake v0.1.1
+def shake.hash() -> String:
+  "0x65bf91e14c96bf0c25491d716ec9f68c"
+
+# the build, with ez taken out of the environment. BEND_LIB is the shake
+# checkout this test laid out, not ez's.
 def bare() -> List<&2, String>:
-  ["env", "-u", "BEND_LIB", "-u", "EZ_ROOT", "bend", "bolt/main.bend",
+  ["env", "-u", "EZ_ROOT", "BEND_LIB=.scratch/lib", "bend", "bolt/main.bend",
     "-o", "bin/bolt.bin"]
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    _mk : String <- R.exec(["mkdir", "-p", "bin"])
+    _wd : String <- R.exec(["rm", "-rf", ".scratch/shake", ".scratch/lib"])
+    _cl : String <- R.exec(["git", "clone", "--depth", "1", "--branch", "v0.1.1",
+      "https://github.com/Emerging-Patterns/shake.git", ".scratch/shake"])
+    _mk : String <- R.exec(["mkdir", "-p", ".scratch/lib/" ++ shake.hash()])
+    _cp : String <- R.exec(["cp", ".scratch/shake/shake/main.bend",
+      ".scratch/lib/" ++ shake.hash() ++ "/main.bend"])
+    _bin : String <- R.exec(["mkdir", "-p", "bin"])
     built : String <- R.exec(bare())
-    Check.eq_str(~Report.new(), "bolt builds with bare bend and no BEND_LIB",
+    Check.eq_str(~Report.new(), "bolt builds with bare bend and no ez",
       R.code(built), "0")
     spawned : String <- R.exec(["node", "bolt/lsp/tests/spawn.js", "bin/bolt.bin"])
     Check.eq_str(~Report.new(), "the server answers node, spawned over sockets",
@@ -55,7 +63,7 @@ def main() -> IO(Unit):
       "bolt/lsp/fixtures/proven/PROOF.bend"])
     Check.eq_str(~Report.new(), "bolt check takes every leftover file", R.text(checked), "clean")
 
-#|ok bolt builds with bare bend and no BEND_LIB
+#|ok bolt builds with bare bend and no ez
 #|ok the server answers node, spawned over sockets
 #|ok the extension finds bolt with no symlink to help it
 #|ok bolt lints its own repo clean
