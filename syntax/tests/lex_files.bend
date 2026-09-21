@@ -22,9 +22,7 @@ def main() -> IO(Unit):
     lossless(~Disk.new(), "bolt/lsp/server.bend")
     lossless(~Disk.new(), "syntax/outline.bend")
     lossless(~Disk.new(), "core/PROOF.bend")
-    lossless(~Disk.new(), "json/lex.bend")
 
 #|ok bolt/lsp/server.bend
 #|ok syntax/outline.bend
 #|ok core/PROOF.bend
-#|ok json/lex.bend

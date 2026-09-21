@@ -104,4 +104,5 @@ Bend cannot prove.
 
 ez is a convenience, not a requirement: it buys the ledger above, the cache and
 the caps. bolt itself has no dependency on it, and `tests/bare.bend` proves that
-on every run by building bolt with bare `bend` from the git-pinned shake rev.
+on every run by building bolt with bare `bend` from the git-pinned shake
+and ezjson revs.

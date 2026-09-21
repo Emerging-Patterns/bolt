@@ -3,9 +3,9 @@
 # diagnostics, the files behind imports and Base. The open documents are the
 # loop's state. Diagnostics run on open and save, against the file on disk.
 import Base
-import ../../json/value.bend as J
-import ../../json/parse.bend as Parse
-import ../../json/print.bend as Print
+import 0xa3c2445eb44c5d8406e6229be518fccb/value.bend as J
+import 0xa3c2445eb44c5d8406e6229be518fccb/parse.bend as Parse
+import 0xa3c2445eb44c5d8406e6229be518fccb/print.bend as Print
 import ./proto.bend as Proto
 import ./docs.bend as Docs
 import ./nav.bend as Nav

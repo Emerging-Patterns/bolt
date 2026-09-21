@@ -1,10 +1,10 @@
 # bolt from nothing: the binary people run, built by `bend` and nothing else.
 #
-# `bend bolt/main.bend -o bin/bolt.bin` is the entire build. shake is a
-# git-backed ledger dep, so this test clones that pinned rev and lays it out
-# as BEND_LIB itself -- no ez, no nix. `ez` is a convenience over that one
-# line and never a prerequisite, in either direction: a project that depends
-# on bolt needs no ez either.
+# `bend bolt/main.bend -o bin/bolt.bin` is the entire build. shake and
+# ezjson are git-backed ledger deps, so this test clones those pinned revs
+# and lays them out as BEND_LIB itself -- no ez, no nix. `ez` is a
+# convenience over that one line and never a prerequisite, in either
+# direction: a project that depends on bolt needs no ez either.
 #
 # The binary it leaves behind is the one the three checks after it need, and
 # none can be answered without it: the server has to be spawned by node, over
@@ -26,20 +26,33 @@ import ../core/check/print.bend as Report
 def shake.hash() -> String:
   "0x65bf91e14c96bf0c25491d716ec9f68c"
 
-# the build, with ez taken out of the environment. BEND_LIB is the shake
-# checkout this test laid out, not ez's.
+# the 0x name ez computed for ezjson v0.1.0
+def ezjson.hash() -> String:
+  "0xa3c2445eb44c5d8406e6229be518fccb"
+
+# the build, with ez taken out of the environment. BEND_LIB is the
+# checkouts this test laid out, not ez's.
 def bare() -> List<&2, String>:
   ["env", "-u", "EZ_ROOT", "BEND_LIB=.scratch/lib", "bend", "bolt/main.bend",
     "-o", "bin/bolt.bin"]
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    _wd : String <- R.exec(["rm", "-rf", ".scratch/shake", ".scratch/lib"])
+    _wd : String <- R.exec(["rm", "-rf", ".scratch/shake", ".scratch/ezjson",
+      ".scratch/lib"])
     _cl : String <- R.exec(["git", "clone", "--depth", "1", "--branch", "v0.1.1",
       "https://github.com/Emerging-Patterns/shake.git", ".scratch/shake"])
-    _mk : String <- R.exec(["mkdir", "-p", ".scratch/lib/" ++ shake.hash()])
+    _cj : String <- R.exec(["git", "clone", "--depth", "1", "--branch", "v0.1.0",
+      "https://github.com/Emerging-Patterns/ezjson.git", ".scratch/ezjson"])
+    _mk : String <- R.exec(["mkdir", "-p", ".scratch/lib/" ++ shake.hash(),
+      ".scratch/lib/" ++ ezjson.hash()])
     _cp : String <- R.exec(["cp", ".scratch/shake/shake/main.bend",
       ".scratch/lib/" ++ shake.hash() ++ "/main.bend"])
+    _cj2 : String <- R.exec(["cp",
+      ".scratch/ezjson/ezjson/lazy.bend", ".scratch/ezjson/ezjson/lex.bend",
+      ".scratch/ezjson/ezjson/main.bend", ".scratch/ezjson/ezjson/parse.bend",
+      ".scratch/ezjson/ezjson/print.bend", ".scratch/ezjson/ezjson/value.bend",
+      ".scratch/lib/" ++ ezjson.hash() ++ "/"])
     _bin : String <- R.exec(["mkdir", "-p", "bin"])
     built : String <- R.exec(bare())
     Check.eq_str(~Report.new(), "bolt builds with bare bend and no ez",

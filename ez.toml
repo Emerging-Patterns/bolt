@@ -10,3 +10,12 @@ tag = "v0.1.1"
 root = "shake"
 narHash = "sha256-G4uW2UV4Me6lJYxGU5rfn2kvJKs+/un4Hc0OjcirL7A="
 entry = "shake/main.bend"
+
+[deps.ezjson]
+hash = "0xa3c2445eb44c5d8406e6229be518fccb"
+git = "https://github.com/Emerging-Patterns/ezjson"
+rev = "8b688362f6f3de0598b76ff0349c878ffb3d3b2d"
+tag = "v0.1.0"
+root = "ezjson"
+narHash = "sha256-FIblPhvLYJ8q8mdmGXsI2qkXZ3tP50WGcxr+X5PaTxg="
+entry = "ezjson/main.bend"

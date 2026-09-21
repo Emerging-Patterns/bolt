@@ -14,3 +14,20 @@ tag = "v0.1.1"
 
 [packages."0x65bf91e14c96bf0c25491d716ec9f68c".files]
 "main.bend" = "7322c10d37bba496c527a2eaf81ef0e67a2ad0e429f41a288d203c282543ace8"
+
+[packages."0xa3c2445eb44c5d8406e6229be518fccb".source]
+kind = "git"
+url = "https://github.com/Emerging-Patterns/ezjson"
+rev = "8b688362f6f3de0598b76ff0349c878ffb3d3b2d"
+entry = "ezjson/main.bend"
+root = "ezjson"
+narHash = "sha256-FIblPhvLYJ8q8mdmGXsI2qkXZ3tP50WGcxr+X5PaTxg="
+tag = "v0.1.0"
+
+[packages."0xa3c2445eb44c5d8406e6229be518fccb".files]
+"lazy.bend" = "a5289ddf87535ef8cecfb1fabc662c37b7c6e3a399a8d83eb9afc60978c547ee"
+"lex.bend" = "a3b853641062c44341deb84e83d72a524d986d881b4e7356f84030f60b200340"
+"main.bend" = "1ce76c9d5965f61d3771fe0ea99df7278b98921ec5c7a48dce91db5fd77345d0"
+"parse.bend" = "9363705448de2a78c69db4e1195daf826ce235ce4f033e9f4d4ca8f0b5c9f397"
+"print.bend" = "87b85661038a860850e4e2f4a38da6ed64d9a1622b458fba1e3dae5ccfe74fc3"
+"value.bend" = "407b56fa5f617ba2b246a20b4f4c17ec37a50c381f862825ce09411cc3aac3fa"
