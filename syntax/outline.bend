@@ -143,9 +143,105 @@ def classify.space.go(space: Bool, x: U32, t: String) -> Cls:
 def classify.space(+x: U32, t: String) -> Cls:
   classify.space.go(Char.is_space(Char.from_u32(x)), x, t)
 
-# a column-0 keyword keeps the line; the class comes from its first character
-def classify.hold.keys(+x: U32, c: Char, +t: String) -> Cls & String:
-  (classify.keys(x, t), SCon{c, t})
+# the prefix failed when this character did not match
+def classify.pre.bad(eq: Bool) -> Bool:
+  match eq:
+    case True{}:
+      False{}
+    case False{}:
+      True{}
+
+# the rest of the line. A hit leaves it; a miss puts the matched characters back
+def classify.pre.rest(eq: Bool, hs: Char, ts: String, eaten: String) -> String:
+  match eq:
+    case True{}:
+      ts
+    case False{}:
+      String.append(String.reverse(SCon{hs, eaten}), ts)
+
+# characters matched so far, reversed. Empty once a character has missed
+def classify.pre.ate(eq: Bool, hs: Char, eaten: String) -> String:
+  match eq:
+    case True{}:
+      SCon{hs, eaten}
+    case False{}:
+      SNil{}
+
+# whether `prefix` is a prefix of `s`. The string comes back whole: a miss
+# rebuilds only the characters the prefix took. `fail` means an earlier
+# character already missed
+def classify.pre(prefix: String, fail: Bool, s: String, +eaten: String) -> Bool & String:
+  match prefix fail s:
+    case _ True{} ts:
+      (False{}, String.append(String.reverse(eaten), ts))
+    case SNil{} False{} ts:
+      (True{}, String.append(String.reverse(eaten), ts))
+    case SCon{_, tp} False{} SNil{}:
+      (False{}, String.reverse(eaten))
+    case SCon{hp, tp} False{} SCon{+hs, ts}:
+      +eq = Char.is_eq(hs, hp)
+      classify.pre(tp, classify.pre.bad(eq), classify.pre.rest(eq, hs, ts, eaten), classify.pre.ate(eq, hs, eaten))
+
+# `yes` when the prefix matched, else other
+def classify.hold.yes(ok: Bool, yes: Cls) -> Cls:
+  match ok:
+    case True{}:
+      yes
+    case False{}:
+      LOther{}
+
+# the class, and the line with its first character back on
+def classify.hold.line(r: Bool & String, c: Char, yes: Cls) -> Cls & String:
+  (ok, tail) = r
+  (classify.hold.yes(ok, yes), SCon{c, tail})
+
+# the class of a keyword prefix, and the line
+def classify.hold.try(c: Char, t: String, p: String, yes: Cls) -> Cls & String:
+  classify.hold.line(classify.pre(p, False{}, t, SNil{}), c, yes)
+
+# `type `, else other
+def classify.hold.ktype(hit: Bool, c: Char, t: String) -> Cls & String:
+  match hit:
+    case True{}:
+      classify.hold.try(c, t, "ype ", LType{})
+    case False{}:
+      (LOther{}, SCon{c, t})
+
+# `law `, else `type `
+def classify.hold.klaw(hit: Bool, +x: U32, c: Char, t: String) -> Cls & String:
+  match hit:
+    case True{}:
+      classify.hold.try(c, t, "aw ", LLaw{})
+    case False{}:
+      classify.hold.ktype(U32.is_eq(x, 116), c, t) # 't'
+
+# `@unsafe def `, else `law `
+def classify.hold.kat(hit: Bool, +x: U32, c: Char, t: String) -> Cls & String:
+  match hit:
+    case True{}:
+      classify.hold.try(c, t, "unsafe def ", LDef{})
+    case False{}:
+      classify.hold.klaw(U32.is_eq(x, 108), x, c, t) # 'l'
+
+# `def `, else `@unsafe def `
+def classify.hold.kdef(hit: Bool, +x: U32, c: Char, t: String) -> Cls & String:
+  match hit:
+    case True{}:
+      classify.hold.try(c, t, "ef ", LDef{})
+    case False{}:
+      classify.hold.kat(U32.is_eq(x, 64), x, c, t) # '@'
+
+# `import `, else `def `
+def classify.hold.kimp(hit: Bool, +x: U32, c: Char, t: String) -> Cls & String:
+  match hit:
+    case True{}:
+      classify.hold.try(c, t, "mport ", LImport{})
+    case False{}:
+      classify.hold.kdef(U32.is_eq(x, 100), x, c, t) # 'd'
+
+# a column-0 line keeps its text; the class is the keyword it starts with
+def classify.hold.keys(+x: U32, c: Char, t: String) -> Cls & String:
+  classify.hold.kimp(U32.is_eq(x, 105), x, c, t) # 'i'
 
 # whitespace that is not a leading space keeps the line: the class may not
 def classify.hold.gap.keep(+x: U32, c: Char, +t: String) -> Cls & String:
