@@ -326,12 +326,40 @@ def flush(mode: Mode, out: List<&2, Item>) -> List<&2, Item>:
     case other:
       out
 
+# the line walked so far ended in `:`, and this character may replace that
+def ends_colon.go(s: String, prev: Bool) -> Bool:
+  match s:
+    case SNil{}:
+      prev
+    case SCon{h, t}:
+      ends_colon.go(t, Char.is_eq(h, ':'))
+
+# the line's last character is `:`
+def ends_colon(s: String) -> Bool:
+  ends_colon.go(s, False{})
+
+# a def continuation that does or does not end in `:`
+def pend_more.closed(colon: Bool, nm: String, l: U32, d: String, sig: List<&2, String>, text: String,
+  n: U32, out: List<&2, Item>) -> St:
+  match colon:
+    case True{}:
+      St{Top{}, (n + 1 : U32), [], Item{IDef{}, nm, l, sig_text(text <> sig), d, ""} <> out}
+    case False{}:
+      St{Pending{IDef{}, nm, l, d, text <> sig}, (n + 1 : U32), [], out}
+
+# one more line of a def header
+def pend_more.def(nm: String, l: U32, d: String, sig: List<&2, String>, +text: String, n: U32,
+  out: List<&2, Item>) -> St:
+  pend_more.closed(ends_colon(text), nm, l, d, sig, text, n, out)
+
 # one more line of a pending header; a def's ends at the line that ends in `:`
-def pend_more(+k: ItemKind, +nm: String, +l: U32, +d: String, +sig: List<&2, String>, +text: String, +n: U32,
-  +out: List<&2, Item>) -> St:
-  Bool.pick(St, Bool.and(is_def(k), String.ends_with(text, ":")),
-    St{Top{}, (n + 1 : U32), [], Item{k, nm, l, sig_text(text <> sig), d, ""} <> out},
-    St{Pending{k, nm, l, d, text <> sig}, (n + 1 : U32), [], out})
+def pend_more(k: ItemKind, nm: String, l: U32, d: String, sig: List<&2, String>, text: String, n: U32,
+  out: List<&2, Item>) -> St:
+  match k:
+    case IDef{}:
+      pend_more.def(nm, l, d, sig, text, n, out)
+    case other:
+      St{Pending{k, nm, l, d, text <> sig}, (n + 1 : U32), [], out}
 
 # an indented line: more of a pending header, a constructor of an open
 # type, or nothing
@@ -353,12 +381,17 @@ def stray(+mode: Mode, text: String, +n: U32, +out: List<&2, Item>) -> St:
     case m:
       St{Top{}, (n + 1 : U32), [], flush(m, out)}
 
+# a finished def, or a header that is still open
+def start_def.on(colon: Bool, +s: String, +n: U32, doc: String, out: List<&2, Item>) -> St:
+  match colon:
+    case True{}:
+      St{Top{}, (n + 1 : U32), [], Item{IDef{}, def_name(s), n, s, doc, ""} <> out}
+    case False{}:
+      St{Pending{IDef{}, def_name(s), n, doc, [s]}, (n + 1 : U32), [], out}
+
 # a `def` line: an item at once when it ends in `:`, else a pending header
-def start_def(+s: String, +n: U32, +doc: String, +out: List<&2, Item>) -> St:
-  +nm = def_name(s)
-  Bool.pick(St, String.ends_with(s, ":"),
-    St{Top{}, (n + 1 : U32), [], Item{IDef{}, nm, n, s, doc, ""} <> out},
-    St{Pending{IDef{}, nm, n, doc, [s]}, (n + 1 : U32), [], out})
+def start_def(+s: String, +n: U32, doc: String, out: List<&2, Item>) -> St:
+  start_def.on(ends_colon(s), s, n, doc, out)
 
 # a comment continues the block above it only at the top level
 def doc_above(mode: Mode, doc: List<&2, String>) -> List<&2, String>:
