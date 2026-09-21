@@ -20,7 +20,9 @@
       bend = inputs.bend.packages.${system}.default;
       bend-cc = ez.bend-cc;
       # keep with editors/vscode/package.json
-      bolt = ez.mkPackage {
+      # ez.mkPackage's BEND_LIB is ez.bendLib, whose sha256sum check rejects
+      # this lock. nix/bend-lib.nix checks the digest ez recorded.
+      bolt = (ez.mkPackage {
         inherit bend;
         src = self;
         version = "0.4.0";
@@ -29,7 +31,9 @@
           description = "A linter, checker and language server for Bend 2";
           license = pkgs.lib.licenses.mit;
         };
-      };
+      }).overrideAttrs (_old: {
+        BEND_LIB = pkgs.callPackage ./nix/bend-lib.nix { } ./ez.lock.toml;
+      });
     in {
       packages.${system} = { inherit bolt bend bend-cc; default = bolt; };
       checks.${system} = { inherit bolt; };
