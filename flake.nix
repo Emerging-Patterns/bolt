@@ -114,10 +114,15 @@
       # happened to have would answer a different question on every machine.
       # bolt itself needs none of this: `bend bolt/main.bend -o bin/bolt.bin`
       # is the whole build once shake is on BEND_LIB (tests/bare.bend).
+      # The package build above takes shake from the store. The shell does
+      # not: `ez fetch` writes the lock into `.ez/lib`, and a store path is
+      # read-only (CI failed that way). Same as ez's own default shell.
       devShells.${system}.default = pkgs.mkShellNoCC {
         packages = [ bend bend-cc pkgs.nodejs pkgs.git ];
-        BEND_LIB = shakeLib;
-        shellHook = "export CC=bend-cc";
+        shellHook = ''
+          export CC=bend-cc
+          export BEND_LIB=$PWD/.ez/lib
+        '';
       };
     };
 }
