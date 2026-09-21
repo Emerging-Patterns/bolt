@@ -196,27 +196,34 @@ def classify.cls(p: Cls & String) -> Cls:
 def classify(s: String) -> Cls:
   classify.cls(classify.hold(s))
 
-# a name runs to the first of ( < : { or a space
-def name.go(cs: List<&2, Char>, acc: List<&2, Char>) -> List<&2, Char>:
-  match cs:
-    case Con{'(', t}:
+# `(`, `<`, `:`, `{` or a space ends a name
+def name.stop(+h: Char) -> Bool:
+  Bool.or(Char.is_eq(h, '('),
+    Bool.or(Char.is_eq(h, '<'),
+      Bool.or(Char.is_eq(h, ':'),
+        Bool.or(Char.is_eq(h, '{'), Char.is_eq(h, ' ')))))
+
+# a delimiter is not part of the name
+def name.push(stop: Bool, h: Char, acc: String) -> String:
+  match stop:
+    case True{}:
       acc
-    case Con{'<', t}:
-      acc
-    case Con{':', t}:
-      acc
-    case Con{'{', t}:
-      acc
-    case Con{' ', t}:
-      acc
-    case Con{c, t}:
-      name.go(t, c <> acc)
-    case Nil{}:
-      acc
+    case False{}:
+      SCon{h, acc}
+
+# the name, reversed into acc, up to a delimiter
+def name.go(s: String, acc: String, stop: Bool) -> String:
+  match s stop:
+    case SNil{} _:
+      String.reverse(acc)
+    case SCon{h, t} True{}:
+      String.reverse(acc)
+    case SCon{+h, t} False{}:
+      name.go(t, name.push(name.stop(h), h, acc), name.stop(h))
 
 # the name that starts a header: up to `(`, `<`, `:`, `{` or a space
 def name(s: String) -> String:
-  String.from_list(List.reverse(&2, Char, name.go(String.to_list(s), [])))
+  name.go(s, SNil{}, False{})
 
 def lstrip.go(cs: List<&2, Char>) -> List<&2, Char>:
   match cs:
