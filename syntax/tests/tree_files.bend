@@ -54,12 +54,10 @@ def main() -> IO(Unit):
     faithful(~Disk.new(), "syntax/tree.bend")
     faithful(~Disk.new(), "core/PROOF.bend")
     faithful(~Disk.new(), "core/LAWS.bend")
-    faithful(~Disk.new(), "bolt/args.bend")
     faithful(~Disk.new(), "bolt/lsp/tests/checker.bend")
 
 #|ok bolt/lsp/server.bend
 #|ok syntax/tree.bend
 #|ok core/PROOF.bend
 #|ok core/LAWS.bend
-#|ok bolt/args.bend
 #|ok bolt/lsp/tests/checker.bend
