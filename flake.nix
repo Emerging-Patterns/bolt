@@ -19,10 +19,7 @@
       ez = inputs.ez.lib.${system};
       bend = inputs.bend.packages.${system}.default;
       bend-cc = ez.bend-cc;
-      # ez.bendLib checks sha256sum. This lock's digests are the low 8 bits
-      # of each codepoint, so the package and checks.test use nix/bend-lib.nix.
-      bendLib = pkgs.callPackage ./nix/bend-lib.nix { } ./ez.lock.toml;
-      bolt = (ez.mkPackage {
+      bolt = ez.mkPackage {
         inherit bend;
         src = self;
         version = "0.4.0";  # keep with editors/vscode/package.json and bolt/version.bend
@@ -31,15 +28,12 @@
           description = "A linter, checker and language server for Bend 2";
           license = pkgs.lib.licenses.mit;
         };
-      }).overrideAttrs (_old: {
-        BEND_LIB = bendLib;
-      });
+      };
       # proofs and unit tests (`ez test --unit-only`).
       test = ez.mkProofs {
         ez = inputs.ez.packages.${system}.default;
         src = self;
         name = "bolt-test";
-        bendLib = bendLib;
         extraFlags = [ "--unit-only" ];
       };
     in {
