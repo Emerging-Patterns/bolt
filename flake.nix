@@ -1,6 +1,4 @@
 {
-  # the flake carries the C toolchain bolt builds with; bend itself comes
-  # from bendlang/bend's own flake (the release archive, patched for nix)
   description = "bolt: a linter, checker and language server for Bend 2";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -8,141 +6,39 @@
     url = "github:bendlang/bend";
     inputs.nixpkgs.follows = "nixpkgs";
   };
+  inputs.ez = {
+    url = "github:Emerging-Patterns/ez";
+    inputs.nixpkgs.follows = "nixpkgs";
+    inputs.bend.follows = "bend";
+  };
 
   outputs = { self, nixpkgs, ... }@inputs:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
-      llvm = pkgs.llvmPackages_19;
-      # bend needs clang 19+ for a GPU build. The wrapped nix clang links nix's
-      # glibc, and then nvrtc cannot load the system libstdc++; so: the
-      # unwrapped clang, its resource dir, the system's dynamic linker and the
-      # system's ld (bend's wrapper puts nix's clang on PATH, whose wrapped ld
-      # would add a runpath to nix's glibc; CC=bend-cc still wins for a GPU build).
-      # The gate runs the CPU lane only; a GPU build is `bend x.bend -o x` in
-      # the dev shell, run with `--gpu 1GB`.
-      bend-cc = pkgs.writeShellScriptBin "bend-cc" ''
-        exec ${llvm.clang-unwrapped}/bin/clang \
-          -resource-dir ${llvm.clang}/resource-root \
-          --ld-path=/usr/bin/ld \
-          -Wl,--dynamic-linker=/lib64/ld-linux-x86-64.so.2 "$@"
-      '';
-      # what bend's generated C needs of a toolchain: C11 with atomics,
-      # pthreads, libm, mmap; built and run, in the sandbox, with the same
-      # clang 19 (nix's wrapper stands in for the system libc there)
-      c-check = pkgs.runCommand "bolt-c-check" { nativeBuildInputs = [ llvm.clang ]; } ''
-        cat > t.c <<'EOF'
-        #include <math.h>
-        #include <pthread.h>
-        #include <stdatomic.h>
-        #include <stdint.h>
-        #include <stdio.h>
-        #include <sys/mman.h>
-        static atomic_uint_fast64_t n;
-        static void *work(void *_) { for (int i = 0; i < 1000; i++) atomic_fetch_add(&n, 1); return 0; }
-        int main(void) {
-          pthread_t t[4];
-          for (int i = 0; i < 4; i++) pthread_create(&t[i], 0, work, 0);
-          for (int i = 0; i < 4; i++) pthread_join(t[i], 0);
-          void *m = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-          printf("%lu %.0f %d\n", (unsigned long)atomic_load(&n), sqrt(16.0), m != MAP_FAILED);
-          return 0;
-        }
-        EOF
-        clang -std=c11 -O3 t.c -lpthread -lm -o t
-        got=$(./t)
-        [ "$got" = "4000 4 1" ] || { echo "got: $got"; exit 1; }
-        echo "$got" > $out
-      '';
-      # bend 2 itself, from its own flake: the wrapper puts nix's clang on
-      # PATH for `bend -o`, and bend-cc on CC still wins for a GPU build
+      ez = inputs.ez.lib.${system};
       bend = inputs.bend.packages.${system}.default;
-      # git-backed ledger deps. The nix sandbox cannot fetch 0x imports, so
-      # the same rev and narHash as ez.toml are fetched here and offered as
-      # BEND_LIB.
-      shakeSrc = pkgs.fetchgit {
-        url = "https://github.com/Emerging-Patterns/shake";
-        rev = "cb02b47e80fdab81dbaa8c3cec2356f7a22d02b0";
-        hash = "sha256-G4uW2UV4Me6lJYxGU5rfn2kvJKs+/un4Hc0OjcirL7A=";
-      };
-      ezjsonSrc = pkgs.fetchgit {
-        url = "https://github.com/Emerging-Patterns/ezjson";
-        rev = "8b688362f6f3de0598b76ff0349c878ffb3d3b2d";
-        hash = "sha256-FIblPhvLYJ8q8mdmGXsI2qkXZ3tP50WGcxr+X5PaTxg=";
-      };
-      snapSrc = pkgs.fetchgit {
-        url = "https://github.com/Emerging-Patterns/snap";
-        rev = "9c2aee9f139c353201ca3b086b15703ca7c63e30";
-        hash = "sha256-0paitFZb+gr17vw3JbvKoEDGHyRF5I+Y7SvdY1Y7IjU=";
-      };
-      depsLib = pkgs.runCommand "bolt-deps-lib" { inherit shakeSrc ezjsonSrc snapSrc; } ''
-        mkdir -p $out/0x65bf91e14c96bf0c25491d716ec9f68c
-        mkdir -p $out/0xa3c2445eb44c5d8406e6229be518fccb
-        mkdir -p $out/0x29fbb19f01e963cc6271864b7e442159
-        cp $shakeSrc/shake/main.bend $out/0x65bf91e14c96bf0c25491d716ec9f68c/main.bend
-        cp $ezjsonSrc/ezjson/lazy.bend $ezjsonSrc/ezjson/lex.bend \
-          $ezjsonSrc/ezjson/main.bend $ezjsonSrc/ezjson/parse.bend \
-          $ezjsonSrc/ezjson/print.bend $ezjsonSrc/ezjson/value.bend \
-          $out/0xa3c2445eb44c5d8406e6229be518fccb/
-        cp $snapSrc/snap/main.bend $snapSrc/snap/exec.c $snapSrc/snap/exec.js \
-          $snapSrc/snap/start.c $snapSrc/snap/start.js \
-          $snapSrc/snap/par.c $snapSrc/snap/par.js \
-          $out/0x29fbb19f01e963cc6271864b7e442159/
-      '';
-      # bolt, built the one way anything builds it: `bend <entry> -o <binary>`.
-      # That is not a shorter spelling of emitting the C and compiling it by
-      # hand -- it is the same compile. bend runs the C it emits through
-      # `-std=c11 -O3 <file> -lpthread -lm -o <bin>`, which is flag for flag
-      # what the two-step form here used to spell out, so the two-step form
-      # bought nothing and only let this build drift from every other one.
-      # It does hand the choice of clang to bend, which takes $CC first and
-      # then the newest `clang-<n>` on the PATH -- here clang 21, from bend's
-      # own wrapper, where the two-step form named clang 19. Measured over
-      # this repo, seven runs each, that is 1.69 s against 1.73 s at the
-      # median: no difference worth a line of nix.
-      # The wrapper puts bend on the binary's PATH (for `bolt check` and the
-      # server's diagnostics) and keeps it off the GPU, which is slower for
-      # this work (bolt/lsp/bench).
-      bolt = pkgs.stdenv.mkDerivation {
-        pname = "bolt";
-        version = "0.4.0";  # keep with editors/vscode/package.json and bolt/version.bend
+      bend-cc = ez.bend-cc;
+      # ez.bendLib checks sha256sum. This lock's digests are ez's, so the
+      # package build uses nix/bend-lib.nix for BEND_LIB.
+      bolt = (ez.mkPackage {
+        inherit bend;
         src = self;
-        nativeBuildInputs = [ bend pkgs.makeWrapper ];
-        BEND_LIB = depsLib;
-        buildPhase = ''
-          bend bolt/main.bend -o bolt.bin
-        '';
-        installPhase = ''
-          mkdir -p $out/bin
-          cp bolt.bin $out/bin/bolt
-          wrapProgram $out/bin/bolt --prefix PATH : ${pkgs.lib.makeBinPath [ bend ]} \
-            --add-flags "--gpu off"
-        '';
+        version = "0.4.0";  # keep with editors/vscode/package.json and bolt/version.bend
+        wrapFlags = [ "--gpu" "off" ];
         meta = {
           description = "A linter, checker and language server for Bend 2";
           license = pkgs.lib.licenses.mit;
-          mainProgram = "bolt";
         };
-      };
+      }).overrideAttrs (_old: {
+        BEND_LIB = pkgs.callPackage ./nix/bend-lib.nix { } ./ez.lock.toml;
+      });
     in {
-      packages.${system} = { inherit bend bolt bend-cc; default = bolt; };
+      packages.${system} = { inherit bolt bend bend-cc; default = bolt; };
+      checks.${system} = { inherit bolt; };
       apps.${system}.default = { type = "app"; program = "${bolt}/bin/bolt"; };
-      checks.${system} = { c = c-check; inherit bolt; };
-      # the shell the gate runs in. node is here because two of the end-to-end
-      # tests drive one -- the server spawned over sockets, and the extension's
-      # binary resolution -- and a gate that borrowed whatever node the machine
-      # happened to have would answer a different question on every machine.
-      # bolt itself needs none of this: `bend bolt/main.bend -o bin/bolt.bin`
-      # is the whole build once the ledger deps are on BEND_LIB (tests/bare.bend).
-      # The package build above takes them from the store. The shell does
-      # not: `ez fetch` writes the lock into `.ez/lib`, and a store path is
-      # read-only (CI failed that way). Same as ez's own default shell.
-      devShells.${system}.default = pkgs.mkShellNoCC {
+      devShells.${system}.default = ez.mkShell {
         packages = [ bend bend-cc pkgs.nodejs pkgs.git ];
-        shellHook = ''
-          export CC=bend-cc
-          export BEND_LIB=$PWD/.ez/lib
-        '';
       };
     };
 }

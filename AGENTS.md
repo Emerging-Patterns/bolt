@@ -30,9 +30,9 @@ A `#|` equality for a proveable claim is a bug. A directory with
                        and snap v0.1.0 (`0x29fbb19f01e963cc6271864b7e442159`)
                        as git-backed deps
     ez.lock.toml       the resolved pin: rev, narHash, and file digests
-    flake.nix          bend 2 (from bendlang/bend's flake) and bolt (nix profile install);
-                       bend-cc: clang 19 for native (and GPU) builds; `nix flake check`
-                       builds bolt and proves the C toolchain
+    flake.nix          bolt via ez's nix lib (bend follows bendlang/bend; bend-cc,
+                       BEND_LIB from ez.lock.toml, and the package build come from ez);
+                       `nix flake check` builds the bolt package
                        (nix sees tracked files only: git add first)
     tests/*.bend       stay-list host/integration only (bare, flake).
                        `ez test` runs each on its own, and caches none of them
