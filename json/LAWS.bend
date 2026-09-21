@@ -200,3 +200,11 @@ law lex_escape_n:
 # LAW: unicode of the last hex digit
 law lex_unicode:
   {Lex.unicode(0n, 0, 'A', [], []) == Lex.Lex{Lex.Str{}, [Char.from_u32(10)], []} : Lex.Lex}
+
+# LAW: finish of an idle lexer is no tokens
+law lex_finish_idle:
+  {List.is_empty(&2, Lex.Tok, Lex.finish(Lex.Lex{Lex.Idle{}, [], []})) == True{} : Bool}
+
+# LAW: an empty object prints
+law value_obj:
+  {Print.print(V.obj([])) == "{}" : String}

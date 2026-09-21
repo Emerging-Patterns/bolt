@@ -487,6 +487,11 @@ law report_todo:
   {C.rep.show("Error: 1 TODO found.\nThe code is incomplete, and not a valid proof yet.\n")
     == "[0|1 TODO found.\nThe code is incomplete, and not a valid proof yet.]" : String}
 
+# LAW: an update nag is not part of the diagnostic
+law report_todo_nag:
+  {C.rep.show("Error: 1 TODO found.\nThe code is incomplete, and not a valid proof yet.\nbend 2.0.24 is available: run bend update\n")
+    == "[0|1 TODO found.\nThe code is incomplete, and not a valid proof yet.]" : String}
+
 # LAW: two errors are two diagnostics
 law report_two:
   {C.rep.show("Error:\n- message  : one\nLocation: a\n1>| x\nError:\n- message  : two\nLocation: b\n7>| y\n")

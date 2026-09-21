@@ -133,3 +133,9 @@ def Laws.lex_escape_n():
 
 def Laws.lex_unicode():
   {==}
+
+def Laws.lex_finish_idle():
+  {==}
+
+def Laws.value_obj():
+  {==}
