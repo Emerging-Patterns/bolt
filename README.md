@@ -92,12 +92,14 @@ ez test                  every */tests/*.bend on both lanes, every PROOF.bend
 ez build bin/bolt.bin    the binary people run
 ```
 
-`ez test` checks every `PROOF.bend`, then runs each host/integration test on
-the JS lane and the native lane against the `#|` trailer the file ends in,
-caps each `bend` at `EZ_CAP` gigabytes, and caches a lane on the content of
-everything it reads, so a second run over an unchanged tree is seconds. There
-is no shell script in this repo. Proveable claims live in `LAWS.bend` /
-`PROOF.bend`, not in `tests/*.bend`.
+`ez test` checks every `PROOF.bend`, then runs each stay-list
+host/integration test on the JS lane and the native lane against the `#|`
+trailer the file ends in, caps each `bend` at `EZ_CAP` gigabytes, and caches
+a lane on the content of everything it reads, so a second run over an
+unchanged tree is seconds. There is no shell script in this repo. If Bend
+can state a claim as a law (including an IO equality), it goes in
+`LAWS.bend` / `PROOF.bend`. `tests/*.bend` / `#|` exist only for claims
+Bend cannot prove.
 
 ez is a convenience, not a requirement: it buys the ledger above, the cache and
 the caps. bolt itself has no dependency on it, and `tests/bare.bend` proves that

@@ -4,26 +4,23 @@ This is bolt: a linter, checker and language server for Bend 2, and its VS
 Code extension, written in Bend (README.md). Read `bend guide` before
 writing Bend. Then this.
 
-## Prove it or it is not a test
+## Hard rule
 
-If Bend can state the claim as a law — including a closed IO equality
-`{main() == IO.print("…") : IO(Unit)}` — it belongs in `LAWS.bend` /
-`PROOF.bend`. It does **not** belong in `tests/*.bend` and it does **not**
-get a `#|` trailer.
+If Bend can state it as a law (including an IO equality
+`{main() == IO.print("…") : IO(Unit)}`), it goes in `LAWS.bend` /
+`PROOF.bend`.
 
-`tests/*.bend` / `#|` exist only for claims Bend cannot prove: host and
-integration (bend, nix, node, disk, process). That stay list is
+`tests/*.bend` and `#|` exist only for claims Bend cannot prove:
+host/integration (bend, nix, node, disk, process). The stay list is
 `tests/bare.bend`, `tests/flake.bend`, `bolt/lsp/tests/checker.bend`,
 `syntax/tests/lex_files.bend`, `syntax/tests/tree_files.bend`,
-`bolt/lsp/tests/levels.bend`, plus their companions
-(`bolt/lsp/tests/spawn.js`, `tests/locate.js`, `run/run.bend`). An
-operational thunk that must not run (`lazy/tests/lazy.bend`) is the same
-kind of thing: the checker cannot state “this side was skipped.”
+`bolt/lsp/tests/levels.bend`, plus companions
+(`bolt/lsp/tests/spawn.js`, `tests/locate.js`, `run/run.bend`) and
+`lazy/tests/lazy.bend` (a thunk that must not run: Bend cannot state
+“this side was skipped”).
 
-Do not write a `#|` equality test for a proveable claim. Do not add a
-`tests/*.bend` because “projects need tests.” They do not. A directory
-with `LAWS.bend` and `PROOF.bend` is complete. New proveable behavior is
-a law, then a proof — never `tests/x.bend` first.
+A `#|` equality for a proveable claim is a bug. A directory with
+`LAWS.bend` and `PROOF.bend` is complete. Do not add `tests/`.
 
 ## Layout
 
@@ -36,8 +33,8 @@ a law, then a proof — never `tests/x.bend` first.
                        (nix sees tracked files only: git add first)
     run/               one effect, for host/integration tests above bolt rather
                        than inside it: a program run with its arguments
-    tests/*.bend       host/integration only (bare build, flake). `ez test`
-                       runs each on its own, and caches none of them
+    tests/*.bend       stay-list host/integration only (bare, flake).
+                       `ez test` runs each on its own, and caches none of them
     .github/workflows/ ci: the gate, on a pull request and on a push to main.
                        tag and release: a vX.Y.Z tag and a GitHub Release,
                        nothing built and nothing uploaded.
@@ -50,9 +47,7 @@ a law, then a proof — never `tests/x.bend` first.
       PROOF.bend       the proofs; `bend PROOF.bend` prints "All terms check."
                        (every one in the tree is gated, so a fixture holding a
                        proof that is meant to fail cannot live here)
-      tests/*.bend     host/integration only; each ends in the `#|` lines its
-                       run must print. Omit the directory when every claim
-                       is a law.
+                       no `tests/` unless the claim is on the stay list
       README.md
 
 Anything under a `tests/` directory is a test. Fixtures a test reads are not
@@ -104,8 +99,7 @@ Design specs and plans are not kept in this repo; they live under
 ## Conventions
 
 - New proveable behavior is a law in `LAWS.bend`, then a filling in
-  `PROOF.bend`. Watch `bend PROOF.bend` fail, then prove. Never start with
-  `tests/x.bend` or a `#|` equality.
+  `PROOF.bend`. Watch `bend PROOF.bend` fail, then prove.
 - `bolt` (bolt/README.md) runs at the end of the gate, every rule an error
   by the root bolt.bend: keep it clean. The binary the gate lints with is the
   one `tests/bare.bend` has just built from this tree, never whatever `bolt`

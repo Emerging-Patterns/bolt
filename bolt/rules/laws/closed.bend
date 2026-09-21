@@ -45,9 +45,10 @@ def name.of(m: Maybe<&2, String>) -> String:
 
 def check.go(root: Tree.Node, +path: String) -> List<&2, F.Finding>:
   match root:
-    case Tree.NCons{Tree.Stmt{Tree.SLaw{}, +kids, body}, rest}:
+    case Tree.NCons{Tree.Stmt{Tree.SLaw{}, +kids, +body}, rest}:
       +more = check.go(rest, path)
-      Lazy.stop(List<&2, F.Finding>, Lazy.or_else(binds(body), _u => has_eq(body)), more,
+      Lazy.stop(List<&2, F.Finding>,
+        Lazy.or_else(binds(body), _u => Lazy.or_else(has_eq(kids), _u => has_eq(body))), more,
         _u => F.Finding{path, Tree.line(kids), Tree.col(kids), 0, "closed",
           "law " ++ name.of(Bind.declared(kids))
             ++ " has no for and is not an equality: state {lhs == rhs : T}, including IO(T)"} <> more)

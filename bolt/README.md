@@ -201,8 +201,10 @@ file, so they run in bolt alone.
 
 ## In the gate
 
-`tests/bare.bend` ends by running bolt over the whole repo and must see
-`clean`. The binary it lints with is the one it has just built from the tree
-under test, never whatever `bolt` is on the PATH: a bolt from an older release
-answers `clean` to every rule it does not implement yet, which reads exactly
-like a repo with nothing wrong in it.
+Proveable claims (including IO equalities) are laws in `LAWS.bend` /
+`PROOF.bend`, not `#|` tests. `tests/bare.bend` is host/integration: it
+ends by running bolt over the whole repo and must see `clean`. The binary
+it lints with is the one it has just built from the tree under test, never
+whatever `bolt` is on the PATH: a bolt from an older release answers
+`clean` to every rule it does not implement yet, which reads exactly like
+a repo with nothing wrong in it.

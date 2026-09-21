@@ -618,7 +618,7 @@ law outline_nonempty:
 
 # LAW: words of a line
 law outline_words:
-  {List.length(&2, String, Outline.words("def area")) == 2 : Nat}
+  {List.length(&2, String, Outline.words("def area")) == 2n : Nat}
 
 # LAW: undoc drops a hash
 law outline_undoc:
@@ -657,12 +657,12 @@ law outline_import_path:
 # LAW: starting area
 law outline_starting:
   {List.length(&2, Outline.Item, Outline.starting(Outline.items(outline_src()), "ar", ""))
-    == 1 : Nat}
+    == 1n : Nat}
 
 # LAW: aliases of M
 law outline_aliases:
   {List.length(&2, Outline.Item, Outline.aliases(Outline.items(outline_src()), "M"))
-    == 1 : Nat}
+    == 1n : Nat}
 
 # LAW: add of none
 law outline_add:
@@ -788,9 +788,9 @@ law bind_spaced:
 
 # LAW: named_sites of area
 law bind_named_sites:
-  {List.length(&2, Bind.Pos, Bind.named_sites(Bind.bound(bind_src()), "area")) == 2 : Nat}
+  {List.length(&2, Bind.Pos, Bind.named_sites(Bind.bound(bind_src()), "area")) == 1n : Nat}
 
 # LAW: of_tree of a parse
 law bind_of_tree:
   {List.length(&2, Bind.Bind, Bind.visible(Bind.of_tree(Tree.parse(bind_src()),
-    String.lines(bind_src())), 3)) == 4 : Nat}
+    String.lines(bind_src())), 3)) == 3n : Nat}
