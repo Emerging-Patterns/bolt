@@ -14,6 +14,6 @@ def suspicious() -> String:
 def style() -> String:
   "error"
 
-# a pure def named by no law
+# a def named by no law, IO included
 def laws() -> String:
   "error"

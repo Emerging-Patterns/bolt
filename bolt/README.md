@@ -6,7 +6,7 @@ It enforces what the checker does not: comments, unused names, the
 binder-vs-def trap, leftover holes, whitespace, recursion that is strict
 where it should stop early or quadratic where it should be linear, unary
 `Nat` blowups, silent wrong answers (`Map.put`, `\033`, unreachable arms),
-foreign defs missing a lane, and laws that reach every pure def. Install:
+foreign defs missing a lane, and laws that reach every def (IO included). Install:
 `bend bolt/main.bend -o bin/bolt.bin` at the repo root (README.md there).
 
     bolt                every .bend file under the current directory
@@ -159,22 +159,23 @@ beside the groups.
   first live parameter is a `List` or a `String`. On a long one the JS lane
   overflows its stack (a 48 KB header crashed a server; ~4,900 entries and
   ~64K elements elsewhere). Carry an accumulator.
-- `closed` — a law in a LAWS.bend with no `for`: one computed case, not a
-  claim about every input.
+- `closed` — a law in a LAWS.bend with no `for`/`exs` and no `==`. A closed
+  equality (`{lhs == rhs : T}`, including `IO(T)`) is a stated claim. A law
+  that is neither quantified nor an equality is the finding.
 - `unsafe` (project) — an `@unsafe def` that a LAWS.bend or PROOF.bend
   reaches through its imports. There the checker prints "All terms check,
   but N defs rely on unsafe or foreign code:" and a `- name` list (2.0.16
   counted marks: "with N unsafe annotations.") and exits 0, so a gate that
   reads the exit status goes green on an unproven claim.
 - `law` (project) — in a project that states laws (a directory with a
-  LAWS.bend), a pure def that no law names. A law names a def when its
-  statement mentions it, through the law file's import alias (`M.join` in
-  `core/LAWS.bend` names `join` of `core/monoid/service.bend`); laws in any
-  file count, PROOF.bend's lemmas included. A type is covered once any law
-  reaches its module: a law about an instance names the accessors, never the
-  service type. Out of scope: helpers (dotted names), `main`, tests, the law
-  files, and a module that touches IO (a law cannot state it). A project
-  without a LAWS.bend is not under law.
+  LAWS.bend), a def that no law names, IO included. A law names a def when
+  its statement mentions it, through the law file's import alias (`M.join`
+  in `core/LAWS.bend` names `join` of `core/monoid/service.bend`); laws in
+  any file count, PROOF.bend's lemmas included. A type is covered once any
+  law reaches its module: a law about an instance names the accessors, never
+  the service type. Out of scope: helpers (dotted names), tests, and the law
+  files. `main` is a def: a law that names it covers it. A project without
+  a LAWS.bend is not under law.
 
 ## One binary
 

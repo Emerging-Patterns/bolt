@@ -109,10 +109,11 @@ def top_items(items: List<&2, Outline.Item>) -> List<&2, Top>:
     case Con{other, rest}:
       top_items(rest)
 
-# a law file, a test, or a module that touches IO: not under law
-def is_exempt(+p: String, text: String) -> Bool:
+# a law file or a test: not under law. IO in the file is not an exemption:
+# an IO equality is a law.
+def is_exempt(+p: String) -> Bool:
   Bool.or(Bool.or(String.ends_with(p, "LAWS.bend"), String.ends_with(p, "PROOF.bend")),
-    Bool.or(String.contains(p, "tests/"), String.contains(text, "IO")))
+    String.contains(p, "tests/"))
 
 # the significant tokens: no space, newline or comment
 def significant(toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
@@ -156,7 +157,7 @@ def of(s: Src.Src) -> Digest:
   Src.Src{+path, text, toks, tree, bound, +items} = s
   +p = Imports.norm(path)
   Digest{path, p, Imports.dir_of(path), String.ends_with(path, "LAWS.bend"),
-    Bool.or(String.ends_with(path, "LAWS.bend"), String.ends_with(path, "PROOF.bend")), is_exempt(p, text),
+    Bool.or(String.ends_with(path, "LAWS.bend"), String.ends_with(path, "PROOF.bend")), is_exempt(p),
     top_items(items), law_mentions(tree, aliases(items, p), p), Imports.targets(items, p),
     unsafe_defs(significant(toks))}
 
