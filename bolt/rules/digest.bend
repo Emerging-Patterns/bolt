@@ -114,8 +114,7 @@ def top_items(items: List<&2, Outline.Item>) -> List<&2, Top>:
 # text mentions exempts it; IO is not an exemption, since an IO equality is a
 # law.
 def is_exempt(+pp: String) -> Bool:
-  Bool.or(Bool.or(String.ends_with(pp, "LAWS.bend"), String.ends_with(pp, "PROOF.bend")),
-    Paths.is_test(pp))
+  Bool.or(Paths.is_law_file(pp), Paths.is_test(pp))
 
 # the significant tokens: no space, newline or comment
 def significant(toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
@@ -158,8 +157,7 @@ def unsafe_defs(toks: List<&2, Lex.Tok>) -> List<&2, Unsafe>:
 def of(s2: Src.Src) -> Digest:
   Src.Src{+path, text, toks, tree, bound, +items} = s2
   +p = Imports.norm(path)
-  Digest{path, p, Imports.dir_of(path), String.ends_with(path, "LAWS.bend"),
-    Bool.or(String.ends_with(path, "LAWS.bend"), String.ends_with(path, "PROOF.bend")), is_exempt(p),
+  Digest{path, p, Imports.dir_of(path), Paths.is_laws(path), Paths.is_law_file(path), is_exempt(p),
     top_items(items), law_mentions(tree, aliases(items, p), p), Imports.targets(items, p),
     unsafe_defs(significant(toks))}
 

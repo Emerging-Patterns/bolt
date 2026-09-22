@@ -48,5 +48,5 @@ def check.go(items: List<&2, Outline.Item>, +path: String) -> List<&2, F.Finding
 # the rule
 def check(ss: Src.Src) -> List<&2, F.Finding>:
   Src.Src{+path, text, toks, tree, bound, items} = ss
-  Lazy.stop(List<&2, F.Finding>, Bool.or(String.ends_with(path, "PROOF.bend"), Paths.is_test(path)),
+  Lazy.stop(List<&2, F.Finding>, Bool.or(Paths.is_proof(path), Paths.is_test(path)),
     [], _u => check.go(items, path))

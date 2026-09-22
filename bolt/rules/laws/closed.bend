@@ -5,6 +5,7 @@
 # closed law: quantify it, or delete it. Laws outside LAWS.bend are not held
 # to it.
 import Base
+import ../../paths.bend as Paths
 import ../../src.bend as Src
 import ../../finding.bend as F
 import ../../../syntax/tree.bend as Tree
@@ -45,4 +46,4 @@ def check.go(root: Tree.Node, +path: String) -> List<&2, F.Finding>:
 # the rule
 def check(ss: Src.Src) -> List<&2, F.Finding>:
   Src.Src{+path, text, toks, tree, bound, items} = ss
-  Lazy.stop(List<&2, F.Finding>, Bool.not(String.ends_with(path, "LAWS.bend")), [], _u => check.go(tree, path))
+  Lazy.stop(List<&2, F.Finding>, Bool.not(Paths.is_laws(path)), [], _u => check.go(tree, path))
