@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.0](https://github.com/Emerging-Patterns/bolt/compare/v0.9.0...v1.0.0) (2026-09-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* **closed:** `closed` reports closed equalities, IO included, and a `# toward` line no longer exempts a law. `quantify` is gone; a bolt.bend that names it sets nothing.
+
+### Features
+
+* **closed:** delete every closed law and make closed strict ([#48](https://github.com/Emerging-Patterns/bolt/issues/48)) ([66626db](https://github.com/Emerging-Patterns/bolt/commit/66626db257780ac4347ae4f83897dd8b95167ad8))
+
 ## [0.9.0](https://github.com/Emerging-Patterns/bolt/compare/v0.8.1...v0.9.0) (2026-09-22)
 
 
