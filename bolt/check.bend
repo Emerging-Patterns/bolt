@@ -59,9 +59,9 @@ def check_all(~ck: Checker.Checker, paths: List<&2, String>) -> IO(U32):
         return (U32.from_nat(List.length(&2, String, shown)) + more : U32)
 
 # `clean`, or the count
-def summary(+n: U32) -> String:
-  Bool.pick(String, U32.is_eq(n, 0), "clean",
-    U32.show(n) ++ Bool.pick(String, U32.is_eq(n, 1), " error", " errors") ++ ", 0 warnings")
+def summary(+nn: U32) -> String:
+  Bool.pick(String, U32.is_eq(nn, 0), "clean",
+    U32.show(nn) ++ Bool.pick(String, U32.is_eq(nn, 1), " error", " errors") ++ ", 0 warnings")
 
 # the checker over the files given, exiting 1 when any of them had an error
 def run(paths: List<&2, String>) -> IO(Unit):

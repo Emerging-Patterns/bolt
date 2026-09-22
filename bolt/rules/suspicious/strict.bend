@@ -15,12 +15,12 @@ import ../calls.bend as Calls
 import ../../../lazy/lazy.bend as Lazy
 
 # is the operator `&&` or `||`?
-def logic(+t: String) -> Bool:
-  Bool.or(String.eq(t, "&&"), String.eq(t, "||"))
+def logic(+tt: String) -> Bool:
+  Bool.or(String.eq(tt, "&&"), String.eq(tt, "||"))
 
 # does the chain, up to its first top-level comma, hold `&&` or `||`?
-def seg_op(n: Tree.Node) -> Bool:
-  match n:
+def seg_op(nn: Tree.Node) -> Bool:
+  match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}, rest}:
       False{}
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +t, l, c}}, rest}:
@@ -33,8 +33,8 @@ def seg_op(n: Tree.Node) -> Bool:
 
 # the self-calls in operands: outer is whether the enclosing group is an
 # operand, hot whether the current comma segment is
-def walk(n: Tree.Node, +name: String, +path: String, +outer: Bool, +hot: Bool) -> List<&2, F.Finding>:
-  match n:
+def walk(nn: Tree.Node, +name: String, +path: String, +outer: Bool, +hot: Bool) -> List<&2, F.Finding>:
+  match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}, +rest}:
       walk(rest, name, path, outer, Bool.or(outer, seg_op(rest)))
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
@@ -69,6 +69,6 @@ def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Fi
           _u => walk(body, name, path, False{}, False{})) <> acc)
 
 # the rule
-def check(s: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = s
+def check(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = ss
   check.go(Calls.defs(tree), path, [])

@@ -25,20 +25,20 @@ def named(ds: List<&2, Digest.Digest>) -> List<&2, Digest.Mention>:
       List.append(&2, Digest.Mention, says, named(rest))
 
 # is the item named?
-def has_item(ms: List<&2, Digest.Mention>, +p: String, +name: String) -> Bool:
+def has_item(ms: List<&2, Digest.Mention>, +pp: String, +name: String) -> Bool:
   match ms:
     case Nil{}:
       False{}
     case Con{Digest.Mention{+mp, +mn}, rest}:
-      Lazy.or_else(Bool.and(String.eq(mp, p), String.eq(mn, name)), _u => has_item(rest, p, name))
+      Lazy.or_else(Bool.and(String.eq(mp, pp), String.eq(mn, name)), _u => has_item(rest, pp, name))
 
 # is anything of the module named?
-def has_module(ms: List<&2, Digest.Mention>, +p: String) -> Bool:
+def has_module(ms: List<&2, Digest.Mention>, +pp: String) -> Bool:
   match ms:
     case Nil{}:
       False{}
     case Con{Digest.Mention{+mp, mn}, rest}:
-      Lazy.or_else(String.eq(mp, p), _u => has_module(rest, p))
+      Lazy.or_else(String.eq(mp, pp), _u => has_module(rest, pp))
 
 # what is in scope
 # ----------------
@@ -53,30 +53,30 @@ def law_dirs(ds: List<&2, Digest.Digest>) -> List<&2, String>:
       Bool.pick(List<&2, String>, is_laws, dir <> more, more)
 
 # is the path under one of the directories?
-def under(dirs: List<&2, String>, +p: String) -> Bool:
+def under(dirs: List<&2, String>, +pp: String) -> Bool:
   match dirs:
     case Nil{}:
       False{}
     case Con{d, rest}:
-      Lazy.or_else(String.starts_with(p, d), _u => under(rest, p))
+      Lazy.or_else(String.starts_with(pp, d), _u => under(rest, pp))
 
 # a def or a type that no law reaches
-def gaps(ts: List<&2, Digest.Top>, +ms: List<&2, Digest.Mention>, +p: String, +path: String) ->
+def gaps(ts: List<&2, Digest.Top>, +ms: List<&2, Digest.Mention>, +pp: String, +path: String) ->
   List<&2, F.Finding>:
   match ts:
     case Nil{}:
       Nil{}
     case Con{Digest.Top{Outline.IDef{}, +name, +line}, rest}:
-      +more = gaps(rest, ms, p, path)
+      +more = gaps(rest, ms, pp, path)
       Bool.pick(List<&2, F.Finding>,
-        Bool.or(String.contains(name, "."), has_item(ms, p, name)), more,
+        Bool.or(String.contains(name, "."), has_item(ms, pp, name)), more,
         F.Finding{path, line, 0, 0, "law", "def " ++ name ++ " is named by no law"} <> more)
     case Con{Digest.Top{Outline.IType{}, +name, +line}, rest}:
-      +more = gaps(rest, ms, p, path)
-      Bool.pick(List<&2, F.Finding>, has_module(ms, p), more,
+      +more = gaps(rest, ms, pp, path)
+      Bool.pick(List<&2, F.Finding>, has_module(ms, pp), more,
         F.Finding{path, line, 0, 0, "law", "type " ++ name ++ ": no law reaches this module"} <> more)
     case Con{other, rest}:
-      gaps(rest, ms, p, path)
+      gaps(rest, ms, pp, path)
 
 # every file in scope, against what the laws name. A file out of scope pays
 # nothing: `gaps` scans what the laws name once for each def, and as an

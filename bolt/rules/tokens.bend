@@ -16,8 +16,8 @@ def sig(toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
       Bool.pick(List<&2, Lex.Tok>, Lex.significant(k), Lex.Tok{k, t, l, c} <> more, more)
 
 # a number, a char or a string literal?
-def is_lit(k: Lex.TokKind) -> Bool:
-  match k:
+def is_lit(kk: Lex.TokKind) -> Bool:
+  match kk:
     case Lex.TNum{}:
       True{}
     case Lex.TChar{}:
@@ -38,20 +38,20 @@ def nat_ok(cs: List<&2, Char>) -> Bool:
       False{}
 
 # the text without its last char (a Nat literal's digits)
-def stem(+t: String) -> String:
-  String.take(t, Nat.sub(String.length(t), 1n))
+def stem(+tt: String) -> String:
+  String.take(tt, Nat.sub(String.length(tt), 1n))
 
 # a Nat literal's value (`12n` is 12); none for anything else or past U32
-def nat_value(+t: String) -> Maybe<&2, U32>:
-  Bool.pick(Maybe<&2, U32>, nat_ok(String.to_list(t)), U32.read(stem(t)), None{})
+def nat_value(+tt: String) -> Maybe<&2, U32>:
+  Bool.pick(Maybe<&2, U32>, nat_ok(String.to_list(tt)), U32.read(stem(tt)), None{})
 
 # a text's width in chars
-def width(t: String) -> U32:
-  U32.from_nat(String.length(t))
+def width(tt: String) -> U32:
+  U32.from_nat(String.length(tt))
 
 # is the first node the keyword?
-def keyword(n: Tree.Node, +word: String) -> Bool:
-  match n:
+def keyword(nn: Tree.Node, +word: String) -> Bool:
+  match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TKey{}, +t, l, c}}, rest}:
       String.eq(t, word)
     case other:
@@ -67,8 +67,8 @@ def pattern(kids: Tree.Node) -> Tree.Node:
       other
 
 # does the name appear anywhere under the node?
-def mentions(n: Tree.Node, +name: String) -> Bool:
-  match n:
+def mentions(nn: Tree.Node, +name: String) -> Bool:
+  match nn:
     case Tree.Leaf{Lex.Tok{k, +t, l, c}}:
       String.eq(t, name)
     case Tree.Group{open, kids, close}:

@@ -83,36 +83,36 @@ type St is Data:
 # in a pattern is a U32 literal inside a constructor pattern, and bend's C
 # backend pays about 90 MB for each one -- these eighteen cost 1.57 GB as
 # literal arms and 0.10 GB written this way.
-def classify.go(+x: U32, other: Class) -> Class:
-  Bool.pick(Class, U32.is_eq(x, 46), CDot{},  # '.'
-  Bool.pick(Class, U32.is_eq(x, 34), CQuote{},  # '"'
-  Bool.pick(Class, U32.is_eq(x, 39), CTick{},  # '\''
-  Bool.pick(Class, U32.is_eq(x, 92), CBack{},  # '\\'
-  Bool.pick(Class, U32.is_eq(x, 35), CHash{},  # '#'
-  Bool.pick(Class, U32.is_eq(x, 32), CSpace{},  # ' '
-  Bool.pick(Class, U32.is_eq(x, 9), CSpace{},  # '\t'
-  Bool.pick(Class, U32.is_eq(x, 13), CSpace{},  # '\r'
-  Bool.pick(Class, U32.is_eq(x, 10), CNewline{},  # '\n'
-  Bool.pick(Class, U32.is_eq(x, 58), CColon{},  # ':'
-  Bool.pick(Class, U32.is_eq(x, 44), CComma{},  # ','
-  Bool.pick(Class, U32.is_eq(x, 40), COpen{},  # '('
-  Bool.pick(Class, U32.is_eq(x, 91), COpen{},  # '['
-  Bool.pick(Class, U32.is_eq(x, 123), COpen{},  # '{'
-  Bool.pick(Class, U32.is_eq(x, 41), CClose{},  # ')'
-  Bool.pick(Class, U32.is_eq(x, 93), CClose{},  # ']'
-  Bool.pick(Class, U32.is_eq(x, 125), CClose{},  # '}'
-  Bool.pick(Class, U32.is_eq(x, 95), CAlpha{},  # '_'
+def classify.go(+xx: U32, other: Class) -> Class:
+  Bool.pick(Class, U32.is_eq(xx, 46), CDot{},  # '.'
+  Bool.pick(Class, U32.is_eq(xx, 34), CQuote{},  # '"'
+  Bool.pick(Class, U32.is_eq(xx, 39), CTick{},  # '\''
+  Bool.pick(Class, U32.is_eq(xx, 92), CBack{},  # '\\'
+  Bool.pick(Class, U32.is_eq(xx, 35), CHash{},  # '#'
+  Bool.pick(Class, U32.is_eq(xx, 32), CSpace{},  # ' '
+  Bool.pick(Class, U32.is_eq(xx, 9), CSpace{},  # '\t'
+  Bool.pick(Class, U32.is_eq(xx, 13), CSpace{},  # '\r'
+  Bool.pick(Class, U32.is_eq(xx, 10), CNewline{},  # '\n'
+  Bool.pick(Class, U32.is_eq(xx, 58), CColon{},  # ':'
+  Bool.pick(Class, U32.is_eq(xx, 44), CComma{},  # ','
+  Bool.pick(Class, U32.is_eq(xx, 40), COpen{},  # '('
+  Bool.pick(Class, U32.is_eq(xx, 91), COpen{},  # '['
+  Bool.pick(Class, U32.is_eq(xx, 123), COpen{},  # '{'
+  Bool.pick(Class, U32.is_eq(xx, 41), CClose{},  # ')'
+  Bool.pick(Class, U32.is_eq(xx, 93), CClose{},  # ']'
+  Bool.pick(Class, U32.is_eq(xx, 125), CClose{},  # '}'
+  Bool.pick(Class, U32.is_eq(xx, 95), CAlpha{},  # '_'
     other))))))))))))))))))
 
 # a char's class
-def classify(+c: Char) -> Class:
-  +other = Bool.pick(Class, Char.is_alpha(c), CAlpha{},
-    Bool.pick(Class, Char.is_digit(c), CDigit{}, COp{}))
-  classify.go(Char.to_u32(c), other)
+def classify(+cc: Char) -> Class:
+  +other = Bool.pick(Class, Char.is_alpha(cc), CAlpha{},
+    Bool.pick(Class, Char.is_digit(cc), CDigit{}, COp{}))
+  classify.go(Char.to_u32(cc), other)
 
 # does a char of this class continue the token the machine is inside of?
-def continues(m: Mode, cls: Class) -> Bool:
-  match m cls:
+def continues(mm: Mode, cls: Class) -> Bool:
+  match mm cls:
     case Fresh{} c:
       False{}
     case InName{} CAlpha{}:
@@ -157,8 +157,8 @@ def continues(m: Mode, cls: Class) -> Bool:
       False{}
 
 # the mode after a char that continued the token
-def after(m: Mode, cls: Class) -> Mode:
-  match m cls:
+def after(mm: Mode, cls: Class) -> Mode:
+  match mm cls:
     case InStr{} CQuote{}:
       Fresh{}
     case InStr{} CBack{}:
@@ -228,10 +228,10 @@ def word(buf: List<&2, Char>) -> String:
   String.from_list(List.reverse(&2, Char, buf))
 
 # is the text one of Bend's keywords?
-def is_keyword(+t: String) -> Bool:
+def is_keyword(+tt: String) -> Bool:
   List.contains(~String, ~String.eq,
     ["def", "type", "law", "match", "case", "do", "return", "for", "exs", "where", "is", "import",
-     "Type", "Data", "Kind", "Quant"], t)
+     "Type", "Data", "Kind", "Quant"], tt)
 
 # does the text start with a capital?
 def upper_first(cs: List<&2, Char>) -> Bool:
@@ -242,29 +242,29 @@ def upper_first(cs: List<&2, Char>) -> Bool:
       Char.is_upper(c)
 
 # a whole name's kind
-def refine_name(+t: String) -> TokKind:
-  Bool.pick(TokKind, is_keyword(t), TKey{},
-    Bool.pick(TokKind, String.contains(t, "."), TDotted{},
-      Bool.pick(TokKind, String.eq(t, "_"), TWild{},
-        Bool.pick(TokKind, upper_first(String.to_list(t)), TUpper{}, TName{}))))
+def refine_name(+tt: String) -> TokKind:
+  Bool.pick(TokKind, is_keyword(tt), TKey{},
+    Bool.pick(TokKind, String.contains(tt, "."), TDotted{},
+      Bool.pick(TokKind, String.eq(tt, "_"), TWild{},
+        Bool.pick(TokKind, upper_first(String.to_list(tt)), TUpper{}, TName{}))))
 
 # a whole operator's kind
-def refine_op(+t: String) -> TokKind:
-  Bool.pick(TokKind, String.eq(t, ":"), TColon{},
-    Bool.pick(TokKind, String.eq(t, "="), TEq{},
-      Bool.pick(TokKind, String.eq(t, "<-"), TBind{},
-        Bool.pick(TokKind, String.eq(t, "->"), TArrow{},
-          Bool.pick(TokKind, String.eq(t, "=>"), TLam{},
-            Bool.pick(TokKind, Bool.or(String.eq(t, "@"), Bool.or(String.eq(t, "@+"), String.eq(t, "@-"))), TAll{},
-              Bool.pick(TokKind, String.eq(t, "&"), TAmp{}, TOp{})))))))
+def refine_op(+tt: String) -> TokKind:
+  Bool.pick(TokKind, String.eq(tt, ":"), TColon{},
+    Bool.pick(TokKind, String.eq(tt, "="), TEq{},
+      Bool.pick(TokKind, String.eq(tt, "<-"), TBind{},
+        Bool.pick(TokKind, String.eq(tt, "->"), TArrow{},
+          Bool.pick(TokKind, String.eq(tt, "=>"), TLam{},
+            Bool.pick(TokKind, Bool.or(String.eq(tt, "@"), Bool.or(String.eq(tt, "@+"), String.eq(tt, "@-"))), TAll{},
+              Bool.pick(TokKind, String.eq(tt, "&"), TAmp{}, TOp{})))))))
 
 # a name's or an operator's kind, once its text is whole
-def refine(kind: TokKind, t: String) -> TokKind:
+def refine(kind: TokKind, tt: String) -> TokKind:
   match kind:
     case TName{}:
-      refine_name(t)
+      refine_name(tt)
     case TOp{}:
-      refine_op(t)
+      refine_op(tt)
     case other:
       other
 
@@ -282,15 +282,15 @@ def is_newline(cls: Class) -> Bool:
       False{}
 
 # one char: it continues the current token, or starts a new one
-def step(+c: Char, st: St) -> St:
+def step(+cc: Char, st: St) -> St:
   St{+mode, +kind, +line, +col, +sl, +sc, +buf, +toks} = st
-  +cls = classify(c)
+  +cls = classify(cc)
   +nl = is_newline(cls)
   +line2 = Bool.pick(U32, nl, (line + 1 : U32), line)
   +col2 = Bool.pick(U32, nl, 0, (col + 1 : U32))
   Bool.pick(St, continues(mode, cls),
-    St{after(mode, cls), kind, line2, col2, sl, sc, c <> buf, toks},
-    St{begin.mode(cls), begin.kind(cls), line2, col2, line, col, [c], flush(kind, sl, sc, buf, toks)})
+    St{after(mode, cls), kind, line2, col2, sl, sc, cc <> buf, toks},
+    St{begin.mode(cls), begin.kind(cls), line2, col2, line, col, [cc], flush(kind, sl, sc, buf, toks)})
 
 # every char, in order
 def run(cs: List<&2, Char>, st: St) -> St:
@@ -322,32 +322,32 @@ def text(toks: List<&2, Tok>) -> String:
   String.concat(List.reverse(&2, String, text.go(toks, [])))
 
 # an opening bracket?
-def is_open(k: TokKind) -> Bool:
-  match k:
+def is_open(kk: TokKind) -> Bool:
+  match kk:
     case TOpen{}:
       True{}
     case other:
       False{}
 
 # a closing bracket?
-def is_close(k: TokKind) -> Bool:
-  match k:
+def is_close(kk: TokKind) -> Bool:
+  match kk:
     case TClose{}:
       True{}
     case other:
       False{}
 
 # a comma?
-def is_comma(k: TokKind) -> Bool:
-  match k:
+def is_comma(kk: TokKind) -> Bool:
+  match kk:
     case TComma{}:
       True{}
     case other:
       False{}
 
 # any identifier: a name, a keyword, a dotted or a capitalized one, `_`
-def is_name(k: TokKind) -> Bool:
-  match k:
+def is_name(kk: TokKind) -> Bool:
+  match kk:
     case TName{}:
       True{}
     case TUpper{}:
@@ -362,8 +362,8 @@ def is_name(k: TokKind) -> Bool:
       False{}
 
 # an operator of any kind
-def is_op(k: TokKind) -> Bool:
-  match k:
+def is_op(kk: TokKind) -> Bool:
+  match kk:
     case TOp{}:
       True{}
     case TColon{}:
@@ -384,16 +384,16 @@ def is_op(k: TokKind) -> Bool:
       False{}
 
 # a newline?
-def is_nl(k: TokKind) -> Bool:
-  match k:
+def is_nl(kk: TokKind) -> Bool:
+  match kk:
     case TNewline{}:
       True{}
     case other:
       False{}
 
 # not space, a newline or a comment
-def significant(k: TokKind) -> Bool:
-  match k:
+def significant(kk: TokKind) -> Bool:
+  match kk:
     case TSpace{}:
       False{}
     case TNewline{}:

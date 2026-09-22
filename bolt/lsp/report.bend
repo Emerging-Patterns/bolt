@@ -22,17 +22,17 @@ type St is Data:
   St{seen: Bool, located: Bool, msg: List<&2, String>, line: U32, place: String, out: List<&2, Diag>}
 
 # a report line's kind
-def classify(+s: String) -> Line:
-  Bool.pick(Line, String.starts_with(s, "Error:"), KError{String.drop(s, 6n)},
-    Bool.pick(Line, String.starts_with(s, "Location:"), KLocation{String.drop(s, 9n)}, KOther{s}))
+def classify(+ss: String) -> Line:
+  Bool.pick(Line, String.starts_with(ss, "Error:"), KError{String.drop(ss, 6n)},
+    Bool.pick(Line, String.starts_with(ss, "Location:"), KLocation{String.drop(ss, 9n)}, KOther{ss}))
 
 # not whitespace?
-def not_space(c: Char) -> Bool:
-  Bool.not(Char.is_space(c))
+def not_space(cc: Char) -> Bool:
+  Bool.not(Char.is_space(cc))
 
 # every whitespace char dropped
-def strip(s: String) -> String:
-  String.from_list(List.filter(~Char, ~not_space, String.to_list(s)))
+def strip(ss: String) -> String:
+  String.from_list(List.filter(~Char, ~not_space, String.to_list(ss)))
 
 # drops leading spaces
 def lstrip.go(cs: List<&2, Char>) -> List<&2, Char>:
@@ -43,8 +43,8 @@ def lstrip.go(cs: List<&2, Char>) -> List<&2, Char>:
       other
 
 # leading whitespace dropped
-def lstrip(s: String) -> String:
-  String.from_list(lstrip.go(String.to_list(s)))
+def lstrip(ss: String) -> String:
+  String.from_list(lstrip.go(String.to_list(ss)))
 
 # `12>|  code` marks line 12: the text before the first '>' is the number, and
 # the text after it starts with '|' (a '>' later in the code changes nothing)
@@ -56,20 +56,20 @@ def marker.of(parts: List<&2, String>) -> Maybe<&2, U32>:
       None{}
 
 # the line number a source line of the report carries (`9>|`), when it does
-def marker(s: String) -> Maybe<&2, U32>:
-  marker.of(String.split(s, '>'))
+def marker(ss: String) -> Maybe<&2, U32>:
+  marker.of(String.split(ss, '>'))
 
 # a message line, without its `- `
-def clean(+s: String) -> String:
-  Bool.pick(String, String.starts_with(s, "- "), String.drop(s, 2n), s)
+def clean(+ss: String) -> String:
+  Bool.pick(String, String.starts_with(ss, "- "), String.drop(ss, 2n), ss)
 
 # bend's "N is available: run bend update" is not part of a diagnostic
-def is_nag(+s: String) -> Bool:
-  String.contains(s, "is available: run bend update")
+def is_nag(+ss: String) -> Bool:
+  String.contains(ss, "is available: run bend update")
 
 # a non-empty, non-nag line onto the message
-def push(+s: String, +msg: List<&2, String>) -> List<&2, String>:
-  Bool.pick(List<&2, String>, Bool.or(String.is_empty(s), is_nag(s)), msg, s <> msg)
+def push(+ss: String, +msg: List<&2, String>) -> List<&2, String>:
+  Bool.pick(List<&2, String>, Bool.or(String.is_empty(ss), is_nag(ss)), msg, ss <> msg)
 
 # the message lines (reversed) as text, headed by where it is when that is
 # another file
@@ -87,9 +87,9 @@ def flush(seen: Bool, msg: List<&2, String>, +line: U32, +place: String, +out: L
   Bool.pick(List<&2, Diag>, Bool.and(seen, Bool.not(String.eq(text, "no main to run"))),
     Diag{line_of(place, line), text} <> out, out)
 
-def step.go(k: Line, located: Bool, seen: Bool, msg: List<&2, String>, +line: U32, place: String,
+def step.go(kk: Line, located: Bool, seen: Bool, msg: List<&2, String>, +line: U32, place: String,
   out: List<&2, Diag>) -> St:
-  match k located seen:
+  match kk located seen:
     case KError{rest} l s:
       St{True{}, False{}, push(lstrip(rest), []), 0, "", flush(s, msg, line, place, out)}
     case KLocation{p} l s:
@@ -102,9 +102,9 @@ def step.go(k: Line, located: Bool, seen: Bool, msg: List<&2, String>, +line: U3
       St{False{}, l, msg, line, place, out}
 
 # one report line
-def step(s: String, st: St) -> St:
+def step(ss: String, st: St) -> St:
   St{seen, located, msg, line, place, out} = st
-  step.go(classify(s), located, seen, msg, line, place, out)
+  step.go(classify(ss), located, seen, msg, line, place, out)
 
 # every report line, in order
 def run(lines: List<&2, String>, st: St) -> St:

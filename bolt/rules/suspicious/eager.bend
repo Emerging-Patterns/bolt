@@ -23,8 +23,8 @@ import ../../../lazy/lazy.bend as Lazy
 import ../calls.bend as Calls
 
 # every name a node calls, `f(..)`, at any depth
-def called(n: Tree.Node) -> List<&2, String>:
-  match n:
+def called(nn: Tree.Node) -> List<&2, String>:
+  match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +more = List.concat(&2, String, [called(kids), called(rest)])
       Bool.pick(List<&2, String>, String.eq(o, "("), t <> more, more)
@@ -64,9 +64,9 @@ def loops(ds: List<&2, Calls.Def>) -> List<&2, String>:
 # a `Bool.pick` (so it runs whatever the condition), seg counts the arguments
 # of the pick whose group this chain is (0 the type, 1 the condition, 2 and 3
 # the branches; 9 for a chain that is not a pick's)
-def work(n: Tree.Node, +ns: List<&2, String>, +self: String, +path: String, +hot: Bool, +seg: U32)
+def work(nn: Tree.Node, +ns: List<&2, String>, +self: String, +path: String, +hot: Bool, +seg: U32)
   -> List<&2, F.Finding>:
-  match n:
+  match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}}, +rest}:
       work(rest, ns, self, path, False{}, seg)
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}, +rest}:
@@ -107,7 +107,7 @@ def check.go(ds: List<&2, Calls.Def>, +ns: List<&2, String>, +path: String,
           _u => work(body, ns, name, path, False{}, 9)) <> acc)
 
 # the rule
-def check(s: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = s
+def check(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = ss
   +ds = Calls.defs(tree)
   check.go(ds, loops(ds), path, [])

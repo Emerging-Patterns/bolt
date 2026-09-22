@@ -28,45 +28,45 @@ def trailing(cs: List<&2, Char>) -> Bool:
       trailing(t)
 
 # a token's share of its line's width; a `#|` trailer line counts nothing
-def width_of(k: Lex.TokKind, +t: String) -> U32:
-  match k:
+def width_of(kk: Lex.TokKind, +tt: String) -> U32:
+  match kk:
     case Lex.TStr{}:
       2
     case Lex.TNewline{}:
       0
     case Lex.TComment{}:
-      Bool.pick(U32, String.starts_with(t, "#|"), 0, U32.from_nat(String.length(t)))
+      Bool.pick(U32, String.starts_with(tt, "#|"), 0, U32.from_nat(String.length(tt)))
     case other:
-      U32.from_nat(String.length(t))
+      U32.from_nat(String.length(tt))
 
 # a finding when the width is over 120
-def too_wide(+width: U32, +path: String, +n: U32, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
-  Bool.pick(List<&2, F.Finding>, U32.is_gt(width, 120), F.Finding{path, n, 120, 0, "space", "over 120 characters wide"} <> more, more)
+def too_wide(+width: U32, +path: String, +nn: U32, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
+  Bool.pick(List<&2, F.Finding>, U32.is_gt(width, 120), F.Finding{path, nn, 120, 0, "space", "over 120 characters wide"} <> more, more)
 
 # one pass over the tokens: a newline closes a line's width
-def widths(toks: List<&2, Lex.Tok>, +path: String, +n: U32, +acc: U32) -> List<&2, F.Finding>:
+def widths(toks: List<&2, Lex.Tok>, +path: String, +nn: U32, +acc: U32) -> List<&2, F.Finding>:
   match toks:
     case Nil{}:
-      too_wide(acc, path, n, [])
+      too_wide(acc, path, nn, [])
     case Con{Lex.Tok{Lex.TNewline{}, t, l, c}, rest}:
-      too_wide(acc, path, n, widths(rest, path, (n + 1 : U32), 0))
+      too_wide(acc, path, nn, widths(rest, path, (nn + 1 : U32), 0))
     case Con{Lex.Tok{k, t, l, c}, rest}:
       +w = width_of(k, t)
-      widths(rest, path, n, (acc + w : U32))
+      widths(rest, path, nn, (acc + w : U32))
 
-def check.line(+path: String, +n: U32, +cs: List<&2, Char>, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
+def check.line(+path: String, +nn: U32, +cs: List<&2, Char>, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
   +len = U32.from_nat(List.length(&2, Char, cs))
-  Bool.pick(List<&2, F.Finding>, trailing(cs), F.Finding{path, n, (len - 1 : U32), 1, "space", "trailing whitespace"} <> more,
-    Bool.pick(List<&2, F.Finding>, has_tab(cs), F.Finding{path, n, 0, 1, "space", "a tab; indent with spaces"} <> more, more))
+  Bool.pick(List<&2, F.Finding>, trailing(cs), F.Finding{path, nn, (len - 1 : U32), 1, "space", "trailing whitespace"} <> more,
+    Bool.pick(List<&2, F.Finding>, has_tab(cs), F.Finding{path, nn, 0, 1, "space", "a tab; indent with spaces"} <> more, more))
 
-def check.go(lines: List<&2, String>, +path: String, +n: U32) -> List<&2, F.Finding>:
+def check.go(lines: List<&2, String>, +path: String, +nn: U32) -> List<&2, F.Finding>:
   match lines:
     case Nil{}:
       Nil{}
     case Con{line, rest}:
-      check.line(path, n, String.to_list(line), check.go(rest, path, (n + 1 : U32)))
+      check.line(path, nn, String.to_list(line), check.go(rest, path, (nn + 1 : U32)))
 
 # the rule
-def check(s: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{+path, text, toks, tree, bound, items} = s
+def check(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{+path, text, toks, tree, bound, items} = ss
   List.append(&2, F.Finding, check.go(String.lines(text), path, 0), widths(toks, path, 0, 0))

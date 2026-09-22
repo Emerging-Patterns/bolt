@@ -46,7 +46,7 @@ unset group has its default. The groups:
 |---------------|----------------------------------------------------------------------------------|---------|
 | `correctness` | `shadow` `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign` | error   |
 | `suspicious`  | `unused` `strict` `eager` `concat` `nat` `fuel` `index`                          | warn    |
-| `style`       | `doc` `space`                                                                    | warn    |
+| `style`       | `doc` `space` `wrap` `param`                                                     | warn    |
 | `laws`        | `law` `closed` `unsafe`                                                          | warn    |
 | `pedantic`    | `tail`                                                                           | off     |
 
@@ -96,6 +96,14 @@ beside the groups.
 - `space` — trailing whitespace, a tab, or a line over 120 wide. Width counts
   a string literal as two characters: a long fixture or message does not make
   a line hard to read, code does. `#|` trailers are data and exempt.
+- `wrap` — a one-line def header over 120 wide, counted the same way (a string
+  literal is two characters). The header is the text through its `:`. One that
+  already spans lines is wrapped, and a one-line header that fits stays one
+  line however many parameters it has.
+- `param` — a parameter name shorter than 2 characters. A single uppercase
+  letter is a type parameter (`A`, `T`), and a bare parameter or one typed
+  `Quant` is a quantity. Locals, patterns and a law's `for` names are not
+  parameters. A PROOF.bend's parameters are the names its law bound.
 - `pick` — a def calls itself in a branch of a `Bool.pick`. Bool.pick is a
   function: both branches run whatever the condition. In both branches, two
   recursive calls a step is 2^n work (a per-token scan took 20 s this way and

@@ -9,6 +9,8 @@ import ../rules/suspicious/unused.bend as Unused
 import ../rules/correctness/shadow.bend as Shadow
 import ../rules/correctness/hole.bend as Hole
 import ../rules/style/space.bend as Space
+import ../rules/style/wrap.bend as Wrap
+import ../rules/style/param.bend as Param
 import ../rules/correctness/pick.bend as Pick
 import ../rules/laws/law.bend as Law
 import ../rules/digest.bend as Digest
@@ -83,7 +85,7 @@ law rules_all_is_on:
 # LAW: the sample's findings, read once
 law rules_sample:
   {lines(Rules.on(Src.of("a.bend", C.src.sample()))) ==
-    "a.bend:8:1: doc: def go has no comment above it; a.bend:13:7: pick: go recurses in both branches; Bool.pick runs both"
+    "a.bend:8:1: doc: def go has no comment above it; a.bend:4:9: param: parameter n is shorter than 2 characters; a.bend:13:7: pick: go recurses in both branches; Bool.pick runs both"
     : String}
 
 # LAW: a bare bolt is lint over no files
@@ -192,6 +194,16 @@ law space_width:
     "a.bend:1:17: space: trailing whitespace; a.bend:2:1: space: a tab; indent with spaces; a.bend:3:121: space: over 120 characters wide"
     : String}
 
+# LAW: wrap: a one-line header over 120, not one that fits or is already wrapped
+law wrap_header:
+  {lines(Wrap.check(Src.of("a.bend", C.rules.headers()))) ==
+    "a.bend:3:121: wrap: def header over 120 characters wide" : String}
+
+# LAW: param: a one-letter value parameter, not a type, a quantity or a local
+law param_short:
+  {lines(Param.check(Src.of("a.bend", C.rules.params()))) ==
+    "a.bend:1:9: param: parameter n is shorter than 2 characters" : String}
+
 # LAW: pick: a def in both branches
 law pick_both:
   {lines(Pick.check(Src.of("a.bend", C.rules.picked()))) ==
@@ -210,8 +222,8 @@ law law_none:
 
 # LAW: config defaults
 law config_defaults:
-  {levels(Config.none(), ["shadow", "hole", "pick", "unused", "doc", "space", "law"]) ==
-    "shadow=error hole=error pick=error unused=warning doc=warning space=warning law=warning "
+  {levels(Config.none(), ["shadow", "hole", "pick", "unused", "doc", "space", "wrap", "param", "law"]) ==
+    "shadow=error hole=error pick=error unused=warning doc=warning space=warning wrap=warning param=warning law=warning "
     : String}
 
 # LAW: a group sets its rules, a rule set apart wins, a typo is an error
@@ -530,7 +542,7 @@ law refs_session:
   {Server.serve(~Script.Script, ~Script.new(), ~FakeChecker.new(), ~C.fake.files(), 100n,
     Script.Script{C.refs.inbox()}, [])
     == C.io.prints([
-      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/a.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":2,\"character\":0},\"end\":{\"line\":3,\"character\":0}},\"severity\":2,\"code\":\"doc\",\"source\":\"bolt\",\"message\":\"type Shape has no comment above it\"}]}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/a.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":2,\"character\":0},\"end\":{\"line\":3,\"character\":0}},\"severity\":2,\"code\":\"doc\",\"source\":\"bolt\",\"message\":\"type Shape has no comment above it\"},{\"range\":{\"start\":{\"line\":6,\"character\":10},\"end\":{\"line\":6,\"character\":11}},\"severity\":2,\"code\":\"param\",\"source\":\"bolt\",\"message\":\"parameter x is shorter than 2 characters\"}]}}",
       "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":[{\"uri\":\"file:///w/a.bend\",\"range\":{\"start\":{\"line\":6,\"character\":10},\"end\":{\"line\":6,\"character\":11}}},{\"uri\":\"file:///w/a.bend\",\"range\":{\"start\":{\"line\":7,\"character\":8},\"end\":{\"line\":7,\"character\":9}}},{\"uri\":\"file:///w/a.bend\",\"range\":{\"start\":{\"line\":9,\"character\":7},\"end\":{\"line\":9,\"character\":8}}}]}",
       "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"changes\":{\"file:///w/a.bend\":[{\"range\":{\"start\":{\"line\":6,\"character\":10},\"end\":{\"line\":6,\"character\":11}},\"newText\":\"shape\"},{\"range\":{\"start\":{\"line\":7,\"character\":8},\"end\":{\"line\":7,\"character\":9}},\"newText\":\"shape\"},{\"range\":{\"start\":{\"line\":9,\"character\":7},\"end\":{\"line\":9,\"character\":8}},\"newText\":\"shape\"}]}}}",
       "{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":[{\"uri\":\"file:///w/a.bend\",\"range\":{\"start\":{\"line\":6,\"character\":4},\"end\":{\"line\":6,\"character\":8}}},{\"uri\":\"file:///w/a.bend\",\"range\":{\"start\":{\"line\":12,\"character\":2},\"end\":{\"line\":12,\"character\":6}}}]}",
@@ -545,7 +557,7 @@ law nav_session:
   {Server.serve(~Script.Script, ~Script.new(), ~FakeChecker.new(), ~C.nav.files(), 100n,
     Script.Script{C.nav.inbox()}, [])
     == C.io.prints([
-      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/app/main.bend\",\"diagnostics\":[]}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/app/main.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":4,\"character\":10},\"end\":{\"line\":4,\"character\":11}},\"severity\":2,\"code\":\"param\",\"source\":\"bolt\",\"message\":\"parameter x is shorter than 2 characters\"}]}}",
       "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"```bend\\ndef square(+x: U32) -> U32:\\n```\\n\\nsquares a number\"}}}",
       "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"uri\":\"file:///w/lib/math.bend\",\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}}}}",
       "{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"```bend\\nCircle{r: U32}\\n```\"}}}",
@@ -555,7 +567,7 @@ law nav_session:
       "{\"jsonrpc\":\"2.0\",\"id\":7,\"result\":[{\"name\":\"Base\",\"kind\":2,\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":1,\"character\":0}},\"selectionRange\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":1,\"character\":0}}},{\"name\":\"M\",\"kind\":2,\"range\":{\"start\":{\"line\":1,\"character\":0},\"end\":{\"line\":2,\"character\":0}},\"selectionRange\":{\"start\":{\"line\":1,\"character\":0},\"end\":{\"line\":2,\"character\":0}}},{\"name\":\"twice\",\"kind\":12,\"range\":{\"start\":{\"line\":4,\"character\":0},\"end\":{\"line\":5,\"character\":0}},\"selectionRange\":{\"start\":{\"line\":4,\"character\":0},\"end\":{\"line\":5,\"character\":0}}},{\"name\":\"main\",\"kind\":12,\"range\":{\"start\":{\"line\":7,\"character\":0},\"end\":{\"line\":8,\"character\":0}},\"selectionRange\":{\"start\":{\"line\":7,\"character\":0},\"end\":{\"line\":8,\"character\":0}}}]}",
       "{\"jsonrpc\":\"2.0\",\"id\":9,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"```bend\\nx: U32\\n```\\n\\nparameter\"}}}",
       "{\"jsonrpc\":\"2.0\",\"id\":10,\"result\":{\"uri\":\"file:///w/app/main.bend\",\"range\":{\"start\":{\"line\":4,\"character\":10},\"end\":{\"line\":4,\"character\":11}}}}",
-      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/app/main.bend\",\"diagnostics\":[]}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/app/main.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":10},\"end\":{\"line\":3,\"character\":11}},\"severity\":2,\"code\":\"param\",\"source\":\"bolt\",\"message\":\"parameter x is shorter than 2 characters\"}]}}",
       "{\"jsonrpc\":\"2.0\",\"id\":8,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"```bend\\ndef twice(x: U32) -> U32:\\n```\\n\\ntriples now\"}}}"
     ]) : IO(Unit)}
 
@@ -578,7 +590,7 @@ law completion_session:
   {Server.serve(~Script.Script, ~Script.new(), ~FakeChecker.new(), ~C.completion.files(), 100n,
     Script.Script{C.completion.inbox()}, [])
     == C.io.prints([
-      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/app/main.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":2,\"code\":\"doc\",\"source\":\"bolt\",\"message\":\"def mine has no comment above it\"}]}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/app/main.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":2,\"code\":\"doc\",\"source\":\"bolt\",\"message\":\"def mine has no comment above it\"},{\"range\":{\"start\":{\"line\":3,\"character\":9},\"end\":{\"line\":3,\"character\":10}},\"severity\":2,\"code\":\"param\",\"source\":\"bolt\",\"message\":\"parameter x is shorter than 2 characters\"}]}}",
       "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"isIncomplete\":true,\"items\":[{\"label\":\"M.square\",\"kind\":3,\"detail\":\"def square(+x: U32) -> U32:\",\"documentation\":{\"kind\":\"markdown\",\"value\":\"squares a number\"},\"filterText\":\"M.square\",\"textEdit\":{\"range\":{\"start\":{\"line\":4,\"character\":2},\"end\":{\"line\":4,\"character\":6}},\"newText\":\"M.square\"}},{\"label\":\"M.sqrt\",\"kind\":3,\"detail\":\"def sqrt(x: U32) -> U32:\",\"documentation\":{\"kind\":\"markdown\",\"value\":\"\"},\"filterText\":\"M.sqrt\",\"textEdit\":{\"range\":{\"start\":{\"line\":4,\"character\":2},\"end\":{\"line\":4,\"character\":6}},\"newText\":\"M.sqrt\"}}]}}",
       "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"isIncomplete\":true,\"items\":[{\"label\":\"U32.show\",\"kind\":21,\"detail\":\"law U32.show:\",\"documentation\":{\"kind\":\"markdown\",\"value\":\"\"},\"filterText\":\"U32.show\",\"textEdit\":{\"range\":{\"start\":{\"line\":5,\"character\":2},\"end\":{\"line\":5,\"character\":7}},\"newText\":\"U32.show\"}},{\"label\":\"U32.show.go\",\"kind\":3,\"detail\":\"def U32.show.go(n: U32) -> String:\",\"documentation\":{\"kind\":\"markdown\",\"value\":\"\"},\"filterText\":\"U32.show.go\",\"textEdit\":{\"range\":{\"start\":{\"line\":5,\"character\":2},\"end\":{\"line\":5,\"character\":7}},\"newText\":\"U32.show.go\"}}]}}",
       "{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{\"isIncomplete\":true,\"items\":[{\"label\":\"mine\",\"kind\":3,\"detail\":\"def mine(x: U32) -> U32:\",\"documentation\":{\"kind\":\"markdown\",\"value\":\"\"},\"filterText\":\"mine\",\"textEdit\":{\"range\":{\"start\":{\"line\":6,\"character\":2},\"end\":{\"line\":6,\"character\":3}},\"newText\":\"mine\"}}]}}",
@@ -603,7 +615,7 @@ law lint_session:
   {Server.serve(~Script.Script, ~Script.new(), ~FakeChecker.new(), ~C.fake.files(), 100n,
     Script.Script{C.lint.inbox()}, [])
     == C.io.prints([
-      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/bad.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":1,\"source\":\"bend\",\"message\":\"expected : String\\nobserved : U32\"},{\"range\":{\"start\":{\"line\":2,\"character\":0},\"end\":{\"line\":3,\"character\":0}},\"severity\":2,\"code\":\"doc\",\"source\":\"bolt\",\"message\":\"def f has no comment above it\"},{\"range\":{\"start\":{\"line\":3,\"character\":2},\"end\":{\"line\":3,\"character\":3}},\"severity\":2,\"code\":\"unused\",\"source\":\"bolt\",\"message\":\"local y is never used\"}]}}",
-      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/bad.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":1,\"source\":\"bend\",\"message\":\"expected : String\\nobserved : U32\"}]}}",
-      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/bad.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":1,\"source\":\"bend\",\"message\":\"expected : String\\nobserved : U32\"}]}}"
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/bad.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":1,\"source\":\"bend\",\"message\":\"expected : String\\nobserved : U32\"},{\"range\":{\"start\":{\"line\":2,\"character\":0},\"end\":{\"line\":3,\"character\":0}},\"severity\":2,\"code\":\"doc\",\"source\":\"bolt\",\"message\":\"def f has no comment above it\"},{\"range\":{\"start\":{\"line\":3,\"character\":2},\"end\":{\"line\":3,\"character\":3}},\"severity\":2,\"code\":\"unused\",\"source\":\"bolt\",\"message\":\"local y is never used\"},{\"range\":{\"start\":{\"line\":2,\"character\":6},\"end\":{\"line\":2,\"character\":7}},\"severity\":2,\"code\":\"param\",\"source\":\"bolt\",\"message\":\"parameter x is shorter than 2 characters\"}]}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/bad.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":1,\"source\":\"bend\",\"message\":\"expected : String\\nobserved : U32\"},{\"range\":{\"start\":{\"line\":3,\"character\":6},\"end\":{\"line\":3,\"character\":7}},\"severity\":2,\"code\":\"param\",\"source\":\"bolt\",\"message\":\"parameter x is shorter than 2 characters\"}]}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/bad.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":1,\"source\":\"bend\",\"message\":\"expected : String\\nobserved : U32\"},{\"range\":{\"start\":{\"line\":3,\"character\":6},\"end\":{\"line\":3,\"character\":7}},\"severity\":2,\"code\":\"param\",\"source\":\"bolt\",\"message\":\"parameter x is shorter than 2 characters\"}]}}"
     ]) : IO(Unit)}

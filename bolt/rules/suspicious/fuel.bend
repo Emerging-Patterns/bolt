@@ -19,9 +19,9 @@ type Fuel is Data:
   Fuel{name: String, at: Nat}
 
 # is it a fuel parameter's name?
-def is_fuel(+n: String) -> Bool:
-  Bool.or(String.starts_with(n, "fuel"),
-    List.contains(~String, ~String.eq, ["gas", "steps", "budget"], n))
+def is_fuel(+nn: String) -> Bool:
+  Bool.or(String.starts_with(nn, "fuel"),
+    List.contains(~String, ~String.eq, ["gas", "steps", "budget"], nn))
 
 # the arguments of a group, split at its top-level commas (each a chain)
 def args.go(kids: Tree.Node, cur: Tree.Node, acc: List<&2, Tree.Node>) -> List<&2, Tree.Node>:
@@ -38,8 +38,8 @@ def args(kids: Tree.Node) -> List<&2, Tree.Node>:
   args.go(kids, Tree.NNil{}, [])
 
 # the first plain name of a parameter (`fuel` of `+fuel: Nat`)
-def param(n: Tree.Node) -> String:
-  match n:
+def param(nn: Tree.Node) -> String:
+  match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, rest}:
       t
     case Tree.NCons{h, rest}:
@@ -48,13 +48,13 @@ def param(n: Tree.Node) -> String:
       ""
 
 # the fuel parameters among a def's parameters, from position i on
-def fuels.params(ps: List<&2, Tree.Node>, +name: String, +i: Nat) -> List<&2, Fuel>:
+def fuels.params(ps: List<&2, Tree.Node>, +name: String, +ii: Nat) -> List<&2, Fuel>:
   match ps:
     case Nil{}:
       Nil{}
     case Con{p, rest}:
-      +more = fuels.params(rest, name, 1n+i)
-      Bool.pick(List<&2, Fuel>, is_fuel(param(p)), Fuel{name, i} <> more, more)
+      +more = fuels.params(rest, name, 1n+ii)
+      Bool.pick(List<&2, Fuel>, is_fuel(param(p)), Fuel{name, ii} <> more, more)
 
 # the parameter group of a def's header: its first `(..)`
 def header(kids: Tree.Node) -> List<&2, Tree.Node>:
@@ -67,8 +67,8 @@ def header(kids: Tree.Node) -> List<&2, Tree.Node>:
       Nil{}
 
 # the fuel parameters of a def, when it has a name
-def fuels.def(m: Maybe<&2, String>, kids: Tree.Node) -> List<&2, Fuel>:
-  match m:
+def fuels.def(mm: Maybe<&2, String>, kids: Tree.Node) -> List<&2, Fuel>:
+  match mm:
     case None{}:
       Nil{}
     case Some{name}:
@@ -85,8 +85,8 @@ def fuels(root: Tree.Node) -> List<&2, Fuel>:
       Nil{}
 
 # the nth argument, or nothing
-def arg(as: List<&2, Tree.Node>, n: Nat) -> Tree.Node:
-  match as n:
+def arg(as: List<&2, Tree.Node>, nn: Nat) -> Tree.Node:
+  match as nn:
     case Con{h, t} 0n:
       h
     case Con{h, t} 1n+p:
@@ -95,8 +95,8 @@ def arg(as: List<&2, Tree.Node>, n: Nat) -> Tree.Node:
       Tree.NNil{}
 
 # an argument that is a Nat literal alone, as a finding
-def literal(a: Tree.Node, +path: String) -> List<&2, F.Finding>:
-  match a:
+def literal(aa: Tree.Node, +path: String) -> List<&2, F.Finding>:
+  match aa:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, +t, l, c}}, Tree.NNil{}}:
       Bool.pick(List<&2, F.Finding>, String.ends_with(t, "n"),
         [F.Finding{path, l, c, U32.from_nat(String.length(t)), "fuel",
@@ -116,8 +116,8 @@ def call(fs: List<&2, Fuel>, +name: String, +as: List<&2, Tree.Node>, +path: Str
         _u => List.append(&2, F.Finding, literal(arg(as, at), path), more))
 
 # every call at any depth of a chain, but the def's own (self)
-def calls(n: Tree.Node, +fs: List<&2, Fuel>, +self: String, +path: String) -> List<&2, F.Finding>:
-  match n:
+def calls(nn: Tree.Node, +fs: List<&2, Fuel>, +self: String, +path: String) -> List<&2, F.Finding>:
+  match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{open, +kids, close}, rest}}:
       +more = List.concat(&2, F.Finding, [calls(kids, fs, self, path), calls(rest, fs, self, path)])
       Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Lex.is_name(k), Bool.not(String.eq(t, self)))), more,
@@ -133,8 +133,8 @@ def calls(n: Tree.Node, +fs: List<&2, Fuel>, +self: String, +path: String) -> Li
       Nil{}
 
 # a def's (or a law's) name, "" when it has none
-def own(m: Maybe<&2, String>) -> String:
-  match m:
+def own(mm: Maybe<&2, String>) -> String:
+  match mm:
     case None{}:
       ""
     case Some{n}:
@@ -152,6 +152,6 @@ def check.go(root: Tree.Node, +fs: List<&2, Fuel>, +path: String) -> List<&2, F.
       Nil{}
 
 # the rule
-def check(s: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, +tree, bound, items} = s
+def check(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, +tree, bound, items} = ss
   check.go(tree, fuels(tree), path)

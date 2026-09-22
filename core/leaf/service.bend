@@ -6,6 +6,6 @@ type Leaf is Type:
   Leaf{at: @+i:U32 -> U32}
 
 # the value at an index, from a leaf
-def at(l: Leaf, i: U32) -> U32:
-  Leaf{f} = l
-  f(i)
+def at(ll: Leaf, ii: U32) -> U32:
+  Leaf{f} = ll
+  f(ii)

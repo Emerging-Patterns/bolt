@@ -11,8 +11,8 @@ type W is Data:
   W{i: U32, start: U32, run: List<&2, Char>, hit: Maybe<&2, String>}
 
 # a char a name may hold: letters, digits, `_` and `.`
-def is_name(+c: Char) -> Bool:
-  Bool.or(Bool.or(Char.is_alpha(c), Char.is_digit(c)), Bool.or(Char.is_eq(c, '_'), Char.is_eq(c, '.')))
+def is_name(+cc: Char) -> Bool:
+  Bool.or(Bool.or(Char.is_alpha(cc), Char.is_digit(cc)), Bool.or(Char.is_eq(cc, '_'), Char.is_eq(cc, '.')))
 
 # the run's chars (reversed) as a string
 def text(run: List<&2, Char>) -> String:
@@ -27,34 +27,34 @@ def close.yes(ok: Bool, run: List<&2, Char>, hit: Maybe<&2, String>) -> Maybe<&2
       hit
 
 # an empty run leaves the hit; otherwise the run if start <= col <= i
-def close.run(run: List<&2, Char>, +start: U32, +i: U32, +col: U32, hit: Maybe<&2, String>) -> Maybe<&2, String>:
+def close.run(run: List<&2, Char>, +start: U32, +ii: U32, +col: U32, hit: Maybe<&2, String>) -> Maybe<&2, String>:
   match run:
     case Nil{}:
       hit
     case h <> t:
-      close.yes(Bool.and(U32.is_le(start, col), U32.is_le(col, i)), h <> t, hit)
+      close.yes(Bool.and(U32.is_le(start, col), U32.is_le(col, ii)), h <> t, hit)
 
 # a run that ends at column i holds col when start <= col <= i, unless one already did
-def close(+i: U32, +start: U32, run: List<&2, Char>, hit: Maybe<&2, String>, +col: U32) -> Maybe<&2, String>:
+def close(+ii: U32, +start: U32, run: List<&2, Char>, hit: Maybe<&2, String>, +col: U32) -> Maybe<&2, String>:
   match hit:
     case Some{s}:
       Some{s}
     case None{}:
-      close.run(run, start, i, col, None{})
+      close.run(run, start, ii, col, None{})
 
 # a name char joins the run; any other char ends it
-def step.on(name: Bool, c: Char, +i: U32, +start: U32, run: List<&2, Char>, hit: Maybe<&2, String>, +col: U32) -> W:
+def step.on(name: Bool, cc: Char, +ii: U32, +start: U32, run: List<&2, Char>, hit: Maybe<&2, String>, +col: U32) -> W:
   match name:
     case True{}:
-      W{(i + 1 : U32), start, c <> run, hit}
+      W{(ii + 1 : U32), start, cc <> run, hit}
     case False{}:
-      W{(i + 1 : U32), (i + 1 : U32), [], close(i, start, run, hit, col)}
+      W{(ii + 1 : U32), (ii + 1 : U32), [], close(ii, start, run, hit, col)}
 
 # one char: it extends the run of name chars, or ends it (a run holding the
 # column is the answer)
-def step(+c: Char, st: W, +col: U32) -> W:
+def step(+cc: Char, st: W, +col: U32) -> W:
   W{i, start, run, hit} = st
-  step.on(is_name(c), c, i, start, run, hit, col)
+  step.on(is_name(cc), cc, i, start, run, hit, col)
 
 # every char, in order
 def scan(cs: List<&2, Char>, st: W, +col: U32) -> W:
@@ -74,42 +74,42 @@ def in_line(line: String, +col: U32) -> String:
   finish(scan(String.to_list(line), W{0, 0, [], None{}}, col), col)
 
 # lines still to skip after this char; a newline counts as one
-def at.skip.n(nl: Bool, n: U32) -> U32:
+def at.skip.n(nl: Bool, nn: U32) -> U32:
   match nl:
     case True{}:
-      (n - 1 : U32)
+      (nn - 1 : U32)
     case False{}:
-      n
+      nn
 
 # the next char starts the wanted line when this one was its preceding newline
-def at.skip.done(nl: Bool, n: U32) -> Bool:
+def at.skip.done(nl: Bool, nn: U32) -> Bool:
   match nl:
     case True{}:
-      U32.is_eq(n, 1)
+      U32.is_eq(nn, 1)
     case False{}:
       False{}
 
 # the source with `n` lines skipped. `done` means this string is the line
-def at.skip(s: String, +n: U32, done: Bool) -> String:
-  match s done:
+def at.skip(ss: String, +nn: U32, done: Bool) -> String:
+  match ss done:
     case SNil{} _:
       SNil{}
     case SCon{h, t} True{}:
       SCon{h, t}
     case SCon{+h, t} False{}:
-      at.skip(t, at.skip.n(Char.is_eq(h, '\n'), n), at.skip.done(Char.is_eq(h, '\n'), n))
+      at.skip(t, at.skip.n(Char.is_eq(h, '\n'), nn), at.skip.done(Char.is_eq(h, '\n'), nn))
 
 # a newline ends the line; any other char is part of it
-def at.advance(nl: Bool, h: Char, st: W, +col: U32) -> W:
+def at.advance(nl: Bool, hh: Char, st: W, +col: U32) -> W:
   match nl:
     case True{}:
       st
     case False{}:
-      step(h, st, col)
+      step(hh, st, col)
 
 # the name at col, from here up to the next newline
-def at.read(s: String, stop: Bool, st: W, +col: U32) -> String:
-  match s stop:
+def at.read(ss: String, stop: Bool, st: W, +col: U32) -> String:
+  match ss stop:
     case SNil{} _:
       finish(st, col)
     case SCon{h, t} True{}:
@@ -136,13 +136,13 @@ def cut(name: String) -> String & String:
   cut.go(String.to_list(name), [])
 
 # a pair's first
-def fst(p: String & String) -> String:
-  (h, r) = p
+def fst(pp: String & String) -> String:
+  (h, r) = pp
   h
 
 # a pair's second
-def snd(p: String & String) -> String:
-  (h, r) = p
+def snd(pp: String & String) -> String:
+  (h, r) = pp
   r
 
 # the part before the first dot

@@ -37,8 +37,8 @@ def tail(pat: Tree.Node) -> Tree.Node:
       Tree.NNil{}
 
 # a finding at the second literal when it repeats the first
-def same(a: Maybe<&2, Lex.Tok>, b: Maybe<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
-  match a b:
+def same(aa: Maybe<&2, Lex.Tok>, bb: Maybe<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
+  match aa bb:
     case Some{Lex.Tok{k, +t, l, c}} Some{Lex.Tok{k2, +t2, l2, c2}}:
       Bool.pick(List<&2, F.Finding>, String.eq(t, t2),
         [F.Finding{path, l2, c2, T.width(t2), "twice",
@@ -52,8 +52,8 @@ def arm(+pat: Tree.Node, +path: String) -> List<&2, F.Finding>:
   same(head(pat), head(tail(pat)), path)
 
 # every case statement under a recursive def, at any depth
-def walk(n: Tree.Node, +path: String) -> List<&2, F.Finding>:
-  match n:
+def walk(nn: Tree.Node, +path: String) -> List<&2, F.Finding>:
+  match nn:
     case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, body}, rest}:
       List.concat(&2, F.Finding, [arm(T.pattern(kids), path), walk(body, path), walk(rest, path)])
     case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
@@ -64,8 +64,8 @@ def walk(n: Tree.Node, +path: String) -> List<&2, F.Finding>:
       Nil{}
 
 # a def's body, when it calls itself
-def check.def(m: Maybe<&2, String>, +body: Tree.Node, path: String) -> List<&2, F.Finding>:
-  match m:
+def check.def(mm: Maybe<&2, String>, +body: Tree.Node, path: String) -> List<&2, F.Finding>:
+  match mm:
     case None{}:
       Nil{}
     case Some{+name}:
@@ -81,6 +81,6 @@ def check.go(root: Tree.Node, +path: String) -> List<&2, F.Finding>:
       Nil{}
 
 # the rule
-def check(s: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = s
+def check(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = ss
   check.go(tree, path)

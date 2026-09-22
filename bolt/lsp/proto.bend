@@ -55,8 +55,8 @@ def position(line: U32, character: U32) -> J.Json:
   J.obj([("line", J.num(line)), ("character", J.num(character))])
 
 # the checker gives a line and no columns: a diagnostic covers its whole line
-def diagnostic(d: Rep.Diag) -> J.Json:
-  Rep.Diag{+line, msg} = d
+def diagnostic(dd: Rep.Diag) -> J.Json:
+  Rep.Diag{+line, msg} = dd
   J.obj([
     ("range", J.obj([("start", position(line, 0)), ("end", position((line + 1 : U32), 0))])),
     ("severity", J.num(1)), ("source", J.JStr{"bend"}), ("message", J.JStr{msg})])
@@ -76,8 +76,8 @@ def finding_range(+line: U32, +col: U32, +len: U32) -> J.Json:
 
 # a graded lint finding as a diagnostic: an error or a warning by its level,
 # its rule as the code
-def finding(g: Lint.Graded) -> J.Json:
-  Lint.Graded{level, Lint.Finding{path, line, col, len, rule, msg}} = g
+def finding(gg: Lint.Graded) -> J.Json:
+  Lint.Graded{level, Lint.Finding{path, line, col, len, rule, msg}} = gg
   J.obj([("range", finding_range(line, col, len)), ("severity", J.num(Bool.pick(U32, Config.is_error(level), 1, 2))),
     ("code", J.JStr{rule}), ("source", J.JStr{"bolt"}), ("message", J.JStr{msg})])
 
@@ -114,8 +114,8 @@ def location(uri: String, item: Outline.Item) -> J.Json:
   J.obj([("uri", J.JStr{uri}), ("range", line_range(line))])
 
 # what a binder is, in words
-def kind_name(k: Bind.BindKind) -> String:
-  match k:
+def kind_name(kk: Bind.BindKind) -> String:
+  match kk:
     case Bind.KItem{}:
       "item"
     case Bind.KCtor{}:
@@ -136,8 +136,8 @@ def kind_name(k: Bind.BindKind) -> String:
       "type variable"
 
 # where a local was bound, for hover
-def where_bound(k: Bind.BindKind, line: U32) -> String:
-  match k:
+def where_bound(kk: Bind.BindKind, line: U32) -> String:
+  match kk:
     case Bind.KLocal{}:
       ", bound on line " ++ U32.show((line + 1 : U32))
     case Bind.KPat{}:
@@ -149,8 +149,8 @@ def where_bound(k: Bind.BindKind, line: U32) -> String:
 
 # a binder of the document: the text that bound it, and what it is. The
 # server knows binding sites, not types: only a declaration carries one
-def hover.local(b: Bind.Bind) -> J.Json:
-  Bind.Bind{name, line, col, +kind, note} = b
+def hover.local(bb: Bind.Bind) -> J.Json:
+  Bind.Bind{name, line, col, +kind, note} = bb
   J.obj([("contents", J.obj([("kind", J.JStr{"markdown"}), ("value", J.JStr{"```bend\n" ++ note ++ "\n```\n\n" ++
     kind_name(kind) ++ where_bound(kind, line)})]))])
 
@@ -159,13 +159,13 @@ def name_range(+line: U32, +col: U32, name: String) -> J.Json:
   J.obj([("start", position(line, col)), ("end", position(line, (col + U32.from_nat(String.length(name)) : U32)))])
 
 # exactly the binder's name
-def location.local(uri: String, b: Bind.Bind) -> J.Json:
-  Bind.Bind{name, line, col, kind, note} = b
+def location.local(uri: String, bb: Bind.Bind) -> J.Json:
+  Bind.Bind{name, line, col, kind, note} = bb
   J.obj([("uri", J.JStr{uri}), ("range", name_range(line, col, name))])
 
 # LSP's SymbolKind: module 2, function 12, constant 14, enum member 22, struct 23
-def symbol.kind(k: Outline.ItemKind) -> U32:
-  match k:
+def symbol.kind(kk: Outline.ItemKind) -> U32:
+  match kk:
     case Outline.IImport{}:
       2
     case Outline.IDef{}:
@@ -198,8 +198,8 @@ def symbols(items: List<&2, Outline.Item>) -> J.Json:
 
 # LSP's CompletionItemKind: function 3, module 9, enum member 20, constant 21,
 # struct 22
-def completion.kind(k: Outline.ItemKind) -> U32:
-  match k:
+def completion.kind(kk: Outline.ItemKind) -> U32:
+  match kk:
     case Outline.IImport{}:
       9
     case Outline.IDef{}:
@@ -214,8 +214,8 @@ def completion.kind(k: Outline.ItemKind) -> U32:
       6
 
 # a text's first line
-def first_line(s: String) -> String:
-  Maybe.default(&2, String, List.head(&2, String, String.lines(s)), "")
+def first_line(s2: String) -> String:
+  Maybe.default(&2, String, List.head(&2, String, String.lines(s2)), "")
 
 # a candidate replaces everything typed of the name, dots included: the
 # editor's own idea of a word stops at a dot

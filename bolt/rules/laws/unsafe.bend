@@ -28,13 +28,13 @@ def reaches(ds: List<&2, Digest.Digest>, +es: List<&2, Imports.Edge>, +read: Lis
       Bool.pick(List<&2, Reach>, is_law_file, Reach{path, Imports.closure.go(es, read, fuel, norm)} <> more, more)
 
 # the first law file that reaches the path
-def reacher(rs: List<&2, Reach>, +p: String) -> Maybe<&2, String>:
+def reacher(rs: List<&2, Reach>, +pp: String) -> Maybe<&2, String>:
   match rs:
     case Nil{}:
       None{}
     case Con{Reach{origin, ps}, rest}:
-      +more = reacher(rest, p)
-      Bool.pick(Maybe<&2, String>, Imports.has(ps, p), Some{origin}, more)
+      +more = reacher(rest, pp)
+      Bool.pick(Maybe<&2, String>, Imports.has(ps, pp), Some{origin}, more)
 
 # each unsafe def as a finding, reached from the law file
 def report(us: List<&2, Digest.Unsafe>, +origin: String, +path: String) -> List<&2, F.Finding>:
@@ -46,8 +46,8 @@ def report(us: List<&2, Digest.Unsafe>, +origin: String, +path: String) -> List<
         ++ ": the checker only warns there and exits 0; recurse on a shrinking argument or fuel"} <> report(rest, origin, path)
 
 # the unsafe defs of a file, when a law file reaches it
-def found(m: Maybe<&2, String>, us: List<&2, Digest.Unsafe>, path: String) -> List<&2, F.Finding>:
-  match m:
+def found(mm: Maybe<&2, String>, us: List<&2, Digest.Unsafe>, path: String) -> List<&2, F.Finding>:
+  match mm:
     case None{}:
       Nil{}
     case Some{origin}:

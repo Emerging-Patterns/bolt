@@ -110,8 +110,8 @@ def checked(~fs: F.Files, +uri: String, ck: C.Checker, +docs: List<&2, Docs.Doc>
     ds : List<&2, Rep.Diag> <- C.check(ck, Proto.path(uri))
     published(~fs, uri, Docs.set_errors(docs, uri, ds))
 
-def hover.of(m: Maybe<&2, Nav.Found>) -> J.Json:
-  match m:
+def hover.of(mm: Maybe<&2, Nav.Found>) -> J.Json:
+  match mm:
     case None{}:
       J.JNull{}
     case Some{Nav.Found{uri, item}}:
@@ -119,8 +119,8 @@ def hover.of(m: Maybe<&2, Nav.Found>) -> J.Json:
     case Some{Nav.Here{uri, b}}:
       Proto.hover.local(b)
 
-def definition.of(m: Maybe<&2, Nav.Found>) -> J.Json:
-  match m:
+def definition.of(mm: Maybe<&2, Nav.Found>) -> J.Json:
+  match mm:
     case None{}:
       J.JNull{}
     case Some{Nav.Found{uri, item}}:
@@ -141,13 +141,13 @@ def complete(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, +line: U32, 
     text : String <- Nav.text_of(~fs, docs, uri)
     complete.with(~fs, Word.before(text, line, col), docs, uri, line, col, id)
 
-def references.of(s: Nav.Sites, uri: String, name: String) -> J.Json:
-  Nav.Sites{mine, at} = s
+def references.of(ss: Nav.Sites, uri: String, name: String) -> J.Json:
+  Nav.Sites{mine, at} = ss
   Proto.locations(uri, name, at)
 
 # only a name bound in the document renames; the editor shows the refusal
-def rename.of(s: Nav.Sites, id: J.Json, uri: String, name: String, new: String) -> List<&2, String>:
-  Nav.Sites{mine, at} = s
+def rename.of(ss: Nav.Sites, id: J.Json, uri: String, name: String, new: String) -> List<&2, String>:
+  Nav.Sites{mine, at} = ss
   match mine:
     case True{}:
       reply(id, Proto.rename(uri, name, new, at))
@@ -175,9 +175,9 @@ def semantic(~fs: F.Files, +docs: List<&2, Docs.Doc>, uri: String, id: J.Json) -
     text : String <- Nav.text_of(~fs, docs, uri)
     return Out{reply(id, Proto.semantic(Semantic.data(text))), False{}, docs}
 
-def handle.go(~ck: C.Checker, ~fs: F.Files, m: Method, id: J.Json, +params: J.Json, +docs: List<&2, Docs.Doc>) ->
+def handle.go(~ck: C.Checker, ~fs: F.Files, mm: Method, id: J.Json, +params: J.Json, +docs: List<&2, Docs.Doc>) ->
   IO(Out):
-  match m:
+  match mm:
     case MInitialize{}:
       IO.pure(Out, Out{reply(id, Proto.capabilities()), False{}, docs})
     case MShutdown{}:
@@ -222,59 +222,59 @@ def handle(~ck: C.Checker, ~fs: F.Files, +msg: J.Json, docs: List<&2, Docs.Doc>)
   handle.go(~ck, ~fs, method(J.str_or(J.get(msg, "method"), "")), J.get(msg, "id"), J.get(msg, "params"), docs)
 
 # a parsed message, or null when it did not parse
-def decoded(m: Maybe<&2, J.Json>) -> J.Json:
-  Maybe.default(&2, J.Json, m, J.JNull{})
+def decoded(mm: Maybe<&2, J.Json>) -> J.Json:
+  Maybe.default(&2, J.Json, mm, J.JNull{})
 
 # every reply sent, in order
-def send_all(~H: Type, ~tr: T.Transport<H>, replies: List<&2, String>, h: H) -> IO(H):
+def send_all(~H: Type, ~tr: T.Transport<H>, replies: List<&2, String>, h3: H) -> IO(H):
   match replies:
     case Nil{}:
-      IO.pure(H, h)
+      IO.pure(H, h3)
     case Con{body, t}:
       do IO<H>:
-        h2 : H <- T.send(H, tr, h, body)
+        h2 : H <- T.send(H, tr, h3, body)
         send_all(~H, ~tr, t, h2)
 
 # the loop goes on with the documents, unless the message said to quit
-def next(-H: Type, quit: Bool, h: H, docs: List<&2, Docs.Doc>, rest: H -> List<&2, Docs.Doc> -> IO(Unit)) ->
+def next(-H: Type, quit: Bool, h3: H, docs: List<&2, Docs.Doc>, rest: H -> List<&2, Docs.Doc> -> IO(Unit)) ->
   IO(Unit):
   match quit:
     case True{}:
       IO.pure(Unit, Unit{})
     case False{}:
-      rest(h, docs)
+      rest(h3, docs)
 
 # the replies sent, then the loop goes on
-def answer(~H: Type, ~tr: T.Transport<H>, out: Out, h: H, rest: H -> List<&2, Docs.Doc> -> IO(Unit)) -> IO(Unit):
+def answer(~H: Type, ~tr: T.Transport<H>, out: Out, h3: H, rest: H -> List<&2, Docs.Doc> -> IO(Unit)) -> IO(Unit):
   Out{replies, quit, docs} = out
   do IO<Unit>:
-    h2 : H <- send_all(~H, ~tr, replies, h)
+    h2 : H <- send_all(~H, ~tr, replies, h3)
     next(H, quit, h2, docs, rest)
 
 # one message body handled and answered; none means the peer is gone
-def turn(~H: Type, ~tr: T.Transport<H>, ~ck: C.Checker, ~fs: F.Files, m: Maybe<&2, String>, h: H,
+def turn(~H: Type, ~tr: T.Transport<H>, ~ck: C.Checker, ~fs: F.Files, mm: Maybe<&2, String>, h3: H,
   docs: List<&2, Docs.Doc>, rest: H -> List<&2, Docs.Doc> -> IO(Unit)) -> IO(Unit):
-  match m:
+  match mm:
     case None{}:
       IO.pure(Unit, Unit{})
     case Some{body}:
       do IO<Unit>:
         out : Out <- handle(~ck, ~fs, decoded(Parse.parse(body)), docs)
-        answer(~H, ~tr, out, h, rest)
+        answer(~H, ~tr, out, h3, rest)
 
 # what recv gave: the handle and maybe a body
-def got(~H: Type, ~tr: T.Transport<H>, ~ck: C.Checker, ~fs: F.Files, r: H & Maybe<&2, String>,
+def got(~H: Type, ~tr: T.Transport<H>, ~ck: C.Checker, ~fs: F.Files, rr: H & Maybe<&2, String>,
   docs: List<&2, Docs.Doc>, rest: H -> List<&2, Docs.Doc> -> IO(Unit)) -> IO(Unit):
-  (h, m) = r
+  (h, m) = rr
   turn(~H, ~tr, ~ck, ~fs, m, h, docs, rest)
 
 # serves until exit, the peer's end, or the fuel's (a message each)
-def serve(~H: Type, ~tr: T.Transport<H>, ~ck: C.Checker, ~fs: F.Files, fuel: Nat, h: H,
+def serve(~H: Type, ~tr: T.Transport<H>, ~ck: C.Checker, ~fs: F.Files, fuel: Nat, h3: H,
   docs: List<&2, Docs.Doc>) -> IO(Unit):
   match fuel:
     case 0n:
       IO.pure(Unit, Unit{})
     case 1n+f:
       do IO<Unit>:
-        r : H & Maybe<&2, String> <- T.recv(H, tr, h)
+        r : H & Maybe<&2, String> <- T.recv(H, tr, h3)
         got(~H, ~tr, ~ck, ~fs, r, docs, hh => dd => serve(~H, ~tr, ~ck, ~fs, f, hh, dd))

@@ -22,8 +22,8 @@ def binds(body: Tree.Node) -> Bool:
       False{}
 
 # is this node, or something under it, an `==`?
-def has_eq(n: Tree.Node) -> Bool:
-  match n:
+def has_eq(nn: Tree.Node) -> Bool:
+  match nn:
     case Tree.Leaf{Lex.Tok{k, t, l, c}}:
       String.eq(t, "==")
     case Tree.Group{open, kids, close}:
@@ -36,8 +36,8 @@ def has_eq(n: Tree.Node) -> Bool:
       False{}
 
 # a law's name, `?` when it has none
-def name.of(m: Maybe<&2, String>) -> String:
-  match m:
+def name.of(mm: Maybe<&2, String>) -> String:
+  match mm:
     case None{}:
       "?"
     case Some{n}:
@@ -58,6 +58,6 @@ def check.go(root: Tree.Node, +path: String) -> List<&2, F.Finding>:
       Nil{}
 
 # the rule
-def check(s: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{+path, text, toks, tree, bound, items} = s
+def check(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{+path, text, toks, tree, bound, items} = ss
   Lazy.stop(List<&2, F.Finding>, Bool.not(String.ends_with(path, "LAWS.bend")), [], _u => check.go(tree, path))

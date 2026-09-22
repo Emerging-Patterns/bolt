@@ -89,7 +89,7 @@ def space() -> String:
 ```
 
 The groups are `correctness` (`shadow`, `hole`, `pick`; error by default),
-`suspicious` (`unused`), `style` (`doc`, `space`) and `laws` (`law`), the
+`suspicious` (`unused`), `style` (`doc`, `space`, `wrap`, `param`) and `laws` (`law`), the
 rest warn by default. Every rule, and the config in full, is in
 [bolt/README.md](bolt/README.md).
 

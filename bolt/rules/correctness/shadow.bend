@@ -10,8 +10,8 @@ import ../../finding.bend as F
 import ../../../syntax/bind.bend as Bind
 
 # is the binder parsed as a term (where a def's name wins)?
-def binds_as_term(k: Bind.BindKind) -> Bool:
-  match k:
+def binds_as_term(kk: Bind.BindKind) -> Bool:
+  match kk:
     case Bind.KLocal{}:
       True{}
     case Bind.KPat{}:
@@ -41,11 +41,11 @@ def check.go(binds: List<&2, Bind.Bind>, +all: List<&2, Bind.Bind>, +path: Strin
           name ++ " is a def above; imported, this binder would read as it"} <> more,
         more)
 
-def check.on(b: Bind.Bound, path: String) -> List<&2, F.Finding>:
-  Bind.Bound{+binds, uses, scopes} = b
+def check.on(bb: Bind.Bound, path: String) -> List<&2, F.Finding>:
+  Bind.Bound{+binds, uses, scopes} = bb
   check.go(binds, binds, path)
 
 # the rule
-def check(s: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = s
+def check(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = ss
   check.on(bound, path)

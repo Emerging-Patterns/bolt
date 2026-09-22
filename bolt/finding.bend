@@ -11,8 +11,8 @@ type Finding is Data:
   Finding{path: String, line: U32, col: U32, len: U32, rule: String, msg: String}
 
 # one line, `path:line:col: rule: message`
-def show(f: Finding) -> String:
-  Finding{path, line, col, len, rule, msg} = f
+def show(ff: Finding) -> String:
+  Finding{path, line, col, len, rule, msg} = ff
   path ++ ":" ++ U32.show((line + 1 : U32)) ++ ":" ++ U32.show((col + 1 : U32)) ++ ": " ++ rule ++ ": " ++ msg
 
 # a finding at the level the project set for its rule
@@ -20,8 +20,8 @@ type Graded is Data:
   Graded{level: Config.Level, finding: Finding}
 
 # one line, `path:line:col: level: rule: message`
-def show_graded(g: Graded) -> String:
-  Graded{level, Finding{path, line, col, len, rule, msg}} = g
+def show_graded(gg: Graded) -> String:
+  Graded{level, Finding{path, line, col, len, rule, msg}} = gg
   path ++ ":" ++ U32.show((line + 1 : U32)) ++ ":" ++ U32.show((col + 1 : U32)) ++ ": " ++ Config.show(level) ++ ": "
     ++ rule ++ ": " ++ msg
 

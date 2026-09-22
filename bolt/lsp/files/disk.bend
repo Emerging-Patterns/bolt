@@ -17,9 +17,9 @@ def slurp.cut(bytes: List<&2, U32>, file: File, acc: List<&2, U32>,
     case Con{b, t}:
       rest(file, List.append(&2, U32, acc, b <> t))
 
-def slurp.more(r: Result<&1, &1, U32 & String, List<&2, U32>>, file: File, acc: List<&2, U32>,
+def slurp.more(rr: Result<&1, &1, U32 & String, List<&2, U32>>, file: File, acc: List<&2, U32>,
   rest: File -> List<&2, U32> -> IO(Maybe<&2, String>)) -> IO(Maybe<&2, String>):
-  match r:
+  match rr:
     case Fail{e}:
       slurp.end(file, acc)
     case Done{bytes}:
@@ -40,8 +40,8 @@ def slurp(fuel: Nat, file: File, acc: List<&2, U32>) -> IO(Maybe<&2, String>):
         got : File & Result<&1, &1, U32 & String, List<&2, U32>> <- File.read_bytes(file, 65536)
         slurp.next(got, acc, fl => a => slurp(f, fl, a))
 
-def read.opened(r: Result<&1, &1, U32 & String, File>) -> IO(Maybe<&2, String>):
-  match r:
+def read.opened(rr: Result<&1, &1, U32 & String, File>) -> IO(Maybe<&2, String>):
+  match rr:
     case Fail{e}:
       IO.pure(Maybe<&2, String>, None{})
     case Done{file}:
@@ -53,8 +53,8 @@ def read(path: String) -> IO(Maybe<&2, String>):
     r : Result<&1, &1, U32 & String, File> <- File.open(path, "r")
     read.opened(r)
 
-def base_path.of(r: Result<&1, &1, U32 & String, String>) -> IO(String):
-  match r:
+def base_path.of(rr: Result<&1, &1, U32 & String, String>) -> IO(String):
+  match rr:
     case Fail{e}:
       IO.pure(String, "")
     case Done{home}:

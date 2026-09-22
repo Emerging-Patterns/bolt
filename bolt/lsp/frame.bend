@@ -12,18 +12,18 @@ type Dec is Data:
   Dec{need: Nat, acc: U32, out: List<&2, Char>}
 
 # a lead byte, by its high nibble; a stray continuation byte stands for itself
-def decode.lead(hi: U32, +b: U32, out: List<&2, Char>) -> Dec:
+def decode.lead(hi: U32, +bb: U32, out: List<&2, Char>) -> Dec:
   match hi:
     case 12:
-      Dec{1n, (b .&. 31 : U32), out}
+      Dec{1n, (bb .&. 31 : U32), out}
     case 13:
-      Dec{1n, (b .&. 31 : U32), out}
+      Dec{1n, (bb .&. 31 : U32), out}
     case 14:
-      Dec{2n, (b .&. 15 : U32), out}
+      Dec{2n, (bb .&. 15 : U32), out}
     case 15:
-      Dec{3n, (b .&. 7 : U32), out}
+      Dec{3n, (bb .&. 7 : U32), out}
     case other:
-      Dec{0n, 0, Char.from_u32(b) <> out}
+      Dec{0n, 0, Char.from_u32(bb) <> out}
 
 def decode.more(left: Nat, +acc: U32, out: List<&2, Char>) -> Dec:
   match left:
@@ -32,13 +32,13 @@ def decode.more(left: Nat, +acc: U32, out: List<&2, Char>) -> Dec:
     case 1n+p:
       Dec{1n+p, acc, out}
 
-def decode.step(+b: U32, st: Dec) -> Dec:
+def decode.step(+bb: U32, st: Dec) -> Dec:
   Dec{need, acc, out} = st
   match need:
     case 0n:
-      decode.lead((b >> 4n : U32), b, out)
+      decode.lead((bb >> 4n : U32), bb, out)
     case 1n+p:
-      decode.more(p, ((acc << 6n) .|. (b .&. 63) : U32), out)
+      decode.more(p, ((acc << 6n) .|. (bb .&. 63) : U32), out)
 
 def decode.run(bs: List<&2, U32>, st: Dec) -> Dec:
   match bs:
@@ -59,35 +59,35 @@ def decode(bs: List<&2, U32>) -> String:
 # ---------------------
 
 # how many bytes a code point takes
-def width(+x: U32) -> U32:
-  Bool.pick(U32, U32.is_lt(x, 128), 1,
-    Bool.pick(U32, U32.is_lt(x, 2048), 2,
-      Bool.pick(U32, U32.is_lt(x, 65536), 3, 4)))
+def width(+xx: U32) -> U32:
+  Bool.pick(U32, U32.is_lt(xx, 128), 1,
+    Bool.pick(U32, U32.is_lt(xx, 2048), 2,
+      Bool.pick(U32, U32.is_lt(xx, 65536), 3, 4)))
 
 # how many UTF-8 bytes the chars take, plus n
-def byte_len(cs: List<&2, Char>, n: U32) -> U32:
+def byte_len(cs: List<&2, Char>, nn: U32) -> U32:
   match cs:
     case Nil{}:
-      n
+      nn
     case Con{c, t}:
       +w = width(Char.to_u32(c))
-      byte_len(t, (n + w : U32))
+      byte_len(t, (nn + w : U32))
 
 # a code point's bytes, by its width, in front of the rest
-def encode.char(w: U32, +x: U32, rest: List<&2, U32>) -> List<&2, U32>:
-  match w:
+def encode.char(ww: U32, +xx: U32, rest: List<&2, U32>) -> List<&2, U32>:
+  match ww:
     case 1:
-      x <> rest
+      xx <> rest
     case 2:
-      (192 .|. (x >> 6n) : U32) <> (128 .|. (x .&. 63) : U32) <> rest
+      (192 .|. (xx >> 6n) : U32) <> (128 .|. (xx .&. 63) : U32) <> rest
     case 3:
-      (224 .|. (x >> 12n) : U32) <> (128 .|. ((x >> 6n) .&. 63) : U32) <> (128 .|. (x .&. 63) : U32) <> rest
+      (224 .|. (xx >> 12n) : U32) <> (128 .|. ((xx >> 6n) .&. 63) : U32) <> (128 .|. (xx .&. 63) : U32) <> rest
     case other:
-      (240 .|. (x >> 18n) : U32) <> (128 .|. ((x >> 12n) .&. 63) : U32) <> (128 .|. ((x >> 6n) .&. 63) : U32)
-        <> (128 .|. (x .&. 63) : U32) <> rest
+      (240 .|. (xx >> 18n) : U32) <> (128 .|. ((xx >> 12n) .&. 63) : U32) <> (128 .|. ((xx >> 6n) .&. 63) : U32)
+        <> (128 .|. (xx .&. 63) : U32) <> rest
 
-def encode.one(+x: U32, rest: List<&2, U32>) -> List<&2, U32>:
-  encode.char(width(x), x, rest)
+def encode.one(+xx: U32, rest: List<&2, U32>) -> List<&2, U32>:
+  encode.char(width(xx), xx, rest)
 
 def encode.go(cs: List<&2, Char>) -> List<&2, U32>:
   match cs:
@@ -97,8 +97,8 @@ def encode.go(cs: List<&2, Char>) -> List<&2, U32>:
       encode.one(Char.to_u32(c), encode.go(t))
 
 # a string as UTF-8 bytes
-def encode(s: String) -> List<&2, U32>:
-  encode.go(String.to_list(s))
+def encode(ss: String) -> List<&2, U32>:
+  encode.go(String.to_list(ss))
 
 # framing
 # -------
@@ -148,8 +148,8 @@ def header(bs: List<&2, U32>, line: List<&2, U32>, len: U32) -> Head:
 
 # the first n bytes (reversed onto acc) and the rest, or not yet when there
 # are fewer
-def split(n: Nat, xs: List<&2, U32>, acc: List<&2, U32>) -> Cut:
-  match n xs:
+def split(nn: Nat, xs: List<&2, U32>, acc: List<&2, U32>) -> Cut:
+  match nn xs:
     case 0n rest:
       Ready{List.reverse(&2, U32, acc), rest}
     case 1n+p Nil{}:
@@ -157,8 +157,8 @@ def split(n: Nat, xs: List<&2, U32>, acc: List<&2, U32>) -> Cut:
     case 1n+p Con{h, t}:
       split(p, t, h <> acc)
 
-def cut.body(h: Head) -> Cut:
-  match h:
+def cut.body(hh: Head) -> Cut:
+  match hh:
     case NoHead{}:
       More{}
     case Head{len, rest}:

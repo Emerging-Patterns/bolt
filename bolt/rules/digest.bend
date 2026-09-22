@@ -66,12 +66,12 @@ def alias_path(as: List<&2, Alias>, +name: String) -> Maybe<&2, String>:
 
 # a name in a law as a mention: `M.join` is `join` of what `M` imports; a
 # plain name is of the law's own file
-def mention(m: Maybe<&2, String>, +file: String, +t: String) -> Mention:
-  match m:
+def mention(mm: Maybe<&2, String>, +file: String, +tt: String) -> Mention:
+  match mm:
     case Some{p}:
-      Mention{p, Bind.rest_of(String.to_list(t))}
+      Mention{p, Bind.rest_of(String.to_list(tt))}
     case None{}:
-      Mention{file, t}
+      Mention{file, tt}
 
 # every name among the tokens, as a mention
 def mentions(toks: List<&2, Lex.Tok>, +as: List<&2, Alias>, +file: String) -> List<&2, Mention>:
@@ -111,9 +111,9 @@ def top_items(items: List<&2, Outline.Item>) -> List<&2, Top>:
 
 # a law file or a test: not under law. IO in the file is not an exemption:
 # an IO equality is a law.
-def is_exempt(+p: String) -> Bool:
-  Bool.or(Bool.or(String.ends_with(p, "LAWS.bend"), String.ends_with(p, "PROOF.bend")),
-    String.contains(p, "tests/"))
+def is_exempt(+pp: String) -> Bool:
+  Bool.or(Bool.or(String.ends_with(pp, "LAWS.bend"), String.ends_with(pp, "PROOF.bend")),
+    String.contains(pp, "tests/"))
 
 # the significant tokens: no space, newline or comment
 def significant(toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
@@ -133,12 +133,12 @@ def unsafe_name(toks: List<&2, Lex.Tok>) -> Maybe<&2, String>:
       None{}
 
 # an `@` that heads an unsafe def, onto the others
-def push(m: Maybe<&2, String>, +l: U32, +c: U32, more: List<&2, Unsafe>) -> List<&2, Unsafe>:
-  match m:
+def push(mm: Maybe<&2, String>, +ll: U32, +cc: U32, more: List<&2, Unsafe>) -> List<&2, Unsafe>:
+  match mm:
     case None{}:
       more
     case Some{n}:
-      Unsafe{n, l, c} <> more
+      Unsafe{n, ll, cc} <> more
 
 # every `@ unsafe def name` run of tokens, on one line or two
 def unsafe_defs(toks: List<&2, Lex.Tok>) -> List<&2, Unsafe>:
@@ -153,8 +153,8 @@ def unsafe_defs(toks: List<&2, Lex.Tok>) -> List<&2, Unsafe>:
 # ----------
 
 # one parsed file read down to its digest
-def of(s: Src.Src) -> Digest:
-  Src.Src{+path, text, toks, tree, bound, +items} = s
+def of(s2: Src.Src) -> Digest:
+  Src.Src{+path, text, toks, tree, bound, +items} = s2
   +p = Imports.norm(path)
   Digest{path, p, Imports.dir_of(path), String.ends_with(path, "LAWS.bend"),
     Bool.or(String.ends_with(path, "LAWS.bend"), String.ends_with(path, "PROOF.bend")), is_exempt(p),

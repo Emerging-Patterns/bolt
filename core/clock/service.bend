@@ -6,6 +6,6 @@ type Clock is Type:
   Clock{now: Unit -> IO(Nat)}
 
 # the time, from a clock
-def now(c: Clock) -> IO(Nat):
-  Clock{f} = c
+def now(cc: Clock) -> IO(Nat):
+  Clock{f} = cc
   f(Unit{})

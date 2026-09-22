@@ -27,29 +27,29 @@ def line_of(item: Maybe<&2, Outline.Item>) -> U32:
       line
 
 # a parsed message, or null
-def parsed(m: Maybe<&2, J.Json>) -> J.Json:
-  Maybe.default(&2, J.Json, m, J.JNull{})
+def parsed(mm: Maybe<&2, J.Json>) -> J.Json:
+  Maybe.default(&2, J.Json, mm, J.JNull{})
 
 # one request: the line of the item under the message's position, plus its id
-def leaf(+i: U32) -> U32:
+def leaf(+ii: U32) -> U32:
   +msg = parsed(Parse.parse(message()))
   +pos = J.get(J.get(msg, "params"), "position")
   (line_of(Outline.find(Outline.items(source()),
     Word.at(source(), J.u32_or(J.get(pos, "line"), 0), J.u32_or(J.get(pos, "character"), 0))))
-    + J.u32_or(J.get(msg, "id"), 0) + (i .&. 0) : U32)
+    + J.u32_or(J.get(msg, "id"), 0) + (ii .&. 0) : U32)
 
 # the requests of a 2^n batch, answered and summed
-def fold(+n: Nat, +i: U32) -> U32:
-  match n:
+def fold(+nn: Nat, +ii: U32) -> U32:
+  match nn:
     case 0n:
-      leaf(i)
+      leaf(ii)
     case 1n+p:
-      a b = fold(p, (i * 2 : U32)) fold(p, (i * 2 + 1 : U32))
+      a b = fold(p, (ii * 2 : U32)) fold(p, (ii * 2 + 1 : U32))
       (a + b : U32)
 
 # DEPTH from the environment: the batch is 2^depth requests
-def depth(r: Result<&1, &1, U32 & String, String>) -> U32:
-  match r:
+def depth(rr: Result<&1, &1, U32 & String, String>) -> U32:
+  match rr:
     case Fail{e}:
       0
     case Done{s}:
