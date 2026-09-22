@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/Emerging-Patterns/bolt/compare/v1.0.0...v1.0.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* **scope:** a test is a path with a tests segment, not a substring ([#50](https://github.com/Emerging-Patterns/bolt/issues/50)) ([300c28b](https://github.com/Emerging-Patterns/bolt/commit/300c28b4ac6ddecf82953c58ad035ab1b79a7d1d))
+
 ## [1.0.0](https://github.com/Emerging-Patterns/bolt/compare/v0.9.0...v1.0.0) (2026-09-22)
 
 
