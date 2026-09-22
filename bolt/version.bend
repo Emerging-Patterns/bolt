@@ -3,4 +3,4 @@ import Base
 
 # the release number
 def text() -> String:
-  "0.7.0" # x-release-please-version
+  "0.8.0" # x-release-please-version
