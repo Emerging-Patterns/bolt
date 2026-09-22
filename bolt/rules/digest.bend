@@ -14,6 +14,7 @@ import ../../syntax/bind.bend as Bind
 import ../../syntax/outline.bend as Outline
 import ../../lazy/lazy.bend as Lazy
 import ./imports.bend as Imports
+import ./laws/closed.bend as Closed
 import ../paths.bend as Paths
 
 # what a file holds
@@ -84,12 +85,15 @@ def mentions(toks: List<&2, Lex.Tok>, +as: List<&2, Alias>, +file: String) -> Li
       Lazy.stop(List<&2, Mention>, Bool.not(Lex.is_name(k)), more,
         _u => mention(alias_path(as, Bind.head_of(String.to_list(t))), file, t) <> more)
 
-# the mentions of every law statement of a tree
+# the mentions of every quantified law of a tree: what its binders and its
+# statement name. Its header, and so its own name, is not a mention, and a
+# closed law names nothing (it covers one input, not the def)
 def law_mentions(root: Tree.Node, +as: List<&2, Alias>, +file: String) -> List<&2, Mention>:
   match root:
-    case Tree.NCons{Tree.Stmt{Tree.SLaw{}, kids, body}, rest}:
-      List.concat(&2, Mention, [mentions(Tree.leaves(kids), as, file), mentions(Tree.leaves(body), as, file),
-        law_mentions(rest, as, file)])
+    case Tree.NCons{Tree.Stmt{Tree.SLaw{}, kids, +body}, rest}:
+      +more = law_mentions(rest, as, file)
+      Lazy.stop(List<&2, Mention>, Bool.not(Closed.binds(body)), more,
+        _u => List.append(&2, Mention, mentions(Tree.leaves(body), as, file), more))
     case Tree.NCons{h, rest}:
       law_mentions(rest, as, file)
     case other:
@@ -153,12 +157,20 @@ def unsafe_defs(toks: List<&2, Lex.Tok>) -> List<&2, Unsafe>:
 # the digest
 # ----------
 
+# what a file's laws name: only a LAWS.bend states laws that cover a def
+def stated(is_laws: Bool, root: Tree.Node, as: List<&2, Alias>, file: String) -> List<&2, Mention>:
+  match is_laws:
+    case True{}:
+      law_mentions(root, as, file)
+    case False{}:
+      Nil{}
+
 # one parsed file read down to its digest
 def of(s2: Src.Src) -> Digest:
   Src.Src{+path, text, toks, tree, bound, +items} = s2
   +p = Imports.norm(path)
   Digest{path, p, Imports.dir_of(path), Paths.is_laws(path), Paths.is_law_file(path), is_exempt(p),
-    top_items(items), law_mentions(tree, aliases(items, p), p), Imports.targets(items, p),
+    top_items(items), stated(Paths.is_laws(path), tree, aliases(items, p), p), Imports.targets(items, p),
     unsafe_defs(significant(toks))}
 
 # every file the linter read, in one pass, in order

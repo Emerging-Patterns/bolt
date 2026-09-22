@@ -126,7 +126,7 @@ Design specs and plans are not kept in this repo; they live under
   Every top-level def, type and law gets a comment right above it (helpers
   named `x.go` ride on x's); a parameter that is there to be ignored starts
   with `_`; no let or pattern binder may share a name with a def above it;
-  a project with a LAWS.bend has every def named by some law, IO included.
+  a project with a LAWS.bend has every def named by a quantified law, IO included.
   Helpers (dotted names), tests, and the law files themselves are out of
   scope.
 - Dependencies are injected the `core` way (see core/README.md): a service is
