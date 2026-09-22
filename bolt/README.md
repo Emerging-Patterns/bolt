@@ -49,7 +49,7 @@ unset group has its default. The groups:
 | `correctness` | `shadow` `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign` | error   |
 | `suspicious`  | `unused` `strict` `eager` `concat` `nat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` | warn    |
 | `style`       | `doc` `space` `wrap` `param`                                                     | warn    |
-| `laws`        | `law` `closed` `unsafe` (`quantify`: opt-in)                                     | warn    |
+| `laws`        | `law` `closed` `unsafe`                                                          | warn    |
 | `pedantic`    | `tail`                                                                           | off     |
 
 The stable codes, assigned once (do not renumber):
@@ -63,7 +63,7 @@ The stable codes, assigned once (do not renumber):
 | C005 | `arms` | U005 | `nat` | L001 | `law` |
 | C006 | `escape` | U006 | `fuel` | L002 | `closed` |
 | C007 | `twice` | U007 | `index` | L003 | `unsafe` |
-| C008 | `strings` | U008 | `table` | L004 | `quantify` |
+| C008 | `strings` | U008 | `table` | L004 | retired |
 | C009 | `chars` | U009 | `hoist` | P001 | `tail` |
 | C010 | `foreign` | U010 | `ring` | | |
 | | | U011 | `rewalk` | | |
@@ -72,10 +72,8 @@ The stable codes, assigned once (do not renumber):
 Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic.
 
 `pedantic` is advice that is noisy on idiomatic code: off until a project
-asks for it. `quantify` is opt-in: it is in `laws`, but no group setting
-reaches it, `laws` at error included; it is off until a bolt.bend sets it
-by name (`def quantify() -> String:` `"error"`), so a project that does not
-name it gets nothing new. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
+asks for it. L004 was `quantify`, the opt-in strict mode of `closed`;
+`closed` is strict itself now, and L004 is never reused. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
 read, never linted. Without one, the defaults apply. This repo's
 [bolt.bend](../bolt.bend) sets every group to error: the gate must see
 `clean`.
@@ -220,19 +218,10 @@ beside the groups.
   first live parameter is a `List` or a `String`. On a long one the JS lane
   overflows its stack (a 48 KB header crashed a server; ~4,900 entries and
   ~64K elements elsewhere). Carry an accumulator.
-- `closed` — a law in a LAWS.bend with no `for`/`exs` and no `==`. A closed
-  equality (`{lhs == rhs : T}`, including `IO(T)`) is a stated claim. A law
-  that is neither quantified nor an equality is the finding.
-- `quantify` (opt-in) — `closed`, strict: a law in a LAWS.bend with no
-  `for`/`exs` binder, equality or not. For a project that holds a closed
-  equality to be a unit test the checker runs, not a guarantee. A closed law
-  kept on purpose is exempt when the comment line right above its `law`
-  line starts with `# toward ` (`# toward R-5`, naming what it leads to in
-  the project's own terms); the marker is fixed, per law, and named in every
-  finding, so it cannot be set once to cover a file, and
-  `grep -rn '^# toward '` lists every exemption. A marker above the law's
-  doc comment, not right above the `law` line, exempts nothing. With both
-  rules on, a closed law that is not an equality is reported by each.
+- `closed` — a law in a LAWS.bend with no `for`/`exs` binder. A closed law,
+  an equality (`{lhs == rhs : T}`, including `IO(T)`) or not, holds for the
+  one input it names: a unit test the checker runs, not a guarantee.
+  Nothing exempts one: quantify it, or delete it.
 - `unsafe` (project) — an `@unsafe def` that a LAWS.bend or PROOF.bend
   reaches through its imports. There the checker prints "All terms check,
   but N defs rely on unsafe or foreign code:" and a `- name` list (2.0.16

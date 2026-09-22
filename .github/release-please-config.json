@@ -36,14 +36,6 @@
         {
           "type": "generic",
           "path": "editors/vscode/README.md"
-        },
-        {
-          "type": "generic",
-          "path": "bolt/spec/cases.bend"
-        },
-        {
-          "type": "generic",
-          "path": "bolt/spec/LAWS.bend"
         }
       ]
     }

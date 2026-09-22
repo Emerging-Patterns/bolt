@@ -1,15 +1,13 @@
-# rule closed: a law in a LAWS.bend with no `for`/`exs` and no equality.
-# A closed equality (`{lhs == rhs : T}`, including `IO(T)`) is a stated
-# claim; the checker proves it by computing both sides. A law that is
-# neither quantified nor an equality is this rule's finding. Laws outside
-# LAWS.bend are not held to it. A project that holds a closed equality to be
-# only a unit test turns on `quantify` (L004, rules/laws/quantify.bend): this
-# rule, strict, and off unless a bolt.bend names it.
+# rule closed: a law in a LAWS.bend with no `for`/`exs` binder. A law with no
+# binder holds for the one input it names, which makes it a unit test the
+# checker runs, not a guarantee, and that is so for an equality (`{lhs == rhs
+# : T}`, including `IO(T)`) as much as for anything else. Nothing exempts a
+# closed law: quantify it, or delete it. Laws outside LAWS.bend are not held
+# to it.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
 import ../../../syntax/tree.bend as Tree
-import ../../../syntax/lex.bend as Lex
 import ../../../lazy/lazy.bend as Lazy
 import ../../../syntax/bind.bend as Bind
 
@@ -20,20 +18,6 @@ def binds(body: Tree.Node) -> Bool:
       True{}
     case Tree.NCons{h, rest}:
       binds(rest)
-    case other:
-      False{}
-
-# is this node, or something under it, an `==`?
-def has_eq(nn: Tree.Node) -> Bool:
-  match nn:
-    case Tree.Leaf{Lex.Tok{k, t, l, c}}:
-      String.eq(t, "==")
-    case Tree.Group{open, kids, close}:
-      has_eq(kids)
-    case Tree.Stmt{kind, kids, body}:
-      Lazy.or_else(has_eq(kids), _u => has_eq(body))
-    case Tree.NCons{h, rest}:
-      Lazy.or_else(has_eq(h), _u => has_eq(rest))
     case other:
       False{}
 
@@ -49,11 +33,10 @@ def check.go(root: Tree.Node, +path: String) -> List<&2, F.Finding>:
   match root:
     case Tree.NCons{Tree.Stmt{Tree.SLaw{}, +kids, +body}, rest}:
       +more = check.go(rest, path)
-      Lazy.stop(List<&2, F.Finding>,
-        Lazy.or_else(binds(body), _u => Lazy.or_else(has_eq(kids), _u => has_eq(body))), more,
+      Lazy.stop(List<&2, F.Finding>, binds(body), more,
         _u => F.Finding{path, Tree.line(kids), Tree.col(kids), 0, "closed",
           "Law " ++ name.of(Bind.declared(kids))
-            ++ " has no for and is not an equality; state {lhs == rhs : T}, including IO(T)."} <> more)
+            ++ " has no for or exs, so it checks one case; quantify it, or delete it."} <> more)
     case Tree.NCons{h, rest}:
       check.go(rest, path)
     case other:
