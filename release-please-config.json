@@ -1,0 +1,51 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "2886b08569b652b6d5679d35563a4bb7f8a319bf",
+  "packages": {
+    ".": {
+      "release-type": "go",
+      "include-component-in-tag": false,
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "flake.nix"
+        },
+        {
+          "type": "generic",
+          "path": "bolt/version.bend"
+        },
+        {
+          "type": "json",
+          "path": "editors/vscode/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "editors/vscode/package-lock.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "editors/vscode/package-lock.json",
+          "jsonpath": "$.packages[\"\"].version"
+        },
+        {
+          "type": "generic",
+          "path": "README.md"
+        },
+        {
+          "type": "generic",
+          "path": "editors/vscode/README.md"
+        },
+        {
+          "type": "generic",
+          "path": "bolt/spec/cases.bend"
+        },
+        {
+          "type": "generic",
+          "path": "bolt/spec/LAWS.bend"
+        }
+      ]
+    }
+  }
+}

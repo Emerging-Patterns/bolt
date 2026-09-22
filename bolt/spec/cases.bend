@@ -51,7 +51,7 @@ def args.split(+av: List<&2, String>) -> String:
   "[" ++ Args.command(av) ++ "] " ++ String.join(Args.files(av), " ")
 
 def args.help_root() -> String:
-  "bolt 0.4.0\n" ++
+  "bolt 0.4.0\n" ++ # x-release-please-version
   "A linter, checker and language server for Bend 2.\n\n" ++
   "Usage: bolt [OPTIONS] [FILES]... [COMMAND]\n\n" ++
   "Commands:\n" ++

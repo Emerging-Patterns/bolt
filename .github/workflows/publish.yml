@@ -3,9 +3,9 @@
 # This is the one workflow in the repo that uploads anything. The upload is
 # public and cannot be taken back, so nothing triggers it but a human on
 # Actions -> Publish -> Run workflow. There is no `push:` here and there never
-# will be: `release.yml` opens the GitHub Release on a tag and stops there, so
-# a tag that turns out to be wrong costs a deleted release and not a package
-# on the hub forever.
+# will be: release-please opens the GitHub Release, and this workflow does not
+# run on a tag, so a tag that turns out to be wrong costs a deleted release
+# and not a package on the hub forever.
 #
 # What it publishes is a tag, never a branch and never a loose commit. The
 # `ref` is `refs/tags/<tag>`, so a branch name or a SHA does not resolve and
