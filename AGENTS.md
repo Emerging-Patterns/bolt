@@ -34,6 +34,7 @@ A `#|` equality for a proveable claim is a bug. A directory with
                        BEND_LIB from ez.lock.toml, and the package build come from ez);
                        `nix flake check` builds the bolt package and runs
                        checks.test (`ez test --unit-only` through mkProofs)
+                       and checks.lint (that bolt over this tree, mkLint)
                        (nix sees tracked files only: git add first)
     tests/*.bend       stay-list host/integration only (bare, flake).
                        `ez test` runs each on its own, and caches none of them
@@ -63,8 +64,9 @@ tests, so they live beside the project rather than under it --
 
 ## The gate
 
-    nix flake check                the bolt package and checks.test
-                                   (mkProofs runs `ez test --unit-only`)
+    nix flake check                the bolt package, checks.test
+                                   (mkProofs runs `ez test --unit-only`) and
+                                   checks.lint (mkLint: bolt on this tree)
     nix develop                    bend 2, bend-cc and node, with CC=bend-cc set
     ez test                        every lane, every proof, and the top-level tests/
     ez test --js-only              skip the native lanes
@@ -92,7 +94,11 @@ reports when bolt itself is broken, which is the whole of the argument that
 used to keep `gate.sh` around.
 
 CI is that flake check. `.github/workflows/ci.yml` runs `nix flake check`:
-the bolt package and checks.test.
+the bolt package, checks.test and checks.lint. `--unit-only` skips
+`tests/bare.bend`, so checks.lint is where CI sees bolt lint itself; it
+fails on an error, not a warning. `main` requires the `check / check` job
+(ruleset "main: require ci"); release-please PRs get no CI run, so an admin
+merges them through the ruleset's pull-request bypass.
 
 **ez is not a prerequisite for bolt.**
 `bend bolt/main.bend -o bin/bolt.bin` is the entire build: no ez, no nix.
