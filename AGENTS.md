@@ -107,6 +107,9 @@ Design specs and plans are not kept in this repo; they live under
 
 - New proveable behavior is a law in `LAWS.bend`, then a filling in
   `PROOF.bend`. Watch `bend PROOF.bend` fail, then prove.
+- `SPEC.md` lists every guaranteed behavior by ID. A quantified law that
+  proves one carries `# <ID>` on its own line directly above its `law` line,
+  and the row moves from `pending` to `proved` in the same change.
 - `bolt` (bolt/README.md) runs at the end of the gate, every rule an error
   by the root bolt.bend: keep it clean. The binary the gate lints with is the
   one `tests/bare.bend` has just built from this tree, never whatever `bolt`
