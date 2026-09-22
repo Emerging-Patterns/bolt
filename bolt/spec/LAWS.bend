@@ -454,16 +454,17 @@ law index_get:
     "a.bend:6:17: U007: List.get inside a recursive def walks the list again on each step, which is quadratic; walk the list itself.; a.bend:13:12: U007: String.get inside a recursive def walks the list again on each step, which is quadratic; walk the list itself."
     : String}
 
-# LAW: List.set at a computed index in a recursive def
+# LAW: a fixed table indexed from the loop is `table`; a data-dependent list stays `index`
 law table_set:
-  {lines(Table.check(Src.of("a.bend", C.rec.tabled()))) ++ lines(Table.check(Src.of("x/PROOF.bend", C.rec.tabled()))) ==
-    "a.bend:6:16: U008: List.set inside a recursive def copies the list to change one cell; keep the table in an Array and use Array.set."
+  {lines(Table.check(Src.of("a.bend", C.rec.tabled()))) ++ "; " ++ lines(Index.check(Src.of("a.bend", C.rec.tabled())))
+    ++ lines(Table.check(Src.of("x/PROOF.bend", C.rec.tabled()))) ==
+    "a.bend:7:17: U008: List.get inside a recursive def walks a fixed table on every step; keep the table in an Array and use Array.get.; a.bend:15:13: U008: List.set inside a recursive def copies the list to change one cell; keep the table in an Array and use Array.set.; a.bend:41:17: U007: List.get inside a recursive def walks the list again on each step, which is quadratic; walk the list itself."
     : String}
 
 # LAW: a fixed table rebuilt on every recursive step
 law hoist_table:
   {lines(Hoist.check(Src.of("a.bend", C.rec.hoisted()))) ++ lines(Hoist.check(Src.of("x/PROOF.bend", C.rec.hoisted()))) ==
-    "a.bend:2:8: U009: This table is rebuilt on every step from inputs that do not change; build it once, outside the recursion.; a.bend:18:8: U009: This table is rebuilt on every step from inputs that do not change; build it once, outside the recursion.; a.bend:34:8: U009: This table is rebuilt on every step from inputs that do not change; build it once, outside the recursion."
+    "a.bend:2:8: U009: This table is rebuilt on every step from inputs that do not change; build it once, outside the recursion.; a.bend:18:8: U009: This table is rebuilt on every step from inputs that do not change; build it once, outside the recursion.; a.bend:42:8: U009: This table is rebuilt on every step from inputs that do not change; build it once, outside the recursion."
     : String}
 
 # LAW: a fixed window dropped and appended on each step

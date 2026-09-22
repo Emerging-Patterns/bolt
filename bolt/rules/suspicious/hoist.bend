@@ -1,9 +1,10 @@
 # rule hoist: a fixed table built inside a def that calls itself, from inputs
 # that do not change, and then indexed. The build runs again on every step.
-# Build it once, outside the recursion. A name that is not a carried parameter
-# (a pattern binder, a value computed on the step) keeps the build; a case arm
-# that does not recurse is cold; laws and proofs do not run. `List.get` itself
-# stays with `index`.
+# Build it once, outside the recursion. A table of eight cells or fewer is
+# left alone, and so is a build whose arguments depend on the step. A name
+# that is not a carried parameter (a pattern binder, a value computed on the
+# step) keeps the build; a case arm that does not recurse is cold; laws and
+# proofs do not run. `List.get` itself stays with `index`.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
@@ -181,11 +182,46 @@ def is_array(+kids: Tree.Node) -> Bool:
   +hat = top_mark(kids, "^")
   Bool.and(col, Bool.or(star, hat))
 
-# a list of two or more, or an array
-def table_shape(+kids: Tree.Node) -> Bool:
-  +list = top_mark(kids, ",")
-  +arr = is_array(kids)
-  Bool.or(list, arr)
+# how many top-level copies of this token
+def top_count(nn: Tree.Node, +want: String, +got: Nat) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Group{open, kids, close}, rest}:
+      top_count(rest, want, got)
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, rest}:
+      +next = Bool.pick(Nat, String.eq(t, want), (got + 1n : Nat), got)
+      top_count(rest, want, next)
+    case Tree.NCons{h, rest}:
+      top_count(rest, want, got)
+    case other:
+      got
+
+# a number literal of eight or fewer
+def small_num(+tt: String) -> Bool:
+  List.contains(~String, ~String.eq,
+    ["0", "1", "2", "3", "4", "5", "6", "7", "8", "0n", "1n", "2n", "3n", "4n", "5n", "6n", "7n", "8n"], tt)
+
+# the size after `*` or `^` is a literal of eight or fewer
+def small_size(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +op, l, c}},
+        Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, +t, l2, c2}}, rest}}:
+      +here = Bool.and(Bool.or(String.eq(op, "*"), String.eq(op, "^")), small_num(t))
+      +more = small_size(rest)
+      Bool.or(here, more)
+    case Tree.NCons{Tree.Group{open, kids, close}, rest}:
+      small_size(rest)
+    case Tree.NCons{h, rest}:
+      small_size(rest)
+    case other:
+      False{}
+
+# more than eight cells: nine or more list elements, or an array whose size is not that small
+def wide_shape(+arr: Bool, +kids: Tree.Node) -> Bool:
+  match arr:
+    case True{}:
+      Bool.not(small_size(kids))
+    case False{}:
+      Nat.is_gt(top_count(kids, ",", 0n), 7n)
 
 # constructors that build a fixed table rather than walk one
 def allowed(+tt: String) -> Bool:
@@ -215,23 +251,65 @@ def builder(kk: Lex.TokKind, +tt: String, +self: String) -> Bool:
     case other:
       False{}
 
+# a bracket group that is a closed list or array of more than eight cells
+def group_yes(+arr: Bool, +kids: Tree.Node, +carried: List<&2, String>) -> Bool:
+  +shape = Bool.or(top_mark(kids, ","), arr)
+  +ok = closed(kids, carried)
+  +wide = wide_shape(arr, kids)
+  Bool.and(shape, Bool.and(ok, wide))
+
 # a bracket group that is a closed list or array
 def table_group(+brack: Bool, +kids: Tree.Node, +carried: List<&2, String>) -> Bool:
   match brack:
     case False{}:
       False{}
     case True{}:
-      +shape = table_shape(kids)
-      +ok = closed(kids, carried)
-      Bool.and(shape, ok)
+      group_yes(is_array(kids), kids, carried)
 
-# a call that builds a table from closed arguments
-def table_built(+ok: Bool, kids: Tree.Node, +carried: List<&2, String>) -> Bool:
-  match ok:
-    case False{}:
-      False{}
+# the chain is exactly one number; its text, or empty
+def num_text(nn: Tree.Node) -> String:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, +t, l, c}}, Tree.NNil{}}:
+      t
+    case other:
+      ""
+
+# a count is wide when it is not a literal of eight or fewer (a name may be large)
+def count_wide(aa: Tree.Node) -> Bool:
+  Bool.not(small_num(num_text(aa)))
+
+# the last argument
+def last_node(as: List<&2, Tree.Node>) -> Tree.Node:
+  match as:
+    case Nil{}:
+      Tree.NNil{}
+    case Con{h, Nil{}}:
+      h
+    case Con{h, rest}:
+      last_node(rest)
+
+# `List.replicate` / `Array.new` take argument 2; anything else is wide unless it is `List.range`
+def call_arm(rep: Bool, +as: List<&2, Tree.Node>, +end: Tree.Node, +range: Bool) -> Bool:
+  match rep:
     case True{}:
+      count_wide(Calls.arg(as, 2n))
+    case False{}:
+      Bool.pick(Bool, range, count_wide(end), True{})
+
+# `List.replicate` / `Array.new` / `List.range` are wide unless their count is a small literal
+def call_wide(+tt: String, kids: Tree.Node) -> Bool:
+  +as = Calls.args(kids)
+  call_arm(Bool.or(String.eq(tt, "List.replicate"), String.eq(tt, "Array.new")), as, last_node(as), String.eq(tt, "List.range"))
+
+# a call that builds a table from closed arguments, and is not a small literal count
+def table_built(+ok: Bool, +wide: Bool, kids: Tree.Node, +carried: List<&2, String>) -> Bool:
+  match ok wide:
+    case True{} True{}:
       closed(kids, carried)
+    case True{} False{}:
+      False{}
+    case False{} b:
+      False{}
 
 # a call that builds a table from closed arguments
 def table_call(
@@ -246,7 +324,7 @@ def table_call(
     case False{}:
       False{}
     case True{}:
-      table_built(builder(kk, tt, self), kids, carried)
+      table_built(builder(kk, tt, self), call_wide(tt, kids), kids, carried)
 
 # a list, an array, or a builder call, closed over carried parameters
 def is_table(nn: Tree.Node, +self: String, +carried: List<&2, String>) -> Bool:

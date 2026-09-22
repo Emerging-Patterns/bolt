@@ -2,8 +2,9 @@
 # step that actually recurses. `*` and `/` inside `(e : T)` are `T.mul` and
 # `T.div`; bare, they are `Nat`. Either form, and a direct `Nat.mul` /
 # `U32.mul` / `F32.mul` or `.div`, does nothing when an operand is one
-# (`/` only when the divisor is). Drop the operation. The base case and a
-# def that does not call itself are cold, and laws and proofs do not run.
+# (`/` only when the divisor is). Drop the operation. Any other factor or
+# divisor is left alone, and so is a base case or a def that does not call
+# itself. Laws and proofs do not run.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F

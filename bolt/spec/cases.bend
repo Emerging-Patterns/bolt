@@ -555,28 +555,52 @@ def rec.indexed() -> String:
 
 def rec.tabled() -> String:
   String.join([
-    "def total(i: Nat, +xs: List<&2, U32>) -> List<&2, U32>:",
+    "def go(i: Nat) -> U32:",
+    "  +tab = [1, 2, 3, 4, 5, 6, 7, 8, 9]",
     "  match i:",
     "    case 0n:",
-    "      xs",
+    "      0",
     "    case 1n+p:",
-    "      total(p, List.set(&2, U32, xs, p, 1))",
+    "      (Maybe.or(List.get(&2, U32, tab, p), 0) + go(p) : U32)",
+    "",
+    "def setgo(i: Nat) -> List<&2, U32>:",
+    "  +tab = List.replicate(&2, U32, 16n, 0)",
+    "  match i:",
+    "    case 0n:",
+    "      tab",
+    "    case 1n+p:",
+    "      setgo(List.set(&2, U32, tab, p, 1))",
+    "",
+    "def grow(i: Nat, +acc: List<&2, U32>) -> List<&2, U32>:",
+    "  match i:",
+    "    case 0n:",
+    "      acc",
+    "    case 1n+p:",
+    "      grow(p, List.set(&2, U32, acc, p, 1))",
     "",
     "def once(xs: List<&2, U32>) -> List<&2, U32>:",
     "  List.set(&2, U32, xs, 1n, 0)",
     "",
-    "def slot(xs: List<&2, U32>, h: U32) -> List<&2, U32>:",
-    "  match xs:",
-    "    case Nil{}:",
-    "      []",
-    "    case Con{t, u}:",
-    "      List.set(&2, U32, xs, 0n, h)",
-    "      slot(u, h)"], "\n")
+    "def slot(i: Nat) -> U32:",
+    "  +tab = [1, 2, 3, 4, 5, 6, 7, 8, 9]",
+    "  match i:",
+    "    case 0n:",
+    "      Maybe.or(List.get(&2, U32, tab, 0n), 0)",
+    "    case 1n+p:",
+    "      slot(p)",
+    "",
+    "def dep(i: Nat, +n: Nat) -> U32:",
+    "  +tab = List.replicate(&2, U32, n, 0)",
+    "  match i:",
+    "    case 0n:",
+    "      0",
+    "    case 1n+p:",
+    "      (Maybe.or(List.get(&2, U32, tab, p), 0) + dep(p, n) : U32)"], "\n")
 
 def rec.hoisted() -> String:
   String.join([
     "def go(i: Nat) -> U32:",
-    "  +t = [1, 2, 3]",
+    "  +t = [1, 2, 3, 4, 5, 6, 7, 8, 9]",
     "  match i:",
     "    case 0n:",
     "      0",
@@ -607,8 +631,16 @@ def rec.hoisted() -> String:
     "      +row = [h, h]",
     "      (Maybe.or(List.get(&2, U32, row, 0n), 0) + rowed(t) : U32)",
     "",
-    "def arr(i: Nat) -> U32:",
+    "def tiny(i: Nat) -> U32:",
     "  +a = [0 : U32*8n]",
+    "  match i:",
+    "    case 0n:",
+    "      0",
+    "    case 1n+p:",
+    "      (a[i] + tiny(p) : U32)",
+    "",
+    "def arr(i: Nat) -> U32:",
+    "  +a = [0 : U32*16n]",
     "  match i:",
     "    case 0n:",
     "      0",
@@ -628,7 +660,14 @@ def rec.ringed() -> String:
     "    case Nil{}:",
     "      acc",
     "    case Con{h, t}:",
-    "      grow(t, List.append(&2, U32, acc, [h]))"], "\n")
+    "      grow(t, List.append(&2, U32, acc, [h]))",
+    "",
+    "def eat(xs: List<&2, U32>) -> List<&2, U32>:",
+    "  match xs:",
+    "    case Nil{}:",
+    "      []",
+    "    case Con{h, t}:",
+    "      eat(List.append(&2, U32, List.drop(&2, U32, xs, 1n), [h]))"], "\n")
 
 def rec.rewalked() -> String:
   String.join([
@@ -654,7 +693,14 @@ def rec.rewalked() -> String:
     "  +spec = walk(xs)",
     "  +dc = Maybe.or(List.get(&2, U32, spec, 0n), 0)",
     "  +rest = walk(xs)",
-    "  dc"], "\n")
+    "  dc",
+    "",
+    "def split(xs: List<&2, U32>, n: U32) -> U32:",
+    "  match n:",
+    "    case 0:",
+    "      Maybe.or(List.get(&2, U32, walk(xs), 0n), 0)",
+    "    case 1+p:",
+    "      Maybe.or(List.head(&2, U32, walk(xs)), 0)"], "\n")
 
 def rec.united() -> String:
   String.join([

@@ -1,9 +1,11 @@
-# rule rewalk: one def calls the same walk twice on the same argument, and
-# one result is used only for a single value (a get of one index, one field,
-# or a let whose name is only read that way). Take the value from the other
-# result. A walk is a def of this file that loops, or a Base walk (`List.map`
-# and the like). Two full uses are left alone. Laws and proofs do not run.
-# This is not `twice`, which is duplicate literals in a list pattern.
+# rule rewalk: one straight piece of a def calls the same walk twice on the
+# same argument, and one result is used only for a single value (a get of one
+# index, one field, or a let whose name is only read that way) while the other
+# result is kept whole. Take the value from that other result. A different
+# case arm is a different path, and two narrow reads are left alone. A walk is
+# a def of this file that loops, or a Base walk (`List.map` and the like).
+# Laws and proofs do not run. This is not `twice`, which is duplicate literals
+# in a list pattern.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
@@ -186,6 +188,8 @@ def mark(nn: Tree.Node) -> List<&2, Pos>:
       +here = Lazy.stop(List<&2, Pos>, Bool.not(String.eq(o, "(")), [], _u => mark_slot(slot_of(t), Calls.args(kids)))
       List.concat(&2, Pos, [here, mark(kids), mark(rest)])
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
+      List.concat(&2, Pos, [mark(kids), mark(rest)])
+    case Tree.NCons{Tree.Stmt{Tree.SCase{}, +kids, body}, rest}:
       List.concat(&2, Pos, [mark(kids), mark(rest)])
     case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
       List.concat(&2, Pos, [mark(kids), mark(body), mark(rest)])
@@ -466,6 +470,8 @@ def gather(nn: Tree.Node, +self: String, +lp: List<&2, String>) -> List<&2, Site
       List.concat(&2, Site, [here, gather(kids, self, lp), gather(rest, self, lp)])
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
       List.concat(&2, Site, [gather(kids, self, lp), gather(rest, self, lp)])
+    case Tree.NCons{Tree.Stmt{Tree.SCase{}, +kids, body}, rest}:
+      List.concat(&2, Site, [gather(kids, self, lp), gather(rest, self, lp)])
     case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
       List.concat(&2, Site, [gather(kids, self, lp), gather(body, self, lp), gather(rest, self, lp)])
     case Tree.NCons{h, rest}:
@@ -604,6 +610,8 @@ def retag_may(mm: Maybe<&2, Note>, sites: List<&2, Site>) -> List<&2, Site>:
 # lets of a call retag that call
 def apply(nn: Tree.Node, sites: List<&2, Site>) -> List<&2, Site>:
   match nn:
+    case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, body}, rest}:
+      apply(rest, sites)
     case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
       apply(rest, apply(body, retag_may(note_st(kids), sites)))
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
@@ -652,16 +660,24 @@ def pin(+ps: List<&2, Pos>, sites: List<&2, Site>) -> List<&2, Site>:
     case Con{s, rest}:
       pin_one(ps, s) <> pin(ps, rest)
 
-# another site has the same callee and the same arguments
-def other_go(sites: List<&2, Site>, +name: String, +args: String, +line: U32, +col: U32) -> Bool:
+# the other site keeps the whole result
+def other_full(+yes: Bool, how: How, +body: Tree.Node) -> Bool:
+  match yes:
+    case False{}:
+      False{}
+    case True{}:
+      Bool.not(narrow(how, body))
+
+# another site has the same callee and the same arguments, and keeps the whole result
+def other_go(sites: List<&2, Site>, +name: String, +args: String, +line: U32, +col: U32, +body: Tree.Node) -> Bool:
   match sites:
     case Nil{}:
       False{}
     case Con{Site{+nm, +as, +l, +c, len, how}, rest}:
       +same = Bool.and(String.eq(nm, name), String.eq(as, args))
       +diff = Bool.not(Bool.and(U32.is_eq(l, line), U32.is_eq(c, col)))
-      +here = Bool.and(same, diff)
-      +more = other_go(rest, name, args, line, col)
+      +here = other_full(Bool.and(same, diff), how, body)
+      +more = other_go(rest, name, args, line, col, body)
       Bool.or(here, more)
 
 # this earlier site is a narrow read of the same call
@@ -740,6 +756,7 @@ def report_dup(
     case True{}:
       report_nar(narrow(how, body), earlier(seen, name, args, line, col, body), name, line, col, len, path)
 
+
 # one site
 def report_one(
   ss: Site,
@@ -749,7 +766,7 @@ def report_one(
   +seen: List<&2, Site>
 ) -> List<&2, F.Finding>:
   Site{+name, +args, +line, +col, +len, how} = ss
-  report_dup(other_go(all, name, args, line, col), how, name, args, line, col, len, body, path, seen)
+  report_dup(other_go(all, name, args, line, col, body), how, name, args, line, col, len, body, path, seen)
 
 # the first narrow site of each duplicated call
 def report(
@@ -765,6 +782,27 @@ def report(
     case Con{+s, rest}:
       List.append(&2, F.Finding, report_one(s, all, body, path, seen), report(rest, all, body, path, s <> seen))
 
+# findings in one straight region; a case arm is not part of it
+def local(+nn: Tree.Node, +self: String, +lp: List<&2, String>, +path: String) -> List<&2, F.Finding>:
+  +sites = pin(mark(nn), apply(nn, gather(nn, self, lp)))
+  report(sites, sites, nn, path, [])
+
+# each case arm on its own, so two arms are not one path
+def visit(nn: Tree.Node, +self: String, +lp: List<&2, String>, +path: String) -> List<&2, F.Finding>:
+  match nn:
+    case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, +body}, rest}:
+      List.concat(&2, F.Finding, [local(body, self, lp, path), visit(body, self, lp, path),
+        visit(rest, self, lp, path)])
+    case Tree.NCons{Tree.Stmt{kind, +kids, +body}, rest}:
+      List.concat(&2, F.Finding, [visit(kids, self, lp, path), visit(body, self, lp, path),
+        visit(rest, self, lp, path)])
+    case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
+      List.concat(&2, F.Finding, [visit(kids, self, lp, path), visit(rest, self, lp, path)])
+    case Tree.NCons{h, rest}:
+      visit(rest, self, lp, path)
+    case other:
+      Nil{}
+
 def check.go(
   ds: List<&2, Calls.Def>,
   +lp: List<&2, String>,
@@ -775,10 +813,9 @@ def check.go(
     case Nil{}:
       List.concat(&2, F.Finding, List.reverse(&2, List<&2, F.Finding>, acc))
     case Con{Calls.Def{+name, +sig, +body}, rest}:
-      +sites = pin(mark(body), apply(body, gather(body, name, lp)))
       check.go(rest, lp, path,
         Lazy.stop(List<&2, F.Finding>, Calls.exempt(path, sig), [],
-          _u => report(sites, sites, body, path, [])) <> acc)
+          _u => List.concat(&2, F.Finding, [local(body, name, lp, path), visit(body, name, lp, path)])) <> acc)
 
 # the rule
 def check(ss: Src.Src) -> List<&2, F.Finding>:

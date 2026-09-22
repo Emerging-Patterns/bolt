@@ -1,9 +1,9 @@
-# rule ring: a self-call argument that both drops a fixed count off a named
-# window and appends onto that result (`List.drop` / `List.tail` /
-# `String.drop` / `String.tail`, then `List.append` / `String.append` / `++`).
-# Each step copies the window. Keep it in an Array and advance an index.
-# Growing an accumulator by append, with no drop of that same value, is
-# `concat`. Laws and proofs do not run.
+# rule ring: a self-call replaces a binder with `List.append` of `List.drop`
+# (or `String.append` / `++`, or `tail`) by a constant count. Each step copies
+# that fixed window. Keep it in an Array and advance an index. A list the def
+# matches and walks is variable-length input, and a one-shot trim is not a
+# loop: both stay quiet. Growing an accumulator by append, with no drop of
+# that same value, is `concat`. Laws and proofs do not run.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
@@ -20,14 +20,6 @@ def or_tok(aa: Maybe<&2, Lex.Tok>, +bb: Maybe<&2, Lex.Tok>) -> Maybe<&2, Lex.Tok
     case None{}:
       bb
 
-# is the chain exactly one lowercase name?
-def is_name(nn: Tree.Node) -> Bool:
-  match nn:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, Tree.NNil{}}:
-      True{}
-    case other:
-      False{}
-
 # is the chain exactly one number?
 def is_num(nn: Tree.Node) -> Bool:
   match nn:
@@ -36,14 +28,27 @@ def is_num(nn: Tree.Node) -> Bool:
     case other:
       False{}
 
+# the chain is exactly one lowercase name; its text, or empty
+def name_text(nn: Tree.Node) -> String:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, +t, l, c}}, Tree.NNil{}}:
+      t
+    case other:
+      ""
+
+# this argument is a window binder
+def win_name(nn: Tree.Node, +wins: List<&2, String>) -> Bool:
+  +tt = name_text(nn)
+  Bool.and(Bool.not(String.is_empty(tt)), List.contains(~String, ~String.eq, wins, tt))
+
 # does any argument name the window?
-def has_name(as: List<&2, Tree.Node>) -> Bool:
+def has_name(as: List<&2, Tree.Node>, +wins: List<&2, String>) -> Bool:
   match as:
     case Nil{}:
       False{}
     case Con{h, rest}:
-      +more = has_name(rest)
-      Bool.or(is_name(h), more)
+      +more = has_name(rest, wins)
+      Bool.or(win_name(h, wins), more)
 
 # is the last argument a number?
 def last_num(as: List<&2, Tree.Node>) -> Bool:
@@ -56,14 +61,21 @@ def last_num(as: List<&2, Tree.Node>) -> Bool:
       last_num(rest)
 
 # a fixed drop or tail of a named window
-def drop_ok(+tt: String, +as: List<&2, Tree.Node>) -> Bool:
+def drop_ok(+tt: String, +as: List<&2, Tree.Node>, +wins: List<&2, String>) -> Bool:
   +kind = List.contains(~String, ~String.eq, ["List.drop", "String.drop", "List.tail", "String.tail"], tt)
   +tail = Bool.or(String.eq(tt, "List.tail"), String.eq(tt, "String.tail"))
-  Bool.and(kind, Bool.and(has_name(as), Bool.or(tail, last_num(as))))
+  Bool.and(kind, Bool.and(has_name(as, wins), Bool.or(tail, last_num(as))))
 
 # the callee token when this call is a fixed drop
-def drop_tok(kk: Lex.TokKind, +tt: String, +line: U32, +col: U32, kids: Tree.Node) -> Maybe<&2, Lex.Tok>:
-  Bool.pick(Maybe<&2, Lex.Tok>, drop_ok(tt, Calls.args(kids)), Some{Lex.Tok{kk, tt, line, col}}, None{})
+def drop_tok(
+  kk: Lex.TokKind,
+  +tt: String,
+  +line: U32,
+  +col: U32,
+  kids: Tree.Node,
+  +wins: List<&2, String>
+) -> Maybe<&2, Lex.Tok>:
+  Bool.pick(Maybe<&2, Lex.Tok>, drop_ok(tt, Calls.args(kids), wins), Some{Lex.Tok{kk, tt, line, col}}, None{})
 
 # the drop this call is, when the group is an application
 def here_of(
@@ -72,44 +84,45 @@ def here_of(
   +tt: String,
   +line: U32,
   +col: U32,
-  kids: Tree.Node
+  kids: Tree.Node,
+  +wins: List<&2, String>
 ) -> Maybe<&2, Lex.Tok>:
   match open:
     case False{}:
       None{}
     case True{}:
-      drop_tok(kk, tt, line, col, kids)
+      drop_tok(kk, tt, line, col, kids, wins)
 
 # a drop anywhere under the node
-def drop_in(nn: Tree.Node) -> Maybe<&2, Lex.Tok>:
+def drop_in(nn: Tree.Node, +wins: List<&2, String>) -> Maybe<&2, Lex.Tok>:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{+k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
-      +here = here_of(String.eq(o, "("), k, t, l, c, kids)
-      +inn = drop_in(kids)
-      +aft = drop_in(rest)
+      +here = here_of(String.eq(o, "("), k, t, l, c, kids, wins)
+      +inn = drop_in(kids, wins)
+      +aft = drop_in(rest, wins)
       or_tok(here, or_tok(inn, aft))
-    case Tree.NCons{Tree.Group{open, kids, close}, rest}:
-      or_tok(drop_in(kids), drop_in(rest))
-    case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
-      or_tok(drop_in(kids), or_tok(drop_in(body), drop_in(rest)))
+    case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
+      or_tok(drop_in(kids, wins), drop_in(rest, wins))
+    case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
+      or_tok(drop_in(kids, wins), or_tok(drop_in(body, wins), drop_in(rest, wins)))
     case Tree.NCons{h, rest}:
-      drop_in(rest)
+      drop_in(rest, wins)
     case other:
       None{}
 
 # which list an append extends
-def receiver_is(+list: Bool, +str: Bool, +as: List<&2, Tree.Node>) -> Maybe<&2, Lex.Tok>:
+def receiver_is(+list: Bool, +str: Bool, +as: List<&2, Tree.Node>, +wins: List<&2, String>) -> Maybe<&2, Lex.Tok>:
   match list str:
     case True{} b:
-      drop_in(Calls.arg(as, 2n))
+      drop_in(Calls.arg(as, 2n), wins)
     case False{} True{}:
-      drop_in(Calls.arg(as, 0n))
+      drop_in(Calls.arg(as, 0n), wins)
     case False{} False{}:
       None{}
 
 # the drop an append copies onto, when this call is List.append or String.append
-def receiver(+tt: String, kids: Tree.Node) -> Maybe<&2, Lex.Tok>:
-  receiver_is(String.eq(tt, "List.append"), String.eq(tt, "String.append"), Calls.args(kids))
+def receiver(+tt: String, kids: Tree.Node, +wins: List<&2, String>) -> Maybe<&2, Lex.Tok>:
+  receiver_is(String.eq(tt, "List.append"), String.eq(tt, "String.append"), Calls.args(kids), wins)
 
 # a `++` whose left already dropped: that drop; otherwise nothing
 def pp_found(+is_pp: Bool, seen: Maybe<&2, Lex.Tok>) -> Maybe<&2, Lex.Tok>:
@@ -130,12 +143,12 @@ def pp_seen(+is_pp: Bool, +seen: Maybe<&2, Lex.Tok>) -> Maybe<&2, Lex.Tok>:
       seen
 
 # an application's append-receiver drop; a bracket is not an application
-def call_recv(+open: Bool, +tt: String, kids: Tree.Node) -> Maybe<&2, Lex.Tok>:
+def call_recv(+open: Bool, +tt: String, kids: Tree.Node, +wins: List<&2, String>) -> Maybe<&2, Lex.Tok>:
   match open:
     case False{}:
       None{}
     case True{}:
-      receiver(tt, kids)
+      receiver(tt, kids, wins)
 
 # a drop this node itself is: the call when it is an application, else under a bracket
 def call_drop(
@@ -144,35 +157,36 @@ def call_drop(
   +tt: String,
   +line: U32,
   +col: U32,
-  +kids: Tree.Node
+  +kids: Tree.Node,
+  +wins: List<&2, String>
 ) -> Maybe<&2, Lex.Tok>:
   match open:
     case False{}:
-      drop_in(kids)
+      drop_in(kids, wins)
     case True{}:
-      drop_tok(kk, tt, line, col, kids)
+      drop_tok(kk, tt, line, col, kids, wins)
 
 # a drop then `++`, or an append onto a drop, in this chain
-def plus_scan(nn: Tree.Node, +seen: Maybe<&2, Lex.Tok>) -> Maybe<&2, Lex.Tok>:
+def plus_scan(nn: Tree.Node, +seen: Maybe<&2, Lex.Tok>, +wins: List<&2, String>) -> Maybe<&2, Lex.Tok>:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +op, l, c}}, rest}:
       +is_pp = String.eq(op, "++")
-      or_tok(pp_found(is_pp, seen), plus_scan(rest, pp_seen(is_pp, seen)))
+      or_tok(pp_found(is_pp, seen), plus_scan(rest, pp_seen(is_pp, seen), wins))
     case Tree.NCons{Tree.Leaf{Lex.Tok{+k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +open = String.eq(o, "(")
-      +recv = call_recv(open, t, kids)
-      +inn = plus_scan(kids, None{})
-      +drop = call_drop(open, k, t, l, c, kids)
-      +aft = plus_scan(rest, or_tok(seen, drop))
+      +recv = call_recv(open, t, kids, wins)
+      +inn = plus_scan(kids, None{}, wins)
+      +drop = call_drop(open, k, t, l, c, kids, wins)
+      +aft = plus_scan(rest, or_tok(seen, drop), wins)
       or_tok(recv, or_tok(inn, aft))
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
-      +inn = plus_scan(kids, None{})
-      +aft = plus_scan(rest, or_tok(seen, drop_in(kids)))
+      +inn = plus_scan(kids, None{}, wins)
+      +aft = plus_scan(rest, or_tok(seen, drop_in(kids, wins)), wins)
       or_tok(inn, aft)
-    case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
-      or_tok(plus_scan(kids, None{}), or_tok(plus_scan(body, None{}), plus_scan(rest, seen)))
+    case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
+      or_tok(plus_scan(kids, None{}, wins), or_tok(plus_scan(body, None{}, wins), plus_scan(rest, seen, wins)))
     case Tree.NCons{h, rest}:
-      plus_scan(rest, seen)
+      plus_scan(rest, seen, wins)
     case other:
       None{}
 
@@ -186,32 +200,71 @@ def slide_at(mm: Maybe<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
         "This step drops and appends a fixed window, which copies it; keep the window in an Array and advance an index."}]
 
 # a finding at the drop, when the argument slides a window
-def slide(aa: Tree.Node, +path: String) -> List<&2, F.Finding>:
-  slide_at(plus_scan(aa, None{}), path)
+def slide(aa: Tree.Node, +path: String, +wins: List<&2, String>) -> List<&2, F.Finding>:
+  slide_at(plus_scan(aa, None{}, wins), path)
 
 # every self-call argument that slides
-def slides(as: List<&2, Tree.Node>, +path: String) -> List<&2, F.Finding>:
+def slides(as: List<&2, Tree.Node>, +path: String, +wins: List<&2, String>) -> List<&2, F.Finding>:
   match as:
     case Nil{}:
       Nil{}
     case Con{h, rest}:
-      List.append(&2, F.Finding, slide(h, path), slides(rest, path))
+      List.append(&2, F.Finding, slide(h, path, wins), slides(rest, path, wins))
 
 # every self-call's sliding arguments
-def walk(nn: Tree.Node, +self: String, +path: String) -> List<&2, F.Finding>:
+def walk(nn: Tree.Node, +self: String, +path: String, +wins: List<&2, String>) -> List<&2, F.Finding>:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +me = Bool.and(String.eq(o, "("), String.eq(t, self))
-      +own = Lazy.stop(List<&2, F.Finding>, Bool.not(me), [], _u => slides(Calls.args(kids), path))
-      List.concat(&2, F.Finding, [own, walk(kids, self, path), walk(rest, self, path)])
-    case Tree.NCons{Tree.Group{open, kids, close}, rest}:
-      List.concat(&2, F.Finding, [walk(kids, self, path), walk(rest, self, path)])
-    case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
-      List.concat(&2, F.Finding, [walk(kids, self, path), walk(body, self, path), walk(rest, self, path)])
+      +own = Lazy.stop(List<&2, F.Finding>, Bool.not(me), [], _u => slides(Calls.args(kids), path, wins))
+      List.concat(&2, F.Finding, [own, walk(kids, self, path, wins), walk(rest, self, path, wins)])
+    case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
+      List.concat(&2, F.Finding, [walk(kids, self, path, wins), walk(rest, self, path, wins)])
+    case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
+      List.concat(&2, F.Finding, [walk(kids, self, path, wins), walk(body, self, path, wins),
+        walk(rest, self, path, wins)])
     case Tree.NCons{h, rest}:
-      walk(rest, self, path)
+      walk(rest, self, path, wins)
     case other:
       Nil{}
+
+# `match name`, or empty
+def match_name(kids: Tree.Node) -> String:
+  match kids:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TKey{}, +kw, l, c}},
+        Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, +t, l2, c2}}, rest}}:
+      Bool.pick(String, String.eq(kw, "match"), t, "")
+    case other:
+      ""
+
+# names the def matches as a list: variable-length input, not a window
+def matched(nn: Tree.Node, +acc: List<&2, String>) -> List<&2, String>:
+  match nn:
+    case Tree.NCons{Tree.Stmt{Tree.STerm{}, +kids, body}, rest}:
+      +nm = match_name(kids)
+      +here = Bool.pick(List<&2, String>, String.is_empty(nm), acc, nm <> acc)
+      matched(rest, matched(body, matched(kids, here)))
+    case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
+      matched(rest, matched(body, matched(kids, acc)))
+    case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
+      matched(rest, matched(kids, acc))
+    case Tree.NCons{h, rest}:
+      matched(rest, acc)
+    case other:
+      acc
+
+# parameters that are not matched as input
+def windows.go(ps: List<&2, String>, +bad: List<&2, String>, +acc: List<&2, String>) -> List<&2, String>:
+  match ps:
+    case Nil{}:
+      List.reverse(&2, String, acc)
+    case Con{+p, rest}:
+      +keep = Bool.and(Bool.not(String.is_empty(p)), Bool.not(List.contains(~String, ~String.eq, bad, p)))
+      windows.go(rest, bad, Bool.pick(List<&2, String>, keep, p <> acc, acc))
+
+# parameters that are not matched as input
+def windows(sig: Tree.Node, body: Tree.Node) -> List<&2, String>:
+  windows.go(Calls.names(sig), matched(body, []), [])
 
 def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Finding>>) -> List<&2, F.Finding>:
   match ds:
@@ -221,7 +274,7 @@ def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Fi
       check.go(rest, path,
         Lazy.stop(List<&2, F.Finding>,
           Bool.not(Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))), [],
-          _u => walk(body, name, path)) <> acc)
+          _u => walk(body, name, path, windows(sig, body))) <> acc)
 
 # the rule
 def check(ss: Src.Src) -> List<&2, F.Finding>:
