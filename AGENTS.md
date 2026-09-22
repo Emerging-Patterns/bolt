@@ -6,9 +6,10 @@ writing Bend. Then this.
 
 ## Hard rule
 
-If Bend can state it as a law (including an IO equality
-`{main() == IO.print("…") : IO(Unit)}`), it goes in `LAWS.bend` /
-`PROOF.bend`.
+If Bend can state it as a quantified law (a `for` or `exs` binder, IO
+values included), it goes in `LAWS.bend` / `PROOF.bend`. A law with no
+binder is a unit test the checker runs, not a guarantee: `closed` reports
+it, and it does not go in at all (SPEC.md, docs/rfc/bolt-spec.md).
 
 `tests/*.bend` and `#|` exist only for claims Bend cannot prove:
 host/integration (bend, nix, node, disk, process). The stay list is
@@ -51,7 +52,7 @@ A `#|` equality for a proveable claim is a bug. A directory with
     editors/vscode/    the VS Code extension (not Bend; never publish it to the marketplace unasked)
     <project>/         one dir per project
       LAWS.bend        the claims: human-owned, do not edit to make a proof pass.
-                       Closed equalities (including `IO(T)`) live here.
+                       Every law quantified; `closed` reports one that is not.
       PROOF.bend       the proofs; `bend PROOF.bend` prints "All terms check."
                        (every one in the tree is gated, so a fixture holding a
                        proof that is meant to fail cannot live here)

@@ -5,9 +5,8 @@
 # How to cut a release by hand
 #   1. Land the version on the default branch. These files name it and all
 #      must agree: flake.nix, bolt/version.bend, editors/vscode/package.json,
-#      its package-lock.json, the VSIX named in README.md and in
-#      editors/vscode/README.md, and the help and initialize strings in
-#      bolt/spec/cases.bend and bolt/spec/LAWS.bend.
+#      its package-lock.json, and the VSIX named in README.md and in
+#      editors/vscode/README.md.
 #   2. Actions -> Tag -> Run workflow, from that branch:
 #        - leave version empty and bump=none -> tag what the files say
 #        - version=X.Y.Z -> tag that (fails if the files disagree)
@@ -77,12 +76,6 @@ jobs:
                 "$(grep -oE 'bolt-[0-9]+\.[0-9]+\.[0-9]+\.vsix' "$r" \
                    | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
             done
-            printf 'bolt/spec/cases.bend\t%s\n' \
-              "$(grep -oE 'bolt [0-9]+\.[0-9]+\.[0-9]+' bolt/spec/cases.bend \
-                 | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
-            printf 'bolt/spec/LAWS.bend\t%s\n' \
-              "$(grep -oE '\\"version\\":\\"[0-9]+\.[0-9]+\.[0-9]+' bolt/spec/LAWS.bend \
-                 | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
           }
 
           # the one version the files name, or the disagreement, by name
@@ -136,9 +129,6 @@ jobs:
                 --no-git-tag-version --allow-same-version >/dev/null )
             sed -i -E 's/bolt-[0-9]+\.[0-9]+\.[0-9]+\.vsix/bolt-'"$ver"'.vsix/g' \
               README.md editors/vscode/README.md
-            sed -i -E 's/bolt [0-9]+\.[0-9]+\.[0-9]+/bolt '"$ver"'/' bolt/spec/cases.bend
-            sed -i -E 's/\\"version\\":\\"[0-9]+\.[0-9]+\.[0-9]+/\\"version\\":\\"'"$ver"'/' \
-              bolt/spec/LAWS.bend
             written=$(agreed)
             if [ "$written" != "$ver" ]; then
               echo "wrote $ver but the files now say $written"
@@ -154,7 +144,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: Release v${{ steps.ver.outputs.version }}
-          file_pattern: flake.nix bolt/version.bend editors/vscode/package.json editors/vscode/package-lock.json README.md editors/vscode/README.md bolt/spec/cases.bend bolt/spec/LAWS.bend
+          file_pattern: flake.nix bolt/version.bend editors/vscode/package.json editors/vscode/package-lock.json README.md editors/vscode/README.md
           branch: ${{ github.ref_name }}
           disable_globbing: true
           commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>

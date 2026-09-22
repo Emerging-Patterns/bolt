@@ -166,16 +166,9 @@ def default(+group: String) -> Level:
   Bool.pick(Level, String.eq(group, "correctness"), Error{},
     Bool.pick(Level, String.eq(group, "pedantic"), Off{}, Warn{}))
 
-# a rule only its own setting turns on: a group setting, or the group's
-# default, would put new findings on projects that never asked for it
-def opt_in(+rule: String) -> Bool:
-  String.eq(rule, "quantify")
-
-# the rule's own setting, else its group's, else the group's default; an
-# opt-in rule's own setting, else off
+# the rule's own setting, else its group's, else the group's default
 def level.of(+sets: List<&2, Set>, +group: String, +rule: String) -> Level:
-  Maybe.default(&2, Level, set_level(sets, rule),
-    Lazy.stop(Level, opt_in(rule), Off{}, _u => Maybe.default(&2, Level, set_level(sets, group), default(group))))
+  Maybe.default(&2, Level, set_level(sets, rule), Maybe.default(&2, Level, set_level(sets, group), default(group)))
 
 # the rule's own setting, else its group's, else the group's default
 def level(cfg: Config, group: String, rule: String) -> Level:

@@ -1,7 +1,8 @@
 # bolt/codes: the stable id of every rule. A bolt.bend still names the slug
 # (`wrap`); a diagnostic shows the code (`S003`) and, in an editor, the
 # source `bolt(group:slug)`. Numbers are assigned once, in the group order
-# of bolt/README.md: do not renumber a rule.
+# of bolt/README.md: do not renumber a rule, and do not reuse a retired code
+# (L004 was `quantify`, now `closed` itself).
 import Base
 import ../lazy/lazy.bend as Lazy
 
@@ -41,7 +42,6 @@ def table() -> List<&2, Entry>:
     Entry{"law", "L001", "laws"},
     Entry{"closed", "L002", "laws"},
     Entry{"unsafe", "L003", "laws"},
-    Entry{"quantify", "L004", "laws"},
     Entry{"tail", "P001", "pedantic"}]
 
 # this row is the slug

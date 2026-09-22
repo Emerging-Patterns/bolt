@@ -25,7 +25,7 @@ message. Idle it costs no CPU.
 | service | real | fake |
 |---------|------|------|
 | `transport/` — one message body in, one out | `stdio`: Content-Length framing over bytes | `script`: a list of bodies in; every body sent is printed |
-| `files/` — a file's text by path; where Base lives | `disk` | any `Files` record (see `bolt/spec/`) |
+| `files/` — a file's text by path; where Base lives | `disk` | any `Files` record |
 | `checker/` — a path's diagnostics | `bend`: a foreign effect (`exec.c`, `exec.js`) running `bend <path> --check-only` | `fake`: canned |
 
 The pure parts: `frame.bend` (framing, UTF-8 both ways — Content-Length counts
@@ -42,8 +42,8 @@ so navigation works in files that do not check, and sees unsaved edits.
 - `bend <path> --check-only` checks the file and its imports and never runs
   `main`. The server must not execute the file being edited;
   `tests/checker.bend` holds that (a live `bend --check-only`).
-- The report is text for people: `report_*` laws in `bolt/spec/` pin the
-  format and fail when an update changes it.
+- The report is text for people, parsed from bend's output
+  (BOLT-TRUST-5 in SPEC.md): an update that changes the format breaks it.
 - A `LAWS.bend` alone always has open laws, since `PROOF.bend` beside it fills
   them: its TODOs are reported only while that `PROOF.bend` does not check clean.
 - One error per run, a line and no columns: a diagnostic covers its line. An
