@@ -8,6 +8,7 @@
 import Base
 import 0x65bf91e14c96bf0c25491d716ec9f68c/main.bend as Shake
 import ./version.bend as Ver
+import ./build_rev.bend as Rev
 
 # the line at the quantity the rest of bolt reads it at (IO.args gives each
 # argument once)
@@ -28,9 +29,13 @@ def argv() -> IO(List<&2, String>):
 def spec.files(+help: String) -> Shake.Arg:
   Shake.rest("files", help, False{}, None{}, [])
 
-# the release number
+# the release, with the short commit in parentheses when it is present
+def version.at(+rel: String, +rev: String) -> String:
+  Bool.pick(String, String.is_empty(rev), rel, rel ++ " (" ++ rev ++ ")")
+
+# the release, and the short commit when the build has one
 def version() -> String:
-  Ver.text()
+  version.at(Ver.text(), Rev.text())
 
 # bolt's program spec
 def spec() -> Shake.Cli:

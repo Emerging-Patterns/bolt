@@ -122,6 +122,14 @@ law args_help_lint:
 law args_help_root:
   {Args.help_text([]) == C.args.help_root() : String}
 
+# LAW: a short commit is the release, then the id in parentheses
+law args_version_rev:
+  {Args.version.at("0.4.0", "2886b08") == "0.4.0 (2886b08)" : String}
+
+# LAW: an empty commit id is the release alone
+law args_version_none:
+  {Args.version.at("0.4.0", "") == "0.4.0" : String}
+
 # LAW: argv is IO.args, widened
 law args_argv:
   {Args.argv() == (do IO<List<&2, String>>:

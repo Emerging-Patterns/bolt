@@ -19,7 +19,11 @@
       ez = inputs.ez.lib.${system};
       bend = inputs.bend.packages.${system}.default;
       bend-cc = ez.bend-cc;
-      bolt = ez.mkPackage {
+      rawRev = self.shortRev or (self.dirtyShortRev or "");
+      shortRev = builtins.substring 0 7 rawRev;
+      bakedRev =
+        if builtins.match "[0-9a-f]{7}" shortRev == null then "" else shortRev;
+      boltPkg = ez.mkPackage {
         inherit bend;
         src = self;
         version = "0.4.0";  # keep with editors/vscode/package.json and bolt/version.bend
@@ -29,6 +33,20 @@
           license = pkgs.lib.licenses.mit;
         };
       };
+      # short commit id, written into bolt/build_rev.bend before bend runs
+      bolt = if bakedRev == "" then boltPkg else boltPkg.overrideAttrs (old: {
+        buildPhase = ''
+          chmod u+w bolt/build_rev.bend
+          printf '%s\n%s\n\n%s\n%s\n%s\n' \
+            '# the short commit id of this build. Empty when the build has none.' \
+            'import Base' \
+            '# the short commit id, or empty' \
+            'def text() -> String:' \
+            '  "${bakedRev}"' \
+            > bolt/build_rev.bend
+          ${old.buildPhase}
+        '';
+      });
       # proofs and unit tests (`ez test --unit-only`).
       test = ez.mkProofs {
         ez = inputs.ez.packages.${system}.default;
