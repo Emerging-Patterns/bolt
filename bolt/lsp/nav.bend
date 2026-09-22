@@ -117,6 +117,76 @@ def at(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, line: U32, col: U3
     text : String <- load(~fs, docs, uri, Proto.path(uri))
     at.in(~fs, text, docs, uri, line, col)
 
+# the binder, when the outline has nothing for that name
+def hover.binder(m: Maybe<&2, Found>, uri: String, b: Bind.Bind) -> Maybe<&2, Found>:
+  match m:
+    case Some{f}:
+      Some{f}
+    case None{}:
+      Some{Here{uri, b}}
+
+# an outline item when the name resolved, else one in this document, else the
+# binder. A comment above a law stays on that law: a file header separated by
+# an import or a blank line is not part of it
+def hover.pick(m: Maybe<&2, Found>, local: Maybe<&2, Found>, uri: String, b: Bind.Bind) -> Maybe<&2, Found>:
+  match m:
+    case Some{f}:
+      Some{f}
+    case None{}:
+      hover.binder(local, uri, b)
+
+# the outline item a top-level name hovers as. `Alias.law` is the law in the
+# file behind Alias (the comment lives there); a bare name is this document's
+def hover.item(~fs: F.Files, +name: String, items: List<&2, Outline.Item>, docs: List<&2, Docs.Doc>,
+  +uri: String, b: Bind.Bind) -> IO(Maybe<&2, Found>):
+  do IO<Maybe<&2, Found>>:
+    m : Maybe<&2, Found> <- resolve(~fs, docs, uri, name)
+    return hover.pick(m, found(Outline.find(items, name), uri), uri, b)
+
+# a def, law or type is its outline item; any other binder is itself
+def hover.kind(~fs: F.Files, kind: Bind.BindKind, name: String, items: List<&2, Outline.Item>,
+  docs: List<&2, Docs.Doc>, uri: String, b: Bind.Bind) -> IO(Maybe<&2, Found>):
+  match kind:
+    case Bind.KItem{}:
+      hover.item(~fs, name, items, docs, uri, b)
+    case other:
+      IO.pure(Maybe<&2, Found>, Some{Here{uri, b}})
+
+# the binder under the cursor, read for hover
+def hover.bind(~fs: F.Files, b: Bind.Bind, items: List<&2, Outline.Item>, docs: List<&2, Docs.Doc>,
+  uri: String) -> IO(Maybe<&2, Found>):
+  Bind.Bind{+name, line, col, +kind, note} = b
+  hover.kind(~fs, kind, name, items, docs, uri, Bind.Bind{name, line, col, kind, note})
+
+# a binder of an item is the outline item (signature, then the comment above
+# it). A use is answered the same way `at` answers it, so a call keeps the
+# callee's doc
+def hover.site(~fs: F.Files, site: Maybe<&2, Bind.Site>, items: List<&2, Outline.Item>,
+  +binds: List<&2, Bind.Bind>, docs: List<&2, Docs.Doc>, uri: String, +name: String) -> IO(Maybe<&2, Found>):
+  match site:
+    case Some{Bind.SBind{b}}:
+      hover.bind(~fs, b, items, docs, uri)
+    case other:
+      at.site(~fs, site, binds, docs, uri, name)
+
+# hover at a binding site of a parsed document
+def hover.bound(~fs: F.Files, b: Bind.Bound, items: List<&2, Outline.Item>, docs: List<&2, Docs.Doc>,
+  uri: String, name: String, +line: U32, +col: U32) -> IO(Maybe<&2, Found>):
+  Bind.Bound{+binds, uses, scopes} = b
+  hover.site(~fs, Bind.at(Bind.Bound{binds, uses, scopes}, line, col), items, binds, docs, uri, name)
+
+# hover at a position of a document's text
+def hover.in(~fs: F.Files, +text: String, docs: List<&2, Docs.Doc>, uri: String, +line: U32, +col: U32) ->
+  IO(Maybe<&2, Found>):
+  hover.bound(~fs, Bind.bound(text), Outline.items(text), docs, uri, Word.at(text, line, col), line, col)
+
+# what a hover at a position should show. Definition stays on `at`: an item's
+# own name is still that binder
+def hover(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, line: U32, col: U32) -> IO(Maybe<&2, Found>):
+  do IO<Maybe<&2, Found>>:
+    text : String <- load(~fs, docs, uri, Proto.path(uri))
+    hover.in(~fs, text, docs, uri, line, col)
+
 # references and rename
 # ---------------------
 

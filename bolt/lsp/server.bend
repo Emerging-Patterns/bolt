@@ -196,7 +196,7 @@ def handle.go(~ck: C.Checker, ~fs: F.Files, m: Method, id: J.Json, +params: J.Js
       IO.pure(Out, Out{[Print.print(Proto.publish(uri_of(params), [], []))], False{}, Docs.del(docs, uri_of(params))})
     case MHover{}:
       do IO<Out>:
-        f : Maybe<&2, Nav.Found> <- Nav.at(~fs, docs, uri_of(params), line_of(params), col_of(params))
+        f : Maybe<&2, Nav.Found> <- Nav.hover(~fs, docs, uri_of(params), line_of(params), col_of(params))
         return Out{reply(id, hover.of(f)), False{}, docs}
     case MDefinition{}:
       do IO<Out>:

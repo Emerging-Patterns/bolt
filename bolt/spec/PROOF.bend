@@ -278,6 +278,9 @@ def Laws.refs_session():
 def Laws.nav_session():
   {==}
 
+def Laws.law_hover():
+  {==}
+
 def Laws.completion_session():
   {==}
 
