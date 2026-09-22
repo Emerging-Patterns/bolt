@@ -35,10 +35,13 @@ def picks(nn: Tree.Node, +name: String, +path: String, +quiet: Bool) -> List<&2,
       +more = List.concat(&2, F.Finding, [picks(kids, name, path, Bool.or(quiet, Bool.or(two, one))),
         picks(rest, name, path, quiet)])
       Bool.pick(List<&2, F.Finding>, two,
-        F.Finding{path, l, c, 9, "pick", name ++ " recurses in both branches; Bool.pick runs both"} <> more,
+        F.Finding{path, l, c, 9, "pick",
+          name ++ " recurses in both branches of Bool.pick, so both calls run; bind the recursive call once above the pick."}
+          <> more,
         Bool.pick(List<&2, F.Finding>, one,
           F.Finding{path, l, c, 9, "pick",
-            name ++ " recurses in one branch; Bool.pick runs it whatever the condition (no early exit)"} <> more,
+            name ++ " recurses in one branch of Bool.pick, so the call runs whatever the condition and there is no early exit; bind it above the pick."}
+            <> more,
           more))
     case Tree.NCons{Tree.Group{open, kids, close}, rest}:
       List.concat(&2, F.Finding, [picks(kids, name, path, quiet), picks(rest, name, path, quiet)])

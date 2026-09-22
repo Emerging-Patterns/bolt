@@ -51,7 +51,8 @@ so navigation works in files that do not check, and sees unsaved edits.
 - The checker reads the file and its imports from disk, so its errors follow
   open and save, not unsaved edits.
 
-[bolt](../)'s findings ride along (source `bolt`, the rule as the code),
+[bolt](../)'s findings ride along, source `bolt(group:slug)` and code the
+stable id (`bolt(style:wrap)`, `S003`),
 each at the level the nearest `bolt.bend` gives its rule: errors as severity
 1, warnings as 2, off ones dropped. The linter is pure, so it runs on the
 text the editor shows: findings follow every edit, and each publish carries

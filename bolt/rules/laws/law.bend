@@ -74,11 +74,11 @@ def gaps(
       +more = gaps(rest, ms, pp, path)
       Bool.pick(List<&2, F.Finding>,
         Bool.or(String.contains(name, "."), has_item(ms, pp, name)), more,
-        F.Finding{path, line, 0, 0, "law", "def " ++ name ++ " is named by no law"} <> more)
+        F.Finding{path, line, 0, 0, "law", "Def " ++ name ++ " is named by no law."} <> more)
     case Con{Digest.Top{Outline.IType{}, +name, +line}, rest}:
       +more = gaps(rest, ms, pp, path)
       Bool.pick(List<&2, F.Finding>, has_module(ms, pp), more,
-        F.Finding{path, line, 0, 0, "law", "type " ++ name ++ ": no law reaches this module"} <> more)
+        F.Finding{path, line, 0, 0, "law", "Type " ++ name ++ ": no law reaches this module."} <> more)
     case Con{other, rest}:
       gaps(rest, ms, pp, path)
 

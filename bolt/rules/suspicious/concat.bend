@@ -49,7 +49,7 @@ def hit(
     case Some{Lex.Tok{k, +t, l, c}}:
       Bool.pick(List<&2, F.Finding>, List.contains(~String, ~String.eq, params, t),
         F.Finding{path, l, c, U32.from_nat(String.length(t)), "concat",
-          t ++ " grows by appending each step: quadratic; prepend and reverse once, or build with <>"} <> acc,
+          t ++ " grows by appending on each step, which is quadratic; prepend and reverse once, or build with <>."} <> acc,
         acc)
 
 # the findings on a self-call's arguments

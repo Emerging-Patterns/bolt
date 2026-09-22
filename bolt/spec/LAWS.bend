@@ -16,6 +16,7 @@ import ../rules/laws/law.bend as Law
 import ../rules/digest.bend as Digest
 import ../config.bend as Config
 import ../finding.bend as F
+import ../codes.bend as Codes
 import ../args.bend as Args
 import ../glob.bend as Glob
 import ../walk/fake.bend as FakeWalk
@@ -85,7 +86,7 @@ law rules_all_is_on:
 # LAW: the sample's findings, read once
 law rules_sample:
   {lines(Rules.on(Src.of("a.bend", C.src.sample()))) ==
-    "a.bend:8:1: doc: def go has no comment above it; a.bend:4:9: param: parameter n is shorter than 2 characters; a.bend:13:7: pick: go recurses in both branches; Bool.pick runs both"
+    "a.bend:8:1: S001: Def go has no comment above it.; a.bend:4:9: S004: Parameter n is shorter than 2 characters.; a.bend:13:7: C003: go recurses in both branches of Bool.pick, so both calls run; bind the recursive call once above the pick."
     : String}
 
 # LAW: a bare bolt is lint over no files
@@ -156,7 +157,7 @@ law walk_entries:
 # LAW: doc: undotted defs, types and laws, not helpers or main
 law doc_undotted:
   {lines(Doc.check(Src.of("a.bend", C.rules.undocumented()))) ==
-    "a.bend:7:1: doc: def dec has no comment above it; a.bend:13:1: doc: type T has no comment above it; a.bend:16:1: doc: law l has no comment above it"
+    "a.bend:7:1: S001: Def dec has no comment above it.; a.bend:13:1: S001: Type T has no comment above it.; a.bend:16:1: S001: Law l has no comment above it."
     : String}
 
 # LAW: a proof file is exempt from doc
@@ -170,18 +171,18 @@ law doc_test:
 # LAW: unused: lets, lambdas and parameters
 law unused_names:
   {lines(Unused.check(Src.of("a.bend", C.rules.unused()))) ==
-    "a.bend:1:7: unused: parameter x is never used; a.bend:3:3: unused: local b is never used; a.bend:4:3: unused: local g is never used; a.bend:5:3: unused: local h is never used; a.bend:5:7: unused: local w is never used"
+    "a.bend:1:7: U001: Parameter x is never used.; a.bend:3:3: U001: Local b is never used.; a.bend:4:3: U001: Local g is never used.; a.bend:5:3: U001: Local h is never used.; a.bend:5:7: U001: Local w is never used."
     : String}
 
 # LAW: shadow: a let or a pattern named like a def above
 law shadow_def:
   {lines(Shadow.check(Src.of("a.bend", C.rules.shadowed()))) ==
-    "a.bend:9:3: shadow: k is a def above; imported, this binder would read as it; a.bend:14:12: shadow: k is a def above; imported, this binder would read as it"
+    "a.bend:9:3: C001: k shadows a def above; once this file is imported, the binder reads as that def.; a.bend:14:12: C001: k shadows a def above; once this file is imported, the binder reads as that def."
     : String}
 
 # LAW: a ?TODO
 law hole_todo:
-  {lines(Hole.check(Src.of("a.bend", C.rules.holes()))) == "a.bend:2:3: hole: a ?TODO is left here"
+  {lines(Hole.check(Src.of("a.bend", C.rules.holes()))) == "a.bend:2:3: C002: A ?TODO is left here."
     : String}
 
 # LAW: LAWS.bend is exempt from hole
@@ -191,35 +192,46 @@ law hole_laws:
 # LAW: space: trailing, tab, width
 law space_width:
   {lines(Space.check(Src.of("a.bend", C.rules.spaced()))) ==
-    "a.bend:1:17: space: trailing whitespace; a.bend:2:1: space: a tab; indent with spaces; a.bend:3:121: space: over 120 characters wide"
+    "a.bend:1:17: S002: Line has trailing whitespace.; a.bend:2:1: S002: Line contains a tab; indent with spaces.; a.bend:3:121: S002: Line exceeds the 120-character limit."
     : String}
 
 # LAW: wrap: a one-line header over 120, not one that fits or is already wrapped
 law wrap_header:
   {lines(Wrap.check(Src.of("a.bend", C.rules.headers()))) ==
-    "a.bend:3:121: wrap: def header over 120 characters wide" : String}
+    "a.bend:3:121: S003: Def header exceeds the 120-character limit; wrap with one parameter per line." : String}
 
 # LAW: wrap: a multi-line header with more than one parameter on a line
 law wrap_jammed:
   {lines(Wrap.check(Src.of("a.bend", C.rules.jammed()))) ==
-    "a.bend:1:16: wrap: one parameter per line; a.bend:4:16: wrap: one parameter per line; a.bend:7:15: wrap: one parameter per line; a.bend:26:10: wrap: one parameter per line; a.bend:30:3: wrap: one parameter per line; a.bend:32:13: wrap: one parameter per line; a.bend:36:3: wrap: one parameter per line"
+    "a.bend:1:16: S003: Def header is not one parameter per line; put one parameter on each line within the 120-character limit.; a.bend:4:16: S003: Def header is not one parameter per line; put one parameter on each line within the 120-character limit.; a.bend:7:15: S003: Def header is not one parameter per line; put one parameter on each line within the 120-character limit.; a.bend:26:10: S003: Def header is not one parameter per line; put one parameter on each line within the 120-character limit.; a.bend:30:3: S003: Def header is not one parameter per line; put one parameter on each line within the 120-character limit.; a.bend:32:13: S003: Def header is not one parameter per line; put one parameter on each line within the 120-character limit.; a.bend:36:3: S003: Def header is not one parameter per line; put one parameter on each line within the 120-character limit."
     : String}
+
+# LAW: every rule's stable code, in assignment order
+law codes_table:
+  {Codes.listed() ==
+    "shadow C001 correctness\nhole C002 correctness\npick C003 correctness\nput C004 correctness\narms C005 correctness\nescape C006 correctness\ntwice C007 correctness\nstrings C008 correctness\nchars C009 correctness\nforeign C010 correctness\nunused U001 suspicious\nstrict U002 suspicious\neager U003 suspicious\nconcat U004 suspicious\nnat U005 suspicious\nfuel U006 suspicious\nindex U007 suspicious\ndoc S001 style\nspace S002 style\nwrap S003 style\nparam S004 style\nlaw L001 laws\nclosed L002 laws\nunsafe L003 laws\ntail P001 pedantic"
+    : String}
+
+# LAW: a rule shows its code and bolt(group:slug); a non-rule stays bolt
+law codes_source:
+  {Codes.code("wrap") ++ " " ++ Codes.source("wrap") ++ " | " ++ Codes.code("read") ++ " " ++ Codes.source("read")
+    ++ " | " ++ Rules.group("read") == "S003 bolt(style:wrap) | read bolt | correctness" : String}
 
 # LAW: param: a one-letter value parameter, not a type, a quantity or a local
 law param_short:
   {lines(Param.check(Src.of("a.bend", C.rules.params()))) ==
-    "a.bend:1:9: param: parameter n is shorter than 2 characters" : String}
+    "a.bend:1:9: S004: Parameter n is shorter than 2 characters." : String}
 
 # LAW: pick: a def in both branches
 law pick_both:
   {lines(Pick.check(Src.of("a.bend", C.rules.picked()))) ==
-    "a.bend:6:7: pick: go recurses in both branches; Bool.pick runs both; a.bend:19:7: pick: nested recurses in both branches; Bool.pick runs both"
+    "a.bend:6:7: C003: go recurses in both branches of Bool.pick, so both calls run; bind the recursive call once above the pick.; a.bend:19:7: C003: nested recurses in both branches of Bool.pick, so both calls run; bind the recursive call once above the pick."
     : String}
 
 # LAW: defs under a LAWS.bend that no law names, IO and main included
 law law_gaps:
   {lines(Law.check(Digest.all(C.rules.lawful()))) ==
-    "./p/m.bend:4:1: law: def g is named by no law; ./p/m.bend:13:1: law: def main is named by no law; ./p/o.bend:1:1: law: type O: no law reaches this module; ./p/o.bend:4:1: law: def h is named by no law; ./p/io.bend:1:1: law: def say is named by no law; ./p/io.bend:4:1: law: def k is named by no law"
+    "./p/m.bend:4:1: L001: Def g is named by no law.; ./p/m.bend:13:1: L001: Def main is named by no law.; ./p/o.bend:1:1: L001: Type O: no law reaches this module.; ./p/o.bend:4:1: L001: Def h is named by no law.; ./p/io.bend:1:1: L001: Def say is named by no law.; ./p/io.bend:4:1: L001: Def k is named by no law."
     : String}
 
 # LAW: a project without laws is not under it
@@ -257,7 +269,7 @@ law rules_graded:
   {String.join(shown(Rules.graded(Config.parse(C.rules.config()),
     List.append(&2, F.Finding, Doc.check(Src.of("a.bend", C.rules.undocumented())),
       Unused.check(Src.of("a.bend", C.rules.unused()))))), "; ") ==
-    "a.bend:7:1: error: doc: def dec has no comment above it; a.bend:13:1: error: doc: type T has no comment above it; a.bend:16:1: error: doc: law l has no comment above it"
+    "a.bend:7:1: error: S001: Def dec has no comment above it.; a.bend:13:1: error: S001: Type T has no comment above it.; a.bend:16:1: error: S001: Law l has no comment above it."
     : String}
 
 # LAW: all rules on a clean file
@@ -272,7 +284,7 @@ law imports_closure:
 # LAW: an @unsafe def a law file reaches
 law unsafe_reached:
   {lines(Unsafe.check(Digest.all(C.proj.reached()))) ==
-    "./lib/u.bend:2:1: unsafe: @unsafe def spin is reached from ./p/PROOF.bend: the checker only warns there and exits 0; recurse on a shrinking argument or fuel; ./p/w.bend:2:1: unsafe: @unsafe def walk is reached from ./p/PROOF.bend: the checker only warns there and exits 0; recurse on a shrinking argument or fuel"
+    "./lib/u.bend:2:1: L003: @unsafe def spin is reached from ./p/PROOF.bend; the checker only warns there and exits 0. Recurse on a shrinking argument or fuel.; ./p/w.bend:2:1: L003: @unsafe def walk is reached from ./p/PROOF.bend; the checker only warns there and exits 0. Recurse on a shrinking argument or fuel."
     : String}
 
 # LAW: quiet when no law file reaches it
@@ -286,7 +298,7 @@ law unsafe_lawless:
 # LAW: a .c body without .js, and the reverse
 law foreign_lanes:
   {lines(Foreign.check(Src.of("a.bend", C.proj.foreigns()))) ==
-    "a.bend:2:1: foreign: foreign def a.b has a .c body but no .js body: the JS lane cannot run it; a.bend:6:1: foreign: foreign def a.c has a .js body but no .c body: a native build cannot run it"
+    "a.bend:2:1: C010: Foreign def a.b has a .c body but no .js body, so the JS lane cannot run it.; a.bend:6:1: C010: Foreign def a.c has a .js body but no .c body, so a native build cannot run it."
     : String}
 
 # LAW: quiet on both bodies and on a plain def
@@ -298,13 +310,13 @@ law foreign_both:
 # LAW: a # lanes: native file needs no .js
 law foreign_native:
   {lines(Foreign.check(Src.of("a.bend", C.proj.native()))) ==
-    "a.bend:9:1: foreign: foreign def a.c has a .js body but no .c body: a native build cannot run it"
+    "a.bend:9:1: C010: Foreign def a.c has a .js body but no .c body, so a native build cannot run it."
     : String}
 
 # LAW: a Nat literal in a fuel parameter
 law fuel_fixed:
   {lines(Fuel.check(Src.of("a.bend", C.proj.fuels()))) ==
-    "a.bend:19:13: fuel: a fixed fuel of 1000n: input past it is cut short silently; derive the fuel from the input's size; a.bend:20:23: fuel: a fixed fuel of 10n: input past it is cut short silently; derive the fuel from the input's size"
+    "a.bend:19:13: U006: Fuel is fixed at 1000n, so input past it is cut short with no error; derive the fuel from the input size.; a.bend:20:23: U006: Fuel is fixed at 10n, so input past it is cut short with no error; derive the fuel from the input size."
     : String}
 
 # LAW: quiet on a derived fuel
@@ -325,7 +337,7 @@ law closed_eq:
 # LAW: a law with no for, exs, or equality
 law closed_noneq:
   {lines(Closed.check(Src.of("p/LAWS.bend", "# LAW: a type\nlaw inhabited:\n  {True{} : Bool}\n")))
-    == "p/LAWS.bend:2:1: closed: law inhabited has no for and is not an equality: state {lhs == rhs : T}, including IO(T)"
+    == "p/LAWS.bend:2:1: L002: Law inhabited has no for and is not an equality; state {lhs == rhs : T}, including IO(T)."
     : String}
 
 # LAW: quiet on laws with for
@@ -340,7 +352,7 @@ law closed_outside:
 # LAW: Map.put
 law put_call:
   {lines(Put.check(Src.of("a.bend", C.tok.put_src()))) ==
-    "a.bend:2:3: put: Map.put never compares keys; a new key overwrites another entry: use Map.set"
+    "a.bend:2:3: C004: Map.put never compares keys, so a new key overwrites another entry; use Map.set."
     : String}
 
 # LAW: a file that defines Map.put is exempt
@@ -350,61 +362,61 @@ law put_own:
 # LAW: \0 then digits
 law escape_octal:
   {lines(Escape.check(Src.of("a.bend", C.tok.escape_src()))) == String.join([
-    "a.bend:2:14: escape: \\033 is NUL then \"33\", not octal: write \\u{1B}",
-    "a.bend:2:62: escape: \\012 is NUL then \"12\", not octal: write \\u{A}",
-    "a.bend:6:4: escape: \\07 is NUL then \"7\", not octal: write \\u{7}",
-    "a.bend:9:4: escape: \\0 then digits is NUL and the digits, not octal: write \\u{..}"], "; ")
+    "a.bend:2:14: C006: \\033 is NUL then \"33\", not an octal escape; write \\u{1B}.",
+    "a.bend:2:62: C006: \\012 is NUL then \"12\", not an octal escape; write \\u{A}.",
+    "a.bend:6:4: C006: \\07 is NUL then \"7\", not an octal escape; write \\u{7}.",
+    "a.bend:9:4: C006: \\0 then digits is NUL followed by those digits, not an octal escape; write \\u{..}."], "; ")
     : String}
 
 # LAW: a Nat literal of 1000 or more
 law nat_big:
   {lines(NatLit.check(Src.of("a.bend", C.tok.nat_src()))) == String.join([
-    "a.bend:2:11: nat: 1000n is 1000 unary cells; use U32 (or U32.to_nat at run time) for big counts",
-    "a.bend:2:26: nat: 4294967295n is 4294967295 unary cells; use U32 (or U32.to_nat at run time) for big counts"],
+    "a.bend:2:11: U005: 1000n is 1000 unary cells; Nat literals of 1000 or more are unary, so use U32, or U32.to_nat at run time.",
+    "a.bend:2:26: U005: 4294967295n is 4294967295 unary cells; Nat literals of 1000 or more are unary, so use U32, or U32.to_nat at run time."],
     "; ") : String}
 
 # LAW: a match over long string literals
 law strings_long:
   {lines(Strings.check(Src.of("a.bend", C.tok.strings_src()))) ==
-    "a.bend:2:3: strings: a match over 3 string literals (79 characters) blows up compile time and memory; map the string to a sum type once (a lookup table)"
+    "a.bend:2:3: C008: A match over 3 string literals totals 79 characters, over the 64-character limit, and blows up compile time and memory; map the string to a sum type once."
     : String}
 
 # LAW: a match over many char literals
 law chars_many:
   {lines(Chars.check(Src.of("a.bend", C.tok.chars_src()))) ==
-    "a.bend:2:3: chars: a match over 9 character literals blows up compile time and memory; compare Char.to_u32(c) instead"
+    "a.bend:2:3: C009: A match over 9 character literals exceeds the limit of 8 and blows up compile time and memory; compare Char.to_u32(c) instead."
     : String}
 
 # LAW: the same literal twice in a recursive def
 law twice_lit:
   {lines(Twice.check(Src.of("a.bend", C.tok.twice_src()))) == String.join([
-    "a.bend:3:16: twice: the same literal twice in one list pattern hangs the checker; match one element per step",
-    "a.bend:16:23: twice: the same literal twice in one list pattern hangs the checker; match one element per step"],
+    "a.bend:3:16: C007: The same literal appears twice in one list pattern, which hangs the checker; match one element per step.",
+    "a.bend:16:23: C007: The same literal appears twice in one list pattern, which hangs the checker; match one element per step."],
     "; ") : String}
 
 # LAW: a Nat arm under a wider n+p arm
 law arms_wide:
   {lines(Arms.check(Src.of("a.bend", C.tok.arms_src()))) == String.join([
-    "a.bend:7:10: arms: unreachable: case 1n+p above already matches every 2n+..",
-    "a.bend:9:10: arms: unreachable: case 1n+p above already matches 3n",
-    "a.bend:29:10: arms: unreachable: case Succ{p} above already matches 5n"], "; ") : String}
+    "a.bend:7:10: C005: Unreachable: case 1n+p above already matches every 2n+..; put the narrow arms first.",
+    "a.bend:9:10: C005: Unreachable: case 1n+p above already matches 3n; put the narrow arms first.",
+    "a.bend:29:10: C005: Unreachable: case Succ{p} above already matches 5n; put the narrow arms first."], "; ") : String}
 
 # LAW: pick: one branch recurses
 law pick_once:
   {lines(Pick.check(Src.of("a.bend", C.rec.picked()))) ==
-    "a.bend:6:7: pick: get recurses in one branch; Bool.pick runs it whatever the condition (no early exit); a.bend:11:7: pick: nested recurses in one branch; Bool.pick runs it whatever the condition (no early exit); a.bend:26:7: pick: two recurses in both branches; Bool.pick runs both"
+    "a.bend:6:7: C003: get recurses in one branch of Bool.pick, so the call runs whatever the condition and there is no early exit; bind it above the pick.; a.bend:11:7: C003: nested recurses in one branch of Bool.pick, so the call runs whatever the condition and there is no early exit; bind it above the pick.; a.bend:26:7: C003: two recurses in both branches of Bool.pick, so both calls run; bind the recursive call once above the pick."
     : String}
 
 # LAW: a self-call under &&, || and Bool.or
 law strict_and:
   {lines(Strict.check(Src.of("a.bend", C.rec.stricted()))) ==
-    "a.bend:6:27: strict: digits recurses inside Bool.and/or; both sides always run (no short-circuit); a.bend:13:32: strict: has0 recurses inside Bool.and/or; both sides always run (no short-circuit); a.bend:20:7: strict: all0 recurses inside Bool.and/or; both sides always run (no short-circuit)"
+    "a.bend:6:27: U002: digits recurses inside Bool.and or Bool.or, so both sides always run and there is no short-circuit; bind the call above.; a.bend:13:32: U002: has0 recurses inside Bool.and or Bool.or, so both sides always run and there is no short-circuit; bind the call above.; a.bend:20:7: U002: all0 recurses inside Bool.and or Bool.or, so both sides always run and there is no short-circuit; bind the call above."
     : String}
 
 # LAW: a looping def called in a pick branch
 law eager_cost:
   {lines(Eager.check(Src.of("a.bend", C.rec.eagered()))) ==
-    "a.bend:9:38: eager: cost runs in both branches; Bool.pick runs it whatever the condition; bind it above, or Lazy.stop"
+    "a.bend:9:38: U003: cost runs in both branches of Bool.pick, so it runs whatever the condition; bind it above, or use Lazy.stop."
     : String}
 
 # LAW: a proof file is exempt from eager
@@ -418,7 +430,7 @@ law strict_proof:
 # LAW: non-tail self-calls over a list or string
 law tail_acc:
   {lines(Tail.check(Src.of("a.bend", C.rec.tailed()))) ==
-    "a.bend:6:12: tail: len is not a tail call here; on a long list/string the JS lane overflows its stack; carry an accumulator; a.bend:20:15: tail: up is not a tail call here; on a long list/string the JS lane overflows its stack; carry an accumulator; a.bend:42:12: tail: count is not a tail call here; on a long list/string the JS lane overflows its stack; carry an accumulator"
+    "a.bend:6:12: P001: len is not a tail call, so a long list or string overflows the JS lane stack; carry an accumulator.; a.bend:20:15: P001: up is not a tail call, so a long list or string overflows the JS lane stack; carry an accumulator.; a.bend:42:12: P001: count is not a tail call, so a long list or string overflows the JS lane stack; carry an accumulator."
     : String}
 
 # LAW: a law file is exempt from tail
@@ -428,13 +440,13 @@ law tail_laws:
 # LAW: ++ and List.append onto the carried parameter
 law concat_acc:
   {lines(Concat.check(Src.of("a.bend", C.rec.concatted()))) ==
-    "a.bend:6:15: concat: acc grows by appending each step: quadratic; prepend and reverse once, or build with <>; a.bend:13:36: concat: acc grows by appending each step: quadratic; prepend and reverse once, or build with <>"
+    "a.bend:6:15: U004: acc grows by appending on each step, which is quadratic; prepend and reverse once, or build with <>.; a.bend:13:36: U004: acc grows by appending on each step, which is quadratic; prepend and reverse once, or build with <>."
     : String}
 
 # LAW: List.get and String.get in a recursive def
 law index_get:
   {lines(Index.check(Src.of("a.bend", C.rec.indexed()))) ==
-    "a.bend:6:17: index: List.get inside a recursive def walks the list each step: quadratic; walk the list itself; a.bend:13:12: index: String.get inside a recursive def walks the list each step: quadratic; walk the list itself"
+    "a.bend:6:17: U007: List.get inside a recursive def walks the list again on each step, which is quadratic; walk the list itself.; a.bend:13:12: U007: String.get inside a recursive def walks the list again on each step, which is quadratic; walk the list itself."
     : String}
 
 # LAW: wrap counts bytes
@@ -548,7 +560,7 @@ law refs_session:
   {Server.serve(~Script.Script, ~Script.new(), ~FakeChecker.new(), ~C.fake.files(), 100n,
     Script.Script{C.refs.inbox()}, [])
     == C.io.prints([
-      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/a.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":2,\"character\":0},\"end\":{\"line\":3,\"character\":0}},\"severity\":2,\"code\":\"doc\",\"source\":\"bolt\",\"message\":\"type Shape has no comment above it\"},{\"range\":{\"start\":{\"line\":6,\"character\":10},\"end\":{\"line\":6,\"character\":11}},\"severity\":2,\"code\":\"param\",\"source\":\"bolt\",\"message\":\"parameter x is shorter than 2 characters\"}]}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/a.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":2,\"character\":0},\"end\":{\"line\":3,\"character\":0}},\"severity\":2,\"code\":\"S001\",\"source\":\"bolt(style:doc)\",\"message\":\"Type Shape has no comment above it.\"},{\"range\":{\"start\":{\"line\":6,\"character\":10},\"end\":{\"line\":6,\"character\":11}},\"severity\":2,\"code\":\"S004\",\"source\":\"bolt(style:param)\",\"message\":\"Parameter x is shorter than 2 characters.\"}]}}",
       "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":[{\"uri\":\"file:///w/a.bend\",\"range\":{\"start\":{\"line\":6,\"character\":10},\"end\":{\"line\":6,\"character\":11}}},{\"uri\":\"file:///w/a.bend\",\"range\":{\"start\":{\"line\":7,\"character\":8},\"end\":{\"line\":7,\"character\":9}}},{\"uri\":\"file:///w/a.bend\",\"range\":{\"start\":{\"line\":9,\"character\":7},\"end\":{\"line\":9,\"character\":8}}}]}",
       "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"changes\":{\"file:///w/a.bend\":[{\"range\":{\"start\":{\"line\":6,\"character\":10},\"end\":{\"line\":6,\"character\":11}},\"newText\":\"shape\"},{\"range\":{\"start\":{\"line\":7,\"character\":8},\"end\":{\"line\":7,\"character\":9}},\"newText\":\"shape\"},{\"range\":{\"start\":{\"line\":9,\"character\":7},\"end\":{\"line\":9,\"character\":8}},\"newText\":\"shape\"}]}}}",
       "{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":[{\"uri\":\"file:///w/a.bend\",\"range\":{\"start\":{\"line\":6,\"character\":4},\"end\":{\"line\":6,\"character\":8}}},{\"uri\":\"file:///w/a.bend\",\"range\":{\"start\":{\"line\":12,\"character\":2},\"end\":{\"line\":12,\"character\":6}}}]}",
@@ -563,7 +575,7 @@ law nav_session:
   {Server.serve(~Script.Script, ~Script.new(), ~FakeChecker.new(), ~C.nav.files(), 100n,
     Script.Script{C.nav.inbox()}, [])
     == C.io.prints([
-      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/app/main.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":4,\"character\":10},\"end\":{\"line\":4,\"character\":11}},\"severity\":2,\"code\":\"param\",\"source\":\"bolt\",\"message\":\"parameter x is shorter than 2 characters\"}]}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/app/main.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":4,\"character\":10},\"end\":{\"line\":4,\"character\":11}},\"severity\":2,\"code\":\"S004\",\"source\":\"bolt(style:param)\",\"message\":\"Parameter x is shorter than 2 characters.\"}]}}",
       "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"```bend\\ndef square(+x: U32) -> U32:\\n```\\n\\nsquares a number\"}}}",
       "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"uri\":\"file:///w/lib/math.bend\",\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}}}}",
       "{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"```bend\\nCircle{r: U32}\\n```\"}}}",
@@ -573,7 +585,7 @@ law nav_session:
       "{\"jsonrpc\":\"2.0\",\"id\":7,\"result\":[{\"name\":\"Base\",\"kind\":2,\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":1,\"character\":0}},\"selectionRange\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":1,\"character\":0}}},{\"name\":\"M\",\"kind\":2,\"range\":{\"start\":{\"line\":1,\"character\":0},\"end\":{\"line\":2,\"character\":0}},\"selectionRange\":{\"start\":{\"line\":1,\"character\":0},\"end\":{\"line\":2,\"character\":0}}},{\"name\":\"twice\",\"kind\":12,\"range\":{\"start\":{\"line\":4,\"character\":0},\"end\":{\"line\":5,\"character\":0}},\"selectionRange\":{\"start\":{\"line\":4,\"character\":0},\"end\":{\"line\":5,\"character\":0}}},{\"name\":\"main\",\"kind\":12,\"range\":{\"start\":{\"line\":7,\"character\":0},\"end\":{\"line\":8,\"character\":0}},\"selectionRange\":{\"start\":{\"line\":7,\"character\":0},\"end\":{\"line\":8,\"character\":0}}}]}",
       "{\"jsonrpc\":\"2.0\",\"id\":9,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"```bend\\nx: U32\\n```\\n\\nparameter\"}}}",
       "{\"jsonrpc\":\"2.0\",\"id\":10,\"result\":{\"uri\":\"file:///w/app/main.bend\",\"range\":{\"start\":{\"line\":4,\"character\":10},\"end\":{\"line\":4,\"character\":11}}}}",
-      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/app/main.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":10},\"end\":{\"line\":3,\"character\":11}},\"severity\":2,\"code\":\"param\",\"source\":\"bolt\",\"message\":\"parameter x is shorter than 2 characters\"}]}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/app/main.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":10},\"end\":{\"line\":3,\"character\":11}},\"severity\":2,\"code\":\"S004\",\"source\":\"bolt(style:param)\",\"message\":\"Parameter x is shorter than 2 characters.\"}]}}",
       "{\"jsonrpc\":\"2.0\",\"id\":8,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"```bend\\ndef twice(x: U32) -> U32:\\n```\\n\\ntriples now\"}}}"
     ]) : IO(Unit)}
 
@@ -596,7 +608,7 @@ law completion_session:
   {Server.serve(~Script.Script, ~Script.new(), ~FakeChecker.new(), ~C.completion.files(), 100n,
     Script.Script{C.completion.inbox()}, [])
     == C.io.prints([
-      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/app/main.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":2,\"code\":\"doc\",\"source\":\"bolt\",\"message\":\"def mine has no comment above it\"},{\"range\":{\"start\":{\"line\":3,\"character\":9},\"end\":{\"line\":3,\"character\":10}},\"severity\":2,\"code\":\"param\",\"source\":\"bolt\",\"message\":\"parameter x is shorter than 2 characters\"}]}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/app/main.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":2,\"code\":\"S001\",\"source\":\"bolt(style:doc)\",\"message\":\"Def mine has no comment above it.\"},{\"range\":{\"start\":{\"line\":3,\"character\":9},\"end\":{\"line\":3,\"character\":10}},\"severity\":2,\"code\":\"S004\",\"source\":\"bolt(style:param)\",\"message\":\"Parameter x is shorter than 2 characters.\"}]}}",
       "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"isIncomplete\":true,\"items\":[{\"label\":\"M.square\",\"kind\":3,\"detail\":\"def square(+x: U32) -> U32:\",\"documentation\":{\"kind\":\"markdown\",\"value\":\"squares a number\"},\"filterText\":\"M.square\",\"textEdit\":{\"range\":{\"start\":{\"line\":4,\"character\":2},\"end\":{\"line\":4,\"character\":6}},\"newText\":\"M.square\"}},{\"label\":\"M.sqrt\",\"kind\":3,\"detail\":\"def sqrt(x: U32) -> U32:\",\"documentation\":{\"kind\":\"markdown\",\"value\":\"\"},\"filterText\":\"M.sqrt\",\"textEdit\":{\"range\":{\"start\":{\"line\":4,\"character\":2},\"end\":{\"line\":4,\"character\":6}},\"newText\":\"M.sqrt\"}}]}}",
       "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"isIncomplete\":true,\"items\":[{\"label\":\"U32.show\",\"kind\":21,\"detail\":\"law U32.show:\",\"documentation\":{\"kind\":\"markdown\",\"value\":\"\"},\"filterText\":\"U32.show\",\"textEdit\":{\"range\":{\"start\":{\"line\":5,\"character\":2},\"end\":{\"line\":5,\"character\":7}},\"newText\":\"U32.show\"}},{\"label\":\"U32.show.go\",\"kind\":3,\"detail\":\"def U32.show.go(n: U32) -> String:\",\"documentation\":{\"kind\":\"markdown\",\"value\":\"\"},\"filterText\":\"U32.show.go\",\"textEdit\":{\"range\":{\"start\":{\"line\":5,\"character\":2},\"end\":{\"line\":5,\"character\":7}},\"newText\":\"U32.show.go\"}}]}}",
       "{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{\"isIncomplete\":true,\"items\":[{\"label\":\"mine\",\"kind\":3,\"detail\":\"def mine(x: U32) -> U32:\",\"documentation\":{\"kind\":\"markdown\",\"value\":\"\"},\"filterText\":\"mine\",\"textEdit\":{\"range\":{\"start\":{\"line\":6,\"character\":2},\"end\":{\"line\":6,\"character\":3}},\"newText\":\"mine\"}}]}}",
@@ -621,7 +633,7 @@ law lint_session:
   {Server.serve(~Script.Script, ~Script.new(), ~FakeChecker.new(), ~C.fake.files(), 100n,
     Script.Script{C.lint.inbox()}, [])
     == C.io.prints([
-      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/bad.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":1,\"source\":\"bend\",\"message\":\"expected : String\\nobserved : U32\"},{\"range\":{\"start\":{\"line\":2,\"character\":0},\"end\":{\"line\":3,\"character\":0}},\"severity\":2,\"code\":\"doc\",\"source\":\"bolt\",\"message\":\"def f has no comment above it\"},{\"range\":{\"start\":{\"line\":3,\"character\":2},\"end\":{\"line\":3,\"character\":3}},\"severity\":2,\"code\":\"unused\",\"source\":\"bolt\",\"message\":\"local y is never used\"},{\"range\":{\"start\":{\"line\":2,\"character\":6},\"end\":{\"line\":2,\"character\":7}},\"severity\":2,\"code\":\"param\",\"source\":\"bolt\",\"message\":\"parameter x is shorter than 2 characters\"}]}}",
-      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/bad.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":1,\"source\":\"bend\",\"message\":\"expected : String\\nobserved : U32\"},{\"range\":{\"start\":{\"line\":3,\"character\":6},\"end\":{\"line\":3,\"character\":7}},\"severity\":2,\"code\":\"param\",\"source\":\"bolt\",\"message\":\"parameter x is shorter than 2 characters\"}]}}",
-      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/bad.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":1,\"source\":\"bend\",\"message\":\"expected : String\\nobserved : U32\"},{\"range\":{\"start\":{\"line\":3,\"character\":6},\"end\":{\"line\":3,\"character\":7}},\"severity\":2,\"code\":\"param\",\"source\":\"bolt\",\"message\":\"parameter x is shorter than 2 characters\"}]}}"
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/bad.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":1,\"source\":\"bend\",\"message\":\"expected : String\\nobserved : U32\"},{\"range\":{\"start\":{\"line\":2,\"character\":0},\"end\":{\"line\":3,\"character\":0}},\"severity\":2,\"code\":\"S001\",\"source\":\"bolt(style:doc)\",\"message\":\"Def f has no comment above it.\"},{\"range\":{\"start\":{\"line\":3,\"character\":2},\"end\":{\"line\":3,\"character\":3}},\"severity\":2,\"code\":\"U001\",\"source\":\"bolt(suspicious:unused)\",\"message\":\"Local y is never used.\"},{\"range\":{\"start\":{\"line\":2,\"character\":6},\"end\":{\"line\":2,\"character\":7}},\"severity\":2,\"code\":\"S004\",\"source\":\"bolt(style:param)\",\"message\":\"Parameter x is shorter than 2 characters.\"}]}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/bad.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":1,\"source\":\"bend\",\"message\":\"expected : String\\nobserved : U32\"},{\"range\":{\"start\":{\"line\":3,\"character\":6},\"end\":{\"line\":3,\"character\":7}},\"severity\":2,\"code\":\"S004\",\"source\":\"bolt(style:param)\",\"message\":\"Parameter x is shorter than 2 characters.\"}]}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/bad.bend\",\"diagnostics\":[{\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":4,\"character\":0}},\"severity\":1,\"source\":\"bend\",\"message\":\"expected : String\\nobserved : U32\"},{\"range\":{\"start\":{\"line\":3,\"character\":6},\"end\":{\"line\":3,\"character\":7}},\"severity\":2,\"code\":\"S004\",\"source\":\"bolt(style:param)\",\"message\":\"Parameter x is shorter than 2 characters.\"}]}}"
     ]) : IO(Unit)}

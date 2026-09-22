@@ -712,7 +712,9 @@ def check.place(mm: Maybe<&2, Span>, +base: U32, +path: String, +more: List<&2, 
     case None{}:
       more
     case Some{Span{+line, _end, +col}}:
-      F.Finding{path, (base + line : U32), col, 0, "wrap", "one parameter per line"} <> more
+      F.Finding{path, (base + line : U32), col, 0, "wrap",
+        "Def header is not one parameter per line; put one parameter on each line within the 120-character limit."}
+        <> more
 
 # a multi-line header that is not one parameter per line
 def check.jam(+line: U32, +sig: String, +path: String, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
@@ -721,7 +723,8 @@ def check.jam(+line: U32, +sig: String, +path: String, +more: List<&2, F.Finding
 # a one-line header past 120
 def check.wide(+line: U32, +sig: String, +path: String, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
   Lazy.stop(List<&2, F.Finding>, U32.is_gt(check.width(sig), 120),
-    F.Finding{path, line, 120, 0, "wrap", "def header over 120 characters wide"} <> more, _u => more)
+    F.Finding{path, line, 120, 0, "wrap",
+      "Def header exceeds the 120-character limit; wrap with one parameter per line."} <> more, _u => more)
 
 # a broken header is judged by its shape; a one-line header by its width
 def check.header(

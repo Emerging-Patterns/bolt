@@ -53,9 +53,10 @@ def hex(+nn: U32) -> String:
 def finding(+ds: List<&2, Char>, +path: String, +line: U32, +col: U32) -> F.Finding:
   +digits = String.from_list(ds)
   Lazy.stop(F.Finding, List.is_empty(&2, Char, ds),
-    F.Finding{path, line, col, 3, "escape", "\\0 then digits is NUL and the digits, not octal: write \\u{..}"},
+    F.Finding{path, line, col, 3, "escape",
+      "\\0 then digits is NUL followed by those digits, not an octal escape; write \\u{..}."},
     _u => F.Finding{path, line, col, (U32.from_nat(String.length(digits)) + 2 : U32), "escape",
-      "\\0" ++ digits ++ " is NUL then \"" ++ digits ++ "\", not octal: write \\u{" ++ hex(value(ds, 0)) ++ "}"})
+      "\\0" ++ digits ++ " is NUL then \"" ++ digits ++ "\", not an octal escape; write \\u{" ++ hex(value(ds, 0)) ++ "}."})
 
 # after a `\0` at a column: a finding when a digit follows
 def after(ds: List<&2, Char>, +path: String, +line: U32, +col: U32, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:

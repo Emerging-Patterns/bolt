@@ -49,7 +49,7 @@ def check.go(binds: List<&2, Bind.Bind>, +path: String) -> List<&2, F.Finding>:
       +hit = Bool.and(check.is_param(kind), Bool.and(check.short(nm), Bool.not(check.allowed(nm, note))))
       Bool.pick(List<&2, F.Finding>, hit,
         F.Finding{path, line, col, U32.from_nat(String.length(nm)), "param",
-          "parameter " ++ nm ++ " is shorter than 2 characters"} <> more, more)
+          "Parameter " ++ nm ++ " is shorter than 2 characters."} <> more, more)
 
 # the rule; a proof's parameters stay the law's names
 def check(ss: Src.Src) -> List<&2, F.Finding>:

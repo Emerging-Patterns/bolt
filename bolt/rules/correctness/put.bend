@@ -26,7 +26,8 @@ def calls(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
     case Con{Lex.Tok{Lex.TDotted{}, +t, l, c}, Con{Lex.Tok{Lex.TOpen{}, +o, l2, c2}, rest}}:
       +more = calls(rest, path)
       Bool.pick(List<&2, F.Finding>, Bool.and(String.eq(t, "Map.put"), String.eq(o, "(")),
-        F.Finding{path, l, c, 7, "put", "Map.put never compares keys; a new key overwrites another entry: use Map.set"}
+        F.Finding{path, l, c, 7, "put",
+          "Map.put never compares keys, so a new key overwrites another entry; use Map.set."}
           <> more,
         more)
     case Con{h, rest}:

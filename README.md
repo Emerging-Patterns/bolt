@@ -71,7 +71,7 @@ bolt --version         the release, and the short commit when the build has one
 bolt help              usage
 ```
 
-Each finding is one line, `path:line:col: level: rule: message`, then
+Each finding is one line, `path:line:col: level: CODE: message`, then
 `clean` or the counts; the exit code is 1 when anything was an error.
 
 A project sets its rules in a `bolt.bend` at its root, plain Bend a def a

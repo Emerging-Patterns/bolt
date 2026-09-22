@@ -45,7 +45,7 @@ def walk(nn: Tree.Node, +name: String, +path: String, +outer: Bool, +hot: Bool) 
         walk(rest, name, path, outer, hot)])
       Bool.pick(List<&2, F.Finding>, me,
         F.Finding{path, l, c, U32.from_nat(String.length(name)), "strict",
-          name ++ " recurses inside Bool.and/or; both sides always run (no short-circuit)"} <> more,
+          name ++ " recurses inside Bool.and or Bool.or, so both sides always run and there is no short-circuit; bind the call above."} <> more,
         more)
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
       List.concat(&2, F.Finding, [walk(kids, name, path, hot, Bool.or(hot, seg_op(kids))),
