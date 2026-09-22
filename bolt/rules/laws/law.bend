@@ -1,12 +1,15 @@
 # rule law (project-wide): in a project that states laws (a directory with a
-# LAWS.bend), every def is named by some law, IO included. A def a law never
-# mentions has no stated property: it is the coverage gap. A type is covered
-# once any law reaches its module (a law about an instance names the
-# accessors, never the service type). Out of scope: helpers (dotted names),
-# tests, and the law files themselves. `main` is a def: a law that names it
-# covers it. The rule reads each file's digest (bolt/rules/digest.bend),
-# never the parsed source: its phases use the list three times, and a `+`
-# reuse copies it.
+# LAWS.bend), every def is named by some law. A def a law never mentions has
+# no stated property: it is the coverage gap. A type is covered once any law
+# reaches its module (a law about an instance names the accessors, never the
+# service type). Out of scope: helpers (dotted names), tests, and the law
+# files themselves -- decided by the def's name and the file's path, never by
+# what the file's text mentions. IO is no exemption: a law can quantify over
+# an IO value or state an IO equality, so a def returning `IO(..)` is graded
+# like any other, and so is every pure def beside it. `main` is a def: a law
+# that names it covers it. The rule reads each file's digest
+# (bolt/rules/digest.bend), never the parsed source: its phases use the list
+# three times, and a `+` reuse copies it.
 import Base
 import ../../../lazy/lazy.bend as Lazy
 import ../../finding.bend as F

@@ -226,7 +226,12 @@ beside the groups.
   counted marks: "with N unsafe annotations.") and exits 0, so a gate that
   reads the exit status goes green on an unproven claim.
 - `law` (project) — in a project that states laws (a directory with a
-  LAWS.bend), a def that no law names, IO included. A law names a def when
+  LAWS.bend), a def that no law names. IO is no exemption: a def that
+  returns `IO(..)` is graded like any other (a law can state an IO equality
+  or quantify over an IO value), and so is every pure def in a module that
+  also does IO, or that says "IO" in a comment. What is out of scope is
+  decided by the def's name and the file's path, never by the file's text.
+  A law names a def when
   its statement mentions it, through the law file's import alias (`M.join`
   in `core/LAWS.bend` names `join` of `core/monoid/service.bend`); laws in
   any file count, PROOF.bend's lemmas included. A type is covered once any
