@@ -145,6 +145,48 @@ def rules.headers() -> String:
     "def lit(s: \"" ++ String.repeat("y", 200n) ++ "\") -> U32:",
     "  1"], "\n")
 
+# jammed multi-line headers, and breaks that already put one parameter on a line
+def rules.jammed() -> String:
+  String.join([
+    "def slurp.next(got: File & Result<&1, &1, U32 & String, String>, acc: String,",
+    "  rest: File -> String -> IO(String)) -> IO(String):",
+    "  acc",
+    "def slurp.more(rr: Result<&1, &1, U32 & String, String>, file: File, acc: String,",
+    "  rest: File -> String -> IO(String)) -> IO(String):",
+    "  acc",
+    "def slurp.cut(bytes: List<&2, U32>, file: File, acc: String,",
+    "  rest: File -> String -> IO(String)) -> IO(String):",
+    "  acc",
+    "def black(",
+    "  ab: Result<&1, &1, U32 & String, String>,",
+    "  cd: List<&2, U32>",
+    ") -> U32:",
+    "  ab",
+    "def shut(",
+    "  ab: U32,",
+    "  cd: U32) -> U32:",
+    "  ab",
+    "def trail(",
+    "  ab: U32,",
+    "  cd: U32,",
+    ") -> U32:",
+    "  ab",
+    "def fits(ab: U32, cd: U32) -> U32:",
+    "  ab",
+    "def hung(ab: U32,",
+    "  cd: U32) -> U32:",
+    "  ab",
+    "def crowd(",
+    "  ab: U32, cd: U32) -> U32:",
+    "  ab",
+    "def longret(ab: U32) ->",
+    "  U32:",
+    "  ab",
+    "def split(",
+    "  ab: U32 &",
+    "    U32) -> U32:",
+    "  ab"], "\n")
+
 # one short value parameter; type parameters, a quantity and a local are not
 def rules.params() -> String:
   String.join([

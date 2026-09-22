@@ -50,8 +50,12 @@ def what(kk: Bind.BindKind) -> String:
     case other:
       "local"
 
-def check.go(binds: List<&2, Bind.Bind>, +uses: List<&2, Bind.Use>, +fl: List<&2, U32>, +path: String) ->
-  List<&2, F.Finding>:
+def check.go(
+  binds: List<&2, Bind.Bind>,
+  +uses: List<&2, Bind.Use>,
+  +fl: List<&2, U32>,
+  +path: String
+) -> List<&2, F.Finding>:
   match binds:
     case Nil{}:
       Nil{}

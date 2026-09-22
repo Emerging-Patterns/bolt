@@ -182,8 +182,15 @@ def name_step(cur: Cursor, +all: List<&2, Bind.Bind>, +name: String, +line: U32,
 
 # names ask the binder; keywords are keywords; comments, strings and numbers
 # are left to the editor's grammar, which tells a doc comment from a plain one
-def of_tok(kk: Lex.TokKind, cur: Cursor, all: List<&2, Bind.Bind>, name: String, line: U32, col: U32, braced: Bool) ->
-  Step:
+def of_tok(
+  kk: Lex.TokKind,
+  cur: Cursor,
+  all: List<&2, Bind.Bind>,
+  name: String,
+  line: U32,
+  col: U32,
+  braced: Bool
+) -> Step:
   match kk:
     case Lex.TKey{}:
       Step{Some{0}, cur}

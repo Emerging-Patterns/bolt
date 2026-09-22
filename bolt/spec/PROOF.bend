@@ -86,6 +86,9 @@ def Laws.space_width():
 def Laws.wrap_header():
   {==}
 
+def Laws.wrap_jammed():
+  {==}
+
 def Laws.param_short():
   {==}
 

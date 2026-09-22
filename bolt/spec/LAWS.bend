@@ -199,6 +199,12 @@ law wrap_header:
   {lines(Wrap.check(Src.of("a.bend", C.rules.headers()))) ==
     "a.bend:3:121: wrap: def header over 120 characters wide" : String}
 
+# LAW: wrap: a multi-line header with more than one parameter on a line
+law wrap_jammed:
+  {lines(Wrap.check(Src.of("a.bend", C.rules.jammed()))) ==
+    "a.bend:1:16: wrap: one parameter per line; a.bend:4:16: wrap: one parameter per line; a.bend:7:15: wrap: one parameter per line; a.bend:26:10: wrap: one parameter per line; a.bend:30:3: wrap: one parameter per line; a.bend:32:13: wrap: one parameter per line; a.bend:36:3: wrap: one parameter per line"
+    : String}
+
 # LAW: param: a one-letter value parameter, not a type, a quantity or a local
 law param_short:
   {lines(Param.check(Src.of("a.bend", C.rules.params()))) ==

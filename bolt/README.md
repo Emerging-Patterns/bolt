@@ -96,10 +96,13 @@ beside the groups.
 - `space` — trailing whitespace, a tab, or a line over 120 wide. Width counts
   a string literal as two characters: a long fixture or message does not make
   a line hard to read, code does. `#|` trailers are data and exempt.
-- `wrap` — a one-line def header over 120 wide, counted the same way (a string
-  literal is two characters). The header is the text through its `:`. One that
-  already spans lines is wrapped, and a one-line header that fits stays one
-  line however many parameters it has.
+- `wrap` — a def header's shape. A one-line header over 120 wide must break,
+  counted the same way as `space` (a string literal is two characters). The
+  header is the text through its `:`. A one-line header that fits stays one
+  line however many parameters it has. A header that breaks puts `(` at the
+  end of the first line and one parameter on each following line, then `)` and
+  the return type. Several parameters on a line, a parameter left on the `def`
+  line, or a parameter split across lines, is a finding.
 - `param` — a parameter name shorter than 2 characters. A single uppercase
   letter is a type parameter (`A`, `T`), and a bare parameter or one typed
   `Quant` is a quantity. Locals, patterns and a law's `for` names are not

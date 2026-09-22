@@ -9,24 +9,35 @@ def slurp.end(file: File, acc: List<&2, U32>) -> IO(Maybe<&2, String>):
     File.close(file)
     return Some{Frame.decode(acc)}
 
-def slurp.cut(bytes: List<&2, U32>, file: File, acc: List<&2, U32>,
-  rest: File -> List<&2, U32> -> IO(Maybe<&2, String>)) -> IO(Maybe<&2, String>):
+def slurp.cut(
+  bytes: List<&2, U32>,
+  file: File,
+  acc: List<&2, U32>,
+  rest: File -> List<&2, U32> -> IO(Maybe<&2, String>)
+) -> IO(Maybe<&2, String>):
   match bytes:
     case Nil{}:
       slurp.end(file, acc)
     case Con{b, t}:
       rest(file, List.append(&2, U32, acc, b <> t))
 
-def slurp.more(rr: Result<&1, &1, U32 & String, List<&2, U32>>, file: File, acc: List<&2, U32>,
-  rest: File -> List<&2, U32> -> IO(Maybe<&2, String>)) -> IO(Maybe<&2, String>):
+def slurp.more(
+  rr: Result<&1, &1, U32 & String, List<&2, U32>>,
+  file: File,
+  acc: List<&2, U32>,
+  rest: File -> List<&2, U32> -> IO(Maybe<&2, String>)
+) -> IO(Maybe<&2, String>):
   match rr:
     case Fail{e}:
       slurp.end(file, acc)
     case Done{bytes}:
       slurp.cut(bytes, file, acc, rest)
 
-def slurp.next(got: File & Result<&1, &1, U32 & String, List<&2, U32>>, acc: List<&2, U32>,
-  rest: File -> List<&2, U32> -> IO(Maybe<&2, String>)) -> IO(Maybe<&2, String>):
+def slurp.next(
+  got: File & Result<&1, &1, U32 & String, List<&2, U32>>,
+  acc: List<&2, U32>,
+  rest: File -> List<&2, U32> -> IO(Maybe<&2, String>)
+) -> IO(Maybe<&2, String>):
   (file, r) = got
   slurp.more(r, file, acc, rest)
 

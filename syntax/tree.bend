@@ -277,8 +277,14 @@ def close_gts(cs: List<&2, Char>, stack: List<&2, Frame>, +ll: U32, +cc: U32) ->
 
 # the close a bracket makes, given whether it is a run of `>`: a match, so
 # only the side taken runs
-def close_any.at(+gt: Bool, +stack: List<&2, Frame>, +close: Lex.Tok, +tt: String, +ll: U32, +cc: U32)
-  -> List<&2, Frame>:
+def close_any.at(
+  +gt: Bool,
+  +stack: List<&2, Frame>,
+  +close: Lex.Tok,
+  +tt: String,
+  +ll: U32,
+  +cc: U32
+) -> List<&2, Frame>:
   match gt:
     case True{}:
       close_gts(String.to_list(tt), stack, ll, cc)

@@ -37,8 +37,12 @@ def onto(aa: Tree.Node) -> Maybe<&2, Lex.Tok>:
       None{}
 
 # a finding when the name is a parameter
-def hit(mm: Maybe<&2, Lex.Tok>, +params: List<&2, String>, +path: String,
-  +acc: List<&2, F.Finding>) -> List<&2, F.Finding>:
+def hit(
+  mm: Maybe<&2, Lex.Tok>,
+  +params: List<&2, String>,
+  +path: String,
+  +acc: List<&2, F.Finding>
+) -> List<&2, F.Finding>:
   match mm:
     case None{}:
       acc
@@ -49,8 +53,12 @@ def hit(mm: Maybe<&2, Lex.Tok>, +params: List<&2, String>, +path: String,
         acc)
 
 # the findings on a self-call's arguments
-def hits(as: List<&2, Tree.Node>, +params: List<&2, String>, +path: String,
-  acc: List<&2, F.Finding>) -> List<&2, F.Finding>:
+def hits(
+  as: List<&2, Tree.Node>,
+  +params: List<&2, String>,
+  +path: String,
+  acc: List<&2, F.Finding>
+) -> List<&2, F.Finding>:
   match as:
     case Nil{}:
       List.reverse(&2, F.Finding, acc)
