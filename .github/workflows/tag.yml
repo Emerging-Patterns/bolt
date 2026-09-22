@@ -1,7 +1,8 @@
-# Cuts a vX.Y.Z tag and GitHub Release from workflow_dispatch
-# (a GITHUB_TOKEN tag does not start release.yml).
+# Manual escape hatch: workflow_dispatch cuts a vX.Y.Z tag and GitHub Release.
+# release-please on push to main is the automatic path. This workflow rewrites
+# every version file; the shared tag workflow only rewrites flake.nix.
 #
-# How to cut a release
+# How to cut a release by hand
 #   1. Land the version on the default branch. These files name it and all
 #      must agree: flake.nix, bolt/version.bend, editors/vscode/package.json,
 #      its package-lock.json, the VSIX named in README.md and in
@@ -12,8 +13,6 @@
 #        - version=X.Y.Z -> tag that (fails if the files disagree)
 #        - bump=patch|minor|major -> rewrite the version files, commit,
 #          tag the new X.Y.Z
-#   3. Or tag locally: `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`
-#      (release.yml then opens the GitHub Release).
 #
 # Does not publish the VS Code extension. Does not upload to the Bend hub:
 # that is `publish.yml`, workflow_dispatch only, on a tag this has already

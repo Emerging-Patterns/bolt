@@ -38,10 +38,13 @@ A `#|` equality for a proveable claim is a bug. A directory with
     tests/*.bend       stay-list host/integration only (bare, flake).
                        `ez test` runs each on its own, and caches none of them
     .github/workflows/ ci: `nix flake check`, on a pull request and on a push to main.
-                       tag and release: a vX.Y.Z tag and a GitHub Release,
-                       nothing built and nothing uploaded.
+                       release-please: on push to main, conventional commits open a
+                       release PR; merging it tags `vX.Y.Z` and opens the GitHub Release.
+                       tag: workflow_dispatch escape hatch (rewrites the version
+                       files, then tags).
                        publish: `ez publish`, the hub upload, workflow_dispatch
-                       only, on an existing tag -- a person running it is the ask
+                       only, on an existing tag -- a person running it is the ask.
+                       do not also run github-release for release-please tags.
     editors/vscode/    the VS Code extension (not Bend; never publish it to the marketplace unasked)
     <project>/         one dir per project
       LAWS.bend        the claims: human-owned, do not edit to make a proof pass.
@@ -124,9 +127,9 @@ Design specs and plans are not kept in this repo; they live under
   publish bolt, in CI or on a machine, and does not ask to be allowed to: the
   one way bolt reaches the hub is a human running `.github/workflows/publish.yml`
   from Actions on an existing tag, and that dispatch *is* the ask. Nothing
-  else in this repo uploads anything -- a pushed tag opens a GitHub Release
-  and stops. To exercise the publish path without publishing, point it at a
-  dead port: `BEND_HUB=http://127.0.0.1:1`.
+  else in this repo uploads anything. release-please opens the GitHub Release
+  on merge; publish stays a manual hub upload. To exercise the publish path
+  without publishing, point it at a dead port: `BEND_HUB=http://127.0.0.1:1`.
 
 ## Bend gotchas (each one cost a failed check here)
 

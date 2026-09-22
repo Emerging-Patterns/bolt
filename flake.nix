@@ -22,7 +22,7 @@
       bolt = ez.mkPackage {
         inherit bend;
         src = self;
-        version = "0.4.0";  # keep with editors/vscode/package.json and bolt/version.bend
+        version = "0.4.0"; # x-release-please-version
         wrapFlags = [ "--gpu" "off" ];
         meta = {
           description = "A linter, checker and language server for Bend 2";
