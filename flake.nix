@@ -54,9 +54,11 @@
         name = "bolt-test";
         extraFlags = [ "--unit-only" ];
       };
+      # bolt, built from this tree, over this tree: exit 1 on any error
+      lint = ez.mkLint { inherit bolt; src = self; };
     in {
       packages.${system} = { inherit bolt bend bend-cc; default = bolt; };
-      checks.${system} = { inherit bolt test; };
+      checks.${system} = { inherit bolt test lint; };
       apps.${system}.default = { type = "app"; program = "${bolt}/bin/bolt"; };
       devShells.${system}.default = ez.mkShell {
         packages = [ bend bend-cc pkgs.nodejs pkgs.git ];
