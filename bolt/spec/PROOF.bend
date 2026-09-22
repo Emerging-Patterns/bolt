@@ -221,6 +221,21 @@ def Laws.concat_acc():
 def Laws.index_get():
   {==}
 
+def Laws.table_set():
+  {==}
+
+def Laws.hoist_table():
+  {==}
+
+def Laws.ring_window():
+  {==}
+
+def Laws.rewalk_twice():
+  {==}
+
+def Laws.unit_one():
+  {==}
+
 def Laws.frame_wrap():
   {==}
 
