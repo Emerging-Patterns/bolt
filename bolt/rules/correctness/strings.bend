@@ -27,39 +27,39 @@ def literal(kids: Tree.Node) -> Maybe<&2, U32>:
       None{}
 
 # one for a string arm, else zero
-def one(m: Maybe<&2, U32>) -> U32:
-  match m:
+def one(mm: Maybe<&2, U32>) -> U32:
+  match mm:
     case None{}:
       0
     case Some{n}:
       1
 
 # a string arm's characters, else zero
-def size(m: Maybe<&2, U32>) -> U32:
-  match m:
+def size(mm: Maybe<&2, U32>) -> U32:
+  match mm:
     case None{}:
       0
     case Some{n}:
       n
 
 # the string arms among a match's statements
-def tally(body: Tree.Node, +n: U32, +chars: U32) -> Tally:
+def tally(body: Tree.Node, +nn: U32, +chars: U32) -> Tally:
   match body:
     case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, b}, rest}:
       +m = literal(T.pattern(kids))
       +k = one(m)
       +ch = size(m)
-      tally(rest, (n + k : U32), (chars + ch : U32))
+      tally(rest, (nn + k : U32), (chars + ch : U32))
     case Tree.NCons{h, rest}:
-      tally(rest, n, chars)
+      tally(rest, nn, chars)
     case other:
-      Tally{n, chars}
+      Tally{nn, chars}
 
 # a finding when the match's strings are too long in all
-def report(t: Tally, +path: String, +l: U32, +c: U32) -> List<&2, F.Finding>:
-  Tally{+n, +chars} = t
+def report(tt: Tally, +path: String, +ll: U32, +cc: U32) -> List<&2, F.Finding>:
+  Tally{+n, +chars} = tt
   Bool.pick(List<&2, F.Finding>, U32.is_gt(chars, 64),
-    [F.Finding{path, l, c, 5, "strings", "a match over " ++ U32.show(n) ++ " string literals (" ++ U32.show(chars)
+    [F.Finding{path, ll, cc, 5, "strings", "a match over " ++ U32.show(n) ++ " string literals (" ++ U32.show(chars)
       ++ " characters) blows up compile time and memory; map the string to a sum type once (a lookup table)"}],
     [])
 
@@ -70,8 +70,8 @@ def on_stmt(+kids: Tree.Node, +body: Tree.Node, +path: String) -> List<&2, F.Fin
     _u => report(tally(body, 0, 0), path, Tree.line(kids), Tree.col(kids)))
 
 # every statement, at any depth
-def walk(n: Tree.Node, +path: String) -> List<&2, F.Finding>:
-  match n:
+def walk(nn: Tree.Node, +path: String) -> List<&2, F.Finding>:
+  match nn:
     case Tree.NCons{Tree.Stmt{kind, kids, +body}, rest}:
       List.concat(&2, F.Finding, [on_stmt(kids, body, path), walk(body, path), walk(rest, path)])
     case Tree.NCons{h, rest}:
@@ -80,6 +80,6 @@ def walk(n: Tree.Node, +path: String) -> List<&2, F.Finding>:
       Nil{}
 
 # the rule
-def check(s: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = s
+def check(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = ss
   walk(tree, path)

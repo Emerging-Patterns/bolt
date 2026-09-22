@@ -40,7 +40,7 @@ def bends(es: List<&2, String>, +dir: String) -> List<&2, String>:
 # every `.bend` file under the directories still queued, the fuel bounding how
 # many directories are read. What is found is put in front of what came before,
 # not after it, so the walk stays linear; `find` sorts at the end regardless.
-def walk(~w: Walk.Walk, fuel: Nat, queue: List<&2, String>, acc: List<&2, String>) -> IO(List<&2, String>):
+def walk(~ww: Walk.Walk, fuel: Nat, queue: List<&2, String>, acc: List<&2, String>) -> IO(List<&2, String>):
   match fuel:
     case 0n:
       IO.pure(List<&2, String>, acc)
@@ -50,12 +50,12 @@ def walk(~w: Walk.Walk, fuel: Nat, queue: List<&2, String>, acc: List<&2, String
           IO.pure(List<&2, String>, acc)
         case Con{+dir, rest}:
           do IO<List<&2, String>>:
-            +es : List<&2, String> <- Walk.entries(w, dir)
-            walk(~w, f, List.append(&2, String, rest, dirs(es, dir)),
+            +es : List<&2, String> <- Walk.entries(ww, dir)
+            walk(~ww, f, List.append(&2, String, rest, dirs(es, dir)),
               List.append(&2, String, bends(es, dir), acc))
 
 # every `.bend` file under a directory, sorted
-def find(~w: Walk.Walk, dir: String) -> IO(List<&2, String>):
+def find(~ww: Walk.Walk, dir: String) -> IO(List<&2, String>):
   do IO<List<&2, String>>:
-    ps : List<&2, String> <- walk(~w, U32.to_nat(100000), [dir], [])
+    ps : List<&2, String> <- walk(~ww, U32.to_nat(100000), [dir], [])
     return List.sort(~String, ~String.is_le, ps)

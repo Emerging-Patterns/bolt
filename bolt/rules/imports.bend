@@ -13,14 +13,14 @@ import ../../lazy/lazy.bend as Lazy
 # -----
 
 # a segment onto the reversed path: `.` and empty are dropped, `..` pops
-def norm.put(+s: String, acc: List<&2, String>) -> List<&2, String>:
+def norm.put(+ss: String, acc: List<&2, String>) -> List<&2, String>:
   match acc:
     case Con{+h, +t}:
-      Bool.pick(List<&2, String>, String.eq(s, ".."), t,
-        Bool.pick(List<&2, String>, Bool.or(String.eq(s, "."), String.is_empty(s)), h <> t, s <> (h <> t)))
+      Bool.pick(List<&2, String>, String.eq(ss, ".."), t,
+        Bool.pick(List<&2, String>, Bool.or(String.eq(ss, "."), String.is_empty(ss)), h <> t, ss <> (h <> t)))
     case Nil{}:
-      Bool.pick(List<&2, String>, Bool.or(String.eq(s, ".."), Bool.or(String.eq(s, "."), String.is_empty(s))),
-        [], [s])
+      Bool.pick(List<&2, String>, Bool.or(String.eq(ss, ".."), Bool.or(String.eq(ss, "."), String.is_empty(ss))),
+        [], [ss])
 
 def norm.go(segs: List<&2, String>, acc: List<&2, String>) -> List<&2, String>:
   match segs:
@@ -80,17 +80,17 @@ def graph(files: List<&2, Src.Src>) -> List<&2, Edge>:
       Edge{p, targets(items, p)} <> graph(rest)
 
 # is the path among them?
-def has(ps: List<&2, String>, +p: String) -> Bool:
-  List.contains(~String, ~String.eq, ps, p)
+def has(ps: List<&2, String>, +pp: String) -> Bool:
+  List.contains(~String, ~String.eq, ps, pp)
 
 # what the file at p imports (nothing when it was not read)
-def deps_of(es: List<&2, Edge>, +p: String) -> List<&2, String>:
+def deps_of(es: List<&2, Edge>, +pp: String) -> List<&2, String>:
   match es:
     case Nil{}:
       Nil{}
     case Con{Edge{+ep, ds}, rest}:
-      +more = deps_of(rest, p)
-      Bool.pick(List<&2, String>, String.eq(ep, p), ds, more)
+      +more = deps_of(rest, pp)
+      Bool.pick(List<&2, String>, String.eq(ep, pp), ds, more)
 
 # the files of ds that were read and are not yet seen, each once
 def fresh(ds: List<&2, String>, +seen: List<&2, String>, +read: List<&2, String>) -> List<&2, String>:

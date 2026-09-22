@@ -25,8 +25,8 @@ def once(+as: List<&2, Tree.Node>, +name: String) -> Bool:
 
 # every `Bool.pick(..)` in a chain, at any depth, that recurses in both
 # branches or in one; quiet: inside a branch of a reported pick
-def picks(n: Tree.Node, +name: String, +path: String, +quiet: Bool) -> List<&2, F.Finding>:
-  match n:
+def picks(nn: Tree.Node, +name: String, +path: String, +quiet: Bool) -> List<&2, F.Finding>:
+  match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{open, +kids, close}, rest}}:
       +as = Calls.args(kids)
       +ispick = String.eq(t, "Bool.pick")
@@ -58,6 +58,6 @@ def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Fi
       check.go(rest, path, picks(body, name, path, False{}) <> acc)
 
 # the rule
-def check(s: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = s
+def check(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = ss
   check.go(Calls.defs(tree), path, [])

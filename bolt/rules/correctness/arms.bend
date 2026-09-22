@@ -24,23 +24,23 @@ type Wide is Data:
   Wide{k: U32, text: String}
 
 # `kn+p:` or `kn:`
-def lit.shape(rest: Tree.Node, +k: U32, +t: String, +line: U32, +col: U32) -> Arm:
+def lit.shape(rest: Tree.Node, +kk: U32, +tt: String, +line: U32, +col: U32) -> Arm:
   match rest:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +o, l, c}},
         Tree.NCons{Tree.Leaf{Lex.Tok{b, +p, l2, c2}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, s, l3, c3}}, more}}}:
-      Bool.pick(Arm, String.eq(o, "+"), APlus{k, t ++ "+" ++ p, line, col, T.width(t)}, AOther{})
+      Bool.pick(Arm, String.eq(o, "+"), APlus{kk, tt ++ "+" ++ p, line, col, T.width(tt)}, AOther{})
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, s, l, c}}, more}:
-      ALit{k, line, col, T.width(t)}
+      ALit{kk, line, col, T.width(tt)}
     case other:
       AOther{}
 
 # a Nat literal token's arm, once its value is read
-def lit.of(m: Maybe<&2, U32>, +t: String, +rest: Tree.Node, +line: U32, +col: U32) -> Arm:
-  match m:
+def lit.of(mm: Maybe<&2, U32>, +tt: String, +rest: Tree.Node, +line: U32, +col: U32) -> Arm:
+  match mm:
     case None{}:
       AOther{}
     case Some{+k}:
-      lit.shape(rest, k, t, line, col)
+      lit.shape(rest, k, tt, line, col)
 
 # a case pattern's arm
 def arm(pat: Tree.Node) -> Arm:
@@ -55,8 +55,8 @@ def arm(pat: Tree.Node) -> Arm:
       AOther{}
 
 # the widest n+p arm after this one
-def widen(w: Maybe<&2, Wide>, a: Arm) -> Maybe<&2, Wide>:
-  match w a:
+def widen(ww: Maybe<&2, Wide>, aa: Arm) -> Maybe<&2, Wide>:
+  match ww aa:
     case None{} APlus{k, text, l, c, n}:
       Some{Wide{k, text}}
     case Some{Wide{+k, +text}} APlus{+j, +t2, l, c, n}:
@@ -65,15 +65,15 @@ def widen(w: Maybe<&2, Wide>, a: Arm) -> Maybe<&2, Wide>:
       w2
 
 # a finding when the arm is inside the widest one above
-def verdict.on(+k: U32, +text: String, a: Arm, +path: String, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
-  match a:
+def verdict.on(+kk: U32, +text: String, aa: Arm, +path: String, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
+  match aa:
     case APlus{+j, t, l, c, n}:
-      Bool.pick(List<&2, F.Finding>, U32.is_ge(j, k),
+      Bool.pick(List<&2, F.Finding>, U32.is_ge(j, kk),
         F.Finding{path, l, c, n, "arms",
           "unreachable: case " ++ text ++ " above already matches every " ++ U32.show(j) ++ "n+.."} <> more,
         more)
     case ALit{+m, l, c, n}:
-      Bool.pick(List<&2, F.Finding>, U32.is_ge(m, k),
+      Bool.pick(List<&2, F.Finding>, U32.is_ge(m, kk),
         F.Finding{path, l, c, n, "arms", "unreachable: case " ++ text ++ " above already matches " ++ U32.show(m) ++ "n"}
           <> more,
         more)
@@ -81,12 +81,12 @@ def verdict.on(+k: U32, +text: String, a: Arm, +path: String, +more: List<&2, F.
       more
 
 # the arm against the widest one above, if any
-def verdict(w: Maybe<&2, Wide>, a: Arm, +path: String, more: List<&2, F.Finding>) -> List<&2, F.Finding>:
-  match w:
+def verdict(ww: Maybe<&2, Wide>, aa: Arm, +path: String, more: List<&2, F.Finding>) -> List<&2, F.Finding>:
+  match ww:
     case None{}:
       more
     case Some{Wide{k, text}}:
-      verdict.on(k, text, a, path, more)
+      verdict.on(k, text, aa, path, more)
 
 # a match's arms in order, against the widest n+p arm above each
 def arms(body: Tree.Node, +wide: Maybe<&2, Wide>, +path: String) -> List<&2, F.Finding>:
@@ -109,8 +109,8 @@ def single(kids: Tree.Node) -> Bool:
       False{}
 
 # every statement, at any depth; a single-scrutinee match's arms are read
-def walk(n: Tree.Node, +path: String) -> List<&2, F.Finding>:
-  match n:
+def walk(nn: Tree.Node, +path: String) -> List<&2, F.Finding>:
+  match nn:
     case Tree.NCons{Tree.Stmt{kind, kids, +body}, rest}:
       +mine = Lazy.stop(List<&2, F.Finding>, Bool.not(single(kids)), [], _u => arms(body, None{}, path))
       List.concat(&2, F.Finding, [mine, walk(body, path), walk(rest, path)])
@@ -120,6 +120,6 @@ def walk(n: Tree.Node, +path: String) -> List<&2, F.Finding>:
       Nil{}
 
 # the rule
-def check(s: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = s
+def check(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = ss
   walk(tree, path)

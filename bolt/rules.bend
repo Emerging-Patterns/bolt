@@ -17,6 +17,8 @@ import ./rules/suspicious/unused.bend as Unused
 import ./rules/correctness/shadow.bend as Shadow
 import ./rules/correctness/hole.bend as Hole
 import ./rules/style/space.bend as Space
+import ./rules/style/wrap.bend as Wrap
+import ./rules/style/param.bend as Param
 import ./rules/correctness/pick.bend as Pick
 import ./rules/laws/law.bend as Law
 import ./rules/suspicious/strict.bend as Strict
@@ -37,29 +39,31 @@ import ./rules/laws/closed.bend as Closed
 import ./rules/laws/unsafe.bend as Unsafe
 
 # every rule's findings on a file read once
-def on(+s: Src.Src) -> List<&2, F.Finding>:
+def on(+ss: Src.Src) -> List<&2, F.Finding>:
   List.concat(&2, F.Finding, [
-    Doc.check(s),
-    Unused.check(s),
-    Shadow.check(s),
-    Hole.check(s),
-    Space.check(s),
-    Pick.check(s),
-    Strict.check(s),
-    Eager.check(s),
-    Tail.check(s),
-    Concat.check(s),
-    Index.check(s),
-    Put.check(s),
-    Escape.check(s),
-    Nat_.check(s),
-    Strings.check(s),
-    Chars.check(s),
-    Twice.check(s),
-    Arms.check(s),
-    Foreign.check(s),
-    Fuel.check(s),
-    Closed.check(s)])
+    Doc.check(ss),
+    Unused.check(ss),
+    Shadow.check(ss),
+    Hole.check(ss),
+    Space.check(ss),
+    Wrap.check(ss),
+    Param.check(ss),
+    Pick.check(ss),
+    Strict.check(ss),
+    Eager.check(ss),
+    Tail.check(ss),
+    Concat.check(ss),
+    Index.check(ss),
+    Put.check(ss),
+    Escape.check(ss),
+    Nat_.check(ss),
+    Strings.check(ss),
+    Chars.check(ss),
+    Twice.check(ss),
+    Arms.check(ss),
+    Foreign.check(ss),
+    Fuel.check(ss),
+    Closed.check(ss)])
 
 # every rule's findings on a file
 def all(+path: String, +text: String) -> List<&2, F.Finding>:
@@ -77,7 +81,7 @@ def group(+rule: String) -> String:
       ["shadow", "hole", "pick", "put", "arms", "escape", "twice", "strings", "chars", "foreign"], rule), "correctness",
     Bool.pick(String, List.contains(~String, ~String.eq,
         ["unused", "strict", "eager", "concat", "nat", "fuel", "index"], rule), "suspicious",
-      Bool.pick(String, List.contains(~String, ~String.eq, ["doc", "space"], rule), "style",
+      Bool.pick(String, List.contains(~String, ~String.eq, ["doc", "space", "wrap", "param"], rule), "style",
         Bool.pick(String, List.contains(~String, ~String.eq, ["law", "closed", "unsafe"], rule), "laws",
           Bool.pick(String, String.eq(rule, "tail"), "pedantic", "correctness")))))
 

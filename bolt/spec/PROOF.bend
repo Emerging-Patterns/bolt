@@ -77,6 +77,12 @@ def Laws.hole_laws():
 def Laws.space_width():
   {==}
 
+def Laws.wrap_header():
+  {==}
+
+def Laws.param_short():
+  {==}
+
 def Laws.pick_both():
   {==}
 

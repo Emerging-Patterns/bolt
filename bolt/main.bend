@@ -34,34 +34,34 @@ def dispatch(cmd: Cmd, paths: List<&2, String>) -> IO(Unit):
     case CLsp{}:
       Lsp.run()
 
-def run.at(ask: Bool, +m: Shake.Matched) -> IO(Unit):
+def run.at(ask: Bool, +mm: Shake.Matched) -> IO(Unit):
   match ask:
     case True{}:
       IO.print("bolt " ++ Args.version())
     case False{}:
-      dispatch(command(String.join(Shake.path_of(m), "/")), Shake.get_all(m, "files"))
+      dispatch(command(String.join(Shake.path_of(mm), "/")), Shake.get_all(mm, "files"))
 
 # a successful parse: the version, or the selected command and its files
-def run(+m: Shake.Matched) -> IO(Unit):
-  run.at(Shake.on(m, "version"), m)
+def run(+mm: Shake.Matched) -> IO(Unit):
+  run.at(Shake.on(mm, "version"), mm)
 
 # a hard error
-def fail.err(e: Shake.ParseErr) -> IO(Unit):
+def fail.err(ee: Shake.ParseErr) -> IO(Unit):
   do IO<Unit>:
-    IO.print_err(Args.err_text(e))
+    IO.print_err(Args.err_text(ee))
     IO.die(Unit, 1, "")
 
 # a failed parse: help text, or an error
-def fail(e: Shake.ParseErr) -> IO(Unit):
-  match e:
+def fail(ee: Shake.ParseErr) -> IO(Unit):
+  match ee:
     case Shake.NeedHelp{path}:
       IO.write(Args.help_text(path))
     case other:
       fail.err(other)
 
 # the parse result
-def go(r: Result<&2, &2, Shake.ParseErr, Shake.Matched>) -> IO(Unit):
-  match r:
+def go(rr: Result<&2, &2, Shake.ParseErr, Shake.Matched>) -> IO(Unit):
+  match rr:
     case Fail{e}:
       fail(e)
     case Done{m}:

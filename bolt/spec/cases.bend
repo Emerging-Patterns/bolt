@@ -27,16 +27,16 @@ def src.sample() -> String:
     "    case Con{h, t}:",
     "      Bool.pick(U32, U32.is_eq(h, 0), go(t), (h + go(t) : U32))"], "\n")
 
-def src.leaves(n: Tree.Node) -> Nat:
-  List.length(&2, Lex.Tok, Tree.leaves(n))
+def src.leaves(nn: Tree.Node) -> Nat:
+  List.length(&2, Lex.Tok, Tree.leaves(nn))
 
-def src.bound_counts(b: Bind.Bound) -> String:
-  Bind.Bound{binds, uses, scopes} = b
+def src.bound_counts(bb: Bind.Bound) -> String:
+  Bind.Bound{binds, uses, scopes} = bb
   Nat.show(List.length(&2, Bind.Bind, binds)) ++ "/" ++ Nat.show(List.length(&2, Bind.Use, uses))
     ++ "/" ++ Nat.show(List.length(&2, Bind.Scope, scopes))
 
-def src.fields(s: Src.Src) -> String:
-  Src.Src{path, text, toks, tree, bound, items} = s
+def src.fields(ss: Src.Src) -> String:
+  Src.Src{path, text, toks, tree, bound, items} = ss
   path ++ " " ++ Nat.show(List.length(&2, Lex.Tok, toks)) ++ " " ++ Nat.show(src.leaves(tree))
     ++ " " ++ src.bound_counts(bound)
 
@@ -129,6 +129,37 @@ def rules.holes() -> String:
 
 def rules.spaced() -> String:
   "def f() -> U32:  \n\t1\n# " ++ String.repeat("x", 120n) ++ "\ns = \"" ++ String.repeat("y", 200n) ++ "\"\n#|" ++ String.repeat("z", 200n) ++ "\n"
+
+# a fitting one-liner, one over 120, one already wrapped, one whose string counts as two
+def rules.headers() -> String:
+  String.join([
+    "def fits(ab: U32, cd: U32, ef: U32, gh: U32) -> U32:",
+    "  ab",
+    "def " ++ String.repeat("n", 2n) ++ "(" ++ String.repeat("p", 110n) ++ ": U32) -> U32:",
+    "  1",
+    "def wide(",
+    "  ab: U32,",
+    "  cd: List<&2, U32>",
+    ") -> List<&2, U32>:",
+    "  ab",
+    "def lit(s: \"" ++ String.repeat("y", 200n) ++ "\") -> U32:",
+    "  1"], "\n")
+
+# one short value parameter; type parameters, a quantity and a local are not
+def rules.params() -> String:
+  String.join([
+    "def bad(n: U32, ok: U32) -> U32:",
+    "  (n + ok : U32)",
+    "",
+    "def gen(~A: Type, ~T: Type, xs: List<&2, A>) -> A:",
+    "  xs",
+    "",
+    "def qty(a, -A: Type, xs: List<&2, A>) -> A:",
+    "  xs",
+    "",
+    "def local(ok: U32) -> U32:",
+    "  x = ok",
+    "  q => x"], "\n")
 
 def rules.picked() -> String:
   String.join([
@@ -511,8 +542,8 @@ def rec.picked() -> String:
     "    case Nil{}:",
     "      0"], "\n")
 
-def frame.show(c: Frame.Cut) -> String:
-  match c:
+def frame.show(cc: Frame.Cut) -> String:
+  match cc:
     case Frame.More{}:
       "more"
     case Frame.Ready{body, rest}:

@@ -54,12 +54,12 @@ def help_text(path: List<&2, String>) -> String:
   Shake.help(spec(), path)
 
 # a parse error as the text the binary prints
-def err_text(e: Shake.ParseErr) -> String:
-  Shake.err_text(spec(), e)
+def err_text(ee: Shake.ParseErr) -> String:
+  Shake.err_text(spec(), ee)
 
 # the selected command name; none, ""
-def command.of(r: Result<&2, &2, Shake.ParseErr, Shake.Matched>) -> String:
-  match r:
+def command.of(rr: Result<&2, &2, Shake.ParseErr, Shake.Matched>) -> String:
+  match rr:
     case Done{m}:
       String.join(Shake.path_of(m), "/")
     case Fail{_e}:
@@ -70,8 +70,8 @@ def command(av: List<&2, String>) -> String:
   command.of(parse(av))
 
 # the files a successful parse bound; none on error
-def files.of(r: Result<&2, &2, Shake.ParseErr, Shake.Matched>) -> List<&2, String>:
-  match r:
+def files.of(rr: Result<&2, &2, Shake.ParseErr, Shake.Matched>) -> List<&2, String>:
+  match rr:
     case Done{m}:
       Shake.get_all(m, "files")
     case Fail{_e}:

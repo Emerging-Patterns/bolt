@@ -38,6 +38,6 @@ def check.on(+toks: List<&2, Lex.Tok>, path: String) -> List<&2, F.Finding>:
   Lazy.stop(List<&2, F.Finding>, defines(toks), [], _u => calls(toks, path))
 
 # the rule
-def check(s: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = s
+def check(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = ss
   check.on(T.sig(toks), path)

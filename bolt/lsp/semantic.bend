@@ -39,8 +39,8 @@ def last_segment(cs: List<&2, Char>, +acc: List<&2, Char>) -> List<&2, Char>:
 
 # the legend's type for a binder of this kind (an item is a type when
 # capitalized, else a function)
-def of_kind(k: Bind.BindKind, +name: String) -> U32:
-  match k:
+def of_kind(kk: Bind.BindKind, +name: String) -> U32:
+  match kk:
     case Bind.KItem{}:
       Bool.pick(U32, upper_first(String.to_list(name)), 2, 1)
     case Bind.KCtor{}:
@@ -61,8 +61,8 @@ def of_kind(k: Bind.BindKind, +name: String) -> U32:
       10
 
 # the type for a binder that may not have been found (a variable then)
-def of_maybe_kind(m: Maybe<&2, Bind.BindKind>, name: String) -> U32:
-  match m:
+def of_maybe_kind(mm: Maybe<&2, Bind.BindKind>, name: String) -> U32:
+  match mm:
     case None{}:
       5
     case Some{k}:
@@ -182,9 +182,9 @@ def name_step(cur: Cursor, +all: List<&2, Bind.Bind>, +name: String, +line: U32,
 
 # names ask the binder; keywords are keywords; comments, strings and numbers
 # are left to the editor's grammar, which tells a doc comment from a plain one
-def of_tok(k: Lex.TokKind, cur: Cursor, all: List<&2, Bind.Bind>, name: String, line: U32, col: U32, braced: Bool) ->
+def of_tok(kk: Lex.TokKind, cur: Cursor, all: List<&2, Bind.Bind>, name: String, line: U32, col: U32, braced: Bool) ->
   Step:
-  match k:
+  match kk:
     case Lex.TKey{}:
       Step{Some{0}, cur}
     case Lex.TName{}:
@@ -215,8 +215,8 @@ def cur_of(st: Step) -> Cursor:
   cur
 
 # a classified token onto the list, when it has a type
-def put(m: Maybe<&2, U32>, +line: U32, +col: U32, +len: U32, rest: List<&2, Sem>) -> List<&2, Sem>:
-  match m:
+def put(mm: Maybe<&2, U32>, +line: U32, +col: U32, +len: U32, rest: List<&2, Sem>) -> List<&2, Sem>:
+  match mm:
     case None{}:
       rest
     case Some{typ}:
@@ -243,8 +243,8 @@ def encode(sems: List<&2, Sem>, +pl: U32, +pc: U32) -> List<&2, U32>:
       +dcol = Bool.pick(U32, same, (col - pc : U32), col)
       (line - pl : U32) <> (dcol <> (len <> (typ <> (0 <> encode(rest, line, col)))))
 
-def data.of(b: Bind.Bound, toks: List<&2, Lex.Tok>) -> List<&2, U32>:
-  Bind.Bound{+binds, uses, scopes} = b
+def data.of(bb: Bind.Bound, toks: List<&2, Lex.Tok>) -> List<&2, U32>:
+  Bind.Bound{+binds, uses, scopes} = bb
   encode(classify(toks, Cursor{binds, uses}, binds), 0, 0)
 
 # a document's semantic tokens, encoded

@@ -20,7 +20,7 @@ def inbox() -> List<&2, String>:
 def main() -> IO(Unit):
   Server.serve(~Script.Script, ~Script.new(), ~BendChecker.new(), ~Disk.new(), 100n, Script.Script{inbox()}, [])
 
-#|{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://bolt/lsp/fixtures/mistyped.bend","diagnostics":[{"range":{"start":{"line":4,"character":0},"end":{"line":5,"character":0}},"severity":1,"source":"bend","message":"expected : String\nobserved : U32\nContext:\nx : U32"}]}}
+#|{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://bolt/lsp/fixtures/mistyped.bend","diagnostics":[{"range":{"start":{"line":4,"character":0},"end":{"line":5,"character":0}},"severity":1,"source":"bend","message":"expected : String\nobserved : U32\nContext:\nxx : U32"}]}}
 #|{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://bolt/lsp/fixtures/effectful.bend","diagnostics":[]}}
 #|{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://bolt/lsp/fixtures/proven/LAWS.bend","diagnostics":[]}}
 #|{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://bolt/lsp/fixtures/unproven/LAWS.bend","diagnostics":[{"range":{"start":{"line":0,"character":0},"end":{"line":1,"character":0}},"severity":1,"source":"bend","message":"1 TODO found.\nThe code is incomplete, and not a valid proof yet."}]}}

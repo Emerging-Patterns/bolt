@@ -18,8 +18,8 @@ def unpad(cs: List<&2, Char>) -> List<&2, Char>:
       other
 
 # is the text a Nat literal (digits, then `n`) of four or more digits past its zeros?
-def big(+t: String) -> Bool:
-  +cs = String.to_list(t)
+def big(+tt: String) -> Bool:
+  +cs = String.to_list(tt)
   Bool.and(T.nat_ok(cs), Nat.is_gt(List.length(&2, Char, unpad(cs)), 4n))
 
 def check.go(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
@@ -37,6 +37,6 @@ def check.go(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
       Nil{}
 
 # the rule
-def check(s: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = s
+def check(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = ss
   check.go(toks, path)

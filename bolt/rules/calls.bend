@@ -13,8 +13,8 @@ type Def is Data:
   Def{name: String, sig: Tree.Node, body: Tree.Node}
 
 # a def with a name joins the others; one without (half-written) does not
-def defs.push(m: Maybe<&2, String>, sig: Tree.Node, body: Tree.Node, acc: List<&2, Def>) -> List<&2, Def>:
-  match m:
+def defs.push(mm: Maybe<&2, String>, sig: Tree.Node, body: Tree.Node, acc: List<&2, Def>) -> List<&2, Def>:
+  match mm:
     case None{}:
       acc
     case Some{name}:
@@ -45,8 +45,8 @@ def args(kids: Tree.Node) -> List<&2, Tree.Node>:
   args.go(kids, Tree.NNil{}, [])
 
 # the nth argument, or nothing
-def arg(as: List<&2, Tree.Node>, n: Nat) -> Tree.Node:
-  match as n:
+def arg(as: List<&2, Tree.Node>, nn: Nat) -> Tree.Node:
+  match as nn:
     case Con{h, t} 0n:
       h
     case Con{h, t} 1n+p:
@@ -55,8 +55,8 @@ def arg(as: List<&2, Tree.Node>, n: Nat) -> Tree.Node:
       Tree.NNil{}
 
 # does the name appear anywhere under the node?
-def mentions(n: Tree.Node, +name: String) -> Bool:
-  match n:
+def mentions(nn: Tree.Node, +name: String) -> Bool:
+  match nn:
     case Tree.Leaf{Lex.Tok{k, +t, l, c}}:
       String.eq(t, name)
     case Tree.Group{open, kids, close}:
@@ -73,8 +73,8 @@ def mentions(n: Tree.Node, +name: String) -> Bool:
       Bool.or(a, b)
 
 # is there a call of the name, `name(..)`, anywhere under the node?
-def calls(n: Tree.Node, +name: String) -> Bool:
-  match n:
+def calls(nn: Tree.Node, +name: String) -> Bool:
+  match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, kids, _}, rest}}:
       +a = calls(kids, name)
       +b = calls(rest, name)
@@ -109,8 +109,8 @@ def params(sig: Tree.Node) -> List<&2, Tree.Node>:
 
 # a parameter's name: its first lowercase name before the colon ("" for a
 # type parameter like `-A: Type`)
-def param_name(p: Tree.Node) -> String:
-  match p:
+def param_name(pp: Tree.Node) -> String:
+  match pp:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, rest}:
       t
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}}, rest}:
@@ -132,8 +132,8 @@ def names(sig: Tree.Node) -> List<&2, String>:
   names.go(params(sig), [])
 
 # does a chain hold a top-level colon?
-def has_colon(p: Tree.Node) -> Bool:
-  match p:
+def has_colon(pp: Tree.Node) -> Bool:
+  match pp:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}}, rest}:
       True{}
     case Tree.NCons{h, rest}:
@@ -143,8 +143,8 @@ def has_colon(p: Tree.Node) -> Bool:
 
 # a live parameter: typed, and neither erased (`-A: Type`) nor a template
 # (`~f: A -> B`); a bare quantity name (`a` in `List.get(a, ..)`) is not one
-def is_live(p: Tree.Node) -> Bool:
-  match p:
+def is_live(pp: Tree.Node) -> Bool:
+  match pp:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +t, l, c}}, rest}:
       Bool.and(Bool.not(Bool.or(String.eq(t, "-"), String.eq(t, "~"))), has_colon(rest))
     case other:
@@ -152,8 +152,8 @@ def is_live(p: Tree.Node) -> Bool:
 
 # the head of a parameter's type: the first capitalized name after the colon
 # (`List` in `+xs: +List<A>`), "" for none
-def type_head(p: Tree.Node, +after: Bool) -> String:
-  match p:
+def type_head(pp: Tree.Node, +after: Bool) -> String:
+  match pp:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}}, rest}:
       type_head(rest, True{})
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, +t, l, c}}, rest}:

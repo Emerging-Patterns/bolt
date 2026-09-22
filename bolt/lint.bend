@@ -60,8 +60,8 @@ def per_file(ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
       List.concat(&2, F.Finding, [Rules.on(s), per_file(rest)])
 
 # a finding graded by the config nearest its file
-def grade(~fs: Files.Files, f: F.Finding) -> IO(List<&2, F.Graded>):
-  F.Finding{+path, line, col, len, rule, msg} = f
+def grade(~fs: Files.Files, ff: F.Finding) -> IO(List<&2, F.Graded>):
+  F.Finding{+path, line, col, len, rule, msg} = ff
   do IO<List<&2, F.Graded>>:
     rs : List<&2, Maybe<&2, String>> <- Files.read_all(~fs, Config.candidates(64n, Config.dir_of(path)))
     return Rules.graded(Config.nearest(rs), [F.Finding{path, line, col, len, rule, msg}])
@@ -88,8 +88,8 @@ def print_all(lines: List<&2, String>) -> IO(Unit):
         print_all(t)
 
 # a bolt.bend is configuration, not source
-def is_config(+p: String) -> Bool:
-  Bool.or(String.eq(p, "bolt.bend"), String.ends_with(p, "/bolt.bend"))
+def is_config(+pp: String) -> Bool:
+  Bool.or(String.eq(pp, "bolt.bend"), String.ends_with(pp, "/bolt.bend"))
 
 # the paths that are source
 def sources(ps: List<&2, String>) -> List<&2, String>:
@@ -115,12 +115,12 @@ def errors(gs: List<&2, F.Graded>) -> U32:
       (Bool.pick(U32, Config.is_error(l), 1, 0) + more : U32)
 
 # `1 error`, `2 errors`
-def count(+n: U32, +what: String) -> String:
-  U32.show(n) ++ " " ++ what ++ Bool.pick(String, U32.is_eq(n, 1), "", "s")
+def count(+nn: U32, +what: String) -> String:
+  U32.show(nn) ++ " " ++ what ++ Bool.pick(String, U32.is_eq(nn, 1), "", "s")
 
 # `clean`, or the counts
-def summary(+n: U32, +e: U32) -> String:
-  Bool.pick(String, U32.is_eq(n, 0), "clean", count(e, "error") ++ ", " ++ count((n - e : U32), "warning"))
+def summary(+nn: U32, +ee: U32) -> String:
+  Bool.pick(String, U32.is_eq(nn, 0), "clean", count(ee, "error") ++ ", " ++ count((nn - ee : U32), "warning"))
 
 # every graded finding as a line
 def show_all(gs: List<&2, F.Graded>) -> List<&2, String>:
@@ -131,10 +131,10 @@ def show_all(gs: List<&2, F.Graded>) -> List<&2, String>:
       F.show_graded(g) <> show_all(rest)
 
 # the files to lint: those given, or the whole tree when none were
-def chosen(~w: Walk.Walk, paths: List<&2, String>) -> IO(List<&2, String>):
+def chosen(~ww: Walk.Walk, paths: List<&2, String>) -> IO(List<&2, String>):
   match paths:
     case Nil{}:
-      Glob.find(~w, ".")
+      Glob.find(~ww, ".")
     case Con{p, rest}:
       IO.pure(List<&2, String>, p <> rest)
 

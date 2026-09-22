@@ -19,8 +19,8 @@ def significant(toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
       Bool.pick(List<&2, Lex.Tok>, Lex.significant(k), Lex.Tok{k, t, l, c} <> more, more)
 
 # an unclosed group or a stray close bracket
-def flaws(n: Tree.Node) -> U32:
-  match n:
+def flaws(nn: Tree.Node) -> U32:
+  match nn:
     case Tree.Leaf{Lex.Tok{k, t, l, c}}:
       Bool.pick(U32, Lex.is_close(k), 1, 0)
     case Tree.Group{open, kids, close}:

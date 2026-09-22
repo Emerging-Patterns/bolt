@@ -26,15 +26,15 @@ def target(kids: Tree.Node) -> String:
       ""
 
 # the lanes of a body that is only imports; None when it is anything else
-def lanes.go(body: Tree.Node, c: Bool, js: Bool) -> Maybe<&2, Lanes>:
+def lanes.go(body: Tree.Node, cc: Bool, js: Bool) -> Maybe<&2, Lanes>:
   match body:
     case Tree.NCons{Tree.Stmt{Tree.SImport{}, kids, ib}, rest}:
       +t = target(kids)
-      lanes.go(rest, Bool.or(c, String.ends_with(t, ".c\"")), Bool.or(js, String.ends_with(t, ".js\"")))
+      lanes.go(rest, Bool.or(cc, String.ends_with(t, ".c\"")), Bool.or(js, String.ends_with(t, ".js\"")))
     case Tree.NCons{h, rest}:
       None{}
     case other:
-      Some{Lanes{c, js}}
+      Some{Lanes{cc, js}}
 
 # the lanes of a def's body: None unless it is a foreign def
 def lanes(body: Tree.Node) -> Maybe<&2, Lanes>:
@@ -46,8 +46,8 @@ def lanes(body: Tree.Node) -> Maybe<&2, Lanes>:
       None{}
 
 # what the lanes lack, as a message ("" for nothing)
-def lack(m: Maybe<&2, Lanes>, +native: Bool, +name: String) -> String:
-  match m:
+def lack(mm: Maybe<&2, Lanes>, +native: Bool, +name: String) -> String:
+  match mm:
     case None{}:
       ""
     case Some{Lanes{+c, +js}}:
@@ -61,8 +61,8 @@ def at(+msg: String, +line: U32, +col: U32, +path: String, +more: List<&2, F.Fin
   Bool.pick(List<&2, F.Finding>, String.is_empty(msg), more, F.Finding{path, line, col, 0, "foreign", msg} <> more)
 
 # a def's name, `?` when it has none
-def name.of(m: Maybe<&2, String>) -> String:
-  match m:
+def name.of(mm: Maybe<&2, String>) -> String:
+  match mm:
     case None{}:
       "?"
     case Some{n}:
@@ -83,6 +83,6 @@ def native_only(+text: String) -> Bool:
   Bool.or(String.starts_with(text, "# lanes: native"), String.contains(text, "\n# lanes: native"))
 
 # the rule
-def check(s: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = s
+def check(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = ss
   check.go(tree, native_only(text), path)

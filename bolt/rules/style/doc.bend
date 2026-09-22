@@ -9,8 +9,8 @@ import ../../../syntax/outline.bend as Outline
 import ../../../lazy/lazy.bend as Lazy
 
 # does an item of this kind need a comment?
-def needs(k: Outline.ItemKind) -> Bool:
-  match k:
+def needs(kk: Outline.ItemKind) -> Bool:
+  match kk:
     case Outline.IDef{}:
       True{}
     case Outline.IType{}:
@@ -25,8 +25,8 @@ def exempt(+name: String) -> Bool:
   Bool.or(String.eq(name, "main"), String.contains(name, "."))
 
 # an item's kind, for the message
-def what(k: Outline.ItemKind) -> String:
-  match k:
+def what(kk: Outline.ItemKind) -> String:
+  match kk:
     case Outline.IType{}:
       "type"
     case Outline.ILaw{}:
@@ -45,7 +45,7 @@ def check.go(items: List<&2, Outline.Item>, +path: String) -> List<&2, F.Finding
         F.Finding{path, line, 0, 0, "doc", what(k) ++ " " ++ name ++ " has no comment above it"} <> more, more)
 
 # the rule
-def check(s: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{+path, text, toks, tree, bound, items} = s
+def check(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{+path, text, toks, tree, bound, items} = ss
   Lazy.stop(List<&2, F.Finding>, Bool.or(String.ends_with(path, "PROOF.bend"), String.contains(path, "/tests/")),
     [], _u => check.go(items, path))

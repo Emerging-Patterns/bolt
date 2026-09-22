@@ -13,22 +13,22 @@ import ../calls.bend as Calls
 import ../../../lazy/lazy.bend as Lazy
 
 # a chain that is exactly one lowercase name: its token
-def lone(n: Tree.Node) -> Maybe<&2, Lex.Tok>:
-  match n:
+def lone(nn: Tree.Node) -> Maybe<&2, Lex.Tok>:
+  match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, Tree.NNil{}}:
       Some{Lex.Tok{Lex.TName{}, t, l, c}}
     case other:
       None{}
 
 # the list a call appends onto: List.append's first list, String.append's first
-def appended(+t: String, as: List<&2, Tree.Node>) -> Maybe<&2, Lex.Tok>:
-  +list = String.eq(t, "List.append")
-  +str = String.eq(t, "String.append")
+def appended(+tt: String, as: List<&2, Tree.Node>) -> Maybe<&2, Lex.Tok>:
+  +list = String.eq(tt, "List.append")
+  +str = String.eq(tt, "String.append")
   Bool.pick(Maybe<&2, Lex.Tok>, Bool.or(list, str), lone(Calls.arg(as, Bool.pick(Nat, list, 2n, 0n))), None{})
 
 # the name an argument appends onto, `p ++ ..` or an append call
-def onto(a: Tree.Node) -> Maybe<&2, Lex.Tok>:
-  match a:
+def onto(aa: Tree.Node) -> Maybe<&2, Lex.Tok>:
+  match aa:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +o, _, _}}, _}}:
       Bool.pick(Maybe<&2, Lex.Tok>, String.eq(o, "++"), Some{Lex.Tok{Lex.TName{}, t, l, c}}, None{})
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{open, kids, close}, rest}}:
@@ -37,9 +37,9 @@ def onto(a: Tree.Node) -> Maybe<&2, Lex.Tok>:
       None{}
 
 # a finding when the name is a parameter
-def hit(m: Maybe<&2, Lex.Tok>, +params: List<&2, String>, +path: String,
+def hit(mm: Maybe<&2, Lex.Tok>, +params: List<&2, String>, +path: String,
   +acc: List<&2, F.Finding>) -> List<&2, F.Finding>:
-  match m:
+  match mm:
     case None{}:
       acc
     case Some{Lex.Tok{k, +t, l, c}}:
@@ -58,8 +58,8 @@ def hits(as: List<&2, Tree.Node>, +params: List<&2, String>, +path: String,
       hits(rest, params, path, hit(onto(a), params, path, acc))
 
 # every self-call's arguments
-def walk(n: Tree.Node, +name: String, +params: List<&2, String>, +path: String) -> List<&2, F.Finding>:
-  match n:
+def walk(nn: Tree.Node, +name: String, +params: List<&2, String>, +path: String) -> List<&2, F.Finding>:
+  match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +me = Bool.and(String.eq(o, "("), String.eq(t, name))
       List.concat(&2, F.Finding, [
@@ -85,6 +85,6 @@ def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Fi
           _u => walk(body, name, Calls.names(sig), path)) <> acc)
 
 # the rule
-def check(s: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = s
+def check(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = ss
   check.go(Calls.defs(tree), path, [])

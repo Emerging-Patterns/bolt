@@ -23,8 +23,8 @@ def foreign(root: Tree.Node) -> List<&2, U32>:
       Nil{}
 
 # does a binder of this kind count? Erased and foreign parameters do not
-def reportable(k: Bind.BindKind, +note: String, +line: U32, +foreign_lines: List<&2, U32>) -> Bool:
-  match k:
+def reportable(kk: Bind.BindKind, +note: String, +line: U32, +foreign_lines: List<&2, U32>) -> Bool:
+  match kk:
     case Bind.KLocal{}:
       True{}
     case Bind.KParam{}:
@@ -43,8 +43,8 @@ def used(uses: List<&2, Bind.Use>, +line: U32, +col: U32) -> Bool:
       used(rest, line, col)
 
 # a binder's kind, for the message
-def what(k: Bind.BindKind) -> String:
-  match k:
+def what(kk: Bind.BindKind) -> String:
+  match kk:
     case Bind.KParam{}:
       "parameter"
     case other:
@@ -61,11 +61,11 @@ def check.go(binds: List<&2, Bind.Bind>, +uses: List<&2, Bind.Use>, +fl: List<&2
       Bool.pick(List<&2, F.Finding>, Bool.and(hit, Bool.not(used(uses, line, col))),
         F.Finding{path, line, col, U32.from_nat(String.length(name)), "unused", what(kind) ++ " " ++ name ++ " is never used"} <> more, more)
 
-def check.on(b: Bind.Bound, fl: List<&2, U32>, path: String) -> List<&2, F.Finding>:
-  Bind.Bound{binds, uses, scopes} = b
+def check.on(bb: Bind.Bound, fl: List<&2, U32>, path: String) -> List<&2, F.Finding>:
+  Bind.Bound{binds, uses, scopes} = bb
   check.go(binds, uses, fl, path)
 
 # the rule
-def check(s: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = s
+def check(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = ss
   check.on(bound, foreign(tree), path)

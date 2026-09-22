@@ -7,8 +7,8 @@ import ../../core/check/kit.bend as Check
 import ../../core/check/print.bend as Report
 
 # n steps of work, counting down
-def burn(n: Nat, +acc: U32) -> U32:
-  match n:
+def burn(nn: Nat, +acc: U32) -> U32:
+  match nn:
     case 0n:
       acc
     case 1n+m:
@@ -23,12 +23,12 @@ def find(xs: List<&2, U32>, +key: U32) -> U32:
       Lazy.stop(U32, U32.is_eq(h, key), h, _u => find(t, key))
 
 # n cells, counting down from n
-def big(n: Nat, +k: U32, acc: List<&2, U32>) -> List<&2, U32>:
-  match n:
+def big(nn: Nat, +kk: U32, acc: List<&2, U32>) -> List<&2, U32>:
+  match nn:
     case 0n:
       acc
     case 1n+m:
-      big(m, (k + 1 : U32), k <> acc)
+      big(m, (kk + 1 : U32), kk <> acc)
 
 def main() -> IO(Unit):
   do IO<Unit>:

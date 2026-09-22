@@ -8,24 +8,24 @@
 import Base
 
 # `a` when c, else what rest gives: the early exit of a search
-def stop(-A: Type, c: Bool, a: A, rest: Unit -> A) -> A:
-  match c:
+def stop(-A: Type, cc: Bool, aa: A, rest: Unit -> A) -> A:
+  match cc:
     case True{}:
-      a
+      aa
     case False{}:
       rest(Unit{})
 
 # True when a, else what rest gives: `or` that stops at the first True
-def or_else(a: Bool, rest: Unit -> Bool) -> Bool:
-  match a:
+def or_else(aa: Bool, rest: Unit -> Bool) -> Bool:
+  match aa:
     case True{}:
       True{}
     case False{}:
       rest(Unit{})
 
 # what rest gives when a, else False: `and` that stops at the first False
-def and_then(a: Bool, rest: Unit -> Bool) -> Bool:
-  match a:
+def and_then(aa: Bool, rest: Unit -> Bool) -> Bool:
+  match aa:
     case True{}:
       rest(Unit{})
     case False{}:

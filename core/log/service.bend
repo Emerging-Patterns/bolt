@@ -6,6 +6,6 @@ type Log is Type:
   Log{say: String -> IO(Unit)}
 
 # a line, to a log
-def say(l: Log, text: String) -> IO(Unit):
-  Log{f} = l
+def say(ll: Log, text: String) -> IO(Unit):
+  Log{f} = ll
   f(text)

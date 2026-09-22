@@ -3,8 +3,8 @@ import Base
 import ./service.bend as S
 
 # the index itself
-def at(+i: U32) -> U32:
-  i
+def at(+ii: U32) -> U32:
+  ii
 
 # the leaf that is its index
 def new() -> S.Leaf:

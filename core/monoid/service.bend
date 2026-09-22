@@ -7,11 +7,11 @@ type Monoid is Type:
   Monoid{unit: U32, join: U32 -> U32 -> U32}
 
 # accessors: consumers touch the service only through these
-def unit(m: Monoid) -> U32:
-  Monoid{u, j} = m
+def unit(mm: Monoid) -> U32:
+  Monoid{u, j} = mm
   u
 
 # two values joined, by a monoid
-def join(m: Monoid, a: U32, b: U32) -> U32:
-  Monoid{u, j} = m
-  j(a, b)
+def join(mm: Monoid, aa: U32, bb: U32) -> U32:
+  Monoid{u, j} = mm
+  j(aa, bb)

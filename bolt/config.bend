@@ -40,8 +40,8 @@ def none() -> Config:
   Config{[]}
 
 # the word for a level, as a finding is shown
-def show(l: Level) -> String:
-  match l:
+def show(ll: Level) -> String:
+  match ll:
     case Off{}:
       "off"
     case Warn{}:
@@ -50,16 +50,16 @@ def show(l: Level) -> String:
       "error"
 
 # is it an error?
-def is_error(l: Level) -> Bool:
-  match l:
+def is_error(ll: Level) -> Bool:
+  match ll:
     case Error{}:
       True{}
     case other:
       False{}
 
 # is it off?
-def is_off(l: Level) -> Bool:
-  match l:
+def is_off(ll: Level) -> Bool:
+  match ll:
     case Off{}:
       True{}
     case other:
@@ -69,13 +69,13 @@ def is_off(l: Level) -> Bool:
 # ----------------
 
 # a level by its word; an unknown word is an error, so a typo shows
-def of_word(+w: String) -> Level:
-  Bool.pick(Level, String.eq(w, "off"), Off{}, Bool.pick(Level, String.eq(w, "warn"), Warn{}, Error{}))
+def of_word(+ww: String) -> Level:
+  Bool.pick(Level, String.eq(ww, "off"), Off{}, Bool.pick(Level, String.eq(ww, "warn"), Warn{}, Error{}))
 
 # a string literal's text, its quotes dropped
-def unquote(+t: String) -> String:
-  Bool.pick(String, Bool.and(String.starts_with(t, "\""), String.ends_with(t, "\"")),
-    String.take(String.drop(t, 1n), (String.length(t) - 2n : Nat)), t)
+def unquote(+tt: String) -> String:
+  Bool.pick(String, Bool.and(String.starts_with(tt, "\""), String.ends_with(tt, "\"")),
+    String.take(String.drop(tt, 1n), (String.length(tt) - 2n : Nat)), tt)
 
 # the first string among the tokens
 def first_str(toks: List<&2, Lex.Tok>) -> Maybe<&2, String>:

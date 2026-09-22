@@ -41,7 +41,7 @@ setTimeout(() => fail("timed out"), 20000);
   send({ jsonrpc: "2.0", id: 2, method: "textDocument/hover",
     params: { textDocument: { uri }, position: { line: 3, character: 5 } } });
   const hover = (await recv()).result;
-  if (!hover || !hover.contents.value.includes("def f(x: U32) -> String:")) fail("hover: " + JSON.stringify(hover));
+  if (!hover || !hover.contents.value.includes("def f(xx: U32) -> String:")) fail("hover: " + JSON.stringify(hover));
   send({ jsonrpc: "2.0", id: 3, method: "shutdown" });
   await recv();
   send({ jsonrpc: "2.0", method: "exit" });

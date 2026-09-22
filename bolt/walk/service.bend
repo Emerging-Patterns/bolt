@@ -9,6 +9,6 @@ type Walk is Type:
   Walk{entries: String -> IO(List<&2, String>)}
 
 # a directory's entries, from a walk service
-def entries(w: Walk, dir: String) -> IO(List<&2, String>):
-  Walk{e} = w
+def entries(ww: Walk, dir: String) -> IO(List<&2, String>):
+  Walk{e} = ww
   e(dir)

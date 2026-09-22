@@ -90,8 +90,8 @@ def declared(kids: Tree.Node) -> Maybe<&2, String>:
       None{}
 
 # a name, when there is one, onto a list
-def push_name(m: Maybe<&2, String>, acc: List<&2, String>) -> List<&2, String>:
-  match m:
+def push_name(mm: Maybe<&2, String>, acc: List<&2, String>) -> List<&2, String>:
+  match mm:
     case None{}:
       acc
     case Some{name}:
@@ -183,8 +183,8 @@ def has(names: List<&2, String>, +name: String) -> Bool:
 type Names is Data:
   Names{items: List<&2, String>, aliases: List<&2, String>}
 
-def resolve.local(m: Maybe<&2, Bind>, +name: String, ns: Names) -> Target:
-  match m:
+def resolve.local(mm: Maybe<&2, Bind>, +name: String, ns: Names) -> Target:
+  match mm:
     case Some{Bind{n, l, c, k, note}}:
       TLocal{l, c}
     case None{}:
@@ -233,9 +233,9 @@ def bind(+name: String, +line: U32, +col: U32, kind: BindKind, env: List<&2, Bin
 
 # a declaration as written: `+x: List<&2, U32>`, `~f: U32 -> U32`. A space
 # follows `:` and `,`, spaces surround `->`, everything else is glued
-def spaced(+t: String) -> String:
-  Bool.pick(String, String.eq(t, "->"), " -> ",
-    Bool.pick(String, Bool.or(String.eq(t, ":"), String.eq(t, ",")), t ++ " ", t))
+def spaced(+tt: String) -> String:
+  Bool.pick(String, String.eq(tt, "->"), " -> ",
+    Bool.pick(String, Bool.or(String.eq(tt, ":"), String.eq(tt, ",")), tt ++ " ", tt))
 
 # a group's close bracket, "" when it never closed
 def render_close(close: Maybe<&2, Lex.Tok>) -> String:
@@ -246,8 +246,8 @@ def render_close(close: Maybe<&2, Lex.Tok>) -> String:
       t
 
 # the text of a whole chain
-def render_all(n: Tree.Node) -> String:
-  match n:
+def render_all(nn: Tree.Node) -> String:
+  match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, rest}:
       spaced(t) ++ render_all(rest)
     case Tree.NCons{Tree.Group{Lex.Tok{k, t, l, c}, kids, close}, rest}:
@@ -256,8 +256,8 @@ def render_all(n: Tree.Node) -> String:
       ""
 
 # the text of a chain up to its first comma
-def render(n: Tree.Node) -> String:
-  match n:
+def render(nn: Tree.Node) -> String:
+  match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}, rest}:
       ""
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, rest}:
@@ -287,24 +287,24 @@ def mark(line: U32, +env: List<&2, Bind>, out: Out) -> Out:
 
 # what the names of a telescope bind as, by its bracket: `(` parameters,
 # `<` type parameters, `{` fields
-def tele_kind(+o: String) -> BindKind:
-  Bool.pick(BindKind, String.eq(o, "("), KParam{},
-    Bool.pick(BindKind, String.eq(o, "<"), KTypeParam{}, KField{}))
+def tele_kind(+oo: String) -> BindKind:
+  Bool.pick(BindKind, String.eq(oo, "("), KParam{},
+    Bool.pick(BindKind, String.eq(oo, "<"), KTypeParam{}, KField{}))
 
 # a result's environment
-def env_of(w: W) -> List<&2, Bind>:
-  W{env, out} = w
+def env_of(ww: W) -> List<&2, Bind>:
+  W{env, out} = ww
   env
 
 # a result's output
-def out_of(w: W) -> Out:
-  W{env, out} = w
+def out_of(ww: W) -> Out:
+  W{env, out} = ww
   out
 
 # the walk: one node in one mode, against an environment. Every recursive
 # call is on a subtree (kids, body, gkids or rest), never on n itself
-def walk(n: Tree.Node, mode: Mode, +env: List<&2, Bind>, +ns: Names, out: Out) -> W:
-  match n mode:
+def walk(nn: Tree.Node, mode: Mode, +env: List<&2, Bind>, +ns: Names, out: Out) -> W:
+  match nn mode:
     # statements
     case Tree.NCons{Tree.Stmt{Tree.SDef{}, +kids, body}, rest} MBlock{}:
       +h = walk(kids, MHead{}, env, ns, out)
@@ -506,8 +506,8 @@ def lstrip(cs: List<&2, Char>) -> List<&2, Char>:
       other
 
 # the n-th line of a source, without its indentation
-def line_text(lines: List<&2, String>, n: U32) -> String:
-  String.from_list(lstrip(String.to_list(Maybe.default(&2, String, List.get(&2, String, lines, U32.to_nat(n)), ""))))
+def line_text(lines: List<&2, String>, nn: U32) -> String:
+  String.from_list(lstrip(String.to_list(Maybe.default(&2, String, List.get(&2, String, lines, U32.to_nat(nn)), ""))))
 
 # a declaration carries its own note; anything else shows the line that
 # bound it
@@ -534,8 +534,8 @@ def annotate(binds: List<&2, Bind>, +lines: List<&2, String>) -> List<&2, Bind>:
 # -------------------
 
 # the gathered output, in source order and annotated
-def finish(o: Out, lines: List<&2, String>) -> Bound:
-  Out{binds, uses, scopes} = o
+def finish(oo: Out, lines: List<&2, String>) -> Bound:
+  Out{binds, uses, scopes} = oo
   Bound{annotate(List.reverse(&2, Bind, binds), lines), List.reverse(&2, Use, uses), List.reverse(&2, Scope, scopes)}
 
 # the binding structure of a parsed source
@@ -555,9 +555,9 @@ type Site is Data:
   SUse{use: Use}
 
 # does the name at (l, c) cover the position (line, col)?
-def covers(+l: U32, +c: U32, +name: String, +line: U32, +col: U32) -> Bool:
-  +end = (c + U32.from_nat(String.length(name)) : U32)
-  Bool.and(U32.is_eq(l, line), Bool.and(U32.is_le(c, col), U32.is_lt(col, end)))
+def covers(+l2: U32, +c2: U32, +name: String, +line: U32, +col: U32) -> Bool:
+  +end = (c2 + U32.from_nat(String.length(name)) : U32)
+  Bool.and(U32.is_eq(l2, line), Bool.and(U32.is_le(c2, col), U32.is_lt(col, end)))
 
 # the binder whose name covers a position
 def bind_at(binds: List<&2, Bind>, +line: U32, +col: U32) -> Maybe<&2, Site>:
@@ -577,16 +577,16 @@ def use_at(uses: List<&2, Use>, +line: U32, +col: U32) -> Maybe<&2, Site>:
       +more = use_at(rest, line, col)
       Bool.pick(Maybe<&2, Site>, covers(l, c, name, line, col), Some{SUse{Use{name, l, c, tg}}}, more)
 
-def at.or(m: Maybe<&2, Site>, uses: List<&2, Use>, line: U32, col: U32) -> Maybe<&2, Site>:
-  match m:
+def at.or(mm: Maybe<&2, Site>, uses: List<&2, Use>, line: U32, col: U32) -> Maybe<&2, Site>:
+  match mm:
     case Some{site}:
       Some{site}
     case None{}:
       use_at(uses, line, col)
 
 # the site at a position
-def at(b: Bound, +line: U32, +col: U32) -> Maybe<&2, Site>:
-  Bound{binds, uses, scopes} = b
+def at(bb: Bound, +line: U32, +col: U32) -> Maybe<&2, Site>:
+  Bound{binds, uses, scopes} = bb
   at.or(bind_at(binds, line, col), uses, line, col)
 
 # the binder at a position (a use's target, or the binder itself)
@@ -610,10 +610,10 @@ def visible.go(scopes: List<&2, Scope>, +qline: U32, best: List<&2, Bind>) -> Li
       visible.go(rest, qline, Bool.pick(List<&2, Bind>, hit, env, best))
 
 # the scopes hold binders before their notes were filled: read each back
-def noted(m: Maybe<&2, Bind>, b: Bind) -> Bind:
-  match m:
+def noted(mm: Maybe<&2, Bind>, bb: Bind) -> Bind:
+  match mm:
     case None{}:
-      b
+      bb
     case Some{full}:
       full
 
@@ -627,8 +627,8 @@ def refresh(env: List<&2, Bind>, +binds: List<&2, Bind>) -> List<&2, Bind>:
 
 # the names in scope at a line: those of the statement on it, else of the
 # nearest statement above
-def visible(b: Bound, qline: U32) -> List<&2, Bind>:
-  Bound{binds, uses, scopes} = b
+def visible(bb: Bound, qline: U32) -> List<&2, Bind>:
+  Bound{binds, uses, scopes} = bb
   refresh(visible.go(scopes, qline, []), binds)
 
 # every position a binder is named at: its own, then its uses'
@@ -643,8 +643,8 @@ def sites.go(uses: List<&2, Use>, +line: U32, +col: U32) -> List<&2, Pos>:
       sites.go(rest, line, col)
 
 # every position a binder is named at: its own, then its uses'
-def sites(b: Bound, +line: U32, +col: U32) -> List<&2, Pos>:
-  Bound{binds, uses, scopes} = b
+def sites(bb: Bound, +line: U32, +col: U32) -> List<&2, Pos>:
+  Bound{binds, uses, scopes} = bb
   Pos{line, col} <> sites.go(uses, line, col)
 
 # every position an item of the file is named at: its declaration, then its
@@ -674,8 +674,8 @@ def item_sites.uses(uses: List<&2, Use>, +name: String) -> List<&2, Pos>:
 
 # every position an item of the file is named at: its declaration, then its
 # uses
-def item_sites(b: Bound, +name: String) -> List<&2, Pos>:
-  Bound{binds, uses, scopes} = b
+def item_sites(bb: Bound, +name: String) -> List<&2, Pos>:
+  Bound{binds, uses, scopes} = bb
   List.append(&2, Pos, item_sites.binds(binds, name), item_sites.uses(uses, name))
 
 # every position a name not of this file is used at (Base, or through an
@@ -692,8 +692,8 @@ def named_sites.go(uses: List<&2, Use>, +name: String) -> List<&2, Pos>:
 
 # every position a name not of this file is used at (Base, or through an
 # alias)
-def named_sites(b: Bound, +name: String) -> List<&2, Pos>:
-  Bound{binds, uses, scopes} = b
+def named_sites(bb: Bound, +name: String) -> List<&2, Pos>:
+  Bound{binds, uses, scopes} = bb
   named_sites.go(uses, name)
 
 # the kind of the binder at a position, for what a use looks like

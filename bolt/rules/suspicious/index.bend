@@ -13,16 +13,16 @@ import ../calls.bend as Calls
 import ../../../lazy/lazy.bend as Lazy
 
 # is the chain exactly one number?
-def literal(n: Tree.Node) -> Bool:
-  match n:
+def literal(nn: Tree.Node) -> Bool:
+  match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, t, l, c}}, Tree.NNil{}}:
       True{}
     case other:
       False{}
 
 # every List.get / String.get call at a computed index
-def walk(n: Tree.Node, +path: String) -> List<&2, F.Finding>:
-  match n:
+def walk(nn: Tree.Node, +path: String) -> List<&2, F.Finding>:
+  match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +list = String.eq(t, "List.get")
       +get = Bool.and(String.eq(o, "("), Bool.or(list, String.eq(t, "String.get")))
@@ -52,6 +52,6 @@ def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Fi
           _u => walk(body, path)) <> acc)
 
 # the rule
-def check(s: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = s
+def check(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = ss
   check.go(Calls.defs(tree), path, [])

@@ -15,8 +15,8 @@ def lex_src() -> String:
   "def f(+x: U32) -> List<&2, U32>: # note\n  case 1n+p:\n    M.go(x, \"a\\\"b\", 'c') ++ {==} <> 1.5\n  y = a[5] <- 42\n"
 
 # a token kind as a short letter
-def lex_kind(k: Lex.TokKind) -> String:
-  match k:
+def lex_kind(kk: Lex.TokKind) -> String:
+  match kk:
     case Lex.TName{}:
       "n"
     case Lex.TUpper{}:
@@ -132,8 +132,8 @@ def outline_src() -> String:
     "  spin(x)"], "\n")
 
 # an outline item kind as a word
-def outline_kind(k: Outline.ItemKind) -> String:
-  match k:
+def outline_kind(kk: Outline.ItemKind) -> String:
+  match kk:
     case Outline.IImport{}:
       "import"
     case Outline.IDef{}:
@@ -196,8 +196,8 @@ def bind_src() -> String:
     "  Monoid{unit: U32, join: @+p:U32 -> @+q:U32 -> U32}"], "\n")
 
 # a bind kind as a word
-def bind_kind(k: Bind.BindKind) -> String:
-  match k:
+def bind_kind(kk: Bind.BindKind) -> String:
+  match kk:
     case Bind.KItem{}:
       "item"
     case Bind.KCtor{}:
@@ -230,13 +230,13 @@ def bind_names(line: U32) -> String:
   String.join(bind_names.go(Bind.visible(Bind.bound(bind_src()), line)), " ")
 
 # one binder as line:col kind | note
-def bind_show(b: Bind.Bind) -> String:
-  Bind.Bind{name, line, col, k, note} = b
+def bind_show(bb: Bind.Bind) -> String:
+  Bind.Bind{name, line, col, k, note} = bb
   U32.show(line) ++ ":" ++ U32.show(col) ++ " " ++ bind_kind(k) ++ " | " ++ note
 
 # a target as local / item / qual / free
-def bind_target(t: Bind.Target) -> String:
-  match t:
+def bind_target(tt: Bind.Target) -> String:
+  match tt:
     case Bind.TLocal{line, col}:
       "local " ++ U32.show(line) ++ ":" ++ U32.show(col)
     case Bind.TItem{name}:
@@ -247,8 +247,8 @@ def bind_target(t: Bind.Target) -> String:
       "free"
 
 # a site as bind / use / -
-def bind_site(m: Maybe<&2, Bind.Site>) -> String:
-  match m:
+def bind_site(mm: Maybe<&2, Bind.Site>) -> String:
+  match mm:
     case None{}:
       "-"
     case Some{Bind.SBind{b}}:
@@ -261,8 +261,8 @@ def bind_at(line: U32, col: U32) -> String:
   bind_site(Bind.at(Bind.bound(bind_src()), line, col))
 
 # one position as line:col
-def bind_pair(p: Bind.Pos) -> String:
-  Bind.Pos{l, c} = p
+def bind_pair(pp: Bind.Pos) -> String:
+  Bind.Pos{l, c} = pp
   U32.show(l) ++ ":" ++ U32.show(c)
 
 # positions as a list of line:col

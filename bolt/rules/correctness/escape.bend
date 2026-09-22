@@ -10,22 +10,22 @@ import ../../../syntax/lex.bend as Lex
 import ../../../lazy/lazy.bend as Lazy
 
 # an octal digit's value, or none
-def octal(c: Char) -> Maybe<&2, U32>:
-  match c:
+def octal(cc: Char) -> Maybe<&2, U32>:
+  match cc:
     case Chr{+x}:
       Bool.pick(Maybe<&2, U32>, Bool.and(U32.is_ge(x, 48), U32.is_le(x, 55)), Some{(x - 48 : U32)}, None{})
 
 # keep the char when it is an octal digit, and those after it
-def run.if(m: Maybe<&2, U32>, c: Char, rest: List<&2, Char>) -> List<&2, Char>:
-  match m:
+def run.if(mm: Maybe<&2, U32>, cc: Char, rest: List<&2, Char>) -> List<&2, Char>:
+  match mm:
     case None{}:
       Nil{}
     case Some{v}:
-      c <> rest
+      cc <> rest
 
 # the octal digits (at most two) right after the `\0`, in order
-def run(cs: List<&2, Char>, n: Nat) -> List<&2, Char>:
-  match cs n:
+def run(cs: List<&2, Char>, nn: Nat) -> List<&2, Char>:
+  match cs nn:
     case Nil{} m:
       Nil{}
     case Con{c, t} 0n:
@@ -42,12 +42,12 @@ def value(cs: List<&2, Char>, +acc: U32) -> U32:
       value(t, ((acc * 8) + (x - 48) : U32))
 
 # a hex digit
-def hexd(+n: U32) -> String:
-  String.from_list([Chr{Bool.pick(U32, U32.is_lt(n, 10), (n + 48 : U32), (n + 55 : U32))}])
+def hexd(+nn: U32) -> String:
+  String.from_list([Chr{Bool.pick(U32, U32.is_lt(nn, 10), (nn + 48 : U32), (nn + 55 : U32))}])
 
 # a value under 256 in hex, without leading zeros
-def hex(+n: U32) -> String:
-  Bool.pick(String, U32.is_lt(n, 16), hexd(n), hexd((n / 16 : U32)) ++ hexd((n % 16 : U32)))
+def hex(+nn: U32) -> String:
+  Bool.pick(String, U32.is_lt(nn, 16), hexd(nn), hexd((nn / 16 : U32)) ++ hexd((nn % 16 : U32)))
 
 # the finding for `\0` at a column, the digits after it in ds
 def finding(+ds: List<&2, Char>, +path: String, +line: U32, +col: U32) -> F.Finding:
@@ -90,6 +90,6 @@ def check.go(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
       Nil{}
 
 # the rule
-def check(s: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = s
+def check(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = ss
   check.go(toks, path)
