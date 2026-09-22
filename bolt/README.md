@@ -227,8 +227,8 @@ beside the groups.
   but N defs rely on unsafe or foreign code:" and a `- name` list (2.0.16
   counted marks: "with N unsafe annotations.") and exits 0, so a gate that
   reads the exit status goes green on an unproven claim.
-- `law` (project) — in a project that states laws (a directory with a
-  LAWS.bend), a def that no law names. IO is no exemption: a def that
+- `law` (project) — in a project that states laws (a LAWS.bend among the
+  files bolt read), a def that no law names. IO is no exemption: a def that
   returns `IO(..)` is graded like any other (a law can state an IO equality
   or quantify over an IO value), and so is every pure def in a module that
   also does IO, or that says "IO" in a comment. What is out of scope is
