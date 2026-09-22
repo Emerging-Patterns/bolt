@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/Emerging-Patterns/bolt/compare/v0.8.0...v0.8.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* **law:** pin down that IO is no exemption, with fixtures ([#40](https://github.com/Emerging-Patterns/bolt/issues/40)) ([dfaf9a4](https://github.com/Emerging-Patterns/bolt/commit/dfaf9a4bd7d27771bd8d2539682ace1926947078))
+
 ## [0.8.0](https://github.com/Emerging-Patterns/bolt/compare/v0.7.0...v0.8.0) (2026-09-22)
 
 
