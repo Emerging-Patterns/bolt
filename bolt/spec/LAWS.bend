@@ -233,10 +233,13 @@ law pick_both:
     "a.bend:6:7: C003: go recurses in both branches of Bool.pick, so both calls run; bind the recursive call once above the pick.; a.bend:19:7: C003: nested recurses in both branches of Bool.pick, so both calls run; bind the recursive call once above the pick."
     : String}
 
-# LAW: defs under a LAWS.bend that no law names, IO and main included
+# LAW: defs under a LAWS.bend that no law names, main included. IO is no
+# exemption: an IO def is graded like any other (say is named, shout is not),
+# a pure def beside IO defs is graded (k), and so is a pure module that says
+# "IO" only in a comment or a string (j, s)
 law law_gaps:
   {lines(Law.check(Digest.all(C.rules.lawful()))) ==
-    "./p/m.bend:4:1: L001: Def g is named by no law.; ./p/m.bend:13:1: L001: Def main is named by no law.; ./p/o.bend:1:1: L001: Type O: no law reaches this module.; ./p/o.bend:4:1: L001: Def h is named by no law.; ./p/io.bend:1:1: L001: Def say is named by no law.; ./p/io.bend:4:1: L001: Def k is named by no law."
+    "./p/m.bend:4:1: L001: Def g is named by no law.; ./p/m.bend:13:1: L001: Def main is named by no law.; ./p/o.bend:1:1: L001: Type O: no law reaches this module.; ./p/o.bend:4:1: L001: Def h is named by no law.; ./p/io.bend:4:1: L001: Def shout is named by no law.; ./p/io.bend:7:1: L001: Def k is named by no law.; ./p/note.bend:2:1: L001: Def j is named by no law.; ./p/note.bend:6:1: L001: Def s is named by no law."
     : String}
 
 # LAW: a project without laws is not under it

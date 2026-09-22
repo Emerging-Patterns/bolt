@@ -228,10 +228,13 @@ def rules.picked() -> String:
     "      0"], "\n")
 
 def rules.lawful() -> List<&2, Src.Src>:
-  [Src.of("./p/LAWS.bend", "import ./m.bend as M\n\n# LAW: f is the identity\nlaw f_id:\n  for a: U32\n  {M.f(a) == a : U32}\n"),
+  [Src.of("./p/LAWS.bend",
+     "import ./m.bend as M\nimport ./io.bend as I\n\n# LAW: f is the identity\nlaw f_id:\n  for a: U32\n  {M.f(a) == a : U32}\n\n# LAW: say prints x\nlaw say_x:\n  {I.say() == IO.print(\"x\") : IO(Unit)}\n"),
    Src.of("./p/m.bend", "def f(a: U32) -> U32:\n  a\n\ndef g(a: U32) -> U32:\n  a\n\ndef g.go(a: U32) -> U32:\n  a\n\ntype T is Data:\n  K{}\n\ndef main() -> U32:\n  0\n"),
    Src.of("./p/o.bend", "type O is Data:\n  K{}\n\ndef h(a: U32) -> U32:\n  a\n"),
-   Src.of("./p/io.bend", "def say() -> IO(Unit):\n  IO.print(\"x\")\n\ndef k(a: U32) -> U32:\n  a\n"),
+   Src.of("./p/io.bend",
+     "def say() -> IO(Unit):\n  IO.print(\"x\")\n\ndef shout() -> IO(Unit):\n  IO.print(\"X\")\n\ndef k(a: U32) -> U32:\n  a\n"),
+   Src.of("./p/note.bend", "# pure: IO is only in this comment\ndef j(a: U32) -> U32:\n  a\n\n# and a string\ndef s() -> String:\n  \"IO\"\n"),
    Src.of("./p/tests/t.bend", "def z(a: U32) -> U32:\n  a\n"),
    Src.of("./q/n.bend", "def y(a: U32) -> U32:\n  a\n")]
 

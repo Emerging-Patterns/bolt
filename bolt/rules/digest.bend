@@ -109,8 +109,9 @@ def top_items(items: List<&2, Outline.Item>) -> List<&2, Top>:
     case Con{other, rest}:
       top_items(rest)
 
-# a law file or a test: not under law. IO in the file is not an exemption:
-# an IO equality is a law.
+# a law file or a test, by its path alone: not under law. Nothing the file's
+# text mentions exempts it; IO is not an exemption, since an IO equality is a
+# law.
 def is_exempt(+pp: String) -> Bool:
   Bool.or(Bool.or(String.ends_with(pp, "LAWS.bend"), String.ends_with(pp, "PROOF.bend")),
     String.contains(pp, "tests/"))
