@@ -269,8 +269,16 @@ def render(nn: Tree.Node) -> String:
 
 # a telescope binder, with its declaration as the note: the quantity before
 # it, its name, and the rest up to the comma
-def bind_decl(+name: String, +line: U32, +col: U32, kind: BindKind, +quantity: String, rest: Tree.Node,
-  env: List<&2, Bind>, out: Out) -> W:
+def bind_decl(
+  +name: String,
+  +line: U32,
+  +col: U32,
+  kind: BindKind,
+  +quantity: String,
+  rest: Tree.Node,
+  env: List<&2, Bind>,
+  out: Out
+) -> W:
   Out{binds, uses, scopes} = out
   +b = {Bind{name, line, col, kind, quantity ++ name ++ render(rest)} : Bind}
   W{b <> env, Out{b <> binds, uses, scopes}}

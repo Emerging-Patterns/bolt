@@ -10,30 +10,49 @@ type Stdio is Type:
   Stdio{inp: File, out: File, buf: List<&2, U32>}
 
 # no bytes means the peer closed the pipe
-def recv.grown(bytes: List<&2, U32>, inp: File, out: File, buf: List<&2, U32>,
-  rest: Stdio -> IO(Stdio & Maybe<&2, String>)) -> IO(Stdio & Maybe<&2, String>):
+def recv.grown(
+  bytes: List<&2, U32>,
+  inp: File,
+  out: File,
+  buf: List<&2, U32>,
+  rest: Stdio -> IO(Stdio & Maybe<&2, String>)
+) -> IO(Stdio & Maybe<&2, String>):
   match bytes:
     case Nil{}:
       IO.pure(Stdio & Maybe<&2, String>, (Stdio{inp, out, []}, None{}))
     case Con{b, t}:
       rest(Stdio{inp, out, List.append(&2, U32, buf, b <> t)})
 
-def recv.fed(rr: Result<&1, &1, U32 & String, List<&2, U32>>, inp: File, out: File, buf: List<&2, U32>,
-  rest: Stdio -> IO(Stdio & Maybe<&2, String>)) -> IO(Stdio & Maybe<&2, String>):
+def recv.fed(
+  rr: Result<&1, &1, U32 & String, List<&2, U32>>,
+  inp: File,
+  out: File,
+  buf: List<&2, U32>,
+  rest: Stdio -> IO(Stdio & Maybe<&2, String>)
+) -> IO(Stdio & Maybe<&2, String>):
   match rr:
     case Fail{e}:
       IO.pure(Stdio & Maybe<&2, String>, (Stdio{inp, out, []}, None{}))
     case Done{bytes}:
       recv.grown(bytes, inp, out, buf, rest)
 
-def recv.read(got: File & Result<&1, &1, U32 & String, List<&2, U32>>, out: File, buf: List<&2, U32>,
-  rest: Stdio -> IO(Stdio & Maybe<&2, String>)) -> IO(Stdio & Maybe<&2, String>):
+def recv.read(
+  got: File & Result<&1, &1, U32 & String, List<&2, U32>>,
+  out: File,
+  buf: List<&2, U32>,
+  rest: Stdio -> IO(Stdio & Maybe<&2, String>)
+) -> IO(Stdio & Maybe<&2, String>):
   (inp, r) = got
   recv.fed(r, inp, out, buf, rest)
 
 # a whole message is cut off the buffer; short of one, read and look again
-def recv.on(cc: Frame.Cut, inp: File, out: File, buf: List<&2, U32>,
-  rest: Stdio -> IO(Stdio & Maybe<&2, String>)) -> IO(Stdio & Maybe<&2, String>):
+def recv.on(
+  cc: Frame.Cut,
+  inp: File,
+  out: File,
+  buf: List<&2, U32>,
+  rest: Stdio -> IO(Stdio & Maybe<&2, String>)
+) -> IO(Stdio & Maybe<&2, String>):
   match cc:
     case Frame.Ready{body, left}:
       IO.pure(Stdio & Maybe<&2, String>, (Stdio{inp, out, left}, Some{Frame.decode(body)}))

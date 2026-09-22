@@ -61,8 +61,12 @@ def under(dirs: List<&2, String>, +pp: String) -> Bool:
       Lazy.or_else(String.starts_with(pp, d), _u => under(rest, pp))
 
 # a def or a type that no law reaches
-def gaps(ts: List<&2, Digest.Top>, +ms: List<&2, Digest.Mention>, +pp: String, +path: String) ->
-  List<&2, F.Finding>:
+def gaps(
+  ts: List<&2, Digest.Top>,
+  +ms: List<&2, Digest.Mention>,
+  +pp: String,
+  +path: String
+) -> List<&2, F.Finding>:
   match ts:
     case Nil{}:
       Nil{}
@@ -82,8 +86,11 @@ def gaps(ts: List<&2, Digest.Top>, +ms: List<&2, Digest.Mention>, +pp: String, +
 # nothing: `gaps` scans what the laws name once for each def, and as an
 # argument of a `Bool.pick` it ran on every file the linter read, laws or no
 # laws (50 files of a project with no LAWS.bend cost 88 s that way).
-def check.go(ds: List<&2, Digest.Digest>, +dirs: List<&2, String>, +ms: List<&2, Digest.Mention>) ->
-  List<&2, F.Finding>:
+def check.go(
+  ds: List<&2, Digest.Digest>,
+  +dirs: List<&2, String>,
+  +ms: List<&2, Digest.Mention>
+) -> List<&2, F.Finding>:
   match ds:
     case Nil{}:
       Nil{}

@@ -112,8 +112,13 @@ def paths(es: List<&2, Edge>) -> List<&2, String>:
 
 # a worklist walk; each read file enters todo once, so fuel as many as the
 # files never runs out
-def reach(fuel: Nat, todo: List<&2, String>, +seen: List<&2, String>, +es: List<&2, Edge>, +read: List<&2, String>) ->
-  List<&2, String>:
+def reach(
+  fuel: Nat,
+  todo: List<&2, String>,
+  +seen: List<&2, String>,
+  +es: List<&2, Edge>,
+  +read: List<&2, String>
+) -> List<&2, String>:
   match fuel todo:
     case 0n t:
       seen

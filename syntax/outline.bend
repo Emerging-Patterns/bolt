@@ -339,8 +339,16 @@ def ends_colon(ss: String) -> Bool:
   ends_colon.go(ss, False{})
 
 # a def continuation that does or does not end in `:`
-def pend_more.closed(colon: Bool, nm: String, ll: U32, dd: String, sig: List<&2, String>, text: String,
-  nn: U32, out: List<&2, Item>) -> St:
+def pend_more.closed(
+  colon: Bool,
+  nm: String,
+  ll: U32,
+  dd: String,
+  sig: List<&2, String>,
+  text: String,
+  nn: U32,
+  out: List<&2, Item>
+) -> St:
   match colon:
     case True{}:
       St{Top{}, (nn + 1 : U32), [], Item{IDef{}, nm, ll, sig_text(text <> sig), dd, ""} <> out}
@@ -348,13 +356,28 @@ def pend_more.closed(colon: Bool, nm: String, ll: U32, dd: String, sig: List<&2,
       St{Pending{IDef{}, nm, ll, dd, text <> sig}, (nn + 1 : U32), [], out}
 
 # one more line of a def header
-def pend_more.def(nm: String, ll: U32, dd: String, sig: List<&2, String>, +text: String, nn: U32,
-  out: List<&2, Item>) -> St:
+def pend_more.def(
+  nm: String,
+  ll: U32,
+  dd: String,
+  sig: List<&2, String>,
+  +text: String,
+  nn: U32,
+  out: List<&2, Item>
+) -> St:
   pend_more.closed(ends_colon(text), nm, ll, dd, sig, text, nn, out)
 
 # one more line of a pending header; a def's ends at the line that ends in `:`
-def pend_more(kk: ItemKind, nm: String, ll: U32, dd: String, sig: List<&2, String>, text: String, nn: U32,
-  out: List<&2, Item>) -> St:
+def pend_more(
+  kk: ItemKind,
+  nm: String,
+  ll: U32,
+  dd: String,
+  sig: List<&2, String>,
+  text: String,
+  nn: U32,
+  out: List<&2, Item>
+) -> St:
   match kk:
     case IDef{}:
       pend_more.def(nm, ll, dd, sig, text, nn, out)

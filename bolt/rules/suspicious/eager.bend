@@ -64,8 +64,14 @@ def loops(ds: List<&2, Calls.Def>) -> List<&2, String>:
 # a `Bool.pick` (so it runs whatever the condition), seg counts the arguments
 # of the pick whose group this chain is (0 the type, 1 the condition, 2 and 3
 # the branches; 9 for a chain that is not a pick's)
-def work(nn: Tree.Node, +ns: List<&2, String>, +self: String, +path: String, +hot: Bool, +seg: U32)
-  -> List<&2, F.Finding>:
+def work(
+  nn: Tree.Node,
+  +ns: List<&2, String>,
+  +self: String,
+  +path: String,
+  +hot: Bool,
+  +seg: U32
+) -> List<&2, F.Finding>:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}}, +rest}:
       work(rest, ns, self, path, False{}, seg)
@@ -96,8 +102,12 @@ def work(nn: Tree.Node, +ns: List<&2, String>, +self: String, +path: String, +ho
     case other:
       Nil{}
 
-def check.go(ds: List<&2, Calls.Def>, +ns: List<&2, String>, +path: String,
-  acc: List<&2, List<&2, F.Finding>>) -> List<&2, F.Finding>:
+def check.go(
+  ds: List<&2, Calls.Def>,
+  +ns: List<&2, String>,
+  +path: String,
+  acc: List<&2, List<&2, F.Finding>>
+) -> List<&2, F.Finding>:
   match ds:
     case Nil{}:
       List.concat(&2, F.Finding, List.reverse(&2, List<&2, F.Finding>, acc))

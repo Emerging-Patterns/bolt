@@ -128,8 +128,15 @@ def definition.of(mm: Maybe<&2, Nav.Found>) -> J.Json:
     case Some{Nav.Here{uri, b}}:
       Proto.location.local(uri, b)
 
-def complete.with(~fs: F.Files, +prefix: String, +docs: List<&2, Docs.Doc>, uri: String, +line: U32, +col: U32,
-  id: J.Json) -> IO(Out):
+def complete.with(
+  ~fs: F.Files,
+  +prefix: String,
+  +docs: List<&2, Docs.Doc>,
+  uri: String,
+  +line: U32,
+  +col: U32,
+  id: J.Json
+) -> IO(Out):
   do IO<Out>:
     items : List<&2, Outline.Item> <- Nav.candidates(~fs, docs, uri, prefix, line)
     return Out{reply(id, Proto.completions(items, line, (col - U32.from_nat(String.length(prefix)) : U32), col)),
@@ -162,8 +169,15 @@ def references(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, +line: U32
     return Out{reply(id, references.of(s, uri, Word.at(text, line, col))), False{}, docs}
 
 # the edit renaming the name at a position, or a refusal
-def renamed(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, +line: U32, +col: U32, id: J.Json, new: String) ->
-  IO(Out):
+def renamed(
+  ~fs: F.Files,
+  +docs: List<&2, Docs.Doc>,
+  +uri: String,
+  +line: U32,
+  +col: U32,
+  id: J.Json,
+  new: String
+) -> IO(Out):
   do IO<Out>:
     text : String <- Nav.text_of(~fs, docs, uri)
     s : Nav.Sites <- Nav.sites(~fs, docs, uri, line, col)
@@ -175,8 +189,14 @@ def semantic(~fs: F.Files, +docs: List<&2, Docs.Doc>, uri: String, id: J.Json) -
     text : String <- Nav.text_of(~fs, docs, uri)
     return Out{reply(id, Proto.semantic(Semantic.data(text))), False{}, docs}
 
-def handle.go(~ck: C.Checker, ~fs: F.Files, mm: Method, id: J.Json, +params: J.Json, +docs: List<&2, Docs.Doc>) ->
-  IO(Out):
+def handle.go(
+  ~ck: C.Checker,
+  ~fs: F.Files,
+  mm: Method,
+  id: J.Json,
+  +params: J.Json,
+  +docs: List<&2, Docs.Doc>
+) -> IO(Out):
   match mm:
     case MInitialize{}:
       IO.pure(Out, Out{reply(id, Proto.capabilities()), False{}, docs})
@@ -236,8 +256,13 @@ def send_all(~H: Type, ~tr: T.Transport<H>, replies: List<&2, String>, h3: H) ->
         send_all(~H, ~tr, t, h2)
 
 # the loop goes on with the documents, unless the message said to quit
-def next(-H: Type, quit: Bool, h3: H, docs: List<&2, Docs.Doc>, rest: H -> List<&2, Docs.Doc> -> IO(Unit)) ->
-  IO(Unit):
+def next(
+  -H: Type,
+  quit: Bool,
+  h3: H,
+  docs: List<&2, Docs.Doc>,
+  rest: H -> List<&2, Docs.Doc> -> IO(Unit)
+) -> IO(Unit):
   match quit:
     case True{}:
       IO.pure(Unit, Unit{})
@@ -252,8 +277,16 @@ def answer(~H: Type, ~tr: T.Transport<H>, out: Out, h3: H, rest: H -> List<&2, D
     next(H, quit, h2, docs, rest)
 
 # one message body handled and answered; none means the peer is gone
-def turn(~H: Type, ~tr: T.Transport<H>, ~ck: C.Checker, ~fs: F.Files, mm: Maybe<&2, String>, h3: H,
-  docs: List<&2, Docs.Doc>, rest: H -> List<&2, Docs.Doc> -> IO(Unit)) -> IO(Unit):
+def turn(
+  ~H: Type,
+  ~tr: T.Transport<H>,
+  ~ck: C.Checker,
+  ~fs: F.Files,
+  mm: Maybe<&2, String>,
+  h3: H,
+  docs: List<&2, Docs.Doc>,
+  rest: H -> List<&2, Docs.Doc> -> IO(Unit)
+) -> IO(Unit):
   match mm:
     case None{}:
       IO.pure(Unit, Unit{})
@@ -263,14 +296,28 @@ def turn(~H: Type, ~tr: T.Transport<H>, ~ck: C.Checker, ~fs: F.Files, mm: Maybe<
         answer(~H, ~tr, out, h3, rest)
 
 # what recv gave: the handle and maybe a body
-def got(~H: Type, ~tr: T.Transport<H>, ~ck: C.Checker, ~fs: F.Files, rr: H & Maybe<&2, String>,
-  docs: List<&2, Docs.Doc>, rest: H -> List<&2, Docs.Doc> -> IO(Unit)) -> IO(Unit):
+def got(
+  ~H: Type,
+  ~tr: T.Transport<H>,
+  ~ck: C.Checker,
+  ~fs: F.Files,
+  rr: H & Maybe<&2, String>,
+  docs: List<&2, Docs.Doc>,
+  rest: H -> List<&2, Docs.Doc> -> IO(Unit)
+) -> IO(Unit):
   (h, m) = rr
   turn(~H, ~tr, ~ck, ~fs, m, h, docs, rest)
 
 # serves until exit, the peer's end, or the fuel's (a message each)
-def serve(~H: Type, ~tr: T.Transport<H>, ~ck: C.Checker, ~fs: F.Files, fuel: Nat, h3: H,
-  docs: List<&2, Docs.Doc>) -> IO(Unit):
+def serve(
+  ~H: Type,
+  ~tr: T.Transport<H>,
+  ~ck: C.Checker,
+  ~fs: F.Files,
+  fuel: Nat,
+  h3: H,
+  docs: List<&2, Docs.Doc>
+) -> IO(Unit):
   match fuel:
     case 0n:
       IO.pure(Unit, Unit{})

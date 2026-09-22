@@ -18,8 +18,12 @@ type Reach is Data:
   Reach{origin: String, files: List<&2, String>}
 
 # every LAWS.bend and PROOF.bend with its closure over the graph
-def reaches(ds: List<&2, Digest.Digest>, +es: List<&2, Imports.Edge>, +read: List<&2, String>, +fuel: Nat) ->
-  List<&2, Reach>:
+def reaches(
+  ds: List<&2, Digest.Digest>,
+  +es: List<&2, Imports.Edge>,
+  +read: List<&2, String>,
+  +fuel: Nat
+) -> List<&2, Reach>:
   match ds:
     case Nil{}:
       Nil{}

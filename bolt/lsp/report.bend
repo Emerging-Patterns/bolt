@@ -87,8 +87,15 @@ def flush(seen: Bool, msg: List<&2, String>, +line: U32, +place: String, +out: L
   Bool.pick(List<&2, Diag>, Bool.and(seen, Bool.not(String.eq(text, "no main to run"))),
     Diag{line_of(place, line), text} <> out, out)
 
-def step.go(kk: Line, located: Bool, seen: Bool, msg: List<&2, String>, +line: U32, place: String,
-  out: List<&2, Diag>) -> St:
+def step.go(
+  kk: Line,
+  located: Bool,
+  seen: Bool,
+  msg: List<&2, String>,
+  +line: U32,
+  place: String,
+  out: List<&2, Diag>
+) -> St:
   match kk located seen:
     case KError{rest} l s:
       St{True{}, False{}, push(lstrip(rest), []), 0, "", flush(s, msg, line, place, out)}
