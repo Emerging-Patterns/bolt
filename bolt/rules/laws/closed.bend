@@ -2,7 +2,9 @@
 # A closed equality (`{lhs == rhs : T}`, including `IO(T)`) is a stated
 # claim; the checker proves it by computing both sides. A law that is
 # neither quantified nor an equality is this rule's finding. Laws outside
-# LAWS.bend are not held to it.
+# LAWS.bend are not held to it. A project that holds a closed equality to be
+# only a unit test turns on `quantify` (L004, rules/laws/quantify.bend): this
+# rule, strict, and off unless a bolt.bend names it.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F

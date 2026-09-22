@@ -43,6 +43,7 @@ import ./rules/correctness/foreign.bend as Foreign
 import ./rules/suspicious/fuel.bend as Fuel
 import ./rules/laws/closed.bend as Closed
 import ./rules/laws/unsafe.bend as Unsafe
+import ./rules/laws/quantify.bend as Quantify
 
 # every rule's findings on a file read once
 def on(+ss: Src.Src) -> List<&2, F.Finding>:
@@ -74,7 +75,8 @@ def on(+ss: Src.Src) -> List<&2, F.Finding>:
     Arms.check(ss),
     Foreign.check(ss),
     Fuel.check(ss),
-    Closed.check(ss)])
+    Closed.check(ss),
+    Quantify.check(ss)])
 
 # every rule's findings on a file
 def all(+path: String, +text: String) -> List<&2, F.Finding>:

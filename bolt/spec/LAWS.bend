@@ -24,6 +24,7 @@ import ../rules/laws/unsafe.bend as Unsafe
 import ../rules/correctness/foreign.bend as Foreign
 import ../rules/suspicious/fuel.bend as Fuel
 import ../rules/laws/closed.bend as Closed
+import ../rules/laws/quantify.bend as Quantify
 import ../rules/imports.bend as Imports
 import ../rules/correctness/put.bend as Put
 import ../rules/correctness/escape.bend as Escape
@@ -214,7 +215,7 @@ law wrap_jammed:
 # LAW: every rule's stable code, in assignment order
 law codes_table:
   {Codes.listed() ==
-    "shadow C001 correctness\nhole C002 correctness\npick C003 correctness\nput C004 correctness\narms C005 correctness\nescape C006 correctness\ntwice C007 correctness\nstrings C008 correctness\nchars C009 correctness\nforeign C010 correctness\nunused U001 suspicious\nstrict U002 suspicious\neager U003 suspicious\nconcat U004 suspicious\nnat U005 suspicious\nfuel U006 suspicious\nindex U007 suspicious\ntable U008 suspicious\nhoist U009 suspicious\nring U010 suspicious\nrewalk U011 suspicious\nunit U012 suspicious\ndoc S001 style\nspace S002 style\nwrap S003 style\nparam S004 style\nlaw L001 laws\nclosed L002 laws\nunsafe L003 laws\ntail P001 pedantic"
+    "shadow C001 correctness\nhole C002 correctness\npick C003 correctness\nput C004 correctness\narms C005 correctness\nescape C006 correctness\ntwice C007 correctness\nstrings C008 correctness\nchars C009 correctness\nforeign C010 correctness\nunused U001 suspicious\nstrict U002 suspicious\neager U003 suspicious\nconcat U004 suspicious\nnat U005 suspicious\nfuel U006 suspicious\nindex U007 suspicious\ntable U008 suspicious\nhoist U009 suspicious\nring U010 suspicious\nrewalk U011 suspicious\nunit U012 suspicious\ndoc S001 style\nspace S002 style\nwrap S003 style\nparam S004 style\nlaw L001 laws\nclosed L002 laws\nunsafe L003 laws\nquantify L004 laws\ntail P001 pedantic"
     : String}
 
 # LAW: a rule shows its code and bolt(group:slug); a non-rule stays bolt
@@ -356,6 +357,60 @@ law closed_for:
 # LAW: a law outside a LAWS.bend is exempt
 law closed_outside:
   {lines(Closed.check(Src.of("p/a.bend", C.proj.laws()))) == "" : String}
+
+# LAW: quantify is off unless a bolt.bend names it: no group reaches it, not even laws at error
+law quantify_off:
+  {levels(Config.none(), ["closed", "quantify"]) ++ "| "
+    ++ levels(Config.parse("def laws() -> String:\n  \"error\"\n"), ["closed", "quantify"])
+    == "closed=warning quantify=off | closed=error quantify=off " : String}
+
+# LAW: quantify set by name is on, and closed keeps its own level
+law quantify_named:
+  {levels(Config.parse("def quantify() -> String:\n  \"warn\"\n"), ["closed", "quantify"])
+    == "closed=warning quantify=warning " : String}
+
+# LAW: without quantify, a closed equality is still no finding, laws at error
+law quantify_default_quiet:
+  {String.join(shown(Rules.graded(Config.parse("def laws() -> String:\n  \"error\"\n"),
+    Rules.all("p/LAWS.bend", "# LAW: sum\nlaw sanity:\n  {U32.add(2, 3) == 5 : U32}\n"))), "; ") == "" : String}
+
+# LAW: with quantify, the same closed equality is its one finding
+law quantify_strict_graded:
+  {String.join(shown(Rules.graded(Config.parse("def quantify() -> String:\n  \"error\"\n"),
+    Rules.all("p/LAWS.bend", "# LAW: sum\nlaw sanity:\n  {U32.add(2, 3) == 5 : U32}\n"))), "; ") ==
+    "p/LAWS.bend:2:1: error: L004: Law sanity has no for or exs, so it checks one case; quantify it, or mark a closed law kept on purpose with a `# toward <goal>` line right above it."
+    : String}
+
+# LAW: quantify flags a closed equality, including IO
+law quantify_eq:
+  {lines(Quantify.check(Src.of("p/LAWS.bend",
+    "# LAW: sum\nlaw sanity:\n  {U32.add(2, 3) == 5 : U32}\n\n# LAW: io\nlaw hi: {M.main() == IO.print(\"hi\") : IO(Unit)}\n")))
+    == "p/LAWS.bend:2:1: L004: Law sanity has no for or exs, so it checks one case; quantify it, or mark a closed law kept on purpose with a `# toward <goal>` line right above it.; p/LAWS.bend:6:1: L004: Law hi has no for or exs, so it checks one case; quantify it, or mark a closed law kept on purpose with a `# toward <goal>` line right above it."
+    : String}
+
+# LAW: quantify flags a closed law that is not an equality
+law quantify_noneq:
+  {lines(Quantify.check(Src.of("p/LAWS.bend", "# LAW: a type\nlaw inhabited:\n  {True{} : Bool}\n")))
+    == "p/LAWS.bend:2:1: L004: Law inhabited has no for or exs, so it checks one case; quantify it, or mark a closed law kept on purpose with a `# toward <goal>` line right above it."
+    : String}
+
+# LAW: quantify is quiet on laws with for or exs
+law quantify_for:
+  {lines(Quantify.check(Src.of("p/LAWS.bend",
+    "# LAW: f\nlaw f_id:\n  for a: U32\n  {M.f(a) == a : U32}\n\n# LAW: g\nlaw g_hit:\n  exs a: U32\n  {M.g(a) == 0 : U32}\n")))
+    == "" : String}
+
+# LAW: a `# toward` line right above the law keeps it closed; above the doc, it does not
+law quantify_marked:
+  {lines(Quantify.check(Src.of("p/LAWS.bend",
+    "# LAW: sum\n# toward R-5\nlaw kept:\n  {U32.add(2, 3) == 5 : U32}\n\n# toward R-5\n# LAW: sum\nlaw far:\n  {U32.add(2, 3) == 5 : U32}\n")))
+    == "p/LAWS.bend:8:1: L004: Law far has no for or exs, so it checks one case; quantify it, or mark a closed law kept on purpose with a `# toward <goal>` line right above it."
+    : String}
+
+# LAW: quantify leaves a law outside a LAWS.bend alone
+law quantify_outside:
+  {lines(Quantify.check(Src.of("p/a.bend", "# LAW: sum\nlaw sanity:\n  {U32.add(2, 3) == 5 : U32}\n"))) == ""
+    : String}
 
 # LAW: Map.put
 law put_call:

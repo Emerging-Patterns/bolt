@@ -170,6 +170,33 @@ def Laws.closed_for():
 def Laws.closed_outside():
   {==}
 
+def Laws.quantify_off():
+  {==}
+
+def Laws.quantify_named():
+  {==}
+
+def Laws.quantify_default_quiet():
+  {==}
+
+def Laws.quantify_strict_graded():
+  {==}
+
+def Laws.quantify_eq():
+  {==}
+
+def Laws.quantify_noneq():
+  {==}
+
+def Laws.quantify_for():
+  {==}
+
+def Laws.quantify_marked():
+  {==}
+
+def Laws.quantify_outside():
+  {==}
+
 def Laws.put_call():
   {==}
 
