@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/Emerging-Patterns/bolt/compare/v0.8.1...v0.9.0) (2026-09-22)
+
+
+### Features
+
+* **quantify:** opt-in strict mode of the closed rule (L004) ([#42](https://github.com/Emerging-Patterns/bolt/issues/42)) ([a5b21f7](https://github.com/Emerging-Patterns/bolt/commit/a5b21f74b5c8851d6b434105f8c15d40c04f9a80))
+
 ## [0.8.1](https://github.com/Emerging-Patterns/bolt/compare/v0.8.0...v0.8.1) (2026-09-22)
 
 
