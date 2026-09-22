@@ -14,6 +14,7 @@ import ../../syntax/bind.bend as Bind
 import ../../syntax/outline.bend as Outline
 import ../../lazy/lazy.bend as Lazy
 import ./imports.bend as Imports
+import ../paths.bend as Paths
 
 # what a file holds
 # -----------------
@@ -114,7 +115,7 @@ def top_items(items: List<&2, Outline.Item>) -> List<&2, Top>:
 # law.
 def is_exempt(+pp: String) -> Bool:
   Bool.or(Bool.or(String.ends_with(pp, "LAWS.bend"), String.ends_with(pp, "PROOF.bend")),
-    String.contains(pp, "tests/"))
+    Paths.is_test(pp))
 
 # the significant tokens: no space, newline or comment
 def significant(toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
