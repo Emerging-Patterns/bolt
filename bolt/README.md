@@ -47,7 +47,7 @@ unset group has its default. The groups:
 | group         | rules                                                                            | default |
 |---------------|----------------------------------------------------------------------------------|---------|
 | `correctness` | `shadow` `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign` | error   |
-| `suspicious`  | `unused` `strict` `eager` `concat` `nat` `fuel` `index`                          | warn    |
+| `suspicious`  | `unused` `strict` `eager` `concat` `nat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` | warn    |
 | `style`       | `doc` `space` `wrap` `param`                                                     | warn    |
 | `laws`        | `law` `closed` `unsafe`                                                          | warn    |
 | `pedantic`    | `tail`                                                                           | off     |
@@ -63,9 +63,11 @@ The stable codes, assigned once (do not renumber):
 | C005 | `arms` | U005 | `nat` | L001 | `law` |
 | C006 | `escape` | U006 | `fuel` | L002 | `closed` |
 | C007 | `twice` | U007 | `index` | L003 | `unsafe` |
-| C008 | `strings` | | | P001 | `tail` |
-| C009 | `chars` | | | | |
-| C010 | `foreign` | | | | |
+| C008 | `strings` | U008 | `table` | P001 | `tail` |
+| C009 | `chars` | U009 | `hoist` | | |
+| C010 | `foreign` | U010 | `ring` | | |
+| | | U011 | `rewalk` | | |
+| | | U012 | `unit` | | |
 
 Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic.
 
@@ -152,6 +154,23 @@ beside the groups.
 - `index` — `List.get`/`String.get` at a computed index inside a def that
   calls itself: the list is walked again each step. Walk the cells instead
   (one sort phase went 39 s -> 0.9 s).
+- `table` — `List.set` at a computed index inside a def that calls itself.
+  Setting one cell copies the list. Keep a fixed table in an `Array` and
+  use `Array.set`.
+- `hoist` — a list or array of constants, or a call that builds one from
+  inputs that do not change, sits inside a def that calls itself and is
+  then indexed. The build runs again on every step. Build it once, outside
+  the recursion.
+- `ring` — a self-call drops a fixed count off a named window and appends
+  onto that result (`List.drop` / `List.tail` / `String.drop` /
+  `String.tail`, then `List.append` / `String.append` / `++`). Each step
+  copies the window. Keep it in an `Array` and advance an index.
+- `rewalk` — one def calls the same walk twice on the same argument, and
+  one result is used only for a single value (one index, one field, or a
+  let read only that way). Take the value from the other result.
+- `unit` — a multiply or divide by the literal `1`, `1n` or `1.0` on a
+  step that recurses, either as `*` / `/` or as `Nat.mul` / `U32.mul` /
+  `F32.mul` (and `.div`, only when the divisor is one). Drop the operation.
 - `put` — `Map.put`. It is Base's internal helper: at a leaf it keeps the old
   key and replaces the value without comparing, so a new key silently
   overwrites another entry. `Map.set` compares.

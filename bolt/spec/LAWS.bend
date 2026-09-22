@@ -37,6 +37,11 @@ import ../rules/suspicious/eager.bend as Eager
 import ../rules/pedantic/tail.bend as Tail
 import ../rules/suspicious/concat.bend as Concat
 import ../rules/suspicious/index.bend as Index
+import ../rules/suspicious/table.bend as Table
+import ../rules/suspicious/hoist.bend as Hoist
+import ../rules/suspicious/ring.bend as Ring
+import ../rules/suspicious/rewalk.bend as Rewalk
+import ../rules/suspicious/unit.bend as Unit
 import ../lsp/frame.bend as Frame
 import ../lsp/path.bend as Path
 import ../lsp/docs.bend as Docs
@@ -209,7 +214,7 @@ law wrap_jammed:
 # LAW: every rule's stable code, in assignment order
 law codes_table:
   {Codes.listed() ==
-    "shadow C001 correctness\nhole C002 correctness\npick C003 correctness\nput C004 correctness\narms C005 correctness\nescape C006 correctness\ntwice C007 correctness\nstrings C008 correctness\nchars C009 correctness\nforeign C010 correctness\nunused U001 suspicious\nstrict U002 suspicious\neager U003 suspicious\nconcat U004 suspicious\nnat U005 suspicious\nfuel U006 suspicious\nindex U007 suspicious\ndoc S001 style\nspace S002 style\nwrap S003 style\nparam S004 style\nlaw L001 laws\nclosed L002 laws\nunsafe L003 laws\ntail P001 pedantic"
+    "shadow C001 correctness\nhole C002 correctness\npick C003 correctness\nput C004 correctness\narms C005 correctness\nescape C006 correctness\ntwice C007 correctness\nstrings C008 correctness\nchars C009 correctness\nforeign C010 correctness\nunused U001 suspicious\nstrict U002 suspicious\neager U003 suspicious\nconcat U004 suspicious\nnat U005 suspicious\nfuel U006 suspicious\nindex U007 suspicious\ntable U008 suspicious\nhoist U009 suspicious\nring U010 suspicious\nrewalk U011 suspicious\nunit U012 suspicious\ndoc S001 style\nspace S002 style\nwrap S003 style\nparam S004 style\nlaw L001 laws\nclosed L002 laws\nunsafe L003 laws\ntail P001 pedantic"
     : String}
 
 # LAW: a rule shows its code and bolt(group:slug); a non-rule stays bolt
@@ -447,6 +452,36 @@ law concat_acc:
 law index_get:
   {lines(Index.check(Src.of("a.bend", C.rec.indexed()))) ==
     "a.bend:6:17: U007: List.get inside a recursive def walks the list again on each step, which is quadratic; walk the list itself.; a.bend:13:12: U007: String.get inside a recursive def walks the list again on each step, which is quadratic; walk the list itself."
+    : String}
+
+# LAW: List.set at a computed index in a recursive def
+law table_set:
+  {lines(Table.check(Src.of("a.bend", C.rec.tabled()))) ++ lines(Table.check(Src.of("x/PROOF.bend", C.rec.tabled()))) ==
+    "a.bend:6:16: U008: List.set inside a recursive def copies the list to change one cell; keep the table in an Array and use Array.set."
+    : String}
+
+# LAW: a fixed table rebuilt on every recursive step
+law hoist_table:
+  {lines(Hoist.check(Src.of("a.bend", C.rec.hoisted()))) ++ lines(Hoist.check(Src.of("x/PROOF.bend", C.rec.hoisted()))) ==
+    "a.bend:2:8: U009: This table is rebuilt on every step from inputs that do not change; build it once, outside the recursion.; a.bend:18:8: U009: This table is rebuilt on every step from inputs that do not change; build it once, outside the recursion.; a.bend:34:8: U009: This table is rebuilt on every step from inputs that do not change; build it once, outside the recursion."
+    : String}
+
+# LAW: a fixed window dropped and appended on each step
+law ring_window:
+  {lines(Ring.check(Src.of("a.bend", C.rec.ringed()))) ++ lines(Ring.check(Src.of("x/PROOF.bend", C.rec.ringed()))) ==
+    "a.bend:2:29: U010: This step drops and appends a fixed window, which copies it; keep the window in an Array and advance an index.; a.bend:5:8: U010: This step drops and appends a fixed window, which copies it; keep the window in an Array and advance an index."
+    : String}
+
+# LAW: the same walk twice, one result read only for a single value
+law rewalk_twice:
+  {lines(Rewalk.check(Src.of("a.bend", C.rec.rewalked()))) ++ lines(Rewalk.check(Src.of("x/PROOF.bend", C.rec.rewalked()))) ==
+    "a.bend:9:36: U011: walk walks the same argument twice, and one result is used only for a single value; take that value from the other result.; a.bend:20:11: U011: walk walks the same argument twice, and one result is used only for a single value; take that value from the other result."
+    : String}
+
+# LAW: a multiply or divide by one on a recursive step
+law unit_one:
+  {lines(Unit.check(Src.of("a.bend", C.rec.united()))) ++ lines(Unit.check(Src.of("x/PROOF.bend", C.rec.united()))) ==
+    "a.bend:2:9: U012: 1 is a multiply or divide by one, which changes nothing; drop the operation.; a.bend:5:22: U012: 1n is a multiply or divide by one, which changes nothing; drop the operation.; a.bend:5:27: U012: 1n is a multiply or divide by one, which changes nothing; drop the operation."
     : String}
 
 # LAW: wrap counts bytes

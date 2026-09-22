@@ -27,6 +27,11 @@ import ./rules/suspicious/eager.bend as Eager
 import ./rules/pedantic/tail.bend as Tail
 import ./rules/suspicious/concat.bend as Concat
 import ./rules/suspicious/index.bend as Index
+import ./rules/suspicious/table.bend as Table
+import ./rules/suspicious/hoist.bend as Hoist
+import ./rules/suspicious/ring.bend as Ring
+import ./rules/suspicious/rewalk.bend as Rewalk
+import ./rules/suspicious/unit.bend as Unit
 import ./rules/correctness/put.bend as Put
 import ./rules/correctness/escape.bend as Escape
 import ./rules/suspicious/nat.bend as Nat_
@@ -55,6 +60,11 @@ def on(+ss: Src.Src) -> List<&2, F.Finding>:
     Tail.check(ss),
     Concat.check(ss),
     Index.check(ss),
+    Table.check(ss),
+    Hoist.check(ss),
+    Ring.check(ss),
+    Rewalk.check(ss),
+    Unit.check(ss),
     Put.check(ss),
     Escape.check(ss),
     Nat_.check(ss),
