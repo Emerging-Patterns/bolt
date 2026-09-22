@@ -2,7 +2,7 @@
 # subcommand, or nothing, lints the files named after it (every `.bend` file
 # under the current directory when none are); `check` runs the checker on
 # them; `lsp` serves an editor over stdio; `help` prints usage; `--version`
-# prints the release. Build it native (`bend bolt/main.bend -o
+# prints the release and the short commit when the build has one. Build it native (`bend bolt/main.bend -o
 # bin/bolt.bin`). `bolt lsp` runs on the cores: with no `--gpu` it is
 # `--gpu off`, and `--gpu on` or `--gpu 4GB` asks for the device. The
 # runtime takes `--gpu` out of the line itself.

@@ -41,6 +41,12 @@ def Laws.args_help_lint():
 def Laws.args_help_root():
   {==}
 
+def Laws.args_version_rev():
+  {==}
+
+def Laws.args_version_none():
+  {==}
+
 def Laws.args_argv():
   {==}
 
