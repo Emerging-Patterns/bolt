@@ -8,6 +8,7 @@ import ../../syntax/outline.bend as Outline
 import ../../syntax/bind.bend as Bind
 import ./semantic.bend as Semantic
 import ../finding.bend as Lint
+import ../codes.bend as Codes
 import ../config.bend as Config
 import ../version.bend as Ver
 
@@ -75,11 +76,11 @@ def finding_range(+line: U32, +col: U32, +len: U32) -> J.Json:
     ("end", Bool.pick(J.Json, U32.is_eq(len, 0), position((line + 1 : U32), 0), position(line, (col + len : U32))))])
 
 # a graded lint finding as a diagnostic: an error or a warning by its level,
-# its rule as the code
+# its stable code, and bolt(group:slug) as the source
 def finding(gg: Lint.Graded) -> J.Json:
-  Lint.Graded{level, Lint.Finding{path, line, col, len, rule, msg}} = gg
+  Lint.Graded{level, Lint.Finding{path, line, col, len, +rule, msg}} = gg
   J.obj([("range", finding_range(line, col, len)), ("severity", J.num(Bool.pick(U32, Config.is_error(level), 1, 2))),
-    ("code", J.JStr{rule}), ("source", J.JStr{"bolt"}), ("message", J.JStr{msg})])
+    ("code", J.JStr{Codes.code(rule)}), ("source", J.JStr{Codes.source(rule)}), ("message", J.JStr{msg})])
 
 # findings as JSON
 def findings(gs: List<&2, Lint.Graded>) -> List<&2, J.Json>:

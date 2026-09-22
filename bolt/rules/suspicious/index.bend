@@ -30,7 +30,7 @@ def walk(nn: Tree.Node, +path: String) -> List<&2, F.Finding>:
       +more = List.concat(&2, F.Finding, [walk(kids, path), walk(rest, path)])
       Bool.pick(List<&2, F.Finding>, fire,
         F.Finding{path, l, c, U32.from_nat(String.length(t)), "index",
-          t ++ " inside a recursive def walks the list each step: quadratic; walk the list itself"} <> more,
+          t ++ " inside a recursive def walks the list again on each step, which is quadratic; walk the list itself."} <> more,
         more)
     case Tree.NCons{Tree.Group{open, kids, close}, rest}:
       List.concat(&2, F.Finding, [walk(kids, path), walk(rest, path)])

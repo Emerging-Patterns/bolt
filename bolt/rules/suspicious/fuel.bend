@@ -100,7 +100,7 @@ def literal(aa: Tree.Node, +path: String) -> List<&2, F.Finding>:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, +t, l, c}}, Tree.NNil{}}:
       Bool.pick(List<&2, F.Finding>, String.ends_with(t, "n"),
         [F.Finding{path, l, c, U32.from_nat(String.length(t)), "fuel",
-          "a fixed fuel of " ++ t ++ ": input past it is cut short silently; derive the fuel from the input's size"}],
+          "Fuel is fixed at " ++ t ++ ", so input past it is cut short with no error; derive the fuel from the input size."}],
         [])
     case other:
       Nil{}

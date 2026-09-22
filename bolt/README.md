@@ -15,8 +15,10 @@ foreign defs missing a lane, and laws that reach every def (IO included). Instal
     bolt lsp            the language server
     bolt help           usage
 
-Each finding is one line, `path:line:col: level: rule: message`, with line
+Each finding is one line, `path:line:col: level: CODE: message`, with line
 and column 1-based so a terminal can jump to it; then `clean` or the counts.
+`CODE` is the rule's stable id (`S003` is `wrap`). In an editor the same
+finding is source `bolt(style:wrap)` and code `S003`.
 The exit code is 1 when anything was an error. `nix profile install
 github:Emerging-Patterns/bolt` is what puts it on the PATH as `bolt`.
 
@@ -50,6 +52,23 @@ unset group has its default. The groups:
 | `laws`        | `law` `closed` `unsafe`                                                          | warn    |
 | `pedantic`    | `tail`                                                                           | off     |
 
+The stable codes, assigned once (do not renumber):
+
+| code | rule | code | rule | code | rule |
+|------|------|------|------|------|------|
+| C001 | `shadow` | U001 | `unused` | S001 | `doc` |
+| C002 | `hole` | U002 | `strict` | S002 | `space` |
+| C003 | `pick` | U003 | `eager` | S003 | `wrap` |
+| C004 | `put` | U004 | `concat` | S004 | `param` |
+| C005 | `arms` | U005 | `nat` | L001 | `law` |
+| C006 | `escape` | U006 | `fuel` | L002 | `closed` |
+| C007 | `twice` | U007 | `index` | L003 | `unsafe` |
+| C008 | `strings` | | | P001 | `tail` |
+| C009 | `chars` | | | | |
+| C010 | `foreign` | | | | |
+
+Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic.
+
 `pedantic` is advice that is noisy on idiomatic code: off until a project
 asks for it. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
 read, never linted. Without one, the defaults apply. This repo's
@@ -60,7 +79,8 @@ read, never linted. Without one, the defaults apply. This repo's
 
 Each rule is a module under `rules/<group>/` with `check(src) -> List<Finding>`,
 listed in `rules.bend`: the directory a rule sits in is the group it belongs
-to. Adding a rule is adding a file and a line. A project rule has
+to. Adding a rule is adding a file, a line in `rules.bend`, and a row in
+`codes.bend` (the stable code). A project rule has
 `check(ds) -> List<Finding>` instead and sees every file the linter read at
 once, as digests (`rules.bend`'s `project`).
 
@@ -211,7 +231,8 @@ With no `--gpu` that launch is `--gpu off` (the cores); `--gpu on` or
 
 [lsp](lsp/) runs the per-file rules on each edit and publishes the
 findings at the levels the nearest `bolt.bend` gives them: errors red,
-warnings yellow, off ones not at all. The project rules (`law`) need every
+warnings yellow, off ones not at all. A finding's code is its stable id
+(`S003`) and its source is `bolt(group:slug)` (`bolt(style:wrap)`). The project rules (`law`) need every
 file, so they run in bolt alone.
 
 ## In the gate

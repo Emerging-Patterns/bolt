@@ -37,7 +37,7 @@ def unread(rs: List<&2, Read>) -> List<&2, F.Finding>:
     case Nil{}:
       Nil{}
     case Con{Read{+path, None{}}, rest}:
-      F.Finding{path, 0, 0, 0, "read", "cannot read this file"} <> unread(rest)
+      F.Finding{path, 0, 0, 0, "read", "Cannot read this file."} <> unread(rest)
     case Con{Read{path, Some{text}}, rest}:
       unread(rest)
 

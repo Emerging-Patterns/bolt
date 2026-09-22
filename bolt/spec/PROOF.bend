@@ -89,6 +89,12 @@ def Laws.wrap_header():
 def Laws.wrap_jammed():
   {==}
 
+def Laws.codes_table():
+  {==}
+
+def Laws.codes_source():
+  {==}
+
 def Laws.param_short():
   {==}
 

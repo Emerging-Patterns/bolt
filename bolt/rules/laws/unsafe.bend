@@ -47,7 +47,7 @@ def report(us: List<&2, Digest.Unsafe>, +origin: String, +path: String) -> List<
       Nil{}
     case Con{Digest.Unsafe{n, l, c}, rest}:
       F.Finding{path, l, c, 7, "unsafe", "@unsafe def " ++ n ++ " is reached from " ++ origin
-        ++ ": the checker only warns there and exits 0; recurse on a shrinking argument or fuel"} <> report(rest, origin, path)
+        ++ "; the checker only warns there and exits 0. Recurse on a shrinking argument or fuel."} <> report(rest, origin, path)
 
 # the unsafe defs of a file, when a law file reaches it
 def found(mm: Maybe<&2, String>, us: List<&2, Digest.Unsafe>, path: String) -> List<&2, F.Finding>:

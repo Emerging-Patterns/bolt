@@ -2,13 +2,14 @@
 # rules/<group>/ with `check(src) -> List<Finding>`, run over each file read
 # once (bolt/src.bend); a project rule has `check(ds) -> List<Finding>` and
 # sees every file at once, as the digests of rules/digest.bend. The directory
-# names the group, and `group` below says it again for the config.
-# Adding one is adding it here, and to `group`. The groups are what a
+# names the group, and codes.bend says it again for the config.
+# Adding one is adding it here and a row in codes.bend. The groups are what a
 # bolt.bend switches at once: correctness (what will fail or blow up),
 # suspicious (what is probably a slip), style, laws, and pedantic (advice
 # that is noisy on idiomatic code: off unless a project asks for it).
 import Base
 import ./finding.bend as F
+import ./codes.bend as Codes
 import ./src.bend as Src
 import ./rules/digest.bend as Digest
 import ./config.bend as Config
@@ -75,15 +76,10 @@ def project(srcs: List<&2, Src.Src>) -> List<&2, F.Finding>:
   +ds = Digest.all(srcs)
   List.concat(&2, F.Finding, [Law.check(ds), Unsafe.check(ds)])
 
-# the group a rule is in
+# the group a rule is in; an unknown slug grades with correctness
 def group(+rule: String) -> String:
-  Bool.pick(String, List.contains(~String, ~String.eq,
-      ["shadow", "hole", "pick", "put", "arms", "escape", "twice", "strings", "chars", "foreign"], rule), "correctness",
-    Bool.pick(String, List.contains(~String, ~String.eq,
-        ["unused", "strict", "eager", "concat", "nat", "fuel", "index"], rule), "suspicious",
-      Bool.pick(String, List.contains(~String, ~String.eq, ["doc", "space", "wrap", "param"], rule), "style",
-        Bool.pick(String, List.contains(~String, ~String.eq, ["law", "closed", "unsafe"], rule), "laws",
-          Bool.pick(String, String.eq(rule, "tail"), "pedantic", "correctness")))))
+  +named = Codes.group(rule)
+  Bool.pick(String, String.is_empty(named), "correctness", named)
 
 # the findings at the levels a config gives their rules; the ones set off
 # are dropped

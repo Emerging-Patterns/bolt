@@ -28,11 +28,11 @@ def exempt(+name: String) -> Bool:
 def what(kk: Outline.ItemKind) -> String:
   match kk:
     case Outline.IType{}:
-      "type"
+      "Type"
     case Outline.ILaw{}:
-      "law"
+      "Law"
     case other:
-      "def"
+      "Def"
 
 def check.go(items: List<&2, Outline.Item>, +path: String) -> List<&2, F.Finding>:
   match items:
@@ -42,7 +42,7 @@ def check.go(items: List<&2, Outline.Item>, +path: String) -> List<&2, F.Finding
       +more = check.go(rest, path)
       Bool.pick(List<&2, F.Finding>,
         Bool.and(Bool.and(needs(k), Bool.not(exempt(name))), String.is_empty(doc)),
-        F.Finding{path, line, 0, 0, "doc", what(k) ++ " " ++ name ++ " has no comment above it"} <> more, more)
+        F.Finding{path, line, 0, 0, "doc", what(k) ++ " " ++ name ++ " has no comment above it."} <> more, more)
 
 # the rule
 def check(ss: Src.Src) -> List<&2, F.Finding>:

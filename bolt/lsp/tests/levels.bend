@@ -19,5 +19,5 @@ def inbox() -> List<&2, String>:
 
 def main() -> IO(Unit):
   Server.serve(~Script.Script, ~Script.new(), ~FakeChecker.new(), ~Disk.new(), 100n, Script.Script{inbox()}, [])
-#|{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://bolt/lsp/fixtures/levels/deep/a.bend","diagnostics":[{"range":{"start":{"line":2,"character":4},"end":{"line":2,"character":5}},"severity":1,"code":"space","source":"bolt","message":"trailing whitespace"},{"range":{"start":{"line":3,"character":6},"end":{"line":3,"character":7}},"severity":1,"code":"param","source":"bolt","message":"parameter x is shorter than 2 characters"}]}}
+#|{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://bolt/lsp/fixtures/levels/deep/a.bend","diagnostics":[{"range":{"start":{"line":2,"character":4},"end":{"line":2,"character":5}},"severity":1,"code":"S002","source":"bolt(style:space)","message":"Line has trailing whitespace."},{"range":{"start":{"line":3,"character":6},"end":{"line":3,"character":7}},"severity":1,"code":"S004","source":"bolt(style:param)","message":"Parameter x is shorter than 2 characters."}]}}
 #|{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://bolt/lsp/fixtures/levels/bolt.bend","diagnostics":[]}}

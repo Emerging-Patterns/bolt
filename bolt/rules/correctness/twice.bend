@@ -42,7 +42,7 @@ def same(aa: Maybe<&2, Lex.Tok>, bb: Maybe<&2, Lex.Tok>, +path: String) -> List<
     case Some{Lex.Tok{k, +t, l, c}} Some{Lex.Tok{k2, +t2, l2, c2}}:
       Bool.pick(List<&2, F.Finding>, String.eq(t, t2),
         [F.Finding{path, l2, c2, T.width(t2), "twice",
-          "the same literal twice in one list pattern hangs the checker; match one element per step"}],
+          "The same literal appears twice in one list pattern, which hangs the checker; match one element per step."}],
         [])
     case a2 b2:
       []

@@ -29,7 +29,7 @@ def check.go(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
       +k = T.stem(t)
       Bool.pick(List<&2, F.Finding>, big(t),
         F.Finding{path, l, c, T.width(t), "nat",
-          t ++ " is " ++ k ++ " unary cells; use U32 (or U32.to_nat at run time) for big counts"} <> more,
+          t ++ " is " ++ k ++ " unary cells; Nat literals of 1000 or more are unary, so use U32, or U32.to_nat at run time."} <> more,
         more)
     case Con{h, rest}:
       check.go(rest, path)

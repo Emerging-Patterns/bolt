@@ -89,7 +89,7 @@ def work(
           work(rest, ns, self, path, hot, seg)])
       Bool.pick(List<&2, F.Finding>, report,
         F.Finding{path, l, c, U32.from_nat(String.length(t)), "eager",
-          t ++ " runs in both branches; Bool.pick runs it whatever the condition; bind it above, or Lazy.stop"}
+          t ++ " runs in both branches of Bool.pick, so it runs whatever the condition; bind it above, or use Lazy.stop."}
           <> more,
         more)
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
