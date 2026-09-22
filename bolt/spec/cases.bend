@@ -604,6 +604,51 @@ def nav.inbox() -> List<&2, String>:
    "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{\"textDocument\":{\"uri\":\"file:///w/app/main.bend\"},\"contentChanges\":[{\"text\":\"" ++ nav.edited() ++ "\"}]}}",
    nav.ask("8", "hover", "7", "3")]
 
+# a law file: the header is not the law's comment
+def lawhover.laws() -> String:
+  "# io: rationale that must stay off the law.\\nimport Base\\nimport ./file.bend as F\\n\\n# LAW: and the text of nothing is the empty string.\\nlaw text_of_none:\\n  {F.text_of(None{}) == \\\"\\\" : String}\\n"
+
+# the def a call inside the law names
+def lawhover.file() -> String:
+  "# the text a read answered\\ndef text_of(m: Maybe<&2, String>) -> String:\\n  match m:\\n    case None{}:\\n      \\\"\\\"\\n    case Some{s}:\\n      s\\n"
+
+# the proof: `def Laws.text_of_none` fills the law, and has no comment of its own
+def lawhover.proof() -> String:
+  "import Base\\nimport ./LAWS.bend as Laws\\n\\ndef Laws.text_of_none():\\n  {==}\\n"
+
+# the same three files as source, for the files service
+def lawhover.laws_text() -> String:
+  "# io: rationale that must stay off the law.\nimport Base\nimport ./file.bend as F\n\n# LAW: and the text of nothing is the empty string.\nlaw text_of_none:\n  {F.text_of(None{}) == \"\" : String}\n"
+
+def lawhover.file_text() -> String:
+  "# the text a read answered\ndef text_of(m: Maybe<&2, String>) -> String:\n  match m:\n    case None{}:\n      \"\"\n    case Some{s}:\n      s\n"
+
+def lawhover.proof_text() -> String:
+  "import Base\nimport ./LAWS.bend as Laws\n\ndef Laws.text_of_none():\n  {==}\n"
+
+def lawhover.at(+path: String) -> Maybe<&2, String>:
+  Bool.pick(Maybe<&2, String>, String.eq(path, "/w/io/LAWS.bend"), Some{lawhover.laws_text()},
+    Bool.pick(Maybe<&2, String>, String.eq(path, "/w/io/PROOF.bend"), Some{lawhover.proof_text()},
+      Bool.pick(Maybe<&2, String>, String.eq(path, "/w/io/file.bend"), Some{lawhover.file_text()}, None{})))
+
+def lawhover.read(path: String) -> IO(Maybe<&2, String>):
+  IO.pure(Maybe<&2, String>, lawhover.at(path))
+
+def lawhover.files() -> Files.Files:
+  Files.Files{lawhover.read, fake.base_path}
+
+def lawhover.ask(id: String, method: String, uri: String, line: String, col: String) -> String:
+  "{\"jsonrpc\":\"2.0\",\"id\":" ++ id ++ ",\"method\":\"textDocument/" ++ method ++ "\",\"params\":{\"textDocument\":{\"uri\":\"" ++ uri ++ "\"},\"position\":{\"line\":" ++ line ++ ",\"character\":" ++ col ++ "}}}"
+
+def lawhover.inbox() -> List<&2, String>:
+  ["{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"file:///w/io/LAWS.bend\",\"text\":\"" ++ lawhover.laws() ++ "\"}}}",
+   lawhover.ask("1", "hover", "file:///w/io/LAWS.bend", "5", "6"),
+   lawhover.ask("2", "definition", "file:///w/io/LAWS.bend", "5", "6"),
+   lawhover.ask("3", "hover", "file:///w/io/LAWS.bend", "6", "7"),
+   "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"file:///w/io/PROOF.bend\",\"text\":\"" ++ lawhover.proof() ++ "\"}}}",
+   lawhover.ask("4", "hover", "file:///w/io/PROOF.bend", "3", "10"),
+   lawhover.ask("5", "definition", "file:///w/io/PROOF.bend", "3", "10")]
+
 def completion.math() -> String:
   "import Base\n\n# squares a number\ndef square(+x: U32) -> U32:\n  (x * x : U32)\n\ndef sqrt(x: U32) -> U32:\n  x\n\ndef cube(x: U32) -> U32:\n  x\n"
 

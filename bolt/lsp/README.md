@@ -65,7 +65,11 @@ the whole typed name, dots included, as the editor's own word stops at a dot.
 A name that a binder of the document binds (a parameter, a let, a pattern, a
 field, ..) resolves to that binder first ([syntax](../../syntax/)'s bind): hover
 shows the declaration or the line that bound it, definition lands exactly on
-the binder, completion offers the visible names first. The server knows
+the binder, completion offers the visible names first. An item's own name (a
+def, a law, a type) is that binder too, and its hover is the outline item:
+the signature, then the comment above it, the same text a use of the name
+gets. A proof `def Alias.law` hovers as the law in the file behind `Alias`,
+which is where that comment is written. The server knows
 binding sites, not types: a parameter has its annotation, a pattern binder has
 its pattern.
 

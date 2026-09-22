@@ -551,6 +551,20 @@ law nav_session:
       "{\"jsonrpc\":\"2.0\",\"id\":8,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"```bend\\ndef twice(x: U32) -> U32:\\n```\\n\\ntriples now\"}}}"
     ]) : IO(Unit)}
 
+# LAW: a law name and the proof that fills it hover as the law's comment
+law law_hover:
+  {Server.serve(~Script.Script, ~Script.new(), ~FakeChecker.new(), ~C.lawhover.files(), 100n,
+    Script.Script{C.lawhover.inbox()}, [])
+    == C.io.prints([
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/io/LAWS.bend\",\"diagnostics\":[]}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"```bend\\nlaw text_of_none:\\n  {F.text_of(None{}) == \\\"\\\" : String}\\n```\\n\\nLAW: and the text of nothing is the empty string.\"}}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"uri\":\"file:///w/io/LAWS.bend\",\"range\":{\"start\":{\"line\":5,\"character\":4},\"end\":{\"line\":5,\"character\":16}}}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"```bend\\ndef text_of(m: Maybe<&2, String>) -> String:\\n```\\n\\nthe text a read answered\"}}}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file:///w/io/PROOF.bend\",\"diagnostics\":[]}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":4,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"```bend\\nlaw text_of_none:\\n  {F.text_of(None{}) == \\\"\\\" : String}\\n```\\n\\nLAW: and the text of nothing is the empty string.\"}}}",
+      "{\"jsonrpc\":\"2.0\",\"id\":5,\"result\":{\"uri\":\"file:///w/io/PROOF.bend\",\"range\":{\"start\":{\"line\":3,\"character\":4},\"end\":{\"line\":3,\"character\":21}}}}"
+    ]) : IO(Unit)}
+
 # LAW: completion over fake files
 law completion_session:
   {Server.serve(~Script.Script, ~Script.new(), ~FakeChecker.new(), ~C.completion.files(), 100n,
