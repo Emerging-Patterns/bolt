@@ -3,6 +3,7 @@
 # a call's arguments; whether a def calls itself; its parameters, and the type
 # of the one it walks; and whether it is exempt (a law or a proof never runs).
 import Base
+import ../paths.bend as Paths
 import ../../syntax/lex.bend as Lex
 import ../../syntax/tree.bend as Tree
 import ../../syntax/bind.bend as Bind
@@ -199,4 +200,4 @@ def returns_proof(sig: Tree.Node) -> Bool:
 # a law file, a proof file, or a def that returns a proof: none of it runs,
 # so its cost does not matter
 def exempt(+path: String, sig: Tree.Node) -> Bool:
-  Bool.or(Bool.or(String.ends_with(path, "LAWS.bend"), String.ends_with(path, "PROOF.bend")), returns_proof(sig))
+  Bool.or(Paths.is_law_file(path), returns_proof(sig))

@@ -3,6 +3,7 @@
 # `Quant` is a quantity. Locals, pattern binders and a law's `for` names are
 # not parameters. A PROOF.bend's parameters are the names the law bound.
 import Base
+import ../../paths.bend as Paths
 import ../../src.bend as Src
 import ../../finding.bend as F
 import ../../../syntax/bind.bend as Bind
@@ -55,4 +56,4 @@ def check.go(binds: List<&2, Bind.Bind>, +path: String) -> List<&2, F.Finding>:
 def check(ss: Src.Src) -> List<&2, F.Finding>:
   Src.Src{+path, text, toks, tree, bound, items} = ss
   Bind.Bound{binds, uses, scopes} = bound
-  Lazy.stop(List<&2, F.Finding>, String.ends_with(path, "PROOF.bend"), [], _u => check.go(binds, path))
+  Lazy.stop(List<&2, F.Finding>, Paths.is_proof(path), [], _u => check.go(binds, path))

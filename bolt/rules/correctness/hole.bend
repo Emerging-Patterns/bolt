@@ -1,6 +1,7 @@
 # rule hole: a `?TODO` left in code. LAWS.bend is exempt: by convention its
 # laws are open claims, filled by PROOF.bend beside it.
 import Base
+import ../../paths.bend as Paths
 import ../../src.bend as Src
 import ../../finding.bend as F
 import ../../../syntax/lex.bend as Lex
@@ -20,4 +21,4 @@ def check.go(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
 # the rule
 def check(ss: Src.Src) -> List<&2, F.Finding>:
   Src.Src{+path, text, toks, tree, bound, items} = ss
-  Lazy.stop(List<&2, F.Finding>, String.ends_with(path, "LAWS.bend"), [], _u => check.go(toks, path))
+  Lazy.stop(List<&2, F.Finding>, Paths.is_laws(path), [], _u => check.go(toks, path))

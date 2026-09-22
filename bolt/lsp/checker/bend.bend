@@ -1,5 +1,6 @@
 # checker/bend: the real checker: runs `bend` on the file and reads its report
 import Base
+import ../../paths.bend as Paths
 import ./service.bend as S
 import ../report.bend as Rep
 
@@ -35,7 +36,7 @@ def settle(open: Bool, +ds: List<&2, Rep.Diag>, path: String) -> IO(List<&2, Rep
 # the diagnostics of a run, settled when they are only the open laws of a
 # LAWS.bend
 def checked(+ds: List<&2, Rep.Diag>, +path: String) -> IO(List<&2, Rep.Diag>):
-  settle(Bool.and(only_todos(ds), String.ends_with(path, "/LAWS.bend")), ds, path)
+  settle(Bool.and(only_todos(ds), Paths.is_laws(path)), ds, path)
 
 def check.at(+path: String) -> IO(List<&2, Rep.Diag>):
   do IO<List<&2, Rep.Diag>>:
