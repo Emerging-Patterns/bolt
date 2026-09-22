@@ -1,15 +1,5 @@
 # Changelog
 
-## Unreleased
-
-### Features
-
-* **quantify:** `L004`, an opt-in strict mode of `closed`: every law in a
-  LAWS.bend with no `for`/`exs` binder, equality or not. Off unless a
-  bolt.bend sets `quantify` by name (no group setting reaches it); a closed
-  law with a `# toward <goal>` comment line right above it is exempt.
-  `closed`'s default is unchanged.
-
 ## [0.8.1](https://github.com/Emerging-Patterns/bolt/compare/v0.8.0...v0.8.1) (2026-09-22)
 
 
