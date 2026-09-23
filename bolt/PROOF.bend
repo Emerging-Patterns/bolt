@@ -12,6 +12,8 @@ import ./rules/laws/law.bend as Law
 import ./args.bend as Args
 import ./version.bend as Ver
 import ./build_rev.bend as Rev
+import ./check.bend as Check
+import ./lsp/report.bend as Rep
 import 0x65bf91e14c96bf0c25491d716ec9f68c/main.bend as Shake
 import ./LAWS.bend as Laws
 
@@ -1979,4 +1981,135 @@ def Laws.version_release(rel, rev, h):
 def Laws.version_commit(rel, rev, h):
   e = Equal.sym(Bool, String.is_empty(rev), False{}, h)
   %e : {Bool.pick(String, _, rel, rel ++ " (" ++ rev ++ ")") == rel ++ " (" ++ rev ++ ")" : String}
+  {==}
+
+# a file's error lines, then more, are its lines onto more
+law chk.file:
+  for ds: List<&2, Rep.Diag>
+  for +path: String
+  for +more: List<&2, String>
+  {List.append(&2, String, Check.show_all(ds, path), more) == Laws.chk_file(ds, path, more) : List<&2, String>}
+
+def chk.file(ds, path, more):
+  match ds:
+    case Nil{}:
+      {==}
+    case Con{Rep.Diag{+line, +msg}, rest}:
+      %chk.file(rest, path, more) : {List.append(&2, String, Check.show_all(Rep.Diag{line, msg} <> rest, path), more)
+        == Laws.chk_line(path, Rep.Diag{line, msg}) <> _ : List<&2, String>}
+      {==}
+
+def Laws.check_lines(runs):
+  match runs:
+    case Nil{}:
+      {==}
+    case Con{Check.Run{+path, +ds}, +rest}:
+      %Laws.check_lines(rest) : {List.append(&2, String, Check.show_all(ds, path), Check.lines_of(rest))
+        == Laws.chk_file(ds, path, _) : List<&2, String>}
+      chk.file(ds, path, Check.lines_of(rest))
+
+# the length of two lists appended is the sum of their lengths
+law chk.len_append:
+  for xs: List<&2, String>
+  for +ys: List<&2, String>
+  {List.length(&2, String, List.append(&2, String, xs, ys))
+    == Nat.add(List.length(&2, String, xs), List.length(&2, String, ys)) : Nat}
+
+def chk.len_append(xs, ys):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{_x, tl}:
+      %chk.len_append(tl, ys) : {1n+List.length(&2, String, List.append(&2, String, tl, ys)) == 1n+_ : Nat}
+      {==}
+
+# a file has one error line per diagnostic
+law chk.len_show:
+  for ds: List<&2, Rep.Diag>
+  for +path: String
+  {List.length(&2, String, Check.show_all(ds, path)) == List.length(&2, Rep.Diag, ds) : Nat}
+
+def chk.len_show(ds, path):
+  match ds:
+    case Nil{}:
+      {==}
+    case Con{Rep.Diag{_line, _msg}, tl}:
+      %chk.len_show(tl, path) : {1n+List.length(&2, String, Check.show_all(tl, path)) == 1n+_ : Nat}
+      {==}
+
+def Laws.check_one_each(runs):
+  match runs:
+    case Nil{}:
+      {==}
+    case Con{Check.Run{+path, +ds}, +rest}:
+      %Laws.check_one_each(rest) : {List.length(&2, String,
+          List.append(&2, String, Check.show_all(ds, path), Check.lines_of(rest)))
+        == Nat.add(List.length(&2, Rep.Diag, ds), _) : Nat}
+      %chk.len_show(ds, path) : {List.length(&2, String,
+          List.append(&2, String, Check.show_all(ds, path), Check.lines_of(rest)))
+        == Nat.add(_, List.length(&2, String, Check.lines_of(rest))) : Nat}
+      chk.len_append(Check.show_all(ds, path), Check.lines_of(rest))
+
+# a Nat's type when it is zero: inhabited only at zero
+def chk.zero_ty(nn: Nat) -> Type:
+  match nn:
+    case 0n:
+      Unit
+    case 1n+_p:
+      Empty
+
+# a successor is never zero
+law chk.succ_zero:
+  for nn: Nat
+  for e: {1n+nn == 0n : Nat}
+  Empty
+
+def chk.succ_zero(nn, e):
+  e2 = Equal.sym(Nat, 1n+nn, 0n, e)
+  %e2 : chk.zero_ty(_)
+  Unit{}
+
+# a list of no length is empty
+law chk.nil:
+  for xs: List<&2, String>
+  for h: {List.length(&2, String, xs) == 0n : Nat}
+  {xs == [] : List<&2, String>}
+
+def chk.nil(xs, h):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{+x, +tl}:
+      Empty.absurd({x <> tl == [] : List<&2, String>}, chk.succ_zero(List.length(&2, String, tl), h))
+
+def Laws.check_clean(runs, h):
+  +e1 = Equal.trans(Nat, List.length(&2, String, Check.lines_of(runs)), Laws.chk_count(runs), 0n,
+    Laws.check_one_each(runs), h)
+  e2 = Equal.sym(Nat, List.length(&2, String, Check.lines_of(runs)), 0n, e1)
+  %e2 : {Check.out.at(Check.lines_of(runs), _) == Check.Out{["clean"], 0} : Check.Out}
+  e3 = Equal.sym(List<&2, String>, Check.lines_of(runs), [], chk.nil(Check.lines_of(runs), e1))
+  %e3 : {Check.Out{List.append(&2, String, _, ["clean"]), 0} == Check.Out{["clean"], 0} : Check.Out}
+  {==}
+
+def Laws.check_one(runs, h):
+  e1 = Equal.sym(Nat, List.length(&2, String, Check.lines_of(runs)), 1n,
+    Equal.trans(Nat, List.length(&2, String, Check.lines_of(runs)), Laws.chk_count(runs), 1n,
+      Laws.check_one_each(runs), h))
+  %e1 : {Check.out.at(Check.lines_of(runs), _)
+    == Check.Out{List.append(&2, String, Laws.chk_lines(runs), ["1 error, 0 warnings"]), 1} : Check.Out}
+  %Laws.check_lines(runs) : {Check.Out{List.append(&2, String, Check.lines_of(runs), ["1 error, 0 warnings"]), 1}
+    == Check.Out{List.append(&2, String, _, ["1 error, 0 warnings"]), 1} : Check.Out}
+  {==}
+
+def Laws.check_many(runs, more, h):
+  e1 = Equal.sym(Nat, List.length(&2, String, Check.lines_of(runs)), 2n+more,
+    Equal.trans(Nat, List.length(&2, String, Check.lines_of(runs)), Laws.chk_count(runs), 2n+more,
+      Laws.check_one_each(runs), h))
+  %e1 : {Check.out.at(Check.lines_of(runs), _)
+    == Check.Out{List.append(&2, String, Laws.chk_lines(runs),
+      [U32.show(U32.from_nat(2n+more)) ++ " errors, 0 warnings"]), 1} : Check.Out}
+  %Laws.check_lines(runs) : {Check.Out{List.append(&2, String, Check.lines_of(runs),
+      [U32.show(U32.from_nat(2n+more)) ++ " errors, 0 warnings"]), 1}
+    == Check.Out{List.append(&2, String, _, [U32.show(U32.from_nat(2n+more)) ++ " errors, 0 warnings"]), 1}
+    : Check.Out}
   {==}
