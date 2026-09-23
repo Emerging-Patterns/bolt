@@ -225,8 +225,8 @@ def published(~fs: F.Files, +uri: String, +docs: List<&2, Docs.Doc>) -> IO(Work)
 # linter (on the text)
 def checked(~fs: F.Files, +uri: String, ck: C.Checker, +docs: List<&2, Docs.Doc>) -> IO(Work):
   do IO<Work>:
-    ds : List<&2, Rep.Diag> <- C.check(ck, Proto.path(uri))
-    published(~fs, uri, Docs.set_errors(docs, uri, ds))
+    aa : C.Answer <- C.check(ck, Proto.path(uri))
+    published(~fs, uri, Docs.set_errors(docs, uri, C.errors(aa)))
 
 def hover.of(mm: Maybe<&2, Nav.Found>) -> J.Json:
   match mm:

@@ -315,7 +315,9 @@ beside the groups.
 ## One binary
 
 `bolt` is also `bolt check file..` (the checker, `bend`, on each file, its
-errors in the same shape, `path:line:1: error: message`) and `bolt lsp`
+errors in the same shape, `path:line:1: error: message`; a file bend could
+not be run on is `path:1:1: error: could not run bend`, an error like any
+other, never `clean`) and `bolt lsp`
 (the [language server](lsp/), over stdio). `main.bend` parses the command
 line with [shake](https://github.com/Emerging-Patterns/shake)
 (`import 0x65bf91e14c96bf0c25491d716ec9f68c/main.bend`) and dispatches on

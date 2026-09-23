@@ -1,8 +1,9 @@
-// bendcheck.exec: runs `bend <path> --check-only` and answers everything it
-// printed. --check-only checks the file and its imports and never runs
+// bendcheck.exec: runs `bend <path> --check-only` and answers a tag (how the
+// run went, below), then everything it printed. --check-only checks the file and its imports and never runs
 // main: a language server must not execute the file being edited. The child
 // gets /dev/null for stdin and a pipe for stdout and stderr, so it cannot
 // touch the server's own stdio, which is the protocol.
+#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,7 +18,11 @@
 Term bendcheck_exec_run(Env e, Term* f, IoWork* w) {
   uint64_t n = 0;
   char* path = io_cstr(e, f[0], &n);
-  size_t len = 0;
+  // buf[0] is the tag (bend.bend's bendcheck.exec): 'r' ran and exited, 's'
+  // killed by a signal, 'x' could not be run (no pipe, no fork, or exit 127,
+  // which the child exits with when exec fails)
+  char tag = 'x';
+  size_t len = 1;
   size_t cap = 4096;
   char* buf = malloc(cap);
   int fds[2];
@@ -45,10 +50,20 @@ Term bendcheck_exec_run(Env e, Term* f, IoWork* w) {
     close(fds[0]);
     if (pid > 0) {
       int status = 0;
-      waitpid(pid, &status, 0);
+      pid_t done;
+      while ((done = waitpid(pid, &status, 0)) < 0 && errno == EINTR) {
+      }
+      if (done == pid) {
+        if (WIFEXITED(status) && WEXITSTATUS(status) != 127) {
+          tag = 'r';
+        } else if (WIFSIGNALED(status)) {
+          tag = 's';
+        }
+      }
     }
   }
   free(path);
+  buf[0] = tag;
   Term s = io_str(e, buf, len);
   free(buf);
   return s;
