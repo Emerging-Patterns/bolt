@@ -30,3 +30,12 @@ def and_then(aa: Bool, rest: Unit -> Bool) -> Bool:
       rest(Unit{})
     case False{}:
       False{}
+
+# what yes gives when c, else what no gives: a pick whose two branches each
+# recurse, only the one taken run
+def either(-A: Type, cc: Bool, yes: Unit -> A, no: Unit -> A) -> A:
+  match cc:
+    case True{}:
+      yes(Unit{})
+    case False{}:
+      no(Unit{})

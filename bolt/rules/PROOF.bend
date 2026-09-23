@@ -254,7 +254,8 @@ def param.hit(kk, nm, note):
     case Bind.KParam{}:
       Equal.cong(Bool, Bool,
         z => Bool.and(Nat.is_lt(String.length(nm), 2n),
-          Bool.not(Bool.or(z, Bool.or(Bool.not(String.contains(note, ":")), String.ends_with(note, ": Quant"))))),
+          Bool.not(Bool.or(z, Bool.or(Bool.not(String.contains(T.code(note), ":")),
+            String.ends_with(T.code(note), ": Quant"))))),
         Param.check.letter(String.to_list(nm)), Laws.one_upper(String.to_list(nm)),
         param.letter(String.to_list(nm)))
     case Bind.KItem{}:
@@ -1159,9 +1160,9 @@ def ex.guard(x, path, sig, e):
 def Laws.hole_exempt(path, _text, toks, _tree, _bound, _items, e):
   ex.stop(Paths.is_laws(path), e, _u => Hole.check.go(toks, path))
 
-def Laws.doc_exempt(path, text, _toks, _tree, _bound, items, e):
+def Laws.doc_exempt(path, text, toks, _tree, _bound, items, e):
   ex.stop(Bool.or(Paths.is_proof(path), Paths.is_test(path)), e,
-    _u => Doc.check.go(items, path, String.lines(text)))
+    _u => Doc.check.go(items, path, Doc.lines(text, toks)))
 
 def Laws.param_exempt(path, _text, _toks, _tree, bound, _items, e):
   match bound:
@@ -6842,15 +6843,14 @@ def doc.above(lines, nn):
   hole.and(Bool.not(U32.is_eq(nn, 0)), Doc.check.hash(lines, U32.sub(nn, 1)), Laws.doc.hash(lines, U32.sub(nn, 1)),
     doc.hash(lines, U32.sub(nn, 1)))
 
-# the kind, name and doc test, to the rule and to the law
+# the kind and name test, to the rule and to the law
 law doc.needs:
   for kk: Outline.ItemKind
   for +name: String
-  for +doc: String
-  {Bool.and(Bool.and(Doc.needs(kk), Bool.not(Doc.exempt(name))), String.is_empty(doc))
-    == Bool.and(Bool.and(Laws.doc.kind(kk), Bool.not(Laws.doc.free(name))), String.is_empty(doc)) : Bool}
+  {Bool.and(Doc.needs(kk), Bool.not(Doc.exempt(name))) == Bool.and(Laws.doc.kind(kk), Bool.not(Laws.doc.free(name)))
+    : Bool}
 
-def doc.needs(kk, _name, _doc):
+def doc.needs(kk, _name):
   match kk:
     case Outline.IImport{}:
       {==}
@@ -6872,19 +6872,19 @@ law doc.hit:
   for +line: U32
   for +doc: String
   for +lines: List<&2, String>
-  {Lazy.and_then(Bool.and(Bool.and(Doc.needs(kk), Bool.not(Doc.exempt(name))), String.is_empty(doc)),
-    _u => Bool.not(Doc.check.above(lines, line))) == Laws.doc.bare(kk, name, line, doc, lines) : Bool}
+  {Lazy.and_then(Bool.and(Doc.needs(kk), Bool.not(Doc.exempt(name))), _u => Bool.not(Doc.check.above(lines, line)))
+    == Laws.doc.bare(kk, name, line, doc, lines) : Bool}
 
-def doc.hit(kk, name, line, doc, lines):
-  +ar = Bool.and(Bool.and(Doc.needs(kk), Bool.not(Doc.exempt(name))), String.is_empty(doc))
-  +as = Bool.and(Bool.and(Laws.doc.kind(kk), Bool.not(Laws.doc.free(name))), String.is_empty(doc))
+def doc.hit(kk, name, line, _doc, lines):
+  +ar = Bool.and(Doc.needs(kk), Bool.not(Doc.exempt(name)))
+  +as = Bool.and(Laws.doc.kind(kk), Bool.not(Laws.doc.free(name)))
   +ns = Bool.not(Bool.and(Bool.not(U32.is_eq(line, 0)), Laws.doc.hash(lines, U32.sub(line, 1))))
   Equal.trans(Bool, Lazy.and_then(ar, _u => Bool.not(Doc.check.above(lines, line))), Bool.and(ar, ns),
     Bool.and(as, ns),
     hole.and(ar, Bool.not(Doc.check.above(lines, line)), ns,
       Equal.cong(Bool, Bool, z => Bool.not(z), Doc.check.above(lines, line),
         Bool.and(Bool.not(U32.is_eq(line, 0)), Laws.doc.hash(lines, U32.sub(line, 1))), doc.above(lines, line))),
-    Equal.cong(Bool, Bool, z => Bool.and(z, ns), ar, as, doc.needs(kk, name, doc)))
+    Equal.cong(Bool, Bool, z => Bool.and(z, ns), ar, as, doc.needs(kk, name)))
 
 # an item onto a rest the law holds for
 law doc.item:
@@ -6905,8 +6905,7 @@ def doc.item(kk, name, line, _sig, doc, _pp, rest, path, lines, ih):
   +more = Doc.check.go(rest, path, lines)
   +m = Laws.doc.count(rest, lines)
   +x = {F.Finding{path, line, 0, 0, "doc", Doc.what(kk) ++ " " ++ name ++ " has no comment above it."} : F.Finding}
-  +hr = Lazy.and_then(Bool.and(Bool.and(Doc.needs(kk), Bool.not(Doc.exempt(name))), String.is_empty(doc)),
-    _u => Bool.not(Doc.check.above(lines, line)))
+  +hr = Lazy.and_then(Bool.and(Doc.needs(kk), Bool.not(Doc.exempt(name))), _u => Bool.not(Doc.check.above(lines, line)))
   +hs = Laws.doc.bare(kk, name, line, doc, lines)
   Equal.trans(Nat, List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, hr, x <> more, more)),
     List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, hs, x <> more, more)),
@@ -6924,9 +6923,9 @@ def Laws.doc_walk_counts(items, path, lines):
         case Outline.Item{kk, name, line, sig, doc, pp}:
           doc.item(kk, name, line, sig, doc, pp, rest, path, lines, Laws.doc_walk_counts(rest, path, lines))
 
-def Laws.doc_counts(path, text, _toks, _tree, _bound, items):
-  param.stop(Bool.or(Paths.is_proof(path), Paths.is_test(path)), Doc.check.go(items, path, String.lines(text)),
-    Laws.doc.count(items, String.lines(text)), Laws.doc_walk_counts(items, path, String.lines(text)))
+def Laws.doc_counts(path, text, toks, _tree, _bound, items):
+  param.stop(Bool.or(Paths.is_proof(path), Paths.is_test(path)), Doc.check.go(items, path, Doc.lines(text, toks)),
+    Laws.doc.count(items, Doc.lines(text, toks)), Laws.doc_walk_counts(items, path, Doc.lines(text, toks)))
 
 # The binding rule, unused: the rule's foreign lines are the law's header
 # lines, its kind test and use search are the law's, and each binder adds the
@@ -17316,3 +17315,2907 @@ def Laws.unsafe_shut(ds, from):
   h2 = unsafe.shut_grow(ds, ww, rw, ww, h, Equal.trans(Bool, unsafe.all_in(rw, ww), unsafe.all_in(ww, ww), True{},
     unsafe.in_rev_set(ww, ww), unsafe.in_refl(ww)))
   unsafe.shut_sub(ds, rw, ww, rw, h2, unsafe.in_rev(ww, ww, unsafe.in_refl(ww)))
+
+
+# Inert text (BOLT-RULE-INERT). Each rule gives the same findings on a
+# source read with its comments and strings cut (Laws.inert.toks,
+# Laws.inert.node) as on the source; two sources that read the same that way
+# then have the same findings. A rule tests a token's kind before its text,
+# or compares the text of a token of any kind with a name or a keyword,
+# which never starts with `"` or `#`: a string's text, cut or not, never
+# equals it. A kind is split only where the rule itself matches on one.
+
+# Unit for False, Empty for True
+def inert.false_ty(bb: Bool) -> Type:
+  match bb:
+    case False{}: Unit
+    case True{}: Empty
+
+# False is never True
+law inert.false_true:
+  for e: {False{} == True{} : Bool}
+  Empty
+
+def inert.false_true(e):
+  %e : inert.false_ty(_)
+  Unit{}
+
+# the left of an and that holds holds
+law inert.and_l:
+  for a: Bool
+  for -b: Bool
+  for e: {Bool.and(a, b) == True{} : Bool}
+  {a == True{} : Bool}
+
+def inert.and_l(a, _b, e):
+  match a:
+    case True{}: {==}
+    case False{}: Empty.absurd({False{} == True{} : Bool}, inert.false_true(e))
+
+# the right of an and that holds holds
+law inert.and_r:
+  for a: Bool
+  for -b: Bool
+  for e: {Bool.and(a, b) == True{} : Bool}
+  {b == True{} : Bool}
+
+def inert.and_r(a, b, e):
+  match a:
+    case True{}: e
+    case False{}: Empty.absurd({b == True{} : Bool}, inert.false_true(e))
+
+# two facts that hold make their and hold
+law inert.and_both:
+  for -a: Bool
+  for -b: Bool
+  for ea: {a == True{} : Bool}
+  for eb: {b == True{} : Bool}
+  {Bool.and(a, b) == True{} : Bool}
+
+def inert.and_both(a, b, ea, eb):
+  %Equal.sym(Bool, a, True{}, ea) : {Bool.and(_, b) == True{} : Bool}
+  eb
+
+# a Bool whose negation holds is False
+law inert.not_true:
+  for b: Bool
+  for e: {Bool.not(b) == True{} : Bool}
+  {b == False{} : Bool}
+
+def inert.not_true(b, e):
+  match b:
+    case False{}: {==}
+    case True{}: Empty.absurd({True{} == False{} : Bool}, inert.false_true(e))
+
+# Unit for LT and GT, Empty for EQ
+def inert.cmp_ty(cc: Cmp) -> Type:
+  match cc:
+    case LT{}: Unit
+    case EQ{}: Empty
+    case GT{}: Unit
+
+# a comparison that is EQ is not LT
+law inert.lt_eq:
+  for e: {LT{} == EQ{} : Cmp}
+  Empty
+
+def inert.lt_eq(e):
+  %e : inert.cmp_ty(_)
+  Unit{}
+
+# a comparison that is EQ is not GT
+law inert.gt_eq:
+  for e: {GT{} == EQ{} : Cmp}
+  Empty
+
+def inert.gt_eq(e):
+  %e : inert.cmp_ty(_)
+  Unit{}
+
+# a word comparison that ends EQ was EQ on the bits below
+law inert.fin_eq:
+  for t: Cmp
+  for -ab: Bool
+  for -bb: Bool
+  for e: {Word.cmp.fin(ab, bb, t) == EQ{} : Cmp}
+  {t == EQ{} : Cmp}
+
+def inert.fin_eq(t, _ab, _bb, e):
+  match t:
+    case LT{}: Empty.absurd({LT{} == EQ{} : Cmp}, inert.lt_eq(e))
+    case EQ{}: {==}
+    case GT{}: Empty.absurd({GT{} == EQ{} : Cmp}, inert.gt_eq(e))
+
+# a word comparison that ends EQ had the same top bit
+law inert.fin_bit:
+  for t: Cmp
+  for ab: Bool
+  for bb: Bool
+  for e: {Word.cmp.fin(ab, bb, t) == EQ{} : Cmp}
+  {ab == bb : Bool}
+
+def inert.fin_bit(t, ab, bb, e):
+  match t:
+    case LT{}: Empty.absurd({ab == bb : Bool}, inert.lt_eq(e))
+    case GT{}: Empty.absurd({ab == bb : Bool}, inert.gt_eq(e))
+    case EQ{}:
+      match ab bb:
+        case False{} False{}: {==}
+        case False{} True{}: Empty.absurd({False{} == True{} : Bool}, inert.lt_eq(e))
+        case True{} False{}: Empty.absurd({True{} == False{} : Bool}, inert.gt_eq(e))
+        case True{} True{}: {==}
+
+# two words that compare EQ are the same word
+law inert.word_eq:
+  for +n: Nat
+  for a: Word(n)
+  for b: Word(n)
+  for +e: {Word.cmp(n, a, b) == EQ{} : Cmp}
+  {a == b : Word(n)}
+
+def inert.word_eq(n, a, b, e):
+  match n:
+    case 0n:
+      match a b:
+        case WNil{} WNil{}: {==}
+    case 1n+p:
+      match a b:
+        case WCon{+ab, +at} WCon{+bb, +bt}:
+          hb = inert.fin_bit(Word.cmp(p, at, bt), ab, bb, e)
+          ht = inert.word_eq(p, at, bt, inert.fin_eq(Word.cmp(p, at, bt), ab, bb, e))
+          %hb : {WCon{ab, at} == WCon{_, bt} : Word(1n+p)}
+          %ht : {WCon{ab, at} == WCon{ab, _} : Word(1n+p)}
+          {==}
+
+# two U32s that compare EQ are the same
+law inert.u32_eq:
+  for x: U32
+  for y: U32
+  for e: {U32.cmp(x, y) == EQ{} : Cmp}
+  {x == y : U32}
+
+def inert.u32_eq(x, y, e):
+  match x y:
+    case U32{wx} U32{wy}: Equal.cong(Word(32n), U32, w => U32{w}, wx, wy, inert.word_eq(32n, wx, wy, e))
+
+# a marked char and an unmarked one never compare EQ
+law inert.differ:
+  for c: Cmp
+  for +x: U32
+  for +y: U32
+  for ec: {U32.cmp(x, y) == c : Cmp}
+  for ex: {Laws.inert.mark(Chr{x}) == True{} : Bool}
+  for ey: {Laws.inert.mark(Chr{y}) == False{} : Bool}
+  {Cmp.is_eq(c) == False{} : Bool}
+
+def inert.differ(c, x, y, ec, ex, ey):
+  match c:
+    case LT{}: {==}
+    case GT{}: {==}
+    case EQ{}:
+      +my = Equal.trans(Bool, Laws.inert.mark(Chr{y}), Laws.inert.mark(Chr{x}), True{},
+        Equal.cong(U32, Bool, z => Laws.inert.mark(Chr{z}), y, x, Equal.sym(U32, x, y, inert.u32_eq(x, y, ec))), ex)
+      Empty.absurd({Cmp.is_eq(EQ{}) == False{} : Bool}, inert.false_true(Equal.trans(Bool, False{},
+        Laws.inert.mark(Chr{y}), True{}, Equal.sym(Bool, Laws.inert.mark(Chr{y}), False{}, ey), my)))
+
+# a string comparison whose first chars differ is not equal, whatever follows
+law inert.fin_false:
+  for c: Cmp
+  for -r: String
+  for -ys: String
+  for -h1: Char
+  for -h2: Char
+  for ec: {Cmp.is_eq(c) == False{} : Bool}
+  {String.eq.fin(String.cmp.fin(r, ys, ((h1, h2), c))) == False{} : Bool}
+
+def inert.fin_false(c, r, ys, h1, h2, ec):
+  match c:
+    case LT{}: {==}
+    case GT{}: {==}
+    case EQ{}:
+      Empty.absurd({String.eq.fin(String.cmp.fin(r, ys, ((h1, h2), EQ{}))) == False{} : Bool},
+        inert.false_true(Equal.sym(Bool, True{}, False{}, ec)))
+
+# a text with a marked first char is never equal to one with an unmarked one
+law inert.neq.con:
+  for h: Char
+  for -r: String
+  for y: Char
+  for -ys: String
+  for et: {Laws.inert.mark(h) == True{} : Bool}
+  for ex: {Laws.inert.mark(y) == False{} : Bool}
+  {String.eq(SCon{h, r}, SCon{y, ys}) == False{} : Bool}
+
+def inert.neq.con(h, r, y, ys, et, ex):
+  match h y:
+    case Chr{+a} Chr{+b}:
+      inert.fin_false(U32.cmp(a, b), r, ys, Chr{a}, Chr{b}, inert.differ(U32.cmp(a, b), a, b, {==}, et, ex))
+
+# a marked text is never equal to an unmarked one
+law inert.neq:
+  for t: String
+  for x: String
+  for et: {Laws.inert.marked(t) == True{} : Bool}
+  for ex: {Laws.inert.marked(x) == False{} : Bool}
+  {String.eq(t, x) == False{} : Bool}
+
+def inert.neq(t, x, et, ex):
+  match t x:
+    case SNil{} x: Empty.absurd({String.eq(SNil{}, x) == False{} : Bool}, inert.false_true(et))
+    case SCon{h, r} SNil{}: {==}
+    case SCon{h, r} SCon{y, ys}: inert.neq.con(h, r, y, ys, et, ex)
+
+# a text cut to its first char is marked when the text is
+law inert.cut_marked:
+  for t: String
+  for et: {Laws.inert.marked(t) == True{} : Bool}
+  {Laws.inert.marked(Laws.inert.cut(t)) == True{} : Bool}
+
+def inert.cut_marked(t, et):
+  match t:
+    case SNil{}: et
+    case SCon{h, r}: et
+
+# a token's text read that way compares with an unmarked text as it did
+law inert.eq_keep:
+  for b: Bool
+  for +t: String
+  for +x: String
+  for +ef: {Laws.inert.fits.go(b, t) == True{} : Bool}
+  for +ex: {Laws.inert.marked(x) == False{} : Bool}
+  {String.eq(Laws.inert.keep(b, t), x) == String.eq(t, x) : Bool}
+
+def inert.eq_keep(b, t, x, ef, ex):
+  match b:
+    case False{}: {==}
+    case True{}:
+      Equal.trans(Bool, String.eq(Laws.inert.cut(t), x), False{}, String.eq(t, x),
+        inert.neq(Laws.inert.cut(t), x, inert.cut_marked(t, ef), ex),
+        Equal.sym(Bool, String.eq(t, x), False{}, inert.neq(t, x, ef, ex)))
+
+# a test guarded by a kind that is never cut reads a token's text as it was
+law inert.guard:
+  for c: Bool
+  for +b: Bool
+  for +t: String
+  for -p: String -> Bool
+  for e: {Bool.and(c, b) == False{} : Bool}
+  {Bool.and(c, p(Laws.inert.keep(b, t))) == Bool.and(c, p(t)) : Bool}
+
+def inert.guard(c, b, t, p, e):
+  match c:
+    case False{}: {==}
+    case True{}:
+      %Equal.sym(Bool, b, False{}, e) : {p(Laws.inert.keep(_, t)) == p(t) : Bool}
+      {==}
+
+# two sources whose readings agree, each reading giving what its source
+# gives, give the same
+law inert.via:
+  for -A: Data
+  for -f: A -> List<&2, F.Finding>
+  for -a: A
+  for -b: A
+  for -ca: A
+  for -cb: A
+  for ea: {f(ca) == f(a) : List<&2, F.Finding>}
+  for eb: {f(cb) == f(b) : List<&2, F.Finding>}
+  for e: {ca == cb : A}
+  {f(a) == f(b) : List<&2, F.Finding>}
+
+def inert.via(A, f, a, b, ca, cb, ea, eb, e):
+  Equal.trans(List<&2, F.Finding>, f(a), f(ca), f(b), Equal.sym(List<&2, F.Finding>, f(ca), f(a), ea),
+    Equal.trans(List<&2, F.Finding>, f(ca), f(cb), f(b), Equal.cong(A, List<&2, F.Finding>, f, ca, cb, e), eb))
+
+# hole
+# ----
+
+# a capitalized name is never cut: one split, for the one kind test on text
+law inert.hole.upper:
+  for k: Lex.TokKind
+  {Bool.and(Calls.kind.upper(k), Laws.inert.blanks(k)) == False{} : Bool}
+
+def inert.hole.upper(k):
+  match k:
+    case Lex.TName{}: {==}
+    case Lex.TUpper{}: {==}
+    case Lex.TDotted{}: {==}
+    case Lex.TWild{}: {==}
+    case Lex.TKey{}: {==}
+    case Lex.TNum{}: {==}
+    case Lex.TStr{}: {==}
+    case Lex.TChar{}: {==}
+    case Lex.TComment{}: {==}
+    case Lex.TSpace{}: {==}
+    case Lex.TNewline{}: {==}
+    case Lex.TOp{}: {==}
+    case Lex.TColon{}: {==}
+    case Lex.TEq{}: {==}
+    case Lex.TBind{}: {==}
+    case Lex.TArrow{}: {==}
+    case Lex.TLam{}: {==}
+    case Lex.TAll{}: {==}
+    case Lex.TAmp{}: {==}
+    case Lex.TOpen{}: {==}
+    case Lex.TClose{}: {==}
+    case Lex.TComma{}: {==}
+
+# an operator is never cut
+law inert.hole.op:
+  for k: Lex.TokKind
+  {Bool.and(Calls.kind.oper(k), Laws.inert.blanks(k)) == False{} : Bool}
+
+def inert.hole.op(k):
+  match k:
+    case Lex.TName{}: {==}
+    case Lex.TUpper{}: {==}
+    case Lex.TDotted{}: {==}
+    case Lex.TWild{}: {==}
+    case Lex.TKey{}: {==}
+    case Lex.TNum{}: {==}
+    case Lex.TStr{}: {==}
+    case Lex.TChar{}: {==}
+    case Lex.TComment{}: {==}
+    case Lex.TSpace{}: {==}
+    case Lex.TNewline{}: {==}
+    case Lex.TOp{}: {==}
+    case Lex.TColon{}: {==}
+    case Lex.TEq{}: {==}
+    case Lex.TBind{}: {==}
+    case Lex.TArrow{}: {==}
+    case Lex.TLam{}: {==}
+    case Lex.TAll{}: {==}
+    case Lex.TAmp{}: {==}
+    case Lex.TOpen{}: {==}
+    case Lex.TClose{}: {==}
+    case Lex.TComma{}: {==}
+
+# the TODO test reads kinds, and the text of a capitalized name only
+law inert.hole.todo:
+  for ts: List<&2, Lex.Tok>
+  {Hole.check.todo(Laws.inert.toks(ts)) == Hole.check.todo(ts) : Bool}
+
+def inert.hole.todo(ts):
+  match ts:
+    case Nil{}: {==}
+    case Con{Lex.Tok{+k, +t, l, c}, +rest}:
+      +b = Laws.inert.blanks(k)
+      %inert.guard(Calls.kind.upper(k), b, t, z => String.eq(z, "TODO"), inert.hole.upper(k)) :
+        {Lazy.stop(Bool, Lex.significant(k), Bool.and(Calls.kind.upper(k), String.eq(Laws.inert.keep(b, t), "TODO")),
+          _u => Hole.check.todo(Laws.inert.toks(rest)))
+            == Lazy.stop(Bool, Lex.significant(k), _, _u => Hole.check.todo(rest))
+          : Bool}
+      %inert.hole.todo(rest) :
+        {Lazy.stop(Bool, Lex.significant(k), Bool.and(Calls.kind.upper(k), String.eq(Laws.inert.keep(b, t), "TODO")),
+          _u => Hole.check.todo(Laws.inert.toks(rest))) == Lazy.stop(Bool, Lex.significant(k),
+          Bool.and(Calls.kind.upper(k), String.eq(Laws.inert.keep(b, t), "TODO")), _u => _) : Bool}
+      {==}
+
+# the width reads kinds and positions only
+law inert.hole.width:
+  for ts: List<&2, Lex.Tok>
+  for +line: U32
+  for +col: U32
+  {Hole.check.width(Laws.inert.toks(ts), line, col) == Hole.check.width(ts, line, col) : U32}
+
+def inert.hole.width(ts, line, col):
+  match ts:
+    case Nil{}: {==}
+    case Con{Lex.Tok{+k, t, +l, +c}, +rest}:
+      +w = Bool.pick(U32, U32.is_eq(l, line), U32.add(U32.sub(c, col), 4), 1)
+      %inert.hole.width(rest, line, col) : {Lazy.stop(U32, Lex.significant(k), w,
+        _u => Hole.check.width(Laws.inert.toks(rest), line, col))
+          == Lazy.stop(U32, Lex.significant(k), w, _u => _) : U32}
+      {==}
+
+# hole's walk reads no comment or string
+law inert.hole.go:
+  for ts: List<&2, Lex.Tok>
+  for +path: String
+  {Hole.check.go(Laws.inert.toks(ts), path) == Hole.check.go(ts, path) : List<&2, F.Finding>}
+
+def inert.hole.go(ts, path):
+  match ts:
+    case Nil{}: {==}
+    case Con{Lex.Tok{+k, +q, +l, +c}, +rest}:
+      +b = Laws.inert.blanks(k)
+      +cr = Laws.inert.toks(rest)
+      +hit = Bool.and(Calls.kind.oper(k), Lazy.and_then(String.eq(Laws.inert.keep(b, q), "?"),
+        _u => Hole.check.todo(cr)))
+      +lhs = Lazy.stop(List<&2, F.Finding>, Bool.not(hit), Hole.check.go(cr, path), _u => F.Finding{path, l, c,
+        Hole.check.width(cr, l, c), "hole", "A ?TODO is left here."} <> Hole.check.go(cr, path))
+      %inert.hole.go(rest, path) : {lhs == Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Calls.kind.oper(k),
+        Lazy.and_then(String.eq(q, "?"), _u => Hole.check.todo(rest)))), _, _u => F.Finding{path, l, c,
+        Hole.check.width(rest, l, c), "hole", "A ?TODO is left here."} <> _) : List<&2, F.Finding>}
+      %inert.hole.width(rest, l, c) : {lhs == Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Calls.kind.oper(k),
+        Lazy.and_then(String.eq(q, "?"), _u => Hole.check.todo(rest)))), Hole.check.go(cr, path), _u => F.Finding{path,
+        l, c, _, "hole", "A ?TODO is left here."} <> Hole.check.go(cr, path)) : List<&2, F.Finding>}
+      %inert.hole.todo(rest) : {lhs == Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Calls.kind.oper(k),
+        Lazy.and_then(String.eq(q, "?"), _u => _))), Hole.check.go(cr, path), _u => F.Finding{path, l, c,
+        Hole.check.width(cr, l, c), "hole", "A ?TODO is left here."} <> Hole.check.go(cr, path)) : List<&2, F.Finding>}
+      %inert.guard(Calls.kind.oper(k), b, q, z => Lazy.and_then(String.eq(z, "?"), _u => Hole.check.todo(cr)),
+        inert.hole.op(k)) : {lhs == Lazy.stop(List<&2, F.Finding>, Bool.not(_), Hole.check.go(cr, path),
+          _u => F.Finding{path, l, c, Hole.check.width(cr, l, c), "hole", "A ?TODO is left here."}
+          <> Hole.check.go(cr, path)) : List<&2, F.Finding>}
+      {==}
+
+def Laws.inert_hole(path, _text, toks, _tree, _bound, _items, _text2, toks2, _tree2, _bound2, _items2, e):
+  inert.via(List<&2, Lex.Tok>, z => Hole.check.on(z, path), toks, toks2, Laws.inert.toks(toks), Laws.inert.toks(toks2),
+    Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>, z => Lazy.stop(List<&2, F.Finding>, Paths.is_laws(path), [],
+      _u => z), Hole.check.go(Laws.inert.toks(toks), path), Hole.check.go(toks, path), inert.hole.go(toks, path)),
+    Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>, z => Lazy.stop(List<&2, F.Finding>, Paths.is_laws(path), [],
+      _u => z), Hole.check.go(Laws.inert.toks(toks2), path), Hole.check.go(toks2, path), inert.hole.go(toks2, path)), e)
+
+# put
+# ---
+
+# reading the tokens that way commutes with a pick between two lists that
+# differ by one token in front
+law inert.put.pick:
+  for b: Bool
+  for +x: Lex.Tok
+  for +xs: List<&2, Lex.Tok>
+  {Laws.inert.toks(Bool.pick(List<&2, Lex.Tok>, b, x <> xs, xs))
+    == Bool.pick(List<&2, Lex.Tok>, b, Laws.inert.tok(x) <> Laws.inert.toks(xs),
+      Laws.inert.toks(xs)) : List<&2, Lex.Tok>}
+
+def inert.put.pick(b, _x, _xs):
+  match b:
+    case True{}: {==}
+    case False{}: {==}
+
+# the significant tokens of the tokens read that way are the significant
+# tokens read that way
+law inert.put.sig:
+  for ts: List<&2, Lex.Tok>
+  {T.sig(Laws.inert.toks(ts)) == Laws.inert.toks(T.sig(ts)) : List<&2, Lex.Tok>}
+
+def inert.put.sig(ts):
+  match ts:
+    case Nil{}: {==}
+    case Con{Lex.Tok{+k, +t, +l, +c}, +rest}:
+      +x = {Lex.Tok{k, Laws.inert.keep(Laws.inert.blanks(k), t), l, c} : Lex.Tok}
+      +cs = Laws.inert.toks(T.sig(rest))
+      %Equal.sym(List<&2, Lex.Tok>, T.sig(Laws.inert.toks(rest)), cs, inert.put.sig(rest)) :
+        {Bool.pick(List<&2, Lex.Tok>, Lex.significant(k), x <> _, _) == Laws.inert.toks(T.sig(Lex.Tok{k, t, l,
+          c} <> rest))
+          : List<&2, Lex.Tok>}
+      Equal.sym(List<&2, Lex.Tok>, Laws.inert.toks(T.sig(Lex.Tok{k, t, l, c} <> rest)),
+        Bool.pick(List<&2, Lex.Tok>, Lex.significant(k), x <> cs, cs),
+        inert.put.pick(Lex.significant(k), Lex.Tok{k, t, l, c}, T.sig(rest)))
+
+# a pick between two lists that differ by one token in front keeps the
+# tokens as the lexer makes them
+law inert.put.pick_ok:
+  for b: Bool
+  for +x: Lex.Tok
+  for +xs: List<&2, Lex.Tok>
+  for e: {Bool.and(Laws.inert.fits(x), Laws.inert.oks(xs)) == True{} : Bool}
+  for er: {Laws.inert.oks(xs) == True{} : Bool}
+  {Laws.inert.oks(Bool.pick(List<&2, Lex.Tok>, b, x <> xs, xs)) == True{} : Bool}
+
+def inert.put.pick_ok(b, _x, _xs, e, er):
+  match b:
+    case True{}: e
+    case False{}: er
+
+# the significant tokens of tokens as the lexer makes them are too
+law inert.put.sig_ok:
+  for ts: List<&2, Lex.Tok>
+  for +e: {Laws.inert.oks(ts) == True{} : Bool}
+  {Laws.inert.oks(T.sig(ts)) == True{} : Bool}
+
+def inert.put.sig_ok(ts, e):
+  match ts:
+    case Nil{}: {==}
+    case Con{Lex.Tok{+k, +t, +l, +c}, +rest}:
+      +h = {Lex.Tok{k, t, l, c} : Lex.Tok}
+      +er = inert.put.sig_ok(rest, inert.and_r(Laws.inert.fits(h), Laws.inert.oks(rest), e))
+      inert.put.pick_ok(Lex.significant(k), h, T.sig(rest),
+        inert.and_both(Laws.inert.fits(h), Laws.inert.oks(T.sig(rest)), inert.and_l(Laws.inert.fits(h),
+          Laws.inert.oks(rest), e), er), er)
+
+# the token after `def` is `Map.put` as it was
+law inert.put.named:
+  for ts: List<&2, Lex.Tok>
+  for +e: {Laws.inert.oks(ts) == True{} : Bool}
+  {Put.defines.named(Laws.inert.toks(ts)) == Put.defines.named(ts) : Bool}
+
+def inert.put.named(ts, e):
+  match ts:
+    case Nil{}: {==}
+    case Con{Lex.Tok{+k, +t, +l, +c}, +rest}:
+      inert.eq_keep(Laws.inert.blanks(k), t, "Map.put",
+        inert.and_l(Laws.inert.fits(Lex.Tok{k, t, l, c}), Laws.inert.oks(rest), e), {==})
+
+# put's exemption test reads no comment or string: a keyword's text is
+# compared with `def`, which no string equals
+law inert.put.defines:
+  for ts: List<&2, Lex.Tok>
+  for +e: {Laws.inert.oks(ts) == True{} : Bool}
+  {Put.defines(Laws.inert.toks(ts)) == Put.defines(ts) : Bool}
+
+def inert.put.defines(ts, e):
+  match ts:
+    case Nil{}: {==}
+    case Con{Lex.Tok{+k, +d, +l, +c}, +rest}:
+      +er = inert.and_r(Laws.inert.fits(Lex.Tok{k, d, l, c}), Laws.inert.oks(rest), e)
+      +cr = Laws.inert.toks(rest)
+      +dd = Laws.inert.keep(Laws.inert.blanks(k), d)
+      +lhs = Lazy.or_else(Bool.and(Put.defines.key(k), Bool.and(String.eq(dd, "def"), Put.defines.named(cr))),
+        _u => Put.defines(cr))
+      %inert.eq_keep(Laws.inert.blanks(k), d, "def", inert.and_l(Laws.inert.fits(Lex.Tok{k, d, l, c}),
+        Laws.inert.oks(rest), e), {==}) : {lhs == Lazy.or_else(Bool.and(Put.defines.key(k), Bool.and(_,
+          Put.defines.named(rest))), _u => Put.defines(rest)) : Bool}
+      %inert.put.named(rest, er) : {lhs == Lazy.or_else(Bool.and(Put.defines.key(k), Bool.and(String.eq(dd, "def"), _)),
+        _u => Put.defines(rest)) : Bool}
+      %inert.put.defines(rest, er) : {lhs == Lazy.or_else(Bool.and(Put.defines.key(k), Bool.and(String.eq(dd, "def"),
+        Put.defines.named(cr))), _u => _) : Bool}
+      {==}
+
+# a dotted name then an open bracket, their texts read that way: compared
+# with `Map.put` and `(` as they were
+law inert.put.call:
+  for +b1: Bool
+  for +t: String
+  for +b2: Bool
+  for +o: String
+  for +l: U32
+  for +c: U32
+  for +path: String
+  for +more: List<&2, F.Finding>
+  for +e1: {Laws.inert.fits.go(b1, t) == True{} : Bool}
+  for +e2: {Laws.inert.fits.go(b2, o) == True{} : Bool}
+  {Put.calls.one(Laws.inert.keep(b1, t), Laws.inert.keep(b2, o), l, c, path, more)
+    == Put.calls.one(t, o, l, c, path, more)
+    : List<&2, F.Finding>}
+
+def inert.put.call(b1, t, b2, o, l, c, path, more, e1, e2):
+  +x = {F.Finding{path, l, c, 7, "put", "Map.put never compares keys, so a new key overwrites another entry; use Map.set."}
+    : F.Finding}
+  +lhs = Put.calls.one(Laws.inert.keep(b1, t), Laws.inert.keep(b2, o), l, c, path, more)
+  %inert.eq_keep(b1, t, "Map.put", e1, {==}) : {lhs == Bool.pick(List<&2, F.Finding>, Bool.and(_, String.eq(o, "(")),
+    x <> more, more) : List<&2, F.Finding>}
+  %inert.eq_keep(b2, o, "(", e2, {==}) : {lhs == Bool.pick(List<&2, F.Finding>,
+    Bool.and(String.eq(Laws.inert.keep(b1, t), "Map.put"), _), x <> more, more) : List<&2, F.Finding>}
+  {==}
+
+# put's walk reads no comment or string: it tests kinds, then compares texts
+# with `Map.put` and `(`
+law inert.put.calls:
+  for ts: List<&2, Lex.Tok>
+  for +path: String
+  for +e: {Laws.inert.oks(ts) == True{} : Bool}
+  {Put.calls(Laws.inert.toks(ts), path) == Put.calls(ts, path) : List<&2, F.Finding>}
+
+def inert.put.calls(ts, path, e):
+  match ts:
+    case Nil{}: {==}
+    case Con{Lex.Tok{+k, +t, +l, +c}, +rest}:
+      match rest:
+        case Nil{}: {==}
+        case Con{Lex.Tok{+k2, +o, +l2, +c2}, +r2}:
+          +h1 = {Lex.Tok{k, t, l, c} : Lex.Tok}
+          +h2 = {Lex.Tok{k2, o, l2, c2} : Lex.Tok}
+          +er = inert.and_r(Laws.inert.fits(h1), Laws.inert.oks(rest), e)
+          +e2 = inert.and_r(Laws.inert.fits(h2), Laws.inert.oks(r2), er)
+          +cr = Laws.inert.toks(rest)
+          +cond = Bool.and(Put.calls.dotted(k), Lex.is_open(k2))
+          +tt = Laws.inert.keep(Laws.inert.blanks(k), t)
+          +oo = Laws.inert.keep(Laws.inert.blanks(k2), o)
+          +lhs = Lazy.either(List<&2, F.Finding>, cond, _u => Put.calls.one(tt, oo, l, c, path,
+            Put.calls(Laws.inert.toks(r2), path)), _v => Put.calls(cr, path))
+          %inert.put.calls(rest, path, er) : {lhs == Lazy.either(List<&2, F.Finding>, cond,
+            _u => Put.calls.one(t, o, l, c, path, Put.calls(r2, path)), _v => _) : List<&2, F.Finding>}
+          %inert.put.calls(r2, path, e2) : {lhs == Lazy.either(List<&2, F.Finding>, cond,
+            _u => Put.calls.one(t, o, l, c, path, _), _v => Put.calls(cr, path)) : List<&2, F.Finding>}
+          %inert.put.call(Laws.inert.blanks(k), t, Laws.inert.blanks(k2), o, l, c, path,
+            Put.calls(Laws.inert.toks(r2), path), inert.and_l(Laws.inert.fits(h1), Laws.inert.oks(rest), e),
+            inert.and_l(Laws.inert.fits(h2), Laws.inert.oks(r2), er)) : {lhs == Lazy.either(List<&2, F.Finding>, cond,
+              _u => _, _v => Put.calls(cr, path)) : List<&2, F.Finding>}
+          {==}
+
+# put's check reads no comment or string
+law inert.put.on:
+  for +ts: List<&2, Lex.Tok>
+  for +path: String
+  for +e: {Laws.inert.oks(ts) == True{} : Bool}
+  {Put.check.on(T.sig(Laws.inert.toks(ts)), path) == Put.check.on(T.sig(ts), path) : List<&2, F.Finding>}
+
+def inert.put.on(ts, path, e):
+  +s = T.sig(ts)
+  +es = inert.put.sig_ok(ts, e)
+  +cs = Laws.inert.toks(s)
+  %Equal.sym(List<&2, Lex.Tok>, T.sig(Laws.inert.toks(ts)), cs, inert.put.sig(ts)) :
+    {Put.check.on(_, path) == Put.check.on(s, path) : List<&2, F.Finding>}
+  %inert.put.defines(s, es) : {Lazy.stop(List<&2, F.Finding>, Put.defines(cs), [], _u => Put.calls(cs, path))
+    == Lazy.stop(List<&2, F.Finding>, _, [], _u => Put.calls(s, path)) : List<&2, F.Finding>}
+  %inert.put.calls(s, path, es) : {Lazy.stop(List<&2, F.Finding>, Put.defines(cs), [], _u => Put.calls(cs, path))
+    == Lazy.stop(List<&2, F.Finding>, Put.defines(cs), [], _u => _) : List<&2, F.Finding>}
+  {==}
+
+def Laws.inert_put(path, _text, toks, _tree, _bound, _items, _text2, toks2, _tree2, _bound2, _items2, ok, ok2, e):
+  inert.via(List<&2, Lex.Tok>, z => Put.check.on(T.sig(z), path), toks, toks2, Laws.inert.toks(toks),
+    Laws.inert.toks(toks2), inert.put.on(toks, path, ok), inert.put.on(toks2, path, ok2), e)
+
+# the tree rules: what calls.bend gives them
+# ------------------------------------------
+
+# a name no string or comment can equal: it does not start with `"` or `#`
+def inert.plain(mm: Maybe<&2, String>) -> Bool:
+  match mm:
+    case None{}: True{}
+    case Some{name}: Bool.not(Laws.inert.marked(name))
+
+# the defs, their signatures and bodies each read that way
+def inert.defs(ds: List<&2, Calls.Def>) -> List<&2, Calls.Def>:
+  match ds:
+    case Nil{}: Nil{}
+    case Con{Calls.Def{name, sig, body}, rest}: Calls.Def{name, Laws.inert.node(sig),
+      Laws.inert.node(body)} <> inert.defs(rest)
+
+# every def as the lexer makes it: a plain name, and leaves that fit
+def inert.dok(ds: List<&2, Calls.Def>) -> Bool:
+  match ds:
+    case Nil{}: True{}
+    case Con{Calls.Def{name, sig, body}, rest}:
+      Bool.and(Bool.and(Bool.not(Laws.inert.marked(name)), Bool.and(Laws.inert.ok(sig), Laws.inert.ok(body))),
+        inert.dok(rest))
+
+# the chains, each read that way
+def inert.nodes(ns: List<&2, Tree.Node>) -> List<&2, Tree.Node>:
+  match ns:
+    case Nil{}: Nil{}
+    case Con{h, t}: Laws.inert.node(h) <> inert.nodes(t)
+
+# every chain's leaves fit
+def inert.noks(ns: List<&2, Tree.Node>) -> Bool:
+  match ns:
+    case Nil{}: True{}
+    case Con{h, t}: Bool.and(Laws.inert.ok(h), inert.noks(t))
+
+# a name that can be declared is never cut
+law inert.name_code:
+  for k: Lex.TokKind
+  {Bool.and(Bind.declared.is_name(k), Laws.inert.blanks(k)) == False{} : Bool}
+
+def inert.name_code(k):
+  match k:
+    case Lex.TName{}: {==}
+    case Lex.TUpper{}: {==}
+    case Lex.TDotted{}: {==}
+    case Lex.TWild{}: {==}
+    case Lex.TKey{}: {==}
+    case Lex.TNum{}: {==}
+    case Lex.TStr{}: {==}
+    case Lex.TChar{}: {==}
+    case Lex.TComment{}: {==}
+    case Lex.TSpace{}: {==}
+    case Lex.TNewline{}: {==}
+    case Lex.TOp{}: {==}
+    case Lex.TColon{}: {==}
+    case Lex.TEq{}: {==}
+    case Lex.TBind{}: {==}
+    case Lex.TArrow{}: {==}
+    case Lex.TLam{}: {==}
+    case Lex.TAll{}: {==}
+    case Lex.TAmp{}: {==}
+    case Lex.TOpen{}: {==}
+    case Lex.TClose{}: {==}
+    case Lex.TComma{}: {==}
+
+# a name picked by a kind that is never cut, as it was
+law inert.name_pick:
+  for c: Bool
+  for +b: Bool
+  for +t: String
+  for e: {Bool.and(c, b) == False{} : Bool}
+  {Bool.pick(Maybe<&2, String>, c, Some{Laws.inert.keep(b, t)}, None{})
+    == Bool.pick(Maybe<&2, String>, c, Some{t}, None{}) : Maybe<&2, String>}
+
+def inert.name_pick(c, b, t, e):
+  match c:
+    case False{}: {==}
+    case True{}:
+      %Equal.sym(Bool, b, False{}, e) : {Bool.pick(Maybe<&2, String>, True{}, Some{Laws.inert.keep(_, t)}, None{})
+        == Bool.pick(Maybe<&2, String>, True{}, Some{t}, None{}) : Maybe<&2, String>}
+      {==}
+
+# the name right after a statement's keyword, as it was
+law inert.declared.go:
+  for kids: Tree.Node
+  {Bind.declared.go(Laws.inert.node(kids)) == Bind.declared.go(kids) : Maybe<&2, String>}
+
+def inert.declared.go(kids):
+  match kids:
+    case Tree.NCons{h, _rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, t, _l, _c}:
+              inert.name_pick(Bind.declared.is_name(k), Laws.inert.blanks(k), t, inert.name_code(k))
+        case Tree.Group{o, gk, cl}: {==}
+        case Tree.Stmt{sk, sks, sb}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a choice whose test and both branches read as they did
+law inert.either:
+  for -A: Type
+  for -c1: Bool
+  for -c2: Bool
+  for -a1: A
+  for -a2: A
+  for -b1: A
+  for -b2: A
+  for ec: {c1 == c2 : Bool}
+  for ea: {a1 == a2 : A}
+  for eb: {b1 == b2 : A}
+  {Lazy.either(A, c1, _u => a1, _v => b1) == Lazy.either(A, c2, _u => a2, _v => b2) : A}
+
+def inert.either(A, c1, _c2, a1, a2, b1, b2, ec, ea, eb):
+  %ec : {Lazy.either(A, c1, _u => a1, _v => b1) == Lazy.either(A, _, _u => a2, _v => b2) : A}
+  %ea : {Lazy.either(A, c1, _u => a1, _v => b1) == Lazy.either(A, c1, _u => _, _v => b2) : A}
+  %eb : {Lazy.either(A, c1, _u => a1, _v => b1) == Lazy.either(A, c1, _u => a1, _v => _) : A}
+  {==}
+
+# a node read that way is a leaf of the kind it was
+law inert.leaf_kind:
+  for nn: Tree.Node
+  {Calls.leaf.kind(Laws.inert.node(nn)) == Calls.leaf.kind(nn) : Maybe<&2, Lex.TokKind>}
+
+def inert.leaf_kind(nn):
+  match nn:
+    case Tree.Leaf{tok}:
+      match tok:
+        case Lex.Tok{k, t, l, c}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+    case Tree.NCons{x, y}: {==}
+
+# a node read that way is a keyword as it was
+law inert.declared.key:
+  for nn: Tree.Node
+  {Bind.declared.key(Laws.inert.node(nn)) == Bind.declared.key(nn) : Bool}
+
+def inert.declared.key(nn):
+  match nn:
+    case Tree.Leaf{tok}:
+      match tok:
+        case Lex.Tok{k, t, l, c}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+    case Tree.NCons{x, y}: {==}
+
+# the name a statement declares, as it was
+law inert.declared:
+  for kids: Tree.Node
+  {Bind.declared(Laws.inert.node(kids)) == Bind.declared(kids) : Maybe<&2, String>}
+
+def inert.declared(kids):
+  match kids:
+    case Tree.NCons{+h, +rest}:
+      inert.either(Maybe<&2, String>, Bind.declared.key(Laws.inert.node(h)), Bind.declared.key(h),
+        Bind.declared.go(Laws.inert.node(rest)), Bind.declared.go(rest), Bind.declared(Laws.inert.node(rest)),
+        Bind.declared(rest), inert.declared.key(h), inert.declared.go(rest), inert.declared(rest))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a name picked by a kind that is never cut, from a leaf that fits, is plain
+law inert.plain_pick:
+  for c: Bool
+  for +b: Bool
+  for +t: String
+  for e1: {Bool.and(c, b) == False{} : Bool}
+  for e2: {Laws.inert.fits.go(b, t) == True{} : Bool}
+  {inert.plain(Bool.pick(Maybe<&2, String>, c, Some{t}, None{})) == True{} : Bool}
+
+def inert.plain_pick(c, b, t, e1, e2):
+  match c:
+    case False{}: {==}
+    case True{}:
+      Equal.trans(Bool, Laws.inert.fits.go(False{}, t), Laws.inert.fits.go(b, t), True{},
+        Equal.cong(Bool, Bool, z => Laws.inert.fits.go(z, t), False{}, b, Equal.sym(Bool, b, False{}, e1)), e2)
+
+# the name right after the keyword is a name: plain, when its leaf fits
+law inert.plain.go:
+  for kids: Tree.Node
+  for +e: {Laws.inert.ok(kids) == True{} : Bool}
+  {inert.plain(Bind.declared.go(kids)) == True{} : Bool}
+
+def inert.plain.go(kids, e):
+  match kids:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              inert.plain_pick(Bind.declared.is_name(k), Laws.inert.blanks(k), t, inert.name_code(k),
+                inert.and_l(Laws.inert.fits(Lex.Tok{k, t, l, c}), Laws.inert.ok(rest), e))
+        case Tree.Group{o, gk, cl}: {==}
+        case Tree.Stmt{sk, sks, sb}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a choice both of whose branches hold a test holds it
+law inert.either_ok:
+  for -A: Type
+  for c: Bool
+  for -p: A -> Bool
+  for -a: A
+  for -b: A
+  for ea: {p(a) == True{} : Bool}
+  for eb: {p(b) == True{} : Bool}
+  {p(Lazy.either(A, c, _u => a, _v => b)) == True{} : Bool}
+
+def inert.either_ok(_A, c, _p, _a, _b, ea, eb):
+  match c:
+    case True{}: ea
+    case False{}: eb
+
+# the name a statement declares is plain, when its leaves fit
+law inert.plain.declared:
+  for kids: Tree.Node
+  for +e: {Laws.inert.ok(kids) == True{} : Bool}
+  {inert.plain(Bind.declared(kids)) == True{} : Bool}
+
+def inert.plain.declared(kids, e):
+  match kids:
+    case Tree.NCons{+h, +rest}:
+      +er = inert.and_r(Laws.inert.ok(h), Laws.inert.ok(rest), e)
+      inert.either_ok(Maybe<&2, String>, Bind.declared.key(h), z => inert.plain(z), Bind.declared.go(rest),
+        Bind.declared(rest), inert.plain.go(rest, er), inert.plain.declared(rest, er))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# pushing a def commutes with reading the defs that way
+law inert.defs.push:
+  for mm: Maybe<&2, String>
+  for +sig: Tree.Node
+  for +body: Tree.Node
+  for +acc: List<&2, Calls.Def>
+  {Calls.defs.push(mm, Laws.inert.node(sig), Laws.inert.node(body), inert.defs(acc))
+    == inert.defs(Calls.defs.push(mm, sig, body, acc)) : List<&2, Calls.Def>}
+
+def inert.defs.push(mm, _sig, _body, _acc):
+  match mm:
+    case None{}: {==}
+    case Some{name}: {==}
+
+# pushing a def whose name is plain and whose leaves fit keeps every def so
+law inert.dok.push:
+  for mm: Maybe<&2, String>
+  for +sig: Tree.Node
+  for +body: Tree.Node
+  for +acc: List<&2, Calls.Def>
+  for +en: {inert.plain(mm) == True{} : Bool}
+  for +es: {Bool.and(Laws.inert.ok(sig), Laws.inert.ok(body)) == True{} : Bool}
+  for +ea: {inert.dok(acc) == True{} : Bool}
+  {inert.dok(Calls.defs.push(mm, sig, body, acc)) == True{} : Bool}
+
+def inert.dok.push(mm, sig, body, acc, en, es, ea):
+  match mm:
+    case None{}: ea
+    case Some{+name}:
+      inert.and_both(Bool.and(Bool.not(Laws.inert.marked(name)), Bool.and(Laws.inert.ok(sig), Laws.inert.ok(body))),
+        inert.dok(acc), inert.and_both(Bool.not(Laws.inert.marked(name)), Bool.and(Laws.inert.ok(sig),
+          Laws.inert.ok(body)),
+          en, es), ea)
+
+# the defs of a tree read that way are its defs, each read that way; and
+# they are as the lexer makes them, when its leaves fit
+law inert.defs.of:
+  for root: Tree.Node
+  {Calls.defs(Laws.inert.node(root)) == inert.defs(Calls.defs(root)) : List<&2, Calls.Def>}
+
+def inert.defs.of(root):
+  match root:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Stmt{sk, +kids, +body}:
+          match sk:
+            case Tree.SDef{}:
+              %Equal.sym(Maybe<&2, String>, Bind.declared(Laws.inert.node(kids)), Bind.declared(kids),
+                inert.declared(kids)) :
+                {Calls.defs.push(_, Laws.inert.node(kids), Laws.inert.node(body), Calls.defs(Laws.inert.node(rest)))
+                  == inert.defs(Calls.defs.push(Bind.declared(kids), kids, body,
+                    Calls.defs(rest))) : List<&2, Calls.Def>}
+              %Equal.sym(List<&2, Calls.Def>, Calls.defs(Laws.inert.node(rest)), inert.defs(Calls.defs(rest)),
+                inert.defs.of(rest)) : {Calls.defs.push(Bind.declared(kids), Laws.inert.node(kids),
+                  Laws.inert.node(body), _)
+                  == inert.defs(Calls.defs.push(Bind.declared(kids), kids, body,
+                    Calls.defs(rest))) : List<&2, Calls.Def>}
+              inert.defs.push(Bind.declared(kids), kids, body, Calls.defs(rest))
+            case Tree.SType{}: inert.defs.of(rest)
+            case Tree.SLaw{}: inert.defs.of(rest)
+            case Tree.SImport{}: inert.defs.of(rest)
+            case Tree.SCase{}: inert.defs.of(rest)
+            case Tree.SFor{}: inert.defs.of(rest)
+            case Tree.SLet{}: inert.defs.of(rest)
+            case Tree.STerm{}: inert.defs.of(rest)
+        case Tree.Leaf{tok}: inert.defs.of(rest)
+        case Tree.Group{o, gk, cl}: inert.defs.of(rest)
+        case Tree.NNil{}: inert.defs.of(rest)
+        case Tree.NCons{x, y}: inert.defs.of(rest)
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a statement onto defs as the lexer makes them keeps them so: a def whose
+# name is plain and whose leaves fit, or no def at all
+law inert.dok.stmt:
+  for sk: Tree.StmtKind
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +en: {inert.plain(Bind.declared(kids)) == True{} : Bool}
+  for +es: {Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)) == True{} : Bool}
+  for +er: {inert.dok(Calls.defs(rest)) == True{} : Bool}
+  {inert.dok(Calls.defs(Tree.NCons{Tree.Stmt{sk, kids, body}, rest})) == True{} : Bool}
+
+def inert.dok.stmt(sk, kids, body, rest, en, es, er):
+  match sk:
+    case Tree.SDef{}: inert.dok.push(Bind.declared(kids), kids, body, Calls.defs(rest), en, es, er)
+    case Tree.SType{}: er
+    case Tree.SLaw{}: er
+    case Tree.SImport{}: er
+    case Tree.SCase{}: er
+    case Tree.SFor{}: er
+    case Tree.SLet{}: er
+    case Tree.STerm{}: er
+
+# the defs of a tree whose leaves fit are as the lexer makes them
+law inert.dok.of:
+  for root: Tree.Node
+  for +e: {Laws.inert.ok(root) == True{} : Bool}
+  {inert.dok(Calls.defs(root)) == True{} : Bool}
+
+def inert.dok.of(root, e):
+  match root:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Stmt{sk, +kids, +body}:
+          +es = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+          +er = inert.dok.of(rest, inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)),
+            Laws.inert.ok(rest), e))
+          inert.dok.stmt(sk, kids, body, rest, inert.plain.declared(kids, inert.and_l(Laws.inert.ok(kids),
+            Laws.inert.ok(body),
+            es)), es, er)
+        case Tree.Leaf{tok}: inert.dok.of(rest, inert.and_r(Laws.inert.fits(tok), Laws.inert.ok(rest), e))
+        case Tree.Group{o, gk, cl}: inert.dok.of(rest, inert.and_r(Laws.inert.ok(gk), Laws.inert.ok(rest), e))
+        case Tree.NNil{}: inert.dok.of(rest, e)
+        case Tree.NCons{x, y}: inert.dok.of(rest, inert.and_r(Laws.inert.ok(Tree.NCons{x, y}), Laws.inert.ok(rest), e))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a chain reversed onto another, both read that way, is the reversal read
+# that way
+law inert.reverse:
+  for cells: Tree.Node
+  for acc: Tree.Node
+  {Tree.reverse(Laws.inert.node(cells), Laws.inert.node(acc)) == Laws.inert.node(Tree.reverse(cells, acc)) : Tree.Node}
+
+def inert.reverse(cells, acc):
+  match cells:
+    case Tree.NCons{h, t}: inert.reverse(t, Tree.NCons{h, acc})
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a list of chains reversed onto another, both read that way, is the
+# reversal read that way
+law inert.nodes.rev:
+  for xs: List<&2, Tree.Node>
+  for acc: List<&2, Tree.Node>
+  {List.reverse.go(&2, Tree.Node, inert.nodes(xs), inert.nodes(acc))
+    == inert.nodes(List.reverse.go(&2, Tree.Node, xs, acc)) : List<&2, Tree.Node>}
+
+def inert.nodes.rev(xs, acc):
+  match xs:
+    case Nil{}: {==}
+    case Con{h, t}: inert.nodes.rev(t, h <> acc)
+
+# the last argument closed, read that way
+law inert.args.end:
+  for +cur: Tree.Node
+  for +acc: List<&2, Tree.Node>
+  {List.reverse(&2, Tree.Node, Tree.reverse(Laws.inert.node(cur), Tree.NNil{}) <> inert.nodes(acc))
+    == inert.nodes(List.reverse(&2, Tree.Node, Tree.reverse(cur, Tree.NNil{}) <> acc)) : List<&2, Tree.Node>}
+
+def inert.args.end(cur, acc):
+  %Equal.sym(Tree.Node, Tree.reverse(Laws.inert.node(cur), Tree.NNil{}), Laws.inert.node(Tree.reverse(cur,
+    Tree.NNil{})),
+    inert.reverse(cur, Tree.NNil{})) : {List.reverse(&2, Tree.Node, _ <> inert.nodes(acc))
+      == inert.nodes(List.reverse(&2, Tree.Node, Tree.reverse(cur, Tree.NNil{}) <> acc)) : List<&2, Tree.Node>}
+  inert.nodes.rev(Tree.reverse(cur, Tree.NNil{}) <> acc, [])
+
+# a comma closes an argument, read that way
+law inert.args.comma:
+  for +rest: Tree.Node
+  for +cur: Tree.Node
+  for +acc: List<&2, Tree.Node>
+  for ih: {Calls.args.go(Laws.inert.node(rest), Tree.NNil{}, inert.nodes(Tree.reverse(cur, Tree.NNil{}) <> acc))
+    == inert.nodes(Calls.args.go(rest, Tree.NNil{}, Tree.reverse(cur, Tree.NNil{}) <> acc)) : List<&2, Tree.Node>}
+  {Calls.args.go(Laws.inert.node(rest), Tree.NNil{}, Tree.reverse(Laws.inert.node(cur),
+    Tree.NNil{}) <> inert.nodes(acc))
+    == inert.nodes(Calls.args.go(rest, Tree.NNil{}, Tree.reverse(cur, Tree.NNil{}) <> acc)) : List<&2, Tree.Node>}
+
+def inert.args.comma(rest, cur, acc, ih):
+  %Equal.sym(Tree.Node, Tree.reverse(Laws.inert.node(cur), Tree.NNil{}), Laws.inert.node(Tree.reverse(cur,
+    Tree.NNil{})),
+    inert.reverse(cur, Tree.NNil{})) : {Calls.args.go(Laws.inert.node(rest), Tree.NNil{}, _ <> inert.nodes(acc))
+      == inert.nodes(Calls.args.go(rest, Tree.NNil{}, Tree.reverse(cur, Tree.NNil{}) <> acc)) : List<&2, Tree.Node>}
+  ih
+
+# a choice whose branches each read as another's mapped
+law inert.either_map0:
+  for -A: Type
+  for -B: Type
+  for c: Bool
+  for -g: A -> B
+  for -x1: B
+  for -x2: A
+  for -y1: B
+  for -y2: A
+  for ex: {x1 == g(x2) : B}
+  for ey: {y1 == g(y2) : B}
+  {Lazy.either(B, c, _u => x1, _v => y1) == g(Lazy.either(A, c, _u => x2, _v => y2)) : B}
+
+def inert.either_map0(_A, _B, c, _g, _x1, _x2, _y1, _y2, ex, ey):
+  match c:
+    case True{}: ex
+    case False{}: ey
+
+# a choice whose test and branches each read as another's mapped
+law inert.either_map:
+  for -A: Type
+  for -B: Type
+  for -c1: Bool
+  for +c2: Bool
+  for -g: A -> B
+  for -x1: B
+  for -x2: A
+  for -y1: B
+  for -y2: A
+  for ec: {c1 == c2 : Bool}
+  for ex: {x1 == g(x2) : B}
+  for ey: {y1 == g(y2) : B}
+  {Lazy.either(B, c1, _u => x1, _v => y1) == g(Lazy.either(A, c2, _u => x2, _v => y2)) : B}
+
+def inert.either_map(A, B, c1, c2, g, x1, x2, y1, y2, ec, ex, ey):
+  %Equal.sym(Bool, c1, c2, ec) : {Lazy.either(B, _, _u => x1, _v => y1)
+    == g(Lazy.either(A, c2, _u => x2, _v => y2)) : B}
+  inert.either_map0(A, B, c2, g, x1, x2, y1, y2, ex, ey)
+
+# a node read that way is a leaf of the kind it was, to any kind test
+law inert.comma:
+  for nn: Tree.Node
+  {Calls.kind.leaf(~Lex.is_comma, Laws.inert.node(nn)) == Calls.kind.leaf(~Lex.is_comma, nn) : Bool}
+
+def inert.comma(nn):
+  Equal.cong(Maybe<&2, Lex.TokKind>, Bool,
+    m => Calls.kind.of(~Lex.is_comma, m), Calls.leaf.kind(Laws.inert.node(nn)), Calls.leaf.kind(nn),
+    inert.leaf_kind(nn))
+
+# the arguments of a group read that way are its arguments, each read that way
+law inert.args.go:
+  for kids: Tree.Node
+  for +cur: Tree.Node
+  for +acc: List<&2, Tree.Node>
+  {Calls.args.go(Laws.inert.node(kids), Laws.inert.node(cur), inert.nodes(acc))
+    == inert.nodes(Calls.args.go(kids, cur, acc)) : List<&2, Tree.Node>}
+
+def inert.args.go(kids, cur, acc):
+  match kids:
+    case Tree.NCons{+h, +rest}:
+      +rc = {Tree.reverse(cur, Tree.NNil{}) <> acc : List<&2, Tree.Node>}
+      inert.either_map(List<&2, Tree.Node>, List<&2, Tree.Node>, Calls.kind.leaf(~Lex.is_comma, Laws.inert.node(h)),
+        Calls.kind.leaf(~Lex.is_comma, h), z => inert.nodes(z),
+        Calls.args.go(Laws.inert.node(rest), Tree.NNil{},
+          Tree.reverse(Laws.inert.node(cur), Tree.NNil{}) <> inert.nodes(acc)),
+        Calls.args.go(rest, Tree.NNil{}, rc),
+        Calls.args.go(Laws.inert.node(rest), Tree.NCons{Laws.inert.node(h), Laws.inert.node(cur)}, inert.nodes(acc)),
+        Calls.args.go(rest, Tree.NCons{h, cur}, acc), inert.comma(h),
+        inert.args.comma(rest, cur, acc, inert.args.go(rest, Tree.NNil{}, rc)),
+        inert.args.go(rest, Tree.NCons{h, cur}, acc))
+    case Tree.Leaf{tok}: inert.args.end(cur, acc)
+    case Tree.Group{o, gk, cl}: inert.args.end(cur, acc)
+    case Tree.Stmt{sk, sks, sb}: inert.args.end(cur, acc)
+    case Tree.NNil{}: inert.args.end(cur, acc)
+
+# the arguments of a group read that way
+law inert.args:
+  for kids: Tree.Node
+  {Calls.args(Laws.inert.node(kids)) == inert.nodes(Calls.args(kids)) : List<&2, Tree.Node>}
+
+def inert.args(kids):
+  inert.args.go(kids, Tree.NNil{}, [])
+
+# the nth argument of arguments read that way is the nth read that way
+law inert.arg:
+  for as: List<&2, Tree.Node>
+  for nn: Nat
+  {Calls.arg(inert.nodes(as), nn) == Laws.inert.node(Calls.arg(as, nn)) : Tree.Node}
+
+def inert.arg(as, nn):
+  match as nn:
+    case Con{h, t} 0n: {==}
+    case Con{h, t} 1n+p: inert.arg(t, p)
+    case Nil{} m: {==}
+
+# a chain reversed onto another keeps its leaves fitting
+law inert.ok.reverse:
+  for cells: Tree.Node
+  for +acc: Tree.Node
+  for +ec: {Laws.inert.ok(cells) == True{} : Bool}
+  for +ea: {Laws.inert.ok(acc) == True{} : Bool}
+  {Laws.inert.ok(Tree.reverse(cells, acc)) == True{} : Bool}
+
+def inert.ok.reverse(cells, acc, ec, ea):
+  match cells:
+    case Tree.NCons{+h, +t}:
+      inert.ok.reverse(t, Tree.NCons{h, acc}, inert.and_r(Laws.inert.ok(h), Laws.inert.ok(t), ec),
+        inert.and_both(Laws.inert.ok(h), Laws.inert.ok(acc), inert.and_l(Laws.inert.ok(h), Laws.inert.ok(t), ec), ea))
+    case Tree.Leaf{tok}: ea
+    case Tree.Group{o, gk, cl}: ea
+    case Tree.Stmt{sk, sks, sb}: ea
+    case Tree.NNil{}: ea
+
+# a list of chains reversed onto another keeps every chain's leaves fitting
+law inert.noks.rev:
+  for xs: List<&2, Tree.Node>
+  for +acc: List<&2, Tree.Node>
+  for +ex: {inert.noks(xs) == True{} : Bool}
+  for +ea: {inert.noks(acc) == True{} : Bool}
+  {inert.noks(List.reverse.go(&2, Tree.Node, xs, acc)) == True{} : Bool}
+
+def inert.noks.rev(xs, acc, ex, ea):
+  match xs:
+    case Nil{}: ea
+    case Con{+h, +t}:
+      inert.noks.rev(t, h <> acc, inert.and_r(Laws.inert.ok(h), inert.noks(t), ex),
+        inert.and_both(Laws.inert.ok(h), inert.noks(acc), inert.and_l(Laws.inert.ok(h), inert.noks(t), ex), ea))
+
+# an argument closed onto arguments that fit keeps them fitting
+law inert.ok.close:
+  for +cur: Tree.Node
+  for +acc: List<&2, Tree.Node>
+  for +ec: {Laws.inert.ok(cur) == True{} : Bool}
+  for +ea: {inert.noks(acc) == True{} : Bool}
+  {inert.noks(Tree.reverse(cur, Tree.NNil{}) <> acc) == True{} : Bool}
+
+def inert.ok.close(cur, acc, ec, ea):
+  inert.and_both(Laws.inert.ok(Tree.reverse(cur, Tree.NNil{})), inert.noks(acc), inert.ok.reverse(cur, Tree.NNil{}, ec,
+    {==}), ea)
+
+# one more cell of a group: a comma closes an argument, anything else joins it
+law inert.ok.args.step:
+  for +h: Tree.Node
+  for +rest: Tree.Node
+  for +cur: Tree.Node
+  for +acc: List<&2, Tree.Node>
+  for ic: {inert.noks(Calls.args.go(rest, Tree.NNil{}, Tree.reverse(cur, Tree.NNil{}) <> acc)) == True{} : Bool}
+  for io: {inert.noks(Calls.args.go(rest, Tree.NCons{h, cur}, acc)) == True{} : Bool}
+  {inert.noks(Calls.args.go(Tree.NCons{h, rest}, cur, acc)) == True{} : Bool}
+
+def inert.ok.args.step(h, rest, cur, acc, ic, io):
+  inert.either_ok(List<&2, Tree.Node>, Calls.kind.leaf(~Lex.is_comma, h), z => inert.noks(z),
+    Calls.args.go(rest, Tree.NNil{}, Tree.reverse(cur, Tree.NNil{}) <> acc),
+    Calls.args.go(rest, Tree.NCons{h, cur}, acc),
+    ic, io)
+
+# the arguments of a group whose leaves fit fit too
+law inert.ok.args.go:
+  for kids: Tree.Node
+  for +cur: Tree.Node
+  for +acc: List<&2, Tree.Node>
+  for +ek: {Laws.inert.ok(kids) == True{} : Bool}
+  for +ec: {Laws.inert.ok(cur) == True{} : Bool}
+  for +ea: {inert.noks(acc) == True{} : Bool}
+  {inert.noks(Calls.args.go(kids, cur, acc)) == True{} : Bool}
+
+def inert.ok.args.go(kids, cur, acc, ek, ec, ea):
+  match kids:
+    case Tree.NCons{+h, +rest}:
+      +er = inert.and_r(Laws.inert.ok(h), Laws.inert.ok(rest), ek)
+      inert.ok.args.step(h, rest, cur, acc,
+        inert.ok.args.go(rest, Tree.NNil{}, Tree.reverse(cur, Tree.NNil{}) <> acc, er, {==}, inert.ok.close(cur, acc,
+          ec, ea)),
+        inert.ok.args.go(rest, Tree.NCons{h, cur}, acc, er,
+          inert.and_both(Laws.inert.ok(h), Laws.inert.ok(cur), inert.and_l(Laws.inert.ok(h), Laws.inert.ok(rest), ek),
+            ec), ea))
+    case Tree.Leaf{tok}: inert.noks.rev(Tree.reverse(cur, Tree.NNil{}) <> acc, [], inert.ok.close(cur, acc, ec, ea),
+      {==})
+    case Tree.Group{o, gk, cl}: inert.noks.rev(Tree.reverse(cur, Tree.NNil{}) <> acc, [], inert.ok.close(cur, acc, ec,
+      ea), {==})
+    case Tree.Stmt{sk, sks, sb}: inert.noks.rev(Tree.reverse(cur, Tree.NNil{}) <> acc, [], inert.ok.close(cur, acc,
+      ec, ea), {==})
+    case Tree.NNil{}: inert.noks.rev(Tree.reverse(cur, Tree.NNil{}) <> acc, [], inert.ok.close(cur, acc, ec, ea), {==})
+
+# the nth of chains that fit fits
+law inert.ok.nth:
+  for as: List<&2, Tree.Node>
+  for nn: Nat
+  for +ea: {inert.noks(as) == True{} : Bool}
+  {Laws.inert.ok(Calls.arg(as, nn)) == True{} : Bool}
+
+def inert.ok.nth(as, nn, ea):
+  match as nn:
+    case Con{+h, +t} 0n: inert.and_l(Laws.inert.ok(h), inert.noks(t), ea)
+    case Con{+h, +t} 1n+p: inert.ok.nth(t, p, inert.and_r(Laws.inert.ok(h), inert.noks(t), ea))
+    case Nil{} m: {==}
+
+# the nth argument of a group whose leaves fit fits
+law inert.ok.arg:
+  for +kids: Tree.Node
+  for nn: Nat
+  for +ek: {Laws.inert.ok(kids) == True{} : Bool}
+  {Laws.inert.ok(Calls.arg(Calls.args(kids), nn)) == True{} : Bool}
+
+def inert.ok.arg(kids, nn, ek):
+  inert.ok.nth(Calls.args(kids), nn, inert.ok.args.go(kids, Tree.NNil{}, [], ek, {==}, {==}))
+
+# the kids of a group read that way open as they did
+law inert.opens:
+  for nn: Tree.Node
+  for +ss: String
+  {Tree.opens(Laws.inert.node(nn), ss) == Tree.opens(nn, ss) : Bool}
+
+def inert.opens(nn, _ss):
+  match nn:
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}:
+      match o:
+        case Lex.Tok{k, t, l, c}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+    case Tree.NCons{x, y}: {==}
+
+# calls: is there a call of the name?
+# ----------------------------------
+
+# a call of the name here, or under the kids or the rest
+def inert.calls.at(+tn: Bool, +o: String, a: Bool, b: Bool) -> Bool:
+  Bool.or(Bool.and(String.eq(o, "("), tn), Bool.or(a, b))
+
+# a name then a group: the name compared, the group and the rest read as they were
+law inert.calls.lg:
+  for +kk: Lex.TokKind
+  for +t: String
+  for +ot: String
+  for +name: String
+  for +kids: Tree.Node
+  for +r2: Tree.Node
+  for +ef: {Laws.inert.fits.go(Laws.inert.blanks(kk), t) == True{} : Bool}
+  for +en: {Laws.inert.marked(name) == False{} : Bool}
+  for ik: {Calls.calls(Laws.inert.node(kids), name) == Calls.calls(kids, name) : Bool}
+  for ir: {Calls.calls(Laws.inert.node(r2), name) == Calls.calls(r2, name) : Bool}
+  {inert.calls.at(String.eq(Laws.inert.keep(Laws.inert.blanks(kk), t), name), ot, Calls.calls(Laws.inert.node(kids),
+    name),
+      Calls.calls(Laws.inert.node(r2), name))
+    == inert.calls.at(String.eq(t, name), ot, Calls.calls(kids, name), Calls.calls(r2, name)) : Bool}
+
+def inert.calls.lg(kk, t, ot, name, kids, r2, ef, en, ik, ir):
+  +lhs = inert.calls.at(String.eq(Laws.inert.keep(Laws.inert.blanks(kk), t), name), ot,
+    Calls.calls(Laws.inert.node(kids),
+    name), Calls.calls(Laws.inert.node(r2), name))
+  %inert.eq_keep(Laws.inert.blanks(kk), t, name, ef, en) :
+    {lhs == inert.calls.at(_, ot, Calls.calls(kids, name), Calls.calls(r2, name)) : Bool}
+  %ik : {lhs == inert.calls.at(String.eq(Laws.inert.keep(Laws.inert.blanks(kk), t), name), ot, _, Calls.calls(r2, name))
+    : Bool}
+  %ir : {lhs == inert.calls.at(String.eq(Laws.inert.keep(Laws.inert.blanks(kk), t), name), ot,
+    Calls.calls(Laws.inert.node(kids), name), _) : Bool}
+  {==}
+
+# an or whose two sides read as they did
+law inert.or2:
+  for -a1: Bool
+  for -a2: Bool
+  for -b1: Bool
+  for -b2: Bool
+  for ea: {a1 == a2 : Bool}
+  for eb: {b1 == b2 : Bool}
+  {Bool.or(a1, b1) == Bool.or(a2, b2) : Bool}
+
+def inert.or2(a1, _a2, b1, b2, ea, eb):
+  %ea : {Bool.or(a1, b1) == Bool.or(_, b2) : Bool}
+  %eb : {Bool.or(a1, b1) == Bool.or(a1, _) : Bool}
+  {==}
+
+# a chain read that way calls the name as it did, for a plain name
+law inert.calls:
+  for nn: Tree.Node
+  for +name: String
+  for +en: {Laws.inert.marked(name) == False{} : Bool}
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Calls.calls(Laws.inert.node(nn), name) == Calls.calls(nn, name) : Bool}
+
+def inert.calls(nn, name, en, e):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              match rest:
+                case Tree.NCons{h2, +r2}:
+                  match h2:
+                    case Tree.Group{o, +kids, cl}:
+                      match o:
+                        case Lex.Tok{ok, +ot, ol, oc}:
+                          +eg = inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}), Bool.and(Laws.inert.ok(kids),
+                            Laws.inert.ok(r2)), e)
+                          inert.calls.lg(k, t, ot, name, kids, r2, inert.and_l(Laws.inert.fits(Lex.Tok{k, t, l, c}),
+                            Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e), en,
+                            inert.calls(kids, name, en, inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)),
+                            inert.calls(r2, name, en, inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)))
+                    case Tree.Leaf{x}: inert.calls(rest, name, en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}),
+                      Laws.inert.ok(rest), e))
+                    case Tree.Stmt{x, y, z}: inert.calls(rest, name, en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l,
+                      c}), Laws.inert.ok(rest), e))
+                    case Tree.NNil{}: inert.calls(rest, name, en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}),
+                      Laws.inert.ok(rest), e))
+                    case Tree.NCons{x, y}: inert.calls(rest, name, en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l,
+                      c}), Laws.inert.ok(rest), e))
+                case Tree.Leaf{x}: {==}
+                case Tree.Group{x, y, z}: inert.calls(rest, name, en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l,
+                  c}), Laws.inert.ok(rest), e))
+                case Tree.Stmt{x, y, z}: inert.calls(rest, name, en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}),
+                  Laws.inert.ok(rest), e))
+                case Tree.NNil{}: {==}
+        case Tree.Group{o, +gk, cl}:
+          inert.or2(Calls.calls(Laws.inert.node(gk), name), Calls.calls(gk, name), Calls.calls(Laws.inert.node(rest),
+            name),
+            Calls.calls(rest, name), inert.calls(gk, name, en, inert.and_l(Laws.inert.ok(gk), Laws.inert.ok(rest), e)),
+            inert.calls(rest, name, en, inert.and_r(Laws.inert.ok(gk), Laws.inert.ok(rest), e)))
+        case Tree.Stmt{+sk, +sks, +sb}:
+          +es = inert.and_l(Bool.and(Laws.inert.ok(sks), Laws.inert.ok(sb)), Laws.inert.ok(rest), e)
+          inert.or2(Calls.calls(Laws.inert.node(Tree.Stmt{sk, sks, sb}), name), Calls.calls(Tree.Stmt{sk, sks, sb},
+            name),
+            Calls.calls(Laws.inert.node(rest), name), Calls.calls(rest, name),
+            inert.or2(Calls.calls(Laws.inert.node(sks), name), Calls.calls(sks, name),
+              Calls.calls(Laws.inert.node(sb), name),
+              Calls.calls(sb, name), inert.calls(sks, name, en, inert.and_l(Laws.inert.ok(sks), Laws.inert.ok(sb), es)),
+              inert.calls(sb, name, en, inert.and_r(Laws.inert.ok(sks), Laws.inert.ok(sb), es))),
+            inert.calls(rest, name, en, inert.and_r(Bool.and(Laws.inert.ok(sks), Laws.inert.ok(sb)),
+              Laws.inert.ok(rest), e)))
+        case Tree.NNil{}: inert.calls(rest, name, en, e)
+        case Tree.NCons{+x, +y}:
+          inert.or2(Calls.calls(Laws.inert.node(Tree.NCons{x, y}), name), Calls.calls(Tree.NCons{x, y}, name),
+            Calls.calls(Laws.inert.node(rest), name), Calls.calls(rest, name),
+            inert.calls(Tree.NCons{x, y}, name, en, inert.and_l(Laws.inert.ok(Tree.NCons{x, y}), Laws.inert.ok(rest),
+              e)),
+            inert.calls(rest, name, en, inert.and_r(Laws.inert.ok(Tree.NCons{x, y}), Laws.inert.ok(rest), e)))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, +kids, cl}: inert.calls(kids, name, en, e)
+    case Tree.Stmt{sk, +kids, +body}:
+      inert.or2(Calls.calls(Laws.inert.node(kids), name), Calls.calls(kids, name), Calls.calls(Laws.inert.node(body),
+        name),
+        Calls.calls(body, name), inert.calls(kids, name, en, inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), e)),
+        inert.calls(body, name, en, inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), e)))
+    case Tree.NNil{}: {==}
+
+# the nth argument of a group read that way calls the name as it did
+law inert.calls.nth:
+  for +kids: Tree.Node
+  for +nn: Nat
+  for +name: String
+  for +en: {Laws.inert.marked(name) == False{} : Bool}
+  for +ek: {Laws.inert.ok(kids) == True{} : Bool}
+  {Calls.calls(Calls.arg(Calls.args(Laws.inert.node(kids)), nn), name) == Calls.calls(Calls.arg(Calls.args(kids), nn),
+    name)
+    : Bool}
+
+def inert.calls.nth(kids, nn, name, en, ek):
+  %Equal.sym(List<&2, Tree.Node>, Calls.args(Laws.inert.node(kids)), inert.nodes(Calls.args(kids)), inert.args(kids)) :
+    {Calls.calls(Calls.arg(_, nn), name) == Calls.calls(Calls.arg(Calls.args(kids), nn), name) : Bool}
+  %Equal.sym(Tree.Node, Calls.arg(inert.nodes(Calls.args(kids)), nn), Laws.inert.node(Calls.arg(Calls.args(kids), nn)),
+    inert.arg(Calls.args(kids), nn)) : {Calls.calls(_, name) == Calls.calls(Calls.arg(Calls.args(kids), nn),
+      name) : Bool}
+  inert.calls(Calls.arg(Calls.args(kids), nn), name, en, inert.ok.arg(kids, nn, ek))
+
+# a signature read that way
+# -------------------------
+
+# a pick between two chains, each read that way, is the pick read that way
+law inert.pick.node:
+  for b: Bool
+  for +x: Tree.Node
+  for +y: Tree.Node
+  {Bool.pick(Tree.Node, b, Laws.inert.node(x), Laws.inert.node(y)) == Laws.inert.node(Bool.pick(Tree.Node, b, x, y))
+    : Tree.Node}
+
+def inert.pick.node(b, _x, _y):
+  match b:
+    case True{}: {==}
+    case False{}: {==}
+
+# is the type head a List or a String (what Calls.seq tests)?
+def inert.seq.of(+hh: String) -> Bool:
+  Bool.or(String.eq(hh, "List"), String.eq(hh, "String"))
+
+# the parameter list of a signature read that way is the list read that way
+law inert.params.of:
+  for sig: Tree.Node
+  {Calls.params.of(Laws.inert.node(sig)) == Laws.inert.node(Calls.params.of(sig)) : Tree.Node}
+
+def inert.params.of(sig):
+  match sig:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Group{o, +kids, cl}:
+          match o:
+            case Lex.Tok{k, +ot, l, c}:
+              %Equal.sym(Tree.Node, Calls.params.of(Laws.inert.node(rest)), Laws.inert.node(Calls.params.of(rest)),
+                inert.params.of(rest)) : {Bool.pick(Tree.Node, String.eq(ot, "("), Laws.inert.node(kids), _)
+                  == Laws.inert.node(Bool.pick(Tree.Node, String.eq(ot, "("), kids, Calls.params.of(rest))) : Tree.Node}
+              inert.pick.node(String.eq(ot, "("), kids, Calls.params.of(rest))
+        case Tree.Leaf{tok}: inert.params.of(rest)
+        case Tree.Stmt{sk, sks, sb}: inert.params.of(rest)
+        case Tree.NNil{}: inert.params.of(rest)
+        case Tree.NCons{x, y}: inert.params.of(rest)
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a node read that way is a `:` as it was
+law inert.colon:
+  for nn: Tree.Node
+  {Calls.kind.leaf(~Calls.kind.colon, Laws.inert.node(nn)) == Calls.kind.leaf(~Calls.kind.colon, nn) : Bool}
+
+def inert.colon(nn):
+  Equal.cong(Maybe<&2, Lex.TokKind>, Bool,
+    m => Calls.kind.of(~Calls.kind.colon, m), Calls.leaf.kind(Laws.inert.node(nn)), Calls.leaf.kind(nn),
+    inert.leaf_kind(nn))
+
+# a node read that way is an arrow as it was
+law inert.arrow:
+  for nn: Tree.Node
+  {Calls.kind.leaf(~Calls.kind.arrow, Laws.inert.node(nn)) == Calls.kind.leaf(~Calls.kind.arrow, nn) : Bool}
+
+def inert.arrow(nn):
+  Equal.cong(Maybe<&2, Lex.TokKind>, Bool,
+    m => Calls.kind.of(~Calls.kind.arrow, m), Calls.leaf.kind(Laws.inert.node(nn)), Calls.leaf.kind(nn),
+    inert.leaf_kind(nn))
+
+# an early-exit or whose test and rest read as they did
+law inert.or_else:
+  for -c1: Bool
+  for -c2: Bool
+  for -a1: Bool
+  for -a2: Bool
+  for ec: {c1 == c2 : Bool}
+  for ea: {a1 == a2 : Bool}
+  {Lazy.or_else(c1, _u => a1) == Lazy.or_else(c2, _v => a2) : Bool}
+
+def inert.or_else(c1, _c2, a1, a2, ec, ea):
+  %ec : {Lazy.or_else(c1, _u => a1) == Lazy.or_else(_, _v => a2) : Bool}
+  %ea : {Lazy.or_else(c1, _u => a1) == Lazy.or_else(c1, _v => _) : Bool}
+  {==}
+
+# a parameter read that way has a top-level colon as it had
+law inert.has_colon:
+  for pp: Tree.Node
+  {Calls.has_colon(Laws.inert.node(pp)) == Calls.has_colon(pp) : Bool}
+
+def inert.has_colon(pp):
+  match pp:
+    case Tree.NCons{+h, +rest}:
+      inert.or_else(Calls.kind.leaf(~Calls.kind.colon, Laws.inert.node(h)), Calls.kind.leaf(~Calls.kind.colon, h),
+        Calls.has_colon(Laws.inert.node(rest)), Calls.has_colon(rest), inert.colon(h), inert.has_colon(rest))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a leaf read that way says what it said, cut when a comment or a string
+law inert.leaf_text:
+  for nn: Tree.Node
+  {Calls.leaf.text(Laws.inert.node(nn))
+    == Laws.inert.keep(Calls.kind.leaf(~Laws.inert.blanks, nn), Calls.leaf.text(nn)) : String}
+
+def inert.leaf_text(nn):
+  match nn:
+    case Tree.Leaf{tok}:
+      match tok:
+        case Lex.Tok{k, t, l, c}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+    case Tree.NCons{x, y}: {==}
+
+# an operator leaf is never cut
+law inert.oper_code:
+  for nn: Tree.Node
+  {Bool.and(Calls.kind.leaf(~Calls.kind.oper, nn), Calls.kind.leaf(~Laws.inert.blanks, nn)) == False{} : Bool}
+
+def inert.oper_code(nn):
+  match nn:
+    case Tree.Leaf{tok}:
+      match tok:
+        case Lex.Tok{k, t, l, c}: inert.hole.op(k)
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+    case Tree.NCons{x, y}: {==}
+
+# a capital-name leaf is never cut
+law inert.upper_code:
+  for nn: Tree.Node
+  {Bool.and(Calls.kind.leaf(~Calls.kind.upper, nn), Calls.kind.leaf(~Laws.inert.blanks, nn)) == False{} : Bool}
+
+def inert.upper_code(nn):
+  match nn:
+    case Tree.Leaf{tok}:
+      match tok:
+        case Lex.Tok{k, t, l, c}: inert.hole.upper(k)
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+    case Tree.NCons{x, y}: {==}
+
+# a node read that way is an operator as it was
+law inert.oper:
+  for nn: Tree.Node
+  {Calls.kind.leaf(~Calls.kind.oper, Laws.inert.node(nn)) == Calls.kind.leaf(~Calls.kind.oper, nn) : Bool}
+
+def inert.oper(nn):
+  Equal.cong(Maybe<&2, Lex.TokKind>, Bool,
+    m => Calls.kind.of(~Calls.kind.oper, m), Calls.leaf.kind(Laws.inert.node(nn)), Calls.leaf.kind(nn),
+    inert.leaf_kind(nn))
+
+# a node read that way is a capital name as it was
+law inert.upper:
+  for nn: Tree.Node
+  {Calls.kind.leaf(~Calls.kind.upper, Laws.inert.node(nn)) == Calls.kind.leaf(~Calls.kind.upper, nn) : Bool}
+
+def inert.upper(nn):
+  Equal.cong(Maybe<&2, Lex.TokKind>, Bool,
+    m => Calls.kind.of(~Calls.kind.upper, m), Calls.leaf.kind(Laws.inert.node(nn)), Calls.leaf.kind(nn),
+    inert.leaf_kind(nn))
+
+# a `-` or `~`
+def inert.sign.of(+tt: String) -> Bool:
+  Bool.or(String.eq(tt, "-"), String.eq(tt, "~"))
+
+# a parameter read that way opens with a `-` or `~` as it did
+law inert.sign:
+  for pp: Tree.Node
+  {Calls.is_live.sign(Laws.inert.node(pp)) == Calls.is_live.sign(pp) : Bool}
+
+def inert.sign(pp):
+  match pp:
+    case Tree.NCons{+h, +rest}:
+      +ko = Calls.kind.leaf(~Calls.kind.oper, h)
+      +kb = Calls.kind.leaf(~Laws.inert.blanks, h)
+      %Equal.sym(Bool, Calls.kind.leaf(~Calls.kind.oper, Laws.inert.node(h)), ko, inert.oper(h)) :
+        {Bool.and(_, inert.sign.of(Calls.leaf.text(Laws.inert.node(h))))
+          == Calls.is_live.sign(Tree.NCons{h, rest}) : Bool}
+      %Equal.sym(String, Calls.leaf.text(Laws.inert.node(h)), Laws.inert.keep(kb, Calls.leaf.text(h)),
+        inert.leaf_text(h)) : {Bool.and(ko, inert.sign.of(_)) == Calls.is_live.sign(Tree.NCons{h, rest}) : Bool}
+      inert.guard(ko, kb, Calls.leaf.text(h), z => inert.sign.of(z), inert.oper_code(h))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a parameter read that way is live as it was
+law inert.is_live:
+  for +pp: Tree.Node
+  {Calls.is_live(Laws.inert.node(pp)) == Calls.is_live(pp) : Bool}
+
+def inert.is_live(pp):
+  +lhs = Calls.is_live(Laws.inert.node(pp))
+  %inert.sign(pp) : {lhs == Bool.and(Bool.not(_), Calls.has_colon(pp)) : Bool}
+  %inert.has_colon(pp) : {lhs == Bool.and(Bool.not(Calls.is_live.sign(Laws.inert.node(pp))), _) : Bool}
+  {==}
+
+# a pick guarded by a kind that is never cut reads the text as it was
+law inert.pick_guard:
+  for +after: Bool
+  for c: Bool
+  for +b: Bool
+  for +t: String
+  for +more: String
+  for e: {Bool.and(c, b) == False{} : Bool}
+  {Bool.pick(String, Bool.and(after, c), Laws.inert.keep(b, t), more) == Bool.pick(String, Bool.and(after, c), t, more)
+    : String}
+
+def inert.pick_guard(after, c, b, t, more, e):
+  match after:
+    case False{}: {==}
+    case True{}:
+      match c:
+        case False{}: {==}
+        case True{}:
+          %Equal.sym(Bool, b, False{}, e) : {Bool.pick(String, True{}, Laws.inert.keep(_, t), more)
+            == Bool.pick(String, True{}, t, more) : String}
+          {==}
+
+# a leaf read that way gives the head it gave
+law inert.head_leaf:
+  for +h: Tree.Node
+  for +after: Bool
+  for +more: String
+  {Bool.pick(String, Bool.and(after, Calls.kind.leaf(~Calls.kind.upper, Laws.inert.node(h))),
+    Calls.leaf.text(Laws.inert.node(h)), more)
+    == Bool.pick(String, Bool.and(after, Calls.kind.leaf(~Calls.kind.upper, h)), Calls.leaf.text(h), more) : String}
+
+def inert.head_leaf(h, after, more):
+  +ku = Calls.kind.leaf(~Calls.kind.upper, h)
+  +kb = Calls.kind.leaf(~Laws.inert.blanks, h)
+  %Equal.sym(Bool, Calls.kind.leaf(~Calls.kind.upper, Laws.inert.node(h)), ku, inert.upper(h)) :
+    {Bool.pick(String, Bool.and(after, _), Calls.leaf.text(Laws.inert.node(h)), more)
+      == Bool.pick(String, Bool.and(after, ku), Calls.leaf.text(h), more) : String}
+  %Equal.sym(String, Calls.leaf.text(Laws.inert.node(h)), Laws.inert.keep(kb, Calls.leaf.text(h)),
+    inert.leaf_text(h)) : {Bool.pick(String, Bool.and(after, ku), _, more)
+      == Bool.pick(String, Bool.and(after, ku), Calls.leaf.text(h), more) : String}
+  inert.pick_guard(after, ku, kb, Calls.leaf.text(h), more, inert.upper_code(h))
+
+# a parameter's type head read that way is the head it had
+law inert.type_head:
+  for pp: Tree.Node
+  for +after: Bool
+  {Calls.type_head(Laws.inert.node(pp), after) == Calls.type_head(pp, after) : String}
+
+def inert.type_head(pp, after):
+  match pp:
+    case Tree.NCons{+h, +rest}:
+      +lhs = Calls.type_head(Laws.inert.node(Tree.NCons{h, rest}), after)
+      +c1 = Calls.kind.leaf(~Calls.kind.colon, Laws.inert.node(h))
+      %inert.colon(h) : {lhs == Bool.pick(String, Bool.and(after, Calls.kind.leaf(~Calls.kind.upper, h)),
+        Calls.leaf.text(h), Calls.type_head(rest, Bool.or(after, _))) : String}
+      %inert.type_head(rest, Bool.or(after, c1)) : {lhs == Bool.pick(String,
+        Bool.and(after, Calls.kind.leaf(~Calls.kind.upper, h)), Calls.leaf.text(h), _) : String}
+      inert.head_leaf(h, after, Calls.type_head(Laws.inert.node(rest), Bool.or(after, c1)))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# the walked type of parameters read that way is the one they had
+law inert.walked.go:
+  for ps: List<&2, Tree.Node>
+  for found: Maybe<&2, String>
+  {Calls.walked.go(inert.nodes(ps), found) == Calls.walked.go(ps, found) : String}
+
+def inert.walked.go(ps, found):
+  match ps found:
+    case Con{+p, rest} None{}:
+      %inert.is_live(p) : {Calls.walked.go(inert.nodes(p <> rest), None{}) == Calls.walked.go(rest,
+        Lazy.stop(Maybe<&2, String>, Bool.not(_), None{}, _u => Some{Calls.type_head(p, False{})})) : String}
+      %inert.type_head(p, False{}) : {Calls.walked.go(inert.nodes(p <> rest), None{}) == Calls.walked.go(rest,
+        Lazy.stop(Maybe<&2, String>, Bool.not(Calls.is_live(Laws.inert.node(p))), None{}, _u => Some{_})) : String}
+      inert.walked.go(rest, Lazy.stop(Maybe<&2, String>, Bool.not(Calls.is_live(Laws.inert.node(p))), None{},
+        _u => Some{Calls.type_head(Laws.inert.node(p), False{})}))
+    case Con{p, rest} Some{t}: {==}
+    case Nil{} Some{t}: {==}
+    case Nil{} None{}: {==}
+
+# a signature read that way walks the type it walked
+law inert.seq:
+  for +sig: Tree.Node
+  {Calls.seq(Laws.inert.node(sig)) == Calls.seq(sig) : Bool}
+
+def inert.seq(sig):
+  +ps = Calls.params.of(sig)
+  %Equal.sym(Tree.Node, Calls.params.of(Laws.inert.node(sig)), Laws.inert.node(ps), inert.params.of(sig)) :
+    {inert.seq.of(Calls.walked.go(Calls.args(_), None{})) == Calls.seq(sig) : Bool}
+  %Equal.sym(List<&2, Tree.Node>, Calls.args(Laws.inert.node(ps)), inert.nodes(Calls.args(ps)), inert.args(ps)) :
+    {inert.seq.of(Calls.walked.go(_, None{})) == Calls.seq(sig) : Bool}
+  %Equal.sym(String, Calls.walked.go(inert.nodes(Calls.args(ps)), None{}), Calls.walked.go(Calls.args(ps), None{}),
+    inert.walked.go(Calls.args(ps), None{})) : {inert.seq.of(_) == Calls.seq(sig) : Bool}
+  {==}
+
+# a signature read that way returns a proof as it did
+law inert.returns_proof:
+  for sig: Tree.Node
+  {Calls.returns_proof(Laws.inert.node(sig)) == Calls.returns_proof(sig) : Bool}
+
+def inert.returns_proof(sig):
+  match sig:
+    case Tree.NCons{+h, +rest}:
+      match rest:
+        case Tree.NCons{+g, +r2}:
+          inert.either(Bool, Calls.kind.leaf(~Calls.kind.arrow, Laws.inert.node(h)),
+            Calls.kind.leaf(~Calls.kind.arrow, h),
+            Calls.returns_proof.or(Tree.opens(Laws.inert.node(g), "{"), Calls.returns_proof(Laws.inert.node(r2))),
+            Calls.returns_proof.or(Tree.opens(g, "{"), Calls.returns_proof(r2)),
+            Calls.returns_proof(Tree.NCons{Laws.inert.node(g), Laws.inert.node(r2)}),
+            Calls.returns_proof(Tree.NCons{g, r2}), inert.arrow(h),
+            inert.or2(Tree.opens(Laws.inert.node(g), "{"), Tree.opens(g, "{"), Calls.returns_proof(Laws.inert.node(r2)),
+              Calls.returns_proof(r2), inert.opens(g, "{"), inert.returns_proof(r2)),
+            inert.returns_proof(rest))
+        case Tree.Leaf{x}: inert.returns_proof(rest)
+        case Tree.Group{x, y, z}: inert.returns_proof(rest)
+        case Tree.Stmt{x, y, z}: inert.returns_proof(rest)
+        case Tree.NNil{}: inert.returns_proof(rest)
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a signature read that way is exempt as it was
+law inert.exempt:
+  for +path: String
+  for +sig: Tree.Node
+  {Calls.exempt(path, Laws.inert.node(sig)) == Calls.exempt(path, sig) : Bool}
+
+def inert.exempt(path, sig):
+  Equal.cong(Bool, Bool, z => Bool.or(Paths.is_law_file(path), z), Calls.returns_proof(Laws.inert.node(sig)),
+    Calls.returns_proof(sig), inert.returns_proof(sig))
+
+# the walks: two or three finding lists that read as they did join the same
+law inert.cat2:
+  for -a1: List<&2, F.Finding>
+  for -a2: List<&2, F.Finding>
+  for -b1: List<&2, F.Finding>
+  for -b2: List<&2, F.Finding>
+  for ea: {a1 == a2 : List<&2, F.Finding>}
+  for eb: {b1 == b2 : List<&2, F.Finding>}
+  {List.concat(&2, F.Finding, [a1, b1]) == List.concat(&2, F.Finding, [a2, b2]) : List<&2, F.Finding>}
+
+def inert.cat2(a1, _a2, b1, b2, ea, eb):
+  %ea : {List.concat(&2, F.Finding, [a1, b1]) == List.concat(&2, F.Finding, [_, b2]) : List<&2, F.Finding>}
+  %eb : {List.concat(&2, F.Finding, [a1, b1]) == List.concat(&2, F.Finding, [a1, _]) : List<&2, F.Finding>}
+  {==}
+
+# three finding lists that read as they did join the same
+law inert.cat3:
+  for -a1: List<&2, F.Finding>
+  for -a2: List<&2, F.Finding>
+  for -b1: List<&2, F.Finding>
+  for -b2: List<&2, F.Finding>
+  for -c1: List<&2, F.Finding>
+  for -c2: List<&2, F.Finding>
+  for ea: {a1 == a2 : List<&2, F.Finding>}
+  for eb: {b1 == b2 : List<&2, F.Finding>}
+  for ec: {c1 == c2 : List<&2, F.Finding>}
+  {List.concat(&2, F.Finding, [a1, b1, c1]) == List.concat(&2, F.Finding, [a2, b2, c2]) : List<&2, F.Finding>}
+
+def inert.cat3(a1, _a2, b1, b2, c1, c2, ea, eb, ec):
+  %ea : {List.concat(&2, F.Finding, [a1, b1, c1]) == List.concat(&2, F.Finding, [_, b2, c2]) : List<&2, F.Finding>}
+  %eb : {List.concat(&2, F.Finding, [a1, b1, c1]) == List.concat(&2, F.Finding, [a1, _, c2]) : List<&2, F.Finding>}
+  %ec : {List.concat(&2, F.Finding, [a1, b1, c1]) == List.concat(&2, F.Finding, [a1, b1, _]) : List<&2, F.Finding>}
+  {==}
+
+# a rule over a file's defs, given it reports the same over the defs read
+# that way, reports the same over the defs of the tree read that way
+law inert.lift:
+  for -f: List<&2, Calls.Def> -> List<&2, F.Finding>
+  for +tree: Tree.Node
+  for h: {f(inert.defs(Calls.defs(tree))) == f(Calls.defs(tree)) : List<&2, F.Finding>}
+  {f(Calls.defs(Laws.inert.node(tree))) == f(Calls.defs(tree)) : List<&2, F.Finding>}
+
+def inert.lift(f, tree, h):
+  %Equal.sym(List<&2, Calls.Def>, Calls.defs(Laws.inert.node(tree)), inert.defs(Calls.defs(tree)),
+    inert.defs.of(tree)) :
+    {f(_) == f(Calls.defs(tree)) : List<&2, F.Finding>}
+  h
+
+# tail
+# ----
+
+# a self-call not in tail position, as the walk reports it from what it read
+def inert.tail.at(
+  +tn: Bool,
+  +tp: Bool,
+  +o: String,
+  +l: U32,
+  +c: U32,
+  +name: String,
+  +path: String,
+  +skip: Bool,
+  inside: List<&2, F.Finding>,
+  rest: List<&2, F.Finding>
+) -> List<&2, F.Finding>:
+  +call = String.eq(o, "(")
+  +more = List.concat(&2, F.Finding, [Bool.pick(List<&2, F.Finding>, Bool.and(call, tp), [], inside), rest])
+  Bool.pick(List<&2, F.Finding>, Bool.and(Bool.and(call, tn), Bool.not(skip)),
+    F.Finding{path, l, c, U32.from_nat(String.length(name)), "tail",
+      name ++ " is not a tail call, so a long list or string overflows the JS lane stack; carry an accumulator."}
+      <> more,
+    more)
+
+# a chain read that way is a bare self-call as it was
+law inert.tail.bare:
+  for kids: Tree.Node
+  for +name: String
+  for +en: {Laws.inert.marked(name) == False{} : Bool}
+  for +e: {Laws.inert.ok(kids) == True{} : Bool}
+  {Tail.bare(Laws.inert.node(kids), name) == Tail.bare(kids, name) : Bool}
+
+def inert.tail.bare(kids, name, en, e):
+  match kids:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              match rest:
+                case Tree.NCons{+g, r}:
+                  match r:
+                    case Tree.NNil{}:
+                      +tt = Laws.inert.keep(Laws.inert.blanks(k), t)
+                      %inert.eq_keep(Laws.inert.blanks(k), t, name, inert.and_l(Laws.inert.fits(Lex.Tok{k, t, l, c}),
+                        Bool.and(Laws.inert.ok(g), True{}), e), en) :
+                        {Bool.and(String.eq(tt, name), Tree.opens(Laws.inert.node(g), "(")) == Bool.and(_,
+                          Tree.opens(g, "("))
+                          : Bool}
+                      %inert.opens(g, "(") : {Bool.and(String.eq(tt, name), Tree.opens(Laws.inert.node(g), "("))
+                        == Bool.and(String.eq(tt, name), _) : Bool}
+                      {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NCons{x, y}: {==}
+                case Tree.Leaf{x}: {==}
+                case Tree.Group{x, y, z}: {==}
+                case Tree.Stmt{x, y, z}: {==}
+                case Tree.NNil{}: {==}
+        case Tree.Group{o, gk, cl}: {==}
+        case Tree.Stmt{sk, sks, sb}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a name then a group: the name compared, the group and the rest walked as
+# they were
+law inert.tail.lg:
+  for +kk: Lex.TokKind
+  for +t: String
+  for +o: String
+  for +l: U32
+  for +c: U32
+  for +name: String
+  for +path: String
+  for +skip: Bool
+  for +kids: Tree.Node
+  for +r2: Tree.Node
+  for +ef: {Laws.inert.fits.go(Laws.inert.blanks(kk), t) == True{} : Bool}
+  for +en: {Laws.inert.marked(name) == False{} : Bool}
+  for ik: {Tail.walk(Laws.inert.node(kids), name, path, False{}) == Tail.walk(kids, name, path, False{}) : List<&2,
+    F.Finding>}
+  for ir: {Tail.walk(Laws.inert.node(r2), name, path, False{}) == Tail.walk(r2, name, path, False{}) : List<&2,
+    F.Finding>}
+  {inert.tail.at(String.eq(Laws.inert.keep(Laws.inert.blanks(kk), t), name),
+      String.eq(Laws.inert.keep(Laws.inert.blanks(kk), t), "Bool.pick"), o, l, c, name, path, skip,
+      Tail.walk(Laws.inert.node(kids), name, path, False{}), Tail.walk(Laws.inert.node(r2), name, path, False{}))
+    == inert.tail.at(String.eq(t, name), String.eq(t, "Bool.pick"), o, l, c, name, path, skip,
+      Tail.walk(kids, name, path, False{}), Tail.walk(r2, name, path, False{})) : List<&2, F.Finding>}
+
+def inert.tail.lg(kk, t, o, l, c, name, path, skip, kids, r2, ef, en, ik, ir):
+  +tt = Laws.inert.keep(Laws.inert.blanks(kk), t)
+  +wk = Tail.walk(Laws.inert.node(kids), name, path, False{})
+  +wr = Tail.walk(Laws.inert.node(r2), name, path, False{})
+  +lhs = inert.tail.at(String.eq(tt, name), String.eq(tt, "Bool.pick"), o, l, c, name, path, skip, wk, wr)
+  %inert.eq_keep(Laws.inert.blanks(kk), t, name, ef, en) : {lhs == inert.tail.at(_, String.eq(t, "Bool.pick"), o, l, c,
+    name, path, skip, Tail.walk(kids, name, path, False{}), Tail.walk(r2, name, path, False{})) : List<&2, F.Finding>}
+  %inert.eq_keep(Laws.inert.blanks(kk), t, "Bool.pick", ef, {==}) : {lhs == inert.tail.at(String.eq(tt, name), _, o, l,
+    c, name, path, skip, Tail.walk(kids, name, path, False{}), Tail.walk(r2, name, path,
+      False{})) : List<&2, F.Finding>}
+  %ik : {lhs == inert.tail.at(String.eq(tt, name), String.eq(tt, "Bool.pick"), o, l, c, name, path, skip, _,
+    Tail.walk(r2, name, path, False{})) : List<&2, F.Finding>}
+  %ir : {lhs == inert.tail.at(String.eq(tt, name), String.eq(tt, "Bool.pick"), o, l, c, name, path, skip, wk, _)
+    : List<&2, F.Finding>}
+  {==}
+
+# tail's walk reads no string: a leaf's text is compared with the def's name
+# and with `Bool.pick`, which no string equals
+law inert.tail.walk:
+  for nn: Tree.Node
+  for +name: String
+  for +path: String
+  for +skip: Bool
+  for +en: {Laws.inert.marked(name) == False{} : Bool}
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Tail.walk(Laws.inert.node(nn), name, path, skip) == Tail.walk(nn, name, path, skip) : List<&2, F.Finding>}
+
+def inert.tail.walk(nn, name, path, skip, en, e):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              match rest:
+                case Tree.NCons{h2, +r2}:
+                  match h2:
+                    case Tree.Group{o, +kids, cl}:
+                      match o:
+                        case Lex.Tok{ok, +ot, ol, oc}:
+                          +eg = inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}), Bool.and(Laws.inert.ok(kids),
+                            Laws.inert.ok(r2)), e)
+                          inert.tail.lg(k, t, ot, l, c, name, path, skip, kids, r2,
+                            inert.and_l(Laws.inert.fits(Lex.Tok{k, t, l, c}), Bool.and(Laws.inert.ok(kids),
+                              Laws.inert.ok(r2)),
+                              e), en,
+                            inert.tail.walk(kids, name, path, False{}, en, inert.and_l(Laws.inert.ok(kids),
+                              Laws.inert.ok(r2), eg)),
+                            inert.tail.walk(r2, name, path, False{}, en, inert.and_r(Laws.inert.ok(kids),
+                              Laws.inert.ok(r2), eg)))
+                    case Tree.Leaf{x}:
+                      inert.tail.walk(rest, name, path, False{}, en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}),
+                        Laws.inert.ok(rest), e))
+                    case Tree.Stmt{x, y, z}:
+                      inert.tail.walk(rest, name, path, False{}, en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}),
+                        Laws.inert.ok(rest), e))
+                    case Tree.NNil{}:
+                      inert.tail.walk(rest, name, path, False{}, en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}),
+                        Laws.inert.ok(rest), e))
+                    case Tree.NCons{x, y}:
+                      inert.tail.walk(rest, name, path, False{}, en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}),
+                        Laws.inert.ok(rest), e))
+                case Tree.Leaf{x}: {==}
+                case Tree.Group{x, y, z}: {==}
+                case Tree.Stmt{x, y, z}: {==}
+                case Tree.NNil{}: {==}
+        case Tree.Group{o, +kids, cl}:
+          inert.cat2(Tail.walk(Laws.inert.node(kids), name, path, False{}), Tail.walk(kids, name, path, False{}),
+            Tail.walk(Laws.inert.node(rest), name, path, False{}), Tail.walk(rest, name, path, False{}),
+            inert.tail.walk(kids, name, path, False{}, en, inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(rest), e)),
+            inert.tail.walk(rest, name, path, False{}, en, inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(rest), e)))
+        case Tree.Stmt{sk, +kids, +body}:
+          +es = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+          +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es)
+          +sb = Tail.bare(Laws.inert.node(kids), name)
+          inert.cat3(Tail.walk(Laws.inert.node(kids), name, path, sb), Tail.walk(kids, name, path, Tail.bare(kids,
+            name)),
+            Tail.walk(Laws.inert.node(body), name, path, False{}), Tail.walk(body, name, path, False{}),
+            Tail.walk(Laws.inert.node(rest), name, path, False{}), Tail.walk(rest, name, path, False{}),
+            Equal.trans(List<&2, F.Finding>, Tail.walk(Laws.inert.node(kids), name, path, sb), Tail.walk(kids, name,
+              path, sb),
+              Tail.walk(kids, name, path, Tail.bare(kids, name)), inert.tail.walk(kids, name, path, sb, en, ek),
+              Equal.cong(Bool, List<&2, F.Finding>, z => Tail.walk(kids, name, path, z), sb, Tail.bare(kids, name),
+                inert.tail.bare(kids, name, en, ek))),
+            inert.tail.walk(body, name, path, False{}, en, inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es)),
+            inert.tail.walk(rest, name, path, False{}, en,
+              inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)))
+        case Tree.NNil{}: inert.tail.walk(rest, name, path, False{}, en, e)
+        case Tree.NCons{x, y}:
+          inert.tail.walk(rest, name, path, False{}, en, inert.and_r(Laws.inert.ok(Tree.NCons{x, y}),
+            Laws.inert.ok(rest), e))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# the name, signature and body of a def as the lexer makes it
+law inert.dok.head:
+  for +name: String
+  for +sig: Tree.Node
+  for +body: Tree.Node
+  for +rest: List<&2, Calls.Def>
+  for +e: {inert.dok(Calls.Def{name, sig, body} <> rest) == True{} : Bool}
+  {Laws.inert.marked(name) == False{} : Bool}
+
+def inert.dok.head(name, sig, body, rest, e):
+  inert.not_true(Laws.inert.marked(name), inert.and_l(Bool.not(Laws.inert.marked(name)),
+    Bool.and(Laws.inert.ok(sig), Laws.inert.ok(body)), inert.and_l(Bool.and(Bool.not(Laws.inert.marked(name)),
+      Bool.and(Laws.inert.ok(sig), Laws.inert.ok(body))), inert.dok(rest), e)))
+
+# the body of a def as the lexer makes it fits
+law inert.dok.body:
+  for +name: String
+  for +sig: Tree.Node
+  for +body: Tree.Node
+  for +rest: List<&2, Calls.Def>
+  for +e: {inert.dok(Calls.Def{name, sig, body} <> rest) == True{} : Bool}
+  {Laws.inert.ok(body) == True{} : Bool}
+
+def inert.dok.body(name, sig, body, rest, e):
+  inert.and_r(Laws.inert.ok(sig), Laws.inert.ok(body), inert.and_r(Bool.not(Laws.inert.marked(name)),
+    Bool.and(Laws.inert.ok(sig), Laws.inert.ok(body)), inert.and_l(Bool.and(Bool.not(Laws.inert.marked(name)),
+      Bool.and(Laws.inert.ok(sig), Laws.inert.ok(body))), inert.dok(rest), e)))
+
+# the defs after one as the lexer makes them
+law inert.dok.rest:
+  for +name: String
+  for +sig: Tree.Node
+  for +body: Tree.Node
+  for +rest: List<&2, Calls.Def>
+  for +e: {inert.dok(Calls.Def{name, sig, body} <> rest) == True{} : Bool}
+  {inert.dok(rest) == True{} : Bool}
+
+def inert.dok.rest(name, sig, body, rest, e):
+  inert.and_r(Bool.and(Bool.not(Laws.inert.marked(name)), Bool.and(Laws.inert.ok(sig), Laws.inert.ok(body))),
+    inert.dok(rest), e)
+
+# tail's stop for one def, from what it reads of the def
+def inert.tail.stop(+seq: Bool, +ex: Bool, walk: List<&2, F.Finding>) -> List<&2, F.Finding>:
+  Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(seq, Bool.not(ex))), [], _u => walk)
+
+# tail over the defs read that way reports what it reports over the defs
+law inert.tail.go:
+  for ds: List<&2, Calls.Def>
+  for +path: String
+  for +acc: List<&2, List<&2, F.Finding>>
+  for +e: {inert.dok(ds) == True{} : Bool}
+  {Tail.check.go(inert.defs(ds), path, acc) == Tail.check.go(ds, path, acc) : List<&2, F.Finding>}
+
+def inert.tail.go(ds, path, acc, e):
+  match ds:
+    case Nil{}: {==}
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +lst = inert.tail.stop(Calls.seq(Laws.inert.node(sig)), Calls.exempt(path, Laws.inert.node(sig)),
+        Tail.walk(Laws.inert.node(body), name, path, False{}))
+      %inert.seq(sig) : {Tail.check.go(inert.defs(rest), path, lst <> acc) == Tail.check.go(rest, path,
+        inert.tail.stop(_, Calls.exempt(path, sig), Tail.walk(body, name, path, False{})) <> acc) : List<&2, F.Finding>}
+      %inert.exempt(path, sig) : {Tail.check.go(inert.defs(rest), path, lst <> acc) == Tail.check.go(rest, path,
+        inert.tail.stop(Calls.seq(Laws.inert.node(sig)), _, Tail.walk(body, name, path, False{})) <> acc)
+        : List<&2, F.Finding>}
+      %inert.tail.walk(body, name, path, False{}, inert.dok.head(name, sig, body, rest, e),
+        inert.dok.body(name, sig, body, rest, e)) : {Tail.check.go(inert.defs(rest), path, lst <> acc)
+          == Tail.check.go(rest, path, inert.tail.stop(Calls.seq(Laws.inert.node(sig)), Calls.exempt(path,
+            Laws.inert.node(sig)), _) <> acc) : List<&2, F.Finding>}
+      inert.tail.go(rest, path, lst <> acc, inert.dok.rest(name, sig, body, rest, e))
+
+def Laws.inert_tail(path, _text, tree, _toks, _bound, _items, _text2, tree2, _toks2, _bound2, _items2, ok, ok2, e):
+  inert.via(Tree.Node, z => Tail.check.go(Calls.defs(z), path, []), tree, tree2, Laws.inert.node(tree),
+    Laws.inert.node(tree2),
+    inert.lift(z => Tail.check.go(z, path, []), tree, inert.tail.go(Calls.defs(tree), path, [], inert.dok.of(tree,
+      ok))),
+    inert.lift(z => Tail.check.go(z, path, []), tree2, inert.tail.go(Calls.defs(tree2), path, [], inert.dok.of(tree2,
+      ok2))),
+    e)
+
+# pick
+# ----
+
+# both branches of a pick read that way call the def as they did
+law inert.pick.both:
+  for +kids: Tree.Node
+  for +name: String
+  for +en: {Laws.inert.marked(name) == False{} : Bool}
+  for +ek: {Laws.inert.ok(kids) == True{} : Bool}
+  {Pick.both(Calls.args(Laws.inert.node(kids)), name) == Pick.both(Calls.args(kids), name) : Bool}
+
+def inert.pick.both(kids, name, en, ek):
+  +l2 = Calls.calls(Calls.arg(Calls.args(Laws.inert.node(kids)), 2n), name)
+  +l3 = Calls.calls(Calls.arg(Calls.args(Laws.inert.node(kids)), 3n), name)
+  %inert.calls.nth(kids, 2n, name, en, ek) : {Bool.and(l2, l3) == Bool.and(_, Calls.calls(Calls.arg(Calls.args(kids),
+    3n), name)) : Bool}
+  %inert.calls.nth(kids, 3n, name, en, ek) : {Bool.and(l2, l3) == Bool.and(l2, _) : Bool}
+  {==}
+
+# either branch of a pick read that way calls the def as it did
+law inert.pick.once:
+  for +kids: Tree.Node
+  for +name: String
+  for +en: {Laws.inert.marked(name) == False{} : Bool}
+  for +ek: {Laws.inert.ok(kids) == True{} : Bool}
+  {Pick.once(Calls.args(Laws.inert.node(kids)), name) == Pick.once(Calls.args(kids), name) : Bool}
+
+def inert.pick.once(kids, name, en, ek):
+  +l2 = Calls.calls(Calls.arg(Calls.args(Laws.inert.node(kids)), 2n), name)
+  +l3 = Calls.calls(Calls.arg(Calls.args(Laws.inert.node(kids)), 3n), name)
+  %inert.calls.nth(kids, 2n, name, en, ek) : {Bool.or(l2, l3) == Bool.or(_, Calls.calls(Calls.arg(Calls.args(kids),
+    3n), name)) : Bool}
+  %inert.calls.nth(kids, 3n, name, en, ek) : {Bool.or(l2, l3) == Bool.or(l2, _) : Bool}
+  {==}
+
+# the hush a pick hands its arguments: reported in both branches or in one
+def inert.pick.hush(+ip: Bool, +bb: Bool, +oo: Bool, +q: Bool) -> Bool:
+  +two = Bool.and(Bool.and(ip, Bool.not(q)), bb)
+  +one = Bool.and(Bool.and(ip, Bool.not(two)), Bool.and(Bool.not(q), oo))
+  Bool.or(two, one)
+
+# a call's findings from what pick's walk reads of it
+def inert.pick.body(
+  +ip: Bool,
+  +bb: Bool,
+  +oo: Bool,
+  +q: Bool,
+  +l: U32,
+  +c: U32,
+  +name: String,
+  +path: String,
+  inner: List<&2, F.Finding>,
+  outer: List<&2, F.Finding>
+) -> List<&2, F.Finding>:
+  +two = Bool.and(Bool.and(ip, Bool.not(q)), bb)
+  +one = Bool.and(Bool.and(ip, Bool.not(two)), Bool.and(Bool.not(q), oo))
+  +more = List.concat(&2, F.Finding, [inner, outer])
+  Bool.pick(List<&2, F.Finding>, two,
+    F.Finding{path, l, c, 9, "pick",
+      name ++ " recurses in both branches of Bool.pick, so both calls run; bind the recursive call once above the pick."}
+      <> more,
+    Bool.pick(List<&2, F.Finding>, one,
+      F.Finding{path, l, c, 9, "pick",
+        name ++ " recurses in one branch of Bool.pick, so the call runs whatever the condition and there is no early exit; bind it above the pick."}
+        <> more,
+      more))
+
+# a call as pick's walk takes it: its kids and the rest walked
+def inert.pick.at(
+  +ip: Bool,
+  +bb: Bool,
+  +oo: Bool,
+  +q: Bool,
+  +at: Nat,
+  +l: U32,
+  +c: U32,
+  +name: String,
+  +path: String,
+  +quiet: Bool,
+  +hush: Bool,
+  kids: Tree.Node,
+  rest: Tree.Node
+) -> List<&2, F.Finding>:
+  inert.pick.body(ip, bb, oo, q, l, c, name, path, Pick.walk(kids, name, path, q, inert.pick.hush(ip, bb, oo, q), 0n),
+    Pick.walk(rest, name, path, quiet, hush, at))
+
+# a call whose kids and rest walk the same read that way
+law inert.pick.nodes:
+  for +ip: Bool
+  for +bb: Bool
+  for +oo: Bool
+  for +q: Bool
+  for +at: Nat
+  for +l: U32
+  for +c: U32
+  for +name: String
+  for +path: String
+  for +quiet: Bool
+  for +hush: Bool
+  for +kids: Tree.Node
+  for +rest: Tree.Node
+  for ik: {Pick.walk(Laws.inert.node(kids), name, path, q, inert.pick.hush(ip, bb, oo, q), 0n)
+    == Pick.walk(kids, name, path, q, inert.pick.hush(ip, bb, oo, q), 0n) : List<&2, F.Finding>}
+  for ir: {Pick.walk(Laws.inert.node(rest), name, path, quiet, hush, at) == Pick.walk(rest, name, path, quiet, hush,
+    at) : List<&2, F.Finding>}
+  {inert.pick.at(ip, bb, oo, q, at, l, c, name, path, quiet, hush, Laws.inert.node(kids), Laws.inert.node(rest))
+    == inert.pick.at(ip, bb, oo, q, at, l, c, name, path, quiet, hush, kids, rest) : List<&2, F.Finding>}
+
+def inert.pick.nodes(ip, bb, oo, q, at, l, c, name, path, quiet, hush, kids, rest, ik, ir):
+  +wk = Pick.walk(Laws.inert.node(kids), name, path, q, inert.pick.hush(ip, bb, oo, q), 0n)
+  +wr = Pick.walk(Laws.inert.node(rest), name, path, quiet, hush, at)
+  %ik : {inert.pick.body(ip, bb, oo, q, l, c, name, path, wk, wr)
+    == inert.pick.body(ip, bb, oo, q, l, c, name, path, _, Pick.walk(rest, name, path, quiet, hush,
+      at)) : List<&2, F.Finding>}
+  %ir : {inert.pick.body(ip, bb, oo, q, l, c, name, path, wk, wr)
+    == inert.pick.body(ip, bb, oo, q, l, c, name, path, wk, _) : List<&2, F.Finding>}
+  {==}
+
+# a call whose flags read the same gives the same findings
+law inert.pick.flags:
+  for +ip1: Bool
+  for +ip2: Bool
+  for +bb1: Bool
+  for +bb2: Bool
+  for +oo1: Bool
+  for +oo2: Bool
+  for +q: Bool
+  for +at: Nat
+  for +l: U32
+  for +c: U32
+  for +name: String
+  for +path: String
+  for +quiet: Bool
+  for +hush: Bool
+  for +kids: Tree.Node
+  for +rest: Tree.Node
+  for ei: {ip1 == ip2 : Bool}
+  for eb: {bb1 == bb2 : Bool}
+  for eo: {oo1 == oo2 : Bool}
+  {inert.pick.at(ip1, bb1, oo1, q, at, l, c, name, path, quiet, hush, kids, rest)
+    == inert.pick.at(ip2, bb2, oo2, q, at, l, c, name, path, quiet, hush, kids, rest) : List<&2, F.Finding>}
+
+def inert.pick.flags(ip1, _ip2, bb1, bb2, oo1, oo2, q, at, l, c, name, path, quiet, hush, kids, rest, ei, eb, eo):
+  +lhs = inert.pick.at(ip1, bb1, oo1, q, at, l, c, name, path, quiet, hush, kids, rest)
+  %ei : {lhs == inert.pick.at(_, bb2, oo2, q, at, l, c, name, path, quiet, hush, kids, rest) : List<&2, F.Finding>}
+  %eb : {lhs == inert.pick.at(ip1, _, oo2, q, at, l, c, name, path, quiet, hush, kids, rest) : List<&2, F.Finding>}
+  %eo : {lhs == inert.pick.at(ip1, bb1, _, q, at, l, c, name, path, quiet, hush, kids, rest) : List<&2, F.Finding>}
+  {==}
+
+# pick's walk reads no string: a leaf's text is compared with `Bool.pick`,
+# and the branches' with the def's name, which no string equals
+law inert.pick.walk:
+  for nn: Tree.Node
+  for +name: String
+  for +path: String
+  for +quiet: Bool
+  for +hush: Bool
+  for +nth: Nat
+  for +en: {Laws.inert.marked(name) == False{} : Bool}
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Pick.walk(Laws.inert.node(nn), name, path, quiet, hush, nth) == Pick.walk(nn, name, path, quiet, hush,
+    nth) : List<&2, F.Finding>}
+
+def inert.pick.walk(nn, name, path, quiet, hush, nth, en, e):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              match rest:
+                case Tree.NCons{h2, +r2}:
+                  match h2:
+                    case Tree.Group{o, +kids, cl}:
+                      +eh = inert.and_l(Laws.inert.fits(Lex.Tok{k, t, l, c}), Bool.and(Laws.inert.ok(kids),
+                        Laws.inert.ok(r2)), e)
+                      +eg = inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}), Bool.and(Laws.inert.ok(kids),
+                        Laws.inert.ok(r2)), e)
+                      +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                      +er = inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                      +at = Pick.next(k, nth)
+                      +q = Pick.mute(quiet, hush, at)
+                      +ipl = String.eq(Laws.inert.keep(Laws.inert.blanks(k), t), "Bool.pick")
+                      +bbl = Pick.both(Calls.args(Laws.inert.node(kids)), name)
+                      +ool = Pick.once(Calls.args(Laws.inert.node(kids)), name)
+                      +mid = inert.pick.at(ipl, bbl, ool, q, at, l, c, name, path, quiet, hush, kids, r2)
+                      Equal.trans(List<&2, F.Finding>,
+                        inert.pick.at(ipl, bbl, ool, q, at, l, c, name, path, quiet, hush, Laws.inert.node(kids),
+                          Laws.inert.node(r2)), mid,
+                        inert.pick.at(String.eq(t, "Bool.pick"), Pick.both(Calls.args(kids), name),
+                          Pick.once(Calls.args(kids), name),
+                          q, at, l, c, name, path, quiet, hush, kids, r2),
+                        inert.pick.nodes(ipl, bbl, ool, q, at, l, c, name, path, quiet, hush, kids, r2,
+                          inert.pick.walk(kids, name, path, q, inert.pick.hush(ipl, bbl, ool, q), 0n, en, ek),
+                          inert.pick.walk(r2, name, path, quiet, hush, at, en, er)),
+                        inert.pick.flags(ipl, String.eq(t, "Bool.pick"), bbl, Pick.both(Calls.args(kids), name), ool,
+                          Pick.once(Calls.args(kids), name), q, at, l, c, name, path, quiet, hush, kids, r2,
+                          inert.eq_keep(Laws.inert.blanks(k), t, "Bool.pick", eh, {==}), inert.pick.both(kids, name,
+                            en, ek),
+                          inert.pick.once(kids, name, en, ek)))
+                    case Tree.Leaf{x}:
+                      inert.pick.walk(rest, name, path, quiet, hush, Pick.next(k, nth), en,
+                        inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}), Laws.inert.ok(rest), e))
+                    case Tree.Stmt{x, y, z}:
+                      inert.pick.walk(rest, name, path, quiet, hush, Pick.next(k, nth), en,
+                        inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}), Laws.inert.ok(rest), e))
+                    case Tree.NNil{}:
+                      inert.pick.walk(rest, name, path, quiet, hush, Pick.next(k, nth), en,
+                        inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}), Laws.inert.ok(rest), e))
+                    case Tree.NCons{x, y}:
+                      inert.pick.walk(rest, name, path, quiet, hush, Pick.next(k, nth), en,
+                        inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}), Laws.inert.ok(rest), e))
+                case Tree.Leaf{x}:
+                  {==}
+                case Tree.Group{x, y, z}:
+                  {==}
+                case Tree.Stmt{x, y, z}:
+                  {==}
+                case Tree.NNil{}:
+                  {==}
+        case Tree.Group{o, +kids, cl}:
+          +m = Pick.mute(quiet, hush, nth)
+          inert.cat2(Pick.walk(Laws.inert.node(kids), name, path, m, False{}, 0n), Pick.walk(kids, name, path, m,
+            False{}, 0n),
+            Pick.walk(Laws.inert.node(rest), name, path, quiet, hush, nth), Pick.walk(rest, name, path, quiet, hush,
+              nth),
+            inert.pick.walk(kids, name, path, m, False{}, 0n, en, inert.and_l(Laws.inert.ok(kids),
+              Laws.inert.ok(rest), e)),
+            inert.pick.walk(rest, name, path, quiet, hush, nth, en, inert.and_r(Laws.inert.ok(kids),
+              Laws.inert.ok(rest), e)))
+        case Tree.Stmt{sk, +kids, +body}:
+          +es = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+          +m = Pick.mute(quiet, hush, nth)
+          inert.cat3(Pick.walk(Laws.inert.node(kids), name, path, m, False{}, 0n), Pick.walk(kids, name, path, m,
+            False{}, 0n),
+            Pick.walk(Laws.inert.node(body), name, path, m, False{}, 0n), Pick.walk(body, name, path, m, False{}, 0n),
+            Pick.walk(Laws.inert.node(rest), name, path, quiet, hush, nth), Pick.walk(rest, name, path, quiet, hush,
+              nth),
+            inert.pick.walk(kids, name, path, m, False{}, 0n, en, inert.and_l(Laws.inert.ok(kids),
+              Laws.inert.ok(body), es)),
+            inert.pick.walk(body, name, path, m, False{}, 0n, en, inert.and_r(Laws.inert.ok(kids),
+              Laws.inert.ok(body), es)),
+            inert.pick.walk(rest, name, path, quiet, hush, nth, en,
+              inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)))
+        case Tree.NNil{}:
+          inert.pick.walk(rest, name, path, quiet, hush, nth, en, e)
+        case Tree.NCons{x, y}:
+          inert.pick.walk(rest, name, path, quiet, hush, nth, en, inert.and_r(Laws.inert.ok(Tree.NCons{x, y}),
+            Laws.inert.ok(rest), e))
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{o, gk, cl}:
+      {==}
+    case Tree.Stmt{sk, sks, sb}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# pick's stop for one def
+def inert.pick.stop(+ex: Bool, walk: List<&2, F.Finding>) -> List<&2, F.Finding>:
+  Lazy.stop(List<&2, F.Finding>, ex, [], _u => walk)
+
+# pick over the defs read that way reports what it reports over the defs
+law inert.pick.go:
+  for ds: List<&2, Calls.Def>
+  for +path: String
+  for +acc: List<&2, List<&2, F.Finding>>
+  for +e: {inert.dok(ds) == True{} : Bool}
+  {Pick.check.go(inert.defs(ds), path, acc) == Pick.check.go(ds, path, acc) : List<&2, F.Finding>}
+
+def inert.pick.go(ds, path, acc, e):
+  match ds:
+    case Nil{}: {==}
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +lst = inert.pick.stop(Calls.exempt(path, Laws.inert.node(sig)), Pick.walk(Laws.inert.node(body), name, path,
+        False{},
+        False{}, 0n))
+      %inert.exempt(path, sig) : {Pick.check.go(inert.defs(rest), path, lst <> acc) == Pick.check.go(rest, path,
+        inert.pick.stop(_, Pick.walk(body, name, path, False{}, False{}, 0n)) <> acc) : List<&2, F.Finding>}
+      %inert.pick.walk(body, name, path, False{}, False{}, 0n, inert.dok.head(name, sig, body, rest, e),
+        inert.dok.body(name, sig, body, rest, e)) : {Pick.check.go(inert.defs(rest), path, lst <> acc)
+          == Pick.check.go(rest, path, inert.pick.stop(Calls.exempt(path, Laws.inert.node(sig)), _) <> acc)
+          : List<&2, F.Finding>}
+      inert.pick.go(rest, path, lst <> acc, inert.dok.rest(name, sig, body, rest, e))
+
+def Laws.inert_pick(path, _text, tree, _toks, _bound, _items, _text2, tree2, _toks2, _bound2, _items2, ok, ok2, e):
+  inert.via(Tree.Node, z => Pick.check.go(Calls.defs(z), path, []), tree, tree2, Laws.inert.node(tree),
+    Laws.inert.node(tree2),
+    inert.lift(z => Pick.check.go(z, path, []), tree, inert.pick.go(Calls.defs(tree), path, [], inert.dok.of(tree,
+      ok))),
+    inert.lift(z => Pick.check.go(z, path, []), tree2, inert.pick.go(Calls.defs(tree2), path, [], inert.dok.of(tree2,
+      ok2))),
+    e)
+
+# doc
+# ---
+
+# a line that is a `#` line exactly when b says so
+def inert.doc.line(bb: Bool) -> String:
+  match bb:
+    case True{}: "#"
+    case False{}: ""
+
+# the lines rebuilt from which of them start with `#`
+def inert.doc.relines(bs: List<&2, Bool>) -> List<&2, String>:
+  match bs:
+    case Nil{}: Nil{}
+    case Con{h, t}: inert.doc.line(h) <> inert.doc.relines(t)
+
+# a line rebuilt from its `#` test starts with `#` as it did
+law inert.doc.hash1:
+  for b: Bool
+  {String.starts_with(inert.doc.line(b), "#") == b : Bool}
+
+def inert.doc.hash1(b):
+  match b:
+    case True{}: {==}
+    case False{}: {==}
+
+# the `#` test on the lines rebuilt is the test on the lines
+law inert.doc.hash:
+  for lines: List<&2, String>
+  for +nn: U32
+  {Doc.check.hash(inert.doc.relines(Laws.inert.hashes(lines)), nn) == Doc.check.hash(lines, nn) : Bool}
+
+def inert.doc.hash(lines, nn):
+  match lines:
+    case Nil{}: {==}
+    case Con{+hh, tt}:
+      +h1 = String.starts_with(hh, "#")
+      %inert.doc.hash1(h1) : {Lazy.stop(Bool, U32.is_eq(nn, 0), String.starts_with(inert.doc.line(h1), "#"),
+        _u => Doc.check.hash(inert.doc.relines(Laws.inert.hashes(tt)), U32.sub(nn, 1)))
+        == Lazy.stop(Bool, U32.is_eq(nn, 0), _, _u => Doc.check.hash(tt, U32.sub(nn, 1))) : Bool}
+      %inert.doc.hash(tt, U32.sub(nn, 1)) : {Lazy.stop(Bool, U32.is_eq(nn, 0), String.starts_with(inert.doc.line(h1),
+        "#"),
+        _u => Doc.check.hash(inert.doc.relines(Laws.inert.hashes(tt)), U32.sub(nn, 1)))
+        == Lazy.stop(Bool, U32.is_eq(nn, 0), String.starts_with(inert.doc.line(h1), "#"), _u => _) : Bool}
+      {==}
+
+# doc's walk reads its items' kinds, names and lines, and of its lines only
+# which start with `#`
+law inert.doc.go:
+  for items: List<&2, Outline.Item>
+  for +path: String
+  for +lines: List<&2, String>
+  {Doc.check.go(Laws.inert.items(items), path, inert.doc.relines(Laws.inert.hashes(lines)))
+    == Doc.check.go(items, path, lines) : List<&2, F.Finding>}
+
+def inert.doc.go(items, path, lines):
+  match items:
+    case Nil{}: {==}
+    case Con{Outline.Item{+k, +name, +line, +s, +d, +p}, +rest}:
+      +rl = inert.doc.relines(Laws.inert.hashes(lines))
+      +lhs = Doc.check.go(Laws.inert.items(Outline.Item{k, name, line, s, d, p} <> rest), path, rl)
+      %inert.doc.hash(lines, U32.sub(line, 1)) : {lhs == Bool.pick(List<&2, F.Finding>,
+        Lazy.and_then(Bool.and(Doc.needs(k),
+        Bool.not(Doc.exempt(name))), _u => Bool.not(Lazy.and_then(Bool.not(U32.is_eq(line, 0)), _v => _))),
+        F.Finding{path, line, 0, 0, "doc", Doc.what(k) ++ " " ++ name ++ " has no comment above it."}
+          <> Doc.check.go(rest, path, lines), Doc.check.go(rest, path, lines)) : List<&2, F.Finding>}
+      %inert.doc.go(rest, path, lines) : {lhs == Bool.pick(List<&2, F.Finding>, Lazy.and_then(Bool.and(Doc.needs(k),
+        Bool.not(Doc.exempt(name))), _u => Bool.not(Lazy.and_then(Bool.not(U32.is_eq(line, 0)),
+          _v => Doc.check.hash(rl, U32.sub(line, 1))))),
+        F.Finding{path, line, 0, 0, "doc", Doc.what(k) ++ " " ++ name ++ " has no comment above it."} <> _, _)
+        : List<&2, F.Finding>}
+      {==}
+
+def Laws.inert_doc(path, text, toks, _tree, _bound, items, text2, toks2, _tree2, _bound2, items2, ei, el):
+  +l1 = Doc.lines(text, toks)
+  +l2 = Doc.lines(text2, toks2)
+  +r1 = Doc.check.go(Laws.inert.items(items), path, inert.doc.relines(Laws.inert.hashes(l1)))
+  +m = Doc.check.go(Laws.inert.items(items2), path, inert.doc.relines(Laws.inert.hashes(l1)))
+  +r2 = Doc.check.go(Laws.inert.items(items2), path, inert.doc.relines(Laws.inert.hashes(l2)))
+  +w1 = Doc.check.go(items, path, l1)
+  +w2 = Doc.check.go(items2, path, l2)
+  Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
+    z => Lazy.stop(List<&2, F.Finding>, Bool.or(Paths.is_proof(path), Paths.is_test(path)), [], _u => z), w1, w2,
+    Equal.trans(List<&2, F.Finding>, w1, r1, w2, Equal.sym(List<&2, F.Finding>, r1, w1, inert.doc.go(items, path, l1)),
+      Equal.trans(List<&2, F.Finding>, r1, m, w2,
+        Equal.cong(List<&2, Outline.Item>, List<&2, F.Finding>,
+          z => Doc.check.go(z, path, inert.doc.relines(Laws.inert.hashes(l1))), Laws.inert.items(items),
+          Laws.inert.items(items2), ei),
+        Equal.trans(List<&2, F.Finding>, m, r2, w2,
+          Equal.cong(List<&2, Bool>, List<&2, F.Finding>,
+            z => Doc.check.go(Laws.inert.items(items2), path, inert.doc.relines(z)), Laws.inert.hashes(l1),
+            Laws.inert.hashes(l2), el),
+          inert.doc.go(items2, path, l2)))))
+
+# param
+# -----
+
+# param's walk over binders whose notes are already cut
+def inert.param.go(binds: List<&2, Bind.Bind>, +path: String) -> List<&2, F.Finding>:
+  match binds:
+    case Nil{}: Nil{}
+    case Con{Bind.Bind{+nm, +line, +col, +kind, +cn}, rest}:
+      +more = inert.param.go(rest, path)
+      +quant = Bool.or(Bool.not(String.contains(cn, ":")), String.ends_with(cn, ": Quant"))
+      Bool.pick(List<&2, F.Finding>, Bool.and(Param.check.is_param(kind), Bool.and(Param.check.short(nm),
+        Bool.not(Bool.or(Param.check.upper(nm), quant)))),
+        F.Finding{path, line, col, U32.from_nat(String.length(nm)), "param",
+          "Parameter " ++ nm ++ " is shorter than 2 characters."} <> more, more)
+
+# param's walk reads each binder's note with its strings cut
+law inert.param.walk:
+  for binds: List<&2, Bind.Bind>
+  for +path: String
+  {inert.param.go(Laws.inert.binds(binds), path) == Param.check.go(binds, path) : List<&2, F.Finding>}
+
+def inert.param.walk(binds, path):
+  match binds:
+    case Nil{}: {==}
+    case Con{Bind.Bind{+nm, +line, +col, +kind, +note}, +rest}:
+      %inert.param.walk(rest, path) : {inert.param.go(Laws.inert.binds(Bind.Bind{nm, line, col, kind, note} <> rest),
+        path)
+        == Bool.pick(List<&2, F.Finding>, Bool.and(Param.check.is_param(kind), Bool.and(Param.check.short(nm),
+          Bool.not(Param.check.allowed(nm,
+            note)))), F.Finding{path, line, col, U32.from_nat(String.length(nm)), "param",
+            "Parameter " ++ nm ++ " is shorter than 2 characters."} <> _, _) : List<&2, F.Finding>}
+      {==}
+
+def Laws.inert_param(b1, b2, path, e):
+  +v1 = Laws.inert.binds(b1)
+  +v2 = Laws.inert.binds(b2)
+  Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
+    z => Lazy.stop(List<&2, F.Finding>, Paths.is_proof(path), [], _u => z), Param.check.go(b1, path),
+    Param.check.go(b2, path),
+    Equal.trans(List<&2, F.Finding>, Param.check.go(b1, path), inert.param.go(v1, path), Param.check.go(b2, path),
+      Equal.sym(List<&2, F.Finding>, inert.param.go(v1, path), Param.check.go(b1, path), inert.param.walk(b1, path)),
+      Equal.trans(List<&2, F.Finding>, inert.param.go(v1, path), inert.param.go(v2, path), Param.check.go(b2, path),
+        Equal.cong(List<&2, Bind.Bind>, List<&2, F.Finding>, z => inert.param.go(z, path), v1, v2, e),
+        inert.param.walk(b2, path))))
+
+# strict
+# ------
+
+# a node read that way ends a stretch as it did
+law inert.strict.ends:
+  for nn: Tree.Node
+  {Calls.kind.leaf(~Strict.seg_op.ends, Laws.inert.node(nn)) == Calls.kind.leaf(~Strict.seg_op.ends, nn) : Bool}
+
+def inert.strict.ends(nn):
+  Equal.cong(Maybe<&2, Lex.TokKind>, Bool,
+    m => Calls.kind.of(~Strict.seg_op.ends, m), Calls.leaf.kind(Laws.inert.node(nn)), Calls.leaf.kind(nn),
+    inert.leaf_kind(nn))
+
+# a chain read that way holds `&&` or `||` in its stretch as it did
+law inert.strict.seg:
+  for nn: Tree.Node
+  {Strict.seg_op(Laws.inert.node(nn)) == Strict.seg_op(nn) : Bool}
+
+def inert.strict.seg(nn):
+  match nn:
+    case Tree.NCons{+h, +rest}:
+      +ke = Calls.kind.leaf(~Strict.seg_op.ends, h)
+      +ko = Calls.kind.leaf(~Calls.kind.oper, h)
+      +kb = Calls.kind.leaf(~Laws.inert.blanks, h)
+      +th = Calls.leaf.text(h)
+      +rhs = Strict.seg_op(Tree.NCons{h, rest})
+      +ih = Laws.inert.node(h)
+      +ir = Laws.inert.node(rest)
+      %Equal.sym(Bool, Calls.kind.leaf(~Strict.seg_op.ends, ih), ke, inert.strict.ends(h)) :
+        {Lazy.stop(Bool, _, False{},
+        _u => Strict.seg_op.or(Bool.and(Calls.kind.leaf(~Calls.kind.oper, ih), Strict.logic(Calls.leaf.text(ih))),
+          Strict.seg_op(ir))) == rhs : Bool}
+      %Equal.sym(Bool, Calls.kind.leaf(~Calls.kind.oper, ih), ko, inert.oper(h)) : {Lazy.stop(Bool, ke, False{},
+        _u => Strict.seg_op.or(Bool.and(_, Strict.logic(Calls.leaf.text(ih))), Strict.seg_op(ir))) == rhs : Bool}
+      %Equal.sym(String, Calls.leaf.text(ih), Laws.inert.keep(kb, th), inert.leaf_text(h)) : {Lazy.stop(Bool, ke,
+        False{}, _u => Strict.seg_op.or(Bool.and(ko, Strict.logic(_)), Strict.seg_op(ir))) == rhs : Bool}
+      %Equal.sym(Bool, Strict.seg_op(ir), Strict.seg_op(rest), inert.strict.seg(rest)) : {Lazy.stop(Bool, ke,
+        False{}, _u => Strict.seg_op.or(Bool.and(ko, Strict.logic(Laws.inert.keep(kb, th))), _)) == rhs : Bool}
+      %Equal.sym(Bool, Bool.and(ko, Strict.logic(Laws.inert.keep(kb, th))), Bool.and(ko, Strict.logic(th)),
+        inert.guard(ko, kb, th, z => Strict.logic(z), inert.oper_code(h))) : {Lazy.stop(Bool, ke, False{},
+          _u => Strict.seg_op.or(_, Strict.seg_op(rest))) == rhs : Bool}
+      {==}
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a leaf read by its kind, each branch reading as it did
+law inert.strict.leaf:
+  for +kk: Lex.TokKind
+  for -a1: List<&2, F.Finding>
+  for -a2: List<&2, F.Finding>
+  for -b1: List<&2, F.Finding>
+  for -b2: List<&2, F.Finding>
+  for -c1: List<&2, F.Finding>
+  for -c2: List<&2, F.Finding>
+  for ea: {a1 == a2 : List<&2, F.Finding>}
+  for eb: {b1 == b2 : List<&2, F.Finding>}
+  for ec: {c1 == c2 : List<&2, F.Finding>}
+  {Strict.leaf(kk, _u => a1, _v => b1, _w => c1) == Strict.leaf(kk, _u => a2, _v => b2, _w => c2) : List<&2, F.Finding>}
+
+def inert.strict.leaf(kk, a1, _a2, b1, b2, c1, c2, ea, eb, ec):
+  -lhs = Strict.leaf(kk, _u => a1, _v => b1, _w => c1)
+  %ea : {lhs == Strict.leaf(kk, _u => _, _v => b2, _w => c2) : List<&2, F.Finding>}
+  %eb : {lhs == Strict.leaf(kk, _u => a1, _v => _, _w => c2) : List<&2, F.Finding>}
+  %ec : {lhs == Strict.leaf(kk, _u => a1, _v => b1, _w => _) : List<&2, F.Finding>}
+  {==}
+
+# the stretch a group after a name is walked in, the name read that way
+law inert.strict.inner:
+  for +kk: Lex.TokKind
+  for +t: String
+  for +o: String
+  for +hot: Bool
+  for +ef: {Laws.inert.fits.go(Laws.inert.blanks(kk), t) == True{} : Bool}
+  {Strict.inner(hot, o, Laws.inert.keep(Laws.inert.blanks(kk), t)) == Strict.inner(hot, o, t) : Bool}
+
+def inert.strict.inner(kk, t, o, hot, ef):
+  +tt = Laws.inert.keep(Laws.inert.blanks(kk), t)
+  %inert.eq_keep(Laws.inert.blanks(kk), t, "Bool.and", ef, {==}) : {Strict.inner(hot, o, tt)
+    == Bool.or(hot, Bool.and(String.eq(o, "("), Bool.or(_, String.eq(t, "Bool.or")))) : Bool}
+  %inert.eq_keep(Laws.inert.blanks(kk), t, "Bool.or", ef, {==}) : {Strict.inner(hot, o, tt)
+    == Bool.or(hot, Bool.and(String.eq(o, "("), Bool.or(String.eq(tt, "Bool.and"), _))) : Bool}
+  {==}
+
+# past a comma or a `=>`, the rest walked in the stretch its own operators set
+law inert.strict.past:
+  for +rest: Tree.Node
+  for +name: String
+  for +path: String
+  for +outer: Bool
+  for -hh: Bool -> Bool
+  for ih: {Strict.walk(Laws.inert.node(rest), name, path, outer, hh(Strict.seg_op(Laws.inert.node(rest))))
+    == Strict.walk(rest, name, path, outer, hh(Strict.seg_op(Laws.inert.node(rest)))) : List<&2, F.Finding>}
+  {Strict.walk(Laws.inert.node(rest), name, path, outer, hh(Strict.seg_op(Laws.inert.node(rest))))
+    == Strict.walk(rest, name, path, outer, hh(Strict.seg_op(rest))) : List<&2, F.Finding>}
+
+def inert.strict.past(rest, name, path, outer, hh, ih):
+  %inert.strict.seg(rest) : {Strict.walk(Laws.inert.node(rest), name, path, outer,
+    hh(Strict.seg_op(Laws.inert.node(rest))))
+    == Strict.walk(rest, name, path, outer, hh(_)) : List<&2, F.Finding>}
+  ih
+
+# a name then a group: the name compared, the group and the rest walked as
+# they were
+law inert.strict.lg:
+  for +kk: Lex.TokKind
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for +o: String
+  for +name: String
+  for +path: String
+  for +outer: Bool
+  for +hot: Bool
+  for +kids: Tree.Node
+  for +r2: Tree.Node
+  for +ef: {Laws.inert.fits.go(Laws.inert.blanks(kk), t) == True{} : Bool}
+  for +en: {Laws.inert.marked(name) == False{} : Bool}
+  for ik: {Strict.walk(Laws.inert.node(kids), name, path, Strict.inner(hot, o, Laws.inert.keep(Laws.inert.blanks(kk),
+    t)),
+      Bool.or(Strict.inner(hot, o, Laws.inert.keep(Laws.inert.blanks(kk), t)), Strict.seg_op(Laws.inert.node(kids))))
+    == Strict.walk(kids, name, path, Strict.inner(hot, o, Laws.inert.keep(Laws.inert.blanks(kk), t)),
+      Bool.or(Strict.inner(hot, o, Laws.inert.keep(Laws.inert.blanks(kk), t)), Strict.seg_op(Laws.inert.node(kids))))
+    : List<&2, F.Finding>}
+  for ir: {Strict.walk(Laws.inert.node(r2), name, path, outer, hot) == Strict.walk(r2, name, path, outer, hot)
+    : List<&2, F.Finding>}
+  {Strict.call(Laws.inert.keep(Laws.inert.blanks(kk), t), l, c, o, name, path, hot,
+      Strict.walk(Laws.inert.node(kids), name, path, Strict.inner(hot, o, Laws.inert.keep(Laws.inert.blanks(kk), t)),
+        Bool.or(Strict.inner(hot, o, Laws.inert.keep(Laws.inert.blanks(kk), t)), Strict.seg_op(Laws.inert.node(kids)))),
+      Strict.walk(Laws.inert.node(r2), name, path, outer, hot))
+    == Strict.call(t, l, c, o, name, path, hot,
+      Strict.walk(kids, name, path, Strict.inner(hot, o, t), Bool.or(Strict.inner(hot, o, t), Strict.seg_op(kids))),
+      Strict.walk(r2, name, path, outer, hot)) : List<&2, F.Finding>}
+
+def inert.strict.lg(kk, t, l, c, o, name, path, outer, hot, kids, r2, ef, en, ik, ir):
+  +tt = Laws.inert.keep(Laws.inert.blanks(kk), t)
+  +i1 = Strict.inner(hot, o, tt)
+  +wk = Strict.walk(Laws.inert.node(kids), name, path, i1, Bool.or(i1, Strict.seg_op(Laws.inert.node(kids))))
+  +wr = Strict.walk(Laws.inert.node(r2), name, path, outer, hot)
+  +lhs = Strict.call(tt, l, c, o, name, path, hot, wk, wr)
+  %inert.strict.inner(kk, t, o, hot, ef) : {lhs == Strict.call(t, l, c, o, name, path, hot, Strict.walk(kids, name,
+    path, _,
+    Bool.or(_, Strict.seg_op(kids))), Strict.walk(r2, name, path, outer, hot)) : List<&2, F.Finding>}
+  %inert.strict.seg(kids) : {lhs == Strict.call(t, l, c, o, name, path, hot, Strict.walk(kids, name, path, i1,
+    Bool.or(i1, _)), Strict.walk(r2, name, path, outer, hot)) : List<&2, F.Finding>}
+  %ik : {lhs == Strict.call(t, l, c, o, name, path, hot, _, Strict.walk(r2, name, path, outer, hot)) : List<&2,
+    F.Finding>}
+  %ir : {lhs == Strict.call(t, l, c, o, name, path, hot, wk, _) : List<&2, F.Finding>}
+  %inert.eq_keep(Laws.inert.blanks(kk), t, name, ef, en) : {Strict.call(tt, l, c, o, name, path, hot, wk, wr)
+    == Bool.pick(List<&2, F.Finding>, Bool.and(Bool.and(String.eq(o, "("), _), hot),
+      F.Finding{path, l, c, U32.from_nat(String.length(name)), "strict",
+        name ++ " recurses inside Bool.and or Bool.or, so both sides always run and there is no short-circuit; bind the call above."}
+        <> List.concat(&2, F.Finding, [wk, wr]), List.concat(&2, F.Finding, [wk, wr])) : List<&2, F.Finding>}
+  {==}
+
+# a leaf then a cell that is no group: each branch walks the rest as it did
+law inert.strict.gen:
+  for +kk: Lex.TokKind
+  for +rest: Tree.Node
+  for +name: String
+  for +path: String
+  for +outer: Bool
+  for +hot: Bool
+  for ea: {Strict.walk(Laws.inert.node(rest), name, path, outer, Bool.or(outer, Strict.seg_op(Laws.inert.node(rest))))
+    == Strict.walk(rest, name, path, outer, Bool.or(outer, Strict.seg_op(rest))) : List<&2, F.Finding>}
+  for eb: {Strict.walk(Laws.inert.node(rest), name, path, outer, Strict.seg_op(Laws.inert.node(rest)))
+    == Strict.walk(rest, name, path, outer, Strict.seg_op(rest)) : List<&2, F.Finding>}
+  for ec: {Strict.walk(Laws.inert.node(rest), name, path, outer, hot) == Strict.walk(rest, name, path, outer, hot)
+    : List<&2, F.Finding>}
+  {Strict.leaf(kk, _u => Strict.walk(Laws.inert.node(rest), name, path, outer, Bool.or(outer,
+      Strict.seg_op(Laws.inert.node(rest)))), _v => Strict.walk(Laws.inert.node(rest), name, path, outer,
+      Strict.seg_op(Laws.inert.node(rest))), _w => Strict.walk(Laws.inert.node(rest), name, path, outer, hot))
+    == Strict.leaf(kk, _u => Strict.walk(rest, name, path, outer, Bool.or(outer, Strict.seg_op(rest))),
+      _v => Strict.walk(rest, name, path, outer, Strict.seg_op(rest)), _w => Strict.walk(rest, name, path, outer, hot))
+    : List<&2, F.Finding>}
+
+def inert.strict.gen(kk, rest, name, path, outer, hot, ea, eb, ec):
+  inert.strict.leaf(kk, Strict.walk(Laws.inert.node(rest), name, path, outer, Bool.or(outer,
+    Strict.seg_op(Laws.inert.node(rest)))), Strict.walk(rest, name, path, outer, Bool.or(outer, Strict.seg_op(rest))),
+    Strict.walk(Laws.inert.node(rest), name, path, outer, Strict.seg_op(Laws.inert.node(rest))),
+    Strict.walk(rest, name, path, outer, Strict.seg_op(rest)), Strict.walk(Laws.inert.node(rest), name, path, outer,
+      hot),
+    Strict.walk(rest, name, path, outer, hot), ea, eb, ec)
+
+# strict's walk reads no string: a leaf's text is compared with the def's
+# name, `Bool.and` and `Bool.or`, which no string equals
+law inert.strict.walk:
+  for nn: Tree.Node
+  for +name: String
+  for +path: String
+  for +outer: Bool
+  for +hot: Bool
+  for +en: {Laws.inert.marked(name) == False{} : Bool}
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Strict.walk(Laws.inert.node(nn), name, path, outer, hot) == Strict.walk(nn, name, path, outer, hot) : List<&2,
+    F.Finding>}
+
+def inert.strict.walk(nn, name, path, outer, hot, en, e):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              match rest:
+                case Tree.NCons{h2, +r2}:
+                  match h2:
+                    case Tree.Group{o, +kids, cl}:
+                      match o:
+                        case Lex.Tok{ok, +ot, ol, oc}:
+                          +a1 = Strict.walk(Laws.inert.node(rest), name, path, outer, Bool.or(outer,
+                            Strict.seg_op(Laws.inert.node(rest))))
+                          +b1 = Strict.walk(Laws.inert.node(rest), name, path, outer,
+                            Strict.seg_op(Laws.inert.node(rest)))
+                          +k1 = Strict.walk(Laws.inert.node(kids), name, path, Strict.inner(hot, ot,
+                            Laws.inert.keep(Laws.inert.blanks(k), t)), Bool.or(Strict.inner(hot, ot,
+                              Laws.inert.keep(Laws.inert.blanks(k), t)), Strict.seg_op(Laws.inert.node(kids))))
+                          +c1 = Strict.call(Laws.inert.keep(Laws.inert.blanks(k), t), l, c, ot, name, path, hot, k1,
+                            Strict.walk(Laws.inert.node(r2), name, path, outer, hot))
+                          +k0 = Strict.walk(kids, name, path, Strict.inner(hot, ot, t), Bool.or(Strict.inner(hot, ot,
+                            t),
+                            Strict.seg_op(kids)))
+                          +c0 = Strict.call(t, l, c, ot, name, path, hot, k0, Strict.walk(r2, name, path, outer, hot))
+                          inert.strict.leaf(k, a1, Strict.walk(rest, name, path, outer, Bool.or(outer,
+                            Strict.seg_op(rest))), b1,
+                            Strict.walk(rest, name, path, outer, Strict.seg_op(rest)), c1, c0,
+                            inert.strict.past(rest, name, path, outer, z => Bool.or(outer, z), inert.strict.walk(rest,
+                              name, path, outer,
+                              Bool.or(outer,
+                                Strict.seg_op(Laws.inert.node(rest))), en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t,
+                                  l, c}), Laws.inert.ok(rest), e))),
+                            inert.strict.past(rest, name, path, outer, z => z, inert.strict.walk(rest, name, path,
+                              outer,
+                              Strict.seg_op(Laws.inert.node(rest)), en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l,
+                                c}), Laws.inert.ok(rest), e))),
+                            inert.strict.lg(k, t, l, c, ot, name, path, outer, hot, kids, r2,
+                              inert.and_l(Laws.inert.fits(Lex.Tok{k, t, l, c}), Bool.and(Laws.inert.ok(kids),
+                                Laws.inert.ok(r2)), e), en,
+                              inert.strict.walk(kids, name, path, Strict.inner(hot, ot,
+                                Laws.inert.keep(Laws.inert.blanks(k), t)), Bool.or(Strict.inner(hot, ot,
+                                  Laws.inert.keep(Laws.inert.blanks(k), t)), Strict.seg_op(Laws.inert.node(kids))), en,
+                                inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2),
+                                  inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}), Bool.and(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2)), e))),
+                              inert.strict.walk(r2, name, path, outer, hot, en, inert.and_r(Laws.inert.ok(kids),
+                                Laws.inert.ok(r2), inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}),
+                                  Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e)))))
+                    case Tree.Leaf{x}:
+                      inert.strict.gen(k, rest, name, path, outer, hot,
+                        inert.strict.past(rest, name, path, outer, z => Bool.or(outer, z), inert.strict.walk(rest,
+                          name, path, outer,
+                          Bool.or(outer,
+                            Strict.seg_op(Laws.inert.node(rest))), en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l,
+                              c}), Laws.inert.ok(rest), e))),
+                        inert.strict.past(rest, name, path, outer, z => z, inert.strict.walk(rest, name, path, outer,
+                          Strict.seg_op(Laws.inert.node(rest)), en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}),
+                            Laws.inert.ok(rest), e))),
+                        inert.strict.walk(rest, name, path, outer, hot, en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t,
+                          l, c}), Laws.inert.ok(rest), e)))
+                    case Tree.Stmt{x, y, z}:
+                      inert.strict.gen(k, rest, name, path, outer, hot,
+                        inert.strict.past(rest, name, path, outer, z => Bool.or(outer, z), inert.strict.walk(rest,
+                          name, path, outer,
+                          Bool.or(outer,
+                            Strict.seg_op(Laws.inert.node(rest))), en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l,
+                              c}), Laws.inert.ok(rest), e))),
+                        inert.strict.past(rest, name, path, outer, z => z, inert.strict.walk(rest, name, path, outer,
+                          Strict.seg_op(Laws.inert.node(rest)), en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}),
+                            Laws.inert.ok(rest), e))),
+                        inert.strict.walk(rest, name, path, outer, hot, en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t,
+                          l, c}), Laws.inert.ok(rest), e)))
+                    case Tree.NNil{}:
+                      inert.strict.gen(k, rest, name, path, outer, hot,
+                        inert.strict.past(rest, name, path, outer, z => Bool.or(outer, z), inert.strict.walk(rest,
+                          name, path, outer,
+                          Bool.or(outer,
+                            Strict.seg_op(Laws.inert.node(rest))), en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l,
+                              c}), Laws.inert.ok(rest), e))),
+                        inert.strict.past(rest, name, path, outer, z => z, inert.strict.walk(rest, name, path, outer,
+                          Strict.seg_op(Laws.inert.node(rest)), en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}),
+                            Laws.inert.ok(rest), e))),
+                        inert.strict.walk(rest, name, path, outer, hot, en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t,
+                          l, c}), Laws.inert.ok(rest), e)))
+                    case Tree.NCons{x, y}:
+                      inert.strict.gen(k, rest, name, path, outer, hot,
+                        inert.strict.past(rest, name, path, outer, z => Bool.or(outer, z), inert.strict.walk(rest,
+                          name, path, outer,
+                          Bool.or(outer,
+                            Strict.seg_op(Laws.inert.node(rest))), en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l,
+                              c}), Laws.inert.ok(rest), e))),
+                        inert.strict.past(rest, name, path, outer, z => z, inert.strict.walk(rest, name, path, outer,
+                          Strict.seg_op(Laws.inert.node(rest)), en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}),
+                            Laws.inert.ok(rest), e))),
+                        inert.strict.walk(rest, name, path, outer, hot, en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t,
+                          l, c}), Laws.inert.ok(rest), e)))
+                case Tree.Leaf{x}:
+                  inert.strict.gen(k, rest, name, path, outer, hot,
+                    inert.strict.past(rest, name, path, outer, z => Bool.or(outer, z), inert.strict.walk(rest, name,
+                      path, outer,
+                      Bool.or(outer, Strict.seg_op(Laws.inert.node(rest))), en, inert.and_r(Laws.inert.fits(Lex.Tok{k,
+                        t, l, c}), Laws.inert.ok(rest), e))),
+                    inert.strict.past(rest, name, path, outer, z => z, inert.strict.walk(rest, name, path, outer,
+                      Strict.seg_op(Laws.inert.node(rest)), en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}),
+                        Laws.inert.ok(rest), e))),
+                    inert.strict.walk(rest, name, path, outer, hot, en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l,
+                      c}), Laws.inert.ok(rest), e)))
+                case Tree.Group{x, y, z}:
+                  inert.strict.gen(k, rest, name, path, outer, hot,
+                    inert.strict.past(rest, name, path, outer, z => Bool.or(outer, z), inert.strict.walk(rest, name,
+                      path, outer,
+                      Bool.or(outer, Strict.seg_op(Laws.inert.node(rest))), en, inert.and_r(Laws.inert.fits(Lex.Tok{k,
+                        t, l, c}), Laws.inert.ok(rest), e))),
+                    inert.strict.past(rest, name, path, outer, z => z, inert.strict.walk(rest, name, path, outer,
+                      Strict.seg_op(Laws.inert.node(rest)), en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}),
+                        Laws.inert.ok(rest), e))),
+                    inert.strict.walk(rest, name, path, outer, hot, en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l,
+                      c}), Laws.inert.ok(rest), e)))
+                case Tree.Stmt{x, y, z}:
+                  inert.strict.gen(k, rest, name, path, outer, hot,
+                    inert.strict.past(rest, name, path, outer, z => Bool.or(outer, z), inert.strict.walk(rest, name,
+                      path, outer,
+                      Bool.or(outer, Strict.seg_op(Laws.inert.node(rest))), en, inert.and_r(Laws.inert.fits(Lex.Tok{k,
+                        t, l, c}), Laws.inert.ok(rest), e))),
+                    inert.strict.past(rest, name, path, outer, z => z, inert.strict.walk(rest, name, path, outer,
+                      Strict.seg_op(Laws.inert.node(rest)), en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}),
+                        Laws.inert.ok(rest), e))),
+                    inert.strict.walk(rest, name, path, outer, hot, en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l,
+                      c}), Laws.inert.ok(rest), e)))
+                case Tree.NNil{}:
+                  inert.strict.gen(k, rest, name, path, outer, hot,
+                    inert.strict.past(rest, name, path, outer, z => Bool.or(outer, z), inert.strict.walk(rest, name,
+                      path, outer,
+                      Bool.or(outer, Strict.seg_op(Laws.inert.node(rest))), en, inert.and_r(Laws.inert.fits(Lex.Tok{k,
+                        t, l, c}), Laws.inert.ok(rest), e))),
+                    inert.strict.past(rest, name, path, outer, z => z, inert.strict.walk(rest, name, path, outer,
+                      Strict.seg_op(Laws.inert.node(rest)), en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l, c}),
+                        Laws.inert.ok(rest), e))),
+                    inert.strict.walk(rest, name, path, outer, hot, en, inert.and_r(Laws.inert.fits(Lex.Tok{k, t, l,
+                      c}), Laws.inert.ok(rest), e)))
+        case Tree.Group{o, +kids, cl}:
+          inert.cat2(Strict.walk(Laws.inert.node(kids), name, path, hot, Bool.or(hot,
+            Strict.seg_op(Laws.inert.node(kids)))),
+            Strict.walk(kids, name, path, hot, Bool.or(hot, Strict.seg_op(kids))),
+            Strict.walk(Laws.inert.node(rest), name, path, outer, hot), Strict.walk(rest, name, path, outer, hot),
+            inert.strict.past(kids, name, path, hot, z => Bool.or(hot, z), inert.strict.walk(kids, name, path, hot,
+              Bool.or(hot, Strict.seg_op(Laws.inert.node(kids))), en, inert.and_l(Laws.inert.ok(kids),
+                Laws.inert.ok(rest), e))),
+            inert.strict.walk(rest, name, path, outer, hot, en, inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(rest),
+              e)))
+        case Tree.Stmt{sk, +kids, +body}:
+          +es = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+          inert.cat3(Strict.walk(Laws.inert.node(kids), name, path, False{}, Strict.seg_op(Laws.inert.node(kids))),
+            Strict.walk(kids, name, path, False{}, Strict.seg_op(kids)),
+            Strict.walk(Laws.inert.node(body), name, path, False{}, False{}), Strict.walk(body, name, path, False{},
+              False{}),
+            Strict.walk(Laws.inert.node(rest), name, path, outer, hot), Strict.walk(rest, name, path, outer, hot),
+            inert.strict.past(kids, name, path, False{}, z => z, inert.strict.walk(kids, name, path, False{},
+              Strict.seg_op(Laws.inert.node(kids)), en, inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es))),
+            inert.strict.walk(body, name, path, False{}, False{}, en, inert.and_r(Laws.inert.ok(kids),
+              Laws.inert.ok(body), es)),
+            inert.strict.walk(rest, name, path, outer, hot, en,
+              inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)))
+        case Tree.NNil{}: inert.strict.walk(rest, name, path, outer, hot, en, e)
+        case Tree.NCons{x, y}:
+          inert.strict.walk(rest, name, path, outer, hot, en, inert.and_r(Laws.inert.ok(Tree.NCons{x, y}),
+            Laws.inert.ok(rest),
+            e))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# strict's stop for one def
+def inert.strict.stop(+ex: Bool, walk: List<&2, F.Finding>) -> List<&2, F.Finding>:
+  Lazy.stop(List<&2, F.Finding>, ex, [], _u => walk)
+
+# strict over the defs read that way reports what it reports over the defs
+law inert.strict.go:
+  for ds: List<&2, Calls.Def>
+  for +path: String
+  for +acc: List<&2, List<&2, F.Finding>>
+  for +e: {inert.dok(ds) == True{} : Bool}
+  {Strict.check.go(inert.defs(ds), path, acc) == Strict.check.go(ds, path, acc) : List<&2, F.Finding>}
+
+def inert.strict.go(ds, path, acc, e):
+  match ds:
+    case Nil{}: {==}
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +lst = inert.strict.stop(Calls.exempt(path, Laws.inert.node(sig)), Strict.walk(Laws.inert.node(body), name, path,
+        False{}, False{}))
+      %inert.exempt(path, sig) : {Strict.check.go(inert.defs(rest), path, lst <> acc) == Strict.check.go(rest, path,
+        inert.strict.stop(_, Strict.walk(body, name, path, False{}, False{})) <> acc) : List<&2, F.Finding>}
+      %inert.strict.walk(body, name, path, False{}, False{}, inert.dok.head(name, sig, body, rest, e),
+        inert.dok.body(name, sig, body, rest, e)) : {Strict.check.go(inert.defs(rest), path, lst <> acc)
+          == Strict.check.go(rest, path, inert.strict.stop(Calls.exempt(path, Laws.inert.node(sig)), _) <> acc)
+          : List<&2, F.Finding>}
+      inert.strict.go(rest, path, lst <> acc, inert.dok.rest(name, sig, body, rest, e))
+
+def Laws.inert_strict(path, _text, tree, _toks, _bound, _items, _text2, tree2, _toks2, _bound2, _items2, ok, ok2, e):
+  inert.via(Tree.Node, z => Strict.check.go(Calls.defs(z), path, []), tree, tree2, Laws.inert.node(tree),
+    Laws.inert.node(tree2),
+    inert.lift(z => Strict.check.go(z, path, []), tree, inert.strict.go(Calls.defs(tree), path, [], inert.dok.of(tree,
+      ok))),
+    inert.lift(z => Strict.check.go(z, path, []), tree2, inert.strict.go(Calls.defs(tree2), path, [],
+      inert.dok.of(tree2, ok2))), e)

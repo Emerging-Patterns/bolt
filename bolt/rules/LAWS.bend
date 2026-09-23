@@ -107,13 +107,14 @@ def one_upper(cs: List<&2, Char>) -> Bool:
       False{}
 
 # a parameter binder shorter than 2 chars that is neither one capital (a type
-# parameter) nor bare or typed `: Quant` (a quantity)
+# parameter) nor bare or typed `: Quant` (a quantity), its note read with
+# each string literal cut to its quote
 def too_short(kk: Bind.BindKind, +nm: String, +note: String) -> Bool:
   match kk:
     case Bind.KParam{}:
       Bool.and(Nat.is_lt(String.length(nm), 2n),
         Bool.not(Bool.or(one_upper(String.to_list(nm)),
-          Bool.or(Bool.not(String.contains(note, ":")), String.ends_with(note, ": Quant")))))
+          Bool.or(Bool.not(String.contains(T.code(note), ":")), String.ends_with(T.code(note), ": Quant")))))
     case other:
       False{}
 
@@ -1306,9 +1307,9 @@ def doc.hash(lines: List<&2, String>, +nn: U32) -> Bool:
       Bool.pick(Bool, U32.is_eq(nn, 0), String.starts_with(hh, "#"), doc.hash(tt, U32.sub(nn, 1)))
 
 # an item that needs a comment and has none: an unexempt def, type or law
-# whose doc text is empty and whose line has no `#` line right above it
-def doc.bare(kk: Outline.ItemKind, +name: String, +line: U32, +doc: String, +lines: List<&2, String>) -> Bool:
-  Bool.and(Bool.and(Bool.and(doc.kind(kk), Bool.not(doc.free(name))), String.is_empty(doc)),
+# whose line has no `#` line right above it (its doc text is never read)
+def doc.bare(kk: Outline.ItemKind, +name: String, +line: U32, _doc: String, +lines: List<&2, String>) -> Bool:
+  Bool.and(Bool.and(doc.kind(kk), Bool.not(doc.free(name))),
     Bool.not(Bool.and(Bool.not(U32.is_eq(line, 0)), doc.hash(lines, U32.sub(line, 1)))))
 
 # how many items need a comment and have none
@@ -1321,8 +1322,8 @@ def doc.count(items: List<&2, Outline.Item>, +lines: List<&2, String>) -> Nat:
       Bool.pick(Nat, doc.bare(kk, name, line, doc, lines), 1n+m, m)
 
 # LAW: over the outline's items, doc reports one finding for each def, type
-# or law not named `main` and holding no dot whose doc text is empty and
-# whose line has no `#` line right above it, and none for any other item
+# or law not named `main` and holding no dot whose line has no `#` line
+# right above it, and none for any other item
 # BOLT-RULE-S001
 law doc_walk_counts:
   for items: List<&2, Outline.Item>
@@ -1330,18 +1331,19 @@ law doc_walk_counts:
   for +lines: List<&2, String>
   {List.length(&2, F.Finding, Doc.check.go(items, path, lines)) == doc.count(items, lines) : Nat}
 
-# LAW: doc reports exactly those items of the file, read against its lines,
-# and nothing in a PROOF.bend or a file under a `tests` directory
+# LAW: doc reports exactly those items of the file, read against its lines
+# (a line that starts inside a string literal read as empty), and nothing in
+# a PROOF.bend or a file under a `tests` directory
 # BOLT-RULE-S001
 law doc_counts:
   for +path: String
   for +text: String
-  for toks: List<&2, Lex.Tok>
+  for +toks: List<&2, Lex.Tok>
   for tree: Tree.Node
   for bound: Bind.Bound
   for +items: List<&2, Outline.Item>
   {List.length(&2, F.Finding, Doc.check(Src.Src{path, text, toks, tree, bound, items}))
-    == Bool.pick(Nat, Bool.or(Paths.is_proof(path), Paths.is_test(path)), 0n, doc.count(items, String.lines(text)))
+    == Bool.pick(Nat, Bool.or(Paths.is_proof(path), Paths.is_test(path)), 0n, doc.count(items, Doc.lines(text, toks)))
     : Nat}
 
 # The binding rule, unused. It reads the binder's lists: every binder, and
@@ -3950,3 +3952,291 @@ law unsafe_least:
   for hs: {unsafe.shut(ds, ss, ss) == True{} : Bool}
   for hp: {Imports.has(unsafe.closure(ds, from), pp) == True{} : Bool}
   {Imports.has(ss, pp) == True{} : Bool}
+
+# Inert text (BOLT-RULE-INERT). A comment or a string literal says what it
+# likes: changing what it says leaves every rule whose pattern is code with
+# the same findings. A source is read here with each such token cut to its
+# first char (`#` or `"`), everything else left as it is; two sources that
+# read the same that way differ at most in what their comments and strings
+# say, token for token, kinds and positions kept. The lexer starts a token
+# with `"` or `#` exactly when it is a string or a comment (inert.ok): what
+# a rule compares a string's text with, a name or a keyword, never starts
+# that way.
+
+# a comment or a string literal: a token whose text is not code
+def inert.blanks(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TStr{}:
+      True{}
+    case Lex.TComment{}:
+      True{}
+    case other:
+      False{}
+
+# a text cut to its first char
+def inert.cut(tt: String) -> String:
+  match tt:
+    case SNil{}:
+      SNil{}
+    case SCon{h, _t}:
+      SCon{h, SNil{}}
+
+# the text, cut when it is not code
+def inert.keep(bb: Bool, tt: String) -> String:
+  match bb:
+    case True{}:
+      inert.cut(tt)
+    case False{}:
+      tt
+
+# a token with what it says cut when it is a comment or a string
+def inert.tok(tk: Lex.Tok) -> Lex.Tok:
+  match tk:
+    case Lex.Tok{+k, t, l, c}:
+      Lex.Tok{k, inert.keep(inert.blanks(k), t), l, c}
+
+# the tokens, each read that way
+def inert.toks(ts: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
+  match ts:
+    case Nil{}:
+      Nil{}
+    case Con{h, t}:
+      inert.tok(h) <> inert.toks(t)
+
+# a tree with each leaf read that way; brackets and statement kinds as they are
+def inert.node(nn: Tree.Node) -> Tree.Node:
+  match nn:
+    case Tree.Leaf{tok}:
+      Tree.Leaf{inert.tok(tok)}
+    case Tree.Group{open, kids, close}:
+      Tree.Group{open, inert.node(kids), close}
+    case Tree.Stmt{kind, kids, body}:
+      Tree.Stmt{kind, inert.node(kids), inert.node(body)}
+    case Tree.NNil{}:
+      Tree.NNil{}
+    case Tree.NCons{h, t}:
+      Tree.NCons{inert.node(h), inert.node(t)}
+
+# `"` or `#`: the first char of a string or a comment
+def inert.mark(cc: Char) -> Bool:
+  match cc:
+    case Chr{+x}:
+      Bool.or(U32.is_eq(x, 34), U32.is_eq(x, 35))
+
+# does the text start with `"` or `#`?
+def inert.marked(tt: String) -> Bool:
+  match tt:
+    case SNil{}:
+      False{}
+    case SCon{h, _t}:
+      inert.mark(h)
+
+# a text starts with `"` or `#` exactly when bb says it is not code
+def inert.fits.go(bb: Bool, tt: String) -> Bool:
+  match bb:
+    case True{}:
+      inert.marked(tt)
+    case False{}:
+      Bool.not(inert.marked(tt))
+
+# a token as the lexer makes it: marked exactly when it is a comment or a string
+def inert.fits(tk: Lex.Tok) -> Bool:
+  match tk:
+    case Lex.Tok{+k, t, _l, _c}:
+      inert.fits.go(inert.blanks(k), t)
+
+# every token as the lexer makes it
+def inert.oks(ts: List<&2, Lex.Tok>) -> Bool:
+  match ts:
+    case Nil{}:
+      True{}
+    case Con{h, t}:
+      Bool.and(inert.fits(h), inert.oks(t))
+
+# every leaf as the lexer makes it
+def inert.ok(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.Leaf{tok}:
+      inert.fits(tok)
+    case Tree.Group{_open, kids, _close}:
+      inert.ok(kids)
+    case Tree.Stmt{_kind, kids, body}:
+      Bool.and(inert.ok(kids), inert.ok(body))
+    case Tree.NNil{}:
+      True{}
+    case Tree.NCons{h, t}:
+      Bool.and(inert.ok(h), inert.ok(t))
+
+# LAW: hole reads what no comment or string says: two sources whose tokens
+# read the same with comments and strings cut have the same findings
+# BOLT-RULE-INERT
+law inert_hole:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for toks2: List<&2, Lex.Tok>
+  for tree2: Tree.Node
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for e: {inert.toks(toks) == inert.toks(toks2) : List<&2, Lex.Tok>}
+  {Hole.check(Src.Src{path, text, toks, tree, bound, items})
+    == Hole.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: put reads what no comment or string says: two sources as the lexer
+# makes them whose tokens read the same with comments and strings cut have
+# the same findings
+# BOLT-RULE-INERT
+law inert_put:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for toks2: List<&2, Lex.Tok>
+  for tree2: Tree.Node
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for ok: {inert.oks(toks) == True{} : Bool}
+  for ok2: {inert.oks(toks2) == True{} : Bool}
+  for e: {inert.toks(toks) == inert.toks(toks2) : List<&2, Lex.Tok>}
+  {Put.check(Src.Src{path, text, toks, tree, bound, items})
+    == Put.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: tail reads what no string says: two sources as the lexer makes them
+# whose trees read the same with strings cut have the same findings (a
+# string's text is only ever compared with the def's name or `Bool.pick`)
+# BOLT-RULE-INERT
+law inert_tail:
+  for +path: String
+  for text: String
+  for +tree: Tree.Node
+  for toks: List<&2, Lex.Tok>
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for +tree2: Tree.Node
+  for toks2: List<&2, Lex.Tok>
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for +ok: {inert.ok(tree) == True{} : Bool}
+  for +ok2: {inert.ok(tree2) == True{} : Bool}
+  for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  {Tail.check(Src.Src{path, text, toks, tree, bound, items})
+    == Tail.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: pick reads what no string says: two sources as the lexer makes them
+# whose trees read the same with strings cut have the same findings
+# BOLT-RULE-INERT
+law inert_pick:
+  for +path: String
+  for text: String
+  for +tree: Tree.Node
+  for toks: List<&2, Lex.Tok>
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for +tree2: Tree.Node
+  for toks2: List<&2, Lex.Tok>
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for +ok: {inert.ok(tree) == True{} : Bool}
+  for +ok2: {inert.ok(tree2) == True{} : Bool}
+  for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  {Pick.check(Src.Src{path, text, toks, tree, bound, items})
+    == Pick.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: strict reads what no string says: two sources as the lexer makes them
+# whose trees read the same with strings cut have the same findings
+# BOLT-RULE-INERT
+law inert_strict:
+  for +path: String
+  for text: String
+  for +tree: Tree.Node
+  for toks: List<&2, Lex.Tok>
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for +tree2: Tree.Node
+  for toks2: List<&2, Lex.Tok>
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for +ok: {inert.ok(tree) == True{} : Bool}
+  for +ok2: {inert.ok(tree2) == True{} : Bool}
+  for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  {Strict.check(Src.Src{path, text, toks, tree, bound, items})
+    == Strict.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# an item as doc reads it: its kind, name and line, and nothing it says
+def inert.item(it: Outline.Item) -> Outline.Item:
+  match it:
+    case Outline.Item{k, n, l, _s, _d, _p}:
+      Outline.Item{k, n, l, "", "", ""}
+
+# the items, each as doc reads it
+def inert.items(its: List<&2, Outline.Item>) -> List<&2, Outline.Item>:
+  match its:
+    case Nil{}:
+      Nil{}
+    case Con{h, t}:
+      inert.item(h) <> inert.items(t)
+
+# which lines start with `#`
+def inert.hashes(ls: List<&2, String>) -> List<&2, Bool>:
+  match ls:
+    case Nil{}:
+      Nil{}
+    case Con{h, t}:
+      String.starts_with(h, "#") <> inert.hashes(t)
+
+# LAW: doc reads no comment or string: two sources whose items have the same
+# kinds, names and lines, and whose lines (one that starts inside a string
+# literal read as empty) start with `#` alike, have the same findings, what
+# their comments and strings say aside
+# BOLT-RULE-INERT
+law inert_doc:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  for +text2: String
+  for +toks2: List<&2, Lex.Tok>
+  for tree2: Tree.Node
+  for bound2: Bind.Bound
+  for +items2: List<&2, Outline.Item>
+  for ei: {inert.items(items) == inert.items(items2) : List<&2, Outline.Item>}
+  for el: {inert.hashes(Doc.lines(text, toks)) == inert.hashes(Doc.lines(text2, toks2)) : List<&2, Bool>}
+  {Doc.check(Src.Src{path, text, toks, tree, bound, items})
+    == Doc.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# a binder as param reads it: its note with each string literal cut
+def inert.bind(bb: Bind.Bind) -> Bind.Bind:
+  match bb:
+    case Bind.Bind{n, l, c, k, +note}:
+      Bind.Bind{n, l, c, k, T.code(note)}
+
+# the binders, each as param reads it
+def inert.binds(bs: List<&2, Bind.Bind>) -> List<&2, Bind.Bind>:
+  match bs:
+    case Nil{}:
+      Nil{}
+    case Con{h, t}:
+      inert.bind(h) <> inert.binds(t)
+
+# LAW: param reads a note with its string literals cut to their quote: two
+# binder lists alike in each binder's name, position, kind and note so read
+# have the same findings, what their strings say aside
+# BOLT-RULE-INERT
+law inert_param:
+  for +b1: List<&2, Bind.Bind>
+  for +b2: List<&2, Bind.Bind>
+  for +path: String
+  for e: {inert.binds(b1) == inert.binds(b2) : List<&2, Bind.Bind>}
+  {Param.check.on(b1, path) == Param.check.on(b2, path) : List<&2, F.Finding>}

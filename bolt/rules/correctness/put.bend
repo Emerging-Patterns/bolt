@@ -20,28 +20,55 @@ def defines.named(toks: List<&2, Lex.Tok>) -> Bool:
     case Nil{}:
       False{}
 
+# a keyword? a token's kind is read here, its text in the tests beside it
+def defines.key(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TKey{}:
+      True{}
+    case other:
+      False{}
+
+# a dotted name?
+def calls.dotted(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TDotted{}:
+      True{}
+    case other:
+      False{}
+
 # does the file define Map.put: a `def` keyword right before a `Map.put`?
 def defines(toks: List<&2, Lex.Tok>) -> Bool:
   match toks:
-    case Con{Lex.Tok{Lex.TKey{}, +d, l, c}, +rest}:
-      Lazy.or_else(Bool.and(String.eq(d, "def"), defines.named(rest)), _u => defines(rest))
-    case Con{h, rest}:
-      defines(rest)
+    case Con{Lex.Tok{k, +d, l, c}, +rest}:
+      Lazy.or_else(Bool.and(defines.key(k), Bool.and(String.eq(d, "def"), defines.named(rest))), _u => defines(rest))
     case Nil{}:
       False{}
+
+# a dotted name then an open bracket: a finding when they are `Map.put` and
+# `(`, before what the rest reports
+def calls.one(
+  +tt: String,
+  +oo: String,
+  +ll: U32,
+  +cc: U32,
+  +path: String,
+  +more: List<&2, F.Finding>
+) -> List<&2, F.Finding>:
+  Bool.pick(List<&2, F.Finding>, Bool.and(String.eq(tt, "Map.put"), String.eq(oo, "(")),
+    F.Finding{path, ll, cc, 7, "put", "Map.put never compares keys, so a new key overwrites another entry; use Map.set."}
+      <> more,
+    more)
 
 # every `Map.put(` among the significant tokens
 def calls(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
   match toks:
-    case Con{Lex.Tok{Lex.TDotted{}, +t, l, c}, Con{Lex.Tok{Lex.TOpen{}, +o, l2, c2}, rest}}:
-      +more = calls(rest, path)
-      Bool.pick(List<&2, F.Finding>, Bool.and(String.eq(t, "Map.put"), String.eq(o, "(")),
-        F.Finding{path, l, c, 7, "put",
-          "Map.put never compares keys, so a new key overwrites another entry; use Map.set."}
-          <> more,
-        more)
-    case Con{h, rest}:
-      calls(rest, path)
+    case Con{Lex.Tok{k, +t, +l, +c}, +rest}:
+      match rest:
+        case Con{Lex.Tok{k2, +o, l2, c2}, r2}:
+          Lazy.either(List<&2, F.Finding>, Bool.and(calls.dotted(k), Lex.is_open(k2)), _u => calls.one(t, o, l, c, path,
+            calls(r2, path)), _v => calls(rest, path))
+        case Nil{}:
+          Nil{}
     case Nil{}:
       Nil{}
 

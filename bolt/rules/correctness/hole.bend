@@ -11,44 +11,33 @@ import ../../src.bend as Src
 import ../../finding.bend as F
 import ../../../syntax/lex.bend as Lex
 import ../../../lazy/lazy.bend as Lazy
+import ../calls.bend as Calls
 
 # True when the first token past spaces, newlines and comments is `TODO`
 def check.todo(toks: List<&2, Lex.Tok>) -> Bool:
   match toks:
-    case Con{Lex.Tok{Lex.TSpace{}, t, l, c}, rest}:
-      check.todo(rest)
-    case Con{Lex.Tok{Lex.TNewline{}, t, l, c}, rest}:
-      check.todo(rest)
-    case Con{Lex.Tok{Lex.TComment{}, t, l, c}, rest}:
-      check.todo(rest)
-    case Con{Lex.Tok{Lex.TUpper{}, +t, l, c}, rest}:
-      String.eq(t, "TODO")
-    case other:
+    case Con{Lex.Tok{+k, +t, l, c}, rest}:
+      Lazy.stop(Bool, Lex.significant(k), Bool.and(Calls.kind.upper(k), String.eq(t, "TODO")), _u => check.todo(rest))
+    case Nil{}:
       False{}
 
 # the width of the hole a `?` at line, col starts: through the next token
 # past spaces, newlines and comments when it sits on the same line, else 1
 def check.width(toks: List<&2, Lex.Tok>, +line: U32, +col: U32) -> U32:
   match toks:
-    case Con{Lex.Tok{Lex.TSpace{}, t, l, c}, rest}:
-      check.width(rest, line, col)
-    case Con{Lex.Tok{Lex.TNewline{}, t, l, c}, rest}:
-      check.width(rest, line, col)
-    case Con{Lex.Tok{Lex.TComment{}, t, l, c}, rest}:
-      check.width(rest, line, col)
     case Con{Lex.Tok{k, t, +l, +c}, rest}:
-      Bool.pick(U32, U32.is_eq(l, line), U32.add(U32.sub(c, col), 4), 1)
+      Lazy.stop(U32, Lex.significant(k), Bool.pick(U32, U32.is_eq(l, line), U32.add(U32.sub(c, col), 4), 1),
+        _u => check.width(rest, line, col))
     case Nil{}:
       1
 
 def check.go(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
   match toks:
-    case Con{Lex.Tok{Lex.TOp{}, +q, +l, +c}, +rest}:
+    case Con{Lex.Tok{k, +q, +l, +c}, +rest}:
       +more = check.go(rest, path)
-      Lazy.stop(List<&2, F.Finding>, Bool.not(Lazy.and_then(String.eq(q, "?"), _u => check.todo(rest))), more,
+      Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Calls.kind.oper(k), Lazy.and_then(String.eq(q, "?"),
+        _u => check.todo(rest)))), more,
         _u => F.Finding{path, l, c, check.width(rest, l, c), "hole", "A ?TODO is left here."} <> more)
-    case Con{h, rest}:
-      check.go(rest, path)
     case Nil{}:
       Nil{}
 

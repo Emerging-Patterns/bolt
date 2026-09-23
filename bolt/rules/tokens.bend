@@ -15,6 +15,33 @@ def sig(toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
       +more = sig(rest)
       Bool.pick(List<&2, Lex.Tok>, Lex.significant(k), Lex.Tok{k, t, l, c} <> more, more)
 
+# a text cut to its first char
+def code.cut(tt: String) -> String:
+  match tt:
+    case SNil{}:
+      SNil{}
+    case SCon{h, _t}:
+      SCon{h, SNil{}}
+
+# a string literal cut to its opening quote; any other token as it is
+def code.tok(tk: Lex.Tok) -> Lex.Tok:
+  match tk:
+    case Lex.Tok{+k, +t, l, c}:
+      Lex.Tok{k, Bool.pick(String, Lex.is_str(k), code.cut(t), t), l, c}
+
+# the tokens, each string literal cut to its opening quote
+def code.toks(ts: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
+  match ts:
+    case Nil{}:
+      Nil{}
+    case Con{h, t}:
+      code.tok(h) <> code.toks(t)
+
+# a text with each string literal cut to its opening quote: what of it is
+# code, as the lexer reads it
+def code(+tt: String) -> String:
+  Lex.text(code.toks(Lex.tokens(tt)))
+
 # a number, a char or a string literal?
 def is_lit(kk: Lex.TokKind) -> Bool:
   match kk:

@@ -23,3 +23,10 @@ def Laws.and_then_is_and(a, _b):
       {==}
     case False{}:
       {==}
+
+def Laws.either_is_pick(c, _a, _b):
+  match c:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
