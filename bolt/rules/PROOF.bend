@@ -6722,3 +6722,301 @@ def strict.go(ds, path, acc):
 
 def Laws.strict_counts(path, _text, _toks, tree, _bound, _items):
   strict.go(Calls.defs(tree), path, Nil{})
+
+# The table rules, table (BOLT-RULE-U008) and ring (BOLT-RULE-U010): a walk
+# joins a site's own findings with its group's and the rest's, so its count
+# is their sum; the def walk sums the defs the guard keeps (pick.sum).
+
+# two joined lists that count m and n count m + n
+law table.two:
+  for +a: List<&2, F.Finding>
+  for +b: List<&2, F.Finding>
+  for -m: Nat
+  for -n: Nat
+  for e1: {List.length(&2, F.Finding, a) == m : Nat}
+  for e2: {List.length(&2, F.Finding, b) == n : Nat}
+  {List.length(&2, F.Finding, List.concat(&2, F.Finding, [a, b])) == Nat.add(m, n) : Nat}
+
+def table.two(a, b, m, n, e1, e2):
+  Equal.trans(Nat, List.length(&2, F.Finding, List.concat(&2, F.Finding, [a, b])),
+    Nat.add(List.length(&2, F.Finding, a), List.length(&2, F.Finding, b)), Nat.add(m, n),
+    tail.cat2(a, b), esc.add(List.length(&2, F.Finding, a), m, List.length(&2, F.Finding, b), n, e1, e2))
+
+# three joined lists that count m, n and p count m + (n + p)
+law table.three:
+  for +a: List<&2, F.Finding>
+  for +b: List<&2, F.Finding>
+  for +c: List<&2, F.Finding>
+  for -m: Nat
+  for -n: Nat
+  for -p: Nat
+  for e1: {List.length(&2, F.Finding, a) == m : Nat}
+  for e2: {List.length(&2, F.Finding, b) == n : Nat}
+  for e3: {List.length(&2, F.Finding, c) == p : Nat}
+  {List.length(&2, F.Finding, List.concat(&2, F.Finding, [a, b, c])) == Nat.add(m, Nat.add(n, p)) : Nat}
+
+def table.three(a, b, c, m, n, p, e1, e2, e3):
+  Equal.trans(Nat, List.length(&2, F.Finding, List.concat(&2, F.Finding, [a, b, c])),
+    Nat.add(List.length(&2, F.Finding, a), Nat.add(List.length(&2, F.Finding, b), List.length(&2, F.Finding, c))),
+    Nat.add(m, Nat.add(n, p)),
+    tail.cat3(a, b, c),
+    esc.add(List.length(&2, F.Finding, a), m,
+      Nat.add(List.length(&2, F.Finding, b), List.length(&2, F.Finding, c)), Nat.add(n, p), e1,
+      esc.add(List.length(&2, F.Finding, b), n, List.length(&2, F.Finding, c), p, e2, e3)))
+
+# a call site's own finding: one exactly when the law's site test holds
+law table.one:
+  for +tt: String
+  for +o: String
+  for +kids: Tree.Node
+  for +fixed: List<&2, String>
+  for +path: String
+  for +line: U32
+  for +col: U32
+  {List.length(&2, F.Finding, Table.hit(String.eq(o, "("), tt, kids, fixed, path, line, col))
+    == Bool.pick(Nat, Laws.table.site(tt, o, kids, fixed), 1n, 0n) : Nat}
+
+def table.one(tt, o, kids, fixed, path, line, col):
+  chars.one(Laws.table.site(tt, o, kids, fixed),
+    Table.cite(String.eq(tt, "List.get"), path, line, col, U32.from_nat(String.length(tt))))
+
+def Laws.table_walk_counts(nn, path, fixed):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{Lex.Tok{k, +t, +l, +c}}:
+          match rest:
+            case Tree.NCons{h2, +r2}:
+              match h2:
+                case Tree.Group{Lex.Tok{k2, +o, l2, c2}, +kids, cl}:
+                  table.three(Table.hit(String.eq(o, "("), t, kids, fixed, path, l, c), Table.walk(kids, path, fixed),
+                    Table.walk(r2, path, fixed), Bool.pick(Nat, Laws.table.site(t, o, kids, fixed), 1n, 0n),
+                    Laws.table.count(kids, fixed), Laws.table.count(r2, fixed),
+                    table.one(t, o, kids, fixed, path, l, c),
+                    Laws.table_walk_counts(kids, path, fixed), Laws.table_walk_counts(r2, path, fixed))
+                case Tree.Leaf{x}:
+                  Laws.table_walk_counts(rest, path, fixed)
+                case Tree.Stmt{a, b, d}:
+                  Laws.table_walk_counts(rest, path, fixed)
+                case Tree.NNil{}:
+                  Laws.table_walk_counts(rest, path, fixed)
+                case Tree.NCons{a, b}:
+                  Laws.table_walk_counts(rest, path, fixed)
+            case Tree.Leaf{x}:
+              Laws.table_walk_counts(rest, path, fixed)
+            case Tree.Group{a, b, d}:
+              Laws.table_walk_counts(rest, path, fixed)
+            case Tree.Stmt{a, b, d}:
+              Laws.table_walk_counts(rest, path, fixed)
+            case Tree.NNil{}:
+              Laws.table_walk_counts(rest, path, fixed)
+        case Tree.Group{open, +kids, close}:
+          table.two(Table.walk(kids, path, fixed), Table.walk(rest, path, fixed),
+            Laws.table.count(kids, fixed), Laws.table.count(rest, fixed),
+            Laws.table_walk_counts(kids, path, fixed), Laws.table_walk_counts(rest, path, fixed))
+        case Tree.Stmt{kind, +kids, +body}:
+          table.three(Table.walk(kids, path, fixed), Table.walk(body, path, fixed), Table.walk(rest, path, fixed),
+            Laws.table.count(kids, fixed), Laws.table.count(body, fixed), Laws.table.count(rest, fixed),
+            Laws.table_walk_counts(kids, path, fixed), Laws.table_walk_counts(body, path, fixed),
+            Laws.table_walk_counts(rest, path, fixed))
+        case Tree.NNil{}:
+          Laws.table_walk_counts(rest, path, fixed)
+        case Tree.NCons{a, b}:
+          Laws.table_walk_counts(rest, path, fixed)
+    case Tree.Leaf{x}:
+      {==}
+    case Tree.Group{a, b, d}:
+      {==}
+    case Tree.Stmt{a, b, d}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# one def's findings: walked when its guard keeps it, else none
+law table.stop:
+  for +b: Bool
+  for +body: Tree.Node
+  for +path: String
+  for +fixed: List<&2, String>
+  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Bool.not(b), [], _u => Table.walk(body, path, fixed)))
+    == Bool.pick(Nat, b, Laws.table.count(body, fixed), 0n) : Nat}
+
+def table.stop(b, body, path, fixed):
+  match b:
+    case True{}:
+      Laws.table_walk_counts(body, path, fixed)
+    case False{}:
+      {==}
+
+# table's def walk: the findings gathered so far, then each def's
+law table.go:
+  for ds: List<&2, Calls.Def>
+  for +mods: List<&2, String>
+  for +path: String
+  for +acc: List<&2, List<&2, F.Finding>>
+  {List.length(&2, F.Finding, Table.check.go(ds, mods, path, acc)) == pick.sum(acc, Laws.table.defs(ds, mods, path))
+    : Nat}
+
+def table.go(ds, mods, path, acc):
+  match ds:
+    case Nil{}:
+      pick.rev(acc, Nil{})
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +keep = Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))
+      +x = Lazy.stop(List<&2, F.Finding>, Bool.not(keep), [], _u => Table.walk(body, path, Table.scope(body, mods)))
+      +cb = Bool.pick(Nat, keep, Laws.table.count(body, Table.scope(body, mods)), 0n)
+      Equal.trans(Nat, List.length(&2, F.Finding, Table.check.go(rest, mods, path, x <> acc)),
+        pick.sum(acc, Nat.add(List.length(&2, F.Finding, x), Laws.table.defs(rest, mods, path))),
+        pick.sum(acc, Nat.add(cb, Laws.table.defs(rest, mods, path))),
+        table.go(rest, mods, path, x <> acc),
+        Equal.cong(Nat, Nat, n => pick.sum(acc, Nat.add(n, Laws.table.defs(rest, mods, path))),
+          List.length(&2, F.Finding, x), cb, table.stop(keep, body, path, Table.scope(body, mods))))
+
+def Laws.table_counts(path, _text, _toks, tree, _bound, _items):
+  table.go(Calls.defs(tree), Table.modules(Calls.defs(tree), []), path, Nil{})
+
+# a scan's finding counts one when it found a drop, else none
+law ring.one:
+  for mm: Maybe<&2, Lex.Tok>
+  for +path: String
+  {List.length(&2, F.Finding, Ring.slide_at(mm, path)) == Laws.ring.hit(mm) : Nat}
+
+def ring.one(mm, _path):
+  match mm:
+    case None{}:
+      {==}
+    case Some{Lex.Tok{k, t, l, c}}:
+      {==}
+
+# a self-call's arguments, each read against its own slot
+law ring.slides:
+  for as: List<&2, Tree.Node>
+  for +params: List<&2, String>
+  for +path: String
+  for +wins: List<&2, String>
+  {List.length(&2, F.Finding, Ring.slides(as, params, path, wins)) == Laws.ring.args(as, params, wins) : Nat}
+
+def ring.slides(as, params, path, wins):
+  match as:
+    case Nil{}:
+      {==}
+    case Con{+h, +rest}:
+      +scan = Ring.plus_scan(h, None{}, Ring.slot_wins(Maybe.default(&2, String, List.head(&2, String, params), ""),
+        wins))
+      +x = Ring.slide_at(scan, path)
+      +more = Ring.slides(rest, List.tail(&2, String, params), path, wins)
+      Equal.trans(Nat, List.length(&2, F.Finding, List.append(&2, F.Finding, x, more)),
+        Nat.add(List.length(&2, F.Finding, x), List.length(&2, F.Finding, more)),
+        Nat.add(Laws.ring.hit(scan), Laws.ring.args(rest, List.tail(&2, String, params), wins)),
+        esc.app(x, more),
+        esc.add(List.length(&2, F.Finding, x), Laws.ring.hit(scan), List.length(&2, F.Finding, more),
+          Laws.ring.args(rest, List.tail(&2, String, params), wins), ring.one(scan, path),
+          ring.slides(rest, List.tail(&2, String, params), path, wins)))
+
+def Laws.ring_walk_counts(nn, self, params, path, wins):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{Lex.Tok{k, +t, l, c}}:
+          match rest:
+            case Tree.NCons{h2, +r2}:
+              match h2:
+                case Tree.Group{Lex.Tok{k2, +o, l2, c2}, +kids, cl}:
+                  +me = Bool.and(String.eq(o, "("), String.eq(t, self))
+                  table.three(
+                    Lazy.stop(List<&2, F.Finding>, Bool.not(me), [], _u => Ring.slides(Calls.args(kids), params, path,
+                      wins)),
+                    Ring.walk(kids, self, params, path, wins), Ring.walk(r2, self, params, path, wins),
+                    Bool.pick(Nat, me, Laws.ring.args(Calls.args(kids), params, wins), 0n),
+                    Laws.ring.count(kids, self, params, wins), Laws.ring.count(r2, self, params, wins),
+                    tail.stop(me, Ring.slides(Calls.args(kids), params, path, wins),
+                      Laws.ring.args(Calls.args(kids), params, wins),
+                      ring.slides(Calls.args(kids), params, path, wins)),
+                    Laws.ring_walk_counts(kids, self, params, path, wins),
+                    Laws.ring_walk_counts(r2, self, params, path, wins))
+                case Tree.Leaf{x}:
+                  Laws.ring_walk_counts(rest, self, params, path, wins)
+                case Tree.Stmt{a, b, d}:
+                  Laws.ring_walk_counts(rest, self, params, path, wins)
+                case Tree.NNil{}:
+                  Laws.ring_walk_counts(rest, self, params, path, wins)
+                case Tree.NCons{a, b}:
+                  Laws.ring_walk_counts(rest, self, params, path, wins)
+            case Tree.Leaf{x}:
+              Laws.ring_walk_counts(rest, self, params, path, wins)
+            case Tree.Group{a, b, d}:
+              Laws.ring_walk_counts(rest, self, params, path, wins)
+            case Tree.Stmt{a, b, d}:
+              Laws.ring_walk_counts(rest, self, params, path, wins)
+            case Tree.NNil{}:
+              Laws.ring_walk_counts(rest, self, params, path, wins)
+        case Tree.Group{open, +kids, close}:
+          table.two(Ring.walk(kids, self, params, path, wins), Ring.walk(rest, self, params, path, wins),
+            Laws.ring.count(kids, self, params, wins), Laws.ring.count(rest, self, params, wins),
+            Laws.ring_walk_counts(kids, self, params, path, wins),
+            Laws.ring_walk_counts(rest, self, params, path, wins))
+        case Tree.Stmt{kind, +kids, +body}:
+          table.three(Ring.walk(kids, self, params, path, wins), Ring.walk(body, self, params, path, wins),
+            Ring.walk(rest, self, params, path, wins), Laws.ring.count(kids, self, params, wins),
+            Laws.ring.count(body, self, params, wins), Laws.ring.count(rest, self, params, wins),
+            Laws.ring_walk_counts(kids, self, params, path, wins),
+            Laws.ring_walk_counts(body, self, params, path, wins),
+            Laws.ring_walk_counts(rest, self, params, path, wins))
+        case Tree.NNil{}:
+          Laws.ring_walk_counts(rest, self, params, path, wins)
+        case Tree.NCons{a, b}:
+          Laws.ring_walk_counts(rest, self, params, path, wins)
+    case Tree.Leaf{x}:
+      {==}
+    case Tree.Group{a, b, d}:
+      {==}
+    case Tree.Stmt{a, b, d}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# one def's findings: walked when its guard keeps it, else none
+law ring.stop:
+  for +b: Bool
+  for +body: Tree.Node
+  for +self: String
+  for +params: List<&2, String>
+  for +path: String
+  for +wins: List<&2, String>
+  {List.length(&2, F.Finding,
+    Lazy.stop(List<&2, F.Finding>, Bool.not(b), [], _u => Ring.walk(body, self, params, path, wins)))
+    == Bool.pick(Nat, b, Laws.ring.count(body, self, params, wins), 0n) : Nat}
+
+def ring.stop(b, body, self, params, path, wins):
+  match b:
+    case True{}:
+      Laws.ring_walk_counts(body, self, params, path, wins)
+    case False{}:
+      {==}
+
+# ring's def walk: the findings gathered so far, then each def's
+law ring.go:
+  for ds: List<&2, Calls.Def>
+  for +path: String
+  for +acc: List<&2, List<&2, F.Finding>>
+  {List.length(&2, F.Finding, Ring.check.go(ds, path, acc)) == pick.sum(acc, Laws.ring.defs(ds, path)) : Nat}
+
+def ring.go(ds, path, acc):
+  match ds:
+    case Nil{}:
+      pick.rev(acc, Nil{})
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +keep = Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))
+      +x = Lazy.stop(List<&2, F.Finding>, Bool.not(keep), [],
+        _u => Ring.walk(body, name, Calls.names(sig), path, Ring.windows(sig, body)))
+      +cb = Bool.pick(Nat, keep, Laws.ring.count(body, name, Calls.names(sig), Ring.windows(sig, body)), 0n)
+      Equal.trans(Nat, List.length(&2, F.Finding, Ring.check.go(rest, path, x <> acc)),
+        pick.sum(acc, Nat.add(List.length(&2, F.Finding, x), Laws.ring.defs(rest, path))),
+        pick.sum(acc, Nat.add(cb, Laws.ring.defs(rest, path))),
+        ring.go(rest, path, x <> acc),
+        Equal.cong(Nat, Nat, n => pick.sum(acc, Nat.add(n, Laws.ring.defs(rest, path))),
+          List.length(&2, F.Finding, x), cb,
+          ring.stop(keep, body, name, Calls.names(sig), path, Ring.windows(sig, body))))
+
+def Laws.ring_counts(path, _text, _toks, tree, _bound, _items):
+  ring.go(Calls.defs(tree), path, Nil{})
