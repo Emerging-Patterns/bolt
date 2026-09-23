@@ -33,7 +33,7 @@ A Trusted requirement's ID appears once in a requirement table and once in the t
 | BOLT-RULE-C007 | `twice` reports exactly, in a def that calls itself, a list pattern in a case's first match column opening with the same literal twice. | Proved | pending |  |
 | BOLT-RULE-C008 | `strings` reports exactly a match whose string-literal arms total over 64 characters. | Proved | pending |  |
 | BOLT-RULE-C009 | `chars` reports exactly a match with more than eight arms whose first match column opens with a char literal. | Proved | pending |  |
-| BOLT-RULE-C010 | `foreign` reports exactly a foreign def with a `.c` body and no `.js` or the reverse, where a `# lanes: native` file needs no `.js`. | Proved | pending |  |
+| BOLT-RULE-C010 | `foreign` reports exactly a foreign def with a `.c` body and no `.js` or the reverse, where a file whose leading comment lines include the exact line `# lanes: native` needs no `.js`. | Proved | pending |  |
 | BOLT-RULE-U001 | `unused` reports exactly an unused let, do-bind, lambda binder or parameter, with the header's exemptions. | Proved | pending |  |
 | BOLT-RULE-U002 | `strict` reports exactly a self-call inside `Bool.and` or `Bool.or`, or on either side of `&&` or `\|\|`, matched by that exact text, where a lambda body counts only by its own `&&` or `\|\|`. | Proved | pending |  |
 | BOLT-RULE-U003 | `eager` reports exactly a looping def of the file called in a `Bool.pick` branch. | Proved | pending |  |

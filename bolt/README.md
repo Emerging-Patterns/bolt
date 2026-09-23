@@ -250,7 +250,8 @@ beside the groups.
   narrow arms first.
 - `foreign` — a foreign def with a `.c` body and no `.js` body, or the
   reverse: the missing lane cannot run it. A file headed `# lanes: native`
-  needs no `.js`.
+  needs no `.js`: that exact line must be one of the comment lines before the
+  file's first non-comment line.
 - `fuel` — a `Nat` literal passed to a fuel parameter of a def of the same
   file. A fuel parameter is known by its name alone: `fuel`, `gas`, `steps`
   or `budget`, or any name starting with `fuel`. Input past it is cut short
