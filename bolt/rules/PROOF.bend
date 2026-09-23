@@ -8476,38 +8476,28 @@ def coverage.item(ds, pp, name):
   Equal.trans(Bool, Coverage.has_item(Coverage.named(ds), pp, name), Laws.coverage.names(Coverage.named(ds), pp, name),
     Laws.coverage.used(ds, pp, name), coverage.has(Coverage.named(ds), pp, name), coverage.named(ds, pp, name))
 
-# the rule's reached is coverage.some
-law coverage.reached:
-  for ts: List<&2, Digest.Top>
+# the rule's search of a type's constructors is coverage.any
+law coverage.any:
+  for ns: List<&2, String>
   for +all: List<&2, Digest.Digest>
   for +pp: String
-  {Coverage.reached(ts, Coverage.named(all), pp) == Laws.coverage.some(ts, all, pp) : Bool}
+  {Coverage.any_item(ns, Coverage.named(all), pp) == Laws.coverage.any(ns, all, pp) : Bool}
 
-def coverage.reached(ts, all, pp):
-  match ts:
+def coverage.any(ns, all, pp):
+  match ns:
     case Nil{}:
       {==}
-    case Con{Digest.Top{Outline.IDef{}, +name, line}, rest}:
+    case Con{+name, rest}:
       %coverage.item(all, pp, name) :
         {Lazy.or_else(Coverage.has_item(Coverage.named(all), pp, name),
-          _u => Coverage.reached(rest, Coverage.named(all), pp))
-          == Bool.or(_, Laws.coverage.some(rest, all, pp)) : Bool}
-      %coverage.reached(rest, all, pp) :
+          _u => Coverage.any_item(rest, Coverage.named(all), pp))
+          == Bool.or(_, Laws.coverage.any(rest, all, pp)) : Bool}
+      %coverage.any(rest, all, pp) :
         {Lazy.or_else(Coverage.has_item(Coverage.named(all), pp, name),
-          _u => Coverage.reached(rest, Coverage.named(all), pp))
+          _u => Coverage.any_item(rest, Coverage.named(all), pp))
           == Bool.or(Coverage.has_item(Coverage.named(all), pp, name), _) : Bool}
       coverage.or_else(Coverage.has_item(Coverage.named(all), pp, name),
-        Coverage.reached(rest, Coverage.named(all), pp))
-    case Con{Digest.Top{Outline.IImport{}, name, line}, rest}:
-      coverage.reached(rest, all, pp)
-    case Con{Digest.Top{Outline.ILaw{}, name, line}, rest}:
-      coverage.reached(rest, all, pp)
-    case Con{Digest.Top{Outline.IType{}, name, line}, rest}:
-      coverage.reached(rest, all, pp)
-    case Con{Digest.Top{Outline.ICtor{}, name, line}, rest}:
-      coverage.reached(rest, all, pp)
-    case Con{Digest.Top{Outline.ILocal{}, name, line}, rest}:
-      coverage.reached(rest, all, pp)
+        Coverage.any_item(rest, Coverage.named(all), pp))
 
 # the rule's gaps are coverage.gaps
 law coverage.gaps:
@@ -8515,49 +8505,59 @@ law coverage.gaps:
   for +all: List<&2, Digest.Digest>
   for +pp: String
   for +path: String
-  for +hit: Bool
-  {Coverage.gaps(ts, Coverage.named(all), pp, path, hit) == Laws.coverage.gaps(ts, all, pp, path, hit)
-    : List<&2, F.Finding>}
+  {Coverage.gaps(ts, Coverage.named(all), pp, path) == Laws.coverage.gaps(ts, all, pp, path) : List<&2, F.Finding>}
 
-def coverage.gaps(ts, all, pp, path, hit):
+def coverage.gaps(ts, all, pp, path):
   match ts:
     case Nil{}:
       {==}
-    case Con{Digest.Top{Outline.IDef{}, +name, +line}, rest}:
+    case Con{Digest.Top{Outline.IDef{}, +name, +line, cs}, rest}:
       %coverage.item(all, pp, name) :
-        {Coverage.gaps(Digest.Top{Outline.IDef{}, name, line} <> rest, Coverage.named(all), pp, path, hit)
+        {Coverage.gaps(Digest.Top{Outline.IDef{}, name, line, cs} <> rest, Coverage.named(all), pp, path)
           == Bool.pick(List<&2, F.Finding>, Bool.or(String.contains(name, "."), _),
-            Laws.coverage.gaps(rest, all, pp, path, hit),
-            F.Finding{path, line, 0, 0, "coverage", "Def " ++ name ++ " is named by no law."}
-              <> Laws.coverage.gaps(rest, all, pp, path, hit)) : List<&2, F.Finding>}
-      %coverage.gaps(rest, all, pp, path, hit) :
-        {Coverage.gaps(Digest.Top{Outline.IDef{}, name, line} <> rest, Coverage.named(all), pp, path, hit)
+            Laws.coverage.gaps(rest, all, pp, path), F.Finding{path, line, 0, 0, "coverage", "Def " ++ name ++ " is named by no law."}
+              <> Laws.coverage.gaps(rest, all, pp, path)) : List<&2, F.Finding>}
+      %coverage.gaps(rest, all, pp, path) :
+        {Coverage.gaps(Digest.Top{Outline.IDef{}, name, line, cs} <> rest, Coverage.named(all), pp, path)
           == Bool.pick(List<&2, F.Finding>,
             Bool.or(String.contains(name, "."), Coverage.has_item(Coverage.named(all), pp, name)), _,
-            F.Finding{path, line, 0, 0, "coverage", "Def " ++ name ++ " is named by no law."} <> _)
-          : List<&2, F.Finding>}
+            F.Finding{path, line, 0, 0, "coverage", "Def " ++ name ++ " is named by no law."} <> _) : List<&2, F.Finding>}
       {==}
-    case Con{Digest.Top{Outline.IType{}, +name, +line}, rest}:
+    case Con{Digest.Top{Outline.IType{}, +name, +line, +cs}, rest}:
       %coverage.item(all, pp, name) :
-        {Coverage.gaps(Digest.Top{Outline.IType{}, name, line} <> rest, Coverage.named(all), pp, path, hit)
-          == Bool.pick(List<&2, F.Finding>, Bool.or(hit, _),
-            Laws.coverage.gaps(rest, all, pp, path, hit),
-            F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ ": no law reaches this module."}
-              <> Laws.coverage.gaps(rest, all, pp, path, hit)) : List<&2, F.Finding>}
-      %coverage.gaps(rest, all, pp, path, hit) :
-        {Coverage.gaps(Digest.Top{Outline.IType{}, name, line} <> rest, Coverage.named(all), pp, path, hit)
-          == Bool.pick(List<&2, F.Finding>, Bool.or(hit, Coverage.has_item(Coverage.named(all), pp, name)), _,
-            F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ ": no law reaches this module."} <> _)
-          : List<&2, F.Finding>}
-      {==}
-    case Con{Digest.Top{Outline.IImport{}, name, line}, rest}:
-      coverage.gaps(rest, all, pp, path, hit)
-    case Con{Digest.Top{Outline.ILaw{}, name, line}, rest}:
-      coverage.gaps(rest, all, pp, path, hit)
-    case Con{Digest.Top{Outline.ICtor{}, name, line}, rest}:
-      coverage.gaps(rest, all, pp, path, hit)
-    case Con{Digest.Top{Outline.ILocal{}, name, line}, rest}:
-      coverage.gaps(rest, all, pp, path, hit)
+        {Coverage.gaps(Digest.Top{Outline.IType{}, name, line, cs} <> rest, Coverage.named(all), pp, path)
+          == Bool.pick(List<&2, F.Finding>, Bool.or(_, Laws.coverage.any(cs, all, pp)),
+            Laws.coverage.gaps(rest, all, pp, path), F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ " is named by no law, nor are its constructors."}
+              <> Laws.coverage.gaps(rest, all, pp, path)) : List<&2, F.Finding>}
+      %coverage.any(cs, all, pp) :
+        {Coverage.gaps(Digest.Top{Outline.IType{}, name, line, cs} <> rest, Coverage.named(all), pp, path)
+          == Bool.pick(List<&2, F.Finding>, Bool.or(Coverage.has_item(Coverage.named(all), pp, name), _),
+            Laws.coverage.gaps(rest, all, pp, path), F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ " is named by no law, nor are its constructors."}
+              <> Laws.coverage.gaps(rest, all, pp, path)) : List<&2, F.Finding>}
+      %coverage.gaps(rest, all, pp, path) :
+        {Coverage.gaps(Digest.Top{Outline.IType{}, name, line, cs} <> rest, Coverage.named(all), pp, path)
+          == Bool.pick(List<&2, F.Finding>,
+            Bool.or(Coverage.has_item(Coverage.named(all), pp, name),
+              Coverage.any_item(cs, Coverage.named(all), pp)), _,
+            F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ " is named by no law, nor are its constructors."}
+              <> _) : List<&2, F.Finding>}
+      Equal.cong(Bool, List<&2, F.Finding>,
+        bb => Bool.pick(List<&2, F.Finding>, bb, Coverage.gaps(rest, Coverage.named(all), pp, path),
+          F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ " is named by no law, nor are its constructors."}
+            <> Coverage.gaps(rest, Coverage.named(all), pp, path)),
+        Lazy.or_else(Coverage.has_item(Coverage.named(all), pp, name),
+          _u => Coverage.any_item(cs, Coverage.named(all), pp)),
+        Bool.or(Coverage.has_item(Coverage.named(all), pp, name), Coverage.any_item(cs, Coverage.named(all), pp)),
+        coverage.or_else(Coverage.has_item(Coverage.named(all), pp, name),
+          Coverage.any_item(cs, Coverage.named(all), pp)))
+    case Con{Digest.Top{Outline.IImport{}, name, line, cs}, rest}:
+      coverage.gaps(rest, all, pp, path)
+    case Con{Digest.Top{Outline.ILaw{}, name, line, cs}, rest}:
+      coverage.gaps(rest, all, pp, path)
+    case Con{Digest.Top{Outline.ICtor{}, name, line, cs}, rest}:
+      coverage.gaps(rest, all, pp, path)
+    case Con{Digest.Top{Outline.ILocal{}, name, line, cs}, rest}:
+      coverage.gaps(rest, all, pp, path)
 
 # the rule's walk over the files is coverage.files
 law coverage.go:
@@ -8577,18 +8577,11 @@ def coverage.go(fs, all):
           %coverage.go(rest, all) :
             {Coverage.check.go(Digest.Digest{path, norm, dir, is_laws, is_law_file, False{}, tops, says, deps, unsafes,
               laws} <> rest, Coverage.named(all))
-              == List.append(&2, F.Finding,
-                Laws.coverage.gaps(tops, all, norm, path, Laws.coverage.some(tops, all, norm)), _)
-              : List<&2, F.Finding>}
-          %coverage.gaps(tops, all, norm, path, Laws.coverage.some(tops, all, norm)) :
+              == List.append(&2, F.Finding, Laws.coverage.gaps(tops, all, norm, path), _) : List<&2, F.Finding>}
+          %coverage.gaps(tops, all, norm, path) :
             {Coverage.check.go(Digest.Digest{path, norm, dir, is_laws, is_law_file, False{}, tops, says, deps, unsafes,
               laws} <> rest, Coverage.named(all))
               == List.append(&2, F.Finding, _, Coverage.check.go(rest, Coverage.named(all))) : List<&2, F.Finding>}
-          %coverage.reached(tops, all, norm) :
-            {Coverage.check.go(Digest.Digest{path, norm, dir, is_laws, is_law_file, False{}, tops, says, deps, unsafes,
-              laws} <> rest, Coverage.named(all))
-              == List.append(&2, F.Finding, Coverage.gaps(tops, Coverage.named(all), norm, path, _),
-                Coverage.check.go(rest, Coverage.named(all))) : List<&2, F.Finding>}
           {==}
 
 # the rule runs the walk exactly when some digest is a LAWS.bend

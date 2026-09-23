@@ -1753,38 +1753,37 @@ def coverage.used(ds: List<&2, Digest.Digest>, +pp: String, +name: String) -> Bo
     case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
       Bool.or(Bool.and(is_laws, coverage.names(says, pp, name)), coverage.used(rest, pp, name))
 
-# some def among the items is used
-def coverage.some(ts: List<&2, Digest.Top>, +ds: List<&2, Digest.Digest>, +pp: String) -> Bool:
-  match ts:
+# some LAWS.bend uses one of the names (a type's constructors) in the file
+def coverage.any(ns: List<&2, String>, +ds: List<&2, Digest.Digest>, +pp: String) -> Bool:
+  match ns:
     case Nil{}:
       False{}
-    case Con{Digest.Top{Outline.IDef{}, name, line}, rest}:
-      Bool.or(coverage.used(ds, pp, name), coverage.some(rest, ds, pp))
-    case Con{other, rest}:
-      coverage.some(rest, ds, pp)
+    case Con{name, rest}:
+      Bool.or(coverage.used(ds, pp, name), coverage.any(rest, ds, pp))
 
 # the items no LAWS.bend uses, in order: a def whose name has no dot (a
-# helper's has), and a type, unless a def of its file is used (`reached`)
+# helper's has), and a type when neither it nor any of its constructors is
+# used (a use of another def of its file does not count)
 def coverage.gaps(
   ts: List<&2, Digest.Top>,
   +ds: List<&2, Digest.Digest>,
   +pp: String,
-  +path: String,
-  +reached: Bool
+  +path: String
 ) -> List<&2, F.Finding>:
   match ts:
     case Nil{}:
       Nil{}
-    case Con{Digest.Top{Outline.IDef{}, +name, +line}, rest}:
-      +more = coverage.gaps(rest, ds, pp, path, reached)
+    case Con{Digest.Top{Outline.IDef{}, +name, +line, cs}, rest}:
+      +more = coverage.gaps(rest, ds, pp, path)
       Bool.pick(List<&2, F.Finding>, Bool.or(String.contains(name, "."), coverage.used(ds, pp, name)), more,
         F.Finding{path, line, 0, 0, "coverage", "Def " ++ name ++ " is named by no law."} <> more)
-    case Con{Digest.Top{Outline.IType{}, +name, +line}, rest}:
-      +more = coverage.gaps(rest, ds, pp, path, reached)
-      Bool.pick(List<&2, F.Finding>, Bool.or(reached, coverage.used(ds, pp, name)), more,
-        F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ ": no law reaches this module."} <> more)
+    case Con{Digest.Top{Outline.IType{}, +name, +line, cs}, rest}:
+      +more = coverage.gaps(rest, ds, pp, path)
+      Bool.pick(List<&2, F.Finding>, Bool.or(coverage.used(ds, pp, name), coverage.any(cs, ds, pp)), more,
+        F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ " is named by no law, nor are its constructors."}
+          <> more)
     case Con{other, rest}:
-      coverage.gaps(rest, ds, pp, path, reached)
+      coverage.gaps(rest, ds, pp, path)
 
 # the gaps of every file of fs not exempt (a law file or a test), against
 # the uses the laws of all record
@@ -1792,13 +1791,12 @@ def coverage.files(fs: List<&2, Digest.Digest>, +all: List<&2, Digest.Digest>) -
   match fs:
     case Nil{}:
       Nil{}
-    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, +tops, says, deps, unsafes, laws}, rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
       match exempt:
         case True{}:
           coverage.files(rest, all)
         case False{}:
-          List.append(&2, F.Finding, coverage.gaps(tops, all, norm, path, coverage.some(tops, all, norm)),
-            coverage.files(rest, all))
+          List.append(&2, F.Finding, coverage.gaps(tops, all, norm, path), coverage.files(rest, all))
 
 # some digest is a LAWS.bend
 def coverage.lawful(ds: List<&2, Digest.Digest>) -> Bool:
@@ -1811,7 +1809,7 @@ def coverage.lawful(ds: List<&2, Digest.Digest>) -> Bool:
 # LAW: over every list of digests, coverage reports exactly this: when one
 # is a LAWS.bend, in every file that is not a law file or a test, each def
 # with no dot in its name that no LAWS.bend's quantified laws use, and each
-# type they do not use in a file none of whose defs they use; else nothing
+# type they use neither by name nor by a constructor; else nothing
 # BOLT-LAW-1
 law coverage_reports:
   for +ds: List<&2, Digest.Digest>
