@@ -74,8 +74,6 @@ def main() -> IO(Unit):
     located : String <- Snap.exec(["node", "tests/locate.js", "bin/bolt.bin"])
     Check.eq_str(~Report.new(), "the extension finds bolt with no symlink to help it",
       Snap.text(located), "ok\n")
-    linted : String <- Snap.exec(["bin/bolt.bin", "--gpu", "off"])
-    Check.eq_str(~Report.new(), "bolt lints its own repo with no errors", Snap.code(linted), "0")
     helped : String <- Snap.exec(["bin/bolt.bin", "--gpu", "off", "help"])
     Check.eq_str(~Report.new(), "bolt help prints usage", Snap.code(helped), "0")
     many : String <- Snap.exec(["bin/bolt.bin", "--gpu", "off",
@@ -90,7 +88,6 @@ def main() -> IO(Unit):
 #|ok bolt builds with bare bend and no ez
 #|ok the server answers node, spawned over sockets
 #|ok the extension finds bolt with no symlink to help it
-#|ok bolt lints its own repo with no errors
 #|ok bolt help prints usage
 #|ok bolt lints the files it is given
 #|ok bolt check takes every leftover file

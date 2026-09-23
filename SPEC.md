@@ -137,6 +137,7 @@ A Trusted requirement's ID appears once in a requirement table and once in the t
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
 | BOLT-LIB-1 | `Lazy.stop(c, a, _ => b) == Bool.pick(c, a, b)`, `Lazy.or_else(a, _ => b) == Bool.or(a, b)` and `Lazy.and_then(a, _ => b) == Bool.and(a, b)` for all inputs. | Proved | proved | lazy/LAWS.bend stop_is_pick; lazy/LAWS.bend or_else_is_or; lazy/LAWS.bend and_then_is_and |
+| BOLT-LIB-2 | `Lazy.stop`, `Lazy.or_else` and `Lazy.and_then` apply their thunk only on the branch that needs it. | Trusted |  |  |
 
 ## Trust boundary
 
@@ -154,3 +155,4 @@ These assumptions sit outside the proofs. They are the complete list of Trusted 
 | BOLT-TRUST-8 | shake v0.1.1 parses argv as its spec says, and ezjson v0.1.0 parses and prints JSON correctly. | Pinned dependencies, by ez.toml hash; bolt's gate does not re-check them. The surrogate-pair bug sits here. |
 | BOLT-OUT-6 | A released code is never renumbered or reused. | A property across versions, enforced by review of the SPEC row that lists the table. |
 | BOLT-SYN-6 | Every function in `syntax/` terminates on every input without fuel. | Termination is what the Bend checker's structural-recursion check establishes, so this rests on BOLT-TRUST-1 and needs no law of its own. |
+| BOLT-LIB-2 | The lazy branches apply their thunk only on the branch that needs it. | A law states what a term equals, not what evaluation skipped, so Bend cannot state it. `lazy/lazy.bend` matches on the Bool before it applies the thunk, and BOLT-LIB-1 proves the values agree with the strict forms. |
