@@ -61,12 +61,47 @@ def loops.go(ds: List<&2, Calls.Def>, +acc: List<&2, String>) -> List<&2, String
 def loops(ds: List<&2, Calls.Def>) -> List<&2, String>:
   loops.go(ds, [])
 
+# the hot a leaf leaves behind: a `=>` clears it for the lambda's body; a
+# comma of a pick's own group moves to its next argument, hot from the third
+# on (0 the type, 1 the condition, 2 and 3 the branches), and a comma of any
+# other group returns it to keep; any other leaf leaves it as it was
+def work.hot(kk: Lex.TokKind, +hot: Bool, +seg: U32, +keep: Bool) -> Bool:
+  match kk:
+    case Lex.TLam{}:
+      False{}
+    case Lex.TComma{}:
+      +in_pick = U32.is_lt(seg, 9)
+      +next = Bool.pick(U32, in_pick, (seg + 1 : U32), seg)
+      Bool.pick(Bool, in_pick, Bool.not(U32.is_lt(next, 2)), keep)
+    case other:
+      hot
+
+# the argument a leaf leaves behind: a comma of a pick's own group moves on
+def work.seg(kk: Lex.TokKind, +seg: U32) -> U32:
+  match kk:
+    case Lex.TComma{}:
+      Bool.pick(U32, U32.is_lt(seg, 9), (seg + 1 : U32), seg)
+    case other:
+      seg
+
+# can the leaf name a call (it is neither a `=>` nor a comma)?
+def work.name(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TLam{}:
+      False{}
+    case Lex.TComma{}:
+      False{}
+    case other:
+      True{}
+
 # the work under a def's body: hot says the node sits in a branch argument of
 # a `Bool.pick` (so it runs whatever the condition), seg counts the arguments
 # of the pick whose group this chain is (0 the type, 1 the condition, 2 and 3
 # the branches; 9 for a chain that is not a pick's), and keep is what hot
 # returns to at the next comma of a chain that is not a pick's, so a `=>`
-# clears hot for the lambda's own body and not for the arguments after it
+# clears hot for the lambda's own body and not for the arguments after it. A
+# leaf moves the state by its kind (work.hot, work.seg); a `=>` or a comma
+# before a group names no call, so that group is walked as any other
 def work(
   nn: Tree.Node,
   +ns: List<&2, String>,
@@ -77,26 +112,23 @@ def work(
   +keep: Bool
 ) -> List<&2, F.Finding>:
   match nn:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}}, +rest}:
-      work(rest, ns, self, path, False{}, seg, keep)
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}, +rest}:
-      +in_pick = U32.is_lt(seg, 9)
-      +next = Bool.pick(U32, in_pick, (seg + 1 : U32), seg)
-      work(rest, ns, self, path, Bool.pick(Bool, in_pick, Bool.not(U32.is_lt(next, 2)), keep), next, keep)
-    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
-      +call = String.eq(o, "(")
+    case Tree.NCons{Tree.Leaf{Lex.Tok{+k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
+      +now = work.hot(k, hot, seg, keep)
+      +call = Bool.and(work.name(k), String.eq(o, "("))
       +is_pick = Bool.and(call, String.eq(t, "Bool.pick"))
       +mine = Bool.and(Bool.not(String.eq(t, self)), List.contains(~String, ~String.eq, ns, t))
-      +report = Bool.and(hot, Bool.and(call, mine))
-      +inner = Bool.and(hot, Bool.not(is_pick))
+      +report = Bool.and(now, Bool.and(call, mine))
+      +inner = Bool.and(now, Bool.not(is_pick))
       +more = List.concat(&2, F.Finding,
         [work(kids, ns, self, path, inner, Bool.pick(U32, is_pick, 0, 9), inner),
-          work(rest, ns, self, path, hot, seg, keep)])
+          work(rest, ns, self, path, now, work.seg(k, seg), keep)])
       Bool.pick(List<&2, F.Finding>, report,
         F.Finding{path, l, c, U32.from_nat(String.length(t)), "eager",
           t ++ " runs in both branches of Bool.pick, so it runs whatever the condition; bind it above, or use Lazy.stop."}
           <> more,
         more)
+    case Tree.NCons{Tree.Leaf{Lex.Tok{+k, t, l, c}}, rest}:
+      work(rest, ns, self, path, work.hot(k, hot, seg, keep), work.seg(k, seg), keep)
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
       List.concat(&2, F.Finding, [work(kids, ns, self, path, hot, 9, hot), work(rest, ns, self, path, hot, seg, keep)])
     case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
