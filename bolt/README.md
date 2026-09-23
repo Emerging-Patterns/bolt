@@ -214,7 +214,8 @@ beside the groups.
   `F32.mul` (and `.div`, only when the divisor is one). Drop the operation.
   Any other factor or divisor is left alone, and so is a base case: a case
   arm that does not call the def. Only a `case` arm can be a base case, so a
-  `Bool.pick` branch beside a self-call is still the step.
+  `Bool.pick` branch beside a self-call is still the step, and so is a lambda
+  body inside it. One finding per operation: `Nat.mul(1n, 1n)` is one.
 - `put` — `Map.put`. It is Base's internal helper: at a leaf it keeps the old
   key and replaces the value without comparing, so a new key silently
   overwrites another entry. `Map.set` compares. A file that defines
