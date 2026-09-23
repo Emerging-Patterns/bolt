@@ -3164,3 +3164,567 @@ law rewalk_counts:
   for items: List<&2, Outline.Item>
   {List.length(&2, F.Finding, Rewalk.check(Src.Src{path, text, toks, tree, bound, items}))
     == rewalk.total(Calls.defs(tree), rewalk.loops(Calls.defs(tree), []), path) : Nat}
+
+# Scope: a path exemption is decided by the path alone. The `law` rule lets
+# off a file by its digest's `exempt` flag, and a per-file rule's header
+# exempts a LAWS.bend, a PROOF.bend or a file under `tests` by bolt/paths.bend.
+# Neither reads the text: two files at one path, whatever each holds, are
+# exempt alike, and an exempt file's findings from the rule that exempts it
+# are the same for both. What a rule reads from content to skip a def, a line
+# or a file (a def returning a proof, a file defining `Map.put`, `#|` lines,
+# `# lanes: native`, `main` and dotted names) is that rule's own behavior,
+# not a path exemption.
+
+# whether the coverage rule lets a digest's file off
+def scope.exempt(dd: Digest.Digest) -> Bool:
+  match dd:
+    case Digest.Digest{_path, _norm, _dir, _is_laws, _is_law_file, exempt, _tops, _says, _deps, _unsafes, _laws}:
+      exempt
+
+# LAW: two files at the same path are exempt from `law` alike, whatever the
+# text, tokens, tree, binding structure and outline of each
+# BOLT-SCOPE-4
+law scope_digest_exempt:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  for +text2: String
+  for +toks2: List<&2, Lex.Tok>
+  for +tree2: Tree.Node
+  for +bound2: Bind.Bound
+  for +items2: List<&2, Outline.Item>
+  {scope.exempt(Digest.of(Src.Src{path, text, toks, tree, bound, items}))
+    == scope.exempt(Digest.of(Src.Src{path, text2, toks2, tree2, bound2, items2})) : Bool}
+
+# LAW: hole's findings on a LAWS.bend are the same for any two sources at
+# that path
+# BOLT-SCOPE-4
+law scope_hole:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  for +text2: String
+  for +toks2: List<&2, Lex.Tok>
+  for +tree2: Tree.Node
+  for +bound2: Bind.Bound
+  for +items2: List<&2, Outline.Item>
+  for +e: {Paths.is_laws(path) == True{} : Bool}
+  {Hole.check(Src.Src{path, text, toks, tree, bound, items})
+    == Hole.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: doc's findings on a PROOF.bend or a file under `tests` are the same
+# for any two sources at that path
+# BOLT-SCOPE-4
+law scope_doc:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  for +text2: String
+  for +toks2: List<&2, Lex.Tok>
+  for +tree2: Tree.Node
+  for +bound2: Bind.Bound
+  for +items2: List<&2, Outline.Item>
+  for +e: {Bool.or(Paths.is_proof(path), Paths.is_test(path)) == True{} : Bool}
+  {Doc.check(Src.Src{path, text, toks, tree, bound, items})
+    == Doc.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: param's findings on a PROOF.bend are the same for any two sources at
+# that path
+# BOLT-SCOPE-4
+law scope_param:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  for +text2: String
+  for +toks2: List<&2, Lex.Tok>
+  for +tree2: Tree.Node
+  for +bound2: Bind.Bound
+  for +items2: List<&2, Outline.Item>
+  for +e: {Paths.is_proof(path) == True{} : Bool}
+  {Param.check(Src.Src{path, text, toks, tree, bound, items})
+    == Param.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# the findings of each rule a LAWS.bend or a PROOF.bend exempts, rule by rule
+def scope.law_file(+ss: Src.Src) -> List<&2, List<&2, F.Finding>>:
+  [Pick.check(ss), Tail.check(ss), Concat.check(ss), Eager.check(ss), Rewalk.check(ss), Strict.check(ss),
+    Hoist.check(ss), Index.check(ss), Ring.check(ss), Table.check(ss), UnitRule.check(ss)]
+
+# LAW: on a LAWS.bend or a PROOF.bend, the findings of each rule its header
+# exempts there (pick, tail, concat, eager, rewalk, strict, hoist, index,
+# ring, table, unit) are the same for any two sources at that path
+# BOLT-SCOPE-4
+law scope_law_file:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  for +text2: String
+  for +toks2: List<&2, Lex.Tok>
+  for +tree2: Tree.Node
+  for +bound2: Bind.Bound
+  for +items2: List<&2, Outline.Item>
+  for +e: {Paths.is_law_file(path) == True{} : Bool}
+  {scope.law_file(Src.Src{path, text, toks, tree, bound, items})
+    == scope.law_file(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, List<&2, F.Finding>>}
+
+# LAW: closed's findings on a file that is not a LAWS.bend are the same for
+# any two sources at that path
+# BOLT-SCOPE-4
+law scope_closed:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  for +text2: String
+  for +toks2: List<&2, Lex.Tok>
+  for +tree2: Tree.Node
+  for +bound2: Bind.Bound
+  for +items2: List<&2, Outline.Item>
+  for +e: {Paths.is_laws(path) == False{} : Bool}
+  {Closed.check(Src.Src{path, text, toks, tree, bound, items})
+    == Closed.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# trace: a reading of SPEC.md and a count of its defects, written apart from
+# the rule (bolt/rules/laws/trace.bend), in file order and without its
+# accumulators; the rule's Row, Mark and Mode types carry what is read
+# ---------------------------------------------------------------------------
+
+# the pieces of a table line cut at each bar: the text before the first cut,
+# then the text after each cut
+type trace.Cut is Data:
+  trace.Cut{head: List<&2, Char>, tail: List<&2, List<&2, Char>>}
+
+# a char in front of the pieces after it: a bar starts a new first piece, any
+# other char joins the first
+def trace.piece(bar: Bool, cc: Char, cut: trace.Cut) -> trace.Cut:
+  match bar:
+    case True{}:
+      trace.Cut{h, t} = cut
+      trace.Cut{[], h <> t}
+    case False{}:
+      trace.Cut{h, t} = cut
+      trace.Cut{cc <> h, t}
+
+# the pieces of a line, cut at each `|` that does not follow a `\` (`\|` is a
+# bar inside a cell); esc says the char before was a `\`
+def trace.split(cs: List<&2, Char>, esc: Bool) -> trace.Cut:
+  match cs:
+    case Nil{}:
+      trace.Cut{[], []}
+    case Con{+cc, t}:
+      trace.piece(Bool.and(Char.is_eq(cc, '|'), Bool.not(esc)), cc, trace.split(t, Char.is_eq(cc, '\\')))
+
+# the pieces p, ps but the last, each as text with spaces trimmed
+def trace.mid(ps: List<&2, List<&2, Char>>, pp: List<&2, Char>) -> List<&2, String>:
+  match ps:
+    case Nil{}:
+      Nil{}
+    case Con{q, rest}:
+      String.trim(String.from_list(pp)) <> trace.mid(rest, q)
+
+# the pieces between two cuts
+def trace.inner(cut: trace.Cut) -> List<&2, String>:
+  match cut:
+    case trace.Cut{_h, Nil{}}:
+      Nil{}
+    case trace.Cut{_h, Con{q, rest}}:
+      trace.mid(rest, q)
+
+# the cells of a table line: the text between each bar and the next, trimmed
+def trace.cells(line: String) -> List<&2, String>:
+  trace.inner(trace.split(String.to_list(String.trim(line)), False{}))
+
+# the entries of a Law cell cut at `;`: each piece trimmed, the empty ones
+# dropped
+def trace.laws(ss: List<&2, String>) -> List<&2, String>:
+  match ss:
+    case Nil{}:
+      Nil{}
+    case Con{ss, rest}:
+      +e = String.trim(ss)
+      +more = trace.laws(rest)
+      Bool.pick(List<&2, String>, String.is_empty(e), more, e <> more)
+
+# what a trimmed line of SPEC.md is: a requirement table's header, a trust
+# table's header, a table line (`|` first), or prose
+type trace.Line is Data:
+  trace.ReqHeader{}
+  trace.TrustHeader{}
+  trace.Bar{}
+  trace.Prose{}
+
+# what the trimmed line is
+def trace.line(+tt: String) -> trace.Line:
+  Bool.pick(trace.Line, String.eq(tt, "| ID | Requirement | Level | Status | Law |"), trace.ReqHeader{},
+    Bool.pick(trace.Line, String.eq(tt, "| ID | Assumption | Why it is trusted |"), trace.TrustHeader{},
+      Bool.pick(trace.Line, String.starts_with(tt, "|"), trace.Bar{}, trace.Prose{})))
+
+# the place after a table line: the line under a header is its rule, and the
+# rows follow it
+def trace.on_bar(mm: Trace.Mode) -> Trace.Mode:
+  match mm:
+    case Trace.Out{}:
+      Trace.Out{}
+    case Trace.ReqHead{}:
+      Trace.Reqs{}
+    case Trace.Reqs{}:
+      Trace.Reqs{}
+    case Trace.TrustHead{}:
+      Trace.Trusts{}
+    case Trace.Trusts{}:
+      Trace.Trusts{}
+
+# the place after a line: a header opens its table, prose closes any table
+def trace.after(kk: trace.Line, mm: Trace.Mode) -> Trace.Mode:
+  match kk:
+    case trace.ReqHeader{}:
+      Trace.ReqHead{}
+    case trace.TrustHeader{}:
+      Trace.TrustHead{}
+    case trace.Bar{}:
+      trace.on_bar(mm)
+    case trace.Prose{}:
+      Trace.Out{}
+
+# the cells of a requirement row, when there are five, as the row at line n
+def trace.req_row(cs: List<&2, String>, +nn: U32) -> List<&2, Trace.Row>:
+  match cs:
+    case Con{id, Con{_what, Con{lv, Con{st, Con{cell, Nil{}}}}}}:
+      [Trace.Row{id, lv, st, trace.laws(String.split(cell, ';')), nn}]
+    case _other:
+      Nil{}
+
+# the cells of a trust row, when there are three, as the ID at line n
+def trace.trust_row(cs: List<&2, String>, +nn: U32) -> List<&2, Trace.Mark>:
+  match cs:
+    case Con{id, Con{_what, Con{_why, Nil{}}}}:
+      [Trace.Mark{id, nn}]
+    case _other:
+      Nil{}
+
+# the requirement row a table line is, in place m
+def trace.req_in(mm: Trace.Mode, +tt: String, +nn: U32) -> List<&2, Trace.Row>:
+  match mm:
+    case Trace.Reqs{}:
+      trace.req_row(trace.cells(tt), nn)
+    case _other:
+      Nil{}
+
+# the trust row a table line is, in place m
+def trace.trust_in(mm: Trace.Mode, +tt: String, +nn: U32) -> List<&2, Trace.Mark>:
+  match mm:
+    case Trace.Trusts{}:
+      trace.trust_row(trace.cells(tt), nn)
+    case _other:
+      Nil{}
+
+# 1 when the table line in place m is a row with the wrong number of cells
+def trace.bad_in(mm: Trace.Mode, +tt: String) -> Nat:
+  match mm:
+    case Trace.Reqs{}:
+      Bool.pick(Nat, Nat.is_eq(List.length(&2, String, trace.cells(tt)), 5n), 0n, 1n)
+    case Trace.Trusts{}:
+      Bool.pick(Nat, Nat.is_eq(List.length(&2, String, trace.cells(tt)), 3n), 0n, 1n)
+    case _other:
+      0n
+
+# the requirement row a line of kind k is, in place m
+def trace.req_at(kk: trace.Line, mm: Trace.Mode, +tt: String, +nn: U32) -> List<&2, Trace.Row>:
+  match kk:
+    case trace.Bar{}:
+      trace.req_in(mm, tt, nn)
+    case _other:
+      Nil{}
+
+# the trust row a line of kind k is, in place m
+def trace.trust_at(kk: trace.Line, mm: Trace.Mode, +tt: String, +nn: U32) -> List<&2, Trace.Mark>:
+  match kk:
+    case trace.Bar{}:
+      trace.trust_in(mm, tt, nn)
+    case _other:
+      Nil{}
+
+# 1 when a line of kind k, in place m, is a row with the wrong number of cells
+def trace.bad_at(kk: trace.Line, mm: Trace.Mode, +tt: String) -> Nat:
+  match kk:
+    case trace.Bar{}:
+      trace.bad_in(mm, tt)
+    case _other:
+      0n
+
+# the requirement rows of the lines, in file order, the first at line n in
+# place m
+def trace.reqs(ls: List<&2, String>, +nn: U32, +mm: Trace.Mode) -> List<&2, Trace.Row>:
+  match ls:
+    case Nil{}:
+      Nil{}
+    case Con{ll, rest}:
+      +tt = String.trim(ll)
+      +kk = trace.line(tt)
+      List.append(&2, Trace.Row, trace.req_at(kk, mm, tt, nn), trace.reqs(rest, (nn + 1 : U32), trace.after(kk, mm)))
+
+# the trust rows of the lines, in file order
+def trace.trusts(ls: List<&2, String>, +nn: U32, +mm: Trace.Mode) -> List<&2, Trace.Mark>:
+  match ls:
+    case Nil{}:
+      Nil{}
+    case Con{ll, rest}:
+      +tt = String.trim(ll)
+      +kk = trace.line(tt)
+      List.append(&2, Trace.Mark, trace.trust_at(kk, mm, tt, nn), trace.trusts(rest, (nn + 1 : U32),
+        trace.after(kk, mm)))
+
+# how many table rows of the lines have the wrong number of cells
+def trace.bad(ls: List<&2, String>, +mm: Trace.Mode) -> Nat:
+  match ls:
+    case Nil{}:
+      0n
+    case Con{ll, rest}:
+      +tt = String.trim(ll)
+      +kk = trace.line(tt)
+      Nat.add(trace.bad_at(kk, mm, tt), trace.bad(rest, trace.after(kk, mm)))
+
+# 1 when b holds, else 0
+def trace.one(bb: Bool) -> Nat:
+  Bool.pick(Nat, bb, 1n, 0n)
+
+# is the char an uppercase letter?
+def trace.upper(cc: Char) -> Bool:
+  +u = Char.to_u32(cc)
+  Bool.and(U32.is_ge(u, 65), U32.is_le(u, 90))
+
+# is the char an uppercase letter or a digit?
+def trace.alnum(cc: Char) -> Bool:
+  +u = Char.to_u32(cc)
+  Bool.or(Bool.and(U32.is_ge(u, 65), U32.is_le(u, 90)), Bool.and(U32.is_ge(u, 48), U32.is_le(u, 57)))
+
+# does the rest of the text end an ID, read so far to a `-` (dashed) or not,
+# and at the start of an empty segment (empty) or not: every char a `-` that
+# ends a segment with a char in it, or an uppercase letter or digit, and the
+# last segment, after a `-`, not empty
+def trace.run(ss: String, dashed: Bool, empty: Bool) -> Bool:
+  match ss:
+    case SNil{}:
+      Bool.and(dashed, Bool.not(empty))
+    case SCon{+cc, t}:
+      +dd = Char.is_eq(cc, '-')
+      Bool.and(Bool.pick(Bool, dd, Bool.not(empty), trace.alnum(cc)), trace.run(t, Bool.or(dd, dashed), dd))
+
+# does the text start with an uppercase letter?
+def trace.lead(ss: String) -> Bool:
+  match ss:
+    case SNil{}:
+      False{}
+    case SCon{cc, _t}:
+      trace.upper(cc)
+
+# is the text an ID, `[A-Z][A-Z0-9]*(-[A-Z0-9]+)+`: an uppercase letter,
+# then two or more segments of uppercase letters and digits joined by `-`
+def trace.is_id(+ss: String) -> Bool:
+  Bool.and(trace.run(ss, False{}, True{}), trace.lead(ss))
+
+# how many rows have the ID
+def trace.many(rs: List<&2, Trace.Row>, +id: String) -> Nat:
+  match rs:
+    case Nil{}:
+      0n
+    case Con{Trace.Row{+i, _lv, _st, _ls, _n}, rest}:
+      +mm = trace.many(rest, id)
+      Bool.pick(Nat, String.eq(i, id), 1n+mm, mm)
+
+# how many trust rows have the ID
+def trace.marks(ms: List<&2, Trace.Mark>, +id: String) -> Nat:
+  match ms:
+    case Nil{}:
+      0n
+    case Con{Trace.Mark{+i, _n}, rest}:
+      +mm = trace.marks(rest, id)
+      Bool.pick(Nat, String.eq(i, id), 1n+mm, mm)
+
+# is a row of this level and status a claim: Proved, and proved or pending?
+def trace.claim(+lv: String, +st: String) -> Bool:
+  Bool.and(String.eq(lv, "Proved"), Bool.or(String.eq(st, "proved"), String.eq(st, "pending")))
+
+# does a row that is a claim list the ID?
+def trace.claimed(rs: List<&2, Trace.Row>, +id: String) -> Bool:
+  match rs:
+    case Nil{}:
+      False{}
+    case Con{Trace.Row{+i, +lv, +st, _ls, _n}, rest}:
+      Bool.or(Bool.and(trace.claim(lv, st), String.eq(i, id)), trace.claimed(rest, id))
+
+# is the row's shape wrong: neither a claim nor a Trusted row with an empty
+# status, a proved row that names no law, or a Trusted row that names one
+def trace.misshapen(+lv: String, +st: String, +ls: List<&2, String>) -> Bool:
+  +trusted = Bool.and(String.eq(lv, "Trusted"), String.is_empty(st))
+  +none = List.is_empty(&2, String, ls)
+  Bool.or(Bool.not(Bool.or(trace.claim(lv, st), trusted)),
+    Bool.or(Bool.and(Bool.and(String.eq(lv, "Proved"), String.eq(st, "proved")), none),
+      Bool.and(trusted, Bool.not(none))))
+
+# the laws of the first LAWS.bend read at the path
+def trace.file(ds: List<&2, Digest.Digest>, +pp: String) -> Maybe<&2, List<&2, Digest.Law>>:
+  match ds:
+    case Nil{}:
+      None{}
+    case Con{Digest.Digest{_path, +norm, _dir, is_laws, _lf, _ex, _tops, _says, _deps, _uns, laws}, rest}:
+      Bool.pick(Maybe<&2, List<&2, Digest.Law>>, Bool.and(is_laws, String.eq(norm, pp)), Some{laws},
+        trace.file(rest, pp))
+
+# the first law of that name
+def trace.law(ls: List<&2, Digest.Law>, +name: String) -> Maybe<&2, Digest.Law>:
+  match ls:
+    case Nil{}:
+      None{}
+    case Con{Digest.Law{+nn, +ll, +bb, +dd}, rest}:
+      Bool.pick(Maybe<&2, Digest.Law>, String.eq(nn, name), Some{Digest.Law{nn, ll, bb, dd}}, trace.law(rest, name))
+
+# is a line of the comment block the ID, spaces trimmed?
+def trace.tagged(doc: List<&2, String>, +id: String) -> Bool:
+  match doc:
+    case Nil{}:
+      False{}
+    case Con{dd, rest}:
+      Bool.or(String.eq(String.trim(dd), id), trace.tagged(rest, id))
+
+# the defects of the law an entry names, if there is one: none, or no binder
+# and no tag of the row
+def trace.law_at(mm: Maybe<&2, Digest.Law>, +id: String) -> Nat:
+  match mm:
+    case None{}:
+      1n
+    case Some{Digest.Law{_n, _l, bb, dd}}:
+      Nat.add(trace.one(Bool.not(bb)), trace.one(Bool.not(trace.tagged(dd, id))))
+
+# the defects of an entry whose file was looked up: no such file, or the law's
+def trace.file_at(mm: Maybe<&2, List<&2, Digest.Law>>, +name: String, +id: String) -> Nat:
+  match mm:
+    case None{}:
+      1n
+    case Some{ls}:
+      trace.law_at(trace.law(ls, name), id)
+
+# the defects of a Law entry, as its words: not `<path> <law>`, or the file's
+def trace.entry(ws: List<&2, String>, +ds: List<&2, Digest.Digest>, +id: String) -> Nat:
+  match ws:
+    case Con{path, Con{name, Nil{}}}:
+      trace.file_at(trace.file(ds, Imports.norm(path)), name, id)
+    case _other:
+      1n
+
+# the defects of each Law entry of a row
+def trace.entries(es: List<&2, String>, +ds: List<&2, Digest.Digest>, +id: String) -> Nat:
+  match es:
+    case Nil{}:
+      0n
+    case Con{e, rest}:
+      Nat.add(trace.entry(String.split(e, ' '), ds, id), trace.entries(rest, ds, id))
+
+# the defects of a requirement row, among the requirement rows rs and the
+# trust rows ts: not an ID, listed twice, the wrong shape, Trusted with no
+# trust row, and those of each Law entry when it is a claim
+def trace.row(rr: Trace.Row, +rs: List<&2, Trace.Row>, +ts: List<&2, Trace.Mark>, +ds: List<&2, Digest.Digest>) -> Nat:
+  match rr:
+    case Trace.Row{+id, +lv, +st, +es, _n}:
+      Nat.add(trace.one(Bool.not(trace.is_id(id))),
+        Nat.add(trace.one(Nat.is_gt(trace.many(rs, id), 1n)),
+          Nat.add(trace.one(trace.misshapen(lv, st, es)),
+            Nat.add(trace.one(Bool.and(String.eq(lv, "Trusted"), Nat.is_eq(trace.marks(ts, id), 0n))),
+              Bool.pick(Nat, trace.claim(lv, st), trace.entries(es, ds, id), 0n)))))
+
+# the defects of each requirement row of xs
+def trace.rows(
+  xs: List<&2, Trace.Row>,
+  +rs: List<&2, Trace.Row>,
+  +ts: List<&2, Trace.Mark>,
+  +ds: List<&2, Digest.Digest>
+) -> Nat:
+  match xs:
+    case Nil{}:
+      0n
+    case Con{x, rest}:
+      Nat.add(trace.row(x, rs, ts, ds), trace.rows(rest, rs, ts, ds))
+
+# the defects of each trust row of ms, among all: not an ID, listed twice
+def trace.trust(ms: List<&2, Trace.Mark>, +all: List<&2, Trace.Mark>) -> Nat:
+  match ms:
+    case Nil{}:
+      0n
+    case Con{Trace.Mark{+id, _n}, rest}:
+      Nat.add(Nat.add(trace.one(Bool.not(trace.is_id(id))), trace.one(Nat.is_gt(trace.marks(all, id), 1n))),
+        trace.trust(rest, all))
+
+# the tags of a comment block that name an ID no claim lists
+def trace.stray(doc: List<&2, String>, +rs: List<&2, Trace.Row>) -> Nat:
+  match doc:
+    case Nil{}:
+      0n
+    case Con{dd, rest}:
+      +tt = String.trim(dd)
+      +mm = trace.stray(rest, rs)
+      Bool.pick(Nat, Bool.and(trace.is_id(tt), Bool.not(trace.claimed(rs, tt))), 1n+mm, mm)
+
+# the stray tags of each law
+def trace.stray_laws(ls: List<&2, Digest.Law>, +rs: List<&2, Trace.Row>) -> Nat:
+  match ls:
+    case Nil{}:
+      0n
+    case Con{Digest.Law{_n, _l, _b, dd}, rest}:
+      Nat.add(trace.stray(dd, rs), trace.stray_laws(rest, rs))
+
+# the stray tags of each file read
+def trace.strays(ds: List<&2, Digest.Digest>, +rs: List<&2, Trace.Row>) -> Nat:
+  match ds:
+    case Nil{}:
+      0n
+    case Con{Digest.Digest{_path, _norm, _dir, _il, _lf, _ex, _tops, _says, _deps, _uns, laws}, rest}:
+      Nat.add(trace.stray_laws(laws, rs), trace.strays(rest, rs))
+
+# every defect of SPEC.md's lines against the files read: each table row with
+# the wrong number of cells, each requirement row's, each trust row's, and
+# each stray tag
+def trace.count(+ls: List<&2, String>, +ds: List<&2, Digest.Digest>) -> Nat:
+  +rs = trace.reqs(ls, 0, Trace.Out{})
+  +ts = trace.trusts(ls, 0, Trace.Out{})
+  Nat.add(trace.bad(ls, Trace.Out{}),
+    Nat.add(trace.rows(rs, rs, ts, ds), Nat.add(trace.trust(ts, ts), trace.strays(ds, rs))))
+
+# LAW: run over the whole tree, trace reports one finding for each defect of
+# SPEC.md's text against the files read, as trace.count counts them, and
+# nothing else: on a well-formed SPEC.md whose Law entries name quantified laws
+# tagged with their rows, and whose tags name claims, it reports nothing
+# BOLT-LAW-5
+law trace_counts:
+  for +text: String
+  for +ds: List<&2, Digest.Digest>
+  {List.length(&2, F.Finding, Trace.check(True{}, Some{text}, ds)) == trace.count(String.lines(text), ds) : Nat}
+
+# LAW: run over the whole tree with no SPEC.md to read, trace reports that,
+# once
+# BOLT-LAW-5
+law trace_unread:
+  for +ds: List<&2, Digest.Digest>
+  {List.length(&2, F.Finding, Trace.check(True{}, None{}, ds)) == 1n : Nat}
+
+# LAW: run over files named on the line, trace reports nothing
+# BOLT-LAW-5
+law trace_named:
+  for mm: Maybe<&2, String>
+  for ds: List<&2, Digest.Digest>
+  {Trace.check(False{}, mm, ds) == [] : List<&2, F.Finding>}
