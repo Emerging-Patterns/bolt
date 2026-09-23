@@ -38,7 +38,7 @@ A Trusted requirement's ID appears once in a requirement table and once in the t
 | BOLT-RULE-U002 | `strict` reports exactly a self-call inside `Bool.and` or `Bool.or`, or on either side of `&&` or `\|\|`. | Proved | pending |  |
 | BOLT-RULE-U003 | `eager` reports exactly a looping def of the file called in a `Bool.pick` branch. | Proved | pending |  |
 | BOLT-RULE-U004 | `concat` reports exactly a self-call argument that appends onto a parameter. | Proved | pending |  |
-| BOLT-RULE-U005 | `nat` reports exactly a Nat literal of 1000 or more. | Proved | pending |  |
+| BOLT-RULE-U005 | `nat` reports exactly one finding for each token the lexer reads as a Nat literal of 1000 or more (digits then `n`, four or more digits once leading zeros are dropped), and none for any other token. | Proved | proved | bolt/rules/LAWS.bend nat_counts |
 | BOLT-RULE-U006 | `fuel` reports exactly a Nat literal passed where a def of the file takes its fuel. | Proved | pending |  |
 | BOLT-RULE-U007 | `index` reports exactly a `List.get` or `String.get` at a non-literal index in a recursive def. | Proved | pending |  |
 | BOLT-RULE-U008 | `table` reports exactly a get or set at a computed index on a fixed table inside a recursive def. | Proved | pending |  |
