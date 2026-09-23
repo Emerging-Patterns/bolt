@@ -236,9 +236,10 @@ beside the groups.
   not the arms: a match over eighteen constructors costs nothing measurable.
   Compare `Char.to_u32(c)` instead. Bind the fallback above the comparisons
   so `eager` does not fire on it, and take `+c: Char`, since the code point
-  and the fallback both consume it. Where the arms carry linear values, as
-  `bolt/lsp/frame.bend`'s do, leave the match alone: a cascade would break
-  linearity and do every branch's work.
+  and the fallback both consume it. Where the arms carry linear values, leave
+  the match alone: a cascade would break linearity and do every branch's
+  work. Only the first match column is read, and only an arm whose pattern
+  opens with a character literal counts (`case Con{'x', t}:` does not).
 - `twice` — a case pattern that opens with the same literal twice
   (`case 10 <> 10 <> ..`) in a recursive def: the checker hangs. Match one
   element a step. A def is recursive when its body calls it (`name(..)`); a
