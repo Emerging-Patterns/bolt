@@ -298,7 +298,7 @@ def param.step(nm, line, col, kk, note, rest, path, ih):
     nat.pick(Bool.and(Param.check.is_param(kk),
       Bool.and(Param.check.short(nm), Bool.not(Param.check.allowed(nm, note)))),
       F.Finding{path, line, col, U32.from_nat(String.length(nm)), "param",
-        "Parameter " ++ nm ++ " is shorter than 2 characters."},
+        "Parameter " ++ nm ++ " is too short; use at least 2 characters."},
       Param.check.go(rest, path), Laws.short_count(rest), ih),
     Equal.cong(Bool, Nat, z => Bool.pick(Nat, z, 1n+Laws.short_count(rest), Laws.short_count(rest)),
       Bool.and(Param.check.is_param(kk),
@@ -453,7 +453,7 @@ def put.dot(kk, t, o, l, c, _l2, _c2, r, path, ih1, ih2):
       ih1
     case Lex.TOpen{}:
       nat.pick(Bool.and(String.eq(t, "Map.put"), String.eq(o, "(")),
-        F.Finding{path, l, c, 7, "put", "Map.put never compares keys, so a new key overwrites another entry; use Map.set."},
+        F.Finding{path, l, c, 7, "put", "Map.put does not compare keys, so a new key can overwrite an existing entry; use Map.set."},
         Put.calls(r, path), Laws.put_count(r), ih2)
     case Lex.TClose{}:
       ih1
@@ -823,7 +823,7 @@ def hole.step(kk, t, l, c, rest, path, ih):
           1n+Laws.hole_count(rest), Laws.hole_count(rest)),
         Laws.hole_count(Lex.Tok{Lex.TOp{}, t, l, c} <> rest),
         hole.stop(Lazy.and_then(String.eq(t, "?"), _u => Hole.check.todo(rest)),
-          F.Finding{path, l, c, Hole.check.width(rest, l, c), "hole", "A ?TODO is left here."},
+          F.Finding{path, l, c, Hole.check.width(rest, l, c), "hole", "This ?TODO hole is still unfilled."},
           Hole.check.go(rest, path), Laws.hole_count(rest), ih),
         Equal.cong(Bool, Nat, z => Bool.pick(Nat, z, 1n+Laws.hole_count(rest), Laws.hole_count(rest)),
           Lazy.and_then(String.eq(t, "?"), _u => Hole.check.todo(rest)),
@@ -1005,7 +1005,7 @@ law sp.wstep:
 def sp.wstep(kk, _t, _l, _c, rest, path, nn, acc, nl, ih):
   match kk:
     case Lex.TNewline{}:
-      nat.pick(U32.is_gt(acc, 120), F.Finding{path, nn, 120, 0, "space", "Line exceeds the 120-character limit."},
+      nat.pick(U32.is_gt(acc, 120), F.Finding{path, nn, 120, 0, "space", "Line is longer than 120 characters."},
         Space.widths(rest, path, (nn + 1 : U32), 0), Laws.wide_count(rest, 0), nl)
     case Lex.TStr{}:
       ih
@@ -1053,7 +1053,7 @@ def sp.wstep(kk, _t, _l, _c, rest, path, nn, acc, nl, ih):
 def Laws.space_width_counts(toks, path, nn, acc):
   match toks:
     case Nil{}:
-      nat.pick(U32.is_gt(acc, 120), F.Finding{path, nn, 120, 0, "space", "Line exceeds the 120-character limit."},
+      nat.pick(U32.is_gt(acc, 120), F.Finding{path, nn, 120, 0, "space", "Line is longer than 120 characters."},
         [], 0n, {==})
     case Con{Lex.Tok{+kk, +t, l, c}, +rest}:
       sp.wstep(kk, t, l, c, rest, path, nn, acc, Laws.space_width_counts(rest, path, (nn + 1 : U32), 0),
@@ -1729,8 +1729,8 @@ def chars.stmt(kids, body, path):
     Bool.pick(Nat, Bool.and(Laws.chars.is_match(kids), U32.is_gt(Laws.chars.arms(body, 0), 8)), 1n, 0n),
     chars.gate(T.keyword(kids, "match"), Chars.report(n, path, Tree.line(kids), Tree.col(kids)), U32.is_gt(n, 8),
       chars.one(U32.is_gt(n, 8), F.Finding{path, Tree.line(kids), Tree.col(kids), 5, "chars",
-        "A match over " ++ U32.show(n) ++ " character literals exceeds the limit of 8 and blows up compile time and"
-        ++ " memory; compare Char.to_u32(c) instead."})),
+        "This match has " ++ U32.show(n) ++ " character-literal cases, over the limit of 8, which blows up compile time"
+        ++ " and memory; compare Char.to_u32(c) instead."})),
     Equal.trans(Nat,
       Bool.pick(Nat, Bool.and(T.keyword(kids, "match"), U32.is_gt(n, 8)), 1n, 0n),
       Bool.pick(Nat, Bool.and(Laws.chars.is_match(kids), U32.is_gt(n, 8)), 1n, 0n),
@@ -1905,9 +1905,9 @@ law strings.base:
 
 def strings.base(nn, ch, path, ll, cc):
   chars.one(U32.is_gt(ch, 64), F.Finding{path, ll, cc, 5, "strings",
-    "A match over " ++ U32.show(nn) ++ " string literals totals " ++ U32.show(ch)
-    ++ " characters, over the 64-character limit, and blows up compile time and memory;"
-    ++ " map the string to a sum type once."})
+    "This match has " ++ U32.show(nn) ++ " string-literal cases totalling " ++ U32.show(ch)
+    ++ " characters, over the limit of 64, which blows up compile time and memory;"
+    ++ " map the string to a sum type once and match on that."})
 
 # a case statement onto a body the law holds for, at the rule's count
 law strings.step:
@@ -2312,7 +2312,7 @@ def tail.call(_k, t, l, c, _k2, o, _l2, _c2, kids, _cl, rest, name, path, skip, 
   +m = Nat.add(Bool.pick(Nat, pk, 0n, Laws.tail.count(kids, name, False{})), Laws.tail.count(rest, name, False{}))
   nat.pick(Bool.and(Bool.and(String.eq(o, "("), String.eq(t, name)), Bool.not(skip)),
     F.Finding{path, l, c, U32.from_nat(String.length(name)), "tail",
-      name ++ " is not a tail call, so a long list or string overflows the JS lane stack; carry an accumulator."},
+      "This call to " ++ name ++ " is not a tail call, so a long list or string overflows the stack on the JS lane; carry an accumulator."},
     List.concat(&2, F.Finding, [inside, after]), m,
     Equal.trans(Nat, List.length(&2, F.Finding, List.concat(&2, F.Finding, [inside, after])),
       Nat.add(List.length(&2, F.Finding, inside), List.length(&2, F.Finding, after)), m,
@@ -3871,12 +3871,12 @@ def arms.verdict(ww, aa, path, more, m, ih):
       match aa:
         case Arms.APlus{+j, t, +l, +c, +n}:
           nat.pick(U32.is_ge(j, k), F.Finding{path, l, c, n, "arms",
-            "Unreachable: case " ++ text ++ " above already matches every " ++ U32.show(j)
-              ++ "n+..; put the narrow arms first."}, more, m, ih)
+            "Unreachable: the case " ++ text ++ " above already matches everything from " ++ U32.show(j)
+              ++ "n up; put narrower arms first."}, more, m, ih)
         case Arms.ALit{+j, +l, +c, +n}:
           nat.pick(U32.is_ge(j, k), F.Finding{path, l, c, n, "arms",
-            "Unreachable: case " ++ text ++ " above already matches " ++ U32.show(j)
-              ++ "n; put the narrow arms first."}, more, m, ih)
+            "Unreachable: the case " ++ text ++ " above already matches " ++ U32.show(j)
+              ++ "n; put narrower arms first."}, more, m, ih)
         case Arms.AOther{}:
           ih
 
@@ -5142,7 +5142,7 @@ def twice.same2(_k, t, _l, _c, bb, path):
       {==}
     case Some{Lex.Tok{k2, +t2, +l2, +c2}}:
       nat.pick(String.eq(t, t2), F.Finding{path, l2, c2, T.width(t2), "twice",
-        "The same literal appears twice in one list pattern, which hangs the checker; match one element per step."},
+        "This literal appears twice in one list pattern, which makes the checker hang; match one element per step."},
           [], 0n, {==})
 
 # two literals, a finding exactly when the law's same
@@ -5612,9 +5612,9 @@ def Laws.pick_walk_counts(nn, name, path, quiet, hush, nth):
                       +cr = Laws.pick.count(r2, name, quiet, hush, at)
                       +found = pick.hit(p, q, a, b,
                         F.Finding{path, l, c, 9, "pick",
-                          name ++ " recurses in both branches of Bool.pick, so both calls run; bind the recursive call once above the pick."},
+                          name ++ " calls itself in both branches of Bool.pick, which evaluates both, so both calls run; bind the call once above the pick."},
                         F.Finding{path, l, c, 9, "pick",
-                          name ++ " recurses in one branch of Bool.pick, so the call runs whatever the condition and there is no early exit; bind it above the pick."},
+                          name ++ " calls itself in one branch of Bool.pick, which evaluates both, so the call always runs and never exits early; use Lazy.stop."},
                         List.concat(&2, F.Finding, [fk, fr]), Nat.add(ck, cr),
                         pick.join(fk, List.append(&2, F.Finding, fr, Nil{}), ck, cr,
                           pick.move(kids, name, path, q, q, Bool.or(two, one), hit, 0n, 0n, {==}, pick.either(p, q, a,
@@ -5961,7 +5961,7 @@ def strict.call(t, l, c, _ok, o, _ol, _oc, kids, _close, r2, name, path, outer, 
   +cr = Laws.strict.count(r2, name, outer, hot)
   nat.pick(Bool.and(Bool.and(call, String.eq(t, name)), hot),
     F.Finding{path, l, c, U32.from_nat(String.length(name)), "strict",
-      name ++ " recurses inside Bool.and or Bool.or, so both sides always run and there is no short-circuit; bind the call above."},
+      name ++ " calls itself inside Bool.and or Bool.or, which evaluate both sides, so there is no short-circuit; match on the Bool in a helper."},
     List.concat(&2, F.Finding, [fk, fr]), Nat.add(ck, cr),
     pick.join(fk, List.append(&2, F.Finding, fr, Nil{}), ck, cr,
       strict.hot(kids, name, path, inner, hk, Bool.or(inner, Laws.strict.ops(kids)),
@@ -6742,7 +6742,7 @@ def closed.law(kids, body, rest, path, ih):
   +m = Laws.closed.count(rest)
   +x = {F.Finding{path, Tree.line(kids), Tree.col(kids), 0, "closed",
     "Law " ++ Closed.name.of(Bind.declared(kids))
-      ++ " has no for or exs, so it checks one case; quantify it, or delete it."} : F.Finding}
+      ++ " has no `for` or `exs` binder, so it checks a single case; quantify it or delete it."} : F.Finding}
   Equal.trans(Nat,
     List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Closed.binds(body), more, _u => x <> more)),
     List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Laws.closed.bound(body), more, _u => x <> more)),
@@ -7509,7 +7509,7 @@ def index.call(_k, t, l, c, _gk, o, _gl, _gc, kids, _cl, rr, path, fixed, ih1, i
   +m = Nat.add(Laws.index.count(kids, path, fixed), Laws.index.count(rr, path, fixed))
   +spec = Laws.index.fires(list, ob, sb, as, Table.hit(ob, "List.get", kids, fixed, path, l, c))
   +x = {F.Finding{path, l, c, U32.from_nat(String.length(t)), "index",
-    t ++ " inside a recursive def walks the list again on each step, which is quadratic; walk the list itself."}
+    t ++ " in a recursive def walks the list from its head on every step, which is quadratic; recurse over the list itself."}
     : F.Finding}
   Equal.trans(Nat,
     List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, fire, x <> more, more)),
@@ -7901,7 +7901,7 @@ def concat.hit(mm, slot, path, acc):
       {==}
     case Some{Lex.Tok{k, +t, l, c}}:
       nat.pick(String.eq(t, slot), F.Finding{path, l, c, U32.from_nat(String.length(t)), "concat",
-        t ++ " grows by appending on each step, which is quadratic; prepend and reverse once, or build with <>."},
+        t ++ " is appended to on every step, which copies it each time and makes the loop quadratic; prepend and reverse once at the end, or build with <>."},
         acc, List.length(&2, F.Finding, acc), {==})
 
 # one argument's hit and the rest's, against its slot
@@ -8131,7 +8131,7 @@ def eager.work(nn, ns, self, path, hot, seg, keep):
       +inner = Bool.and(now, Bool.not(is_pick))
       nat.pick(Bool.and(now, Bool.and(call, mine)),
         F.Finding{path, l, c, U32.from_nat(String.length(t)), "eager",
-          t ++ " runs in both branches of Bool.pick, so it runs whatever the condition; bind it above, or use Lazy.stop."},
+          t ++ " is called in a branch of Bool.pick, which evaluates both branches, so it runs whatever the condition; bind it above the pick, or use Lazy.stop."},
         List.concat(&2, F.Finding,
           [Eager.work(kids, ns, self, path, inner, Bool.pick(U32, is_pick, 0, 9), inner),
             Eager.work(rest, ns, self, path, now, Eager.work.seg(k, seg), keep)]),
@@ -8673,7 +8673,7 @@ def fuel.lit(aa, path):
                     case Tree.NNil{}:
                       chars.one(T.nat_ok(String.to_list(t)), F.Finding{path, l, c, U32.from_nat(String.length(t)),
                         "fuel",
-                        "Fuel is fixed at " ++ t ++ ", so input past it is cut short with no error; derive the fuel from the input size."})
+                        "The fuel is fixed at " ++ t ++ ", so longer input is silently cut short; derive the fuel from the input size."})
                     case Tree.NCons{x, y}:
                       {==}
                 case Lex.TStr{}:
@@ -10466,7 +10466,7 @@ def wrap.wide(line, sig, path, more):
     Bool.pick(Nat, U32.is_gt(Wrap.check.width(sig), 120), 1n+len, len),
     Bool.pick(Nat, U32.is_gt(Laws.wrap.width(Lex.tokens(sig)), 120), 1n+len, len),
     wrap.stop_len(U32.is_gt(Wrap.check.width(sig), 120),
-      F.Finding{path, line, 120, 0, "wrap", "Def header exceeds the 120-character limit; wrap with one parameter per line."},
+      F.Finding{path, line, 120, 0, "wrap", "This def header is longer than 120 characters; wrap it with one parameter per line."},
       more),
     Equal.cong(U32, Nat, ww => Bool.pick(Nat, U32.is_gt(ww, 120), 1n+len, len), Wrap.check.width(sig),
       Laws.wrap.width(Lex.tokens(sig)), Laws.wrap_width(Lex.tokens(sig))))
@@ -10684,35 +10684,35 @@ def coverage.gaps(ts, all, pp, path):
       %coverage.item(all, pp, name) :
         {Coverage.gaps(Digest.Top{Outline.IDef{}, name, line, cs} <> rest, Coverage.named(all), pp, path)
           == Bool.pick(List<&2, F.Finding>, Bool.or(String.contains(name, "."), _),
-            Laws.coverage.gaps(rest, all, pp, path), F.Finding{path, line, 0, 0, "coverage", "Def " ++ name ++ " is named by no law."}
+            Laws.coverage.gaps(rest, all, pp, path), F.Finding{path, line, 0, 0, "coverage", "No quantified law names def " ++ name ++ "."}
               <> Laws.coverage.gaps(rest, all, pp, path)) : List<&2, F.Finding>}
       %coverage.gaps(rest, all, pp, path) :
         {Coverage.gaps(Digest.Top{Outline.IDef{}, name, line, cs} <> rest, Coverage.named(all), pp, path)
           == Bool.pick(List<&2, F.Finding>,
             Bool.or(String.contains(name, "."), Coverage.has_item(Coverage.named(all), pp, name)), _,
-            F.Finding{path, line, 0, 0, "coverage", "Def " ++ name ++ " is named by no law."} <> _) : List<&2, F.Finding>}
+            F.Finding{path, line, 0, 0, "coverage", "No quantified law names def " ++ name ++ "."} <> _) : List<&2, F.Finding>}
       {==}
     case Con{Digest.Top{Outline.IType{}, +name, +line, +cs}, rest}:
       %coverage.item(all, pp, name) :
         {Coverage.gaps(Digest.Top{Outline.IType{}, name, line, cs} <> rest, Coverage.named(all), pp, path)
           == Bool.pick(List<&2, F.Finding>, Bool.or(_, Laws.coverage.any(cs, all, pp)),
-            Laws.coverage.gaps(rest, all, pp, path), F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ " is named by no law, nor are its constructors."}
+            Laws.coverage.gaps(rest, all, pp, path), F.Finding{path, line, 0, 0, "coverage", "No quantified law names type " ++ name ++ " or any of its constructors."}
               <> Laws.coverage.gaps(rest, all, pp, path)) : List<&2, F.Finding>}
       %coverage.any(cs, all, pp) :
         {Coverage.gaps(Digest.Top{Outline.IType{}, name, line, cs} <> rest, Coverage.named(all), pp, path)
           == Bool.pick(List<&2, F.Finding>, Bool.or(Coverage.has_item(Coverage.named(all), pp, name), _),
-            Laws.coverage.gaps(rest, all, pp, path), F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ " is named by no law, nor are its constructors."}
+            Laws.coverage.gaps(rest, all, pp, path), F.Finding{path, line, 0, 0, "coverage", "No quantified law names type " ++ name ++ " or any of its constructors."}
               <> Laws.coverage.gaps(rest, all, pp, path)) : List<&2, F.Finding>}
       %coverage.gaps(rest, all, pp, path) :
         {Coverage.gaps(Digest.Top{Outline.IType{}, name, line, cs} <> rest, Coverage.named(all), pp, path)
           == Bool.pick(List<&2, F.Finding>,
             Bool.or(Coverage.has_item(Coverage.named(all), pp, name),
               Coverage.any_item(cs, Coverage.named(all), pp)), _,
-            F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ " is named by no law, nor are its constructors."}
+            F.Finding{path, line, 0, 0, "coverage", "No quantified law names type " ++ name ++ " or any of its constructors."}
               <> _) : List<&2, F.Finding>}
       Equal.cong(Bool, List<&2, F.Finding>,
         bb => Bool.pick(List<&2, F.Finding>, bb, Coverage.gaps(rest, Coverage.named(all), pp, path),
-          F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ " is named by no law, nor are its constructors."}
+          F.Finding{path, line, 0, 0, "coverage", "No quantified law names type " ++ name ++ " or any of its constructors."}
             <> Coverage.gaps(rest, Coverage.named(all), pp, path)),
         Lazy.or_else(Coverage.has_item(Coverage.named(all), pp, name),
           _u => Coverage.any_item(cs, Coverage.named(all), pp)),
@@ -10817,8 +10817,8 @@ def unsafe.report(us, origin, path):
       {==}
     case Con{Digest.Unsafe{+n, +l, +c}, rest}:
       Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
-        t => F.Finding{path, l, c, 7, "unsafe", "@unsafe def " ++ n ++ " is reached from " ++ origin
-          ++ "; the checker only warns there and exits 0. Recurse on a shrinking argument or fuel."} <> t,
+        t => F.Finding{path, l, c, 7, "unsafe", "@unsafe def " ++ n ++ " is reachable from " ++ origin
+          ++ ", where the checker skips its termination check and still exits 0; recurse on a shrinking argument or on fuel, and drop @unsafe."} <> t,
         Unsafe.report(rest, origin, path), Laws.unsafe.each(rest, origin, path), unsafe.report(rest, origin, path))
 
 # the rule's found is unsafe.at
@@ -13617,12 +13617,12 @@ def trace.rev_app(A, ys, xs, acc):
 # the malformed-row mark a requirement table line of these cells adds
 def trace.bad5(+cs: List<&2, String>, +nn: U32) -> List<&2, Trace.Mark>:
   Bool.pick(List<&2, Trace.Mark>, Nat.is_eq(List.length(&2, String, cs), 5n), [],
-    [Trace.Mark{"a requirement row has five cells", nn}])
+    [Trace.Mark{"a requirement row must have five cells", nn}])
 
 # the malformed-row mark a trust table line of these cells adds
 def trace.bad3(+cs: List<&2, String>, +nn: U32) -> List<&2, Trace.Mark>:
   Bool.pick(List<&2, Trace.Mark>, Nat.is_eq(List.length(&2, String, cs), 3n), [],
-    [Trace.Mark{"a trust row has three cells", nn}])
+    [Trace.Mark{"a trust row must have three cells", nn}])
 
 # a requirement table line of any cells adds the spec's row, or a mark
 law trace.five:
@@ -13633,7 +13633,7 @@ law trace.five:
   for +tt: List<&2, Trace.Mark>
   for +bb: List<&2, Trace.Mark>
   {Lazy.stop(Trace.Spec, Bool.not(Nat.is_eq(List.length(&2, String, cs), 5n)),
-    Trace.Spec{mm, rr, tt, Trace.Mark{"a requirement row has five cells", nn} <> bb},
+    Trace.Spec{mm, rr, tt, Trace.Mark{"a requirement row must have five cells", nn} <> bb},
     _u => Trace.Spec{mm, Trace.Row{Trace.cell(cs, 0n), Trace.cell(cs, 2n), Trace.cell(cs, 3n),
       Trace.entries(Trace.cell(cs, 4n)), nn} <> rr, tt, bb})
     == Trace.Spec{mm, List.reverse.go(&2, Trace.Row, Laws.trace.req_row(cs, nn), rr), tt,
@@ -13679,7 +13679,7 @@ law trace.three:
   for +bb: List<&2, Trace.Mark>
   {Bool.pick(Trace.Spec, Nat.is_eq(List.length(&2, String, cs), 3n),
     Trace.Spec{mm, rr, Trace.Mark{Trace.cell(cs, 0n), nn} <> tt, bb},
-    Trace.Spec{mm, rr, tt, Trace.Mark{"a trust row has three cells", nn} <> bb})
+    Trace.Spec{mm, rr, tt, Trace.Mark{"a trust row must have three cells", nn} <> bb})
     == Trace.Spec{mm, rr, List.reverse.go(&2, Trace.Mark, Laws.trace.trust_row(cs, nn), tt),
       List.reverse.go(&2, Trace.Mark, trace.bad3(cs, nn), bb)} : Trace.Spec}
 
@@ -14260,8 +14260,8 @@ law trace.why:
   for yy: Bool
   for zz: Bool
   {Bool.not(String.is_empty(Bool.pick(String, xx,
-    "the level is Proved or Trusted, the status proved or pending for Proved and empty for Trusted",
-    Bool.pick(String, yy, "a proved row names its law", Bool.pick(String, zz, "a Trusted row names no law", "")))))
+    "the level must be Proved or Trusted, and the status proved or pending for Proved, empty for Trusted",
+    Bool.pick(String, yy, "a proved row must name its law", Bool.pick(String, zz, "a Trusted row must not name a law", "")))))
     == Bool.or(xx, Bool.or(yy, zz)) : Bool}
 
 def trace.why(xx, yy, zz):
@@ -14374,8 +14374,8 @@ def trace.judge_law(mm, id, entry, nn):
     case None{}:
       {==}
     case Some{Digest.Law{na, li, +bb, +dd}}:
-      +xb = Trace.at(nn, id ++ " names " ++ entry ++ ", which has no for or exs.")
-      +xt = Trace.at(nn, id ++ " names " ++ entry ++ ", which is not tagged # " ++ id ++ ".")
+      +xb = Trace.at(nn, id ++ " names " ++ entry ++ ", a law with no `for` or `exs` binder.")
+      +xt = Trace.at(nn, id ++ " names " ++ entry ++ ", but that law is not tagged # " ++ id ++ ".")
       Equal.trans(Nat,
         List.length(&2, F.Finding, List.append(&2, F.Finding, Bool.pick(List<&2, F.Finding>, bb, [], [xb]),
           Bool.pick(List<&2, F.Finding>, Trace.tagged(dd, id), [], [xt]))),
@@ -14424,7 +14424,7 @@ law trace.words:
   for +entry: String
   for +nn: U32
   {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Bool.not(Nat.is_eq(List.length(&2, String, ws), 2n)),
-    [Trace.at(nn, id ++ ": a Law entry is <path> <law>, not " ++ entry ++ ".")],
+    [Trace.at(nn, id ++ ": a Law entry must be <path> <law>, not " ++ entry ++ ".")],
     _u => Trace.judge_file(Trace.laws_file(ds, Imports.norm(Trace.cell(ws, 0n))), Trace.cell(ws, 1n), id, entry, nn)))
     == Laws.trace.entry(ws, ds, id) : Nat}
 
@@ -14580,10 +14580,10 @@ law trace.row:
 
 def trace.row(id, lv, st, ls, nn, _mo, rs, ts, _bs, ds):
   +why = Trace.shape(lv, st, ls)
-  +x1 = Trace.at(nn, id ++ " is not an ID: [A-Z][A-Z0-9]*(-[A-Z0-9]+)+.")
+  +x1 = Trace.at(nn, id ++ " is not a valid ID; an ID matches [A-Z][A-Z0-9]*(-[A-Z0-9]+)+.")
   +x2 = Trace.at(nn, id ++ " is listed twice.")
   +x3 = Trace.at(nn, id ++ ": " ++ why ++ ".")
-  +x4 = Trace.at(nn, id ++ " is Trusted and has no row in the trust boundary table.")
+  +x4 = Trace.at(nn, id ++ " is Trusted but has no row in the trust boundary table.")
   +p1 = Bool.pick(List<&2, F.Finding>, Trace.is_id(id), [], [x1])
   +p2 = Bool.pick(List<&2, F.Finding>, Nat.is_gt(Trace.rows_with(rs, id), 1n), [x2], [])
   +p3 = Bool.pick(List<&2, F.Finding>, String.is_empty(why), [], [x3])
@@ -14691,7 +14691,7 @@ def trace.twins(ms, all):
     case Nil{}:
       {==}
     case Con{Trace.Mark{+id, +nn}, +rest}:
-      +x1 = Trace.at(nn, id ++ " is not an ID: [A-Z][A-Z0-9]*(-[A-Z0-9]+)+.")
+      +x1 = Trace.at(nn, id ++ " is not a valid ID; an ID matches [A-Z][A-Z0-9]*(-[A-Z0-9]+)+.")
       +x2 = Trace.at(nn, id ++ " is listed twice.")
       +mm = Laws.trace.trust(rest, all)
       Equal.trans(Nat, List.length(&2, F.Finding, Trace.twins(Trace.Mark{id, nn} <> rest, all)),
@@ -14766,7 +14766,7 @@ def trace.stray(doc, rs, path, name, ll):
       +tt = String.trim(dd)
       +mm = Laws.trace.stray(rest, rs)
       +xx = {F.Finding{path, ll, 0, 0, "trace",
-        "Law " ++ name ++ " is tagged " ++ tt ++ ", which SPEC.md does not list as Proved, proved or pending."} : F.Finding}
+        "Law " ++ name ++ " is tagged " ++ tt ++ ", which is not a Proved row in SPEC.md with status proved or pending."} : F.Finding}
       Equal.trans(Nat, List.length(&2, F.Finding, Trace.stray(dd <> rest, rs, path, name, ll)),
         Bool.pick(Nat, Bool.and(Trace.is_id(tt), Bool.not(Trace.claimed(rs, tt))), 1n+mm, mm),
         Laws.trace.stray(dd <> rest, rs),
@@ -15098,9 +15098,9 @@ def trace.bad_len(kk, mm, tt, nn):
   match kk mm:
     case Laws.trace.Bar{} Trace.Reqs{}:
       trace.mark(Nat.is_eq(List.length(&2, String, Laws.trace.cells(tt)), 5n),
-        Trace.Mark{"a requirement row has five cells", nn})
+        Trace.Mark{"a requirement row must have five cells", nn})
     case Laws.trace.Bar{} Trace.Trusts{}:
-      trace.mark(Nat.is_eq(List.length(&2, String, Laws.trace.cells(tt)), 3n), Trace.Mark{"a trust row has three cells", nn})
+      trace.mark(Nat.is_eq(List.length(&2, String, Laws.trace.cells(tt)), 3n), Trace.Mark{"a trust row must have three cells", nn})
     case Laws.trace.Bar{} Trace.Out{}:
       {==}
     case Laws.trace.Bar{} Trace.ReqHead{}:
@@ -17723,19 +17723,19 @@ def inert.hole.go(ts, path):
       +hit = Bool.and(Calls.kind.oper(k), Lazy.and_then(String.eq(Laws.inert.keep(b, q), "?"),
         _u => Hole.check.todo(cr)))
       +lhs = Lazy.stop(List<&2, F.Finding>, Bool.not(hit), Hole.check.go(cr, path), _u => F.Finding{path, l, c,
-        Hole.check.width(cr, l, c), "hole", "A ?TODO is left here."} <> Hole.check.go(cr, path))
+        Hole.check.width(cr, l, c), "hole", "This ?TODO hole is still unfilled."} <> Hole.check.go(cr, path))
       %inert.hole.go(rest, path) : {lhs == Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Calls.kind.oper(k),
         Lazy.and_then(String.eq(q, "?"), _u => Hole.check.todo(rest)))), _, _u => F.Finding{path, l, c,
-        Hole.check.width(rest, l, c), "hole", "A ?TODO is left here."} <> _) : List<&2, F.Finding>}
+        Hole.check.width(rest, l, c), "hole", "This ?TODO hole is still unfilled."} <> _) : List<&2, F.Finding>}
       %inert.hole.width(rest, l, c) : {lhs == Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Calls.kind.oper(k),
         Lazy.and_then(String.eq(q, "?"), _u => Hole.check.todo(rest)))), Hole.check.go(cr, path), _u => F.Finding{path,
-        l, c, _, "hole", "A ?TODO is left here."} <> Hole.check.go(cr, path)) : List<&2, F.Finding>}
+        l, c, _, "hole", "This ?TODO hole is still unfilled."} <> Hole.check.go(cr, path)) : List<&2, F.Finding>}
       %inert.hole.todo(rest) : {lhs == Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Calls.kind.oper(k),
         Lazy.and_then(String.eq(q, "?"), _u => _))), Hole.check.go(cr, path), _u => F.Finding{path, l, c,
-        Hole.check.width(cr, l, c), "hole", "A ?TODO is left here."} <> Hole.check.go(cr, path)) : List<&2, F.Finding>}
+        Hole.check.width(cr, l, c), "hole", "This ?TODO hole is still unfilled."} <> Hole.check.go(cr, path)) : List<&2, F.Finding>}
       %inert.guard(Calls.kind.oper(k), b, q, z => Lazy.and_then(String.eq(z, "?"), _u => Hole.check.todo(cr)),
         inert.hole.op(k)) : {lhs == Lazy.stop(List<&2, F.Finding>, Bool.not(_), Hole.check.go(cr, path),
-          _u => F.Finding{path, l, c, Hole.check.width(cr, l, c), "hole", "A ?TODO is left here."}
+          _u => F.Finding{path, l, c, Hole.check.width(cr, l, c), "hole", "This ?TODO hole is still unfilled."}
           <> Hole.check.go(cr, path)) : List<&2, F.Finding>}
       {==}
 
@@ -17871,7 +17871,7 @@ law inert.put.call:
     : List<&2, F.Finding>}
 
 def inert.put.call(b1, t, b2, o, l, c, path, more, e1, e2):
-  +x = {F.Finding{path, l, c, 7, "put", "Map.put never compares keys, so a new key overwrites another entry; use Map.set."}
+  +x = {F.Finding{path, l, c, 7, "put", "Map.put does not compare keys, so a new key can overwrite an existing entry; use Map.set."}
     : F.Finding}
   +lhs = Put.calls.one(Laws.inert.keep(b1, t), Laws.inert.keep(b2, o), l, c, path, more)
   %inert.eq_keep(b1, t, "Map.put", e1, {==}) : {lhs == Bool.pick(List<&2, F.Finding>, Bool.and(_, String.eq(o, "(")),
@@ -19132,7 +19132,7 @@ def inert.tail.at(
   +more = List.concat(&2, F.Finding, [Bool.pick(List<&2, F.Finding>, Bool.and(call, tp), [], inside), rest])
   Bool.pick(List<&2, F.Finding>, Bool.and(Bool.and(call, tn), Bool.not(skip)),
     F.Finding{path, l, c, U32.from_nat(String.length(name)), "tail",
-      name ++ " is not a tail call, so a long list or string overflows the JS lane stack; carry an accumulator."}
+      "This call to " ++ name ++ " is not a tail call, so a long list or string overflows the stack on the JS lane; carry an accumulator."}
       <> more,
     more)
 
@@ -19440,11 +19440,11 @@ def inert.pick.body(
   +more = List.concat(&2, F.Finding, [inner, outer])
   Bool.pick(List<&2, F.Finding>, two,
     F.Finding{path, l, c, 9, "pick",
-      name ++ " recurses in both branches of Bool.pick, so both calls run; bind the recursive call once above the pick."}
+      name ++ " calls itself in both branches of Bool.pick, which evaluates both, so both calls run; bind the call once above the pick."}
       <> more,
     Bool.pick(List<&2, F.Finding>, one,
       F.Finding{path, l, c, 9, "pick",
-        name ++ " recurses in one branch of Bool.pick, so the call runs whatever the condition and there is no early exit; bind it above the pick."}
+        name ++ " calls itself in one branch of Bool.pick, which evaluates both, so the call always runs and never exits early; use Lazy.stop."}
         <> more,
       more))
 
@@ -19781,7 +19781,7 @@ def inert.param.go(binds: List<&2, Bind.Bind>, +path: String) -> List<&2, F.Find
       Bool.pick(List<&2, F.Finding>, Bool.and(Param.check.is_param(kind), Bool.and(Param.check.short(nm),
         Bool.not(Bool.or(Param.check.upper(nm), quant)))),
         F.Finding{path, line, col, U32.from_nat(String.length(nm)), "param",
-          "Parameter " ++ nm ++ " is shorter than 2 characters."} <> more, more)
+          "Parameter " ++ nm ++ " is too short; use at least 2 characters."} <> more, more)
 
 # param's walk reads each binder's note with its strings cut
 law inert.param.walk:
@@ -19798,7 +19798,7 @@ def inert.param.walk(binds, path):
         == Bool.pick(List<&2, F.Finding>, Bool.and(Param.check.is_param(kind), Bool.and(Param.check.short(nm),
           Bool.not(Param.check.allowed(nm,
             note)))), F.Finding{path, line, col, U32.from_nat(String.length(nm)), "param",
-            "Parameter " ++ nm ++ " is shorter than 2 characters."} <> _, _) : List<&2, F.Finding>}
+            "Parameter " ++ nm ++ " is too short; use at least 2 characters."} <> _, _) : List<&2, F.Finding>}
       {==}
 
 def Laws.inert_param(b1, b2, path, e):
@@ -19965,7 +19965,7 @@ def inert.strict.lg(kk, t, l, c, o, name, path, outer, hot, kids, r2, ef, en, ik
   %inert.eq_keep(Laws.inert.blanks(kk), t, name, ef, en) : {Strict.call(tt, l, c, o, name, path, hot, wk, wr)
     == Bool.pick(List<&2, F.Finding>, Bool.and(Bool.and(String.eq(o, "("), _), hot),
       F.Finding{path, l, c, U32.from_nat(String.length(name)), "strict",
-        name ++ " recurses inside Bool.and or Bool.or, so both sides always run and there is no short-circuit; bind the call above."}
+        name ++ " calls itself inside Bool.and or Bool.or, which evaluate both sides, so there is no short-circuit; match on the Bool in a helper."}
         <> List.concat(&2, F.Finding, [wk, wr]), List.concat(&2, F.Finding, [wk, wr])) : List<&2, F.Finding>}
   {==}
 

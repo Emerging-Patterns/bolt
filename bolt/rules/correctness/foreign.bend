@@ -56,9 +56,9 @@ def lack(mm: Maybe<&2, Lanes>, +native: Bool, +name: String) -> String:
       ""
     case Some{Lanes{+c, +js}}:
       Bool.pick(String, Bool.and(c, Bool.and(Bool.not(js), Bool.not(native))),
-        "Foreign def " ++ name ++ " has a .c body but no .js body, so the JS lane cannot run it.",
+        "Foreign def " ++ name ++ " has a .c body but no .js body, so it cannot run on the JS lane.",
         Bool.pick(String, Bool.and(js, Bool.not(c)),
-          "Foreign def " ++ name ++ " has a .js body but no .c body, so a native build cannot run it.", ""))
+          "Foreign def " ++ name ++ " has a .js body but no .c body, so it cannot run in a native build.", ""))
 
 # a message as a finding, when there is one
 def at(+msg: String, +line: U32, +col: U32, +path: String, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:

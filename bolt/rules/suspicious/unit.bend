@@ -73,7 +73,7 @@ def cite(mm: Maybe<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
       Nil{}
     case Some{Lex.Tok{k, +t, l, c}}:
       [F.Finding{path, l, c, U32.from_nat(String.length(t)), "unit",
-        t ++ " is a multiply or divide by one, which changes nothing; drop the operation."}]
+        "Multiplying or dividing by " ++ t ++ " has no effect; drop the operation."}]
 
 # an argument that is exactly the literal one
 def arg_one(aa: Tree.Node) -> Maybe<&2, Lex.Tok>:

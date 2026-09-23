@@ -37,7 +37,7 @@ def check.go(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
       +more = check.go(rest, path)
       Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Calls.kind.oper(k), Lazy.and_then(String.eq(q, "?"),
         _u => check.todo(rest)))), more,
-        _u => F.Finding{path, l, c, check.width(rest, l, c), "hole", "A ?TODO is left here."} <> more)
+        _u => F.Finding{path, l, c, check.width(rest, l, c), "hole", "This ?TODO hole is still unfilled."} <> more)
     case Nil{}:
       Nil{}
 
