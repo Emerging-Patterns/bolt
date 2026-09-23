@@ -497,70 +497,51 @@ def step(within: Bool, ss: String, st: St) -> St:
     case False{}:
       step.code(ss, st)
 
-# the lines after a string's first, numbered from nn, onto acc (reversed)
-def spanned(ls: List<&2, String>, +nn: U32, acc: List<&2, U32>) -> List<&2, U32>:
-  match ls:
-    case Nil{}:
+# one flag per line break in a text, onto acc (reversed), each str: whether
+# the text is a string's
+def breaks(tt: String, +str: Bool, +acc: List<&2, Bool>) -> List<&2, Bool>:
+  match tt:
+    case SNil{}:
       acc
-    case Con{h, t}:
-      spanned(t, (nn + 1 : U32), nn <> acc)
+    case SCon{h, t}:
+      breaks(t, str, Bool.pick(List<&2, Bool>, U32.is_eq(Char.to_u32(h), 10), str <> acc, acc)) # '\n'
 
-# a string's first line starts outside it; the lines after it start inside
-def spanned.first(ls: List<&2, String>, +nn: U32, acc: List<&2, U32>) -> List<&2, U32>:
-  match ls:
-    case Nil{}:
-      acc
-    case Con{h, t}:
-      spanned(t, (nn + 1 : U32), acc)
-
-# the lines a token starts inside, when it is a string, onto acc (reversed)
-def inside.tok(kk: Lex.TokKind, tt: String, +ll: U32, acc: List<&2, U32>) -> List<&2, U32>:
-  match kk:
-    case Lex.TStr{}:
-      spanned.first(String.lines(tt), ll, acc)
-    case other:
-      acc
-
-def inside.go(toks: List<&2, Lex.Tok>, acc: List<&2, U32>) -> List<&2, U32>:
+def inside.go(toks: List<&2, Lex.Tok>, acc: List<&2, Bool>) -> List<&2, Bool>:
   match toks:
     case Nil{}:
       acc
     case Con{Lex.Tok{k, t, l, c}, rest}:
-      inside.go(rest, inside.tok(k, t, l, acc))
+      inside.go(rest, breaks(t, Lex.is_str(k), acc))
 
-# the lines (0-based, ascending) that start inside a string token
-def inside(toks: List<&2, Lex.Tok>) -> List<&2, U32>:
-  List.reverse(&2, U32, inside.go(toks, []))
+# one flag per line, in order: does it start inside a string? Line 0 does
+# not; the line after a line break does when the break sits in a string token
+def inside(toks: List<&2, Lex.Tok>) -> List<&2, Bool>:
+  False{} <> List.reverse(&2, Bool, inside.go(toks, []))
 
-# does line nn start inside a string? ins are the inside lines ahead
-def inside.hit(ins: List<&2, U32>, +nn: U32) -> Bool:
+# does the line start inside a string? ins are the flags of it and the lines
+# after it; none left is no
+def inside.hit(ins: List<&2, Bool>) -> Bool:
   match ins:
     case Nil{}:
       False{}
     case Con{h, t}:
-      U32.is_eq(h, nn)
+      h
 
-# the inside lines ahead once line nn is read
-def inside.rest(ins: List<&2, U32>, +nn: U32) -> List<&2, U32>:
+# the flags of the lines after this one
+def inside.rest(ins: List<&2, Bool>) -> List<&2, Bool>:
   match ins:
     case Nil{}:
       Nil{}
-    case Con{+h, +t}:
-      Bool.pick(List<&2, U32>, U32.is_eq(h, nn), t, h <> t)
+    case Con{h, t}:
+      t
 
-# the line number the state is at
-def line_of(st: St) -> U32:
-  St{mode, n, doc, out} = st
-  n
-
-# every line, in order; ins are the lines ahead that start inside a string
-def run(lines: List<&2, String>, +st: St, +ins: List<&2, U32>) -> St:
+# every line, in order; ins flags the lines ahead that start inside a string
+def run(lines: List<&2, String>, st: St, +ins: List<&2, Bool>) -> St:
   match lines:
     case Nil{}:
       st
     case Con{l, t}:
-      +nn = line_of(st)
-      run(t, step(inside.hit(ins, nn), l, st), inside.rest(ins, nn))
+      run(t, step(inside.hit(ins), l, st), inside.rest(ins))
 
 # the items once the lines are over, a pending header flushed
 def finish(st: St) -> List<&2, Item>:
