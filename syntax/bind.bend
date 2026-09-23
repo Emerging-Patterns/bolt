@@ -203,7 +203,9 @@ type Out is Data:
   Out{binds: List<&2, Bind>, uses: List<&2, Use>, scopes: List<&2, Scope>}
 
 # what the walk is reading; MLhs and MLhsType carry the environment the
-# right side of the let will see, and MLhs the kind its names bind with
+# right side of the let will see, and MLhs the kind its names bind with.
+# MSkip steps over one node (a name a form already bound), then reads on in
+# next; MStop reads nothing more
 type Mode is Data:
   MBlock{}
   MCtors{}
@@ -216,16 +218,12 @@ type Mode is Data:
   MLhs{outer: List<&2, Bind>, kind: BindKind}
   MLhsType{outer: List<&2, Bind>}
   MTerm{}
+  MSkip{next: Mode}
+  MStop{}
 
 # the walk's result: the environment after, and the output
 type W is Data:
   W{env: List<&2, Bind>, out: Out}
-
-# a new binder, into the environment and the output
-def bind(+name: String, +line: U32, +col: U32, kind: BindKind, env: List<&2, Bind>, out: Out) -> W:
-  Out{binds, uses, scopes} = out
-  +b = {Bind{name, line, col, kind, ""} : Bind}
-  W{b <> env, Out{b <> binds, uses, scopes}}
 
 # a declaration as written: `+x: List<&2, U32>`, `~f: U32 -> U32`. A space
 # follows `:` and `,`, spaces surround `->`, everything else is glued
@@ -263,22 +261,6 @@ def render(nn: Tree.Node) -> String:
     case other:
       ""
 
-# a telescope binder, with its declaration as the note: the quantity before
-# it, its name, and the rest up to the comma
-def bind_decl(
-  +name: String,
-  +line: U32,
-  +col: U32,
-  kind: BindKind,
-  +quantity: String,
-  rest: Tree.Node,
-  env: List<&2, Bind>,
-  out: Out
-) -> W:
-  Out{binds, uses, scopes} = out
-  +b = {Bind{name, line, col, kind, quantity ++ name ++ render(rest)} : Bind}
-  W{b <> env, Out{b <> binds, uses, scopes}}
-
 # a use of a name, resolved against the environment
 def use(+name: String, line: U32, col: U32, +env: List<&2, Bind>, ns: Names, out: Out) -> W:
   Out{binds, uses, scopes} = out
@@ -305,197 +287,461 @@ def out_of(ww: W) -> Out:
   W{env, out} = ww
   out
 
-# the walk: one node in one mode, against an environment. Every recursive
-# call is on a subtree (kids, body, gkids or rest), never on n itself
-def walk(nn: Tree.Node, mode: Mode, +env: List<&2, Bind>, +ns: Names, out: Out) -> W:
-  match nn mode:
-    # statements
-    case Tree.NCons{Tree.Stmt{Tree.SDef{}, +kids, body}, rest} MBlock{}:
-      +h = walk(kids, MHead{}, env, ns, out)
-      +b = walk(body, MBlock{}, env_of(h), ns, mark(Tree.line(kids), env_of(h), out_of(h)))
-      walk(rest, MBlock{}, env, ns, out_of(b))
-    case Tree.NCons{Tree.Stmt{Tree.SLaw{}, kids, body}, rest} MBlock{}:
-      +h = walk(kids, MHead{}, env, ns, out)
-      +b = walk(body, MBlock{}, env_of(h), ns, out_of(h))
-      walk(rest, MBlock{}, env, ns, out_of(b))
-    case Tree.NCons{Tree.Stmt{Tree.SType{}, kids, body}, rest} MBlock{}:
-      +h = walk(kids, MHead{}, env, ns, out)
-      +b = walk(body, MCtors{}, env_of(h), ns, out_of(h))
-      walk(rest, MBlock{}, env, ns, out_of(b))
-    case Tree.NCons{Tree.Stmt{Tree.SImport{}, kids, body}, rest} MBlock{}:
-      walk(rest, MBlock{}, env, ns, out)
-    case Tree.NCons{Tree.Stmt{Tree.SCase{}, +kids, body}, rest} MBlock{}:
-      +p = walk(kids, MLhs{env, KPat{}}, env, ns, mark(Tree.line(kids), env, out))
-      +b = walk(body, MBlock{}, env_of(p), ns, out_of(p))
-      walk(rest, MBlock{}, env, ns, out_of(b))
-    case Tree.NCons{Tree.Stmt{Tree.SFor{}, +kids, body}, rest} MBlock{}:
-      +f = walk(kids, MLhs{env, KFor{}}, env, ns, mark(Tree.line(kids), env, out))
-      +b = walk(body, MBlock{}, env_of(f), ns, out_of(f))
-      walk(rest, MBlock{}, env_of(f), ns, out_of(b))
-    case Tree.NCons{Tree.Stmt{Tree.SLet{}, +kids, body}, rest} MBlock{}:
-      +l = walk(kids, MLhs{env, KLocal{}}, env, ns, mark(Tree.line(kids), env, out))
-      +b = walk(body, MBlock{}, env_of(l), ns, out_of(l))
-      walk(rest, MBlock{}, env_of(l), ns, out_of(b))
-    case Tree.NCons{Tree.Stmt{Tree.STerm{}, +kids, body}, rest} MBlock{}:
-      +t = walk(kids, MTerm{}, env, ns, mark(Tree.line(kids), env, out))
-      +b = walk(body, MBlock{}, env_of(t), ns, out_of(t))
-      walk(rest, MBlock{}, env, ns, out_of(b))
-    # a type's constructor lines
-    case Tree.NCons{Tree.Stmt{k, +kids, body}, rest} MCtors{}:
-      +c = walk(kids, MCtor{}, env, ns, mark(Tree.line(kids), env, out))
-      walk(rest, MCtors{}, env, ns, out_of(c))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}}, rest} MCtor{}:
-      +w = bind(t, l, c, KCtor{}, env, out)
-      walk(rest, MSig{}, env, ns, out_of(w))
-    case Tree.NCons{h, rest} MCtor{}:
-      walk(rest, MSig{}, env, ns, out)
-    # an item's header: skip to its keyword, then its name, then its signature
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TKey{}, t, l, c}}, rest} MHead{}:
-      walk(rest, MName{}, env, ns, out)
-    case Tree.NCons{h, rest} MHead{}:
-      walk(rest, MHead{}, env, ns, out)
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, rest} MName{}:
-      +w = bind(t, l, c, KItem{}, env, out)
-      walk(rest, MSig{}, env, ns, out_of(w))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}}, rest} MName{}:
-      +w = bind(t, l, c, KItem{}, env, out)
-      walk(rest, MSig{}, env, ns, out_of(w))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TDotted{}, t, l, c}}, rest} MName{}:
-      +w = bind(t, l, c, KItem{}, env, out)
-      walk(rest, MSig{}, env, ns, out_of(w))
-    case Tree.NCons{h, rest} MName{}:
-      walk(rest, MSig{}, env, ns, out)
-    case Tree.NCons{Tree.Group{Lex.Tok{k, t, l, c}, gkids, close}, rest} MSig{}:
-      +p = walk(gkids, MTele{tele_kind(t)}, env, ns, out)
-      walk(rest, MTerm{}, env_of(p), ns, out_of(p))
-    case Tree.NCons{h, rest} MSig{}:
-      walk(rest, MTerm{}, env, ns, out)
-    # a telescope: names bind, `:` starts a type that runs to the next comma
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, q, ql, qc}},
-      Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, rest}} MTele{+kind}:
-      +r = {rest : Tree.Node}
-      +w = bind_decl(t, l, c, kind, q, r, env, out)
-      walk(r, MTele{kind}, env_of(w), ns, out_of(w))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, q, ql, qc}},
-      Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}}, rest}} MTele{+kind}:
-      +r = {rest : Tree.Node}
-      +w = bind_decl(t, l, c, kind, q, r, env, out)
-      walk(r, MTele{kind}, env_of(w), ns, out_of(w))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, rest} MTele{+kind}:
-      +r = {rest : Tree.Node}
-      +w = bind_decl(t, l, c, kind, "", r, env, out)
-      walk(r, MTele{kind}, env_of(w), ns, out_of(w))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}}, rest} MTele{+kind}:
-      +r = {rest : Tree.Node}
-      +w = bind_decl(t, l, c, kind, "", r, env, out)
-      walk(r, MTele{kind}, env_of(w), ns, out_of(w))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}}, rest} MTele{+kind}:
-      walk(rest, MTeleType{kind}, env, ns, out)
-    case Tree.NCons{h, rest} MTele{+kind}:
-      walk(rest, MTele{kind}, env, ns, out)
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}, rest} MTeleType{+kind}:
-      walk(rest, MTele{kind}, env, ns, out)
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TAll{}, t, l, c}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, x, xl, xc}},
-      Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, ct, cl, cc}}, rest}}} MTeleType{+kind}:
-      +w = bind(x, xl, xc, KTypeVar{}, env, out)
-      walk(rest, MTeleType{kind}, env_of(w), ns, out_of(w))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, rest} MTeleType{+kind}:
-      +w = use(t, l, c, env, ns, out)
-      walk(rest, MTeleType{kind}, env, ns, out_of(w))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}}, rest} MTeleType{+kind}:
-      +w = use(t, l, c, env, ns, out)
-      walk(rest, MTeleType{kind}, env, ns, out_of(w))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TDotted{}, t, l, c}}, rest} MTeleType{+kind}:
-      +w = use(t, l, c, env, ns, out)
-      walk(rest, MTeleType{kind}, env, ns, out_of(w))
-    case Tree.NCons{Tree.Group{open, gkids, close}, rest} MTeleType{+kind}:
-      +g = walk(gkids, MTerm{}, env, ns, out)
-      walk(rest, MTeleType{kind}, env, ns, out_of(g))
-    case Tree.NCons{h, rest} MTeleType{+kind}:
-      walk(rest, MTeleType{kind}, env, ns, out)
-    # a pattern, or a let's left side: names bind, `K{..}` and `(..)` nest
-    # (as patterns), `:` starts a type, `=` / `<-` start the right side
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}},
-      Tree.NCons{Tree.Group{open, gkids, close}, rest}} MLhs{+outer, kind}:
-      +w = use(t, l, c, env, ns, out)
-      +g = walk(gkids, MLhs{outer, KPat{}}, env, ns, out_of(w))
-      walk(rest, MLhs{outer, KPat{}}, env_of(g), ns, out_of(g))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TDotted{}, t, l, c}},
-      Tree.NCons{Tree.Group{open, gkids, close}, rest}} MLhs{+outer, kind}:
-      +w = use(t, l, c, env, ns, out)
-      +g = walk(gkids, MLhs{outer, KPat{}}, env, ns, out_of(w))
-      walk(rest, MLhs{outer, KPat{}}, env_of(g), ns, out_of(g))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, rest} MLhs{+outer, +kind}:
-      +w = bind(t, l, c, kind, env, out)
-      walk(rest, MLhs{outer, kind}, env_of(w), ns, out_of(w))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}}, rest} MLhs{+outer, +kind}:
-      +w = bind(t, l, c, kind, env, out)
-      walk(rest, MLhs{outer, kind}, env_of(w), ns, out_of(w))
-    case Tree.NCons{Tree.Group{open, gkids, close}, rest} MLhs{+outer, kind}:
-      +g = walk(gkids, MLhs{outer, KPat{}}, env, ns, out)
-      walk(rest, MLhs{outer, KPat{}}, env_of(g), ns, out_of(g))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}}, rest} MLhs{outer, kind}:
-      walk(rest, MLhsType{outer}, env, ns, out)
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}}, rest} MLhs{outer, kind}:
-      +r = walk(rest, MTerm{}, outer, ns, out)
-      W{env, out_of(r)}
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TBind{}, t, l, c}}, rest} MLhs{outer, kind}:
-      +r = walk(rest, MTerm{}, outer, ns, out)
-      W{env, out_of(r)}
-    case Tree.NCons{h, rest} MLhs{outer, kind}:
-      walk(rest, MLhs{outer, kind}, env, ns, out)
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}}, rest} MLhsType{+outer}:
-      +r = walk(rest, MTerm{}, outer, ns, out)
-      W{env, out_of(r)}
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TBind{}, t, l, c}}, rest} MLhsType{+outer}:
-      +r = walk(rest, MTerm{}, outer, ns, out)
-      W{env, out_of(r)}
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, rest} MLhsType{+outer}:
-      +w = use(t, l, c, env, ns, out)
-      walk(rest, MLhsType{outer}, env, ns, out_of(w))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}}, rest} MLhsType{+outer}:
-      +w = use(t, l, c, env, ns, out)
-      walk(rest, MLhsType{outer}, env, ns, out_of(w))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TDotted{}, t, l, c}}, rest} MLhsType{+outer}:
-      +w = use(t, l, c, env, ns, out)
-      walk(rest, MLhsType{outer}, env, ns, out_of(w))
-    case Tree.NCons{Tree.Group{open, gkids, close}, rest} MLhsType{+outer}:
-      +g = walk(gkids, MTerm{}, env, ns, out)
-      walk(rest, MLhsType{outer}, env, ns, out_of(g))
-    case Tree.NCons{h, rest} MLhsType{+outer}:
-      walk(rest, MLhsType{outer}, env, ns, out)
-    # terms: names are uses; `x =>`, `@x:` and `&x:` bind for the rest
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}},
-      Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TLam{}, lt, ll, lc}}, rest}} MTerm{}:
-      +w = bind(t, l, c, KLocal{}, env, out)
-      walk(rest, MTerm{}, env_of(w), ns, out_of(w))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TAll{}, t, l, c}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, x, xl, xc}},
-      Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, ct, cl, cc}}, rest}}} MTerm{}:
-      +w = bind(x, xl, xc, KTypeVar{}, env, out)
-      walk(rest, MTerm{}, env_of(w), ns, out_of(w))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TAll{}, t, l, c}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, x, xl, xc}},
-      Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, ct, cl, cc}}, rest}}} MTerm{}:
-      +w = bind(x, xl, xc, KTypeVar{}, env, out)
-      walk(rest, MTerm{}, env_of(w), ns, out_of(w))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TAmp{}, t, l, c}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, x, xl, xc}},
-      Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, ct, cl, cc}}, rest}}} MTerm{}:
-      +w = bind(x, xl, xc, KTypeVar{}, env, out)
-      walk(rest, MTerm{}, env_of(w), ns, out_of(w))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, rest} MTerm{}:
-      +w = use(t, l, c, env, ns, out)
-      walk(rest, MTerm{}, env, ns, out_of(w))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}}, rest} MTerm{}:
-      +w = use(t, l, c, env, ns, out)
-      walk(rest, MTerm{}, env, ns, out_of(w))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TDotted{}, t, l, c}}, rest} MTerm{}:
-      +w = use(t, l, c, env, ns, out)
-      walk(rest, MTerm{}, env, ns, out_of(w))
-    case Tree.NCons{Tree.Group{open, gkids, close}, rest} MTerm{}:
-      +g = walk(gkids, MTerm{}, env, ns, out)
-      walk(rest, MTerm{}, env, ns, out_of(g))
-    case Tree.NCons{h, rest} MTerm{}:
-      walk(rest, MTerm{}, env, ns, out)
-    case other m:
+# the plan of a step
+# ------------------
+# The walk takes a node apart only as far as its head (a leaf, a group, a
+# statement, or anything else), and recurses on the head's parts and on the
+# rest of the chain. What each step does -- the mode it reads the rest in,
+# whether it binds or uses a name, which environment it passes on -- is
+# decided by the plain defs below, from the mode, the head and a peek at the
+# rest. The forms that need a peek (`K{..}`, `op name`, `x =>`, `@x:`, `&x:`)
+# read the rest from where they are, and a name the form already bound is
+# stepped over in MSkip.
+
+# does the chain start with a leaf of this kind?
+def plan.lam(rest: Tree.Node) -> Bool:
+  match rest:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TLam{}, _t, _l, _c}}, _r}:
+      True{}
+    case _other:
+      False{}
+
+# does the chain start with a group?
+def plan.group(rest: Tree.Node) -> Bool:
+  match rest:
+    case Tree.NCons{Tree.Group{_o, _g, _cl}, _r}:
+      True{}
+    case _other:
+      False{}
+
+# does the chain start with a name (lower or upper case)?
+def plan.named(rest: Tree.Node) -> Bool:
+  match rest:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, _t, _l, _c}}, _r}:
+      True{}
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, _t, _l, _c}}, _r}:
+      True{}
+    case _other:
+      False{}
+
+# does the chain start with a name and a `:`? An upper-case name counts when
+# upper says so
+def plan.typed(rest: Tree.Node, upper: Bool) -> Bool:
+  match rest:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, _t, _l, _c}},
+      Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, _ct, _cl, _cc}}, _r}}:
+      True{}
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, _t, _l, _c}},
+      Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, _ct, _cl, _cc}}, _r}}:
+      upper
+    case _other:
+      False{}
+
+# the chain's first token; a blank one when it does not start with a leaf
+def plan.peek(rest: Tree.Node) -> Lex.Tok:
+  match rest:
+    case Tree.NCons{Tree.Leaf{tok}, _r}:
+      tok
+    case _other:
+      Lex.Tok{Lex.TSpace{}, "", 0, 0}
+
+# the chain after its first node
+def plan.tail(rest: Tree.Node) -> Tree.Node:
+  match rest:
+    case Tree.NCons{_h, r}:
+      r
+    case _other:
+      Tree.NNil{}
+
+# the mode the rest is read in after a head that means nothing in this mode
+def plan.skip(mode: Mode) -> Mode:
+  match mode:
+    case MBlock{}:
+      MStop{}
+    case MCtors{}:
+      MStop{}
+    case MCtor{}:
+      MSig{}
+    case MHead{}:
+      MHead{}
+    case MName{}:
+      MSig{}
+    case MSig{}:
+      MTerm{}
+    case MTele{kind}:
+      MTele{kind}
+    case MTeleType{kind}:
+      MTeleType{kind}
+    case MLhs{outer, kind}:
+      MLhs{outer, kind}
+    case MLhsType{outer}:
+      MLhsType{outer}
+    case MTerm{}:
+      MTerm{}
+    case MSkip{next}:
+      next
+    case MStop{}:
+      MStop{}
+
+# the mode the rest is read in after a leaf of kind k
+def plan.lmode(mode: Mode, kk: Lex.TokKind, +rest: Tree.Node) -> Mode:
+  match mode kk:
+    case MHead{} Lex.TKey{}:
+      MName{}
+    case MTele{+kind} Lex.TOp{}:
+      Bool.pick(Mode, plan.named(rest), MSkip{MTele{kind}}, MTele{kind})
+    case MTele{kind} Lex.TColon{}:
+      MTeleType{kind}
+    case MTeleType{kind} Lex.TComma{}:
+      MTele{kind}
+    case MTeleType{+kind} Lex.TAll{}:
+      Bool.pick(Mode, plan.typed(rest, False{}), MSkip{MTeleType{kind}}, MTeleType{kind})
+    case MLhs{+outer, kind} Lex.TUpper{}:
+      Bool.pick(Mode, plan.group(rest), MLhs{outer, KPat{}}, MLhs{outer, kind})
+    case MLhs{+outer, kind} Lex.TDotted{}:
+      Bool.pick(Mode, plan.group(rest), MLhs{outer, KPat{}}, MLhs{outer, kind})
+    case MLhs{outer, _kind} Lex.TColon{}:
+      MLhsType{outer}
+    case MLhs{_outer, _kind} Lex.TEq{}:
+      MTerm{}
+    case MLhs{_outer, _kind} Lex.TBind{}:
+      MTerm{}
+    case MLhsType{_outer} Lex.TEq{}:
+      MTerm{}
+    case MLhsType{_outer} Lex.TBind{}:
+      MTerm{}
+    case MTerm{} Lex.TAll{}:
+      Bool.pick(Mode, plan.typed(rest, True{}), MSkip{MTerm{}}, MTerm{})
+    case MTerm{} Lex.TAmp{}:
+      Bool.pick(Mode, plan.typed(rest, False{}), MSkip{MTerm{}}, MTerm{})
+    case other _k:
+      plan.skip(other)
+
+# does a leaf of kind k record a binder?
+def plan.rec(mode: Mode, kk: Lex.TokKind, +rest: Tree.Node) -> Bool:
+  match mode kk:
+    case MCtor{} Lex.TUpper{}:
+      True{}
+    case MName{} Lex.TName{}:
+      True{}
+    case MName{} Lex.TUpper{}:
+      True{}
+    case MName{} Lex.TDotted{}:
+      True{}
+    case MTele{_kind} Lex.TOp{}:
+      plan.named(rest)
+    case MTele{_kind} Lex.TName{}:
+      True{}
+    case MTele{_kind} Lex.TUpper{}:
+      True{}
+    case MTeleType{_kind} Lex.TAll{}:
+      plan.typed(rest, False{})
+    case MLhs{_outer, _kind} Lex.TUpper{}:
+      Bool.not(plan.group(rest))
+    case MLhs{_outer, _kind} Lex.TName{}:
+      True{}
+    case MTerm{} Lex.TName{}:
+      plan.lam(rest)
+    case MTerm{} Lex.TAll{}:
+      plan.typed(rest, True{})
+    case MTerm{} Lex.TAmp{}:
+      plan.typed(rest, False{})
+    case _other _k:
+      False{}
+
+# does the binder a leaf records go into the environment too? All do but an
+# item's name and a constructor's, which the file's items hold
+def plan.push(mode: Mode, kk: Lex.TokKind, rest: Tree.Node) -> Bool:
+  match mode:
+    case MCtor{}:
+      False{}
+    case MName{}:
+      False{}
+    case other:
+      plan.rec(other, kk, rest)
+
+# does a leaf of kind k use a name?
+def plan.use(mode: Mode, kk: Lex.TokKind, +rest: Tree.Node) -> Bool:
+  match mode kk:
+    case MTeleType{_kind} Lex.TName{}:
+      True{}
+    case MTeleType{_kind} Lex.TUpper{}:
+      True{}
+    case MTeleType{_kind} Lex.TDotted{}:
+      True{}
+    case MLhs{_outer, _kind} Lex.TUpper{}:
+      plan.group(rest)
+    case MLhs{_outer, _kind} Lex.TDotted{}:
+      plan.group(rest)
+    case MLhsType{_outer} Lex.TName{}:
+      True{}
+    case MLhsType{_outer} Lex.TUpper{}:
+      True{}
+    case MLhsType{_outer} Lex.TDotted{}:
+      True{}
+    case MTerm{} Lex.TName{}:
+      Bool.not(plan.lam(rest))
+    case MTerm{} Lex.TUpper{}:
+      True{}
+    case MTerm{} Lex.TDotted{}:
+      True{}
+    case _other _k:
+      False{}
+
+# is a leaf of kind k the `=` or `<-` of a let, whose right side sees the
+# names outside the let?
+def plan.keep(mode: Mode, kk: Lex.TokKind) -> Bool:
+  match mode kk:
+    case MLhs{_outer, _kind} Lex.TEq{}:
+      True{}
+    case MLhs{_outer, _kind} Lex.TBind{}:
+      True{}
+    case MLhsType{_outer} Lex.TEq{}:
+      True{}
+    case MLhsType{_outer} Lex.TBind{}:
+      True{}
+    case _other _k:
+      False{}
+
+# the environment outside a let's left side
+def plan.outer(mode: Mode) -> List<&2, Bind>:
+  match mode:
+    case MLhs{outer, _kind}:
+      outer
+    case MLhsType{outer}:
+      outer
+    case _other:
+      []
+
+# a binder at the next token, with the note its kind shows
+def plan.ahead(tok: Lex.Tok, kind: BindKind, +note: String) -> Bind:
+  match tok:
+    case Lex.Tok{_k, t, l, c}:
+      Bind{t, l, c, kind, note}
+
+# the name of the next token, "" when there is none
+def plan.ahead_name(tok: Lex.Tok) -> String:
+  match tok:
+    case Lex.Tok{_k, t, _l, _c}:
+      t
+
+# the binder a leaf records: its own name, or for `op name`, `@x:` and `&x:`
+# the name after it. A telescope's binder notes its declaration
+def plan.binder(mode: Mode, kk: Lex.TokKind, +tt: String, ll: U32, cc: U32, +rest: Tree.Node) -> Bind:
+  match mode kk:
+    case MCtor{} _k:
+      Bind{tt, ll, cc, KCtor{}, ""}
+    case MName{} _k:
+      Bind{tt, ll, cc, KItem{}, ""}
+    case MTele{kind} Lex.TOp{}:
+      plan.ahead(plan.peek(rest), kind, tt ++ plan.ahead_name(plan.peek(rest)) ++ render(plan.tail(rest)))
+    case MTele{kind} _k:
+      Bind{tt, ll, cc, kind, "" ++ tt ++ render(rest)}
+    case MTeleType{_kind} _k:
+      plan.ahead(plan.peek(rest), KTypeVar{}, "")
+    case MLhs{_outer, kind} _k:
+      Bind{tt, ll, cc, kind, ""}
+    case MTerm{} Lex.TName{}:
+      Bind{tt, ll, cc, KLocal{}, ""}
+    case MTerm{} _k:
+      plan.ahead(plan.peek(rest), KTypeVar{}, "")
+    case _other _k:
+      Bind{tt, ll, cc, KLocal{}, ""}
+
+# a binder onto the environment, when there is one
+def plan.pushed(push: Bool, +bb: Bind, env: List<&2, Bind>) -> List<&2, Bind>:
+  match push:
+    case True{}:
+      bb <> env
+    case False{}:
+      env
+
+# a binder onto the output, when there is one
+def plan.recorded(rec: Bool, +bb: Bind, out: Out) -> Out:
+  match rec:
+    case True{}:
+      Out{binds, uses, scopes} = out
+      Out{bb <> binds, uses, scopes}
+    case False{}:
+      out
+
+# a use onto the output, when there is one
+def plan.used(usd: Bool, +name: String, line: U32, col: U32, env: List<&2, Bind>, ns: Names, out: Out) -> Out:
+  match usd:
+    case True{}:
+      out_of(use(name, line, col, env, ns, out))
+    case False{}:
+      out
+
+# the environment the rest is read with after a leaf: the one outside a
+# let's left side at its `=`, else this one with the leaf's binder on it
+def plan.enter(
+  keep: Bool,
+  outer: List<&2, Bind>,
+  push: Bool,
+  +bb: Bind,
+  env: List<&2, Bind>
+) -> List<&2, Bind>:
+  match keep:
+    case True{}:
+      outer
+    case False{}:
+      plan.pushed(push, bb, env)
+
+# the mode a group's insides are read in; MStop when they mean nothing here
+def plan.ginner(mode: Mode, +gt: String) -> Mode:
+  match mode:
+    case MSig{}:
+      MTele{tele_kind(gt)}
+    case MTeleType{_kind}:
+      MTerm{}
+    case MLhs{outer, _kind}:
+      MLhs{outer, KPat{}}
+    case MLhsType{_outer}:
+      MTerm{}
+    case MTerm{}:
+      MTerm{}
+    case _other:
+      MStop{}
+
+# the mode the rest is read in after a group
+def plan.gnext(mode: Mode) -> Mode:
+  match mode:
+    case MSig{}:
+      MTerm{}
+    case MLhs{outer, _kind}:
+      MLhs{outer, KPat{}}
+    case other:
+      plan.skip(other)
+
+# do the names a group binds stay bound after it? A signature's parameters
+# and a pattern's binders do
+def plan.gkeeps(mode: Mode) -> Bool:
+  match mode:
+    case MSig{}:
+      True{}
+    case MLhs{_outer, _kind}:
+      True{}
+    case _other:
+      False{}
+
+# the mode a statement's header is read in
+def plan.kmode(mode: Mode, sk: Tree.StmtKind, +env: List<&2, Bind>) -> Mode:
+  match mode sk:
+    case MBlock{} Tree.SDef{}:
+      MHead{}
+    case MBlock{} Tree.SLaw{}:
+      MHead{}
+    case MBlock{} Tree.SType{}:
+      MHead{}
+    case MBlock{} Tree.SImport{}:
+      MStop{}
+    case MBlock{} Tree.SCase{}:
+      MLhs{env, KPat{}}
+    case MBlock{} Tree.SFor{}:
+      MLhs{env, KFor{}}
+    case MBlock{} Tree.SLet{}:
+      MLhs{env, KLocal{}}
+    case MBlock{} Tree.STerm{}:
+      MTerm{}
+    case MCtors{} _sk:
+      MCtor{}
+    case _other _sk:
+      MStop{}
+
+# the mode a statement's body is read in
+def plan.bmode(mode: Mode, sk: Tree.StmtKind) -> Mode:
+  match mode sk:
+    case MBlock{} Tree.SType{}:
+      MCtors{}
+    case MBlock{} Tree.SImport{}:
+      MStop{}
+    case MBlock{} _sk:
+      MBlock{}
+    case _other _sk:
+      MStop{}
+
+# is the scope recorded before a statement's header?
+def plan.mark_head(mode: Mode, sk: Tree.StmtKind) -> Bool:
+  match mode sk:
+    case MBlock{} Tree.SCase{}:
+      True{}
+    case MBlock{} Tree.SFor{}:
+      True{}
+    case MBlock{} Tree.SLet{}:
+      True{}
+    case MBlock{} Tree.STerm{}:
+      True{}
+    case MCtors{} _sk:
+      True{}
+    case _other _sk:
+      False{}
+
+# is the scope recorded between a statement's header and its body? A def's is
+def plan.mark_body(mode: Mode, sk: Tree.StmtKind) -> Bool:
+  match mode sk:
+    case MBlock{} Tree.SDef{}:
+      True{}
+    case _other _sk:
+      False{}
+
+# the scope recorded onto the output, when it is
+def plan.marked(yes: Bool, line: U32, +env: List<&2, Bind>, out: Out) -> Out:
+  match yes:
+    case True{}:
+      mark(line, env, out)
+    case False{}:
+      out
+
+# does a statement close its scope for the statements after it? All but a
+# let and a `for` in a block do
+def plan.scoped(mode: Mode, sk: Tree.StmtKind) -> Bool:
+  match mode sk:
+    case MBlock{} Tree.SFor{}:
+      False{}
+    case MBlock{} Tree.SLet{}:
+      False{}
+    case _other _sk:
+      True{}
+
+# the mode the statements after a statement are read in
+def plan.snext(mode: Mode) -> Mode:
+  match mode:
+    case MBlock{}:
+      MBlock{}
+    case MCtors{}:
+      MCtors{}
+    case other:
+      plan.skip(other)
+
+# the walk: one node in one mode, against an environment. It takes the node
+# apart as far as its head, and the plan above says what the head does in
+# this mode. Every recursive call is on a subtree (kids, body, gkids or
+# rest), never on n itself
+def walk(nn: Tree.Node, +mode: Mode, +env: List<&2, Bind>, +ns: Names, out: Out) -> W:
+  match nn:
+    case Tree.NCons{hd, +rest}:
+      match hd:
+        case Tree.Leaf{Lex.Tok{+k, +t, +l, +c}}:
+          +keep = plan.keep(mode, k)
+          +bb = plan.binder(mode, k, t, l, c, rest)
+          +o1 = plan.recorded(plan.rec(mode, k, rest), bb, out)
+          +o2 = plan.used(plan.use(mode, k, rest), t, l, c, env, ns, o1)
+          +e2 = plan.enter(keep, plan.outer(mode), plan.push(mode, k, rest), bb, env)
+          +r = walk(rest, plan.lmode(mode, k, rest), e2, ns, o2)
+          W{Bool.pick(List<&2, Bind>, keep, env, env_of(r)), out_of(r)}
+        case Tree.Group{Lex.Tok{_gk, gt, _gl, _gc}, gkids, _close}:
+          +g = walk(gkids, plan.ginner(mode, gt), env, ns, out)
+          walk(rest, plan.gnext(mode), Bool.pick(List<&2, Bind>, plan.gkeeps(mode), env_of(g), env), ns, out_of(g))
+        case Tree.Stmt{+sk, +kids, body}:
+          +h = walk(kids, plan.kmode(mode, sk, env), env, ns,
+            plan.marked(plan.mark_head(mode, sk), Tree.line(kids), env, out))
+          +b = walk(body, plan.bmode(mode, sk), env_of(h), ns,
+            plan.marked(plan.mark_body(mode, sk), Tree.line(kids), env_of(h), out_of(h)))
+          walk(rest, plan.snext(mode), Bool.pick(List<&2, Bind>, plan.scoped(mode, sk), env, env_of(h)), ns, out_of(b))
+        case _other:
+          walk(rest, plan.skip(mode), env, ns, out)
+    case _other:
       W{env, out}
 
 # notes
