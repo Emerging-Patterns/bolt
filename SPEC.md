@@ -49,7 +49,7 @@ A Trusted requirement's ID appears once in a requirement table and once in the t
 | BOLT-RULE-S001 | `doc` reports exactly a top-level def, type or law with no comment block right above it, with the header's exemptions. | Proved | pending |  |
 | BOLT-RULE-S002 | `space` reports exactly trailing whitespace or a tab on any line, string literals and `#\|` lines included, or a line over 120 columns with string literals counted as two, comments at full width, and `#\|` lines not counted. | Proved | pending |  |
 | BOLT-RULE-S003 | `wrap` reports exactly a def header whose shape breaks the header's rules. | Proved | pending |  |
-| BOLT-RULE-S004 | `param` reports exactly a parameter name shorter than two characters, with the header's exemptions. | Proved | pending |  |
+| BOLT-RULE-S004 | `param` reports exactly one finding for each parameter binder whose name is shorter than two characters, unless the name is one capital letter (a type parameter) or the parameter is bare or typed `: Quant` (a quantity), none for any other binder, and none at all in a PROOF.bend. | Proved | proved | bolt/rules/LAWS.bend param_counts |
 | BOLT-RULE-P001 | `tail` reports exactly a non-tail self-call outside any `Bool.pick(..)` in a def whose first live parameter's type is a List or String, whether or not the call shrinks it. | Proved | pending |  |
 | BOLT-RULE-EXEMPT | For every text, a per-file rule's check on a path its header exempts returns no findings. | Proved | pending |  |
 | BOLT-RULE-INERT | For every rule whose pattern is code (all but `escape`, `strings`, `chars`, `space`, `twice` and `nat`), changing the contents of a comment or string literal does not change the findings. | Proved | pending |  |
