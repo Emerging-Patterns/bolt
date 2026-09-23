@@ -3,7 +3,8 @@
 # (bolt/lint/world.bend), then loops: it asks
 # the planner (bolt/lint/plan.bend) what is still open, answers each question
 # by IO, a directory listed through bolt/walk/ and a file read through
-# bolt/lsp/files/, and adds the answers to the World, until nothing is left to
+# bolt/lsp/files/ (a path bolt/walk/ calls a directory is answered as one,
+# not read), and adds the answers to the World, until nothing is left to
 # ask. Then it prints the planner's lines and exits with its status. It
 # decides nothing: which files are linted, which bolt.bend grades each
 # finding, and what is printed are the planner's. That it answers and prints
@@ -26,6 +27,16 @@ def read.answer(mm: Maybe<&2, String>) -> W.Answer:
     case Some{text}:
       W.Read{text}
 
+# a path's text as an answer: a directory has none, and a file is read
+def text.answer(dir: Bool, path: String) -> IO(W.Answer):
+  match dir:
+    case True{}:
+      IO.pure(W.Answer, W.Directory{})
+    case False{}:
+      do IO<W.Answer>:
+        mm : Maybe<&2, String> <- Files.read(Disk.new(), path)
+        return read.answer(mm)
+
 # one question, answered
 def answer(ask: W.Ask) -> IO(W.Answer):
   match ask:
@@ -33,10 +44,10 @@ def answer(ask: W.Ask) -> IO(W.Answer):
       do IO<W.Answer>:
         es : List<&2, String> <- Walk.entries(WalkDisk.new(), dir)
         return W.Listed{es}
-    case W.Text{path}:
+    case W.Text{+path}:
       do IO<W.Answer>:
-        mm : Maybe<&2, String> <- Files.read(Disk.new(), path)
-        return read.answer(mm)
+        dir : Bool <- Walk.is_dir(WalkDisk.new(), path)
+        text.answer(dir, path)
 
 # every question, answered, in order
 def answer.all(asks: List<&2, W.Ask>) -> IO(List<&2, W.Reply>):

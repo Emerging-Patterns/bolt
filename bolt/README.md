@@ -19,7 +19,9 @@ Each finding is one line, `path:line:col: level: CODE: message`, with line
 and column 1-based so a terminal can jump to it; then `clean` or the counts.
 `CODE` is the rule's stable id (`S003` is `wrap`). In an editor the same
 finding is source `bolt(style:wrap)` and code `S003`.
-The exit code is 1 when anything was an error. `nix profile install
+A path that cannot be read, a missing file or a directory named on the
+command line, is a `read` finding (`Cannot read this file.`), graded with
+correctness. The exit code is 1 when anything was an error. `nix profile install
 github:Emerging-Patterns/bolt` is what puts it on the PATH as `bolt`.
 
 ## bolt.bend

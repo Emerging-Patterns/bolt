@@ -769,6 +769,13 @@ def Laws.unread_one_finding(world, path, ps, h):
     : List<&2, F.Finding>}
   {==}
 
+def Laws.directory_one_finding(world, path, ps, h):
+  e = Equal.sym(Maybe<&2, W.Answer>, W.answer(world, W.Text{path}), Some{W.Directory{}}, h)
+  %e : {Plan.unread(Plan.Got{path, W.text.got(_)} <> Plan.gots(ps, world))
+    == F.Finding{path, 0, 0, 0, "read", "Cannot read this file."} <> Plan.unread(Plan.gots(ps, world))
+    : List<&2, F.Finding>}
+  {==}
+
 def Laws.read_is_correctness(cfg, path, line, col, len, msg):
   grade.step(Config.level(cfg, "correctness", "read"), F.Finding{path, line, col, len, "read", msg}, [], [], {==})
 
@@ -1210,6 +1217,8 @@ def cfg4.first.step(mm, _ts, _more, ih):
         case W.Read{_text}:
           {==}
         case W.Unread{}:
+          ih
+        case W.Directory{}:
           ih
 
 # the nearest of the texts the World holds at the candidates is the first
