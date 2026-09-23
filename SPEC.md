@@ -57,9 +57,9 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-LAW-1 | In every file under a law directory, except helpers, law files and tests, every def and type is referenced by a quantified law in a LAWS.bend: a use in the law's statement that the binder (BOLT-SYN-5) resolves to that def, through an import alias or in the same file. | Proved | pending |  |
+| BOLT-LAW-1 | In every file under a law directory, except helpers, law files and tests, every def and type is referenced by a quantified law in a LAWS.bend: a use in the law's statement that the binder (BOLT-SYN-5) resolves to that def, through an import alias or in the same file. | Proved | pending | bolt/rules/LAWS.bend coverage_reports |
 | BOLT-LAW-2 | `closed` reports any law in a LAWS.bend with no binder. | Proved | pending |  |
-| BOLT-LAW-3 | An `@unsafe def` reachable by relative imports from a law file in the run is a finding. | Proved | pending |  |
+| BOLT-LAW-3 | An `@unsafe def` reachable by relative imports from a law file in the run is a finding. | Proved | pending | bolt/rules/LAWS.bend unsafe_reports |
 | BOLT-LAW-5 | The traceability rule reports exactly the findings listed under "Tagging and traceability" for the SPEC.md format stated there, where a pending row may name laws that prove part of it and a tag may name a pending row. | Proved | pending | bolt/rules/LAWS.bend trace_pending_judged; bolt/rules/LAWS.bend trace_pending_shape; bolt/rules/LAWS.bend trace_proved_shape; bolt/rules/LAWS.bend trace_trusted_shape; bolt/rules/LAWS.bend trace_pending_claimed; bolt/rules/LAWS.bend trace_trusted_unclaimed; bolt/rules/LAWS.bend trace_unlisted_unclaimed |
 
 ### Grading and config (BOLT-CFG)
