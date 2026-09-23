@@ -3564,3 +3564,50 @@ def Laws.uses(name, line, col, env, its, als, binds, us, scopes):
     x => Bind.W{env, Bind.Out{binds, Bind.Use{name, line, col, x} <> us, scopes}},
     Bind.resolve(env, name, Bind.Names{its, als}), Laws.res.spec(env, name, its, als),
     Laws.resolves(env, name, its, als))
+
+# the environment the walk threads (BOLT-SYN-5)
+# ---------------------------------------------
+
+def Laws.fronts(_name, _line, _col, _kind, _env, out):
+  match out:
+    case Bind.Out{_b, _u, _s}:
+      {==}
+
+def Laws.fronts_decl(name, _line, _col, _kind, quantity, rest, _env, out):
+  match out:
+    case Bind.Out{_b, _u, _s}:
+      (quantity ++ name ++ Bind.render(rest), {==})
+
+def Laws.restores(kk, kids, body, rest, env, ns, out, e):
+  match kk:
+    case Tree.SDef{}:
+      +h = Bind.walk(kids, Bind.MHead{}, env, ns, out)
+      (Bind.out_of(Bind.walk(body, Bind.MBlock{}, Bind.env_of(h), ns,
+        Bind.mark(Tree.line(kids), Bind.env_of(h), Bind.out_of(h)))), {==})
+    case Tree.SType{}:
+      +h = Bind.walk(kids, Bind.MHead{}, env, ns, out)
+      (Bind.out_of(Bind.walk(body, Bind.MCtors{}, Bind.env_of(h), ns, Bind.out_of(h))), {==})
+    case Tree.SLaw{}:
+      +h = Bind.walk(kids, Bind.MHead{}, env, ns, out)
+      (Bind.out_of(Bind.walk(body, Bind.MBlock{}, Bind.env_of(h), ns, Bind.out_of(h))), {==})
+    case Tree.SImport{}:
+      (out, {==})
+    case Tree.SCase{}:
+      +p = Bind.walk(kids, Bind.MLhs{env, Bind.KPat{}}, env, ns, Bind.mark(Tree.line(kids), env, out))
+      (Bind.out_of(Bind.walk(body, Bind.MBlock{}, Bind.env_of(p), ns, Bind.out_of(p))), {==})
+    case Tree.SFor{}:
+      Empty.absurd(&o: Bind.Out
+        -> {Bind.walk(Tree.NCons{Tree.Stmt{Tree.SFor{}, kids, body}, rest}, Bind.MBlock{}, env, ns, out)
+          == Bind.walk(rest, Bind.MBlock{}, env, ns, o) : Bind.W}, false_true(e))
+    case Tree.SLet{}:
+      Empty.absurd(&o: Bind.Out
+        -> {Bind.walk(Tree.NCons{Tree.Stmt{Tree.SLet{}, kids, body}, rest}, Bind.MBlock{}, env, ns, out)
+          == Bind.walk(rest, Bind.MBlock{}, env, ns, o) : Bind.W}, false_true(e))
+    case Tree.STerm{}:
+      +t = Bind.walk(kids, Bind.MTerm{}, env, ns, Bind.mark(Tree.line(kids), env, out))
+      (Bind.out_of(Bind.walk(body, Bind.MBlock{}, Bind.env_of(t), ns, Bind.out_of(t))), {==})
+
+def Laws.groups(open, gkids, _close, _rest, env, ns, out):
+  match open:
+    case Lex.Tok{_k, _t, _l, _c}:
+      (Bind.out_of(Bind.walk(gkids, Bind.MTerm{}, env, ns, out)), {==})
