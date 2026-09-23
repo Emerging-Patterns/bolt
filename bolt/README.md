@@ -104,9 +104,11 @@ What the rules share, `rules/calls.bend` (the recursion rules),
 beside the groups.
 
 - `doc` — every top-level def, type and law has a comment block right above
-  it. Helpers (dotted names like `show.go`) ride on their parent's, `main`
-  needs none, PROOF.bend fills laws that LAWS.bend documents, and a test
-  (under `tests/`) is documented by its header and its check names.
+  it: column-0 `#` lines with no blank line before the item. A block of bare
+  `#` lines counts. Helpers (dotted names like `show.go`) ride on their
+  parent's, `main` needs none, PROOF.bend fills laws that LAWS.bend
+  documents, and a test (under `tests/`) is documented by its header and its
+  check names.
 - `unused` — a name bound by a let, a do-bind, a lambda or as a parameter is
   never used. Exempt: pattern binders (naming every field of `Tok{k, t, l, c}`
   reads better than `_`), names starting with `_`, erased parameters (`-x`),

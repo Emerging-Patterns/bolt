@@ -1,7 +1,9 @@
 # rule doc: every top-level def, type and law has a comment block right above
-# it. Helpers (dotted names like `show.go`) ride on their parent's doc, `main`
-# needs none, PROOF.bend fills laws that LAWS.bend already documents, and a
-# test (under tests/) is documented by its header and its check names.
+# it: one or more column-0 `#` lines with no blank line between them and the
+# item. A block of bare `#` lines counts, though its text is empty. Helpers
+# (dotted names like `show.go`) ride on their parent's doc, `main` needs none,
+# PROOF.bend fills laws that LAWS.bend already documents, and a test (under
+# tests/) is documented by its header and its check names.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
@@ -35,18 +37,32 @@ def what(kk: Outline.ItemKind) -> String:
     case other:
       "Def"
 
-def check.go(items: List<&2, Outline.Item>, +path: String) -> List<&2, F.Finding>:
+# is line nn of the lines a comment line (its first char `#`)?
+def check.hash(lines: List<&2, String>, +nn: U32) -> Bool:
+  match lines:
+    case Nil{}:
+      False{}
+    case Con{hh, tt}:
+      Lazy.stop(Bool, U32.is_eq(nn, 0), String.starts_with(hh, "#"), _u => check.hash(tt, U32.sub(nn, 1)))
+
+# is there a comment line right above line nn? An empty doc text with one
+# there is a block of bare `#` lines
+def check.above(+lines: List<&2, String>, +nn: U32) -> Bool:
+  Lazy.and_then(Bool.not(U32.is_eq(nn, 0)), _u => check.hash(lines, U32.sub(nn, 1)))
+
+def check.go(items: List<&2, Outline.Item>, +path: String, +lines: List<&2, String>) -> List<&2, F.Finding>:
   match items:
     case Nil{}:
       Nil{}
     case Con{Outline.Item{+k, +name, +line, sig, +doc, p}, rest}:
-      +more = check.go(rest, path)
+      +more = check.go(rest, path, lines)
       Bool.pick(List<&2, F.Finding>,
-        Bool.and(Bool.and(needs(k), Bool.not(exempt(name))), String.is_empty(doc)),
+        Lazy.and_then(Bool.and(Bool.and(needs(k), Bool.not(exempt(name))), String.is_empty(doc)),
+          _u => Bool.not(check.above(lines, line))),
         F.Finding{path, line, 0, 0, "doc", what(k) ++ " " ++ name ++ " has no comment above it."} <> more, more)
 
 # the rule
 def check(ss: Src.Src) -> List<&2, F.Finding>:
   Src.Src{+path, text, toks, tree, bound, items} = ss
   Lazy.stop(List<&2, F.Finding>, Bool.or(Paths.is_proof(path), Paths.is_test(path)),
-    [], _u => check.go(items, path))
+    [], _u => check.go(items, path, String.lines(text)))
