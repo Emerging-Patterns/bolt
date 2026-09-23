@@ -43,8 +43,9 @@ A `#|` equality for a proveable claim is a bug. A directory with
     .github/workflows/ ci: `nix flake check`, on a pull request and on a push to main.
                        release-please: on push to main, conventional commits open a
                        release PR; merging it tags `vX.Y.Z` and opens the GitHub Release.
-                       Merge release-please PRs (do not squash) so the action can
-                       cut the tag/GitHub Release.
+                       Squash-merge release-please PRs like any other (merge commits
+                       are off): release-please finds its merged PR by label and cuts
+                       the tag/GitHub Release from the squash commit.
                        tag: workflow_dispatch escape hatch (rewrites the version
                        files, then tags).
                        publish: `ez publish`, the hub upload, workflow_dispatch
