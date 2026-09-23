@@ -3165,6 +3165,141 @@ law rewalk_counts:
   {List.length(&2, F.Finding, Rewalk.check(Src.Src{path, text, toks, tree, bound, items}))
     == rewalk.total(Calls.defs(tree), rewalk.loops(Calls.defs(tree), []), path) : Nat}
 
+# Scope: a path exemption is decided by the path alone. The `law` rule lets
+# off a file by its digest's `exempt` flag, and a per-file rule's header
+# exempts a LAWS.bend, a PROOF.bend or a file under `tests` by bolt/paths.bend.
+# Neither reads the text: two files at one path, whatever each holds, are
+# exempt alike, and an exempt file's findings from the rule that exempts it
+# are the same for both. What a rule reads from content to skip a def, a line
+# or a file (a def returning a proof, a file defining `Map.put`, `#|` lines,
+# `# lanes: native`, `main` and dotted names) is that rule's own behavior,
+# not a path exemption.
+
+# whether the coverage rule lets a digest's file off
+def scope.exempt(dd: Digest.Digest) -> Bool:
+  match dd:
+    case Digest.Digest{_path, _norm, _dir, _is_laws, _is_law_file, exempt, _tops, _says, _deps, _unsafes, _laws}:
+      exempt
+
+# LAW: two files at the same path are exempt from `law` alike, whatever the
+# text, tokens, tree, binding structure and outline of each
+# BOLT-SCOPE-4
+law scope_digest_exempt:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  for +text2: String
+  for +toks2: List<&2, Lex.Tok>
+  for +tree2: Tree.Node
+  for +bound2: Bind.Bound
+  for +items2: List<&2, Outline.Item>
+  {scope.exempt(Digest.of(Src.Src{path, text, toks, tree, bound, items}))
+    == scope.exempt(Digest.of(Src.Src{path, text2, toks2, tree2, bound2, items2})) : Bool}
+
+# LAW: hole's findings on a LAWS.bend are the same for any two sources at
+# that path
+# BOLT-SCOPE-4
+law scope_hole:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  for +text2: String
+  for +toks2: List<&2, Lex.Tok>
+  for +tree2: Tree.Node
+  for +bound2: Bind.Bound
+  for +items2: List<&2, Outline.Item>
+  for +e: {Paths.is_laws(path) == True{} : Bool}
+  {Hole.check(Src.Src{path, text, toks, tree, bound, items})
+    == Hole.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: doc's findings on a PROOF.bend or a file under `tests` are the same
+# for any two sources at that path
+# BOLT-SCOPE-4
+law scope_doc:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  for +text2: String
+  for +toks2: List<&2, Lex.Tok>
+  for +tree2: Tree.Node
+  for +bound2: Bind.Bound
+  for +items2: List<&2, Outline.Item>
+  for +e: {Bool.or(Paths.is_proof(path), Paths.is_test(path)) == True{} : Bool}
+  {Doc.check(Src.Src{path, text, toks, tree, bound, items})
+    == Doc.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: param's findings on a PROOF.bend are the same for any two sources at
+# that path
+# BOLT-SCOPE-4
+law scope_param:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  for +text2: String
+  for +toks2: List<&2, Lex.Tok>
+  for +tree2: Tree.Node
+  for +bound2: Bind.Bound
+  for +items2: List<&2, Outline.Item>
+  for +e: {Paths.is_proof(path) == True{} : Bool}
+  {Param.check(Src.Src{path, text, toks, tree, bound, items})
+    == Param.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# the findings of each rule a LAWS.bend or a PROOF.bend exempts, rule by rule
+def scope.law_file(+ss: Src.Src) -> List<&2, List<&2, F.Finding>>:
+  [Pick.check(ss), Tail.check(ss), Concat.check(ss), Eager.check(ss), Rewalk.check(ss), Strict.check(ss),
+    Hoist.check(ss), Index.check(ss), Ring.check(ss), Table.check(ss), UnitRule.check(ss)]
+
+# LAW: on a LAWS.bend or a PROOF.bend, the findings of each rule its header
+# exempts there (pick, tail, concat, eager, rewalk, strict, hoist, index,
+# ring, table, unit) are the same for any two sources at that path
+# BOLT-SCOPE-4
+law scope_law_file:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  for +text2: String
+  for +toks2: List<&2, Lex.Tok>
+  for +tree2: Tree.Node
+  for +bound2: Bind.Bound
+  for +items2: List<&2, Outline.Item>
+  for +e: {Paths.is_law_file(path) == True{} : Bool}
+  {scope.law_file(Src.Src{path, text, toks, tree, bound, items})
+    == scope.law_file(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, List<&2, F.Finding>>}
+
+# LAW: closed's findings on a file that is not a LAWS.bend are the same for
+# any two sources at that path
+# BOLT-SCOPE-4
+law scope_closed:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  for +text2: String
+  for +toks2: List<&2, Lex.Tok>
+  for +tree2: Tree.Node
+  for +bound2: Bind.Bound
+  for +items2: List<&2, Outline.Item>
+  for +e: {Paths.is_laws(path) == False{} : Bool}
+  {Closed.check(Src.Src{path, text, toks, tree, bound, items})
+    == Closed.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
 # trace: a reading of SPEC.md and a count of its defects, written apart from
 # the rule (bolt/rules/laws/trace.bend), in file order and without its
 # accumulators; the rule's Row, Mark and Mode types carry what is read
