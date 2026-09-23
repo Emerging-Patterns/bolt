@@ -213,7 +213,9 @@ beside the groups.
 - `unit` — a multiply or divide by the literal `1`, `1n` or `1.0` on a
   step that recurses, either as `*` / `/` or as `Nat.mul` / `U32.mul` /
   `F32.mul` (and `.div`, only when the divisor is one). Drop the operation.
-  Any other factor or divisor is left alone.
+  Any other factor or divisor is left alone, and so is a base case: a case
+  arm that does not call the def. Only a `case` arm can be a base case, so a
+  `Bool.pick` branch beside a self-call is still the step.
 - `put` — `Map.put`. It is Base's internal helper: at a leaf it keeps the old
   key and replaces the value without comparing, so a new key silently
   overwrites another entry. `Map.set` compares.
