@@ -35,7 +35,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | BOLT-RULE-C010 | `foreign` reports exactly a foreign def with a `.c` body and no `.js` or the reverse, where a file whose leading comment lines include the exact line `# lanes: native` needs no `.js`. | Proved | pending |  |
 | BOLT-RULE-U001 | `unused` reports exactly an unused let, do-bind, lambda binder or parameter, with the header's exemptions. | Proved | pending |  |
 | BOLT-RULE-U002 | `strict` reports exactly a self-call inside `Bool.and` or `Bool.or`, or on either side of `&&` or `\|\|`, matched by that exact text, where a lambda body counts only by its own `&&` or `\|\|`. | Proved | pending |  |
-| BOLT-RULE-U003 | `eager` reports exactly a looping def of the file called in a `Bool.pick` branch. | Proved | pending |  |
+| BOLT-RULE-U003 | `eager` reports exactly a looping def of the file called in a `Bool.pick` branch. | Proved | proved | bolt/rules/LAWS.bend eager_counts; bolt/rules/LAWS.bend eager_lambda; bolt/rules/LAWS.bend eager_comma; bolt/rules/LAWS.bend eager_plain |
 | BOLT-RULE-U004 | `concat` reports exactly a self-call argument that appends onto the parameter in its own position. | Proved | proved | bolt/rules/LAWS.bend concat_counts |
 | BOLT-RULE-U005 | `nat` reports exactly one finding for each token the lexer reads as a Nat literal of 1000 or more (digits then `n`, four or more digits once leading zeros are dropped), and none for any other token. | Proved | proved | bolt/rules/LAWS.bend nat_counts |
 | BOLT-RULE-U006 | `fuel` reports exactly an argument that is one Nat literal token alone, in a call (not a self-call) to a def of the file, at a parameter named `fuel`, `gas`, `steps` or `budget` or starting with `fuel`. | Proved | pending |  |
