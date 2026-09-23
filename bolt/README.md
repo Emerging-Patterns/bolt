@@ -110,8 +110,9 @@ beside the groups.
 - `unused` — a name bound by a let, a do-bind, a lambda or as a parameter is
   never used. Exempt: pattern binders (naming every field of `Tok{k, t, l, c}`
   reads better than `_`), names starting with `_`, erased parameters (`-x`),
-  a law's `for` names, and the parameters of a foreign def (its C and JS read
-  them).
+  a law's `for` names, and every parameter of a foreign def, one whose body
+  starts with `import` (its C and JS read them), however its header is
+  wrapped.
 - `shadow` — a let or a pattern binds a name that a def above it in the file
   already has. When the file is imported, Bend reads the name as the def and
   the binder fails ("a pattern (a binder or a constructor)"). Parameters and
