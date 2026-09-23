@@ -2,8 +2,9 @@
 # is never used. Pattern binders are exempt: naming every field of
 # `Tok{k, t, l, c}` reads better than `_`. So are names starting with `_`,
 # erased parameters (`-x`), which exist to be unused, a law's `for` names
-# (hypotheses the proof takes by position), and the parameters of a foreign
-# def, which its C and JS bodies read.
+# (hypotheses the proof takes by position), and every parameter of a foreign
+# def (one whose body starts with `import`), which its C and JS bodies read,
+# however its header is wrapped.
 import Base
 import ../../src.bend as Src
 import ../../../lazy/lazy.bend as Lazy
@@ -12,11 +13,20 @@ import ../../../syntax/bind.bend as Bind
 import ../../../syntax/tree.bend as Tree
 import ../../../syntax/lex.bend as Lex
 
-# the header lines of defs whose body is `import "./x.c"`
+# the lines of these tokens, onto acc
+def lines(ts: List<&2, Lex.Tok>, acc: List<&2, U32>) -> List<&2, U32>:
+  match ts:
+    case Nil{}:
+      acc
+    case Con{Lex.Tok{k, t, l, c}, rest}:
+      l <> lines(rest, acc)
+
+# every header line of the defs whose body is `import "./x.c"`, however the
+# header is wrapped
 def foreign(root: Tree.Node) -> List<&2, U32>:
   match root:
     case Tree.NCons{Tree.Stmt{Tree.SDef{}, kids, Tree.NCons{Tree.Stmt{Tree.SImport{}, ik, ib}, more}}, rest}:
-      Tree.line(kids) <> foreign(rest)
+      lines(Tree.leaves(kids), foreign(rest))
     case Tree.NCons{other, rest}:
       foreign(rest)
     case other:
