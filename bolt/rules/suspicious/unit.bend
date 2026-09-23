@@ -6,7 +6,10 @@
 # divisor is left alone, and so is a base case or a def that does not call
 # itself. A base case is a case arm that does not call the def; the arms are
 # judged per `case` only, so a `Bool.pick` branch beside a self-call is still
-# the recursive step. Laws and proofs do not run.
+# the recursive step, and so is a lambda body inside it (a `Lazy.stop`
+# thunk or a `List.map` callback runs on the step). One finding per
+# operation, on the literal: `Nat.mul(1n, 1n)` is one. Laws and proofs do not
+# run.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
@@ -32,26 +35,36 @@ def one_tok(tok: Lex.Tok) -> Bool:
   Lex.Tok{+k, +t, l, c} = tok
   Bool.and(num_kind(k), one_text(t))
 
-# the maybe holds the literal one
-def one_maybe(mm: Maybe<&2, Lex.Tok>) -> Bool:
+# is the kind an operator's?
+def op_kind(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TOp{}:
+      True{}
+    case other:
+      False{}
+
+# the maybe, when it holds the literal one
+def one_of(mm: Maybe<&2, Lex.Tok>) -> Maybe<&2, Lex.Tok>:
   match mm:
     case None{}:
-      False{}
+      None{}
+    case Some{+tok}:
+      Bool.pick(Maybe<&2, Lex.Tok>, one_tok(tok), Some{tok}, None{})
+
+# the first maybe when it holds a token, else the second
+def either(aa: Maybe<&2, Lex.Tok>, bb: Maybe<&2, Lex.Tok>) -> Maybe<&2, Lex.Tok>:
+  match aa:
+    case None{}:
+      bb
     case Some{tok}:
-      one_tok(tok)
+      Some{tok}
 
-# `*` with one on either side, or `/` with one as the divisor
-def identity(+op: String, prev: Maybe<&2, Lex.Tok>, nxt: Maybe<&2, Lex.Tok>) -> Bool:
-  +star = String.eq(op, "*")
-  +slash = String.eq(op, "/")
-  +left = one_maybe(prev)
-  +right = one_maybe(nxt)
-  Bool.or(Bool.and(star, Bool.or(left, right)), Bool.and(slash, right))
-
-# the literal the finding points at: the divisor, else the factor
+# the literal an operator's finding points at: for `*` the factor after it
+# when it is one, else the one before; for `/` the divisor when it is one
 def which(+op: String, prev: Maybe<&2, Lex.Tok>, +nxt: Maybe<&2, Lex.Tok>) -> Maybe<&2, Lex.Tok>:
-  +right = one_maybe(nxt)
-  Bool.pick(Maybe<&2, Lex.Tok>, Bool.or(String.eq(op, "/"), right), nxt, prev)
+  +right = one_of(nxt)
+  Bool.pick(Maybe<&2, Lex.Tok>, String.eq(op, "*"), either(right, one_of(prev)),
+    Bool.pick(Maybe<&2, Lex.Tok>, String.eq(op, "/"), right, None{}))
 
 # a finding on that literal
 def cite(mm: Maybe<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
@@ -65,8 +78,8 @@ def cite(mm: Maybe<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
 # an argument that is exactly the literal one
 def arg_one(aa: Tree.Node) -> Maybe<&2, Lex.Tok>:
   match aa:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, +t, l, c}}, Tree.NNil{}}:
-      Bool.pick(Maybe<&2, Lex.Tok>, one_text(t), Some{Lex.Tok{Lex.TNum{}, t, l, c}}, None{})
+    case Tree.NCons{Tree.Leaf{tok}, Tree.NNil{}}:
+      one_of(Some{tok})
     case other:
       None{}
 
@@ -80,13 +93,14 @@ def last_one(as: List<&2, Tree.Node>) -> Maybe<&2, Lex.Tok>:
     case Con{h, rest}:
       last_one(rest)
 
-# every argument that is the literal one
-def any_one(as: List<&2, Tree.Node>, +path: String) -> List<&2, F.Finding>:
+# the last argument that is the literal one
+def any_one(as: List<&2, Tree.Node>) -> Maybe<&2, Lex.Tok>:
   match as:
     case Nil{}:
-      Nil{}
+      None{}
     case Con{h, rest}:
-      List.append(&2, F.Finding, cite(arg_one(h), path), any_one(rest, path))
+      +more = any_one(rest)
+      either(more, arg_one(h))
 
 # a divide's divisor, when the call is a divide
 def on_div_is(+div: Bool, +as: List<&2, Tree.Node>, +path: String) -> List<&2, F.Finding>:
@@ -104,7 +118,7 @@ def on_div(+tt: String, +as: List<&2, Tree.Node>, +path: String) -> List<&2, F.F
 def on_op_is(+mul: Bool, +tt: String, +as: List<&2, Tree.Node>, +path: String) -> List<&2, F.Finding>:
   match mul:
     case True{}:
-      any_one(as, path)
+      cite(any_one(as), path)
     case False{}:
       on_div(tt, as, path)
 
@@ -146,27 +160,45 @@ def first_tok(nn: Tree.Node) -> Maybe<&2, Lex.Tok>:
     case other:
       None{}
 
-# `*` / `/` by one, and the same through calls, in a hot region; an operator
-# is checked before a `(` after it is taken for a call
+# the token a leaf leaves behind for what follows it: none past an operator
+def after(tok: Lex.Tok) -> Maybe<&2, Lex.Tok>:
+  match tok:
+    case Lex.Tok{+k, +t, +l, +c}:
+      Bool.pick(Maybe<&2, Lex.Tok>, op_kind(k), None{}, Some{Lex.Tok{k, t, l, c}})
+
+# a leaf's own finding: an operator by one, in a hot region
+def op_hit(
+  tok: Lex.Tok,
+  +prev: Maybe<&2, Lex.Tok>,
+  +nxt: Maybe<&2, Lex.Tok>,
+  +path: String,
+  +hot: Bool
+) -> List<&2, F.Finding>:
+  match tok:
+    case Lex.Tok{k, +t, l, c}:
+      Bool.pick(List<&2, F.Finding>, Bool.and(hot, op_kind(k)), cite(which(t, prev, nxt), path), [])
+
+# the name a group is called by: the token right before it ("" for none)
+def callee(mm: Maybe<&2, Lex.Tok>) -> String:
+  match mm:
+    case None{}:
+      ""
+    case Some{Lex.Tok{k, t, l, c}}:
+      t
+
+# `*` / `/` by one, and the same through calls, in a hot region. prev is the
+# leaf right before, none past an operator, a group or a statement; a `(`
+# group right after a leaf is a call of it
 def walk(nn: Tree.Node, +prev: Maybe<&2, Lex.Tok>, +self: String, +path: String, +hot: Bool) -> List<&2, F.Finding>:
   match nn:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}}, +rest}:
-      walk(rest, None{}, self, path, False{})
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +t, l, c}}, +rest}:
-      +nxt = first_tok(rest)
-      +hit = Bool.and(hot, identity(t, prev, nxt))
-      +more = walk(rest, None{}, self, path, hot)
-      List.append(&2, F.Finding, Bool.pick(List<&2, F.Finding>, hit, cite(which(t, prev, nxt), path), []), more)
-    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
-      +call = String.eq(o, "(")
-      +own = own_of(call, t, kids, path, hot)
+    case Tree.NCons{Tree.Leaf{+tok}, +rest}:
+      +more = walk(rest, after(tok), self, path, hot)
+      List.append(&2, F.Finding, op_hit(tok, prev, first_tok(rest), path, hot), more)
+    case Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}:
+      +own = own_of(String.eq(o, "("), callee(prev), kids, path, hot)
       +inner = walk(kids, None{}, self, path, hot)
-      +after = walk(rest, None{}, self, path, hot)
-      List.concat(&2, F.Finding, [inner, own, after])
-    case Tree.NCons{Tree.Leaf{tok}, +rest}:
-      walk(rest, Some{tok}, self, path, hot)
-    case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
-      List.concat(&2, F.Finding, [walk(kids, None{}, self, path, hot), walk(rest, None{}, self, path, hot)])
+      +later = walk(rest, None{}, self, path, hot)
+      List.concat(&2, F.Finding, [inner, own, later])
     case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, +body}, rest}:
       +arm = Bool.and(hot, Calls.calls(body, self))
       List.concat(&2, F.Finding, [walk(kids, None{}, self, path, False{}),
