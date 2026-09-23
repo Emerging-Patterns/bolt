@@ -79,10 +79,10 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
 | BOLT-SCOPE-1 | With no files named, bolt lints every `.bend` file under `.` found within the first 100000 directories the walk reads, not descending into hidden directories or `node_modules`, sorted by code point; past that bound the walk stops silently. | Proved | pending |  |
-| BOLT-SCOPE-2 | A per-file rule sees one file's `Src`; a project rule sees the digests of every file in the run, and nothing else. | Proved | pending |  |
+| BOLT-SCOPE-2 | A per-file rule sees one file's `Src`; a project rule sees the digests of every file in the run, and nothing else. | Proved | proved | bolt/LAWS.bend scope_findings |
 | BOLT-SCOPE-3 | When the files in the run include a LAWS.bend, every file in the run that is not exempt is under law; otherwise none is. | Proved | pending |  |
 | BOLT-SCOPE-4 | Exemptions are decided by the path alone, never by content. | Proved | pending |  |
-| BOLT-SCOPE-5 | A bolt.bend is read, never linted, even when named. | Proved | pending |  |
+| BOLT-SCOPE-5 | A bolt.bend is read, never linted, even when named. | Proved | proved | bolt/LAWS.bend no_config_linted |
 
 ### Output and exit (BOLT-OUT)
 
@@ -91,9 +91,9 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | BOLT-OUT-1 | The code table maps each rule slug to exactly one code and each code to exactly one slug. | Proved | proved | bolt/LAWS.bend slug_finds_row; bolt/LAWS.bend code_finds_row |
 | BOLT-OUT-6 | A released code is never renumbered or reused. | Trusted |  |  |
 | BOLT-OUT-2 | A finding prints as `path:line:col: level: CODE: message`, 1-based. | Proved | proved | bolt/LAWS.bend shown |
-| BOLT-OUT-3 | Output order is read failures, then per-file findings in file-list order and `Rules.on` order, then `coverage` and `unsafe`. | Proved | pending |  |
-| BOLT-OUT-4 | The last line is `clean` or `N errors, M warnings`, and the exit status is 1 exactly when some graded finding is an error. | Proved | pending |  |
-| BOLT-OUT-5 | A path that cannot be read is a `read` finding graded with correctness. | Proved | pending |  |
+| BOLT-OUT-3 | Output order is read failures, then per-file findings in file-list order and `Rules.on` order, then `coverage`, `unsafe` and `trace`. | Proved | proved | bolt/LAWS.bend lines_in_order |
+| BOLT-OUT-4 | The last line is `clean` or `N errors, M warnings`, and the exit status is 1 exactly when some graded finding is an error. | Proved | proved | bolt/LAWS.bend last_line_summary; bolt/LAWS.bend exit_on_error |
+| BOLT-OUT-5 | A path that cannot be read is a `read` finding graded with correctness. | Proved | pending | bolt/LAWS.bend unread_one_finding; bolt/LAWS.bend read_is_correctness |
 
 ### Command line (BOLT-CLI)
 
@@ -152,6 +152,7 @@ These assumptions sit outside the proofs. They are the complete list of Trusted 
 | BOLT-TRUST-6 | The proof gate runner runs bend on every PROOF.bend and accepts only an exact `All terms check.` first line. | It is ez code run by `mkProofs` (`ez test --unit-only` today, `ez prove` when ez ships it). CI builds from a clean tree. |
 | BOLT-TRUST-7 | Every commit on `main` passed `ci.yml`. | The repository ruleset "main: require ci" requires the `check / check` job on `main` (since 2026-09-22). release-please PRs, which get no CI run, merge through an admin pull-request bypass. |
 | BOLT-TRUST-8 | shake v0.1.1 parses argv as its spec says, and ezjson v0.1.0 parses and prints JSON correctly. | Pinned dependencies, by ez.toml hash; bolt's gate does not re-check them. The surrogate-pair bug sits here. |
+| BOLT-TRUST-9 | Each interpreter answers the World's questions and executes plans faithfully. | It makes no decisions and is kept small enough to review line by line. The listing and read effects it calls are BOLT-TRUST-3. |
 | BOLT-OUT-6 | A released code is never renumbered or reused. | A property across versions, enforced by review of the SPEC row that lists the table. |
 | BOLT-SYN-6 | Every function in `syntax/` terminates on every input without fuel. | Termination is what the Bend checker's structural-recursion check establishes, so this rests on BOLT-TRUST-1 and needs no law of its own. |
 | BOLT-LIB-2 | The lazy branches apply their thunk only on the branch that needs it. | A law states what a term equals, not what evaluation skipped, so Bend cannot state it. `lazy/lazy.bend` matches on the Bool before it applies the thunk, and BOLT-LIB-1 proves the values agree with the strict forms. |

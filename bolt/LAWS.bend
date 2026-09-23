@@ -7,6 +7,13 @@ import ./finding.bend as F
 import ./rules.bend as Rules
 import ./codes.bend as Codes
 import ../lazy/lazy.bend as Lazy
+import ./src.bend as Src
+import ./rules/digest.bend as Digest
+import ./rules/laws/law.bend as Law
+import ./rules/laws/unsafe.bend as Unsafe
+import ./rules/laws/trace.bend as Trace
+import ./lint/world.bend as W
+import ./lint/plan.bend as Plan
 
 # LAW: nothing is set in an empty config
 # BOLT-CFG-1
@@ -206,3 +213,257 @@ law shown:
   {F.show_graded(F.Graded{level, F.Finding{path, line, col, len, rule, msg}})
     == path ++ ":" ++ U32.show((line + 1 : U32)) ++ ":" ++ U32.show((col + 1 : U32)) ++ ": "
       ++ Config.show(level) ++ ": " ++ Codes.code(rule) ++ ": " ++ msg : String}
+
+# The lint planner (lint/plan.bend) over its World (lint/world.bend). Every
+# law below quantifies over every World: every list of paths the command line
+# may name and every list of replies, whatever the interpreter would have
+# answered. That the interpreter answers each question faithfully and prints
+# the plan it is handed is BOLT-TRUST-9.
+
+# whether a World answers every question. Law vocabulary: bolt never calls it.
+def answered_all(+world: W.World, asks: List<&2, W.Ask>) -> Bool:
+  match asks:
+    case Nil{}:
+      True{}
+    case Con{a, rest}:
+      +more = answered_all(world, rest)
+      Bool.and(W.answered(world, a), more)
+
+# LAW: the loop stops exactly when the plan has what it reads: nothing is
+# wanted when, and only when, the World answers every question the planner
+# reads it through (each listing the walk reads, each source, SPEC.md and
+# every bolt.bend candidate), so `plan` never runs on a question it would
+# read as unanswered
+law wants_tie:
+  for +world: W.World
+  {answered_all(world, Plan.looks(world)) == List.is_empty(&2, W.Ask, Plan.wants(world)) : Bool}
+
+# whether no path is a bolt.bend. Law vocabulary.
+def no_config(ps: List<&2, String>) -> Bool:
+  match ps:
+    case Nil{}:
+      True{}
+    case Con{+p, rest}:
+      +more = no_config(rest)
+      Bool.and(Bool.not(Plan.is_config(p)), more)
+
+# LAW: no path the planner lints is a bolt.bend, whatever the command line
+# names: a bolt.bend is only ever read, as a candidate config
+# BOLT-SCOPE-5
+law no_config_linted:
+  for +world: W.World
+  {no_config(Plan.inputs(world)) == True{} : Bool}
+
+# a source's read failure: one `read` finding when the World holds no text
+# for it. Law vocabulary, as are the specs below.
+def unread_at(+path: String, mm: Maybe<&2, String>) -> List<&2, F.Finding>:
+  match mm:
+    case None{}:
+      [F.Finding{path, 0, 0, 0, "read", "Cannot read this file."}]
+    case Some{_text}:
+      []
+
+# every source's read failure, in file-list order
+def unread_all(+world: W.World, ps: List<&2, String>) -> List<&2, F.Finding>:
+  match ps:
+    case Nil{}:
+      []
+    case Con{+p, rest}:
+      List.append(&2, F.Finding, unread_at(p, W.text(world, p)), unread_all(world, rest))
+
+# a source's text, parsed alone, when the World holds one
+def parsed_at(+path: String, mm: Maybe<&2, String>) -> List<&2, Src.Src>:
+  match mm:
+    case None{}:
+      []
+    case Some{text}:
+      [Src.of(path, text)]
+
+# every source the World holds a text for, parsed, in file-list order
+def parsed_all(+world: W.World, ps: List<&2, String>) -> List<&2, Src.Src>:
+  match ps:
+    case Nil{}:
+      []
+    case Con{+p, rest}:
+      List.append(&2, Src.Src, parsed_at(p, W.text(world, p)), parsed_all(world, rest))
+
+# the per-file rules on one source alone
+def on_at(+path: String, mm: Maybe<&2, String>) -> List<&2, F.Finding>:
+  match mm:
+    case None{}:
+      []
+    case Some{text}:
+      Rules.on(Src.of(path, text))
+
+# the per-file rules on each source alone, in file-list order
+def on_all(+world: W.World, ps: List<&2, String>) -> List<&2, F.Finding>:
+  match ps:
+    case Nil{}:
+      []
+    case Con{+p, rest}:
+      List.append(&2, F.Finding, on_at(p, W.text(world, p)), on_all(world, rest))
+
+# every finding of a run, ungraded: the read failures, then each source's
+# per-file findings, each rule seeing that one source, then coverage, unsafe
+# and trace, each seeing the digests of every source in the run (trace also
+# whether the run is the whole tree, and SPEC.md's text)
+def in_scope(+world: W.World) -> List<&2, F.Finding>:
+  +ps = Plan.inputs(world)
+  +ds = Digest.all(parsed_all(world, ps))
+  List.concat(&2, F.Finding, [unread_all(world, ps), on_all(world, ps), Law.check(ds), Unsafe.check(ds),
+    Trace.check(List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"), ds)])
+
+# LAW: the planner's findings are the read failures, then the per-file rules
+# on each source's Src alone, then the project rules on the digests of every
+# source in the run, and nothing else
+# BOLT-SCOPE-2
+law scope_findings:
+  for +world: W.World
+  {Plan.found(world) == in_scope(world) : List<&2, F.Finding>}
+
+# every finding at the level the config of its path gives its rule, in
+# order, the ones at off dropped
+def graded_by(+cs: List<&2, Plan.Conf>, fs: List<&2, F.Finding>) -> List<&2, F.Graded>:
+  match fs:
+    case Nil{}:
+      Nil{}
+    case Con{F.Finding{+path, line, col, len, +rule, msg}, rest}:
+      keep(Config.level(Plan.config.at(cs, path), Rules.group(rule), rule), F.Finding{path, line, col, len, rule, msg},
+        graded_by(cs, rest))
+
+# each graded finding's line, in order
+def shown_all(gs: List<&2, F.Graded>) -> List<&2, String>:
+  match gs:
+    case Nil{}:
+      Nil{}
+    case Con{g, rest}:
+      F.show_graded(g) <> shown_all(rest)
+
+# one more at error, or the count as it was
+def at_error.one(ll: Config.Level, nn: Nat) -> Nat:
+  match ll:
+    case Config.Off{}:
+      nn
+    case Config.Warn{}:
+      nn
+    case Config.Error{}:
+      1n+nn
+
+# how many graded findings are at error
+def at_error(gs: List<&2, F.Graded>) -> Nat:
+  match gs:
+    case Nil{}:
+      0n
+    case Con{F.Graded{ll, _ff}, rest}:
+      at_error.one(ll, at_error(rest))
+
+# one more below error, or the count as it was
+def below_error.one(ll: Config.Level, nn: Nat) -> Nat:
+  match ll:
+    case Config.Off{}:
+      1n+nn
+    case Config.Warn{}:
+      1n+nn
+    case Config.Error{}:
+      nn
+
+# how many graded findings are below error
+def below_error(gs: List<&2, F.Graded>) -> Nat:
+  match gs:
+    case Nil{}:
+      0n
+    case Con{F.Graded{ll, _ff}, rest}:
+      below_error.one(ll, below_error(rest))
+
+# `1 error`, `2 errors`
+def plural(+nn: U32, +word: String) -> String:
+  U32.show(nn) ++ " " ++ word ++ Bool.pick(String, U32.is_eq(nn, 1), "", "s")
+
+# the counts of a run that graded something
+def summary_of.counts(+gs: List<&2, F.Graded>) -> String:
+  plural(U32.from_nat(at_error(gs)), "error") ++ ", " ++ plural(U32.from_nat(below_error(gs)), "warning")
+
+# `clean` when nothing was graded, otherwise `N errors, M warnings`
+def summary_of(gs: List<&2, F.Graded>) -> String:
+  match gs:
+    case Nil{}:
+      "clean"
+    case Con{g, rest}:
+      summary_of.counts(g <> rest)
+
+# true at error, or what the rest says
+def any_error.one(ll: Config.Level, more: Bool) -> Bool:
+  match ll:
+    case Config.Off{}:
+      more
+    case Config.Warn{}:
+      more
+    case Config.Error{}:
+      True{}
+
+# whether some graded finding is at error
+def any_error(gs: List<&2, F.Graded>) -> Bool:
+  match gs:
+    case Nil{}:
+      False{}
+    case Con{F.Graded{ll, _ff}, rest}:
+      any_error.one(ll, any_error(rest))
+
+# a run's graded findings: the planner's config for each path, over the
+# findings in the order in_scope lists them
+def run_graded(+world: W.World) -> List<&2, F.Graded>:
+  graded_by(Plan.confs(world), in_scope(world))
+
+# the lines a run prints: each graded finding, in order, then the summary
+def out_lines(+world: W.World) -> List<&2, String>:
+  +gs = run_graded(world)
+  List.append(&2, String, shown_all(gs), [summary_of(gs)])
+
+# LAW: `bolt` prints the read failures, then the per-file findings in
+# file-list order and `Rules.on` order, then coverage, unsafe and trace, each
+# graded finding as one line and the ones at off dropped, then the summary
+# BOLT-OUT-3
+law lines_in_order:
+  for +world: W.World
+  {Plan.lines.of(Plan.plan(world)) == out_lines(world) : List<&2, String>}
+
+# LAW: the last line is `clean` or `N errors, M warnings` for the graded
+# findings
+# BOLT-OUT-4
+law last_line_summary:
+  for +world: W.World
+  {List.last(&2, String, Plan.lines.of(Plan.plan(world))) == Some{summary_of(run_graded(world))}
+    : Maybe<&2, String>}
+
+# LAW: the exit status is 1 exactly when some graded finding is an error,
+# and 0 otherwise
+# BOLT-OUT-4
+law exit_on_error:
+  for +world: W.World
+  {Plan.exit.of(Plan.plan(world)) == Bool.pick(U32, any_error(run_graded(world)), 1, 0) : U32}
+
+# LAW: a source the World answers as unreadable is one `read` finding at its
+# path, in its place among the read failures
+# BOLT-OUT-5
+law unread_one_finding:
+  for +world: W.World
+  for +path: String
+  for ps: List<&2, String>
+  for h: {W.answer(world, W.Text{path}) == Some{W.Unread{}} : Maybe<&2, W.Answer>}
+  {Plan.unread(Plan.gots(path <> ps, world))
+    == F.Finding{path, 0, 0, 0, "read", "Cannot read this file."} <> Plan.unread(Plan.gots(ps, world))
+    : List<&2, F.Finding>}
+
+# LAW: a `read` finding is graded with correctness: whatever the config, its
+# level is the one correctness gives the rule `read`
+# BOLT-OUT-5
+law read_is_correctness:
+  for +cfg: Config.Config
+  for path: String
+  for line: U32
+  for col: U32
+  for len: U32
+  for msg: String
+  {Rules.graded(cfg, [F.Finding{path, line, col, len, "read", msg}])
+    == keep(Config.level(cfg, "correctness", "read"), F.Finding{path, line, col, len, "read", msg}, [])
+    : List<&2, F.Graded>}
