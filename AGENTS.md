@@ -13,10 +13,9 @@ it, and it does not go in at all (SPEC.md, docs/rfc/bolt-spec.md).
 
 `tests/*.bend` and `#|` exist only for claims Bend cannot prove:
 host/integration (bend, nix, node, disk, process). The stay list is
-`tests/bare.bend`, `bolt/lsp/tests/checker.bend`,
-`bolt/lsp/tests/levels.bend` and `syntax/tests/tree_files.bend`, plus
-companions (`bolt/lsp/tests/spawn.js`, `tests/locate.js`). The syntax test
-goes when BOLT-SYN-3 is proved, levels when the LSP has a files model. A test
+`tests/bare.bend`, `bolt/lsp/tests/checker.bend` and
+`bolt/lsp/tests/levels.bend`, plus companions (`bolt/lsp/tests/spawn.js`,
+`tests/locate.js`). Levels goes when the LSP has a files model. A test
 is never evidence for a SPEC.md requirement: what one cannot prove is a
 Trusted row, not a test (the lazy branches skipping their thunk is
 BOLT-LIB-2).
