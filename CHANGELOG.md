@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/Emerging-Patterns/bolt/compare/v1.2.0...v1.2.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* **strings:** an escaped quote does not close a string arm, and prove chars and strings (BOLT-RULE-C008, C009) ([#116](https://github.com/Emerging-Patterns/bolt/issues/116)) ([d18ff0b](https://github.com/Emerging-Patterns/bolt/commit/d18ff0bfb98b9d3a9c406218afe79fdc98b6ed9c))
+
 ## [1.2.0](https://github.com/Emerging-Patterns/bolt/compare/v1.1.1...v1.2.0) (2026-09-23)
 
 

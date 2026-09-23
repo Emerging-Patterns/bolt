@@ -28,8 +28,11 @@ import ./suspicious/index.bend as Index
 import ./suspicious/ring.bend as Ring
 import ./suspicious/table.bend as Table
 import ./suspicious/unit.bend as UnitRule
-import ./tokens.bend as T
+import ./correctness/chars.bend as Chars
+import ./correctness/strings.bend as Strings
 import ./calls.bend as Calls
+import ./correctness/foreign.bend as Foreign
+import ./tokens.bend as T
 import ./correctness/arms.bend as Arms
 import ./correctness/twice.bend as Twice
 
@@ -554,6 +557,275 @@ law unit_exempt:
   for items: List<&2, Outline.Item>
   for e: {Paths.is_law_file(path) == True{} : Bool}
   {UnitRule.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# The match rules, chars and strings. Each walks every statement of the tree
+# at any depth; a match is read by the case statements of its body, and a
+# case by the first node of its pattern, the node after `case` (the first
+# match column). Nothing else in the tree counts.
+
+# does a statement's kids open with the `match` keyword?
+def chars.is_match(kids: Tree.Node) -> Bool:
+  match kids:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TKey{}, +t, l, c}}, rest}:
+      String.eq(t, "match")
+    case other:
+      False{}
+
+# one when a case statement's first match column opens with a char literal,
+# else zero
+def chars.opens(kids: Tree.Node) -> U32:
+  match kids:
+    case Tree.NCons{k, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TChar{}, t, l, c}}, rest}}:
+      1
+    case other:
+      0
+
+# acc and the case statements among a match body's statements that open
+# with a char literal
+def chars.arms(body: Tree.Node, +acc: U32) -> U32:
+  match body:
+    case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, b}, rest}:
+      chars.arms(rest, (acc + chars.opens(kids) : U32))
+    case Tree.NCons{h, rest}:
+      chars.arms(rest, acc)
+    case other:
+      acc
+
+# how many statements, at any depth, are a match with more than eight arms
+# opening with a char literal
+def chars.count(nn: Tree.Node) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Stmt{kind, +kids, +body}, rest}:
+      Nat.add(Bool.pick(Nat, Bool.and(chars.is_match(kids), U32.is_gt(chars.arms(body, 0), 8)), 1n, 0n),
+        Nat.add(chars.count(body), chars.count(rest)))
+    case Tree.NCons{h, rest}:
+      chars.count(rest)
+    case other:
+      0n
+
+# LAW: chars reports one finding for each match, at any depth, with more than
+# eight case arms whose first match column opens with a char literal, and
+# none for anything else: a literal later in a pattern or in a later column
+# does not count
+# BOLT-RULE-C009
+law chars_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Chars.check(Src.Src{path, text, toks, tree, bound, items})) == chars.count(tree)
+    : Nat}
+
+# the chars between the quotes of the string a case statement's first match
+# column opens with, when it does and the string is closed, else zero
+def strings.size(kids: Tree.Node) -> U32:
+  match kids:
+    case Tree.NCons{k, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TStr{}, +t, l, c}}, rest}}:
+      Bool.pick(U32, Strings.terminated(t), (U32.from_nat(String.length(t)) - 2 : U32), 0)
+    case other:
+      0
+
+# acc and the chars of the closed string arms among a match body's statements
+def strings.total(body: Tree.Node, +acc: U32) -> U32:
+  match body:
+    case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, b}, rest}:
+      strings.total(rest, (acc + strings.size(kids) : U32))
+    case Tree.NCons{h, rest}:
+      strings.total(rest, acc)
+    case other:
+      acc
+
+# how many statements, at any depth, are a match whose closed string arms
+# total over 64 chars
+def strings.count(nn: Tree.Node) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Stmt{kind, +kids, +body}, rest}:
+      Nat.add(Bool.pick(Nat, Bool.and(chars.is_match(kids), U32.is_gt(strings.total(body, 0), 64)), 1n, 0n),
+        Nat.add(strings.count(body), strings.count(rest)))
+    case Tree.NCons{h, rest}:
+      strings.count(rest)
+    case other:
+      0n
+
+# LAW: strings reports one finding for each match, at any depth, whose case
+# arms opening their first match column with a closed string literal total
+# over 64 chars between their quotes, and none for anything else: an
+# unclosed string or one in a later column does not count
+# BOLT-RULE-C008
+law strings_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Strings.check(Src.Src{path, text, toks, tree, bound, items})) == strings.count(tree)
+    : Nat}
+
+# tail (BOLT-RULE-P001). Over a def's statements the rule reports each call
+# `name(..)` of the def itself, except inside a `Bool.pick(..)` and except
+# when the call is a statement's whole chain (a tail call); over the file it
+# does that for each def whose first live parameter is a List or a String
+# (Calls.seq) and that is not exempt (a law file, or a def returning a
+# proof), the call shrinking that parameter or not.
+
+# a statement's chain is exactly a call of the name, `name(..)`, and nothing more
+def tail.whole(kids: Tree.Node, +name: String) -> Bool:
+  match kids:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{j, +o, m, n}, g, e}, Tree.NNil{}}}:
+      Bool.and(String.eq(t, name), String.eq(o, "("))
+    case other:
+      False{}
+
+# how many self-calls of the name sit under the node: outside any
+# `Bool.pick(..)`, and not counting the chain's head call when whole says the
+# chain is a statement's whole chain
+def tail.count(nn: Tree.Node, +name: String, whole: Bool) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_k, +o, _l, _c}, kids, _e}, rest}}:
+      +call = String.eq(o, "(")
+      +m = Nat.add(Bool.pick(Nat, Bool.and(call, String.eq(t, "Bool.pick")), 0n, tail.count(kids, name, False{})),
+        tail.count(rest, name, False{}))
+      Bool.pick(Nat, Bool.and(Bool.and(call, String.eq(t, name)), Bool.not(whole)), 1n+m, m)
+    case Tree.NCons{Tree.Group{open, kids, close}, rest}:
+      Nat.add(tail.count(kids, name, False{}), tail.count(rest, name, False{}))
+    case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
+      Nat.add(tail.count(kids, name, tail.whole(kids, name)),
+        Nat.add(tail.count(body, name, False{}), tail.count(rest, name, False{})))
+    case Tree.NCons{h, rest}:
+      tail.count(rest, name, False{})
+    case other:
+      0n
+
+# how many non-tail self-calls the defs hold, over the defs that walk a List
+# or a String and are not exempt
+def tail.total(ds: List<&2, Calls.Def>, +path: String) -> Nat:
+  match ds:
+    case Nil{}:
+      0n
+    case Con{Calls.Def{+name, +sig, body}, rest}:
+      Nat.add(Bool.pick(Nat, Bool.and(Calls.seq(sig), Bool.not(Calls.exempt(path, sig))),
+        tail.count(body, name, False{}), 0n), tail.total(rest, path))
+
+# LAW: over a def's statements, tail reports one finding for each self-call
+# outside any `Bool.pick(..)` that is not a statement's whole chain, and
+# none for anything else
+# BOLT-RULE-P001
+law tail_walk_counts:
+  for nn: Tree.Node
+  for +name: String
+  for +path: String
+  for skip: Bool
+  {List.length(&2, F.Finding, Tail.walk(nn, name, path, skip)) == tail.count(nn, name, skip) : Nat}
+
+# LAW: tail reports exactly those self-calls of each of the file's defs whose
+# first live parameter is a List or a String and that is not exempt, and
+# none in any other def
+# BOLT-RULE-P001
+law tail_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Tail.check(Src.Src{path, text, toks, tree, bound, items}))
+    == tail.total(Calls.defs(tree), path) : Nat}
+
+# foreign (BOLT-RULE-C010). Over the file's top-level statements the rule
+# reports each def whose body is one import or more and nothing else (a
+# foreign def) and whose imports name a `.c` body and no `.js` one, unless the
+# file is headed `# lanes: native`, or a `.js` body and no `.c` one. Headed
+# means the exact line is among the file's leading comment lines, those before
+# its first line that does not start with `#`. An import's path is its first
+# string literal (Foreign.target).
+
+# every statement of the body is an import, none at all included
+def foreign.imports(body: Tree.Node) -> Bool:
+  match body:
+    case Tree.NCons{Tree.Stmt{Tree.SImport{}, kids, ib}, rest}:
+      foreign.imports(rest)
+    case Tree.NCons{h, rest}:
+      False{}
+    case other:
+      True{}
+
+# a foreign def's body: one import or more, and nothing else
+def foreign.only(body: Tree.Node) -> Bool:
+  match body:
+    case Tree.NCons{Tree.Stmt{Tree.SImport{}, kids, ib}, rest}:
+      foreign.imports(rest)
+    case other:
+      False{}
+
+# some import of the body names a path ending in the suffix (quoted: `.c"`)
+def foreign.has(body: Tree.Node, +ext: String) -> Bool:
+  match body:
+    case Tree.NCons{Tree.Stmt{Tree.SImport{}, kids, ib}, rest}:
+      Bool.or(String.ends_with(Foreign.target(kids), ext), foreign.has(rest, ext))
+    case Tree.NCons{h, rest}:
+      foreign.has(rest, ext)
+    case other:
+      False{}
+
+# a foreign def with a `.c` body and no `.js` one (in a file not native only),
+# or with a `.js` body and no `.c` one
+def foreign.bad(+body: Tree.Node, +native: Bool) -> Bool:
+  +cc = foreign.has(body, ".c\"")
+  +js = foreign.has(body, ".js\"")
+  Bool.and(foreign.only(body),
+    Bool.or(Bool.and(cc, Bool.and(Bool.not(js), Bool.not(native))), Bool.and(js, Bool.not(cc))))
+
+# how many of the file's top-level defs are foreign defs missing a lane
+def foreign.count(root: Tree.Node, +native: Bool) -> Nat:
+  match root:
+    case Tree.NCons{Tree.Stmt{Tree.SDef{}, kids, body}, rest}:
+      +m = foreign.count(rest, native)
+      Bool.pick(Nat, foreign.bad(body, native), 1n+m, m)
+    case Tree.NCons{h, rest}:
+      foreign.count(rest, native)
+    case other:
+      0n
+
+# the exact line `# lanes: native` is among the leading lines that start with `#`
+def foreign.headed(lines: List<&2, String>) -> Bool:
+  match lines:
+    case Nil{}:
+      False{}
+    case Con{+line, rest}:
+      Bool.and(String.starts_with(line, "#"), Bool.or(String.eq(line, "# lanes: native"), foreign.headed(rest)))
+
+# LAW: a file is native only exactly when the line `# lanes: native` is one
+# of its leading comment lines; the line anywhere later does not count
+# BOLT-RULE-C010
+law foreign_native:
+  for lines: List<&2, String>
+  {Foreign.native_only.go(lines) == foreign.headed(lines) : Bool}
+
+# LAW: over the file's top-level statements, foreign reports one finding for
+# each foreign def with a `.c` body and no `.js` one (none needed in a native
+# only file) or a `.js` body and no `.c` one, and none for anything else
+# BOLT-RULE-C010
+law foreign_walk_counts:
+  for root: Tree.Node
+  for +native: Bool
+  for +path: String
+  {List.length(&2, F.Finding, Foreign.check.go(root, native, path)) == foreign.count(root, native) : Nat}
+
+# LAW: foreign reports exactly those defs of the file, native only when its
+# leading comment lines say so
+# BOLT-RULE-C010
+law foreign_counts:
+  for +path: String
+  for +text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Foreign.check(Src.Src{path, text, toks, tree, bound, items}))
+    == foreign.count(tree, foreign.headed(String.lines(text))) : Nat}
 
 # The match rules arms and twice read a case statement's pattern: its tokens
 # after `case` in the tree (T.pattern), the first match column first.
