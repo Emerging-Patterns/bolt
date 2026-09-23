@@ -253,9 +253,10 @@ beside the groups.
   reverse: the missing lane cannot run it. A file headed `# lanes: native`
   needs no `.js`: that exact line must be one of the comment lines before the
   file's first non-comment line.
-- `fuel` — a `Nat` literal passed to a fuel parameter of a def of the same
-  file. A fuel parameter is known by its name alone: `fuel`, `gas`, `steps`
-  or `budget`, or any name starting with `fuel`. Input past it is cut short
+- `fuel` — a `Nat` literal (digits, then `n`) passed in a call, `name(..)`,
+  to a fuel parameter of a def of the same file. A fuel parameter is known by
+  its name alone, the one before its colon: `fuel`, `gas`, `steps` or
+  `budget`, or any name starting with `fuel`. Input past it is cut short
   with no error: derive the fuel from the input. A literal of any size counts,
   `3n` included. Only an argument that is one literal token alone counts, so
   `U32.to_nat(1000)`, a let-bound literal and `(7n)` are not seen. A def's
