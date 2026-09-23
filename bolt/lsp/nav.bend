@@ -1,7 +1,10 @@
-# lsp/nav: from a name to the item it names. A name `Alias.rest`, where Alias
-# is an import of the document, is `rest` in that file; any other name is an
-# item of the document, or else of Base. Open documents are read from the
-# store (what the editor shows), everything else through the files service.
+# lsp/nav: from a name to the item it names. A use is answered as the binder
+# resolved it: a binder of the document, an item of the document (before any
+# alias), `rest` in the file behind the import `Alias` of `Alias.rest`, or
+# Base. A word the binder has nothing for (a half-typed name) is looked up
+# behind its alias, else in the document, else in Base. Open documents are
+# read from the store (what the editor shows), everything else through the
+# files service.
 import Base
 import ../../syntax/outline.bend as Outline
 import ../../syntax/word.bend as Word
@@ -103,30 +106,71 @@ def here(mm: Maybe<&2, Bind.Bind>, uri: String) -> Maybe<&2, Found>:
     case Some{b}:
       Some{Here{uri, b}}
 
-# a binder of the document, or a use of one, is answered from the document;
-# a use of anything else is looked up as an item; nothing at all falls back
-# to the word under the cursor (a half-typed name)
+# a name behind an import alias: `rest` in the file the import names,
+# relative to the document; the document's own item when the outline has no
+# import of that alias
+def at.qual(
+  ~fs: F.Files,
+  imp: Maybe<&2, String>,
+  rest: String,
+  items: List<&2, Outline.Item>,
+  docs: List<&2, Docs.Doc>,
+  +uri: String,
+  +name: String
+) -> IO(Maybe<&2, Found>):
+  match imp:
+    case Some{rel}:
+      in_file(~fs, docs, Path.join(Path.dir(Proto.path(uri)), rel), rest)
+    case None{}:
+      own(~fs, Outline.find(items, name), docs, uri, name)
+
+# a use, by what the binder resolved it to: a binder of the document is that
+# binder; an item of the document is that item, before any alias; a name
+# behind an alias is looked up in the file the import names; a free name is
+# the document's item of that name, else Base's
+def at.target(
+  ~fs: F.Files,
+  tg: Bind.Target,
+  +name: String,
+  binds: List<&2, Bind.Bind>,
+  +items: List<&2, Outline.Item>,
+  docs: List<&2, Docs.Doc>,
+  +uri: String
+) -> IO(Maybe<&2, Found>):
+  match tg:
+    case Bind.TLocal{tl, tc}:
+      IO.pure(Maybe<&2, Found>, here(Bind.binder(binds, tl, tc), uri))
+    case Bind.TItem{+item}:
+      own(~fs, Outline.find(items, item), docs, uri, item)
+    case Bind.TQual{alias, rest}:
+      at.qual(~fs, Outline.import_path(items, alias), rest, items, docs, uri, name)
+    case Bind.TFree{}:
+      own(~fs, Outline.find(items, name), docs, uri, name)
+
+# a binder of the document is answered from the document, and a use as the
+# binder resolved it; nothing at all falls back to the word under the cursor
+# (a half-typed name)
 def at.site(
   ~fs: F.Files,
   site: Maybe<&2, Bind.Site>,
-  +binds: List<&2, Bind.Bind>,
+  binds: List<&2, Bind.Bind>,
+  items: List<&2, Outline.Item>,
   docs: List<&2, Docs.Doc>,
-  uri: String,
-  +name: String
+  +uri: String,
+  name: String
 ) -> IO(Maybe<&2, Found>):
   match site:
     case Some{Bind.SBind{b}}:
       IO.pure(Maybe<&2, Found>, Some{Here{uri, b}})
-    case Some{Bind.SUse{Bind.Use{n, l, c, Bind.TLocal{tl, tc}}}}:
-      IO.pure(Maybe<&2, Found>, here(Bind.binder(binds, tl, tc), uri))
-    case Some{Bind.SUse{Bind.Use{n, l, c, tg}}}:
-      resolve(~fs, docs, uri, n)
+    case Some{Bind.SUse{Bind.Use{n, _l, _c, tg}}}:
+      at.target(~fs, tg, n, binds, items, docs, uri)
     case None{}:
       resolve(~fs, docs, uri, name)
 
 def at.bound(
   ~fs: F.Files,
   bb: Bind.Bound,
+  items: List<&2, Outline.Item>,
   docs: List<&2, Docs.Doc>,
   uri: String,
   name: String,
@@ -134,7 +178,7 @@ def at.bound(
   +col: U32
 ) -> IO(Maybe<&2, Found>):
   Bind.Bound{+binds, uses, scopes} = bb
-  at.site(~fs, Bind.at(Bind.Bound{binds, uses, scopes}, line, col), binds, docs, uri, name)
+  at.site(~fs, Bind.at(Bind.Bound{binds, uses, scopes}, line, col), binds, items, docs, uri, name)
 
 def at.in(
   ~fs: F.Files,
@@ -144,7 +188,7 @@ def at.in(
   +line: U32,
   +col: U32
 ) -> IO(Maybe<&2, Found>):
-  at.bound(~fs, Bind.bound(text), docs, uri, Word.at(text, line, col), line, col)
+  at.bound(~fs, Bind.bound(text), Outline.items(text), docs, uri, Word.at(text, line, col), line, col)
 
 # what the name under a position of a document names
 def at(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, line: U32, col: U32) -> IO(Maybe<&2, Found>):
@@ -227,7 +271,7 @@ def hover.site(
     case Some{Bind.SBind{b}}:
       hover.bind(~fs, b, items, docs, uri)
     case other:
-      at.site(~fs, site, binds, docs, uri, name)
+      at.site(~fs, site, binds, items, docs, uri, name)
 
 # hover at a binding site of a parsed document
 def hover.bound(

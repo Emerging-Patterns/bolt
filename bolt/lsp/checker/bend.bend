@@ -1,17 +1,25 @@
-# checker/bend: the real checker: runs `bend` on the file and reads its report
+# checker/bend: the real checker: runs `bend` on the file and reads its report.
+# Which runs it makes is argv.bend's, pure; this file only performs them.
 import Base
-import ../../paths.bend as Paths
 import ./service.bend as S
+import ./argv.bend as Argv
 import ../report.bend as Rep
 
-# how `bend <path> --check-only` went, one tag char, then everything it
-# printed; it checks, and never runs main. The tag is `r` when bend ran and
-# exited, `s` when a signal killed it, and `x` when it could not be run: no
-# pipe, no fork, or an exit with 127, the code a failed exec exits with (as a
-# shell does for a command it cannot find)
-def bendcheck.exec(path: String) -> IO(String):
+# how `bend <path> <flag>` went, one tag char, then everything it printed.
+# The flag is argv.bend's, `--check-only`: it checks, and never runs main.
+# The tag is `r` when bend ran and exited, `s` when a signal killed it, and
+# `x` when it could not be run: no pipe, no fork, or an exit with 127, the
+# code a failed exec exits with (as a shell does for a command it cannot
+# find)
+def bendcheck.exec(path: String, flag: String) -> IO(String):
   import "./exec.c"
   import "./exec.js"
+
+# what a run of bend answered, tag first; every run is argv.bend's, so it
+# checks and never runs main
+def launch(rr: Argv.Run) -> IO(String):
+  Argv.Run{path, flag} = rr
+  bendcheck.exec(path, flag)
 
 # a run a signal cut short: what bend reported before it died, or, when that
 # is nothing, no check at all
@@ -41,18 +49,6 @@ def answer(ss: String) -> S.Answer:
     case SCon{+cc, text}:
       answer.tag(Char.is_eq(cc, 'r'), Char.is_eq(cc, 's'), text)
 
-# only the open-laws report ("N TODOs found"), and nothing else
-def only_todos(ds: List<&2, Rep.Diag>) -> Bool:
-  match ds:
-    case Con{Rep.Diag{line, msg}, Nil{}}:
-      String.contains(msg, "TODO found")
-    case other:
-      False{}
-
-# the PROOF.bend beside a LAWS.bend
-def proof_path(+path: String) -> String:
-  String.take(path, Nat.sub(String.length(path), 9n)) ++ "PROOF.bend"
-
 # a LAWS.bend's errors, settled by its PROOF.bend's answer: none when that
 # checks clean, and no check at all when bend could not be run on it
 def proved(aa: S.Answer, ds: List<&2, Rep.Diag>) -> S.Answer:
@@ -62,22 +58,20 @@ def proved(aa: S.Answer, ds: List<&2, Rep.Diag>) -> S.Answer:
     case S.Unrun{}:
       S.Unrun{}
 
-# By convention LAWS.bend states its laws as open claims and PROOF.bend, beside
-# it, fills them: alone, LAWS.bend always has TODOs. They are an error only
-# while PROOF.bend does not check clean.
-def settle(open: Bool, +ds: List<&2, Rep.Diag>, path: String) -> IO(S.Answer):
-  match open:
-    case False{}:
+# the first report, settled by the run that follows it (a LAWS.bend's
+# PROOF.bend), when argv.bend gives one
+def settle(mr: Maybe<&2, Argv.Run>, +ds: List<&2, Rep.Diag>) -> IO(S.Answer):
+  match mr:
+    case None{}:
       IO.pure(S.Answer, S.Checked{ds})
-    case True{}:
+    case Some{rr}:
       do IO<S.Answer>:
-        text : String <- bendcheck.exec(proof_path(path))
+        text : String <- launch(rr)
         return proved(answer(text), ds)
 
-# the diagnostics of a run, settled when they are only the open laws of a
-# LAWS.bend
+# the diagnostics of a run, settled by the run that follows it
 def checked(+ds: List<&2, Rep.Diag>, +path: String) -> IO(S.Answer):
-  settle(Bool.and(only_todos(ds), Paths.is_laws(path)), ds, path)
+  settle(Argv.followup(ds, path), ds)
 
 # a run's answer: its diagnostics settled when bend ran, else no check
 def settled(aa: S.Answer, +path: String) -> IO(S.Answer):
@@ -89,7 +83,7 @@ def settled(aa: S.Answer, +path: String) -> IO(S.Answer):
 
 def check.at(+path: String) -> IO(S.Answer):
   do IO<S.Answer>:
-    text : String <- bendcheck.exec(path)
+    text : String <- launch(Argv.run_of(path))
     settled(answer(text), path)
 
 # the service's field takes a plain path; quantities are part of its type

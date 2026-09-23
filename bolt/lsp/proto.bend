@@ -11,6 +11,7 @@ import ../finding.bend as Lint
 import ../codes.bend as Codes
 import ../config.bend as Config
 import ../version.bend as Ver
+import ./enc.bend as Enc
 
 # strings as JSON strings
 def strings(ss: List<&2, String>) -> List<&2, J.Json>:
@@ -36,9 +37,10 @@ def notify(method: String, params: J.Json) -> J.Json:
 # what the server can do. It takes whole-text edits (change: 1) for hover,
 # definition and symbols; diagnostics still follow open and save, as the
 # checker reads files and their imports from disk
-def capabilities() -> J.Json:
+def capabilities(ee: Enc.Enc) -> J.Json:
   J.obj([
     ("capabilities", J.obj([
+      ("positionEncoding", J.JStr{Enc.name(ee)}),
       ("textDocumentSync", J.obj([("openClose", J.JBool{True{}}), ("change", J.JNum{U32.show(1)}), ("save", J.JBool{True{}})])),
       ("hoverProvider", J.JBool{True{}}),
       ("definitionProvider", J.JBool{True{}}),
@@ -51,54 +53,61 @@ def capabilities() -> J.Json:
         ("full", J.JBool{True{}})]))])),
     ("serverInfo", J.obj([("name", J.JStr{"bolt"}), ("version", J.JStr{Ver.text()})]))])
 
-# an LSP position (0-based line and character)
-def position(line: U32, character: U32) -> J.Json:
+# an LSP position as sent: a line and a character already in the negotiated
+# encoding
+def position.at(line: U32, character: U32) -> J.Json:
   J.obj([("line", J.JNum{U32.show(line)}), ("character", J.JNum{U32.show(character)})])
 
+# an LSP position (0-based line and a code-point character), its character
+# sent in the document's negotiated encoding
+def position(cc: Enc.Cols, +line: U32, character: U32) -> J.Json:
+  position.at(line, Enc.out(cc, line, character))
+
 # the checker gives a line and no columns: a diagnostic covers its whole line
-def diagnostic(dd: Rep.Diag) -> J.Json:
+def diagnostic(+cc: Enc.Cols, dd: Rep.Diag) -> J.Json:
   Rep.Diag{+line, msg} = dd
   J.obj([
-    ("range", J.obj([("start", position(line, 0)), ("end", position((line + 1 : U32), 0))])),
+    ("range", J.obj([("start", position(cc, line, 0)), ("end", position(cc, (line + 1 : U32), 0))])),
     ("severity", J.JNum{U32.show(1)}), ("source", J.JStr{"bend"}), ("message", J.JStr{msg})])
 
 # diagnostics as JSON
-def diagnostics(ds: List<&2, Rep.Diag>) -> List<&2, J.Json>:
+def diagnostics(ds: List<&2, Rep.Diag>, +cc: Enc.Cols) -> List<&2, J.Json>:
   match ds:
     case Nil{}:
       Nil{}
     case Con{d, t}:
-      diagnostic(d) <> diagnostics(t)
+      diagnostic(cc, d) <> diagnostics(t, cc)
 
 # a finding's range: its name, or from its column to the end of the line
-def finding_range(+line: U32, +col: U32, +len: U32) -> J.Json:
-  J.obj([("start", position(line, col)),
-    ("end", Bool.pick(J.Json, U32.is_eq(len, 0), position((line + 1 : U32), 0), position(line, (col + len : U32))))])
+def finding_range(+cc: Enc.Cols, +line: U32, +col: U32, +len: U32) -> J.Json:
+  J.obj([("start", position(cc, line, col)),
+    ("end", Bool.pick(J.Json, U32.is_eq(len, 0), position(cc, (line + 1 : U32), 0),
+      position(cc, line, (col + len : U32))))])
 
 # a graded lint finding as a diagnostic: an error or a warning by its level,
 # its stable code, and bolt(group:slug) as the source
-def finding(gg: Lint.Graded) -> J.Json:
+def finding(cc: Enc.Cols, gg: Lint.Graded) -> J.Json:
   Lint.Graded{level, Lint.Finding{path, line, col, len, +rule, msg}} = gg
-  J.obj([("range", finding_range(line, col, len)), ("severity", J.JNum{U32.show(Bool.pick(U32, Config.is_error(level), 1, 2))}),
+  J.obj([("range", finding_range(cc, line, col, len)), ("severity", J.JNum{U32.show(Bool.pick(U32, Config.is_error(level), 1, 2))}),
     ("code", J.JStr{Codes.code(rule)}), ("source", J.JStr{Codes.source(rule)}), ("message", J.JStr{msg})])
 
 # findings as JSON
-def findings(gs: List<&2, Lint.Graded>) -> List<&2, J.Json>:
+def findings(gs: List<&2, Lint.Graded>, +cc: Enc.Cols) -> List<&2, J.Json>:
   match gs:
     case Nil{}:
       Nil{}
     case Con{g, t}:
-      finding(g) <> findings(t)
+      finding(cc, g) <> findings(t, cc)
 
 # the publishDiagnostics notification for a document: the checker's errors,
 # then the linter's findings
-def publish(uri: String, ds: List<&2, Rep.Diag>, gs: List<&2, Lint.Graded>) -> J.Json:
+def publish(+cc: Enc.Cols, uri: String, ds: List<&2, Rep.Diag>, gs: List<&2, Lint.Graded>) -> J.Json:
   notify("textDocument/publishDiagnostics",
-    J.obj([("uri", J.JStr{uri}), ("diagnostics", J.arr(List.append(&2, J.Json, diagnostics(ds), findings(gs))))]))
+    J.obj([("uri", J.JStr{uri}), ("diagnostics", J.arr(List.append(&2, J.Json, diagnostics(ds, cc), findings(gs, cc))))]))
 
 # a whole line as a range
-def line_range(+line: U32) -> J.Json:
-  J.obj([("start", position(line, 0)), ("end", position((line + 1 : U32), 0))])
+def line_range(+cc: Enc.Cols, +line: U32) -> J.Json:
+  J.obj([("start", position(cc, line, 0)), ("end", position(cc, (line + 1 : U32), 0))])
 
 # an item as hover text: its signature as code, then its doc comment
 def hover.text(sig: String, +doc: String) -> String:
@@ -110,9 +119,9 @@ def hover(item: Outline.Item) -> J.Json:
   J.obj([("contents", J.obj([("kind", J.JStr{"markdown"}), ("value", J.JStr{hover.text(sig, doc)})]))])
 
 # an item's location: its whole line
-def location(uri: String, item: Outline.Item) -> J.Json:
+def location(cc: Enc.Cols, uri: String, item: Outline.Item) -> J.Json:
   Outline.Item{k, name, line, sig, doc, path} = item
-  J.obj([("uri", J.JStr{uri}), ("range", line_range(line))])
+  J.obj([("uri", J.JStr{uri}), ("range", line_range(cc, line))])
 
 # what a binder is, in words
 def kind_name(kk: Bind.BindKind) -> String:
@@ -156,13 +165,14 @@ def hover.local(bb: Bind.Bind) -> J.Json:
     kind_name(kind) ++ where_bound(kind, line)})]))])
 
 # exactly a name's range
-def name_range(+line: U32, +col: U32, name: String) -> J.Json:
-  J.obj([("start", position(line, col)), ("end", position(line, (col + U32.from_nat(String.length(name)) : U32)))])
+def name_range(+cc: Enc.Cols, +line: U32, +col: U32, name: String) -> J.Json:
+  J.obj([("start", position(cc, line, col)),
+    ("end", position(cc, line, (col + U32.from_nat(String.length(name)) : U32)))])
 
 # exactly the binder's name
-def location.local(uri: String, bb: Bind.Bind) -> J.Json:
+def location.local(cc: Enc.Cols, uri: String, bb: Bind.Bind) -> J.Json:
   Bind.Bind{name, line, col, kind, note} = bb
-  J.obj([("uri", J.JStr{uri}), ("range", name_range(line, col, name))])
+  J.obj([("uri", J.JStr{uri}), ("range", name_range(cc, line, col, name))])
 
 # LSP's SymbolKind: module 2, function 12, constant 14, enum member 22, struct 23
 def symbol.kind(kk: Outline.ItemKind) -> U32:
@@ -181,21 +191,21 @@ def symbol.kind(kk: Outline.ItemKind) -> U32:
       13
 
 # an item as a DocumentSymbol
-def symbol(item: Outline.Item) -> J.Json:
+def symbol(+cc: Enc.Cols, item: Outline.Item) -> J.Json:
   Outline.Item{k, name, +line, sig, doc, path} = item
   J.obj([("name", J.JStr{name}), ("kind", J.JNum{U32.show(symbol.kind(k))}),
-    ("range", line_range(line)), ("selectionRange", line_range(line))])
+    ("range", line_range(cc, line)), ("selectionRange", line_range(cc, line))])
 
-def symbols.go(items: List<&2, Outline.Item>) -> List<&2, J.Json>:
+def symbols.go(items: List<&2, Outline.Item>, +cc: Enc.Cols) -> List<&2, J.Json>:
   match items:
     case Nil{}:
       Nil{}
     case Con{item, t}:
-      symbol(item) <> symbols.go(t)
+      symbol(cc, item) <> symbols.go(t, cc)
 
 # the document symbols
-def symbols(items: List<&2, Outline.Item>) -> J.Json:
-  J.arr(symbols.go(items))
+def symbols(cc: Enc.Cols, items: List<&2, Outline.Item>) -> J.Json:
+  J.arr(symbols.go(items, cc))
 
 # LSP's CompletionItemKind: function 3, module 9, enum member 20, constant 21,
 # struct 22
@@ -220,25 +230,31 @@ def first_line(s2: String) -> String:
 
 # a candidate replaces everything typed of the name, dots included: the
 # editor's own idea of a word stops at a dot
-def completion(item: Outline.Item, +line: U32, start: U32, col: U32) -> J.Json:
+def completion(+cc: Enc.Cols, item: Outline.Item, +line: U32, start: U32, col: U32) -> J.Json:
   Outline.Item{k, +name, l, sig, doc, path} = item
   J.obj([("label", J.JStr{name}), ("kind", J.JNum{U32.show(completion.kind(k))}), ("detail", J.JStr{first_line(sig)}),
     ("documentation", J.obj([("kind", J.JStr{"markdown"}), ("value", J.JStr{doc})])),
     ("filterText", J.JStr{name}),
-    ("textEdit", J.obj([("range", J.obj([("start", position(line, start)), ("end", position(line, col))])),
+    ("textEdit", J.obj([("range", J.obj([("start", position(cc, line, start)), ("end", position(cc, line, col))])),
       ("newText", J.JStr{name})]))])
 
-def completions.go(items: List<&2, Outline.Item>, +line: U32, +start: U32, +col: U32) -> List<&2, J.Json>:
+def completions.go(
+  items: List<&2, Outline.Item>,
+  +cc: Enc.Cols,
+  +line: U32,
+  +start: U32,
+  +col: U32
+) -> List<&2, J.Json>:
   match items:
     case Nil{}:
       Nil{}
     case Con{item, t}:
-      completion(item, line, start, col) <> completions.go(t, line, start, col)
+      completion(cc, item, line, start, col) <> completions.go(t, cc, line, start, col)
 
 # isIncomplete: the server filtered by the prefix, so the editor asks again
 # as the prefix grows
-def completions(items: List<&2, Outline.Item>, line: U32, start: U32, col: U32) -> J.Json:
-  J.obj([("isIncomplete", J.JBool{True{}}), ("items", J.arr(completions.go(items, line, start, col)))])
+def completions(cc: Enc.Cols, items: List<&2, Outline.Item>, line: U32, start: U32, col: U32) -> J.Json:
+  J.obj([("isIncomplete", J.JBool{True{}}), ("items", J.arr(completions.go(items, cc, line, start, col)))])
 
 # a file URI's path: the scheme dropped, the %XX bytes decoded as UTF-8
 def unpercent(cs: List<&2, Char>) -> List<&2, U32>:
@@ -260,27 +276,27 @@ def path(+uri: String) -> String:
 # references and rename
 # ---------------------
 
-def locations.go(ps: List<&2, Bind.Pos>, +uri: String, +name: String) -> List<&2, J.Json>:
+def locations.go(ps: List<&2, Bind.Pos>, +cc: Enc.Cols, +uri: String, +name: String) -> List<&2, J.Json>:
   match ps:
     case Nil{}:
       Nil{}
     case Con{Bind.Pos{l, c}, rest}:
-      J.obj([("uri", J.JStr{uri}), ("range", name_range(l, c, name))]) <> locations.go(rest, uri, name)
+      J.obj([("uri", J.JStr{uri}), ("range", name_range(cc, l, c, name))]) <> locations.go(rest, cc, uri, name)
 
 # the positions a name is at, as Locations
-def locations(uri: String, name: String, ps: List<&2, Bind.Pos>) -> J.Json:
-  J.arr(locations.go(ps, uri, name))
+def locations(cc: Enc.Cols, uri: String, name: String, ps: List<&2, Bind.Pos>) -> J.Json:
+  J.arr(locations.go(ps, cc, uri, name))
 
-def edits.go(ps: List<&2, Bind.Pos>, +name: String, +new: String) -> List<&2, J.Json>:
+def edits.go(ps: List<&2, Bind.Pos>, +cc: Enc.Cols, +name: String, +new: String) -> List<&2, J.Json>:
   match ps:
     case Nil{}:
       Nil{}
     case Con{Bind.Pos{l, c}, rest}:
-      J.obj([("range", name_range(l, c, name)), ("newText", J.JStr{new})]) <> edits.go(rest, name, new)
+      J.obj([("range", name_range(cc, l, c, name)), ("newText", J.JStr{new})]) <> edits.go(rest, cc, name, new)
 
 # a WorkspaceEdit over the one document
-def rename(uri: String, name: String, new: String, ps: List<&2, Bind.Pos>) -> J.Json:
-  J.obj([("changes", J.obj([(uri, J.arr(edits.go(ps, name, new)))]))])
+def rename(cc: Enc.Cols, uri: String, name: String, new: String, ps: List<&2, Bind.Pos>) -> J.Json:
+  J.obj([("changes", J.obj([(uri, J.arr(edits.go(ps, cc, name, new)))]))])
 
 # numbers as JSON numbers
 def nums(ns: List<&2, U32>) -> List<&2, J.Json>:
