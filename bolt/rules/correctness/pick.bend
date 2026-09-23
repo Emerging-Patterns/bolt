@@ -6,18 +6,22 @@
 # and `more`. In one branch, the recursion runs even when the other branch
 # was the answer: a search never stops early and walks the whole input
 # (portal-bend's `get`, bendoom's sorted insert). Match on the Bool instead,
-# in a helper that takes it as a parameter. A pick nested in a branch of one
-# already reported is not reported again.
+# in a helper that takes it as a parameter. A self-call is the def's name
+# followed by `(..)`: a parameter or a value named like the def is not one. A
+# pick nested in a branch of one already reported is not reported again. A
+# law file, a proof file and a def that returns a proof never run, so they
+# are exempt.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
 import ../../../syntax/lex.bend as Lex
 import ../../../syntax/tree.bend as Tree
 import ../calls.bend as Calls
+import ../../../lazy/lazy.bend as Lazy
 
-# do both branches (the third and fourth arguments) name the def?
+# do both branches (the third and fourth arguments) call the def?
 def both(+as: List<&2, Tree.Node>, +name: String) -> Bool:
-  Bool.and(Calls.mentions(Calls.arg(as, 2n), name), Calls.mentions(Calls.arg(as, 3n), name))
+  Bool.and(Calls.calls(Calls.arg(as, 2n), name), Calls.calls(Calls.arg(as, 3n), name))
 
 # does either branch call the def?
 def once(+as: List<&2, Tree.Node>, +name: String) -> Bool:
@@ -30,7 +34,7 @@ def picks(nn: Tree.Node, +name: String, +path: String, +quiet: Bool) -> List<&2,
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{open, +kids, close}, rest}}:
       +as = Calls.args(kids)
       +ispick = String.eq(t, "Bool.pick")
-      +two = Bool.and(ispick, both(as, name))
+      +two = Bool.and(Bool.and(ispick, Bool.not(quiet)), both(as, name))
       +one = Bool.and(Bool.and(ispick, Bool.not(two)), Bool.and(Bool.not(quiet), once(as, name)))
       +more = List.concat(&2, F.Finding, [picks(kids, name, path, Bool.or(quiet, Bool.or(two, one))),
         picks(rest, name, path, quiet)])
@@ -57,8 +61,10 @@ def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Fi
   match ds:
     case Nil{}:
       List.concat(&2, F.Finding, List.reverse(&2, List<&2, F.Finding>, acc))
-    case Con{Calls.Def{+name, sig, body}, rest}:
-      check.go(rest, path, picks(body, name, path, False{}) <> acc)
+    case Con{Calls.Def{+name, +sig, body}, rest}:
+      check.go(rest, path,
+        Lazy.stop(List<&2, F.Finding>, Calls.exempt(path, sig), [],
+          _u => picks(body, name, path, False{})) <> acc)
 
 # the rule
 def check(ss: Src.Src) -> List<&2, F.Finding>:
