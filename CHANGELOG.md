@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/Emerging-Patterns/bolt/compare/v1.3.1...v1.3.2) (2026-09-23)
+
+
+### Bug Fixes
+
+* **coverage:** read law mentions from the binder, and prove coverage (BOLT-LAW-1) ([#149](https://github.com/Emerging-Patterns/bolt/issues/149)) ([3c1e3b4](https://github.com/Emerging-Patterns/bolt/commit/3c1e3b490ca89be446340a1057a13b6dee400342))
+
 ## [1.3.1](https://github.com/Emerging-Patterns/bolt/compare/v1.3.0...v1.3.1) (2026-09-23)
 
 
