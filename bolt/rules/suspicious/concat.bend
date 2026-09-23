@@ -1,5 +1,8 @@
 # rule concat: a def passes itself a parameter grown at the end, `p ++ x` or
-# `List.append(.., p, ys)` (String.append(p, ..) too). A String and a List are
+# `List.append(.., p, ys)` (String.append(p, ..) too), as the argument in p's
+# own position, the slot it carries; p grown into another slot is not a
+# finding. Only an argument written as that append is seen: a parenthesized
+# `(p ++ x)` or an append bound by a let first is not. A String and a List are
 # cons lists, so appending copies all of p: the loop is quadratic, with right
 # output (night-train's text step cost three times the render; rootagi's JSON
 # stringify). Prepend (`x <> acc`) and reverse once at the end, build with
@@ -36,10 +39,10 @@ def onto(aa: Tree.Node) -> Maybe<&2, Lex.Tok>:
     case other:
       None{}
 
-# a finding when the name is a parameter
+# a finding when the name is the parameter of the argument's own slot
 def hit(
   mm: Maybe<&2, Lex.Tok>,
-  +params: List<&2, String>,
+  +slot: String,
   +path: String,
   +acc: List<&2, F.Finding>
 ) -> List<&2, F.Finding>:
@@ -47,12 +50,13 @@ def hit(
     case None{}:
       acc
     case Some{Lex.Tok{k, +t, l, c}}:
-      Bool.pick(List<&2, F.Finding>, List.contains(~String, ~String.eq, params, t),
+      Bool.pick(List<&2, F.Finding>, String.eq(t, slot),
         F.Finding{path, l, c, U32.from_nat(String.length(t)), "concat",
           t ++ " grows by appending on each step, which is quadratic; prepend and reverse once, or build with <>."} <> acc,
         acc)
 
-# the findings on a self-call's arguments
+# the findings on a self-call's arguments, each against the parameter in its
+# position (params, from the argument's own slot on)
 def hits(
   as: List<&2, Tree.Node>,
   +params: List<&2, String>,
@@ -63,7 +67,8 @@ def hits(
     case Nil{}:
       List.reverse(&2, F.Finding, acc)
     case Con{a, rest}:
-      hits(rest, params, path, hit(onto(a), params, path, acc))
+      +slot = Maybe.default(&2, String, List.head(&2, String, params), "")
+      hits(rest, List.tail(&2, String, params), path, hit(onto(a), slot, path, acc))
 
 # every self-call's arguments
 def walk(nn: Tree.Node, +name: String, +params: List<&2, String>, +path: String) -> List<&2, F.Finding>:

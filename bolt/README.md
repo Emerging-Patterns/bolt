@@ -159,8 +159,11 @@ beside the groups.
   lambda's body (from `=>` to the next comma of its group), which the pick
   does not run; an argument after that comma counts again.
 - `concat` — a self-call whose argument grows a carried parameter by
-  appending (`acc ++ x`, `List.append(&2, T, acc, ..)`): each step copies the
-  accumulator, so the walk is quadratic. Prepend with `<>` and reverse once.
+  appending (`acc ++ x`, `List.append(&2, T, acc, ..)`) in that parameter's
+  own position: each step copies the accumulator, so the walk is quadratic.
+  Prepend with `<>` and reverse once. A parameter appended into another slot
+  is not counted, and neither is a parenthesized `(acc ++ x)` or an append
+  bound by a let first.
 - `index` — `List.get`/`String.get` at a computed index inside a def that
   calls itself: the list is walked again each step. Walk the cells instead
   (one sort phase went 39 s -> 0.9 s).
