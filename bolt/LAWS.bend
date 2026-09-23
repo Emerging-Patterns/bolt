@@ -454,6 +454,19 @@ law unread_one_finding:
     == F.Finding{path, 0, 0, 0, "read", "Cannot read this file."} <> Plan.unread(Plan.gots(ps, world))
     : List<&2, F.Finding>}
 
+# LAW: a path the World answers as a directory is one `read` finding at its
+# path, in its place among the read failures, as an unreadable file is: a
+# directory named on the command line has no text to lint
+# BOLT-OUT-5
+law directory_one_finding:
+  for +world: W.World
+  for +path: String
+  for ps: List<&2, String>
+  for h: {W.answer(world, W.Text{path}) == Some{W.Directory{}} : Maybe<&2, W.Answer>}
+  {Plan.unread(Plan.gots(path <> ps, world))
+    == F.Finding{path, 0, 0, 0, "read", "Cannot read this file."} <> Plan.unread(Plan.gots(ps, world))
+    : List<&2, F.Finding>}
+
 # LAW: a `read` finding is graded with correctness: whatever the config, its
 # level is the one correctness gives the rule `read`
 # BOLT-OUT-5
@@ -686,6 +699,8 @@ def first_read.at(mm: Maybe<&2, W.Answer>, more: Config.Config) -> Config.Config
     case Some{W.Read{text}}:
       Config.parse(text)
     case Some{W.Unread{}}:
+      more
+    case Some{W.Directory{}}:
       more
 
 # the config of the first of the paths the World read a text for, the
