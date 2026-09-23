@@ -18,21 +18,21 @@
 # it, and it is the slow one, because the compile it drives is a whole build of
 # bolt.
 import Base
-import 0x29fbb19f01e963cc6271864b7e442159/main.bend as Snap
+import 0x9bfd9d57916f3439316c2775fd1f10b4/main.bend as Snap
 import ../core/check/kit.bend as Check
 import ../core/check/print.bend as Report
 
 # the 0x name ez computed for shake v0.1.1
 def shake.hash() -> String:
-  "0x65bf91e14c96bf0c25491d716ec9f68c"
+  "0xba6940aab8a335b70bf79944bd9b53c4"
 
-# the 0x name ez computed for ezjson v0.1.0
+# the 0x name ez computed for ezjson v0.4.2
 def ezjson.hash() -> String:
-  "0xa3c2445eb44c5d8406e6229be518fccb"
+  "0xd9c8d4d2899ddda845dfa7525a3568ea"
 
 # the 0x name ez computed for snap v0.1.0
 def snap.hash() -> String:
-  "0x29fbb19f01e963cc6271864b7e442159"
+  "0x9bfd9d57916f3439316c2775fd1f10b4"
 
 # the build, with ez taken out of the environment. BEND_LIB is the
 # checkouts this test laid out, not ez's.
@@ -46,7 +46,7 @@ def main() -> IO(Unit):
       ".scratch/snap", ".scratch/lib"])
     _cl : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v0.1.1",
       "https://github.com/Emerging-Patterns/shake.git", ".scratch/shake"])
-    _cj : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v0.1.0",
+    _cj : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v0.4.2",
       "https://github.com/Emerging-Patterns/ezjson.git", ".scratch/ezjson"])
     _cs : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v0.1.0",
       "https://github.com/Emerging-Patterns/snap.git", ".scratch/snap"])
@@ -57,7 +57,8 @@ def main() -> IO(Unit):
     _cj2 : String <- Snap.exec(["cp",
       ".scratch/ezjson/ezjson/lazy.bend", ".scratch/ezjson/ezjson/lex.bend",
       ".scratch/ezjson/ezjson/main.bend", ".scratch/ezjson/ezjson/parse.bend",
-      ".scratch/ezjson/ezjson/print.bend", ".scratch/ezjson/ezjson/value.bend",
+      ".scratch/ezjson/ezjson/print.bend", ".scratch/ezjson/ezjson/pull.bend",
+      ".scratch/ezjson/ezjson/value.bend",
       ".scratch/lib/" ++ ezjson.hash() ++ "/"])
     _cs2 : String <- Snap.exec(["cp",
       ".scratch/snap/snap/main.bend", ".scratch/snap/snap/exec.c",

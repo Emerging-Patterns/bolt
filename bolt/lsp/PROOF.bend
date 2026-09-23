@@ -1,6 +1,6 @@
 # bolt/lsp: the proofs. `bend PROOF.bend` is the gate.
 import Base
-import 0xa3c2445eb44c5d8406e6229be518fccb/value.bend as J
+import 0xd9c8d4d2899ddda845dfa7525a3568ea/value.bend as J
 import ./frame.bend as Frame
 import ./server.bend as Server
 import ../../lazy/lazy.bend as Lazy
@@ -1273,6 +1273,10 @@ def unknown_ids(id, _more):
       {==}
     case J.JPair{k, v, r}:
       {==}
+    case J.JSpan{src, n}:
+      {==}
+    case J.JBind{src, n, v, r}:
+      {==}
 
 # a response carries its request's id, a result or an error alike
 law respond_ids:
@@ -1376,6 +1380,10 @@ def unknown_other(w, id):
         case J.JCons{h, t}:
           {==}
         case J.JPair{k, v, r}:
+          {==}
+        case J.JSpan{src, n}:
+          {==}
+        case J.JBind{src, n, v, r}:
           {==}
 
 def Laws.unknown_refused(name, h, id, w):

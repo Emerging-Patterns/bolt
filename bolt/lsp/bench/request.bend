@@ -7,8 +7,8 @@
 import Base
 import ../../../syntax/outline.bend as Outline
 import ../../../syntax/word.bend as Word
-import 0xa3c2445eb44c5d8406e6229be518fccb/parse.bend as Parse
-import 0xa3c2445eb44c5d8406e6229be518fccb/value.bend as J
+import 0xd9c8d4d2899ddda845dfa7525a3568ea/parse.bend as Parse
+import 0xd9c8d4d2899ddda845dfa7525a3568ea/value.bend as J
 
 # the document a hover is answered against
 def source() -> String:
@@ -35,8 +35,9 @@ def leaf(+ii: U32) -> U32:
   +msg = parsed(Parse.parse(message()))
   +pos = J.get(J.get(msg, "params"), "position")
   (line_of(Outline.find(Outline.items(source()),
-    Word.at(source(), J.u32_or(J.get(pos, "line"), 0), J.u32_or(J.get(pos, "character"), 0))))
-    + J.u32_or(J.get(msg, "id"), 0) + (ii .&. 0) : U32)
+    Word.at(source(), Maybe.default(&2, U32, J.as_u32(J.get(pos, "line")), 0),
+      Maybe.default(&2, U32, J.as_u32(J.get(pos, "character")), 0))))
+    + Maybe.default(&2, U32, J.as_u32(J.get(msg, "id")), 0) + (ii .&. 0) : U32)
 
 # the requests of a 2^n batch, answered and summed
 def fold(+nn: Nat, +ii: U32) -> U32:
