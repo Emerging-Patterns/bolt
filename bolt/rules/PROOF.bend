@@ -10454,3 +10454,143 @@ def wrap.went(items, path):
 
 def Laws.wrap_counts(path, _text, _toks, _tree, _bound, items):
   wrap.went(items, path)
+
+def Laws.scope_digest_exempt(_path, _text, _toks, _tree, _bound, _items, _text2, _toks2, _tree2, _bound2, _items2):
+  {==}
+
+# two finding lists that are both empty are equal
+law scope.same:
+  for -a: List<&2, F.Finding>
+  for -b: List<&2, F.Finding>
+  for ea: {a == Nil{} : List<&2, F.Finding>}
+  for eb: {b == Nil{} : List<&2, F.Finding>}
+  {a == b : List<&2, F.Finding>}
+
+def scope.same(a, b, ea, eb):
+  Equal.trans(List<&2, F.Finding>, a, Nil{}, b, ea, Equal.sym(List<&2, F.Finding>, b, Nil{}, eb))
+
+def Laws.scope_hole(path, text, toks, tree, bound, items, text2, toks2, tree2, bound2, items2, e):
+  scope.same(Hole.check(Src.Src{path, text, toks, tree, bound, items}),
+    Hole.check(Src.Src{path, text2, toks2, tree2, bound2, items2}),
+    Laws.hole_exempt(path, text, toks, tree, bound, items, e),
+    Laws.hole_exempt(path, text2, toks2, tree2, bound2, items2, e))
+
+def Laws.scope_doc(path, text, toks, tree, bound, items, text2, toks2, tree2, bound2, items2, e):
+  scope.same(Doc.check(Src.Src{path, text, toks, tree, bound, items}),
+    Doc.check(Src.Src{path, text2, toks2, tree2, bound2, items2}),
+    Laws.doc_exempt(path, text, toks, tree, bound, items, e),
+    Laws.doc_exempt(path, text2, toks2, tree2, bound2, items2, e))
+
+def Laws.scope_param(path, text, toks, tree, bound, items, text2, toks2, tree2, bound2, items2, e):
+  scope.same(Param.check(Src.Src{path, text, toks, tree, bound, items}),
+    Param.check(Src.Src{path, text2, toks2, tree2, bound2, items2}),
+    Laws.param_exempt(path, text, toks, tree, bound, items, e),
+    Laws.param_exempt(path, text2, toks2, tree2, bound2, items2, e))
+
+# two empty heads onto equal tails make equal lists
+law scope.con:
+  for -x: List<&2, F.Finding>
+  for -y: List<&2, F.Finding>
+  for ex: {x == Nil{} : List<&2, F.Finding>}
+  for ey: {y == Nil{} : List<&2, F.Finding>}
+  for -xs: List<&2, List<&2, F.Finding>>
+  for -ys: List<&2, List<&2, F.Finding>>
+  for ih: {xs == ys : List<&2, List<&2, F.Finding>>}
+  {x <> xs == y <> ys : List<&2, List<&2, F.Finding>>}
+
+def scope.con(x, y, ex, ey, xs, ys, ih):
+  sx = Equal.sym(List<&2, F.Finding>, x, Nil{}, ex)
+  sy = Equal.sym(List<&2, F.Finding>, y, Nil{}, ey)
+  %sx : {_ <> xs == y <> ys : List<&2, List<&2, F.Finding>>}
+  %sy : {Nil{} <> xs == _ <> ys : List<&2, List<&2, F.Finding>>}
+  %ih : {Nil{} <> xs == Nil{} <> _ : List<&2, List<&2, F.Finding>>}
+  {==}
+
+def Laws.scope_law_file(path, text, toks, tree, bound, items, text2, toks2, tree2, bound2, items2, e):
+  +s = {Src.Src{path, text, toks, tree, bound, items} : Src.Src}
+  +t = {Src.Src{path, text2, toks2, tree2, bound2, items2} : Src.Src}
+  scope.con(Pick.check(s), Pick.check(t),
+    Laws.pick_exempt(path, text, toks, tree, bound, items, e),
+    Laws.pick_exempt(path, text2, toks2, tree2, bound2, items2, e),
+    [Tail.check(s), Concat.check(s), Eager.check(s), Rewalk.check(s), Strict.check(s),
+      Hoist.check(s), Index.check(s), Ring.check(s), Table.check(s), UnitRule.check(s)],
+    [Tail.check(t), Concat.check(t), Eager.check(t), Rewalk.check(t), Strict.check(t),
+      Hoist.check(t), Index.check(t), Ring.check(t), Table.check(t), UnitRule.check(t)],
+  scope.con(Tail.check(s), Tail.check(t),
+    Laws.tail_exempt(path, text, toks, tree, bound, items, e),
+    Laws.tail_exempt(path, text2, toks2, tree2, bound2, items2, e),
+    [Concat.check(s), Eager.check(s), Rewalk.check(s), Strict.check(s), Hoist.check(s),
+      Index.check(s), Ring.check(s), Table.check(s), UnitRule.check(s)],
+    [Concat.check(t), Eager.check(t), Rewalk.check(t), Strict.check(t), Hoist.check(t),
+      Index.check(t), Ring.check(t), Table.check(t), UnitRule.check(t)],
+  scope.con(Concat.check(s), Concat.check(t),
+    Laws.concat_exempt(path, text, toks, tree, bound, items, e),
+    Laws.concat_exempt(path, text2, toks2, tree2, bound2, items2, e),
+    [Eager.check(s), Rewalk.check(s), Strict.check(s), Hoist.check(s), Index.check(s),
+      Ring.check(s), Table.check(s), UnitRule.check(s)],
+    [Eager.check(t), Rewalk.check(t), Strict.check(t), Hoist.check(t), Index.check(t),
+      Ring.check(t), Table.check(t), UnitRule.check(t)],
+  scope.con(Eager.check(s), Eager.check(t),
+    Laws.eager_exempt(path, text, toks, tree, bound, items, e),
+    Laws.eager_exempt(path, text2, toks2, tree2, bound2, items2, e),
+    [Rewalk.check(s), Strict.check(s), Hoist.check(s), Index.check(s), Ring.check(s),
+      Table.check(s), UnitRule.check(s)],
+    [Rewalk.check(t), Strict.check(t), Hoist.check(t), Index.check(t), Ring.check(t),
+      Table.check(t), UnitRule.check(t)],
+  scope.con(Rewalk.check(s), Rewalk.check(t),
+    Laws.rewalk_exempt(path, text, toks, tree, bound, items, e),
+    Laws.rewalk_exempt(path, text2, toks2, tree2, bound2, items2, e),
+    [Strict.check(s), Hoist.check(s), Index.check(s), Ring.check(s), Table.check(s),
+      UnitRule.check(s)],
+    [Strict.check(t), Hoist.check(t), Index.check(t), Ring.check(t), Table.check(t),
+      UnitRule.check(t)],
+  scope.con(Strict.check(s), Strict.check(t),
+    Laws.strict_exempt(path, text, toks, tree, bound, items, e),
+    Laws.strict_exempt(path, text2, toks2, tree2, bound2, items2, e),
+    [Hoist.check(s), Index.check(s), Ring.check(s), Table.check(s), UnitRule.check(s)],
+    [Hoist.check(t), Index.check(t), Ring.check(t), Table.check(t), UnitRule.check(t)],
+  scope.con(Hoist.check(s), Hoist.check(t),
+    Laws.hoist_exempt(path, text, toks, tree, bound, items, e),
+    Laws.hoist_exempt(path, text2, toks2, tree2, bound2, items2, e),
+    [Index.check(s), Ring.check(s), Table.check(s), UnitRule.check(s)],
+    [Index.check(t), Ring.check(t), Table.check(t), UnitRule.check(t)],
+  scope.con(Index.check(s), Index.check(t),
+    Laws.index_exempt(path, text, toks, tree, bound, items, e),
+    Laws.index_exempt(path, text2, toks2, tree2, bound2, items2, e),
+    [Ring.check(s), Table.check(s), UnitRule.check(s)],
+    [Ring.check(t), Table.check(t), UnitRule.check(t)],
+  scope.con(Ring.check(s), Ring.check(t),
+    Laws.ring_exempt(path, text, toks, tree, bound, items, e),
+    Laws.ring_exempt(path, text2, toks2, tree2, bound2, items2, e),
+    [Table.check(s), UnitRule.check(s)],
+    [Table.check(t), UnitRule.check(t)],
+  scope.con(Table.check(s), Table.check(t),
+    Laws.table_exempt(path, text, toks, tree, bound, items, e),
+    Laws.table_exempt(path, text2, toks2, tree2, bound2, items2, e),
+    [UnitRule.check(s)],
+    [UnitRule.check(t)],
+  scope.con(UnitRule.check(s), UnitRule.check(t),
+    Laws.unit_exempt(path, text, toks, tree, bound, items, e),
+    Laws.unit_exempt(path, text2, toks2, tree2, bound2, items2, e),
+    Nil{},
+    Nil{},
+  {==})))))))))))
+
+# closed reports nothing outside a LAWS.bend
+law scope.closed:
+  for +path: String
+  for tree: Tree.Node
+  for e: {Paths.is_laws(path) == False{} : Bool}
+  {Lazy.stop(List<&2, F.Finding>, Bool.not(Paths.is_laws(path)), [], _u => Closed.check.go(tree, path))
+    == Nil{} : List<&2, F.Finding>}
+
+def scope.closed(path, tree, e):
+  s = Equal.sym(Bool, Paths.is_laws(path), False{}, e)
+  %s : {Lazy.stop(List<&2, F.Finding>, Bool.not(_), [], _u => Closed.check.go(tree, path))
+    == Nil{} : List<&2, F.Finding>}
+  {==}
+
+def Laws.scope_closed(path, text, toks, tree, bound, items, text2, toks2, tree2, bound2, items2, e):
+  scope.same(Closed.check(Src.Src{path, text, toks, tree, bound, items}),
+    Closed.check(Src.Src{path, text2, toks2, tree2, bound2, items2}),
+    scope.closed(path, tree, e), scope.closed(path, tree2, e))
