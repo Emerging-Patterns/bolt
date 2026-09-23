@@ -205,12 +205,13 @@ def small_num(+tt: String) -> Bool:
   List.contains(~String, ~String.eq,
     ["0", "1", "2", "3", "4", "5", "6", "7", "8", "0n", "1n", "2n", "3n", "4n", "5n", "6n", "7n", "8n"], tt)
 
-# the size after `*` or `^` is a literal of eight or fewer
+# the size after `*` is a literal of eight or fewer, or the depth after `^` (2^d slots) three or fewer
 def small_size(nn: Tree.Node) -> Bool:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +op, l, c}},
         Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, +t, l2, c2}}, rest}}:
-      +here = Bool.and(Bool.or(String.eq(op, "*"), String.eq(op, "^")), small_num(t))
+      +here = Bool.or(Bool.and(String.eq(op, "*"), small_num(t)),
+        Bool.and(String.eq(op, "^"), List.contains(~String, ~String.eq, ["0", "1", "2", "3", "0n", "1n", "2n", "3n"], t)))
       +more = small_size(rest)
       Bool.or(here, more)
     case Tree.NCons{Tree.Group{open, kids, close}, rest}:
@@ -600,6 +601,14 @@ def call_table(
     case True{}:
       call_open(open, tt, kids, self, wides, carried, path)
 
+# a `=>` cools the rest of its chain: a lambda's body runs when it is called, not per step
+def warm(+hot: Bool, kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TLam{}:
+      False{}
+    case other:
+      hot
+
 # tables built in a hot region
 def walk(
   nn: Tree.Node,
@@ -610,13 +619,14 @@ def walk(
   +hot: Bool
 ) -> List<&2, F.Finding>:
   match nn:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}}, +rest}:
-      walk(rest, self, wides, carried, path, False{})
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
-      +own = call_table(hot, String.eq(o, "("), t, kids, self, wides, carried, path)
-      +inn = walk(kids, self, wides, carried, path, hot)
-      +aft = walk(rest, self, wides, carried, path, hot)
+      +heat = warm(hot, k)
+      +own = call_table(heat, String.eq(o, "("), t, kids, self, wides, carried, path)
+      +inn = walk(kids, self, wides, carried, path, heat)
+      +aft = walk(rest, self, wides, carried, path, heat)
       List.concat(&2, F.Finding, [own, inn, aft])
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, rest}:
+      walk(rest, self, wides, carried, path, warm(hot, k))
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
       List.concat(&2, F.Finding,
         [walk(kids, self, wides, carried, path, hot), walk(rest, self, wides, carried, path, hot)])
@@ -624,7 +634,7 @@ def walk(
       +arm = Bool.and(hot, Calls.calls(body, self))
       List.concat(&2, F.Finding, [walk(kids, self, wides, carried, path, False{}),
         walk(body, self, wides, carried, path, arm), walk(rest, self, wides, carried, path, hot)])
-    case Tree.NCons{Tree.Stmt{kind, +kids, +body}, rest}:
+    case Tree.NCons{Tree.Stmt{kind, +kids, +body}, +rest}:
       +own = let_hit(hot, kids, body, rest, self, wides, carried, path)
       List.concat(&2, F.Finding, [own, walk(kids, self, wides, carried, path, hot),
         walk(body, self, wides, carried, path, hot), walk(rest, self, wides, carried, path, hot)])
