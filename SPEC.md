@@ -38,13 +38,13 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | BOLT-RULE-U003 | `eager` reports exactly a looping def of the file called in a `Bool.pick` branch. | Proved | pending |  |
 | BOLT-RULE-U004 | `concat` reports exactly a self-call argument that appends onto the parameter in its own position. | Proved | pending |  |
 | BOLT-RULE-U005 | `nat` reports exactly one finding for each token the lexer reads as a Nat literal of 1000 or more (digits then `n`, four or more digits once leading zeros are dropped), and none for any other token. | Proved | proved | bolt/rules/LAWS.bend nat_counts |
-| BOLT-RULE-U006 | `fuel` reports exactly an argument that is one Nat literal token alone, in a call (not a self-call) to a def of the file, at a parameter named `fuel`, `gas`, `steps` or `budget` or starting with `fuel`. | Proved | pending |  |
+| BOLT-RULE-U006 | `fuel` reports exactly an argument that is one Nat literal token alone, in a call (not a self-call) to a def of the file, at a parameter named `fuel`, `gas`, `steps` or `budget` or starting with `fuel`. | Proved | proved | bolt/rules/LAWS.bend fuel_slots; bolt/rules/LAWS.bend fuel_walk_counts; bolt/rules/LAWS.bend fuel_counts |
 | BOLT-RULE-U007 | `index` reports exactly a `List.get` or `String.get` at a non-literal index anywhere in a recursive def, except a `List.get` on a fixed table that `table` reports. | Proved | pending |  |
 | BOLT-RULE-U008 | `table` reports exactly a get or set at a computed index on a fixed table inside a recursive def. | Proved | pending |  |
 | BOLT-RULE-U009 | `hoist` reports exactly a table of more than eight cells rebuilt per step from carried inputs. | Proved | pending |  |
 | BOLT-RULE-U010 | `ring` reports exactly a fixed window dropped and appended per step and passed back in its own parameter position. | Proved | pending |  |
 | BOLT-RULE-U011 | `rewalk` reports exactly the same walk twice on the same argument, one result read for a single value. | Proved | pending |  |
-| BOLT-RULE-U012 | `unit` reports exactly a multiply or divide by one on a recursive step. | Proved | pending |  |
+| BOLT-RULE-U012 | `unit` reports exactly a multiply or divide by one on a recursive step. | Proved | proved | bolt/rules/LAWS.bend unit_walk_counts; bolt/rules/LAWS.bend unit_counts |
 | BOLT-RULE-S001 | `doc` reports exactly a top-level def, type or law with no comment block right above it, with the header's exemptions. | Proved | pending |  |
 | BOLT-RULE-S002 | `space` reports exactly trailing whitespace or a tab on any line, string literals and `#\|` lines included, or a line over 120 columns with string literals counted as two, comments at full width, and `#\|` lines not counted. | Proved | proved | bolt/rules/LAWS.bend space_counts; bolt/rules/LAWS.bend space_line_counts; bolt/rules/LAWS.bend space_width_counts |
 | BOLT-RULE-S003 | `wrap` reports exactly a def header whose shape breaks the header's rules. | Proved | pending |  |
