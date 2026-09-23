@@ -63,19 +63,20 @@ def check.is_colon(kk: Lex.TokKind) -> Bool:
     case other:
       False{}
 
-# the header's width through its last `:` (upto; 0 until one is seen), a
-# string literal counting as two
-def check.width.go(toks: List<&2, Lex.Tok>, +acc: U32, +upto: U32) -> U32:
+# the header's width through its last `:` (upto, once seen says there was
+# one), else its whole width, a string literal counting as two
+def check.width.go(toks: List<&2, Lex.Tok>, +acc: U32, +upto: U32, +seen: Bool) -> U32:
   match toks:
     case Nil{}:
-      Bool.pick(U32, U32.is_eq(upto, 0), acc, upto)
+      Bool.pick(U32, seen, upto, acc)
     case Con{Lex.Tok{+kd, tx, _ln, _cl}, rest}:
       +next = check.add(acc, kd, tx)
-      check.width.go(rest, next, Bool.pick(U32, check.is_colon(kd), next, upto))
+      +colon = check.is_colon(kd)
+      check.width.go(rest, next, Bool.pick(U32, colon, next, upto), Bool.or(colon, seen))
 
 # the header's width, through its `:`: a comment after it does not count
 def check.width(+sig: String) -> U32:
-  check.width.go(Lex.tokens(sig), 0, 0)
+  check.width.go(Lex.tokens(sig), 0, 0, False{})
 
 # a fresh walk, before the parameter list
 def check.start() -> Walk:
