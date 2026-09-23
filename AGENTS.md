@@ -13,12 +13,13 @@ it, and it does not go in at all (SPEC.md, docs/rfc/bolt-spec.md).
 
 `tests/*.bend` and `#|` exist only for claims Bend cannot prove:
 host/integration (bend, nix, node, disk, process). The stay list is
-`tests/bare.bend`, `tests/flake.bend`, `bolt/lsp/tests/checker.bend`,
-`syntax/tests/lex_files.bend`, `syntax/tests/tree_files.bend`,
-`bolt/lsp/tests/levels.bend`, plus companions
-(`bolt/lsp/tests/spawn.js`, `tests/locate.js`) and
-`lazy/tests/lazy.bend` (a thunk that must not run: Bend cannot state
-“this side was skipped”).
+`tests/bare.bend`, `bolt/lsp/tests/checker.bend`,
+`bolt/lsp/tests/levels.bend`, `syntax/tests/lex_files.bend` and
+`syntax/tests/tree_files.bend`, plus companions (`bolt/lsp/tests/spawn.js`,
+`tests/locate.js`). The syntax tests go when BOLT-SYN-1 and BOLT-SYN-3 are
+proved, levels when the LSP has a files model. A test is never evidence for
+a SPEC.md requirement: what one cannot prove is a Trusted row, not a test
+(the lazy branches skipping their thunk is BOLT-LIB-2).
 
 A `#|` equality for a proveable claim is a bug. A directory with
 `LAWS.bend` and `PROOF.bend` is complete. Do not add `tests/`.
@@ -37,7 +38,7 @@ A `#|` equality for a proveable claim is a bug. A directory with
                        checks.test (`ez test --unit-only` through mkProofs)
                        and checks.lint (that bolt over this tree, mkLint)
                        (nix sees tracked files only: git add first)
-    tests/*.bend       stay-list host/integration only (bare, flake).
+    tests/*.bend       stay-list host/integration only (bare).
                        `ez test` runs each on its own, and caches none of them
     .github/workflows/ ci: `nix flake check`, on a pull request and on a push to main.
                        release-please: on push to main, conventional commits open a
