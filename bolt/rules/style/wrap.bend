@@ -4,7 +4,7 @@
 # fits stays one line however many parameters it has. A header that breaks
 # puts `(` at the end of the first line and one parameter on each following
 # line, then `)` and the return type on a line of their own after the last
-# parameter. Several parameters on a line, a parameter left on the `def`
+# parameter. Several parameters on a line, a parameter left on the `(`
 # line, a parameter split across lines, or a `)` on the last parameter's line
 # (`bb: U32) -> U32:`), is a finding. A comment after the header's `:` is not
 # part of the header: `def u(aa: U32) -> U32: # note` is a one-line header.
@@ -780,8 +780,8 @@ def check.place(
 
 # a multi-line header that is not one parameter per line, or whose `)` shares
 # the last parameter's line
-def check.jam(+line: U32, +sig: String, +path: String, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
-  +wk = check.walk(Lex.tokens(sig), check.start(), False{})
+def check.jam(+line: U32, toks: List<&2, Lex.Tok>, +path: String, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
+  +wk = check.walk(toks, check.start(), False{})
   check.place(check.jam_span(wk), check.shut_span(wk), line, path, more)
 
 # a one-line header past 120
@@ -800,7 +800,7 @@ def check.header(
 ) -> List<&2, F.Finding>:
   match multi:
     case True{}:
-      check.jam(line, sig, path, more)
+      check.jam(line, Lex.tokens(sig), path, more)
     case False{}:
       check.wide(line, sig, path, more)
 
