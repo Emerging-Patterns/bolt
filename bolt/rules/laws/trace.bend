@@ -7,10 +7,11 @@
 # that ID (`# BOLT-CFG-1`). A Proved row, proved or pending, is a claim: a
 # proved row's Law cell names the laws that prove it, and a pending row's may
 # name laws that prove part of it while the row stays pending. The findings: a
-# row that is not a well-formed requirement; an ID listed twice; a proved row
-# whose Law cell names no law; a Trusted row that names a law; a Law entry of
-# a Proved row, proved or pending, whose law is missing, has no `for`/`exs`
-# binder, or lacks the row's tag; a Trusted row with no trust row; and a tag
+# row that is not a well-formed requirement or trust row, an ID that does not
+# match the pattern included; an ID listed twice; a proved row whose Law cell
+# names no law; a Trusted row that names a law; a Law entry of a Proved row,
+# proved or pending, whose law is missing, has no `for`/`exs` binder, or lacks
+# the row's tag; a Trusted row with no trust row; and a tag
 # naming an ID SPEC.md does not list as Proved, proved or pending. A Law entry
 # is `<path> <law>`, the path relative to SPEC.md, entries joined by `; `.
 # Only a bolt.bend that names the rule turns it on (bolt/config.bend). It runs
@@ -59,21 +60,35 @@ def trust_head() -> String:
 def trim(+ss: String) -> String:
   String.trim(ss)
 
-# the cells of a table line, split at every `|` not escaped as `\|`
-def cells.go(cs: List<&2, Char>, cur: List<&2, Char>, acc: List<&2, String>) -> List<&2, String>:
+# a table line read so far: the cell being read and the cells before it, each
+# backwards
+type Cells is Data:
+  Cells{cur: List<&2, Char>, done: List<&2, String>}
+
+# one char onto the cells read: a bar ends the cell, any other char extends it
+def cells.at(bar: Bool, cc: Char, st: Cells) -> Cells:
+  match bar:
+    case True{}:
+      Cells{cur, done} = st
+      Cells{[], trim(String.from_list(List.reverse(&2, Char, cur))) <> done}
+    case False{}:
+      Cells{cur, done} = st
+      Cells{cc <> cur, done}
+
+# the cells of a table line, split at every `|` that does not follow a `\`
+# (an escaped `\|`); esc says the char before was a `\`. It matches no char
+# pattern, so the proofs can take a char apart by what Char.is_eq says of it
+def cells.go(cs: List<&2, Char>, esc: Bool, st: Cells) -> List<&2, String>:
   match cs:
     case Nil{}:
-      List.reverse(&2, String, String.from_list(List.reverse(&2, Char, cur)) <> acc)
-    case Con{'\\', Con{'|', t}}:
-      cells.go(t, '|' <> ('\\' <> cur), acc)
-    case Con{'|', t}:
-      cells.go(t, [], trim(String.from_list(List.reverse(&2, Char, cur))) <> acc)
-    case Con{c, t}:
-      cells.go(t, c <> cur, acc)
+      Cells{cur, done} = st
+      List.reverse(&2, String, String.from_list(List.reverse(&2, Char, cur)) <> done)
+    case Con{+c, t}:
+      cells.go(t, Char.is_eq(c, '\\'), cells.at(Bool.and(Char.is_eq(c, '|'), Bool.not(esc)), c, st))
 
 # the cells between a line's outer bars
 def cells(+line: String) -> List<&2, String>:
-  +all = cells.go(String.to_list(String.trim(line)), [], [])
+  +all = cells.go(String.to_list(String.trim(line)), False{}, Cells{[], []})
   List.take(&2, String, List.drop(&2, String, all, 1n), Nat.sub(List.length(&2, String, all), 2n))
 
 # the i-th cell, or empty
@@ -197,21 +212,23 @@ def is_id(+ss: String) -> Bool:
 def at(+nn: U32, msg: String) -> F.Finding:
   F.Finding{"SPEC.md", nn, 0, 0, "trace", msg}
 
-# how many rows have this ID
-def rows_with(rs: List<&2, Row>, +id: String) -> U32:
+# how many rows have this ID (a Nat, so the count is the same in any order)
+def rows_with(rs: List<&2, Row>, +id: String) -> Nat:
   match rs:
     case Nil{}:
-      0
+      0n
     case Con{Row{+i, lv, s, ls, n}, rest}:
-      (Bool.pick(U32, String.eq(i, id), 1, 0) + rows_with(rest, id) : U32)
+      +m = rows_with(rest, id)
+      Bool.pick(Nat, String.eq(i, id), 1n+m, m)
 
 # how many trust rows have this ID
-def marks_with(ms: List<&2, Mark>, +id: String) -> U32:
+def marks_with(ms: List<&2, Mark>, +id: String) -> Nat:
   match ms:
     case Nil{}:
-      0
+      0n
     case Con{Mark{+i, n}, rest}:
-      (Bool.pick(U32, String.eq(i, id), 1, 0) + marks_with(rest, id) : U32)
+      +m = marks_with(rest, id)
+      Bool.pick(Nat, String.eq(i, id), 1n+m, m)
 
 # the digest of a LAWS.bend at a path, when it was read
 def laws_file(ds: List<&2, Digest.Digest>, +pp: String) -> Maybe<&2, List<&2, Digest.Law>>:
@@ -300,9 +317,9 @@ def judge_row(rr: Row, +sp: Spec, +ds: List<&2, Digest.Digest>) -> List<&2, F.Fi
   +why = shape(lv, st, ls)
   List.concat(&2, F.Finding, [
     Bool.pick(List<&2, F.Finding>, is_id(id), [], [at(nn, id ++ " is not an ID: [A-Z][A-Z0-9]*(-[A-Z0-9]+)+.")]),
-    Bool.pick(List<&2, F.Finding>, U32.is_gt(rows_with(reqs, id), 1), [at(nn, id ++ " is listed twice.")], []),
+    Bool.pick(List<&2, F.Finding>, Nat.is_gt(rows_with(reqs, id), 1n), [at(nn, id ++ " is listed twice.")], []),
     Bool.pick(List<&2, F.Finding>, String.is_empty(why), [], [at(nn, id ++ ": " ++ why ++ ".")]),
-    Bool.pick(List<&2, F.Finding>, Bool.and(String.eq(lv, "Trusted"), U32.is_eq(marks_with(trust, id), 0)),
+    Bool.pick(List<&2, F.Finding>, Bool.and(String.eq(lv, "Trusted"), Nat.is_eq(marks_with(trust, id), 0n)),
       [at(nn, id ++ " is Trusted and has no row in the trust boundary table.")], []),
     Lazy.stop(List<&2, F.Finding>, Bool.not(claims(lv, st)), [], _u => judge_entries(ls, ds, id, nn))])
 
@@ -363,14 +380,16 @@ def malformed(ms: List<&2, Mark>) -> List<&2, F.Finding>:
     case Con{Mark{why, nn}, rest}:
       at(nn, "Not a well-formed row: " ++ why ++ ".") <> malformed(rest)
 
-# every trust row listed twice
+# every trust row whose ID is not an ID, or is listed twice
 def twins(ms: List<&2, Mark>, +all: List<&2, Mark>) -> List<&2, F.Finding>:
   match ms:
     case Nil{}:
       Nil{}
     case Con{Mark{+id, +nn}, rest}:
       +more = twins(rest, all)
-      Bool.pick(List<&2, F.Finding>, U32.is_gt(marks_with(all, id), 1), at(nn, id ++ " is listed twice.") <> more, more)
+      +twice = Bool.pick(List<&2, F.Finding>, Nat.is_gt(marks_with(all, id), 1n), at(nn, id ++ " is listed twice.") <> more,
+        more)
+      Bool.pick(List<&2, F.Finding>, is_id(id), twice, at(nn, id ++ " is not an ID: [A-Z][A-Z0-9]*(-[A-Z0-9]+)+.") <> twice)
 
 # the rule over a SPEC.md that was read
 def check.spec(+sp: Spec, +ds: List<&2, Digest.Digest>) -> List<&2, F.Finding>:
