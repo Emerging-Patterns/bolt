@@ -2,21 +2,26 @@
 # over every message body, every byte that follows it on the wire, and every
 # point a read may stop at. The dispatcher's decision (server.bend's step) is
 # pure too, so its laws quantify over every stream of messages and whatever
-# the work behind each method gave.
+# the work behind each method gave. What a document's diagnostics hold is
+# server.bend's pub.* decision, pure over what the IO gave it, so those laws
+# quantify over every text, every checker result and every file system.
 import Base
 import 0xa3c2445eb44c5d8406e6229be518fccb/value.bend as J
 import ./frame.bend as Frame
 import ./server.bend as Server
+import ./docs.bend as Docs
 import ./report.bend as Rep
+import ./proto.bend as Proto
+import ../finding.bend as F
+import ../lint/world.bend as W
+import ../lint/plan.bend as Plan
 import ./checker/argv.bend as Argv
 import ./nav.bend as Nav
-import ./docs.bend as Docs
-import ./files/service.bend as F
+import ./files/service.bend as Fs
 import ../../syntax/bind.bend as Bind
 import ../../syntax/outline.bend as Outline
 import ../../syntax/word.bend as Word
 import ./path.bend as Path
-import ./proto.bend as Proto
 
 # a digit as its char
 def digit_char(dd: Frame.Digit) -> Char:
@@ -264,6 +269,125 @@ law unknown_refused:
   for w: Server.Work
   {sent(Server.step(Server.method(name), id, w)) == refusal(id) : List<&2, Server.Reply>}
 
+# publishing
+# ----------
+
+# the notifications a method's work sends
+def pub.notes(ww: Server.Work) -> List<&2, String>:
+  Server.Work{notes, _answer, _docs} = ww
+  notes
+
+# the open documents after a method's work
+def pub.docs(ww: Server.Work) -> List<&2, Docs.Doc>:
+  Server.Work{_notes, _answer, docs} = ww
+  docs
+
+# the CLI's per-file findings in a run, graded the CLI's way: each source's
+# per-file rules, each finding at the level the bolt.bend nearest its path
+# gives it (BOLT-SCOPE-2 and BOLT-OUT-3 place these among the run's findings)
+def pub.cli(+world: W.World) -> List<&2, F.Graded>:
+  Plan.grade(Plan.confs(world), world, Plan.per_file(Plan.srcs_of(Plan.gots(Plan.inputs(world), world))))
+
+# LAW: an open document's lint is the CLI's: over every file system and
+# working directory (a World), for a document at a path whose text the CLI
+# reads as the editor shows it, the LSP's findings on that text, graded by
+# the bolt.bend candidates it reads from that same file system and
+# directory, are exactly what `bolt <path>` grades as that file's per-file
+# findings (none for a bolt.bend, which neither lints)
+# BOLT-LSP-2
+law lint_is_cli:
+  for +world: W.World
+  for +path: String
+  for +text: String
+  for h: {W.paths.of(world) == [path] : List<&2, String>}
+  for ht: {W.text(world, path) == Some{text} : Maybe<&2, String>}
+  {Server.pub.lint(path, text, Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world)) == pub.cli(world)
+    : List<&2, F.Graded>}
+
+# LAW: open publishes the checker's errors plus the lint of the text opened
+# BOLT-LSP-4
+law open_publishes:
+  for +uri: String
+  for +text: String
+  for +ds: List<&2, Rep.Diag>
+  for +rs: List<&2, Maybe<&2, String>>
+  for +docs: List<&2, Docs.Doc>
+  {pub.notes(Server.pub.open(uri, text, ds, rs, docs))
+    == [Server.pub.note(uri, ds, Server.pub.lint(Proto.path(uri), text, rs))] : List<&2, String>}
+
+# LAW: save publishes the checker's new errors plus the lint of the text the
+# editor shows
+# BOLT-LSP-4
+law save_publishes:
+  for +uri: String
+  for +ds: List<&2, Rep.Diag>
+  for +rs: List<&2, Maybe<&2, String>>
+  for +docs: List<&2, Docs.Doc>
+  {pub.notes(Server.pub.save(uri, ds, rs, docs))
+    == [Server.pub.note(uri, ds, Server.pub.lint(Proto.path(uri), Maybe.default(&2, String, Docs.get(docs, uri), ""),
+      rs))] : List<&2, String>}
+
+# LAW: change publishes the lint of the new text plus the checker's errors
+# the documents hold for it
+# BOLT-LSP-4
+law change_publishes:
+  for +uri: String
+  for +text: String
+  for +rs: List<&2, Maybe<&2, String>>
+  for +docs: List<&2, Docs.Doc>
+  {pub.notes(Server.pub.change(uri, text, rs, docs))
+    == [Server.pub.note(uri, Docs.errors(docs, uri), Server.pub.lint(Proto.path(uri), text, rs))] : List<&2, String>}
+
+# LAW: after open the documents hold the errors it published and the text
+# opened
+# BOLT-LSP-4
+law open_keeps:
+  for +uri: String
+  for +text: String
+  for +ds: List<&2, Rep.Diag>
+  for +rs: List<&2, Maybe<&2, String>>
+  for +docs: List<&2, Docs.Doc>
+  {Docs.errors(pub.docs(Server.pub.open(uri, text, ds, rs, docs)), uri) == ds : List<&2, Rep.Diag>}
+    & {Docs.get(pub.docs(Server.pub.open(uri, text, ds, rs, docs)), uri) == Some{text} : Maybe<&2, String>}
+
+# LAW: after save the documents hold the errors it published
+# BOLT-LSP-4
+law save_keeps:
+  for +uri: String
+  for +ds: List<&2, Rep.Diag>
+  for +rs: List<&2, Maybe<&2, String>>
+  for +docs: List<&2, Docs.Doc>
+  {Docs.errors(pub.docs(Server.pub.save(uri, ds, rs, docs)), uri) == ds : List<&2, Rep.Diag>}
+
+# LAW: change keeps the checker's errors as they were, so every change
+# publishes the last checker result, and keeps the new text
+# BOLT-LSP-4
+law change_keeps:
+  for +uri: String
+  for +text: String
+  for +rs: List<&2, Maybe<&2, String>>
+  for +docs: List<&2, Docs.Doc>
+  {Docs.errors(pub.docs(Server.pub.change(uri, text, rs, docs)), uri) == Docs.errors(docs, uri)
+    : List<&2, Rep.Diag>}
+    & {Docs.get(pub.docs(Server.pub.change(uri, text, rs, docs)), uri) == Some{text} : Maybe<&2, String>}
+
+# LAW: close publishes an empty list, and forgets the document's errors
+# BOLT-LSP-4
+law close_publishes:
+  for +uri: String
+  for +docs: List<&2, Docs.Doc>
+  {pub.notes(Server.pub.close(uri, docs)) == [Server.pub.note(uri, [], [])] : List<&2, String>}
+    & {Docs.errors(pub.docs(Server.pub.close(uri, docs)), uri) == [] : List<&2, Rep.Diag>}
+
+# LAW: an open bolt.bend gets no lint, whatever its text and the candidates
+# BOLT-LSP-4
+law config_unlinted:
+  for +path: String
+  for h: {Plan.is_config(path) == True{} : Bool}
+  for text: String
+  for rs: List<&2, Maybe<&2, String>>
+  {Server.pub.lint(path, text, rs) == [] : List<&2, F.Graded>}
+
 # the checker
 # -----------
 
@@ -307,7 +431,7 @@ law followup_check_only:
 # files service holds
 # BOLT-LSP-6
 law nav_open_text:
-  for -fs: F.Files
+  for -fs: Fs.Files
   for +docs: List<&2, Docs.Doc>
   for +uri: String
   for +text: String
@@ -332,7 +456,7 @@ def nav.binds(bb: Bind.Bound) -> List<&2, Bind.Bind>:
 # LAW: definition on a binder of the open text is that binder
 # BOLT-LSP-6
 law nav_definition_binder:
-  for -fs: F.Files
+  for -fs: Fs.Files
   for +docs: List<&2, Docs.Doc>
   for +uri: String
   for +text: String
@@ -349,7 +473,7 @@ law nav_definition_binder:
 # lands on that binder
 # BOLT-LSP-6
 law nav_definition_local:
-  for -fs: F.Files
+  for -fs: Fs.Files
   for +docs: List<&2, Docs.Doc>
   for +uri: String
   for +text: String
@@ -372,7 +496,7 @@ law nav_definition_local:
 # lands on that item, before any import alias is looked at
 # BOLT-LSP-6
 law nav_definition_item:
-  for -fs: F.Files
+  for -fs: Fs.Files
   for +docs: List<&2, Docs.Doc>
   for +uri: String
   for +text: String
@@ -395,7 +519,7 @@ law nav_definition_item:
 # alias is `rest` in the file that import names, relative to the document
 # BOLT-LSP-6
 law nav_definition_import:
-  for -fs: F.Files
+  for -fs: Fs.Files
   for +docs: List<&2, Docs.Doc>
   for +uri: String
   for +text: String
@@ -420,7 +544,7 @@ law nav_definition_import:
 # text names, is looked up in Base
 # BOLT-LSP-6
 law nav_definition_free:
-  for -fs: F.Files
+  for -fs: Fs.Files
   for +docs: List<&2, Docs.Doc>
   for +uri: String
   for +text: String
@@ -441,7 +565,7 @@ law nav_definition_free:
 # editor shows when it is open: a name in it is that text's item
 # BOLT-LSP-6
 law nav_import_open:
-  for -fs: F.Files
+  for -fs: Fs.Files
   for +docs: List<&2, Docs.Doc>
   for +path: String
   for +text: String
@@ -455,7 +579,7 @@ law nav_import_open:
 # LAW: hover on a use answers what definition answers on it
 # BOLT-LSP-6
 law nav_hover_use:
-  for -fs: F.Files
+  for -fs: Fs.Files
   for +docs: List<&2, Docs.Doc>
   for +uri: String
   for +text: String
@@ -506,7 +630,7 @@ def nav.referenced(site: Maybe<&2, Bind.Site>, +bb: Bind.Bound) -> Nav.Sites:
 # of the binder, item or name the binder finds at the position
 # BOLT-LSP-6
 law nav_references:
-  for -fs: F.Files
+  for -fs: Fs.Files
   for +docs: List<&2, Docs.Doc>
   for +uri: String
   for +text: String
@@ -534,7 +658,7 @@ def nav.after(+text: String, +prefix: String, base: List<&2, Outline.Item>) -> L
 # start with what is typed, then the document's items, its aliases and Base
 # BOLT-LSP-6
 law nav_completion:
-  for -fs: F.Files
+  for -fs: Fs.Files
   for +docs: List<&2, Docs.Doc>
   for +uri: String
   for +text: String
