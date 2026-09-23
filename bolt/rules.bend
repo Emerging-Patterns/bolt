@@ -33,7 +33,6 @@ import ./rules/suspicious/rewalk.bend as Rewalk
 import ./rules/suspicious/unit.bend as Unit
 import ./rules/correctness/put.bend as Put
 import ./rules/correctness/escape.bend as Escape
-import ./rules/suspicious/nat.bend as Nat_
 import ./rules/correctness/strings.bend as Strings
 import ./rules/correctness/chars.bend as Chars
 import ./rules/correctness/twice.bend as Twice
@@ -66,7 +65,6 @@ def on(+ss: Src.Src) -> List<&2, F.Finding>:
     Unit.check(ss),
     Put.check(ss),
     Escape.check(ss),
-    Nat_.check(ss),
     Strings.check(ss),
     Chars.check(ss),
     Twice.check(ss),

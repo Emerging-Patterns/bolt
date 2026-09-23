@@ -47,7 +47,7 @@ unset group has its default. The groups:
 | group         | rules                                                                            | default |
 |---------------|----------------------------------------------------------------------------------|---------|
 | `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign`          | error   |
-| `suspicious`  | `unused` `strict` `eager` `concat` `nat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` | warn    |
+| `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` | warn    |
 | `style`       | `doc` `space` `wrap` `param`                                                     | warn    |
 | `laws`        | `coverage` `closed` `unsafe` (`trace`: opt-in)                                   | warn    |
 | `pedantic`    | `tail`                                                                           | off     |
@@ -60,7 +60,7 @@ The stable codes, assigned once (do not renumber):
 | C002 | `hole` | U002 | `strict` | S002 | `space` |
 | C003 | `pick` | U003 | `eager` | S003 | `wrap` |
 | C004 | `put` | U004 | `concat` | S004 | `param` |
-| C005 | `arms` | U005 | `nat` | L001 | `coverage` |
+| C005 | `arms` | U005 | retired | L001 | `coverage` |
 | C006 | `escape` | U006 | `fuel` | L002 | `closed` |
 | C007 | `twice` | U007 | `index` | L003 | `unsafe` |
 | C008 | `strings` | U008 | `table` | L004 | retired |
@@ -222,9 +222,6 @@ beside the groups.
   `Map.put` (`def Map.put`, Base's own source) is exempt.
 - `escape` — `\0` then a digit in a literal (`"\033"`). Bend has no octal
   escape: that is NUL followed by the digits. Write `\u{1B}`.
-- `nat` — a `Nat` literal of 1000 or more. `Nat` is unary, so `4294967295n`
-  as fuel or infinity is that many cells. Use `U32`, or `U32.to_nat` at run
-  time.
 - `strings` — a `match` over string-literal arms totalling more than 64
   characters: compile time and memory blow up with the characters (45 chars
   cost 0.8 s and 0.35 GB here, 480 chars 12 s and 4.8 GB). Map the string to
