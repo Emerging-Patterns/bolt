@@ -113,7 +113,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
 | BOLT-SYN-1 | `Lex.text(Lex.tokens(s)) == s` for every `s`. | Proved | proved | syntax/LAWS.bend lossless |
-| BOLT-SYN-2 | A token's line and column are those of its first character, 0-based, in code points. | Proved | pending |  |
+| BOLT-SYN-2 | A token's line and column are those of its first character, 0-based, in code points. | Proved | proved | syntax/LAWS.bend positions |
 | BOLT-SYN-3 | The tree drops no token, and its leaves are the significant tokens in order. | Proved | pending |  |
 | BOLT-SYN-4 | The outline lists every column-0 import, def, type, law and `@unsafe def`. | Proved | pending |  |
 | BOLT-SYN-5 | The binder resolves a use to the innermost binder, then a file item, then an alias qualifier, else free. | Proved | pending |  |
