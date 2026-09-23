@@ -11,6 +11,7 @@ import ../paths.bend as Paths
 import ../../lazy/lazy.bend as Lazy
 import ./correctness/put.bend as Put
 import ./correctness/hole.bend as Hole
+import ./laws/trace.bend as Trace
 import ./LAWS.bend as Laws
 
 # a finding in front when b holds adds one to the count
@@ -902,3 +903,33 @@ def hole.go(toks, path):
 
 def Laws.hole_counts(toks, path):
   put.stop(Paths.is_laws(path), Hole.check.go(toks, path), Laws.hole_count(toks), hole.go(toks, path))
+def Laws.trace_pending_judged(_id, _e, _es, _nn, sp, _ds):
+  match sp:
+    case Trace.Spec{_m, _r, _t, _b}:
+      {==}
+
+def Laws.trace_pending_shape(_ls):
+  {==}
+
+def Laws.trace_proved_shape(ls):
+  match ls:
+    case Nil{}:
+      {==}
+    case Con{_h, _t}:
+      {==}
+
+def Laws.trace_trusted_shape(ls):
+  match ls:
+    case Nil{}:
+      {==}
+    case Con{_h, _t}:
+      {==}
+
+def Laws.trace_pending_claimed(_i, _ls, _n, _rs, _id):
+  {==}
+
+def Laws.trace_trusted_unclaimed(_i, _st, _ls, _n, _rs, _id):
+  {==}
+
+def Laws.trace_unlisted_unclaimed(_id):
+  {==}

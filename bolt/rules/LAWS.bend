@@ -10,6 +10,8 @@ import ./correctness/hole.bend as Hole
 import ./style/param.bend as Param
 import ../../syntax/bind.bend as Bind
 import ../paths.bend as Paths
+import ./laws/trace.bend as Trace
+import ./digest.bend as Digest
 
 # how many tokens are Nat literals of 1000 or more
 def big_count(toks: List<&2, Lex.Tok>) -> Nat:
@@ -207,3 +209,68 @@ law hole_counts:
   for +path: String
   {List.length(&2, F.Finding, Hole.check.on(toks, path))
     == Bool.pick(Nat, Paths.is_laws(path), 0n, hole_count(toks)) : Nat}
+# LAW: trace takes a pending row that names laws as it takes a proved row
+# that names the same laws: each entry is checked (the law exists, has a
+# binder, carries the row's tag), and the Law cell adds no finding of its own
+# BOLT-LAW-5
+law trace_pending_judged:
+  for +id: String
+  for +e: String
+  for +es: List<&2, String>
+  for +nn: U32
+  for +sp: Trace.Spec
+  for +ds: List<&2, Digest.Digest>
+  {Trace.judge_row(Trace.Row{id, "Proved", "pending", e <> es, nn}, sp, ds)
+    == Trace.judge_row(Trace.Row{id, "Proved", "proved", e <> es, nn}, sp, ds) : List<&2, F.Finding>}
+
+# LAW: a pending row's level, status and Law cell are well formed whatever
+# laws it names, none included
+# BOLT-LAW-5
+law trace_pending_shape:
+  for +ls: List<&2, String>
+  {Trace.shape("Proved", "pending", ls) == "" : String}
+
+# LAW: a proved row is well formed exactly when its Law cell names a law
+# BOLT-LAW-5
+law trace_proved_shape:
+  for +ls: List<&2, String>
+  {Trace.shape("Proved", "proved", ls)
+    == Bool.pick(String, List.is_empty(&2, String, ls), "a proved row names its law", "") : String}
+
+# LAW: a Trusted row is well formed exactly when its Law cell is empty
+# BOLT-LAW-5
+law trace_trusted_shape:
+  for +ls: List<&2, String>
+  {Trace.shape("Trusted", "", ls)
+    == Bool.pick(String, List.is_empty(&2, String, ls), "", "a Trusted row names no law") : String}
+
+# LAW: a tag naming a pending row is claimed exactly as one naming a proved
+# row is, so neither is a stray
+# BOLT-LAW-5
+law trace_pending_claimed:
+  for +i: String
+  for +ls: List<&2, String>
+  for +n: U32
+  for +rs: List<&2, Trace.Row>
+  for +id: String
+  {Trace.claimed(Trace.Row{i, "Proved", "pending", ls, n} <> rs, id)
+    == Trace.claimed(Trace.Row{i, "Proved", "proved", ls, n} <> rs, id) : Bool}
+
+# LAW: a Trusted row claims no tag, whatever its status: a tag naming it is
+# judged by the rows after it alone
+# BOLT-LAW-5
+law trace_trusted_unclaimed:
+  for +i: String
+  for +st: String
+  for +ls: List<&2, String>
+  for +n: U32
+  for +rs: List<&2, Trace.Row>
+  for +id: String
+  {Trace.claimed(Trace.Row{i, "Trusted", st, ls, n} <> rs, id) == Trace.claimed(rs, id) : Bool}
+
+# LAW: with no rows, no ID is claimed: a tag naming an ID SPEC.md does not
+# list is a stray
+# BOLT-LAW-5
+law trace_unlisted_unclaimed:
+  for +id: String
+  {Trace.claimed([], id) == False{} : Bool}

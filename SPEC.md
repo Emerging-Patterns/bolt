@@ -6,7 +6,7 @@ The reasoning behind each requirement, the verdict of each against the code at `
 
 ## Format
 
-A requirement table is any table whose header row is exactly `| ID | Requirement | Level | Status | Law |`. An ID is uppercase segments joined by hyphens, at least two (`[A-Z][A-Z0-9]*(-[A-Z0-9]+)+`), unique within the requirement tables, and never reused once released. Level is `Proved` or `Trusted`. Status is `proved` or `pending` for a Proved row and empty for a Trusted row. The Law cell is empty unless the row is proved; then it holds one or more `<path> <law>` entries, paths relative to this file, separated by `; `.
+A requirement table is any table whose header row is exactly `| ID | Requirement | Level | Status | Law |`. An ID is uppercase segments joined by hyphens, at least two (`[A-Z][A-Z0-9]*(-[A-Z0-9]+)+`), unique within the requirement tables, and never reused once released. Level is `Proved` or `Trusted`. Status is `proved` or `pending` for a Proved row and empty for a Trusted row. A Law cell holds `<path> <law>` entries, paths relative to this file, separated by `; `. A proved row names one or more laws, and together they prove it. A pending row may name laws that each prove part of it; the row stays pending until its requirement is proved in full, and its entries are checked as a proved row's are. A Trusted row names none.
 
 A law proves a requirement when a comment line `# <ID>`, alone on its line, sits in the unbroken comment block directly above its `law` line. A law may carry several tags, one per line:
 
@@ -16,7 +16,7 @@ A law proves a requirement when a comment line `# <ID>`, alone on its line, sits
 law stop_is_pick:
 ```
 
-A Trusted requirement's ID appears once in a requirement table and once in the trust boundary table. Untagged quantified laws are allowed; they pass the gate like any law, but nothing here protects them. A law with no binder is a `closed` finding.
+A tag may name a proved or a pending requirement, never a Trusted one or an ID no requirement table lists. A Trusted requirement's ID appears once in a requirement table and once in the trust boundary table. Untagged quantified laws are allowed; they pass the gate like any law, but nothing here protects them. A law with no binder is a `closed` finding.
 
 ## Requirements
 
@@ -60,7 +60,7 @@ A Trusted requirement's ID appears once in a requirement table and once in the t
 | BOLT-LAW-1 | In every file under a law directory, except helpers, law files and tests, every def and type is referenced by a quantified law in a LAWS.bend: a use in the law's statement that the binder (BOLT-SYN-5) resolves to that def, through an import alias or in the same file. | Proved | pending |  |
 | BOLT-LAW-2 | `closed` reports any law in a LAWS.bend with no binder. | Proved | pending |  |
 | BOLT-LAW-3 | An `@unsafe def` reachable by relative imports from a law file in the run is a finding. | Proved | pending |  |
-| BOLT-LAW-5 | The traceability rule reports exactly the findings listed under "Tagging and traceability" for the SPEC.md format stated there. | Proved | pending |  |
+| BOLT-LAW-5 | The traceability rule reports exactly the findings listed under "Tagging and traceability" for the SPEC.md format stated there, where a pending row may name laws that prove part of it and a tag may name a pending row. | Proved | pending | bolt/rules/LAWS.bend trace_pending_judged; bolt/rules/LAWS.bend trace_pending_shape; bolt/rules/LAWS.bend trace_proved_shape; bolt/rules/LAWS.bend trace_trusted_shape; bolt/rules/LAWS.bend trace_pending_claimed; bolt/rules/LAWS.bend trace_trusted_unclaimed; bolt/rules/LAWS.bend trace_unlisted_unclaimed |
 
 ### Grading and config (BOLT-CFG)
 
