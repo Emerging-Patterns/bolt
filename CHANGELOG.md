@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/Emerging-Patterns/bolt/compare/v1.0.2...v1.0.3) (2026-09-23)
+
+
+### Bug Fixes
+
+* **law:** grade every file of a run that states laws ([#54](https://github.com/Emerging-Patterns/bolt/issues/54)) ([e14c405](https://github.com/Emerging-Patterns/bolt/commit/e14c405ebb1249f2a3776f2afa6791dff7cf8e7e))
+
 ## [1.0.2](https://github.com/Emerging-Patterns/bolt/compare/v1.0.1...v1.0.2) (2026-09-23)
 
 
