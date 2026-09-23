@@ -50,7 +50,7 @@ A Trusted requirement's ID appears once in a requirement table and once in the t
 | BOLT-RULE-S002 | `space` reports exactly trailing whitespace, a tab, or a line over 120 columns with string literals counted as two. | Proved | pending |  |
 | BOLT-RULE-S003 | `wrap` reports exactly a def header whose shape breaks the header's rules. | Proved | pending |  |
 | BOLT-RULE-S004 | `param` reports exactly a parameter name shorter than two characters, with the header's exemptions. | Proved | pending |  |
-| BOLT-RULE-P001 | `tail` reports exactly a non-tail self-call in a def whose first live parameter is a List or String. | Proved | pending |  |
+| BOLT-RULE-P001 | `tail` reports exactly a non-tail self-call outside any `Bool.pick(..)` in a def whose first live parameter's type is a List or String, whether or not the call shrinks it. | Proved | pending |  |
 | BOLT-RULE-EXEMPT | For every text, a per-file rule's check on a path its header exempts returns no findings. | Proved | pending |  |
 | BOLT-RULE-INERT | For every rule whose pattern is code (all but `escape`, `strings`, `chars`, `space`, `twice` and `nat`), changing the contents of a comment or string literal does not change the findings. | Proved | pending |  |
 

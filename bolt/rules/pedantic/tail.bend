@@ -1,13 +1,15 @@
-# rule tail: a def that walks a list or a string (its first live parameter,
-# the one a self-call shrinks) calls itself where the call is not the whole
-# statement: `h <> go(t)`, `(1 + go(t) : U32)`, `+rest = go(t)`. Each such
-# call holds a frame until the rest of the input is done, and the JS lane
+# rule tail: a def whose first live parameter is a List or a String calls
+# itself where the call is not the whole statement: `h <> go(t)`,
+# `(1 + go(t) : U32)`, `+rest = go(t)`. The test is on that parameter's type
+# alone, never on whether the self-call shrinks it: a def that recurses on
+# a later Nat is reported too, and one whose list comes second is not. Each
+# such call holds a frame until the rest of the input is done, and the JS lane
 # overflows its stack at a few thousand to ~64K elements (bend-http on a 48KB
 # header, agora at ~4,900 entries); native is fine. Carry an accumulator and
 # make the self-call the whole statement (reverse once at the end if order
 # matters). Idiomatic code does this on purpose, so the rule is noisy: off
-# unless asked. Self-calls inside a `Bool.pick` are left to the pick rule;
-# laws and proofs are exempt.
+# unless asked. Everything inside a `Bool.pick(..)` is skipped, whether or
+# not `pick` reports it; laws and proofs are exempt.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
