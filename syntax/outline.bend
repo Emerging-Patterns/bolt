@@ -4,6 +4,7 @@
 # is the point: an editor asks about files that are half-written.
 import Base
 import ../lazy/lazy.bend as Lazy
+import ./lex.bend as Lex
 
 # what an item is; ILocal is not read from a source, it is how the server
 # offers a binder as a candidate
@@ -326,17 +327,26 @@ def flush(mode: Mode, out: List<&2, Item>) -> List<&2, Item>:
     case other:
       out
 
-# the line walked so far ended in `:`, and this character may replace that
-def ends_colon.go(ss: String, prev: Bool) -> Bool:
-  match ss:
-    case SNil{}:
-      prev
-    case SCon{h, t}:
-      ends_colon.go(t, Char.is_eq(h, ':'))
+# a `:` token?
+def ends_colon.is(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TColon{}:
+      True{}
+    case other:
+      False{}
 
-# the line's last character is `:`
+# the tokens walked so far ended in `:`; a space or a comment keeps that
+def ends_colon.go(toks: List<&2, Lex.Tok>, prev: Bool) -> Bool:
+  match toks:
+    case Nil{}:
+      prev
+    case Con{Lex.Tok{+kk, tx, ln, cl}, t}:
+      ends_colon.go(t, Bool.pick(Bool, Lex.significant(kk), ends_colon.is(kk), prev))
+
+# the line's last token that is not a space or a comment is `:`, so a header
+# ends at its `:` though a comment follows it (`def f() -> U32: # note`)
 def ends_colon(ss: String) -> Bool:
-  ends_colon.go(ss, False{})
+  ends_colon.go(Lex.tokens(ss), False{})
 
 # a def continuation that does or does not end in `:`
 def pend_more.closed(

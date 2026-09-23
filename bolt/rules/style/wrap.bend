@@ -3,9 +3,11 @@
 # counts a line (a string literal is two characters). A one-line header that
 # fits stays one line however many parameters it has. A header that breaks
 # puts `(` at the end of the first line and one parameter on each following
-# line, then `)` and the return type. Several parameters on a line, a
-# parameter left on the `def` line, or a parameter split across lines, is a
-# finding.
+# line, then `)` and the return type on a line of their own after the last
+# parameter. Several parameters on a line, a parameter left on the `def`
+# line, a parameter split across lines, or a `)` on the last parameter's line
+# (`bb: U32) -> U32:`), is a finding. A comment after the header's `:` is not
+# part of the header: `def u(aa: U32) -> U32: # note` is a one-line header.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
@@ -39,9 +41,10 @@ type Act is Data:
   AComma{}
   ANone{}
 
-# the walk: depths, the `(` line, and the parameter open so far (spans reversed)
+# the walk: depths, where the list's `)` sat, the `(` line, and the parameter
+# open so far (spans reversed)
 type Walk is Data:
-  Walk{mode: Phase, paren: U32, bracket: U32, brace: U32, angle: U32, found: Bool, open: U32,
+  Walk{mode: Phase, paren: U32, bracket: U32, brace: U32, angle: U32, shut: Span, open: U32,
     on: Bool, pline: U32, pend: U32, pcol: U32, spans: List<&2, Span>}
 
 # the header already breaks across lines
@@ -52,21 +55,31 @@ def check.broken(+sig: String) -> Bool:
 def check.add(+acc: U32, kd: Lex.TokKind, +tx: String) -> U32:
   (acc + Space.width_of(kd, tx) : U32)
 
-# the header's width, a string literal counting as two
-def check.width.go(toks: List<&2, Lex.Tok>, +acc: U32) -> U32:
+# a `:` token?
+def check.is_colon(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TColon{}:
+      True{}
+    case other:
+      False{}
+
+# the header's width through its last `:` (upto; 0 until one is seen), a
+# string literal counting as two
+def check.width.go(toks: List<&2, Lex.Tok>, +acc: U32, +upto: U32) -> U32:
   match toks:
     case Nil{}:
-      acc
-    case Con{Lex.Tok{kd, tx, _ln, _cl}, rest}:
-      check.width.go(rest, check.add(acc, kd, tx))
+      Bool.pick(U32, U32.is_eq(upto, 0), acc, upto)
+    case Con{Lex.Tok{+kd, tx, _ln, _cl}, rest}:
+      +next = check.add(acc, kd, tx)
+      check.width.go(rest, next, Bool.pick(U32, check.is_colon(kd), next, upto))
 
-# the header's width
+# the header's width, through its `:`: a comment after it does not count
 def check.width(+sig: String) -> U32:
-  check.width.go(Lex.tokens(sig), 0)
+  check.width.go(Lex.tokens(sig), 0, 0)
 
 # a fresh walk, before the parameter list
 def check.start() -> Walk:
-  Walk{Seek{}, 0, 0, 0, 0, False{}, 0, False{}, 0, 0, 0, []}
+  Walk{Seek{}, 0, 0, 0, 0, Span{0, 0, 0}, 0, False{}, 0, 0, 0, []}
 
 # `(`
 def check.is_oparen(kk: Lex.TokKind, +tx: String) -> Bool:
@@ -368,7 +381,7 @@ def check.rebuild(
   bracket: U32,
   brace: U32,
   angle: U32,
-  found: Bool,
+  shut: Span,
   open: U32,
   on: Bool,
   pline: U32,
@@ -376,7 +389,7 @@ def check.rebuild(
   pcol: U32,
   spans: List<&2, Span>
 ) -> Walk:
-  Walk{mode, paren, bracket, brace, angle, found, open, on, pline, pend, pcol, spans}
+  Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans}
 
 # `(` opens the parameter list
 def check.opened(
@@ -388,16 +401,16 @@ def check.opened(
   +ln: U32,
   _mode: Phase,
   _paren: U32,
-  _found: Bool,
+  _shut: Span,
   _open: U32,
   _on: Bool,
   _pline: U32,
   _pend: U32,
   _pcol: U32
 ) -> Walk:
-  check.rebuild(ticks, Args{}, 1, bracket, brace, angle, True{}, ln, False{}, 0, 0, 0, spans)
+  check.rebuild(ticks, Args{}, 1, bracket, brace, angle, Span{0, 0, 0}, ln, False{}, 0, 0, 0, spans)
 
-# `)` ends the parameter list
+# `)` ends the parameter list, and notes where it sits
 def check.ended(
   ticks: Nat,
   _mode: Phase,
@@ -405,16 +418,18 @@ def check.ended(
   bracket: U32,
   brace: U32,
   angle: U32,
-  found: Bool,
+  _shut: Span,
   open: U32,
   on: Bool,
   pline: U32,
   pend: U32,
   pcol: U32,
-  spans: List<&2, Span>
+  spans: List<&2, Span>,
+  +ln: U32,
+  cl: U32
 ) -> Walk:
-  check.rebuild(ticks, Past{}, check.dec_u(paren), bracket, brace, angle, found, open, False{}, 0, 0, 0,
-    check.cons(on, pline, pend, pcol, spans))
+  check.rebuild(ticks, Past{}, check.dec_u(paren), bracket, brace, angle, Span{ln, ln, cl}, open, False{},
+    0, 0, 0, check.cons(on, pline, pend, pcol, spans))
 
 # a comma closes the parameter that was open
 def check.commaed(
@@ -424,7 +439,7 @@ def check.commaed(
   bracket: U32,
   brace: U32,
   angle: U32,
-  found: Bool,
+  shut: Span,
   open: U32,
   on: Bool,
   pline: U32,
@@ -432,7 +447,7 @@ def check.commaed(
   pcol: U32,
   spans: List<&2, Span>
 ) -> Walk:
-  check.rebuild(ticks, mode, paren, bracket, brace, angle, found, open, False{}, 0, 0, 0,
+  check.rebuild(ticks, mode, paren, bracket, brace, angle, shut, open, False{}, 0, 0, 0,
     check.cons(on, pline, pend, pcol, spans))
 
 # a run of `>` lowers the angle depth
@@ -443,7 +458,7 @@ def check.unangled(
   bracket: U32,
   brace: U32,
   angle: U32,
-  found: Bool,
+  shut: Span,
   open: U32,
   on: Bool,
   pline: U32,
@@ -451,7 +466,7 @@ def check.unangled(
   pcol: U32,
   spans: List<&2, Span>
 ) -> Walk:
-  check.rebuild(0n, mode, paren, bracket, brace, check.sub(ticks, angle), found, open, on, pline, pend, pcol, spans)
+  check.rebuild(0n, mode, paren, bracket, brace, check.sub(ticks, angle), shut, open, on, pline, pend, pcol, spans)
 
 # the token's motion applied to fields already taken off the walk
 def check.apply_on(
@@ -461,7 +476,7 @@ def check.apply_on(
   bracket: U32,
   brace: U32,
   angle: U32,
-  found: Bool,
+  shut: Span,
   open: U32,
   on: Bool,
   pline: U32,
@@ -469,38 +484,39 @@ def check.apply_on(
   pcol: U32,
   spans: List<&2, Span>,
   +ln: U32,
+  cl: U32,
   ticks: Nat
 ) -> Walk:
   match motion:
     case AOpen{}:
-      check.opened(ticks, bracket, brace, angle, spans, ln, mode, paren, found, open, on, pline, pend, pcol)
+      check.opened(ticks, bracket, brace, angle, spans, ln, mode, paren, shut, open, on, pline, pend, pcol)
     case AParen{}:
-      check.rebuild(ticks, mode, (paren + 1 : U32), bracket, brace, angle, found, open, on, pline, pend, pcol, spans)
+      check.rebuild(ticks, mode, (paren + 1 : U32), bracket, brace, angle, shut, open, on, pline, pend, pcol, spans)
     case AEnd{}:
-      check.ended(ticks, mode, paren, bracket, brace, angle, found, open, on, pline, pend, pcol, spans)
+      check.ended(ticks, mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans, ln, cl)
     case AUnparen{}:
-      check.rebuild(ticks, mode, check.dec_u(paren), bracket, brace, angle, found, open, on, pline, pend, pcol, spans)
+      check.rebuild(ticks, mode, check.dec_u(paren), bracket, brace, angle, shut, open, on, pline, pend, pcol, spans)
     case ABrack{}:
-      check.rebuild(ticks, mode, paren, (bracket + 1 : U32), brace, angle, found, open, on, pline, pend, pcol, spans)
+      check.rebuild(ticks, mode, paren, (bracket + 1 : U32), brace, angle, shut, open, on, pline, pend, pcol, spans)
     case AUnbrack{}:
-      check.rebuild(ticks, mode, paren, check.dec_u(bracket), brace, angle, found, open, on, pline, pend, pcol, spans)
+      check.rebuild(ticks, mode, paren, check.dec_u(bracket), brace, angle, shut, open, on, pline, pend, pcol, spans)
     case ABrace{}:
-      check.rebuild(ticks, mode, paren, bracket, (brace + 1 : U32), angle, found, open, on, pline, pend, pcol, spans)
+      check.rebuild(ticks, mode, paren, bracket, (brace + 1 : U32), angle, shut, open, on, pline, pend, pcol, spans)
     case AUnbrace{}:
-      check.rebuild(ticks, mode, paren, bracket, check.dec_u(brace), angle, found, open, on, pline, pend, pcol, spans)
+      check.rebuild(ticks, mode, paren, bracket, check.dec_u(brace), angle, shut, open, on, pline, pend, pcol, spans)
     case AAngle{}:
-      check.rebuild(ticks, mode, paren, bracket, brace, (angle + 1 : U32), found, open, on, pline, pend, pcol, spans)
+      check.rebuild(ticks, mode, paren, bracket, brace, (angle + 1 : U32), shut, open, on, pline, pend, pcol, spans)
     case AUnangle{}:
-      check.unangled(ticks, mode, paren, bracket, brace, angle, found, open, on, pline, pend, pcol, spans)
+      check.unangled(ticks, mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans)
     case AComma{}:
-      check.commaed(ticks, mode, paren, bracket, brace, angle, found, open, on, pline, pend, pcol, spans)
+      check.commaed(ticks, mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans)
     case ANone{}:
-      check.rebuild(ticks, mode, paren, bracket, brace, angle, found, open, on, pline, pend, pcol, spans)
+      check.rebuild(ticks, mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans)
 
 # the token's motion applied to the walk
-def check.apply(motion: Act, wk: Walk, +ln: U32, ticks: Nat) -> Walk:
-  Walk{mode, paren, bracket, brace, angle, found, open, on, pline, pend, pcol, spans} = wk
-  check.apply_on(motion, mode, paren, bracket, brace, angle, found, open, on, pline, pend, pcol, spans, ln, ticks)
+def check.apply(motion: Act, wk: Walk, +ln: U32, cl: U32, ticks: Nat) -> Walk:
+  Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans} = wk
+  check.apply_on(motion, mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans, ln, cl, ticks)
 
 # the same parameter, extended to this line
 def check.note_extend(
@@ -514,11 +530,11 @@ def check.note_extend(
   bracket: U32,
   brace: U32,
   angle: U32,
-  found: Bool,
+  shut: Span,
   open: U32,
   spans: List<&2, Span>
 ) -> Walk:
-  Walk{mode, paren, bracket, brace, angle, found, open, True{}, pline, ln, pcol, spans}
+  Walk{mode, paren, bracket, brace, angle, shut, open, True{}, pline, ln, pcol, spans}
 
 # a parameter starting here
 def check.note_begin(
@@ -532,11 +548,11 @@ def check.note_begin(
   bracket: U32,
   brace: U32,
   angle: U32,
-  found: Bool,
+  shut: Span,
   open: U32,
   spans: List<&2, Span>
 ) -> Walk:
-  Walk{mode, paren, bracket, brace, angle, found, open, True{}, ln, ln, cl, spans}
+  Walk{mode, paren, bracket, brace, angle, shut, open, True{}, ln, ln, cl, spans}
 
 # the token continues the open parameter, or starts one
 def check.note_on(
@@ -546,7 +562,7 @@ def check.note_on(
   bracket: U32,
   brace: U32,
   angle: U32,
-  found: Bool,
+  shut: Span,
   open: U32,
   pline: U32,
   pend: U32,
@@ -557,9 +573,9 @@ def check.note_on(
 ) -> Walk:
   match on:
     case True{}:
-      check.note_extend(pline, pend, pcol, ln, cl, mode, paren, bracket, brace, angle, found, open, spans)
+      check.note_extend(pline, pend, pcol, ln, cl, mode, paren, bracket, brace, angle, shut, open, spans)
     case False{}:
-      check.note_begin(pline, pend, pcol, ln, cl, mode, paren, bracket, brace, angle, found, open, spans)
+      check.note_begin(pline, pend, pcol, ln, cl, mode, paren, bracket, brace, angle, shut, open, spans)
 
 # outside the parameter list the token starts nothing
 def check.note_skip(
@@ -569,7 +585,7 @@ def check.note_skip(
   bracket: U32,
   brace: U32,
   angle: U32,
-  found: Bool,
+  shut: Span,
   open: U32,
   pline: U32,
   pend: U32,
@@ -577,7 +593,7 @@ def check.note_skip(
   spans: List<&2, Span>,
   _tok: Lex.Tok
 ) -> Walk:
-  Walk{mode, paren, bracket, brace, angle, found, open, on, pline, pend, pcol, spans}
+  Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans}
 
 # inside the parameter list, the token's position joins the open parameter
 def check.note_here(
@@ -587,7 +603,7 @@ def check.note_here(
   bracket: U32,
   brace: U32,
   angle: U32,
-  found: Bool,
+  shut: Span,
   open: U32,
   pline: U32,
   pend: U32,
@@ -596,7 +612,7 @@ def check.note_here(
   tok: Lex.Tok
 ) -> Walk:
   Lex.Tok{_kk, _tx, +ln, +cl} = tok
-  check.note_on(on, mode, paren, bracket, brace, angle, found, open, pline, pend, pcol, spans, ln, cl)
+  check.note_on(on, mode, paren, bracket, brace, angle, shut, open, pline, pend, pcol, spans, ln, cl)
 
 # inside the list the token is part of a parameter; outside it is not
 def check.note_phase(
@@ -606,7 +622,7 @@ def check.note_phase(
   bracket: U32,
   brace: U32,
   angle: U32,
-  found: Bool,
+  shut: Span,
   open: U32,
   pline: U32,
   pend: U32,
@@ -616,14 +632,14 @@ def check.note_phase(
 ) -> Walk:
   match mode:
     case Args{}:
-      check.note_here(on, Args{}, paren, bracket, brace, angle, found, open, pline, pend, pcol, spans, tok)
+      check.note_here(on, Args{}, paren, bracket, brace, angle, shut, open, pline, pend, pcol, spans, tok)
     case other:
-      check.note_skip(on, other, paren, bracket, brace, angle, found, open, pline, pend, pcol, spans, tok)
+      check.note_skip(on, other, paren, bracket, brace, angle, shut, open, pline, pend, pcol, spans, tok)
 
 # a token that belongs to a parameter notes where that parameter sits
 def check.note_args(wk: Walk, tok: Lex.Tok) -> Walk:
-  Walk{mode, paren, bracket, brace, angle, found, open, on, pline, pend, pcol, spans} = wk
-  check.note_phase(mode, on, paren, bracket, brace, angle, found, open, pline, pend, pcol, spans, tok)
+  Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans} = wk
+  check.note_phase(mode, on, paren, bracket, brace, angle, shut, open, pline, pend, pcol, spans, tok)
 
 # a token the parameter list itself consumed
 def check.drop_tok(_tok: Lex.Tok, wk: Walk) -> Walk:
@@ -639,10 +655,10 @@ def check.maybe_note(sep: Bool, wk: Walk, tok: Lex.Tok) -> Walk:
 
 # one significant token
 def check.step_hit(+wk: Walk, +tok: Lex.Tok, glued: Bool) -> Walk:
-  Walk{+mode, +paren, +bracket, +brace, +angle, _found, _open, _on, _pline, _pend, _pcol, _spans} = wk
-  Lex.Tok{+kk, +tx, +ln, _cl} = tok
+  Walk{+mode, +paren, +bracket, +brace, +angle, _shut, _open, _on, _pline, _pend, _pcol, _spans} = wk
+  Lex.Tok{+kk, +tx, +ln, cl} = tok
   +motion = check.act(mode, kk, tx, glued, paren, angle, brace, bracket)
-  check.maybe_note(check.is_sep(motion), check.apply(motion, wk, ln, check.ticks_of(tx)), tok)
+  check.maybe_note(check.is_sep(motion), check.apply(motion, wk, ln, cl, check.ticks_of(tx)), tok)
 
 # a space, a newline or a comment changes nothing
 def check.step_skip(_tok: Lex.Tok, wk: Walk, _glued: Bool) -> Walk:
@@ -663,8 +679,8 @@ def check.step(+tok: Lex.Tok, wk: Walk, glued: Bool) -> Walk:
 
 # the parameter still open at the end of the header
 def check.seal(wk: Walk) -> Walk:
-  Walk{mode, paren, bracket, brace, angle, found, open, on, pline, pend, pcol, spans} = wk
-  Walk{mode, paren, bracket, brace, angle, found, open, False{}, 0, 0, 0, check.cons(on, pline, pend, pcol, spans)}
+  Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans} = wk
+  Walk{mode, paren, bracket, brace, angle, shut, open, False{}, 0, 0, 0, check.cons(on, pline, pend, pcol, spans)}
 
 # a name glues a following `<`
 def check.glue_of(tok: Lex.Tok) -> Bool:
@@ -703,22 +719,69 @@ def check.judge(spans: List<&2, Span>, +open: U32) -> Maybe<&2, Span>:
 
 # the first parameter that breaks the shape, in source order
 def check.jam_span(wk: Walk) -> Maybe<&2, Span>:
-  Walk{_mode, _paren, _bracket, _brace, _angle, _found, +open, _on, _pline, _pend, _pcol, spans} = wk
+  Walk{_mode, _paren, _bracket, _brace, _angle, _shut, +open, _on, _pline, _pend, _pcol, spans} = wk
   check.judge(List.reverse(&2, Span, spans), open)
 
-# that parameter, as a finding on the header's lines
-def check.place(mm: Maybe<&2, Span>, +base: U32, +path: String, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
+# the last parameter (the head: spans are reversed) runs onto the `)` line
+def check.tight(spans: List<&2, Span>, +close: U32) -> Bool:
+  match spans:
+    case Nil{}:
+      False{}
+    case Con{Span{_line, +end, _col}, _rest}:
+      Bool.not(U32.is_lt(end, close))
+
+# the `)`, when it shares the last parameter's line
+def check.shut_at(shut: Span, spans: List<&2, Span>) -> Maybe<&2, Span>:
+  Span{+line, end, +col} = shut
+  Bool.pick(Maybe<&2, Span>, check.tight(spans, line), Some{Span{line, end, col}}, None{})
+
+# the `)` of a list that did close, when it is not on a line after the last
+# parameter
+def check.shut_span(wk: Walk) -> Maybe<&2, Span>:
+  Walk{mode, _paren, _bracket, _brace, _angle, shut, _open, _on, _pline, _pend, _pcol, spans} = wk
+  match mode:
+    case Past{}:
+      check.shut_at(shut, spans)
+    case other:
+      None{}
+
+# the `)` on the last parameter's line, as a finding
+def check.place_shut(
+  mm: Maybe<&2, Span>,
+  +base: U32,
+  +path: String,
+  +more: List<&2, F.Finding>
+) -> List<&2, F.Finding>:
   match mm:
     case None{}:
       more
     case Some{Span{+line, _end, +col}}:
       F.Finding{path, (base + line : U32), col, 0, "wrap",
+        "Def header does not close on its own line; put `)` and the return type on the line after the last parameter."}
+        <> more
+
+# the parameter that breaks the shape, else a misplaced `)`, as a finding on
+# the header's lines
+def check.place(
+  mm: Maybe<&2, Span>,
+  shut: Maybe<&2, Span>,
+  +base: U32,
+  +path: String,
+  +more: List<&2, F.Finding>
+) -> List<&2, F.Finding>:
+  match mm:
+    case None{}:
+      check.place_shut(shut, base, path, more)
+    case Some{Span{+line, _end, +col}}:
+      F.Finding{path, (base + line : U32), col, 0, "wrap",
         "Def header is not one parameter per line; put one parameter on each line within the 120-character limit."}
         <> more
 
-# a multi-line header that is not one parameter per line
+# a multi-line header that is not one parameter per line, or whose `)` shares
+# the last parameter's line
 def check.jam(+line: U32, +sig: String, +path: String, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
-  check.place(check.jam_span(check.walk(Lex.tokens(sig), check.start(), False{})), line, path, more)
+  +wk = check.walk(Lex.tokens(sig), check.start(), False{})
+  check.place(check.jam_span(wk), check.shut_span(wk), line, path, more)
 
 # a one-line header past 120
 def check.wide(+line: U32, +sig: String, +path: String, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
