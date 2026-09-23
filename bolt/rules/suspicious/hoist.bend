@@ -1,10 +1,14 @@
 # rule hoist: a fixed table built inside a def that calls itself, from inputs
 # that do not change, and then indexed. The build runs again on every step.
-# Build it once, outside the recursion. A table of eight cells or fewer is
-# left alone, and so is a build whose arguments depend on the step. A name
-# that is not a carried parameter (a pattern binder, a value computed on the
-# step) keeps the build; a case arm that does not recurse is cold; laws and
-# proofs do not run. `List.get` itself stays with `index`.
+# Build it once, outside the recursion. A build is a list or array literal,
+# `List.replicate` / `List.range` / `List.map` / `Array.new` / `Array.map`, or
+# a call to a def of this file whose body is itself one fixed table of more
+# than eight cells; a def whose body cannot be seen (another module's) is not
+# a build. A table of eight cells or fewer is left alone, and so is a build
+# whose arguments depend on the step. A name that is not a carried parameter
+# (a pattern binder, a value computed on the step) keeps the build; a case arm
+# that does not recurse is cold; laws and proofs do not run. `List.get` itself
+# stays with `index`.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
@@ -12,6 +16,7 @@ import ../../../syntax/lex.bend as Lex
 import ../../../syntax/tree.bend as Tree
 import ../calls.bend as Calls
 import ../../../lazy/lazy.bend as Lazy
+import ./table.bend as Table
 
 # where an accessor reads its collection, when it is one
 type Slot is Data:
@@ -241,13 +246,14 @@ def denied.go(ps: List<&2, String>, +tt: String) -> Bool:
 def denied(+tt: String) -> Bool:
   denied.go(["List.", "String.", "Array.", "U32.", "Nat.", "F32.", "Maybe.", "Bool.", "IO.", "Char.", "Word."], tt)
 
-# a user function, or a dotted name that is not a denied Base walk
-def builder(kk: Lex.TokKind, +tt: String, +self: String) -> Bool:
+# a Base constructor on the allow list, or a def of this file whose body is
+# itself a wide table (`wides`); a def whose body cannot be seen is not one
+def builder(kk: Lex.TokKind, +tt: String, +self: String, +wides: List<&2, String>) -> Bool:
   match kk:
     case Lex.TName{}:
-      Bool.not(String.eq(tt, self))
+      Bool.and(Bool.not(String.eq(tt, self)), List.contains(~String, ~String.eq, wides, tt))
     case Lex.TDotted{}:
-      Bool.or(allowed(tt), Bool.not(denied(tt)))
+      Bool.or(allowed(tt), List.contains(~String, ~String.eq, wides, tt))
     case other:
       False{}
 
@@ -318,22 +324,50 @@ def table_call(
   +tt: String,
   +kids: Tree.Node,
   +self: String,
+  +wides: List<&2, String>,
   +carried: List<&2, String>
 ) -> Bool:
   match app:
     case False{}:
       False{}
     case True{}:
-      table_built(builder(kk, tt, self), call_wide(tt, kids), kids, carried)
+      table_built(builder(kk, tt, self, wides), call_wide(tt, kids), kids, carried)
+
+# a fixed table of more than eight cells, whatever its cells read
+def wide_of(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.NCons{Tree.Group{Lex.Tok{k, +o, l, c}, +kids, close}, Tree.NNil{}}:
+      wide_shape(is_array(kids), kids)
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}},
+        Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, Tree.NNil{}}}:
+      call_wide(t, kids)
+    case other:
+      False{}
+
+# a def whose body is one wide fixed table (`Table.built`, and more than eight cells)
+def wide_one(body: Tree.Node, +name: String, +acc: List<&2, String>) -> List<&2, String>:
+  match body:
+    case Tree.NCons{Tree.Stmt{kind, +kids, inn}, Tree.NNil{}}:
+      Bool.pick(List<&2, String>, Bool.and(Table.built(kids), wide_of(kids)), name <> acc, acc)
+    case other:
+      acc
+
+# defs of this file whose body is one wide fixed table
+def wide_defs(ds: List<&2, Calls.Def>, acc: List<&2, String>) -> List<&2, String>:
+  match ds:
+    case Nil{}:
+      acc
+    case Con{Calls.Def{+name, sig, +body}, rest}:
+      wide_defs(rest, wide_one(body, name, acc))
 
 # a list, an array, or a builder call, closed over carried parameters
-def is_table(nn: Tree.Node, +self: String, +carried: List<&2, String>) -> Bool:
+def is_table(nn: Tree.Node, +self: String, +wides: List<&2, String>, +carried: List<&2, String>) -> Bool:
   match nn:
     case Tree.NCons{Tree.Group{Lex.Tok{k, +o, l, c}, +kids, close}, Tree.NNil{}}:
       table_group(String.eq(o, "["), kids, carried)
     case Tree.NCons{Tree.Leaf{Lex.Tok{+k, +t, l, c}},
         Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, Tree.NNil{}}}:
-      table_call(String.eq(o, "("), k, t, kids, self, carried)
+      table_call(String.eq(o, "("), k, t, kids, self, wides, carried)
     case other:
       False{}
 
@@ -481,6 +515,7 @@ def let_of(
   +body: Tree.Node,
   +rest: Tree.Node,
   +self: String,
+  +wides: List<&2, String>,
   +carried: List<&2, String>,
   +path: String
 ) -> List<&2, F.Finding>:
@@ -488,7 +523,7 @@ def let_of(
     case None{}:
       Nil{}
     case Some{Got{+nm, +expr}}:
-      let_use(is_table(expr, self, carried), uses_or(body, rest, nm), expr, path)
+      let_use(is_table(expr, self, wides, carried), uses_or(body, rest, nm), expr, path)
 
 # a hot plain let of a table that is indexed afterwards
 def let_hit(
@@ -497,6 +532,7 @@ def let_hit(
   +body: Tree.Node,
   +rest: Tree.Node,
   +self: String,
+  +wides: List<&2, String>,
   +carried: List<&2, String>,
   +path: String
 ) -> List<&2, F.Finding>:
@@ -504,7 +540,7 @@ def let_hit(
     case False{}:
       Nil{}
     case True{}:
-      let_of(eat(kids, False{}, False{}, ""), body, rest, self, carried, path)
+      let_of(eat(kids, False{}, False{}, ""), body, rest, self, wides, carried, path)
 
 # a finding when this argument is itself a closed table
 def one_yes(+yes: Bool, +aa: Tree.Node, +path: String) -> List<&2, F.Finding>:
@@ -519,6 +555,7 @@ def arg_table(
   ss: Slot,
   +as: List<&2, Tree.Node>,
   +self: String,
+  +wides: List<&2, String>,
   +carried: List<&2, String>,
   +path: String
 ) -> List<&2, F.Finding>:
@@ -528,7 +565,7 @@ def arg_table(
       Nil{}
     case True{}:
       +aa = Calls.arg(as, at)
-      one_yes(is_table(aa, self, carried), aa, path)
+      one_yes(is_table(aa, self, wides, carried), aa, path)
 
 # an inline table passed straight to a get or set, when the group is a call
 def call_open(
@@ -536,6 +573,7 @@ def call_open(
   +tt: String,
   kids: Tree.Node,
   +self: String,
+  +wides: List<&2, String>,
   +carried: List<&2, String>,
   +path: String
 ) -> List<&2, F.Finding>:
@@ -543,7 +581,7 @@ def call_open(
     case False{}:
       Nil{}
     case True{}:
-      arg_table(slot_of(tt), Calls.args(kids), self, carried, path)
+      arg_table(slot_of(tt), Calls.args(kids), self, wides, carried, path)
 
 # an inline table passed straight to a get or set
 def call_table(
@@ -552,6 +590,7 @@ def call_table(
   +tt: String,
   kids: Tree.Node,
   +self: String,
+  +wides: List<&2, String>,
   +carried: List<&2, String>,
   +path: String
 ) -> List<&2, F.Finding>:
@@ -559,44 +598,58 @@ def call_table(
     case False{}:
       Nil{}
     case True{}:
-      call_open(open, tt, kids, self, carried, path)
+      call_open(open, tt, kids, self, wides, carried, path)
 
 # tables built in a hot region
-def walk(nn: Tree.Node, +self: String, +carried: List<&2, String>, +path: String, +hot: Bool) -> List<&2, F.Finding>:
+def walk(
+  nn: Tree.Node,
+  +self: String,
+  +wides: List<&2, String>,
+  +carried: List<&2, String>,
+  +path: String,
+  +hot: Bool
+) -> List<&2, F.Finding>:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}}, +rest}:
-      walk(rest, self, carried, path, False{})
+      walk(rest, self, wides, carried, path, False{})
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
-      +own = call_table(hot, String.eq(o, "("), t, kids, self, carried, path)
-      +inn = walk(kids, self, carried, path, hot)
-      +aft = walk(rest, self, carried, path, hot)
+      +own = call_table(hot, String.eq(o, "("), t, kids, self, wides, carried, path)
+      +inn = walk(kids, self, wides, carried, path, hot)
+      +aft = walk(rest, self, wides, carried, path, hot)
       List.concat(&2, F.Finding, [own, inn, aft])
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
-      List.concat(&2, F.Finding, [walk(kids, self, carried, path, hot), walk(rest, self, carried, path, hot)])
+      List.concat(&2, F.Finding,
+        [walk(kids, self, wides, carried, path, hot), walk(rest, self, wides, carried, path, hot)])
     case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, +body}, rest}:
       +arm = Bool.and(hot, Calls.calls(body, self))
-      List.concat(&2, F.Finding, [walk(kids, self, carried, path, False{}),
-        walk(body, self, carried, path, arm), walk(rest, self, carried, path, hot)])
+      List.concat(&2, F.Finding, [walk(kids, self, wides, carried, path, False{}),
+        walk(body, self, wides, carried, path, arm), walk(rest, self, wides, carried, path, hot)])
     case Tree.NCons{Tree.Stmt{kind, +kids, +body}, rest}:
-      +own = let_hit(hot, kids, body, rest, self, carried, path)
-      List.concat(&2, F.Finding, [own, walk(kids, self, carried, path, hot),
-        walk(body, self, carried, path, hot), walk(rest, self, carried, path, hot)])
+      +own = let_hit(hot, kids, body, rest, self, wides, carried, path)
+      List.concat(&2, F.Finding, [own, walk(kids, self, wides, carried, path, hot),
+        walk(body, self, wides, carried, path, hot), walk(rest, self, wides, carried, path, hot)])
     case Tree.NCons{h, rest}:
-      walk(rest, self, carried, path, hot)
+      walk(rest, self, wides, carried, path, hot)
     case other:
       Nil{}
 
-def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Finding>>) -> List<&2, F.Finding>:
+def check.go(
+  ds: List<&2, Calls.Def>,
+  +wide: List<&2, String>,
+  +path: String,
+  acc: List<&2, List<&2, F.Finding>>
+) -> List<&2, F.Finding>:
   match ds:
     case Nil{}:
       List.concat(&2, F.Finding, List.reverse(&2, List<&2, F.Finding>, acc))
     case Con{Calls.Def{+name, +sig, +body}, rest}:
-      check.go(rest, path,
+      check.go(rest, wide, path,
         Lazy.stop(List<&2, F.Finding>,
           Bool.not(Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))), [],
-          _u => walk(body, name, carried(sig, body, name), path, True{})) <> acc)
+          _u => walk(body, name, wide, carried(sig, body, name), path, True{})) <> acc)
 
 # the rule
 def check(ss: Src.Src) -> List<&2, F.Finding>:
   Src.Src{path, text, toks, tree, bound, items} = ss
-  check.go(Calls.defs(tree), path, [])
+  +ds = Calls.defs(tree)
+  check.go(ds, wide_defs(ds, []), path, [])
