@@ -115,7 +115,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | BOLT-SYN-2 | A token's line and column are those of its first character, 0-based, in code points. | Proved | proved | syntax/LAWS.bend positions |
 | BOLT-SYN-3 | The tree drops no token: its leaves are the significant tokens in order, except that each token that is a run of `>` (a close of angle groups or an operator such as `>>`) becomes one `>` leaf per character at consecutive columns. | Proved | proved | syntax/LAWS.bend leaves |
 | BOLT-SYN-4 | The outline lists every column-0 import, def, type, law and `@unsafe def`. | Proved | proved | syntax/LAWS.bend outline |
-| BOLT-SYN-5 | The binder resolves a use to the innermost binder, then a file item, then an alias qualifier, else free. | Proved | pending |  |
+| BOLT-SYN-5 | The binder resolves a use to the innermost binder, then a file item, then an alias qualifier, else free. | Proved | proved | syntax/LAWS.bend resolves; syntax/LAWS.bend uses |
 | BOLT-SYN-6 | Every function in `syntax/` terminates on every input without fuel. | Trusted |  |  |
 
 ### Language server (BOLT-LSP)

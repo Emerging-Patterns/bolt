@@ -156,10 +156,8 @@ def head_of.go(cs: List<&2, Char>) -> List<&2, Char>:
   match cs:
     case Nil{}:
       Nil{}
-    case Con{'.', t}:
-      Nil{}
-    case Con{c, t}:
-      c <> head_of.go(t)
+    case Con{+c, t}:
+      Lazy.stop(List<&2, Char>, Char.is_eq(c, '.'), Nil{}, _u => c <> head_of.go(t))
 
 # a dotted name's part before the first dot
 def head_of(cs: List<&2, Char>) -> String:
@@ -170,10 +168,8 @@ def rest_of(cs: List<&2, Char>) -> String:
   match cs:
     case Nil{}:
       ""
-    case Con{'.', t}:
-      String.from_list(t)
-    case Con{c, t}:
-      rest_of(t)
+    case Con{c, +t}:
+      Lazy.stop(String, Char.is_eq(c, '.'), String.from_list(t), _u => rest_of(t))
 
 # is the name among these?
 def has(names: List<&2, String>, +name: String) -> Bool:
