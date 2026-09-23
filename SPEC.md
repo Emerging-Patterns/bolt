@@ -81,7 +81,7 @@ A Trusted requirement's ID appears once in a requirement table and once in the t
 | :---- | :---- | :---- | :---- | :---- |
 | BOLT-SCOPE-1 | With no files named, bolt lints every `.bend` file under `.` found within the first 100000 directories the walk reads, not descending into hidden directories or `node_modules`, sorted by code point; past that bound the walk stops silently. | Proved | pending |  |
 | BOLT-SCOPE-2 | A per-file rule sees one file's `Src`; a project rule sees the digests of every file in the run, and nothing else. | Proved | pending |  |
-| BOLT-SCOPE-3 | A file is under law when its normalized path starts with the directory of some LAWS.bend in the run. | Proved | pending |  |
+| BOLT-SCOPE-3 | When the files in the run include a LAWS.bend, every file in the run that is not exempt is under law; otherwise none is. | Proved | pending |  |
 | BOLT-SCOPE-4 | Exemptions are decided by the path alone, never by content. | Proved | pending |  |
 | BOLT-SCOPE-5 | A bolt.bend is read, never linted, even when named. | Proved | pending |  |
 
