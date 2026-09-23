@@ -178,7 +178,10 @@ beside the groups.
 - `hoist` — a list or array of more than eight constants, or a call that
   builds one from inputs that do not change, sits inside a def that calls
   itself and is then indexed. The build runs again on every step. Build it
-  once, outside the recursion. Eight cells or fewer, and a build whose
+  once, outside the recursion. A call builds one when it is a Base
+  constructor (`List.replicate`, `Array.new`, ...) or a def of the file whose
+  body is itself a fixed table of more than eight cells; a def whose body is
+  not in the file does not count. Eight cells or fewer, and a build whose
   arguments depend on the step, are left alone.
 - `ring` — a self-call replaces a binder with a drop of a constant count and
   an append (`List.drop` / `List.tail` / `String.drop` / `String.tail`, then
