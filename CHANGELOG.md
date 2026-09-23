@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.2](https://github.com/Emerging-Patterns/bolt/compare/v1.3.1...v1.3.2) (2026-09-23)
+
+
+### Bug Fixes
+
+* **coverage:** read law mentions from the binder, and prove coverage (BOLT-LAW-1) ([#149](https://github.com/Emerging-Patterns/bolt/issues/149)) ([3c1e3b4](https://github.com/Emerging-Patterns/bolt/commit/3c1e3b490ca89be446340a1057a13b6dee400342))
+
+## [1.3.1](https://github.com/Emerging-Patterns/bolt/compare/v1.3.0...v1.3.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* **config:** resolve paths against the working directory (BOLT-CFG-4) ([#144](https://github.com/Emerging-Patterns/bolt/issues/144)) ([d72fcad](https://github.com/Emerging-Patterns/bolt/commit/d72fcad80d60f8c67aea1fed2bd67d18febbcd1d))
+
 ## [1.3.0](https://github.com/Emerging-Patterns/bolt/compare/v1.2.5...v1.3.0) (2026-09-23)
 
 

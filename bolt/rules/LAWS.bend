@@ -3728,3 +3728,225 @@ law trace_named:
   for mm: Maybe<&2, String>
   for ds: List<&2, Digest.Digest>
   {Trace.check(False{}, mm, ds) == [] : List<&2, F.Finding>}
+
+# coverage's reading of a file (BOLT-LAW-1). coverage_reports above states
+# the rule over every list of digests; these state the digest of every file:
+# what the rule grades in it (its path, whether it is a LAWS.bend, whether it
+# is let off, its defs and types, and each type's constructors) and what its
+# laws name, which is the binder's (BOLT-SYN-5) resolution of each use in the
+# statement of a quantified law of a LAWS.bend. A use the binder resolves to
+# an item of the file is a mention of that item of the law's own file; one it
+# resolves through an import alias is a mention of the item of the file that
+# import names. A binder, a free name (Base, or unknown), the law's own name
+# (a binder), and every use in a closed law name nothing. So a type counts as
+# named only when a law uses it or one of its constructors: a use of another
+# def of its file is a mention of that def, never of the type.
+
+# the constructors the outline lists right after a type, up to the next
+# item that is not one
+def coverage.ctors_of(items: List<&2, Outline.Item>) -> List<&2, String>:
+  match items:
+    case Con{Outline.Item{Outline.ICtor{}, name, _line, _sig, _doc, _path}, rest}:
+      name <> coverage.ctors_of(rest)
+    case _other:
+      []
+
+# the defs and types of the outline, each by name and line, a type with its
+# constructors
+def coverage.tops(items: List<&2, Outline.Item>) -> List<&2, Digest.Top>:
+  match items:
+    case Nil{}:
+      []
+    case Con{Outline.Item{Outline.IDef{}, name, line, _sig, _doc, _path}, rest}:
+      Digest.Top{Outline.IDef{}, name, line, []} <> coverage.tops(rest)
+    case Con{Outline.Item{Outline.IType{}, name, line, _sig, _doc, _path}, +rest}:
+      Digest.Top{Outline.IType{}, name, line, coverage.ctors_of(rest)} <> coverage.tops(rest)
+    case Con{_other, rest}:
+      coverage.tops(rest)
+
+# the file the first import of this alias names, resolved against the
+# importing file
+def coverage.alias(items: List<&2, Outline.Item>, +name: String, +from: String) -> Maybe<&2, String>:
+  match items:
+    case Nil{}:
+      None{}
+    case Con{Outline.Item{Outline.IImport{}, +nm, _line, _sig, _doc, +path}, rest}:
+      +more = coverage.alias(rest, name, from)
+      Bool.pick(Maybe<&2, String>, String.eq(nm, name), Some{Imports.resolve(from, path)}, more)
+    case Con{_other, rest}:
+      coverage.alias(rest, name, from)
+
+# the item behind an alias, when an import names it
+def coverage.behind(mm: Maybe<&2, String>, name: String) -> List<&2, Digest.Mention>:
+  match mm:
+    case None{}:
+      []
+    case Some{pp}:
+      [Digest.Mention{pp, name}]
+
+# what a use the binder resolved names: an item of the file, or an item
+# behind an import alias; a binder or a free name names nothing
+def coverage.target(tt: Bind.Target, items: List<&2, Outline.Item>, +file: String) -> List<&2, Digest.Mention>:
+  match tt:
+    case Bind.TItem{name}:
+      [Digest.Mention{file, name}]
+    case Bind.TQual{al, name}:
+      coverage.behind(coverage.alias(items, al, file), name)
+    case _other:
+      []
+
+# is the line on the statement of a quantified law of the tree: from its
+# header's first token to its body's last?
+def coverage.in_law(root: Tree.Node, +ln: U32) -> Bool:
+  match root:
+    case Tree.NCons{Tree.Stmt{Tree.SLaw{}, kids, +body}, rest}:
+      Bool.or(Bool.and(Closed.binds(body), Bool.and(U32.is_le(Tree.line(kids), ln),
+        U32.is_le(ln, Tree.line.of(List.head(&2, Lex.Tok, Tree.leaves.go(body, [])))))), coverage.in_law(rest, ln))
+    case Tree.NCons{_h, rest}:
+      coverage.in_law(rest, ln)
+    case _other:
+      False{}
+
+# what the uses on the quantified laws' statements name, in order
+def coverage.said(
+  us: List<&2, Bind.Use>,
+  +root: Tree.Node,
+  +items: List<&2, Outline.Item>,
+  +file: String
+) -> List<&2, Digest.Mention>:
+  match us:
+    case Nil{}:
+      []
+    case Con{Bind.Use{_n, ln, _c, tt}, rest}:
+      +more = coverage.said(rest, root, items, file)
+      Bool.pick(List<&2, Digest.Mention>, coverage.in_law(root, ln),
+        List.append(&2, Digest.Mention, coverage.target(tt, items, file), more), more)
+
+# the uses the binder recorded
+def coverage.uses(bb: Bind.Bound) -> List<&2, Bind.Use>:
+  match bb:
+    case Bind.Bound{_bs, us, _scs}:
+      us
+
+# what the coverage rule reads of a digest
+type CoverageView is Data:
+  CoverageView{norm: String, is_laws: Bool, exempt: Bool, tops: List<&2, Digest.Top>, says: List<&2, Digest.Mention>}
+
+# a digest as the coverage rule reads it
+def coverage.view(dd: Digest.Digest) -> CoverageView:
+  match dd:
+    case Digest.Digest{_path, norm, _dir, is_laws, _is_law_file, exempt, tops, says, _deps, _unsafes, _laws}:
+      CoverageView{norm, is_laws, exempt, tops, says}
+
+# LAW: whatever a file's text, tokens, tree, binding structure and outline,
+# its digest grades it at its normalized path, is a LAWS.bend by its path, is
+# let off exactly when that path is a law file or a test, lists the outline's
+# defs and types (a type with the constructors listed right after it), and
+# names, when it is a LAWS.bend, exactly what the binder resolved each use on
+# a quantified law's statement to, through an import alias or in the file;
+# any other file names nothing
+# BOLT-LAW-1
+law coverage_digest:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {coverage.view(Digest.of(Src.Src{path, text, toks, tree, bound, items}))
+    == CoverageView{Imports.norm(path), Paths.is_laws(path),
+      Bool.or(Paths.is_law_file(Imports.norm(path)), Paths.is_test(Imports.norm(path))), coverage.tops(items),
+      Bool.pick(List<&2, Digest.Mention>, Paths.is_laws(path),
+        coverage.said(coverage.uses(bound), tree, items, Imports.norm(path)), [])}
+    : CoverageView}
+
+# LAW: read from its path and text as the linter reads every file, a file's
+# laws name exactly what the binder (Bind.of_tree, BOLT-SYN-5) resolves each
+# use on a quantified law's statement to, when the file is a LAWS.bend
+# BOLT-LAW-1
+law coverage_binder:
+  for +path: String
+  for +text: String
+  {coverage.view(Digest.of(Src.of(path, text)))
+    == CoverageView{Imports.norm(path), Paths.is_laws(path),
+      Bool.or(Paths.is_law_file(Imports.norm(path)), Paths.is_test(Imports.norm(path))),
+      coverage.tops(Outline.of_tokens(text, Lex.tokens(text))),
+      Bool.pick(List<&2, Digest.Mention>, Paths.is_laws(path),
+        coverage.said(coverage.uses(Bind.of_tree(Tree.parse(text), String.lines(text))), Tree.parse(text),
+          Outline.of_tokens(text, Lex.tokens(text)), Imports.norm(path)), [])}
+    : CoverageView}
+
+# unsafe (BOLT-LAW-3), the reach. unsafe_reports reads what a law file
+# reaches as unsafe.closure, the import walk the rule runs. These laws pin
+# that walk to a spec written apart from it: the files in the run are the
+# digests' paths, a file imports what its digest records, and what a file
+# reaches is the least list that holds it and is shut: every file in the run
+# that one of its files imports is in it. The walk counts down a fuel of one
+# per digest; unsafe_shut says it never runs out.
+
+# what the file at pp imports relatively, as the first digest of that path
+# records it; nothing when no digest has the path
+def unsafe.imports(ds: List<&2, Digest.Digest>, +pp: String) -> List<&2, String>:
+  match ds:
+    case Nil{}:
+      Nil{}
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+      +more = unsafe.imports(rest, pp)
+      Bool.pick(List<&2, String>, String.eq(norm, pp), deps, more)
+
+# is the file at pp in the run: does a digest have that path?
+def unsafe.read(ds: List<&2, Digest.Digest>, +pp: String) -> Bool:
+  match ds:
+    case Nil{}:
+      False{}
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+      +more = unsafe.read(rest, pp)
+      Bool.or(String.eq(norm, pp), more)
+
+# every path of xs that is in the run is in ss
+def unsafe.held(+ds: List<&2, Digest.Digest>, +ss: List<&2, String>, xs: List<&2, String>) -> Bool:
+  match xs:
+    case Nil{}:
+      True{}
+    case Con{+x, rest}:
+      +more = unsafe.held(ds, ss, rest)
+      Bool.and(Bool.or(Bool.not(unsafe.read(ds, x)), Imports.has(ss, x)), more)
+
+# ss is shut over ps: every file in the run that a file of ps imports is in ss
+def unsafe.shut(+ds: List<&2, Digest.Digest>, +ss: List<&2, String>, ps: List<&2, String>) -> Bool:
+  match ps:
+    case Nil{}:
+      True{}
+    case Con{+p, rest}:
+      +more = unsafe.shut(ds, ss, rest)
+      Bool.and(unsafe.held(ds, ss, unsafe.imports(ds, p)), more)
+
+# LAW: over every list of digests, what the file at from reaches holds it
+# BOLT-LAW-3
+law unsafe_from:
+  for +ds: List<&2, Digest.Digest>
+  for +from: String
+  {Imports.has(unsafe.closure(ds, from), from) == True{} : Bool}
+
+# LAW: over every list of digests, what a file reaches is shut: every file in
+# the run that one of its files imports is in it. So the walk's fuel never
+# cuts it short
+# BOLT-LAW-3
+law unsafe_shut:
+  for +ds: List<&2, Digest.Digest>
+  for +from: String
+  {unsafe.shut(ds, unsafe.closure(ds, from), unsafe.closure(ds, from)) == True{} : Bool}
+
+# LAW: and it is the least such list: every list that holds from and is shut
+# holds each file it reaches, so it reaches only files a chain of relative
+# imports through the run leads to
+# BOLT-LAW-3
+law unsafe_least:
+  for +ds: List<&2, Digest.Digest>
+  for +from: String
+  for +ss: List<&2, String>
+  for +pp: String
+  for hf: {Imports.has(ss, from) == True{} : Bool}
+  for hs: {unsafe.shut(ds, ss, ss) == True{} : Bool}
+  for hp: {Imports.has(unsafe.closure(ds, from), pp) == True{} : Bool}
+  {Imports.has(ss, pp) == True{} : Bool}

@@ -56,9 +56,9 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-LAW-1 | In every file under a law directory, except helpers, law files and tests, every def and type is referenced by a quantified law in a LAWS.bend: a use in the law's statement that the binder (BOLT-SYN-5) resolves to that def, through an import alias or in the same file. | Proved | pending | bolt/rules/LAWS.bend coverage_reports |
+| BOLT-LAW-1 | In every file under a law directory, except helpers, law files and tests, every def and type is referenced by a quantified law in a LAWS.bend: a use in the law's statement that the binder (BOLT-SYN-5) resolves to that def, through an import alias or in the same file. | Proved | proved | bolt/rules/LAWS.bend coverage_reports; bolt/rules/LAWS.bend coverage_digest; bolt/rules/LAWS.bend coverage_binder |
 | BOLT-LAW-2 | `closed` reports any law in a LAWS.bend with no binder. | Proved | proved | bolt/rules/LAWS.bend closed_walk_counts; bolt/rules/LAWS.bend closed_counts |
-| BOLT-LAW-3 | An `@unsafe def` reachable by relative imports from a law file in the run is a finding. | Proved | pending | bolt/rules/LAWS.bend unsafe_reports |
+| BOLT-LAW-3 | An `@unsafe def` reachable by relative imports from a law file in the run is a finding. | Proved | proved | bolt/rules/LAWS.bend unsafe_reports; bolt/rules/LAWS.bend unsafe_from; bolt/rules/LAWS.bend unsafe_shut; bolt/rules/LAWS.bend unsafe_least |
 | BOLT-LAW-5 | Run over the whole tree, the traceability rule reports exactly one finding for each defect of SPEC.md, in the format stated under "Tagging and traceability", against the laws read, and nothing else: a table row with the wrong number of cells; a row whose ID does not match the pattern; a requirement or trust row whose ID another row of its table kind also has; a requirement row that is neither Proved with status proved or pending nor Trusted with an empty status, a proved row that names no law, and a Trusted row that names one; a Trusted row with no trust row; for each Law entry of a Proved row, proved or pending, an entry that is not `<path> <law>`, a path no LAWS.bend read has, or a law it lacks, else one for no `for`/`exs` binder and one for no tag of the row; and a tag naming an ID no Proved row, proved or pending, lists. A pending row may name laws that prove part of it and a tag may name a pending row. With no SPEC.md it reports that once; over files named on the line, nothing. | Proved | proved | bolt/rules/LAWS.bend trace_pending_judged; bolt/rules/LAWS.bend trace_pending_shape; bolt/rules/LAWS.bend trace_proved_shape; bolt/rules/LAWS.bend trace_trusted_shape; bolt/rules/LAWS.bend trace_pending_claimed; bolt/rules/LAWS.bend trace_trusted_unclaimed; bolt/rules/LAWS.bend trace_unlisted_unclaimed; bolt/rules/LAWS.bend trace_counts; bolt/rules/LAWS.bend trace_unread; bolt/rules/LAWS.bend trace_named |
 
 ### Grading and config (BOLT-CFG)
@@ -98,14 +98,14 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-CLI-1 | bolt accepts `bolt [lint] [files]`, `bolt check files`, `bolt lsp`, `bolt help [cmd]` and `--`; an argv parse error exits 1, and `help` and `--version` exit 0. | Proved | pending |  |
-| BOLT-CLI-2 | `--version` prints the release and, when the build has one, the short commit in parentheses. | Proved | pending |  |
+| BOLT-CLI-1 | bolt accepts `bolt [lint] [files]`, `bolt check files`, `bolt lsp`, `bolt help [cmd]` and `--`; an argv parse error exits 1, and `help` and `--version` exit 0. | Proved | proved | bolt/LAWS.bend cli_bare; bolt/LAWS.bend cli_bare_raw; bolt/LAWS.bend cli_lint; bolt/LAWS.bend cli_lint_raw; bolt/LAWS.bend cli_check; bolt/LAWS.bend cli_check_raw; bolt/LAWS.bend cli_lsp; bolt/LAWS.bend cli_help; bolt/LAWS.bend cli_version; bolt/LAWS.bend cli_error_exits; bolt/LAWS.bend cli_help_exits; bolt/LAWS.bend cli_version_exits; bolt/LAWS.bend cli_runs |
+| BOLT-CLI-2 | `--version` prints the release and, when the build has one, the short commit in parentheses. | Proved | proved | bolt/LAWS.bend cli_version; bolt/LAWS.bend cli_version_exits; bolt/LAWS.bend version_release; bolt/LAWS.bend version_commit |
 
 ### Checker (BOLT-CHK)
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-CHK-1 | `bolt check` prints one `path:line:1: error:` line per error bend reports, on the line bend marks, then a count; it exits 1 when there is any, and treats a failure to run bend as an error. | Proved | pending |  |
+| BOLT-CHK-1 | `bolt check` prints one `path:line:1: error:` line per error bend reports, on the line bend marks, then a count; it exits 1 when there is any, and treats a failure to run bend as an error. | Proved | pending | bolt/LAWS.bend check_lines; bolt/LAWS.bend check_one_each; bolt/LAWS.bend check_clean; bolt/LAWS.bend check_one; bolt/LAWS.bend check_many |
 
 ### Parser (BOLT-SYN)
 
@@ -115,16 +115,16 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | BOLT-SYN-2 | A token's line and column are those of its first character, 0-based, in code points. | Proved | proved | syntax/LAWS.bend positions |
 | BOLT-SYN-3 | The tree drops no token: its leaves are the significant tokens in order, except that each token that is a run of `>` (a close of angle groups or an operator such as `>>`) becomes one `>` leaf per character at consecutive columns. | Proved | proved | syntax/LAWS.bend leaves |
 | BOLT-SYN-4 | The outline lists every column-0 import, def, type, law and `@unsafe def`. | Proved | proved | syntax/LAWS.bend outline |
-| BOLT-SYN-5 | The binder resolves a use to the innermost binder, then a file item, then an alias qualifier, else free. | Proved | pending | syntax/LAWS.bend resolves; syntax/LAWS.bend uses; syntax/LAWS.bend fronts; syntax/LAWS.bend fronts_decl; syntax/LAWS.bend restores; syntax/LAWS.bend groups |
+| BOLT-SYN-5 | The binder resolves a use to the innermost binder, then a file item, then an alias qualifier, else free. | Proved | proved | syntax/LAWS.bend resolves; syntax/LAWS.bend uses; syntax/LAWS.bend extends; syntax/LAWS.bend shadows; syntax/LAWS.bend restores; syntax/LAWS.bend lets; syntax/LAWS.bend groups |
 | BOLT-SYN-6 | Every function in `syntax/` terminates on every input without fuel. | Trusted |  |  |
 
 ### Language server (BOLT-LSP)
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-LSP-1 | `Content-Length` counts UTF-8 bytes; a partial header or body waits; `cut` of `wrap(s)` gives `s`. | Proved | pending |  |
+| BOLT-LSP-1 | `Content-Length` counts UTF-8 bytes; a partial header or body waits; `cut` of `wrap(s)` gives `s`. | Proved | proved | bolt/lsp/LAWS.bend frame_counts; bolt/lsp/LAWS.bend frame_round; bolt/lsp/LAWS.bend frame_waits |
 | BOLT-LSP-2 | Diagnostics for an open document equal the CLI's per-file findings for that file and text under the same bolt.bend. | Proved | pending |  |
-| BOLT-LSP-3 | Each request gets exactly one response with the same id, in order; an unknown request gets -32601; an unknown notification gets nothing. | Proved | pending |  |
+| BOLT-LSP-3 | Each request gets exactly one response with the same id, in order; an unknown request gets -32601; an unknown notification gets nothing. | Proved | proved | bolt/lsp/LAWS.bend replies_pair; bolt/lsp/LAWS.bend unknown_refused |
 | BOLT-LSP-4 | Open and save publish checker plus lint; change publishes lint plus the last checker result; close publishes an empty list; an open bolt.bend gets no lint. | Proved | pending |  |
 | BOLT-LSP-5 | The checker never runs `main`. | Proved | pending |  |
 | BOLT-LSP-6 | Hover, definition, references and completion answer from the binder (BOLT-SYN-5) over the open text and its relative imports. | Proved | pending |  |

@@ -331,38 +331,44 @@ law uses:
     == Bind.W{env, Bind.Out{binds, Bind.Use{name, line, col, res.spec(env, name, its, als)} <> us, scopes}} : Bind.W}
 
 # the environment the walk threads (BOLT-SYN-5): what makes the first binder
-# of a name in it the innermost one in scope. A binder goes on the front, and
-# a scope, once left, gives back the environment it was entered with: a
-# statement other than a let or a `for` is such a scope for the statements
-# after it, and a group for the terms after it. Still to prove: that the walk
-# only ever puts binders in front of the environment it was given.
+# of a name in it the innermost one in scope. The walk only ever puts binders
+# in front of the environment it was given, so a binder met later, further
+# in, stands before the ones around it; binders in front shadow the ones
+# behind; and a scope, once left, gives back the environment it was entered
+# with: a statement other than a let or a `for` is such a scope for the
+# statements after it, and a group for the terms after it, while a let or a
+# `for` scopes over the rest of its block.
 
-# LAW: a binder the walk introduces goes on the front of the environment
+# LAW: whatever the walk reads, in whatever mode, the environment it leaves is
+# the one it was given with binders put in front
 # BOLT-SYN-5
-law fronts:
-  for +name: String
-  for +line: U32
-  for +col: U32
-  for +kind: Bind.BindKind
+law extends:
+  for +nn: Tree.Node
+  for +mode: Bind.Mode
   for +env: List<&2, Bind.Bind>
+  for +ns: Bind.Names
   for +out: Bind.Out
-  {Bind.env_of(Bind.bind(name, line, col, kind, env, out)) == Bind.Bind{name, line, col, kind, ""} <> env
-    : List<&2, Bind.Bind>}
+  exs ext: List<&2, Bind.Bind>
+  {Bind.env_of(Bind.walk(nn, mode, env, ns, out)) == List.append(&2, Bind.Bind, ext, env) : List<&2, Bind.Bind>}
 
-# LAW: so does a binder of a telescope, whatever its note says
+# the first binder found, else the other
+def res.first(mm: Maybe<&2, Bind.Bind>, other: Maybe<&2, Bind.Bind>) -> Maybe<&2, Bind.Bind>:
+  match mm:
+    case Some{bb}:
+      Some{bb}
+    case None{}:
+      other
+
+# LAW: binders put in front shadow the ones behind: the first binder of a
+# name is the first of those in front, else the first of those behind
 # BOLT-SYN-5
-law fronts_decl:
-  for +name: String
-  for +line: U32
-  for +col: U32
-  for +kind: Bind.BindKind
-  for +quantity: String
-  for +rest: Tree.Node
+law shadows:
+  for +ext: List<&2, Bind.Bind>
   for +env: List<&2, Bind.Bind>
-  for +out: Bind.Out
-  exs note: String
-  {Bind.env_of(Bind.bind_decl(name, line, col, kind, quantity, rest, env, out))
-    == Bind.Bind{name, line, col, kind, note} <> env : List<&2, Bind.Bind>}
+  for +name: String
+  {List.head(&2, Bind.Bind, res.all(List.append(&2, Bind.Bind, ext, env), name))
+    == res.first(List.head(&2, Bind.Bind, res.all(ext, name)), List.head(&2, Bind.Bind, res.all(env, name)))
+    : Maybe<&2, Bind.Bind>}
 
 # does a statement of this kind close its scope for the statements after it?
 # All but a let and a `for` do
@@ -390,6 +396,23 @@ law restores:
   exs o: Bind.Out
   {Bind.walk(Tree.NCons{Tree.Stmt{kk, kids, body}, rest}, Bind.MBlock{}, env, ns, out)
     == Bind.walk(rest, Bind.MBlock{}, env, ns, o) : Bind.W}
+
+# LAW: the statements after a let or a `for` are read with the environment it
+# was entered with, its binders put in front
+# BOLT-SYN-5
+law lets:
+  for +kk: Tree.StmtKind
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +env: List<&2, Bind.Bind>
+  for +ns: Bind.Names
+  for +out: Bind.Out
+  for e: {scoped(kk) == False{} : Bool}
+  exs ext: List<&2, Bind.Bind>
+  exs o: Bind.Out
+  {Bind.walk(Tree.NCons{Tree.Stmt{kk, kids, body}, rest}, Bind.MBlock{}, env, ns, out)
+    == Bind.walk(rest, Bind.MBlock{}, List.append(&2, Bind.Bind, ext, env), ns, o) : Bind.W}
 
 # LAW: the terms after a group are read with the environment it was entered
 # with: a lambda inside it binds only inside it
