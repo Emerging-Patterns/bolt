@@ -1,6 +1,8 @@
 # bolt/check: `bolt check file..`: the checker (`bend`) on each file, its
 # errors in bolt's shape, `path:line:1: error: message` (bend reports no
 # column; a message's further lines are indented under it), then the count.
+# A file bend could not be run on is one error, `path:1:1: error: could not
+# run bend`, and never `clean`.
 # What a check prints and how it exits is `out`'s decision over what bend
 # reported (bolt/LAWS.bend proves it); `run` only does it.
 import Base
@@ -37,9 +39,11 @@ def show_all(ds: List<&2, Rep.Diag>, +path: String) -> List<&2, String>:
     case Con{Rep.Diag{line, msg}, rest}:
       (path ++ ":" ++ U32.show((line + 1 : U32)) ++ ":1: error: " ++ message(msg)) <> show_all(rest, path)
 
-# a file checked: its path and the diagnostics bend reported for it
+# a file checked: its path and the diagnostics bend reported for it, or a
+# file bend could not be run on
 type Run is Data:
   Run{path: String, ds: List<&2, Rep.Diag>}
+  Failed{path: String}
 
 # what a check prints, line by line, and the code it exits with
 type Out is Data:
@@ -52,6 +56,8 @@ def lines_of(runs: List<&2, Run>) -> List<&2, String>:
       Nil{}
     case Con{Run{path, ds}, rest}:
       List.append(&2, String, show_all(ds, path), lines_of(rest))
+    case Con{Failed{path}, rest}:
+      (path ++ ":1:1: error: could not run bend") <> lines_of(rest)
 
 # the error lines, then `clean` or the count, and the exit code: 1 when
 # there is any error
@@ -79,6 +85,14 @@ def print_all(lines: List<&2, String>) -> IO(Unit):
         IO.print(l)
         print_all(t)
 
+# a file's run, from the checker's answer for it
+def run_of(path: String, aa: Checker.Answer) -> Run:
+  match aa:
+    case Checker.Checked{ds}:
+      Run{path, ds}
+    case Checker.Unrun{}:
+      Failed{path}
+
 # every file checked, in order: what bend reported for each
 def check_all(~ck: Checker.Checker, paths: List<&2, String>) -> IO(List<&2, Run>):
   match paths:
@@ -86,9 +100,9 @@ def check_all(~ck: Checker.Checker, paths: List<&2, String>) -> IO(List<&2, Run>
       IO.pure(List<&2, Run>, [])
     case Con{+path, rest}:
       do IO<List<&2, Run>>:
-        ds : List<&2, Rep.Diag> <- Checker.check(ck, path)
+        aa : Checker.Answer <- Checker.check(ck, path)
         more : List<&2, Run> <- check_all(~ck, rest)
-        return Run{path, ds} <> more
+        return run_of(path, aa) <> more
 
 # what out decided, done (BOLT-TRUST-9): its lines printed, then its code
 def perform(oo: Out) -> IO(Unit):
