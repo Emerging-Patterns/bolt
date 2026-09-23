@@ -205,12 +205,13 @@ def small_num(+tt: String) -> Bool:
   List.contains(~String, ~String.eq,
     ["0", "1", "2", "3", "4", "5", "6", "7", "8", "0n", "1n", "2n", "3n", "4n", "5n", "6n", "7n", "8n"], tt)
 
-# the size after `*` or `^` is a literal of eight or fewer
+# the size after `*` is a literal of eight or fewer, or the depth after `^` (2^d slots) three or fewer
 def small_size(nn: Tree.Node) -> Bool:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +op, l, c}},
         Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, +t, l2, c2}}, rest}}:
-      +here = Bool.and(Bool.or(String.eq(op, "*"), String.eq(op, "^")), small_num(t))
+      +here = Bool.or(Bool.and(String.eq(op, "*"), small_num(t)),
+        Bool.and(String.eq(op, "^"), List.contains(~String, ~String.eq, ["0", "1", "2", "3", "0n", "1n", "2n", "3n"], t)))
       +more = small_size(rest)
       Bool.or(here, more)
     case Tree.NCons{Tree.Group{open, kids, close}, rest}:
