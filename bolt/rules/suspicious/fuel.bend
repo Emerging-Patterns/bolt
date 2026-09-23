@@ -1,13 +1,14 @@
-# rule fuel: a call to a def of the same file passes a Nat literal (`1000n`)
-# where that def takes its fuel. A fuel parameter is known by its name alone:
-# `fuel`, `gas`, `steps` or `budget`, or any name starting with `fuel`. The
-# fuel-0 arm returns what it has, so input past the literal comes out cut
-# short, with no error (a JSON printer that stopped at 1000 tasks). Inside a
-# law, the checker unrolls the fixed fuel and hangs. Derive the fuel from the
-# input's size (`Nat.mul(size, 4n)`) or take it as a parameter. A literal of
-# any size counts, an exact repeat count such as `3n` included. Only an
-# argument that is one literal token alone counts: `U32.to_nat(1000)`, a
-# let-bound literal and a parenthesized `(7n)` are not seen. A def's own
+# rule fuel: a call to a def of the same file, its name then `(`, passes a Nat
+# literal (`1000n`: digits, then `n`) where that def takes its fuel. A fuel
+# parameter is known by its name alone (its first lowercase name before the
+# colon): `fuel`, `gas`, `steps` or `budget`, or any name starting with
+# `fuel`. The fuel-0 arm returns what it has, so input past the literal comes
+# out cut short, with no error (a JSON printer that stopped at 1000 tasks).
+# Inside a law, the checker unrolls the fixed fuel and hangs. Derive the fuel
+# from the input's size (`Nat.mul(size, 4n)`) or take it as a parameter. A
+# literal of any size counts, an exact repeat count such as `3n` included.
+# Only an argument that is one literal token alone counts: `U32.to_nat(1000)`,
+# a let-bound literal and a parenthesized `(7n)` are not seen. A def's own
 # calls are exempt: its step passes `fuel - 1`, not a literal.
 import Base
 import ../../src.bend as Src
@@ -16,6 +17,8 @@ import ../../finding.bend as F
 import ../../../syntax/lex.bend as Lex
 import ../../../syntax/tree.bend as Tree
 import ../../../syntax/bind.bend as Bind
+import ../calls.bend as Calls
+import ../tokens.bend as T
 
 # a def of the file and the position of a fuel parameter
 type Fuel is Data:
@@ -26,30 +29,6 @@ def is_fuel(+nn: String) -> Bool:
   Bool.or(String.starts_with(nn, "fuel"),
     List.contains(~String, ~String.eq, ["gas", "steps", "budget"], nn))
 
-# the arguments of a group, split at its top-level commas (each a chain)
-def args.go(kids: Tree.Node, cur: Tree.Node, acc: List<&2, Tree.Node>) -> List<&2, Tree.Node>:
-  match kids:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}, rest}:
-      args.go(rest, Tree.NNil{}, Tree.reverse(cur, Tree.NNil{}) <> acc)
-    case Tree.NCons{h, rest}:
-      args.go(rest, Tree.NCons{h, cur}, acc)
-    case other:
-      List.reverse(&2, Tree.Node, Tree.reverse(cur, Tree.NNil{}) <> acc)
-
-# the arguments of a group
-def args(kids: Tree.Node) -> List<&2, Tree.Node>:
-  args.go(kids, Tree.NNil{}, [])
-
-# the first plain name of a parameter (`fuel` of `+fuel: Nat`)
-def param(nn: Tree.Node) -> String:
-  match nn:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, rest}:
-      t
-    case Tree.NCons{h, rest}:
-      param(rest)
-    case other:
-      ""
-
 # the fuel parameters among a def's parameters, from position i on
 def fuels.params(ps: List<&2, Tree.Node>, +name: String, +ii: Nat) -> List<&2, Fuel>:
   match ps:
@@ -57,51 +36,21 @@ def fuels.params(ps: List<&2, Tree.Node>, +name: String, +ii: Nat) -> List<&2, F
       Nil{}
     case Con{p, rest}:
       +more = fuels.params(rest, name, 1n+ii)
-      Bool.pick(List<&2, Fuel>, is_fuel(param(p)), Fuel{name, ii} <> more, more)
-
-# the parameter group of a def's header: its first `(..)`
-def header(kids: Tree.Node) -> List<&2, Tree.Node>:
-  match kids:
-    case Tree.NCons{Tree.Group{Lex.Tok{k, +o, l, c}, gk, close}, rest}:
-      Lazy.stop(List<&2, Tree.Node>, String.eq(o, "("), args(gk), _u => header(rest))
-    case Tree.NCons{h, rest}:
-      header(rest)
-    case other:
-      Nil{}
-
-# the fuel parameters of a def, when it has a name
-def fuels.def(mm: Maybe<&2, String>, kids: Tree.Node) -> List<&2, Fuel>:
-  match mm:
-    case None{}:
-      Nil{}
-    case Some{name}:
-      fuels.params(header(kids), name, 0n)
+      Bool.pick(List<&2, Fuel>, is_fuel(Calls.param_name(p)), Fuel{name, ii} <> more, more)
 
 # every fuel parameter of every def of the file
-def fuels(root: Tree.Node) -> List<&2, Fuel>:
-  match root:
-    case Tree.NCons{Tree.Stmt{Tree.SDef{}, +kids, body}, rest}:
-      List.append(&2, Fuel, fuels.def(Bind.declared(kids), kids), fuels(rest))
-    case Tree.NCons{h, rest}:
-      fuels(rest)
-    case other:
+def fuels(ds: List<&2, Calls.Def>) -> List<&2, Fuel>:
+  match ds:
+    case Nil{}:
       Nil{}
+    case Con{Calls.Def{name, sig, body}, rest}:
+      List.append(&2, Fuel, fuels.params(Calls.params(sig), name, 0n), fuels(rest))
 
-# the nth argument, or nothing
-def arg(as: List<&2, Tree.Node>, nn: Nat) -> Tree.Node:
-  match as nn:
-    case Con{h, t} 0n:
-      h
-    case Con{h, t} 1n+p:
-      arg(t, p)
-    case Nil{} m:
-      Tree.NNil{}
-
-# an argument that is a Nat literal alone, as a finding
+# an argument that is a Nat literal alone (digits, then `n`), as a finding
 def literal(aa: Tree.Node, +path: String) -> List<&2, F.Finding>:
   match aa:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, +t, l, c}}, Tree.NNil{}}:
-      Bool.pick(List<&2, F.Finding>, String.ends_with(t, "n"),
+      Bool.pick(List<&2, F.Finding>, T.nat_ok(String.to_list(t)),
         [F.Finding{path, l, c, U32.from_nat(String.length(t)), "fuel",
           "Fuel is fixed at " ++ t ++ ", so input past it is cut short with no error; derive the fuel from the input size."}],
         [])
@@ -116,15 +65,16 @@ def call(fs: List<&2, Fuel>, +name: String, +as: List<&2, Tree.Node>, +path: Str
     case Con{Fuel{+fn, at}, rest}:
       +more = call(rest, name, as, path)
       Lazy.stop(List<&2, F.Finding>, Bool.not(String.eq(fn, name)), more,
-        _u => List.append(&2, F.Finding, literal(arg(as, at), path), more))
+        _u => List.append(&2, F.Finding, literal(Calls.arg(as, at), path), more))
 
 # every call at any depth of a chain, but the def's own (self)
 def calls(nn: Tree.Node, +fs: List<&2, Fuel>, +self: String, +path: String) -> List<&2, F.Finding>:
   match nn:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{open, +kids, close}, rest}}:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +more = List.concat(&2, F.Finding, [calls(kids, fs, self, path), calls(rest, fs, self, path)])
-      Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Lex.is_name(k), Bool.not(String.eq(t, self)))), more,
-        _u => List.append(&2, F.Finding, call(fs, t, args(kids), path), more))
+      +hit = Bool.and(Bool.and(Lex.is_name(k), String.eq(o, "(")), Bool.not(String.eq(t, self)))
+      Lazy.stop(List<&2, F.Finding>, Bool.not(hit), more,
+        _u => List.append(&2, F.Finding, call(fs, t, Calls.args(kids), path), more))
     case Tree.NCons{Tree.Group{open, kids, close}, rest}:
       List.concat(&2, F.Finding, [calls(kids, fs, self, path), calls(rest, fs, self, path)])
     case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
@@ -157,4 +107,4 @@ def check.go(root: Tree.Node, +fs: List<&2, Fuel>, +path: String) -> List<&2, F.
 # the rule
 def check(ss: Src.Src) -> List<&2, F.Finding>:
   Src.Src{path, text, toks, +tree, bound, items} = ss
-  check.go(tree, fuels(tree), path)
+  check.go(tree, fuels(Calls.defs(tree)), path)
