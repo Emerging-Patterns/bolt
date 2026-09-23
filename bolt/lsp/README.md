@@ -35,9 +35,11 @@ proves BOLT-LSP-1 over every body: the count is the body's UTF-8 bytes, every
 proper prefix of a message waits, and a message cuts back to its body),
 `report.bend` (the checker's text to diagnostics),
 `proto.bend` (the JSON the server sends; URI to path), `docs.bend` (the open
-documents, the loop's state), `path.bend`, and `nav.bend`: a name `Alias.rest`
-is `rest` in the file behind the import `Alias`; any other name is an item of
-the document, or else of Base. Items come from [syntax](../../syntax/)'s outline,
+documents, the loop's state), `path.bend`, and `nav.bend`: a use is answered
+as [syntax](../../syntax/)'s binder resolves it (BOLT-SYN-5): a binder of the
+document, else an item of the document (`def Lib.f` wins over the import
+`Lib`), else `rest` in the file behind the import `Alias` of `Alias.rest`,
+else Base (BOLT-LSP-6 in `LAWS.bend`). Items come from [syntax](../../syntax/)'s outline,
 so navigation works in files that do not check, and sees unsaved edits.
 
 ## What the checker gives

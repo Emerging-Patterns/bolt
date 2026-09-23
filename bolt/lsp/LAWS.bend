@@ -592,6 +592,90 @@ law nav_hover_use:
   for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
   {Nav.hover(~fs, docs, uri, line, col, R, k) == Nav.at(~fs, docs, uri, line, col, R, k) : IO.OP<R>}
 
+# is a binder of this kind an item's name (a def, law or type)?
+def nav.item_kind(kind: Bind.BindKind) -> Bool:
+  match kind:
+    case Bind.KItem{}:
+      True{}
+    case _other:
+      False{}
+
+# LAW: hover on a binder of the open text that names no item shows that
+# binder
+# BOLT-LSP-6
+law nav_hover_binder:
+  for -fs: Fs.Files
+  for +docs: List<&2, Docs.Doc>
+  for +uri: String
+  for +text: String
+  for h: {Docs.get(docs, uri) == Some{text} : Maybe<&2, String>}
+  for +line: U32
+  for +col: U32
+  for +name: String
+  for +bl: U32
+  for +bc: U32
+  for +kind: Bind.BindKind
+  for +note: String
+  for hs: {Bind.at(Bind.bound(text), line, col) == Some{Bind.SBind{Bind.Bind{name, bl, bc, kind, note}}}
+    : Maybe<&2, Bind.Site>}
+  for hk: {nav.item_kind(kind) == False{} : Bool}
+  for -R: Type
+  for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
+  {Nav.hover(~fs, docs, uri, line, col, R, k) == k(Some{Nav.Here{uri, Bind.Bind{name, bl, bc, kind, note}}})
+    : IO.OP<R>}
+
+# LAW: hover on an item's own name shows the item behind the import alias
+# its head names, relative to the document (a proof's `def Laws.x` shows
+# the law in the file behind `Laws`), and falls back to the document's item
+# of that name, then to the binder
+# BOLT-LSP-6
+law nav_hover_item:
+  for -fs: Fs.Files
+  for +docs: List<&2, Docs.Doc>
+  for +uri: String
+  for +text: String
+  for +h: {Docs.get(docs, uri) == Some{text} : Maybe<&2, String>}
+  for +line: U32
+  for +col: U32
+  for +name: String
+  for +bl: U32
+  for +bc: U32
+  for +note: String
+  for hs: {Bind.at(Bind.bound(text), line, col) == Some{Bind.SBind{Bind.Bind{name, bl, bc, Bind.KItem{}, note}}}
+    : Maybe<&2, Bind.Site>}
+  for +rel: String
+  for hi: {Outline.import_path(Outline.items(text), Word.head(name)) == Some{rel} : Maybe<&2, String>}
+  for -R: Type
+  for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
+  {Nav.hover(~fs, docs, uri, line, col, R, k)
+    == Nav.in_file(~fs, docs, Path.join(Path.dir(Proto.path(uri)), rel), Word.rest(name), R,
+      mm => k(Nav.hover.pick(mm, Nav.found(Outline.find(Outline.items(text), name), uri), uri,
+        Bind.Bind{name, bl, bc, Bind.KItem{}, note}))) : IO.OP<R>}
+
+# LAW: hover on an item's own name whose head names no import is the
+# document's item of that name
+# BOLT-LSP-6
+law nav_hover_own:
+  for -fs: Fs.Files
+  for +docs: List<&2, Docs.Doc>
+  for +uri: String
+  for +text: String
+  for +h: {Docs.get(docs, uri) == Some{text} : Maybe<&2, String>}
+  for +line: U32
+  for +col: U32
+  for +name: String
+  for +bl: U32
+  for +bc: U32
+  for +note: String
+  for hs: {Bind.at(Bind.bound(text), line, col) == Some{Bind.SBind{Bind.Bind{name, bl, bc, Bind.KItem{}, note}}}
+    : Maybe<&2, Bind.Site>}
+  for hi: {Outline.import_path(Outline.items(text), Word.head(name)) == None{} : Maybe<&2, String>}
+  for +it: Outline.Item
+  for hf: {Outline.find(Outline.items(text), name) == Some{it} : Maybe<&2, Outline.Item>}
+  for -R: Type
+  for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
+  {Nav.hover(~fs, docs, uri, line, col, R, k) == k(Some{Nav.Found{uri, it}}) : IO.OP<R>}
+
 # the positions of a binder the binder found: an item's or a constructor's
 # declaration and uses, any other binder's own position and its uses'
 def nav.bind_sites(kind: Bind.BindKind, +name: String, +ll: U32, +cc: U32, +bb: Bind.Bound) -> Nav.Sites:
@@ -672,3 +756,23 @@ law nav_completion:
     == Nav.from_base(~fs, Bool.not(String.is_empty(prefix)), docs, prefix, R,
       base => k(List.append(&2, Outline.Item, nav.locals(text, prefix, line), nav.after(text, prefix, base))))
     : IO.OP<R>}
+
+# LAW: completion of `Alias.pre`, where Alias is an import of the open text,
+# offers the items starting with `pre` of the file the import names,
+# relative to the document, each named `Alias.` and the item's name
+# BOLT-LSP-6
+law nav_completion_import:
+  for -fs: Fs.Files
+  for +docs: List<&2, Docs.Doc>
+  for +uri: String
+  for +text: String
+  for h: {Docs.get(docs, uri) == Some{text} : Maybe<&2, String>}
+  for +prefix: String
+  for +line: U32
+  for +rel: String
+  for hp: {Outline.import_path(Outline.items(text), Word.head(prefix)) == Some{rel} : Maybe<&2, String>}
+  for -R: Type
+  for -k: List<&2, Outline.Item> -> IO.OP<R>
+  {Nav.candidates(~fs, docs, uri, prefix, line, R, k)
+    == Nav.starting_in(~fs, docs, Path.join(Path.dir(Proto.path(uri)), rel), Word.rest(prefix), Word.head(prefix) ++ ".",
+      R, k) : IO.OP<R>}

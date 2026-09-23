@@ -1,7 +1,10 @@
-# lsp/nav: from a name to the item it names. A name `Alias.rest`, where Alias
-# is an import of the document, is `rest` in that file; any other name is an
-# item of the document, or else of Base. Open documents are read from the
-# store (what the editor shows), everything else through the files service.
+# lsp/nav: from a name to the item it names. A use is answered as the binder
+# resolved it: a binder of the document, an item of the document (before any
+# alias), `rest` in the file behind the import `Alias` of `Alias.rest`, or
+# Base. A word the binder has nothing for (a half-typed name) is looked up
+# behind its alias, else in the document, else in Base. Open documents are
+# read from the store (what the editor shows), everything else through the
+# files service.
 import Base
 import ../../syntax/outline.bend as Outline
 import ../../syntax/word.bend as Word
