@@ -30,7 +30,10 @@ message. Idle it costs no CPU.
 
 The pure parts: `frame.bend` (framing, UTF-8 both ways — Content-Length counts
 bytes and a read may end inside a char, so the transport reads bytes and
-decodes itself), `report.bend` (the checker's text to diagnostics),
+decodes itself; the length is kept as its decimal digits, so `LAWS.bend`
+proves BOLT-LSP-1 over every body: the count is the body's UTF-8 bytes, every
+proper prefix of a message waits, and a message cuts back to its body),
+`report.bend` (the checker's text to diagnostics),
 `proto.bend` (the JSON the server sends; URI to path), `docs.bend` (the open
 documents, the loop's state), `path.bend`, and `nav.bend`: a name `Alias.rest`
 is `rest` in the file behind the import `Alias`; any other name is an item of
