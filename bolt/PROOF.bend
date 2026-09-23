@@ -13,6 +13,8 @@ import ./args.bend as Args
 import ./version.bend as Ver
 import ./build_rev.bend as Rev
 import ./check.bend as Check
+import ./lsp/checker/service.bend as Checker
+import ./lsp/checker/bend.bend as BendChecker
 import ./lsp/report.bend as Rep
 import 0x65bf91e14c96bf0c25491d716ec9f68c/main.bend as Shake
 import ./LAWS.bend as Laws
@@ -2016,6 +2018,10 @@ def Laws.check_lines(runs):
       %Laws.check_lines(rest) : {List.append(&2, String, Check.show_all(ds, path), Check.lines_of(rest))
         == Laws.chk_file(ds, path, _) : List<&2, String>}
       chk.file(ds, path, Check.lines_of(rest))
+    case Con{Check.Failed{+path}, +rest}:
+      %Laws.check_lines(rest) : {(path ++ ":1:1: error: could not run bend") <> Check.lines_of(rest)
+        == (path ++ ":1:1: error: could not run bend") <> _ : List<&2, String>}
+      {==}
 
 # the length of two lists appended is the sum of their lengths
 law chk.len_append:
@@ -2058,6 +2064,9 @@ def Laws.check_one_each(runs):
           List.append(&2, String, Check.show_all(ds, path), Check.lines_of(rest)))
         == Nat.add(_, List.length(&2, String, Check.lines_of(rest))) : Nat}
       chk.len_append(Check.show_all(ds, path), Check.lines_of(rest))
+    case Con{Check.Failed{_path}, +rest}:
+      %Laws.check_one_each(rest) : {1n+List.length(&2, String, Check.lines_of(rest)) == 1n+_ : Nat}
+      {==}
 
 # a Nat's type when it is zero: inhabited only at zero
 def chk.zero_ty(nn: Nat) -> Type:
@@ -2121,4 +2130,67 @@ def Laws.check_many(runs, more, h):
       [U32.show(U32.from_nat(2n+more)) ++ " errors, 0 warnings"]), 1}
     == Check.Out{List.append(&2, String, _, [U32.show(U32.from_nat(2n+more)) ++ " errors, 0 warnings"]), 1}
     : Check.Out}
+  {==}
+
+# a count past zero exits 1, whatever the lines
+law chk.code_succ:
+  for ls: List<&2, String>
+  for nn: Nat
+  {Laws.chk_code(Check.out.at(ls, 1n+nn)) == 1 : U32}
+
+def chk.code_succ(_ls, nn):
+  match nn:
+    case 0n:
+      {==}
+    case 1n+_p:
+      {==}
+
+def Laws.check_unrun_error(path, runs):
+  chk.code_succ((path ++ ":1:1: error: could not run bend") <> Check.lines_of(runs),
+    List.length(&2, String, Check.lines_of(runs)))
+
+def Laws.check_run_of(_path, _ds):
+  {==}
+
+def Laws.check_run_unrun(_path):
+  {==}
+
+def Laws.check_exec_ran(_text):
+  {==}
+
+def Laws.check_exec_unrun(_text):
+  {==}
+
+def Laws.check_exec_died(text, h):
+  %Equal.sym(List<&2, Rep.Diag>, Rep.parse(text), [], h) : {BendChecker.died(_) == Checker.Unrun{} : Checker.Answer}
+  {==}
+
+def Laws.check_exec_died_reported(text, dd, ds, h):
+  %Equal.sym(List<&2, Rep.Diag>, Rep.parse(text), dd <> ds, h) : {BendChecker.died(_)
+    == Checker.Checked{dd <> ds} : Checker.Answer}
+  {==}
+
+# neither tag is no check
+law chk.untagged:
+  for ran: Bool
+  for killed: Bool
+  for text: String
+  for h: {Bool.or(ran, killed) == False{} : Bool}
+  {BendChecker.answer.tag(ran, killed, text) == Checker.Unrun{} : Checker.Answer}
+
+def chk.untagged(ran, killed, text, h):
+  match ran killed:
+    case True{} _k:
+      Empty.absurd({BendChecker.answer.tag(True{}, _k, text) == Checker.Unrun{} : Checker.Answer},
+        cli.true_false(h))
+    case False{} True{}:
+      Empty.absurd({BendChecker.answer.tag(False{}, True{}, text) == Checker.Unrun{} : Checker.Answer},
+        cli.true_false(h))
+    case False{} False{}:
+      {==}
+
+def Laws.check_exec_untagged(cc, text, h):
+  chk.untagged(Char.is_eq(cc, 'r'), Char.is_eq(cc, 's'), text, h)
+
+def Laws.check_proof_unrun(_ds):
   {==}

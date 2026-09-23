@@ -25,7 +25,7 @@ message. Idle it costs no CPU.
 | service | real | fake |
 |---------|------|------|
 | `transport/` — one message body in, one out | `stdio`: Content-Length framing over bytes | `script`: a list of bodies in; every body sent is printed |
-| `files/` — a file's text by path; where Base lives | `disk` | any `Files` record |
+| `files/` — a file's text by path; where Base lives; the working directory | `disk` | any `Files` record |
 | `checker/` — a path's diagnostics | `bend`: a foreign effect (`exec.c`, `exec.js`) running `bend <path> --check-only` | `fake`: canned |
 
 The pure parts: `frame.bend` (framing, UTF-8 both ways — Content-Length counts
@@ -59,7 +59,12 @@ stable id (`bolt(style:wrap)`, `S003`),
 each at the level the nearest `bolt.bend` gives its rule: errors as severity
 1, warnings as 2, off ones dropped. The linter is pure, so it runs on the
 text the editor shows: findings follow every edit, and each publish carries
-the checker's last errors with the linter's current findings.
+the checker's last errors with the linter's current findings. The bolt.bend
+candidates are the CLI's for the same path and working directory, so the
+findings are exactly what `bolt <path>` grades for that file and text
+(BOLT-LSP-2, `LAWS.bend` `lint_is_cli`). What open, change, save and close
+publish is decided by server.bend's `pub.*`, pure over the checker's errors and
+the texts the files hold, and `LAWS.bend` states it (BOLT-LSP-4).
 
 Completion offers what could finish the name being typed: `Alias.pre` from the
 file behind the alias; anything else from the document, its aliases and (once

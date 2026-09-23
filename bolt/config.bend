@@ -124,22 +124,6 @@ def dir_of.go(cs: List<&2, Char>, +acc: List<&2, Char>, best: List<&2, Char>) ->
 def dir_of(path: String) -> String:
   dir_of.go(String.to_list(path), [], [])
 
-# the parent directory of a directory (`a/b/` -> `a/`; `` -> ``)
-def parent(+dir: String) -> String:
-  dir_of(String.take(dir, (String.length(dir) - 1n : Nat)))
-
-# the top: nothing above `` or `/`
-def is_top(+dir: String) -> Bool:
-  Bool.or(String.is_empty(dir), String.eq(dir, "/"))
-
-# the bolt.bend of a directory and of each parent, nearest first
-def candidates(fuel: Nat, +dir: String) -> List<&2, String>:
-  match fuel:
-    case 0n:
-      Nil{}
-    case 1n+f:
-      (dir ++ "bolt.bend") <> Lazy.stop(List<&2, String>, is_top(dir), [], _u => candidates(f, parent(dir)))
-
 # resolving a path
 # ----------------
 # A path is resolved against the working directory before its candidates are
