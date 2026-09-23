@@ -233,7 +233,9 @@ beside the groups.
   linearity and do every branch's work.
 - `twice` — a case pattern that opens with the same literal twice
   (`case 10 <> 10 <> ..`) in a recursive def: the checker hangs. Match one
-  element a step.
+  element a step. A def is recursive when its body calls it (`name(..)`); a
+  parameter named like the def is not a call. Only the first match column is
+  read.
 - `arms` — a later `Nat` arm that an earlier `kn+p` already matches, so it is
   unreachable. `Succ{p}` and `Succ{_}` count as `1n+p`. The checker takes it silently and the answer is wrong: put the
   narrow arms first.
