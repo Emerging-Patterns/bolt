@@ -5,7 +5,9 @@
 #     (so damage stays inside one item), or by the end of the file;
 #   - a close bracket that matches nothing on the stack is a stray leaf;
 #   - `<` opens type arguments only when glued to a name (`List<`, `Maybe<&`);
-#     a `>`-only operator closes as many angle groups as it has `>`s.
+#     a `>`-only operator closes as many angle groups as it has `>`s, each
+#     only while an angle group is the innermost open one: in
+#     `List<f(a > b)>` the first `>` is an operator inside `(..)`.
 # Trivia (spaces, newlines, comments) is not in the tree: read the tokens for
 # that. The cells (NNil, NCons) live inside the type, as json/value does, so
 # every walk is a structural recursion on one argument.
@@ -226,16 +228,24 @@ def close_one(stack: List<&2, Frame>, close: Maybe<&2, Lex.Tok>) -> List<&2, Fra
     case other:
       other
 
+# one more group above the one found below, when one was
+def depth_to.up(below: Nat) -> Nat:
+  match below:
+    case Zero{}:
+      0n
+    case Succ{p}:
+      Succ{Succ{p}}
+
 # how many groups sit open above the one that c closes (counting it); 0 when
-# none does
+# none does. A `>` closes only an angle group on top: inside `(..)`, `[..]`
+# or `{..}` it is an operator, even within `<..>`
 def depth_to(stack: List<&2, Frame>, +cc: String) -> Nat:
   match stack:
     case Nil{}:
       0n
     case Con{FGroup{Lex.Tok{k, +t, l, c2}, kids}, rest}:
-      +below = depth_to(rest, cc)
-      Bool.pick(Nat, String.eq(closer(t), cc), 1n,
-        Bool.pick(Nat, Nat.is_eq(below, 0n), 0n, Succ{below}))
+      Lazy.stop(Nat, String.eq(closer(t), cc), 1n,
+        _u => Lazy.stop(Nat, String.eq(cc, ">"), 0n, _v => depth_to.up(depth_to(rest, cc))))
     case Con{other, rest}:
       0n
 

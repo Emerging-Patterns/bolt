@@ -15,8 +15,9 @@ What an editor needs to know about a Bend source without checking it.
   so a walk can branch by constructor.
 - `tree.bend`: a concrete syntax tree: statements by line and indentation,
   groups by brackets (`(..)`, `[..]`, `{..}` and type arguments `<..>`),
-  cells inside the type. One stack machine over the tokens, tolerant by
-  construction: an unclosed bracket is closed by the next line at column 0
+  cells inside the type. A `>` closes an angle group only while that group is
+  the innermost open one (`List<f(a > b)>`). One stack machine over the
+  tokens, tolerant by construction: an unclosed bracket is closed by the next line at column 0
   (so damage stays in one item) or the end of the file, a stray close
   bracket is a leaf. Trivia stays in the token stream. Not a term-level AST
   with operator precedence: nothing has needed one; a precedence pass can be
