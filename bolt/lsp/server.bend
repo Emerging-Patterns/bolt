@@ -1,7 +1,8 @@
 # lsp/server: the loop. Everything outside the process is an injected core
 # service: the transport the messages ride on, the checker behind the
 # diagnostics, the files behind imports and Base. The open documents are the
-# loop's state. Diagnostics run on open and save, against the file on disk.
+# loop's state. The checker runs on open and save, against the file on disk;
+# the linter on every open, change and save, on the text the editor shows.
 import Base
 import 0xa3c2445eb44c5d8406e6229be518fccb/value.bend as J
 import 0xa3c2445eb44c5d8406e6229be518fccb/parse.bend as Parse
@@ -13,6 +14,7 @@ import ./semantic.bend as Semantic
 import ../rules.bend as Lint
 import ../finding.bend as Finding
 import ../config.bend as Config
+import ../lint/plan.bend as Plan
 import ./transport/service.bend as T
 import ./checker/service.bend as C
 import ./files/service.bend as F
@@ -202,31 +204,87 @@ def step.go(rr: Role, id: J.Json, ww: Work) -> Out:
 def step(mm: Method, id: J.Json, ww: Work) -> Out:
   step.go(role(mm), id, ww)
 
-# a bolt.bend is bolt's configuration, not source to lint
-def is_config(+path: String) -> Bool:
-  Bool.or(String.eq(path, "bolt.bend"), String.ends_with(path, "/bolt.bend"))
+# publishing
+# ----------
+# What open, change, save and close publish is decided by the pure pub.*
+# defs below, over what the IO gave them: the checker's errors (ds) and the
+# texts of the document's bolt.bend candidates (rs). work only gathers those.
+
+# a document's diagnostics, as the notification sent: the checker's errors,
+# then the linter's findings
+def pub.note(uri: String, ds: List<&2, Rep.Diag>, gs: List<&2, Finding.Graded>) -> String:
+  Print.print(Proto.publish(uri, ds, gs))
+
+# the bolt.bend candidates of a document's path, nearest first: the ones the
+# CLI reads for a file at that path, run from the same directory
+def pub.cands(cwd: String, path: String) -> List<&2, String>:
+  Config.chain(Config.home(cwd, Config.dir_of(path)))
 
 # the linter's findings on the text the editor shows, at the levels the
-# nearest bolt.bend gives them
-def linted(~fs: F.Files, +uri: String, +docs: List<&2, Docs.Doc>) -> IO(List<&2, Finding.Graded>):
-  +path = Proto.path(uri)
-  do IO<List<&2, Finding.Graded>>:
-    rs : List<&2, Maybe<&2, String>> <- F.read_all(~fs, Config.candidates(64n, Config.dir_of(path)))
-    return Bool.pick(List<&2, Finding.Graded>, is_config(path), [],
-      Lint.graded(Config.nearest(rs), Lint.all(path, Maybe.default(&2, String, Docs.get(docs, uri), ""))))
+# nearest bolt.bend read gives them; none for a bolt.bend, which is bolt's
+# configuration, not source
+def pub.lint(+path: String, +text: String, rs: List<&2, Maybe<&2, String>>) -> List<&2, Finding.Graded>:
+  Bool.pick(List<&2, Finding.Graded>, Plan.is_config(path), [], Lint.graded(Config.nearest(rs), Lint.all(path, text)))
 
-# the checker's errors and the linter's findings published for a document
-def published(~fs: F.Files, +uri: String, +docs: List<&2, Docs.Doc>) -> IO(Work):
-  do IO<Work>:
-    gs : List<&2, Finding.Graded> <- linted(~fs, uri, docs)
-    return noted([Print.print(Proto.publish(uri, Docs.errors(docs, uri), gs))], docs)
+# open or save: the checker's errors with the lint of the text, the errors
+# kept for the changes after
+def pub.checked(
+  +uri: String,
+  +text: String,
+  +ds: List<&2, Rep.Diag>,
+  rs: List<&2, Maybe<&2, String>>,
+  +docs: List<&2, Docs.Doc>
+) -> Work:
+  noted([pub.note(uri, ds, pub.lint(Proto.path(uri), text, rs))], Docs.set_errors(docs, uri, ds))
 
-# diagnostics for a document, the checker run (on the file on disk) and the
-# linter (on the text)
-def checked(~fs: F.Files, +uri: String, ck: C.Checker, +docs: List<&2, Docs.Doc>) -> IO(Work):
+# open: the document's text kept, then published with the checker's errors
+def pub.open(
+  +uri: String,
+  +text: String,
+  ds: List<&2, Rep.Diag>,
+  rs: List<&2, Maybe<&2, String>>,
+  +docs: List<&2, Docs.Doc>
+) -> Work:
+  pub.checked(uri, text, ds, rs, Docs.set(docs, uri, text))
+
+# save: the text the editor shows published with the checker's new errors
+def pub.save(+uri: String, ds: List<&2, Rep.Diag>, rs: List<&2, Maybe<&2, String>>, +docs: List<&2, Docs.Doc>) -> Work:
+  pub.checked(uri, Maybe.default(&2, String, Docs.get(docs, uri), ""), ds, rs, docs)
+
+# change: the new text kept, and its lint published with the checker's last
+# errors
+def pub.change(+uri: String, +text: String, rs: List<&2, Maybe<&2, String>>, +docs: List<&2, Docs.Doc>) -> Work:
+  noted([pub.note(uri, Docs.errors(docs, uri), pub.lint(Proto.path(uri), text, rs))], Docs.set(docs, uri, text))
+
+# close: the document forgotten, and an empty list published
+def pub.close(+uri: String, docs: List<&2, Docs.Doc>) -> Work:
+  noted([pub.note(uri, [], [])], Docs.del(docs, uri))
+
+# the texts of a document's bolt.bend candidates, as the files hold them
+def pub.configs(~fs: F.Files, +uri: String) -> IO(List<&2, Maybe<&2, String>>):
+  do IO<List<&2, Maybe<&2, String>>>:
+    cwd : String <- F.cwd(fs)
+    F.read_all(~fs, pub.cands(cwd, Proto.path(uri)))
+
+# open, on the checker's run on the file on disk
+def pub.opened(~ck: C.Checker, ~fs: F.Files, +uri: String, text: String, docs: List<&2, Docs.Doc>) -> IO(Work):
   do IO<Work>:
     ds : List<&2, Rep.Diag> <- C.check(ck, Proto.path(uri))
-    published(~fs, uri, Docs.set_errors(docs, uri, ds))
+    rs : List<&2, Maybe<&2, String>> <- pub.configs(~fs, uri)
+    return pub.open(uri, text, ds, rs, docs)
+
+# save, on the checker's run on the file on disk
+def pub.saved(~ck: C.Checker, ~fs: F.Files, +uri: String, docs: List<&2, Docs.Doc>) -> IO(Work):
+  do IO<Work>:
+    ds : List<&2, Rep.Diag> <- C.check(ck, Proto.path(uri))
+    rs : List<&2, Maybe<&2, String>> <- pub.configs(~fs, uri)
+    return pub.save(uri, ds, rs, docs)
+
+# change: the linter only
+def pub.changed(~fs: F.Files, +uri: String, text: String, docs: List<&2, Docs.Doc>) -> IO(Work):
+  do IO<Work>:
+    rs : List<&2, Maybe<&2, String>> <- pub.configs(~fs, uri)
+    return pub.change(uri, text, rs, docs)
 
 def hover.of(mm: Maybe<&2, Nav.Found>) -> J.Json:
   match mm:
@@ -321,15 +379,13 @@ def work(
     case MExit{}:
       IO.pure(Work, noted([], docs))
     case MOpen{}:
-      checked(~fs, uri_of(params), ck,
-        Docs.set(docs, uri_of(params), J.str_or(J.get(J.get(params, "textDocument"), "text"), "")))
+      pub.opened(~ck, ~fs, uri_of(params), J.str_or(J.get(J.get(params, "textDocument"), "text"), ""), docs)
     case MChange{}:
-      published(~fs, uri_of(params),
-        Docs.set(docs, uri_of(params), J.str_or(J.get(J.first(J.get(params, "contentChanges")), "text"), "")))
+      pub.changed(~fs, uri_of(params), J.str_or(J.get(J.first(J.get(params, "contentChanges")), "text"), ""), docs)
     case MSave{}:
-      checked(~fs, uri_of(params), ck, docs)
+      pub.saved(~ck, ~fs, uri_of(params), docs)
     case MClose{}:
-      IO.pure(Work, noted([Print.print(Proto.publish(uri_of(params), [], []))], Docs.del(docs, uri_of(params))))
+      IO.pure(Work, pub.close(uri_of(params), docs))
     case MHover{}:
       do IO<Work>:
         f : Maybe<&2, Nav.Found> <- Nav.hover(~fs, docs, uri_of(params), line_of(params), col_of(params))

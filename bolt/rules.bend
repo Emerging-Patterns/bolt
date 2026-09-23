@@ -43,8 +43,22 @@ import ./rules/laws/closed.bend as Closed
 import ./rules/laws/trace.bend as Trace
 import ./rules/laws/unsafe.bend as Unsafe
 
-# every rule's findings on a file read once
-def on(+ss: Src.Src) -> List<&2, F.Finding>:
+# the file a Src was read from
+def on.path(ss: Src.Src) -> String:
+  Src.Src{path, _text, _toks, _tree, _bound, _items} = ss
+  path
+
+# findings put at a path: a per-file rule reports on its own file, so this
+# keeps what each rule gave and makes it hold by construction
+def on.at(+path: String, fs: List<&2, F.Finding>) -> List<&2, F.Finding>:
+  match fs:
+    case Nil{}:
+      Nil{}
+    case Con{F.Finding{_path, line, col, len, rule, msg}, rest}:
+      F.Finding{path, line, col, len, rule, msg} <> on.at(path, rest)
+
+# every rule's findings on a file read once, as each rule gives them
+def on.rules(+ss: Src.Src) -> List<&2, F.Finding>:
   List.concat(&2, F.Finding, [
     Doc.check(ss),
     Unused.check(ss),
@@ -72,6 +86,10 @@ def on(+ss: Src.Src) -> List<&2, F.Finding>:
     Foreign.check(ss),
     Fuel.check(ss),
     Closed.check(ss)])
+
+# every rule's findings on a file read once, each at that file
+def on(+ss: Src.Src) -> List<&2, F.Finding>:
+  on.at(on.path(ss), on.rules(ss))
 
 # every rule's findings on a file
 def all(+path: String, +text: String) -> List<&2, F.Finding>:
