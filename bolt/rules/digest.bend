@@ -73,38 +73,67 @@ def alias_path(as: List<&2, Alias>, +name: String) -> Maybe<&2, String>:
       +more = alias_path(rest, name)
       Bool.pick(Maybe<&2, String>, String.eq(n, name), Some{p}, more)
 
-# a name in a law as a mention: `M.join` is `join` of what `M` imports; a
-# plain name is of the law's own file
-def mention(mm: Maybe<&2, String>, +file: String, +tt: String) -> Mention:
-  match mm:
-    case Some{p}:
-      Mention{p, Bind.rest_of(String.to_list(tt))}
-    case None{}:
-      Mention{file, tt}
+# the lines a quantified law's statement spans: from its header's first token
+# to its body's last
+type Span is Data:
+  Span{from: U32, upto: U32}
 
-# every name among the tokens, as a mention
-def mentions(toks: List<&2, Lex.Tok>, +as: List<&2, Alias>, +file: String) -> List<&2, Mention>:
-  match toks:
-    case Nil{}:
-      Nil{}
-    case Con{Lex.Tok{k, +t, l, c}, rest}:
-      +more = mentions(rest, as, file)
-      Lazy.stop(List<&2, Mention>, Bool.not(Lex.is_name(k)), more,
-        _u => mention(alias_path(as, Bind.head_of(String.to_list(t))), file, t) <> more)
-
-# the mentions of every quantified law of a tree: what its binders and its
-# statement name. Its header, and so its own name, is not a mention, and a
-# closed law names nothing (it covers one input, not the def)
-def law_mentions(root: Tree.Node, +as: List<&2, Alias>, +file: String) -> List<&2, Mention>:
+# the spans of every quantified law of a tree, in order. A closed law spans
+# nothing (it covers one input, not the def)
+def spans(root: Tree.Node) -> List<&2, Span>:
   match root:
     case Tree.NCons{Tree.Stmt{Tree.SLaw{}, kids, +body}, rest}:
-      +more = law_mentions(rest, as, file)
-      Lazy.stop(List<&2, Mention>, Bool.not(Closed.binds(body)), more,
-        _u => List.append(&2, Mention, mentions(Tree.leaves(body), as, file), more))
+      +more = spans(rest)
+      Bool.pick(List<&2, Span>, Closed.binds(body),
+        Span{Tree.line(kids), Tree.line.of(List.head(&2, Lex.Tok, Tree.leaves.go(body, [])))} <> more, more)
     case Tree.NCons{h, rest}:
-      law_mentions(rest, as, file)
+      spans(rest)
     case other:
       Nil{}
+
+# is the line in one of the spans?
+def within(ss: List<&2, Span>, +ln: U32) -> Bool:
+  match ss:
+    case Nil{}:
+      False{}
+    case Con{Span{+from, +upto}, rest}:
+      Lazy.or_else(Bool.and(U32.is_le(from, ln), U32.is_le(ln, upto)), _u => within(rest, ln))
+
+# an item behind an alias, when an import names the alias, onto the others
+def aliased(mm: Maybe<&2, String>, +name: String, more: List<&2, Mention>) -> List<&2, Mention>:
+  match mm:
+    case Some{p}:
+      Mention{p, name} <> more
+    case None{}:
+      more
+
+# what the binder resolved a use to, as a mention onto the others: an item of
+# the law's own file, or an item of the file an import alias names; nothing
+# for a binder, a free name, or an alias no import names
+def target(tt: Bind.Target, +as: List<&2, Alias>, +file: String, more: List<&2, Mention>) -> List<&2, Mention>:
+  match tt:
+    case Bind.TItem{n}:
+      Mention{file, n} <> more
+    case Bind.TQual{a, n}:
+      aliased(alias_path(as, a), n, more)
+    case other:
+      more
+
+# the mentions of every use the binder records in the statement of a
+# quantified law, in order. Its header's own name is a binder, not a use
+def mentions(us: List<&2, Bind.Use>, +ss: List<&2, Span>, +as: List<&2, Alias>, +file: String) -> List<&2, Mention>:
+  match us:
+    case Nil{}:
+      Nil{}
+    case Con{Bind.Use{n, +l, c, tt}, rest}:
+      +more = mentions(rest, ss, as, file)
+      Lazy.stop(List<&2, Mention>, Bool.not(within(ss, l)), more, _u => target(tt, as, file, more))
+
+# the uses the binder recorded
+def uses.of(bb: Bind.Bound) -> List<&2, Bind.Use>:
+  match bb:
+    case Bind.Bound{bs, us, scs}:
+      us
 
 # what the file holds besides
 # ---------------------------
@@ -206,10 +235,10 @@ def laws.in(is_laws: Bool, root: Tree.Node, items: List<&2, Outline.Item>) -> Li
 # ----------
 
 # what a file's laws name: only a LAWS.bend states laws that cover a def
-def stated(is_laws: Bool, root: Tree.Node, as: List<&2, Alias>, file: String) -> List<&2, Mention>:
+def stated(is_laws: Bool, root: Tree.Node, bound: Bind.Bound, as: List<&2, Alias>, file: String) -> List<&2, Mention>:
   match is_laws:
     case True{}:
-      law_mentions(root, as, file)
+      mentions(uses.of(bound), spans(root), as, file)
     case False{}:
       Nil{}
 
@@ -218,7 +247,7 @@ def of(s2: Src.Src) -> Digest:
   Src.Src{+path, text, toks, +tree, bound, +items} = s2
   +p = Imports.norm(path)
   Digest{path, p, Imports.dir_of(path), Paths.is_laws(path), Paths.is_law_file(path), is_exempt(p),
-    top_items(items), stated(Paths.is_laws(path), tree, aliases(items, p), p), Imports.targets(items, p),
+    top_items(items), stated(Paths.is_laws(path), tree, bound, aliases(items, p), p), Imports.targets(items, p),
     unsafe_defs(significant(toks)), laws.in(Paths.is_laws(path), tree, items)}
 
 # every file the linter read, in one pass, in order
