@@ -9,9 +9,13 @@
 # Compare `Char.to_u32(c)` instead. Bind the fallback above the comparisons
 # so it is a value, not a call, or bolt's own `eager` rule fires on it; and
 # give the def the reusable quantity (`+c: Char`), since the code point and
-# the fallback both consume it. Where the arms carry linear values, as
-# bolt/lsp/frame.bend's do, leave the match alone: a cascade would break
-# linearity and do every branch's work.
+# the fallback both consume it. Where the arms carry linear values, leave
+# the match alone: a cascade would break linearity and do every branch's
+# work.
+#
+# Only a case's first match column is read, and only an arm whose pattern
+# opens with a character literal counts: `case 'x':` does, `case Con{'x', t}:`
+# and a literal in a later column of `match a b:` do not.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
