@@ -902,7 +902,7 @@ law scope3.go.step:
   for -spec: List<&2, F.Finding>
   for ih: {more == spec : List<&2, F.Finding>}
   {Lazy.stop(List<&2, F.Finding>, exempt, more,
-      _u => List.append(&2, F.Finding, Law.gaps(tops, ms, norm, path, Law.reached(tops, ms, norm)), more))
+      _u => List.append(&2, F.Finding, Law.gaps(tops, ms, norm, path), more))
     == List.append(&2, F.Finding, Laws.graded_file(exempt, tops, ms, norm, path), spec) : List<&2, F.Finding>}
 
 def scope3.go.step(exempt, tops, ms, norm, path, more, spec, ih):
@@ -911,7 +911,7 @@ def scope3.go.step(exempt, tops, ms, norm, path, more, spec, ih):
       ih
     case False{}:
       Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
-        rr => List.append(&2, F.Finding, Law.gaps(tops, ms, norm, path, Law.reached(tops, ms, norm)), rr),
+        rr => List.append(&2, F.Finding, Law.gaps(tops, ms, norm, path), rr),
         more, spec, ih)
 
 # the rule's walk over the files grades every file under law

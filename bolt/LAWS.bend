@@ -564,7 +564,7 @@ def has_laws(ds: List<&2, Digest.Digest>) -> Bool:
       Bool.or(is_laws, has_laws(rest))
 
 # a file under law, graded against what the laws name: nothing when it is
-# exempt, otherwise every def and type of it that no law reaches
+# exempt, otherwise every def and type of it that no law names
 def graded_file(
   exempt: Bool,
   +tops: List<&2, Digest.Top>,
@@ -576,7 +576,7 @@ def graded_file(
     case True{}:
       []
     case False{}:
-      Law.gaps(tops, ms, norm, path, Law.reached(tops, ms, norm))
+      Law.gaps(tops, ms, norm, path)
 
 # every file of the run put under law, each graded against what the laws
 # name, in order
