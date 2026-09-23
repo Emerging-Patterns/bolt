@@ -1,7 +1,9 @@
 # rule rewalk: one straight piece of a def calls the same walk twice on the
 # same argument, and one result is used only for a single value (a get of one
 # index, one field, or a let whose name is only read that way) while the other
-# result is kept whole. Take the value from that other result. A different
+# result is kept whole. Take the value from that other result. The same
+# argument is the same text with no let of any name it uses (`=` or `<-`,
+# taking effect at the end of the let) between the two calls. A different
 # case arm is a different path, and two narrow reads are left alone. A walk is
 # a def of this file that loops, or a Base walk (`List.map` and the like).
 # Laws and proofs do not run. This is not `twice`, which is duplicate literals
@@ -40,6 +42,10 @@ type Pos is Data:
 # the left of `=` : one name, and whether a group makes it a field
 type Lhs is Data:
   Lhs{seen: Bool, extra: Bool, field: Bool, nm: String}
+
+# a let of one name, and where it takes effect
+type Bind is Data:
+  Bind{nm: String, line: U32, col: U32}
 
 # a let whose right-hand side is one call
 type Note is Data:
@@ -461,21 +467,111 @@ def open_site(
     case True{}:
       site_list(site_how(expensive(tt, self, lp), indexed), tt, args, line, col, len)
 
-# every expensive call, wide unless the call is indexed on the spot
-def gather(nn: Tree.Node, +self: String, +lp: List<&2, String>) -> List<&2, Site>:
+# every name under the node
+def names(nn: Tree.Node, +acc: List<&2, String>) -> List<&2, String>:
+  match nn:
+    case Tree.Leaf{Lex.Tok{Lex.TName{}, +t, l, c}}:
+      t <> acc
+    case Tree.Group{open, kids, close}:
+      names(kids, acc)
+    case Tree.Stmt{kind, kids, body}:
+      names(body, names(kids, acc))
+    case Tree.NCons{h, rest}:
+      names(rest, names(h, acc))
+    case other:
+      acc
+
+# the names a let binds: every name left of its `=` or `<-`
+def lhs_names(nn: Tree.Node, +acc: List<&2, String>) -> List<&2, String>:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}}, rest}:
+      acc
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TBind{}, t, l, c}}, rest}:
+      acc
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, +t, l, c}}, rest}:
+      lhs_names(rest, t <> acc)
+    case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
+      lhs_names(rest, names(kids, acc))
+    case Tree.NCons{h, rest}:
+      lhs_names(rest, acc)
+    case other:
+      acc
+
+# where a let's names take effect: its last token, after the right-hand side
+def last_pos(ts: List<&2, Lex.Tok>) -> Pos:
+  match ts:
+    case Nil{}:
+      Pos{0, 0}
+    case Con{Lex.Tok{k, t, +l, +c}, rest}:
+      Pos{l, c}
+
+# one binding per name, at the let's end
+def bind_all(ns: List<&2, String>, +line: U32, +col: U32, +acc: List<&2, Bind>) -> List<&2, Bind>:
+  match ns:
+    case Nil{}:
+      acc
+    case Con{+nm, rest}:
+      bind_all(rest, line, col, Bind{nm, line, col} <> acc)
+
+# one binding per name, at this position
+def bind_at(ns: List<&2, String>, pp: Pos, +acc: List<&2, Bind>) -> List<&2, Bind>:
+  Pos{line, col} = pp
+  bind_all(ns, line, col, acc)
+
+# the lets of one straight piece; a case arm is not part of it
+def binds(nn: Tree.Node, +acc: List<&2, Bind>) -> List<&2, Bind>:
+  match nn:
+    case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, body}, rest}:
+      binds(rest, acc)
+    case Tree.NCons{Tree.Stmt{Tree.SLet{}, +kids, +body}, rest}:
+      +here = bind_at(lhs_names(kids, []), last_pos(Tree.leaves.go(body, Tree.leaves.go(kids, []))), acc)
+      binds(rest, binds(body, here))
+    case Tree.NCons{Tree.Stmt{kind, kids, +body}, rest}:
+      binds(rest, binds(body, acc))
+    case Tree.NCons{h, rest}:
+      binds(rest, acc)
+    case other:
+      acc
+
+# (l1, c1) comes before (l2, c2)
+def before(+l1: U32, +c1: U32, +l2: U32, +c2: U32) -> Bool:
+  Bool.or(U32.is_lt(l1, l2), Bool.and(U32.is_eq(l1, l2), U32.is_lt(c1, c2)))
+
+# how many lets of this name take effect before this position
+def count(bs: List<&2, Bind>, +name: String, +line: U32, +col: U32) -> U32:
+  match bs:
+    case Nil{}:
+      0
+    case Con{Bind{+nm, +l, +c}, rest}:
+      +more = count(rest, name, line, col)
+      Bool.pick(U32, Bool.and(String.eq(nm, name), before(l, c, line, col)), (more + 1 : U32), more)
+
+# which binding of each name an argument reads: two calls with the same text
+# read the same values only when no let of those names sits between them
+def stamp(ns: List<&2, String>, +bs: List<&2, Bind>, +line: U32, +col: U32) -> String:
+  match ns:
+    case Nil{}:
+      ""
+    case Con{+nm, rest}:
+      "|" ++ nm ++ "=" ++ U32.show(count(bs, nm, line, col)) ++ stamp(rest, bs, line, col)
+
+# every expensive call, wide unless the call is indexed on the spot; its
+# arguments are their text and which let of each name they read
+def gather(nn: Tree.Node, +self: String, +lp: List<&2, String>, +bs: List<&2, Bind>) -> List<&2, Site>:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, +rest}}:
-      +here = open_site(String.eq(o, "("), indexed(rest), t, Tree.show(kids), l, c,
+      +args = Tree.show(kids) ++ stamp(names(kids, []), bs, l, c)
+      +here = open_site(String.eq(o, "("), indexed(rest), t, args, l, c,
         U32.from_nat(String.length(t)), self, lp)
-      List.concat(&2, Site, [here, gather(kids, self, lp), gather(rest, self, lp)])
+      List.concat(&2, Site, [here, gather(kids, self, lp, bs), gather(rest, self, lp, bs)])
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
-      List.concat(&2, Site, [gather(kids, self, lp), gather(rest, self, lp)])
+      List.concat(&2, Site, [gather(kids, self, lp, bs), gather(rest, self, lp, bs)])
     case Tree.NCons{Tree.Stmt{Tree.SCase{}, +kids, body}, rest}:
-      List.concat(&2, Site, [gather(kids, self, lp), gather(rest, self, lp)])
+      List.concat(&2, Site, [gather(kids, self, lp, bs), gather(rest, self, lp, bs)])
     case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
-      List.concat(&2, Site, [gather(kids, self, lp), gather(body, self, lp), gather(rest, self, lp)])
+      List.concat(&2, Site, [gather(kids, self, lp, bs), gather(body, self, lp, bs), gather(rest, self, lp, bs)])
     case Tree.NCons{h, rest}:
-      gather(rest, self, lp)
+      gather(rest, self, lp, bs)
     case other:
       Nil{}
 
@@ -784,7 +880,7 @@ def report(
 
 # findings in one straight region; a case arm is not part of it
 def local(+nn: Tree.Node, +self: String, +lp: List<&2, String>, +path: String) -> List<&2, F.Finding>:
-  +sites = pin(mark(nn), apply(nn, gather(nn, self, lp)))
+  +sites = pin(mark(nn), apply(nn, gather(nn, self, lp, binds(nn, []))))
   report(sites, sites, nn, path, [])
 
 # each case arm on its own, so two arms are not one path

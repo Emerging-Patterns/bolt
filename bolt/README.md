@@ -201,8 +201,9 @@ beside the groups.
 - `rewalk` — one straight piece of a def calls the same walk twice on the
   same argument, and one result is used only for a single value (one index,
   one field, or a let read only that way) while the other result is kept
-  whole. Take the value from that other result. A different case arm is a
-  different path.
+  whole. Take the value from that other result. A let of a name the
+  argument uses between the two calls makes them different walks, and so
+  does a different case arm.
 - `unit` — a multiply or divide by the literal `1`, `1n` or `1.0` on a
   step that recurses, either as `*` / `/` or as `Nat.mul` / `U32.mul` /
   `F32.mul` (and `.div`, only when the divisor is one). Drop the operation.
