@@ -7,10 +7,11 @@
 # that ID (`# BOLT-CFG-1`). A Proved row, proved or pending, is a claim: a
 # proved row's Law cell names the laws that prove it, and a pending row's may
 # name laws that prove part of it while the row stays pending. The findings: a
-# row that is not a well-formed requirement; an ID listed twice; a proved row
-# whose Law cell names no law; a Trusted row that names a law; a Law entry of
-# a Proved row, proved or pending, whose law is missing, has no `for`/`exs`
-# binder, or lacks the row's tag; a Trusted row with no trust row; and a tag
+# row that is not a well-formed requirement or trust row, an ID that does not
+# match the pattern included; an ID listed twice; a proved row whose Law cell
+# names no law; a Trusted row that names a law; a Law entry of a Proved row,
+# proved or pending, whose law is missing, has no `for`/`exs` binder, or lacks
+# the row's tag; a Trusted row with no trust row; and a tag
 # naming an ID SPEC.md does not list as Proved, proved or pending. A Law entry
 # is `<path> <law>`, the path relative to SPEC.md, entries joined by `; `.
 # Only a bolt.bend that names the rule turns it on (bolt/config.bend). It runs
@@ -363,14 +364,16 @@ def malformed(ms: List<&2, Mark>) -> List<&2, F.Finding>:
     case Con{Mark{why, nn}, rest}:
       at(nn, "Not a well-formed row: " ++ why ++ ".") <> malformed(rest)
 
-# every trust row listed twice
+# every trust row whose ID is not an ID, or is listed twice
 def twins(ms: List<&2, Mark>, +all: List<&2, Mark>) -> List<&2, F.Finding>:
   match ms:
     case Nil{}:
       Nil{}
     case Con{Mark{+id, +nn}, rest}:
       +more = twins(rest, all)
-      Bool.pick(List<&2, F.Finding>, U32.is_gt(marks_with(all, id), 1), at(nn, id ++ " is listed twice.") <> more, more)
+      +twice = Bool.pick(List<&2, F.Finding>, U32.is_gt(marks_with(all, id), 1), at(nn, id ++ " is listed twice.") <> more,
+        more)
+      Bool.pick(List<&2, F.Finding>, is_id(id), twice, at(nn, id ++ " is not an ID: [A-Z][A-Z0-9]*(-[A-Z0-9]+)+.") <> twice)
 
 # the rule over a SPEC.md that was read
 def check.spec(+sp: Spec, +ds: List<&2, Digest.Digest>) -> List<&2, F.Finding>:
