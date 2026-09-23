@@ -49,7 +49,7 @@ unset group has its default. The groups:
 | `correctness` | `shadow` `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign` | error   |
 | `suspicious`  | `unused` `strict` `eager` `concat` `nat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` | warn    |
 | `style`       | `doc` `space` `wrap` `param`                                                     | warn    |
-| `laws`        | `law` `closed` `unsafe` (`trace`: opt-in)                                        | warn    |
+| `laws`        | `coverage` `closed` `unsafe` (`trace`: opt-in)                                   | warn    |
 | `pedantic`    | `tail`                                                                           | off     |
 
 The stable codes, assigned once (do not renumber):
@@ -60,7 +60,7 @@ The stable codes, assigned once (do not renumber):
 | C002 | `hole` | U002 | `strict` | S002 | `space` |
 | C003 | `pick` | U003 | `eager` | S003 | `wrap` |
 | C004 | `put` | U004 | `concat` | S004 | `param` |
-| C005 | `arms` | U005 | `nat` | L001 | `law` |
+| C005 | `arms` | U005 | `nat` | L001 | `coverage` |
 | C006 | `escape` | U006 | `fuel` | L002 | `closed` |
 | C007 | `twice` | U007 | `index` | L003 | `unsafe` |
 | C008 | `strings` | U008 | `table` | L004 | retired |
@@ -261,8 +261,10 @@ beside the groups.
   but N defs rely on unsafe or foreign code:" and a `- name` list (2.0.16
   counted marks: "with N unsafe annotations.") and exits 0, so a gate that
   reads the exit status goes green on an unproven claim.
-- `law` (project) — in a project that states laws (a LAWS.bend among the
-  files bolt read), a def that no law names. IO is no exemption: a def that
+- `coverage` (project) — in a project that states laws (a LAWS.bend among the
+  files bolt read), a def that no law names. It is `coverage`, not `law`,
+  because `law` is a Bend keyword: `def law()` is no def, so a bolt.bend
+  could never set it by name. IO is no exemption: a def that
   returns `IO(..)` is graded like any other (a law can state an IO equality
   or quantify over an IO value), and so is every pure def in a module that
   also does IO, or that says "IO" in a comment. What is out of scope is
@@ -301,7 +303,7 @@ With no `--gpu` that launch is `--gpu off` (the cores); `--gpu on` or
 [lsp](lsp/) runs the per-file rules on each edit and publishes the
 findings at the levels the nearest `bolt.bend` gives them: errors red,
 warnings yellow, off ones not at all. A finding's code is its stable id
-(`S003`) and its source is `bolt(group:slug)` (`bolt(style:wrap)`). The project rules (`law`) need every
+(`S003`) and its source is `bolt(group:slug)` (`bolt(style:wrap)`). The project rules (`coverage`) need every
 file, so they run in bolt alone.
 
 ## In the gate

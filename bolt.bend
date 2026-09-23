@@ -1,4 +1,4 @@
-# bolt.bend: how bolt lints this repo. Every rule is an error except `law`,
+# bolt.bend: how bolt lints this repo. Every rule is an error except `coverage`,
 # which warns until the laws exist: the gate must see no errors. See
 # bolt/config.bend for the groups and levels.
 import Base
@@ -16,8 +16,8 @@ def style() -> String:
   "error"
 
 # a def named by no law, IO included: advice while SPEC.md's requirements are
-# pending, since deleting the closed laws left defs no law names. The `law`
-# rule cannot be set by name: `law` is a keyword, so `def law()` is no def.
+# pending, since deleting the closed laws left defs no law names. That rule
+# is `coverage` (L001), which `def coverage()` could also set on its own.
 def laws() -> String:
   "warn"
 
