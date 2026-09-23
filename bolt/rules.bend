@@ -84,9 +84,9 @@ def all(+path: String, +text: String) -> List<&2, F.Finding>:
 # every project rule's findings on the files and SPEC.md's text (None when
 # there is none): each file is read down to its digest once
 # (rules/digest.bend), and the rules run over those
-def project(srcs: List<&2, Src.Src>, spec: Maybe<&2, String>) -> List<&2, F.Finding>:
+def project(srcs: List<&2, Src.Src>, whole: Bool, spec: Maybe<&2, String>) -> List<&2, F.Finding>:
   +ds = Digest.all(srcs)
-  List.concat(&2, F.Finding, [Law.check(ds), Unsafe.check(ds), Trace.check(spec, ds)])
+  List.concat(&2, F.Finding, [Law.check(ds), Unsafe.check(ds), Trace.check(whole, spec, ds)])
 
 # the group a rule is in; an unknown slug grades with correctness
 def group(+rule: String) -> String:

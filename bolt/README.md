@@ -248,7 +248,8 @@ beside the groups.
   one input it names: a unit test the checker runs, not a guarantee.
   Nothing exempts one: quantify it, or delete it.
 - `trace` (project, opt-in) — `SPEC.md`, read from the directory bolt runs
-  in, and the laws agree. A requirement table is headed exactly
+  in, and the laws agree, when bolt lints the whole tree (never over files
+  named on the line, which hold only some of the laws). A requirement table is headed exactly
   `| ID | Requirement | Level | Status | Law |` and a trust table
   `| ID | Assumption | Why it is trusted |`. An ID is uppercase letters and
   digits in two or more `-` segments (`BOLT-CFG-1`). A law proves one when
