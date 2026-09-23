@@ -2158,15 +2158,18 @@ law unit_counts:
 # it, with only that `(` open, a `)` ends the list and a `,` ends a
 # parameter; every other significant token is part of a parameter. A
 # parameter is misplaced when it spans lines, starts on the `(` line, or
-# starts on the line a later parameter starts on; the list is cramped when
-# it closed and its `)` is not on a line below the last parameter's last
-# line. The spec reads single tokens with the rule's own readings and no
-# more: Wrap.check.is_colon (a `:`), Wrap.check.is_oparen and
-# Wrap.check.is_cparen (the text `(`, `)`), Lex.is_comma, Lex.significant,
-# Lex.is_name (a name glues a `<` right after it), Wrap.check.brackets (the
-# bracket a token opens or closes: `(` `[` `{` and `)` `]` `}`, a `<` or
-# `<&` glued to a name opening an angle, a run of `>` closing) and
-# Wrap.check.ticks_of (how many angles that run closes).
+# starts on the line a later parameter starts on; the list is empty when it
+# opened and holds no parameter; it is cramped when it closed and its `)` is
+# not on a line below the last parameter's last line; it is loose when it
+# closed and the next significant token is not a `->` (or the `:` of a
+# header with no return type) on the `)` line. The spec reads single tokens
+# with the rule's own readings and no more: Wrap.check.is_colon (a `:`),
+# Wrap.check.is_arrow (a `->`), Wrap.check.is_oparen and Wrap.check.is_cparen
+# (the text `(`, `)`), Lex.is_comma, Lex.significant, Lex.is_name (a name
+# glues a `<` right after it), Wrap.check.brackets (the bracket a token opens
+# or closes: `(` `[` `{` and `)` `]` `}`, a `<` or `<&` glued to a name
+# opening an angle, a run of `>` closing) and Wrap.check.ticks_of (how many
+# angles that run closes).
 
 # some token of the list is a `:`
 def wrap.colons(toks: List<&2, Lex.Tok>) -> Bool:
@@ -2205,7 +2208,8 @@ law wrap_width:
   {Wrap.check.width.go(toks, 0, 0, False{}) == wrap.width(toks) : U32}
 
 # a broken header read so far: where it stands (before its parameter list,
-# inside it, past its `)`), the paren, bracket, brace and angle depths, the
+# inside it, just past its `)`, past a `->` on the `)` line, past anything
+# else), the paren, bracket, brace and angle depths, the
 # `(` line, the `)` line, the parameter being read, and those read, last first
 type wrap.Read is Data:
   wrap.Read{at: Wrap.Phase, paren: U32, bracket: U32, brace: U32, angle: U32, open: U32, shut: U32,
@@ -2231,8 +2235,8 @@ def wrap.edge(+kk: Lex.TokKind, +tx: String, move: Wrap.Act) -> Wrap.Act:
 
 # what a significant token does. Before the list a `(` with no depth open
 # opens it; inside it, with only its `(` open, a `)` or a `,` is an edge;
-# past it nothing moves; any other token moves the depths as
-# Wrap.check.brackets reads it
+# right after its `)` a token is a `->` (or a `:`) or a stray; later nothing
+# moves; any other token moves the depths as Wrap.check.brackets reads it
 def wrap.motion(
   at: Wrap.Phase,
   +kk: Lex.TokKind,
@@ -2251,6 +2255,10 @@ def wrap.motion(
       Bool.pick(Wrap.Act, wrap.flat(paren, bracket, brace, angle),
         wrap.edge(kk, tx, Wrap.check.brackets(kk, tx, glued)), Wrap.check.brackets(kk, tx, glued))
     case Wrap.Past{}:
+      Wrap.ANone{}
+    case Wrap.Shut{}:
+      Bool.pick(Wrap.Act, Bool.or(Wrap.check.is_arrow(kk), Wrap.check.is_colon(kk)), Wrap.AArrow{}, Wrap.AStray{})
+    case Wrap.Loose{}:
       Wrap.ANone{}
 
 # one less, not below zero
@@ -2302,6 +2310,15 @@ def wrap.join(
       wrap.Read{Wrap.Seek{}, paren, bracket, brace, angle, open, shut, cur, done}
     case Wrap.Past{}:
       wrap.Read{Wrap.Past{}, paren, bracket, brace, angle, open, shut, cur, done}
+    case Wrap.Shut{}:
+      wrap.Read{Wrap.Shut{}, paren, bracket, brace, angle, open, shut, cur, done}
+    case Wrap.Loose{}:
+      wrap.Read{Wrap.Loose{}, paren, bracket, brace, angle, open, shut, cur, done}
+
+# past the `)`, a `->` on its line puts the return type there; on a later
+# line it does not
+def wrap.turn(+ln: U32, +shut: U32) -> Wrap.Phase:
+  Bool.pick(Wrap.Phase, U32.is_eq(ln, shut), Wrap.Past{}, Wrap.Loose{})
 
 # a significant token's motion applied to the read, the token on line ln at
 # column cl, closing ticks angles if it closes any
@@ -2313,7 +2330,7 @@ def wrap.move(
   +brace: U32,
   +angle: U32,
   open: U32,
-  shut: U32,
+  +shut: U32,
   cur: Maybe<&2, Wrap.Span>,
   done: List<&2, Wrap.Span>,
   +ln: U32,
@@ -2324,9 +2341,13 @@ def wrap.move(
     case Wrap.AOpen{}:
       wrap.Read{Wrap.Args{}, 1, bracket, brace, angle, ln, 0, None{}, done}
     case Wrap.AEnd{}:
-      wrap.Read{Wrap.Past{}, wrap.less(paren), bracket, brace, angle, open, ln, None{}, wrap.close(cur, done)}
+      wrap.Read{Wrap.Shut{}, wrap.less(paren), bracket, brace, angle, open, ln, None{}, wrap.close(cur, done)}
     case Wrap.AComma{}:
       wrap.Read{at, paren, bracket, brace, angle, open, shut, None{}, wrap.close(cur, done)}
+    case Wrap.AArrow{}:
+      wrap.Read{wrap.turn(ln, shut), paren, bracket, brace, angle, open, shut, cur, done}
+    case Wrap.AStray{}:
+      wrap.Read{Wrap.Loose{}, paren, bracket, brace, angle, open, shut, cur, done}
     case Wrap.AParen{}:
       wrap.join(at, (paren + 1 : U32), bracket, brace, angle, open, shut, cur, done, ln, cl)
     case Wrap.AUnparen{}:
@@ -2398,16 +2419,57 @@ def wrap.cramped(at: Wrap.Phase, +shut: U32, done: List<&2, Wrap.Span>) -> Bool:
   match at:
     case Wrap.Past{}:
       wrap.tight(done, shut)
+    case Wrap.Shut{}:
+      wrap.tight(done, shut)
+    case Wrap.Loose{}:
+      wrap.tight(done, shut)
     case Wrap.Seek{}:
       False{}
     case Wrap.Args{}:
       False{}
 
+# no parameter read
+def wrap.none(done: List<&2, Wrap.Span>) -> Bool:
+  match done:
+    case Nil{}:
+      True{}
+    case Con{_sp, _rest}:
+      False{}
+
+# the list opened and holds no parameter
+def wrap.empty(at: Wrap.Phase, done: List<&2, Wrap.Span>) -> Bool:
+  match at:
+    case Wrap.Seek{}:
+      False{}
+    case Wrap.Args{}:
+      wrap.none(done)
+    case Wrap.Past{}:
+      wrap.none(done)
+    case Wrap.Shut{}:
+      wrap.none(done)
+    case Wrap.Loose{}:
+      wrap.none(done)
+
+# the list closed, and no `->` follows its `)` on the `)` line
+def wrap.loose(at: Wrap.Phase) -> Bool:
+  match at:
+    case Wrap.Shut{}:
+      True{}
+    case Wrap.Loose{}:
+      True{}
+    case Wrap.Seek{}:
+      False{}
+    case Wrap.Args{}:
+      False{}
+    case Wrap.Past{}:
+      False{}
+
 # a header read to its end is misshapen: a parameter misplaced, or the list
-# cramped
+# empty, cramped or loose
 def wrap.bad_shape(rd: wrap.Read) -> Bool:
-  wrap.Read{at, _paren, _bracket, _brace, _angle, +open, +shut, _cur, +done} = rd
-  Bool.or(wrap.misplaced(List.reverse(&2, Wrap.Span, done), open), wrap.cramped(at, shut, done))
+  wrap.Read{+at, _paren, _bracket, _brace, _angle, +open, +shut, _cur, +done} = rd
+  Bool.or(wrap.misplaced(List.reverse(&2, Wrap.Span, done), open),
+    Bool.or(wrap.empty(at, done), Bool.or(wrap.cramped(at, shut, done), wrap.loose(at))))
 
 # a broken header's tokens are misshapen
 def wrap.shape(toks: List<&2, Lex.Tok>) -> Bool:
@@ -2415,7 +2477,8 @@ def wrap.shape(toks: List<&2, Lex.Tok>) -> Bool:
 
 # LAW: over the tokens of a broken header, wrap reports one finding when a
 # parameter spans lines, starts on the `(` line or on another parameter's
-# line, or the list's `)` is not on a line below the last parameter, and
+# line, the list holds no parameter, or the list's `)` is not on a line below
+# the last parameter or has no `->` (or `:`) right after it on its line, and
 # none otherwise
 # BOLT-RULE-S003
 law wrap_shape_counts:

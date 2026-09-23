@@ -9876,6 +9876,10 @@ def wrap.motion(at, kk, tx, glued, paren, bracket, brace, angle):
         Wrap.check.brackets(kk, tx, glued))
     case Wrap.Past{}:
       {==}
+    case Wrap.Shut{}:
+      {==}
+    case Wrap.Loose{}:
+      {==}
 
 # a pick and an early exit that agree on both branches agree
 law wrap.stop_pick:
@@ -9959,6 +9963,37 @@ def wrap.joined(
       {==}
     case Wrap.Past{}:
       {==}
+    case Wrap.Shut{}:
+      {==}
+    case Wrap.Loose{}:
+      {==}
+
+# a `->` right after the `)`: past it, on the `)` line or not, nothing joins
+law wrap.arrowed:
+  for b: Bool
+  for on: Bool
+  for +paren: U32
+  for +bracket: U32
+  for +brace: U32
+  for +angle: U32
+  for +shut: Wrap.Span
+  for +open: U32
+  for +pline: U32
+  for +pend: U32
+  for +pcol: U32
+  for +spans: List<&2, Wrap.Span>
+  for +tok: Lex.Tok
+  {wrap.of(Wrap.check.note_args(Wrap.Walk{Bool.pick(Wrap.Phase, b, Wrap.Past{}, Wrap.Loose{}), paren, bracket, brace,
+    angle, shut, open, on, pline, pend, pcol, spans}, tok))
+    == Laws.wrap.Read{Bool.pick(Wrap.Phase, b, Wrap.Past{}, Wrap.Loose{}), paren, bracket, brace, angle, open,
+      wrap.line_of(shut), wrap.cur_of(on, pline, pend, pcol), spans} : Laws.wrap.Read}
+
+def wrap.arrowed(b, _on, _paren, _bracket, _brace, _angle, _shut, _open, _pline, _pend, _pcol, _spans, _tok):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
 
 # any motion: the rule's walk after it is the spec's read after it
 law wrap.moved:
@@ -10002,6 +10037,13 @@ def wrap.moved(m, mode, on, paren, bracket, brace, angle, shut, open, pline, pen
           {==}
         case False{}:
           {==}
+    case Wrap.AArrow{}:
+      match shut:
+        case Wrap.Span{+line, +end, +col}:
+          wrap.arrowed(U32.is_eq(ln, line), on, paren, bracket, brace, angle, Wrap.Span{line, end, col}, open, pline,
+            pend, pcol, spans, Lex.Tok{kk, tx, ln, cl})
+    case Wrap.AStray{}:
+      {==}
     case Wrap.AParen{}:
       wrap.joined(mode, on, (paren + 1 : U32), bracket, brace, angle, shut,
         open, pline, pend, pcol, spans, kk, tx, ln, cl)
@@ -10240,6 +10282,36 @@ def wrap.tight(ps, _shut):
     case Con{Wrap.Span{line, end, col}, rest}:
       {==}
 
+# a `)` on the line given is found cramped exactly when the spec's test says so
+law wrap.tight_found:
+  for +line: U32
+  for +end: U32
+  for +col: U32
+  for +spans: List<&2, Wrap.Span>
+  {wrap.found(Wrap.check.shut_at(Wrap.Span{line, end, col}, spans)) == Laws.wrap.tight(spans, line) : Bool}
+
+def wrap.tight_found(line, end, col, spans):
+  Equal.trans(Bool,
+    wrap.found(Bool.pick(Maybe<&2, Wrap.Span>, Wrap.check.tight(spans, line), Some{Wrap.Span{line, end, col}},
+      None{})),
+    Wrap.check.tight(spans, line),
+    Laws.wrap.tight(spans, line),
+    wrap.pick_found(Wrap.check.tight(spans, line), Wrap.Span{line, end, col}),
+    wrap.tight(spans, line))
+
+# no parameter: found at the `(` line exactly when the spec says none
+law wrap.none:
+  for spans: List<&2, Wrap.Span>
+  for +open: U32
+  {wrap.found(Wrap.check.none_at(spans, open)) == Laws.wrap.none(spans) : Bool}
+
+def wrap.none(spans, _open):
+  match spans:
+    case Nil{}:
+      {==}
+    case Con{sp, rest}:
+      {==}
+
 # the rule finds a cramped `)` exactly when the spec does
 law wrap.shut:
   for mode: Wrap.Phase
@@ -10263,60 +10335,140 @@ def wrap.shut(mode, shut, spans, _paren, _bracket, _brace, _angle, _open, _on, _
     case Wrap.Past{}:
       match shut:
         case Wrap.Span{+line, +end, +col}:
-          Equal.trans(Bool,
-            wrap.found(Bool.pick(Maybe<&2, Wrap.Span>, Wrap.check.tight(spans, line), Some{Wrap.Span{line, end, col}},
-              None{})),
-            Wrap.check.tight(spans, line),
-            Laws.wrap.tight(spans, line),
-            wrap.pick_found(Wrap.check.tight(spans, line), Wrap.Span{line, end, col}),
-            wrap.tight(spans, line))
+          wrap.tight_found(line, end, col, spans)
+    case Wrap.Shut{}:
+      match shut:
+        case Wrap.Span{+line, +end, +col}:
+          wrap.tight_found(line, end, col, spans)
+    case Wrap.Loose{}:
+      match shut:
+        case Wrap.Span{+line, +end, +col}:
+          wrap.tight_found(line, end, col, spans)
     case Wrap.Seek{}:
       {==}
     case Wrap.Args{}:
       {==}
 
-# the rule's two findings for a header read are the spec's verdict on it
+# the rule finds an empty list exactly when the spec does
+law wrap.empty:
+  for mode: Wrap.Phase
+  for +spans: List<&2, Wrap.Span>
+  for +open: U32
+  for -paren: U32
+  for -bracket: U32
+  for -brace: U32
+  for -angle: U32
+  for -shut: Wrap.Span
+  for -on: Bool
+  for -pline: U32
+  for -pend: U32
+  for -pcol: U32
+  {wrap.found(Wrap.check.empty_span(Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol,
+    spans})) == Laws.wrap.empty(mode, spans) : Bool}
+
+def wrap.empty(mode, spans, open, _paren, _bracket, _brace, _angle, _shut, _on, _pline, _pend, _pcol):
+  match mode:
+    case Wrap.Seek{}:
+      {==}
+    case Wrap.Args{}:
+      wrap.none(spans, open)
+    case Wrap.Past{}:
+      wrap.none(spans, open)
+    case Wrap.Shut{}:
+      wrap.none(spans, open)
+    case Wrap.Loose{}:
+      wrap.none(spans, open)
+
+# the rule finds a `)` with no `->` after it exactly when the spec does
+law wrap.loose:
+  for mode: Wrap.Phase
+  for -spans: List<&2, Wrap.Span>
+  for -open: U32
+  for -paren: U32
+  for -bracket: U32
+  for -brace: U32
+  for -angle: U32
+  for -shut: Wrap.Span
+  for -on: Bool
+  for -pline: U32
+  for -pend: U32
+  for -pcol: U32
+  {wrap.found(Wrap.check.loose_span(Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol,
+    spans})) == Laws.wrap.loose(mode) : Bool}
+
+def wrap.loose(mode, _spans, _open, _paren, _bracket, _brace, _angle, _shut, _on, _pline, _pend, _pcol):
+  match mode:
+    case Wrap.Seek{}:
+      {==}
+    case Wrap.Args{}:
+      {==}
+    case Wrap.Past{}:
+      {==}
+    case Wrap.Shut{}:
+      {==}
+    case Wrap.Loose{}:
+      {==}
+
+# the rule's four findings for a header read are the spec's verdict on it
 law wrap.verdict:
   for +wk: Wrap.Walk
-  {Bool.or(wrap.found(Wrap.check.jam_span(wk)), wrap.found(Wrap.check.shut_span(wk)))
+  {Bool.or(wrap.found(Wrap.check.jam_span(wk)), Bool.or(wrap.found(Wrap.check.empty_span(wk)),
+    Bool.or(wrap.found(Wrap.check.shut_span(wk)), wrap.found(Wrap.check.loose_span(wk)))))
     == Laws.wrap.bad_shape(wrap.of(wk)) : Bool}
 
 def wrap.verdict(wk):
   match wk:
     case Wrap.Walk{+mode, +paren, +bracket, +brace, +angle, +shut, +open, +on, +pline, +pend, +pcol, +spans}:
+      +w = {Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans} : Wrap.Walk}
       wrap.or2(wrap.found(Wrap.check.judge(List.reverse(&2, Wrap.Span, spans), open)),
-        wrap.found(Wrap.check.shut_span(Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol,
-          spans})),
+        Bool.or(wrap.found(Wrap.check.empty_span(w)),
+          Bool.or(wrap.found(Wrap.check.shut_span(w)), wrap.found(Wrap.check.loose_span(w)))),
         Laws.wrap.misplaced(List.reverse(&2, Wrap.Span, spans), open),
-        Laws.wrap.cramped(mode, wrap.line_of(shut), spans),
+        Bool.or(Laws.wrap.empty(mode, spans),
+          Bool.or(Laws.wrap.cramped(mode, wrap.line_of(shut), spans), Laws.wrap.loose(mode))),
         wrap.judged(List.reverse(&2, Wrap.Span, spans), open),
-        wrap.shut(mode, shut, spans, paren, bracket, brace, angle, open, on, pline, pend, pcol))
+        wrap.or2(wrap.found(Wrap.check.empty_span(w)),
+          Bool.or(wrap.found(Wrap.check.shut_span(w)), wrap.found(Wrap.check.loose_span(w))),
+          Laws.wrap.empty(mode, spans),
+          Bool.or(Laws.wrap.cramped(mode, wrap.line_of(shut), spans), Laws.wrap.loose(mode)),
+          wrap.empty(mode, spans, open, paren, bracket, brace, angle, shut, on, pline, pend, pcol),
+          wrap.or2(wrap.found(Wrap.check.shut_span(w)), wrap.found(Wrap.check.loose_span(w)),
+            Laws.wrap.cramped(mode, wrap.line_of(shut), spans), Laws.wrap.loose(mode),
+            wrap.shut(mode, shut, spans, paren, bracket, brace, angle, open, on, pline, pend, pcol),
+            wrap.loose(mode, spans, open, paren, bracket, brace, angle, shut, on, pline, pend, pcol))))
 
-# a finding when either holds: one onto the rest, else the rest
+# the rule's four findings, first found first: one onto the rest when any
+# is found, else the rest
 law wrap.placed:
   for mm: Maybe<&2, Wrap.Span>
+  for em: Maybe<&2, Wrap.Span>
   for sh: Maybe<&2, Wrap.Span>
+  for lo: Maybe<&2, Wrap.Span>
   for +base: U32
   for +path: String
   for +more: List<&2, F.Finding>
-  {List.length(&2, F.Finding, Wrap.check.place(mm, sh, base, path, more))
-    == Bool.pick(Nat, Bool.or(wrap.found(mm), wrap.found(sh)), 1n+List.length(&2, F.Finding, more),
-      List.length(&2, F.Finding, more)) : Nat}
+  {List.length(&2, F.Finding, Wrap.check.place(mm, em, sh, lo, base, path, more))
+    == Bool.pick(Nat, Bool.or(wrap.found(mm), Bool.or(wrap.found(em), Bool.or(wrap.found(sh), wrap.found(lo)))),
+      1n+List.length(&2, F.Finding, more), List.length(&2, F.Finding, more)) : Nat}
 
-def wrap.placed(mm, sh, _base, _path, _more):
+def wrap.placed(mm, em, sh, lo, _base, _path, _more):
   match mm:
+    case Some{Wrap.Span{line, end, col}}:
+      {==}
     case None{}:
-      match sh:
+      match em:
+        case Some{Wrap.Span{line, end, col}}:
+          {==}
         case None{}:
-          {==}
-        case Some{sp}:
-          match sp:
-            case Wrap.Span{line, end, col}:
+          match sh:
+            case Some{Wrap.Span{line, end, col}}:
               {==}
-    case Some{sp}:
-      match sp:
-        case Wrap.Span{line, end, col}:
-          {==}
+            case None{}:
+              match lo:
+                case Some{Wrap.Span{line, end, col}}:
+                  {==}
+                case None{}:
+                  {==}
 
 # a broken header: one finding onto the rest exactly when its shape is bad
 law wrap.jammed:
@@ -10331,18 +10483,17 @@ law wrap.jammed:
 def wrap.jammed(toks, line, path, more):
   +wk = Wrap.check.walk(toks, Wrap.check.start(), False{})
   +len = List.length(&2, F.Finding, more)
+  +any = Bool.or(wrap.found(Wrap.check.jam_span(wk)), Bool.or(wrap.found(Wrap.check.empty_span(wk)),
+    Bool.or(wrap.found(Wrap.check.shut_span(wk)), wrap.found(Wrap.check.loose_span(wk)))))
   Equal.trans(Nat,
-    List.length(&2, F.Finding, Wrap.check.place(Wrap.check.jam_span(wk), Wrap.check.shut_span(wk), line, path, more)),
-    Bool.pick(Nat, Bool.or(wrap.found(Wrap.check.jam_span(wk)), wrap.found(Wrap.check.shut_span(wk))), 1n+len, len),
+    List.length(&2, F.Finding, Wrap.check.place(Wrap.check.jam_span(wk), Wrap.check.empty_span(wk),
+      Wrap.check.shut_span(wk), Wrap.check.loose_span(wk), line, path, more)),
+    Bool.pick(Nat, any, 1n+len, len),
     Bool.pick(Nat, Laws.wrap.shape(toks), 1n+len, len),
-    wrap.placed(Wrap.check.jam_span(wk), Wrap.check.shut_span(wk), line, path, more),
-    Equal.cong(Bool, Nat, bb => Bool.pick(Nat, bb, 1n+len, len),
-      Bool.or(wrap.found(Wrap.check.jam_span(wk)), wrap.found(Wrap.check.shut_span(wk))), Laws.wrap.shape(toks),
-      Equal.trans(Bool,
-        Bool.or(wrap.found(Wrap.check.jam_span(wk)), wrap.found(Wrap.check.shut_span(wk))),
-        Laws.wrap.bad_shape(wrap.of(wk)),
-        Laws.wrap.shape(toks),
-        wrap.verdict(wk),
+    wrap.placed(Wrap.check.jam_span(wk), Wrap.check.empty_span(wk), Wrap.check.shut_span(wk), Wrap.check.loose_span(wk),
+      line, path, more),
+    Equal.cong(Bool, Nat, bb => Bool.pick(Nat, bb, 1n+len, len), any, Laws.wrap.shape(toks),
+      Equal.trans(Bool, any, Laws.wrap.bad_shape(wrap.of(wk)), Laws.wrap.shape(toks), wrap.verdict(wk),
         Equal.cong(Laws.wrap.Read, Bool, rd => Laws.wrap.bad_shape(rd), wrap.of(wk),
           Laws.wrap.run(toks, Laws.wrap.start(), False{}), wrap.walked(toks, Wrap.check.start(), False{})))))
 
