@@ -50,7 +50,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | BOLT-RULE-S003 | `wrap` reports exactly a def header whose shape breaks the header's rules. | Proved | pending |  |
 | BOLT-RULE-S004 | `param` reports exactly one finding for each parameter binder whose name is shorter than two characters, unless the name is one capital letter (a type parameter) or the parameter is bare or typed `: Quant` (a quantity), none for any other binder, and none at all in a PROOF.bend. | Proved | proved | bolt/rules/LAWS.bend param_counts |
 | BOLT-RULE-P001 | `tail` reports exactly a non-tail self-call outside any `Bool.pick(..)` in a def whose first live parameter's type is a List or String, whether or not the call shrinks it. | Proved | pending |  |
-| BOLT-RULE-EXEMPT | For every text, a per-file rule's check on a path its header exempts returns no findings. | Proved | pending |  |
+| BOLT-RULE-EXEMPT | For every text, a per-file rule's check on a path its header exempts returns no findings. | Proved | proved | bolt/rules/LAWS.bend hole_exempt; bolt/rules/LAWS.bend doc_exempt; bolt/rules/LAWS.bend param_exempt; bolt/rules/LAWS.bend pick_exempt; bolt/rules/LAWS.bend tail_exempt; bolt/rules/LAWS.bend concat_exempt; bolt/rules/LAWS.bend eager_exempt; bolt/rules/LAWS.bend rewalk_exempt; bolt/rules/LAWS.bend strict_exempt; bolt/rules/LAWS.bend hoist_exempt; bolt/rules/LAWS.bend index_exempt; bolt/rules/LAWS.bend ring_exempt; bolt/rules/LAWS.bend table_exempt; bolt/rules/LAWS.bend unit_exempt |
 | BOLT-RULE-INERT | For every rule whose pattern is code (all but `escape`, `strings`, `chars`, `space`, `twice` and `nat`), changing the contents of a comment or string literal does not change the findings. | Proved | pending |  |
 
 ### Laws rules (BOLT-LAW)
@@ -88,9 +88,9 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-OUT-1 | The code table maps each rule slug to exactly one code and each code to exactly one slug. | Proved | pending |  |
+| BOLT-OUT-1 | The code table maps each rule slug to exactly one code and each code to exactly one slug. | Proved | proved | bolt/LAWS.bend slug_finds_row; bolt/LAWS.bend code_finds_row |
 | BOLT-OUT-6 | A released code is never renumbered or reused. | Trusted |  |  |
-| BOLT-OUT-2 | A finding prints as `path:line:col: level: CODE: message`, 1-based. | Proved | pending |  |
+| BOLT-OUT-2 | A finding prints as `path:line:col: level: CODE: message`, 1-based. | Proved | proved | bolt/LAWS.bend shown |
 | BOLT-OUT-3 | Output order is read failures, then per-file findings in file-list order and `Rules.on` order, then `coverage` and `unsafe`. | Proved | pending |  |
 | BOLT-OUT-4 | The last line is `clean` or `N errors, M warnings`, and the exit status is 1 exactly when some graded finding is an error. | Proved | pending |  |
 | BOLT-OUT-5 | A path that cannot be read is a `read` finding graded with correctness. | Proved | pending |  |

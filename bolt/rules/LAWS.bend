@@ -16,6 +16,18 @@ import ./style/space.bend as Space
 import ../src.bend as Src
 import ../../syntax/tree.bend as Tree
 import ../../syntax/outline.bend as Outline
+import ./style/doc.bend as Doc
+import ./correctness/pick.bend as Pick
+import ./pedantic/tail.bend as Tail
+import ./suspicious/concat.bend as Concat
+import ./suspicious/eager.bend as Eager
+import ./suspicious/rewalk.bend as Rewalk
+import ./suspicious/strict.bend as Strict
+import ./suspicious/hoist.bend as Hoist
+import ./suspicious/index.bend as Index
+import ./suspicious/ring.bend as Ring
+import ./suspicious/table.bend as Table
+import ./suspicious/unit.bend as UnitRule
 
 # how many tokens are Nat literals of 1000 or more
 def big_count(toks: List<&2, Lex.Tok>) -> Nat:
@@ -365,3 +377,176 @@ law space_counts:
   for items: List<&2, Outline.Item>
   {List.length(&2, F.Finding, Space.check(Src.Src{path, text, toks, tree, bound, items}))
     == Nat.add(space_count(String.lines(text)), wide_count(toks, 0)) : Nat}
+
+# The header exemptions. A per-file rule whose header exempts a path (a law
+# file, a proof, a test) returns no findings on it, for every source: any
+# text, token list, tree, binding structure and outline. bolt/paths.bend
+# decides the path by its segments.
+
+# LAW: hole reports nothing in a LAWS.bend, whose laws are open claims, whatever the source holds
+# BOLT-RULE-EXEMPT
+law hole_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_laws(path) == True{} : Bool}
+  {Hole.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: doc reports nothing in a PROOF.bend or in a file under a `tests` directory, whatever the source holds
+# BOLT-RULE-EXEMPT
+law doc_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Bool.or(Paths.is_proof(path), Paths.is_test(path)) == True{} : Bool}
+  {Doc.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: param reports nothing in a PROOF.bend, whose parameters are the law's, whatever the source holds
+# BOLT-RULE-EXEMPT
+law param_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_proof(path) == True{} : Bool}
+  {Param.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: pick reports nothing in a LAWS.bend or a PROOF.bend, which never run, whatever the source holds
+# BOLT-RULE-EXEMPT
+law pick_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_law_file(path) == True{} : Bool}
+  {Pick.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: tail reports nothing in a LAWS.bend or a PROOF.bend, which never run, whatever the source holds
+# BOLT-RULE-EXEMPT
+law tail_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_law_file(path) == True{} : Bool}
+  {Tail.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: concat reports nothing in a LAWS.bend or a PROOF.bend, which never run, whatever the source holds
+# BOLT-RULE-EXEMPT
+law concat_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_law_file(path) == True{} : Bool}
+  {Concat.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: eager reports nothing in a LAWS.bend or a PROOF.bend, which never run, whatever the source holds
+# BOLT-RULE-EXEMPT
+law eager_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_law_file(path) == True{} : Bool}
+  {Eager.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: rewalk reports nothing in a LAWS.bend or a PROOF.bend, which never run, whatever the source holds
+# BOLT-RULE-EXEMPT
+law rewalk_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_law_file(path) == True{} : Bool}
+  {Rewalk.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: strict reports nothing in a LAWS.bend or a PROOF.bend, which never run, whatever the source holds
+# BOLT-RULE-EXEMPT
+law strict_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_law_file(path) == True{} : Bool}
+  {Strict.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: hoist reports nothing in a LAWS.bend or a PROOF.bend, which never run, whatever the source holds
+# BOLT-RULE-EXEMPT
+law hoist_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_law_file(path) == True{} : Bool}
+  {Hoist.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: index reports nothing in a LAWS.bend or a PROOF.bend, which never run, whatever the source holds
+# BOLT-RULE-EXEMPT
+law index_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_law_file(path) == True{} : Bool}
+  {Index.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: ring reports nothing in a LAWS.bend or a PROOF.bend, which never run, whatever the source holds
+# BOLT-RULE-EXEMPT
+law ring_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_law_file(path) == True{} : Bool}
+  {Ring.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: table reports nothing in a LAWS.bend or a PROOF.bend, which never run, whatever the source holds
+# BOLT-RULE-EXEMPT
+law table_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_law_file(path) == True{} : Bool}
+  {Table.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: unit reports nothing in a LAWS.bend or a PROOF.bend, which never run, whatever the source holds
+# BOLT-RULE-EXEMPT
+law unit_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_law_file(path) == True{} : Bool}
+  {UnitRule.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
