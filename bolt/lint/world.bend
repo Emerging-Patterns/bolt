@@ -18,11 +18,13 @@ type Ask is Data:
   Text{path: String}
 
 # the answer to one question. A directory that cannot be opened lists as
-# empty, as bolt/walk/dir.c answers.
+# empty, as bolt/walk/dir.c answers. A text asked of a path that is a
+# directory is `Directory`, not a read: it has no text.
 type Answer is Data:
   Listed{names: List<&2, String>}
   Read{text: String}
   Unread{}
+  Directory{}
 
 # one question, answered
 type Reply is Data:
@@ -82,6 +84,8 @@ def listing.answer(aa: Answer) -> List<&2, String>:
       []
     case Unread{}:
       []
+    case Directory{}:
+      []
 
 def listing.got(mm: Maybe<&2, Answer>) -> List<&2, String>:
   match mm:
@@ -104,6 +108,8 @@ def text.answer(aa: Answer) -> Maybe<&2, String>:
       Some{tt}
     case Unread{}:
       None{}
+    case Directory{}:
+      None{}
 
 def text.got(mm: Maybe<&2, Answer>) -> Maybe<&2, String>:
   match mm:
@@ -112,6 +118,7 @@ def text.got(mm: Maybe<&2, Answer>) -> Maybe<&2, String>:
     case Some{aa}:
       text.answer(aa)
 
-# a file's text, or None when it could not be read or is not read yet
+# a file's text, or None when it could not be read, is a directory, or is
+# not read yet
 def text(world: World, path: String) -> Maybe<&2, String>:
   text.got(answer(world, Text{path}))
