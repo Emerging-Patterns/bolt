@@ -276,10 +276,13 @@ beside the groups.
   `| ID | Requirement | Level | Status | Law |` and a trust table
   `| ID | Assumption | Why it is trusted |`. An ID is uppercase letters and
   digits in two or more `-` segments (`BOLT-CFG-1`). A law proves one when
-  a line of its comment block is exactly that ID. A finding is a row that is
-  not well formed, an ID listed twice, a Proved/proved row whose `<path>
-  <law>` entry is missing, has no binder or lacks the tag, a Trusted row with
-  no trust row, and a tag SPEC.md does not list as proved.
+  a line of its comment block is exactly that ID. A pending row may name
+  laws that prove part of it; they are checked as a proved row's are. A
+  finding is a row that is not well formed, an ID listed twice, a proved row
+  with an empty Law cell, a Trusted row with a Law cell, a Proved row's
+  (proved or pending) `<path> <law>` entry that is missing, has no binder or
+  lacks the tag, a Trusted row with no trust row, and a tag SPEC.md does not
+  list as a Proved row, proved or pending.
 - `unsafe` (project) — an `@unsafe def` that a LAWS.bend or PROOF.bend
   reaches through its imports. There the checker prints "All terms check,
   but N defs rely on unsafe or foreign code:" and a `- name` list (2.0.16
