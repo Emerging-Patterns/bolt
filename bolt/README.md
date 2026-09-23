@@ -230,7 +230,8 @@ beside the groups.
 - `strings` — a `match` over string-literal arms totalling more than 64
   characters: compile time and memory blow up with the characters (45 chars
   cost 0.8 s and 0.35 GB here, 480 chars 12 s and 4.8 GB). Map the string to
-  a sum type once.
+  a sum type once. Only the first match column is read, and a literal with no
+  closing quote is not counted.
 - `chars` — a `match` with more than eight character-literal arms
   (`case '.':`). `Char` is `Chr{code: U32}`, so each arm is a U32 literal
   inside a constructor pattern, and the C backend pays about 90 MB for one

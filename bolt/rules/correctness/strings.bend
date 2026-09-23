@@ -5,6 +5,9 @@
 # 480 take 12 s and 4.8 GB; pi-bend BEND-001/016 was 16 long event names).
 # The number of arms barely matters, so only the characters count. Classify
 # the string once through a lookup table into a sum type, and match on that.
+# Only a case's first match column is read: string literals in a later
+# column of `match a b:` do not count. A literal with no closing quote (an
+# unterminated string) is not a string arm.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
@@ -17,12 +20,17 @@ import ../tokens.bend as T
 type Tally is Data:
   Tally{arms: U32, chars: U32}
 
-# the characters of the string a case pattern opens with, if it does
+# is a string token closed: a quote at each end, so two characters at least?
+def terminated(+tt: String, +ww: U32) -> Bool:
+  Bool.and(U32.is_ge(ww, 2), String.ends_with(tt, "\""))
+
+# the characters of the string a case pattern opens with, if it does and the
+# string is closed
 def literal(kids: Tree.Node) -> Maybe<&2, U32>:
   match kids:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TStr{}, t, l, c}}, rest}:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TStr{}, +t, l, c}}, rest}:
       +w = T.width(t)
-      Some{(w - 2 : U32)}
+      Bool.pick(Maybe<&2, U32>, terminated(t, w), Some{(w - 2 : U32)}, None{})
     case other:
       None{}
 

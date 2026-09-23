@@ -31,7 +31,7 @@ A Trusted requirement's ID appears once in a requirement table and once in the t
 | BOLT-RULE-C005 | `arms` reports exactly, in a single-scrutinee match, a Nat arm already covered by an earlier `kn+p`, `Succ{p}` or `Succ{_}` arm. | Proved | pending |  |
 | BOLT-RULE-C006 | `escape` reports exactly one finding for each `\0` followed by a digit in a string or char literal, its escapes read as a backslash and the one char after it, and none for anything else. | Proved | proved | bolt/rules/LAWS.bend escape_counts; bolt/rules/LAWS.bend escape_scan_counts |
 | BOLT-RULE-C007 | `twice` reports exactly, in a def that calls itself, a list pattern in a case's first match column opening with the same literal twice. | Proved | pending |  |
-| BOLT-RULE-C008 | `strings` reports exactly a match whose string-literal arms total over 64 characters. | Proved | pending |  |
+| BOLT-RULE-C008 | `strings` reports exactly a match whose closed string-literal arms, read in the first match column, total over 64 characters. | Proved | pending |  |
 | BOLT-RULE-C009 | `chars` reports exactly a match with more than eight arms whose first match column opens with a char literal. | Proved | pending |  |
 | BOLT-RULE-C010 | `foreign` reports exactly a foreign def with a `.c` body and no `.js` or the reverse, where a `# lanes: native` file needs no `.js`. | Proved | pending |  |
 | BOLT-RULE-U001 | `unused` reports exactly an unused let, do-bind, lambda binder or parameter, with the header's exemptions. | Proved | pending |  |
