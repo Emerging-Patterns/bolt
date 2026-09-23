@@ -17,6 +17,8 @@ import ./lint/plan.bend as Plan
 import ./args.bend as Args
 import ./version.bend as Ver
 import ./build_rev.bend as Rev
+import ./check.bend as Check
+import ./lsp/report.bend as Rep
 import 0x65bf91e14c96bf0c25491d716ec9f68c/main.bend as Shake
 
 # LAW: nothing is set in an empty config
@@ -897,3 +899,82 @@ law version_commit:
   for +rev: String
   for h: {String.is_empty(rev) == False{} : Bool}
   {Args.version.at(rel, rev) == rel ++ " (" ++ rev ++ ")" : String}
+
+# The checker (BOLT-CHK). `bolt check` runs bend on each file (BOLT-TRUST-5
+# for what bend prints, bolt/lsp/report.bend for how it is read), and
+# Check.out decides, from the diagnostics each file got, every line the
+# command prints and its exit code; Check.run only does it (BOLT-TRUST-9).
+# The laws below quantify over every list of files and every diagnostics
+# each could get. What they do not cover: a failure to run bend reaches
+# Check.out as a clean file today (exec.c answers the empty text), so the
+# row stays pending.
+
+# the line for an error bend reported at a 0-based line of a file: the
+# path, the line counted from 1, column 1, and the message
+def chk_line(path: String, dd: Rep.Diag) -> String:
+  Rep.Diag{line, msg} = dd
+  path ++ ":" ++ U32.show((line + 1 : U32)) ++ ":1: error: " ++ Check.message(msg)
+
+# one file's error lines, in the order bend reported them, onto more
+def chk_file(ds: List<&2, Rep.Diag>, +path: String, more: List<&2, String>) -> List<&2, String>:
+  match ds:
+    case Nil{}:
+      more
+    case Con{dd, rest}:
+      chk_line(path, dd) <> chk_file(rest, path, more)
+
+# every file's error lines, file by file in the order given
+def chk_lines(runs: List<&2, Check.Run>) -> List<&2, String>:
+  match runs:
+    case Nil{}:
+      []
+    case Con{Check.Run{path, ds}, rest}:
+      chk_file(ds, path, chk_lines(rest))
+
+# how many errors bend reported, over every file
+def chk_count(runs: List<&2, Check.Run>) -> Nat:
+  match runs:
+    case Nil{}:
+      0n
+    case Con{Check.Run{_path, ds}, rest}:
+      Nat.add(List.length(&2, Rep.Diag, ds), chk_count(rest))
+
+# LAW: `bolt check` prints, for each file in turn, one line per error bend
+# reported, in bend's order, on the line bend marked
+# BOLT-CHK-1
+law check_lines:
+  for runs: List<&2, Check.Run>
+  {Check.lines_of(runs) == chk_lines(runs) : List<&2, String>}
+
+# LAW: there are exactly as many error lines as errors
+# BOLT-CHK-1
+law check_one_each:
+  for runs: List<&2, Check.Run>
+  {List.length(&2, String, Check.lines_of(runs)) == chk_count(runs) : Nat}
+
+# LAW: with no error in any file, `bolt check` prints `clean` alone and
+# exits 0
+# BOLT-CHK-1
+law check_clean:
+  for +runs: List<&2, Check.Run>
+  for h: {chk_count(runs) == 0n : Nat}
+  {Check.out(runs) == Check.Out{["clean"], 0} : Check.Out}
+
+# LAW: with one error, `bolt check` prints its line, then `1 error`, and
+# exits 1
+# BOLT-CHK-1
+law check_one:
+  for +runs: List<&2, Check.Run>
+  for h: {chk_count(runs) == 1n : Nat}
+  {Check.out(runs) == Check.Out{List.append(&2, String, chk_lines(runs), ["1 error, 0 warnings"]), 1} : Check.Out}
+
+# LAW: with more errors, `bolt check` prints their lines, then the count,
+# and exits 1
+# BOLT-CHK-1
+law check_many:
+  for +runs: List<&2, Check.Run>
+  for +more: Nat
+  for h: {chk_count(runs) == 2n+more : Nat}
+  {Check.out(runs)
+    == Check.Out{List.append(&2, String, chk_lines(runs),
+      [U32.show(U32.from_nat(2n+more)) ++ " errors, 0 warnings"]), 1} : Check.Out}
