@@ -238,7 +238,9 @@ beside the groups.
 - `tail` (pedantic) — a self-call that is not a tail call, in a def whose
   first live parameter is a `List` or a `String`. On a long one the JS lane
   overflows its stack (a 48 KB header crashed a server; ~4,900 entries and
-  ~64K elements elsewhere). Carry an accumulator.
+  ~64K elements elsewhere). Carry an accumulator. The test is on that
+  parameter's type alone, never on whether the self-call shrinks it.
+  Everything inside a `Bool.pick(..)` is skipped.
 - `closed` — a law in a LAWS.bend with no `for`/`exs` binder. A closed law,
   an equality (`{lhs == rhs : T}`, including `IO(T)`) or not, holds for the
   one input it names: a unit test the checker runs, not a guarantee.
