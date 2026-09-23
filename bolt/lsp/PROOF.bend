@@ -6,6 +6,13 @@ import ./server.bend as Server
 import ./LAWS.bend as Laws
 import ./checker/argv.bend as Argv
 import ../paths.bend as Paths
+import ./nav.bend as Nav
+import ./docs.bend as Docs
+import ./proto.bend as Proto
+import ./files/service.bend as F
+import ../../syntax/bind.bend as Bind
+import ../../syntax/outline.bend as Outline
+import ../../syntax/word.bend as Word
 
 # small facts
 # -----------
@@ -1411,4 +1418,269 @@ def nav.picked_check_only(cc, path, rr, h):
 
 def Laws.followup_check_only(ds, path, rr, h):
   nav.picked_check_only(Bool.and(Argv.only_todos(ds), Paths.is_laws(path)), Argv.proof_path(path), rr, h)
+
+# navigation
+# ----------
+
+# Unit for no text, Empty for one
+def nav.none_ty(mm: Maybe<&2, String>) -> Type:
+  match mm:
+    case None{}:
+      Unit
+    case Some{_t}:
+      Empty
+
+# no text is some text
+law nav.none_some:
+  for -t: String
+  for e: {None{} == Some{t} : Maybe<&2, String>}
+  Empty
+
+def nav.none_some(_t, e):
+  %e : nav.none_ty(_)
+  Unit{}
+
+# a document the store holds is read from the store, not the files
+law nav.miss_open:
+  for fs: F.Files
+  for mm: Maybe<&2, String>
+  for +text: String
+  for h: {mm == Some{text} : Maybe<&2, String>}
+  for path: String
+  for -R: Type
+  for k: String -> IO.OP<R>
+  {Nav.load.miss(~fs, mm, path, R, k) == k(text) : IO.OP<R>}
+
+def nav.miss_open(fs, mm, text, h, path, R, k):
+  match mm:
+    case None{}:
+      Empty.absurd({Nav.load.miss(~fs, None{}, path, R, k) == k(text) : IO.OP<R>}, nav.none_some(text, h))
+    case Some{t}:
+      Equal.cong(Maybe<&2, String>, IO.OP<R>, m => k(Maybe.default(&2, String, m, "")), Some{t}, Some{text}, h)
+
+def Laws.nav_open_text(fs, docs, uri, text, h, R, k):
+  nav.miss_open(fs, Docs.get(docs, uri), text, h, Proto.path(uri), R, k)
+
+# the binder as the server wraps it is the binder as the law wraps it
+law nav.here_local:
+  for mm: Maybe<&2, Bind.Bind>
+  for uri: String
+  {Nav.here(mm, uri) == Laws.nav.local(mm, uri) : Maybe<&2, Nav.Found>}
+
+def nav.here_local(mm, _uri):
+  match mm:
+    case None{}:
+      {==}
+    case Some{_b}:
+      {==}
+
+# at a binder, definition answers that binder
+law nav.site_binder:
+  for fs: F.Files
+  for site: Maybe<&2, Bind.Site>
+  for b: Bind.Bind
+  for hs: {site == Some{Bind.SBind{b}} : Maybe<&2, Bind.Site>}
+  for binds: List<&2, Bind.Bind>
+  for docs: List<&2, Docs.Doc>
+  for +uri: String
+  for name: String
+  for -R: Type
+  for k: Maybe<&2, Nav.Found> -> IO.OP<R>
+  {Nav.at.site(~fs, site, binds, docs, uri, name, R, k) == k(Some{Nav.Here{uri, b}}) : IO.OP<R>}
+
+def nav.site_binder(fs, site, b, hs, binds, docs, uri, name, R, k):
+  hs2 = Equal.sym(Maybe<&2, Bind.Site>, site, Some{Bind.SBind{b}}, hs)
+  %hs2 : {Nav.at.site(~fs, _, binds, docs, uri, name, R, k) == k(Some{Nav.Here{uri, b}}) : IO.OP<R>}
+  {==}
+
+# at a use of a binder of the document, definition answers that binder
+law nav.site_local:
+  for fs: F.Files
+  for site: Maybe<&2, Bind.Site>
+  for n: String
+  for l: U32
+  for c: U32
+  for +tl: U32
+  for +tc: U32
+  for hs: {site == Some{Bind.SUse{Bind.Use{n, l, c, Bind.TLocal{tl, tc}}}} : Maybe<&2, Bind.Site>}
+  for +binds: List<&2, Bind.Bind>
+  for docs: List<&2, Docs.Doc>
+  for +uri: String
+  for name: String
+  for -R: Type
+  for k: Maybe<&2, Nav.Found> -> IO.OP<R>
+  {Nav.at.site(~fs, site, binds, docs, uri, name, R, k) == k(Laws.nav.local(Bind.binder(binds, tl, tc), uri))
+    : IO.OP<R>}
+
+def nav.site_local(fs, site, n, l, c, tl, tc, hs, binds, docs, uri, name, R, k):
+  hs2 = Equal.sym(Maybe<&2, Bind.Site>, site, Some{Bind.SUse{Bind.Use{n, l, c, Bind.TLocal{tl, tc}}}}, hs)
+  %hs2 : {Nav.at.site(~fs, _, binds, docs, uri, name, R, k) == k(Laws.nav.local(Bind.binder(binds, tl, tc), uri))
+    : IO.OP<R>}
+  Equal.cong(Maybe<&2, Nav.Found>, IO.OP<R>, k, Nav.here(Bind.binder(binds, tl, tc), uri),
+    Laws.nav.local(Bind.binder(binds, tl, tc), uri), nav.here_local(Bind.binder(binds, tl, tc), uri))
+
+# definition over a parsed document, at a binder
+law nav.bound_binder:
+  for fs: F.Files
+  for bb: Bind.Bound
+  for docs: List<&2, Docs.Doc>
+  for +uri: String
+  for name: String
+  for +line: U32
+  for +col: U32
+  for b: Bind.Bind
+  for hs: {Bind.at(bb, line, col) == Some{Bind.SBind{b}} : Maybe<&2, Bind.Site>}
+  for -R: Type
+  for k: Maybe<&2, Nav.Found> -> IO.OP<R>
+  {Nav.at.bound(~fs, bb, docs, uri, name, line, col, R, k) == k(Some{Nav.Here{uri, b}}) : IO.OP<R>}
+
+def nav.bound_binder(fs, bb, docs, uri, name, line, col, b, hs, R, k):
+  match bb:
+    case Bind.Bound{+binds, uses, scopes}:
+      nav.site_binder(fs, Bind.at(Bind.Bound{binds, uses, scopes}, line, col), b, hs, binds, docs, uri, name, R, k)
+
+# definition over a parsed document, at a use of one of its binders
+law nav.bound_local:
+  for fs: F.Files
+  for bb: Bind.Bound
+  for docs: List<&2, Docs.Doc>
+  for +uri: String
+  for name: String
+  for +line: U32
+  for +col: U32
+  for n: String
+  for l: U32
+  for c: U32
+  for +tl: U32
+  for +tc: U32
+  for hs: {Bind.at(bb, line, col) == Some{Bind.SUse{Bind.Use{n, l, c, Bind.TLocal{tl, tc}}}} : Maybe<&2, Bind.Site>}
+  for -R: Type
+  for k: Maybe<&2, Nav.Found> -> IO.OP<R>
+  {Nav.at.bound(~fs, bb, docs, uri, name, line, col, R, k)
+    == k(Laws.nav.local(Bind.binder(Laws.nav.binds(bb), tl, tc), uri)) : IO.OP<R>}
+
+def nav.bound_local(fs, bb, docs, uri, name, line, col, n, l, c, tl, tc, hs, R, k):
+  match bb:
+    case Bind.Bound{+binds, uses, scopes}:
+      nav.site_local(fs, Bind.at(Bind.Bound{binds, uses, scopes}, line, col), n, l, c, tl, tc, hs, binds, docs, uri,
+        name, R, k)
+
+# hover over a parsed document, at a use of one of its binders
+law nav.hover_bound_local:
+  for fs: F.Files
+  for bb: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for docs: List<&2, Docs.Doc>
+  for +uri: String
+  for name: String
+  for +line: U32
+  for +col: U32
+  for n: String
+  for l: U32
+  for c: U32
+  for +tl: U32
+  for +tc: U32
+  for hs: {Bind.at(bb, line, col) == Some{Bind.SUse{Bind.Use{n, l, c, Bind.TLocal{tl, tc}}}} : Maybe<&2, Bind.Site>}
+  for -R: Type
+  for k: Maybe<&2, Nav.Found> -> IO.OP<R>
+  {Nav.hover.bound(~fs, bb, items, docs, uri, name, line, col, R, k)
+    == k(Laws.nav.local(Bind.binder(Laws.nav.binds(bb), tl, tc), uri)) : IO.OP<R>}
+
+def nav.hover_bound_local(fs, bb, items, docs, uri, name, line, col, n, l, c, tl, tc, hs, R, k):
+  match bb:
+    case Bind.Bound{+binds, uses, scopes}:
+      hs2 = Equal.sym(Maybe<&2, Bind.Site>, Bind.at(Bind.Bound{binds, uses, scopes}, line, col),
+        Some{Bind.SUse{Bind.Use{n, l, c, Bind.TLocal{tl, tc}}}}, hs)
+      %hs2 : {Nav.hover.site(~fs, _, items, binds, docs, uri, name, R, k)
+        == k(Laws.nav.local(Bind.binder(binds, tl, tc), uri)) : IO.OP<R>}
+      Equal.cong(Maybe<&2, Nav.Found>, IO.OP<R>, k, Nav.here(Bind.binder(binds, tl, tc), uri),
+        Laws.nav.local(Bind.binder(binds, tl, tc), uri), nav.here_local(Bind.binder(binds, tl, tc), uri))
+
+def Laws.nav_definition_binder(fs, docs, uri, text, h, line, col, b, hs, R, k):
+  h2 = Equal.sym(Maybe<&2, String>, Docs.get(docs, uri), Some{text}, h)
+  %h2 : {Nav.load.miss(~fs, _, Proto.path(uri), R, tt => Nav.at.in(~fs, tt, docs, uri, line, col, R, k))
+    == k(Some{Nav.Here{uri, b}}) : IO.OP<R>}
+  nav.bound_binder(fs, Bind.bound(text), docs, uri, Word.at(text, line, col), line, col, b, hs, R, k)
+
+def Laws.nav_definition_local(fs, docs, uri, text, h, line, col, n, l, c, tl, tc, hs, R, k):
+  h2 = Equal.sym(Maybe<&2, String>, Docs.get(docs, uri), Some{text}, h)
+  %h2 : {Nav.load.miss(~fs, _, Proto.path(uri), R, tt => Nav.at.in(~fs, tt, docs, uri, line, col, R, k))
+    == k(Laws.nav.local(Bind.binder(Laws.nav.binds(Bind.bound(text)), tl, tc), uri)) : IO.OP<R>}
+  nav.bound_local(fs, Bind.bound(text), docs, uri, Word.at(text, line, col), line, col, n, l, c, tl, tc, hs, R, k)
+
+def Laws.nav_hover_local(fs, docs, uri, text, h, line, col, n, l, c, tl, tc, hs, R, k):
+  h2 = Equal.sym(Maybe<&2, String>, Docs.get(docs, uri), Some{text}, h)
+  %h2 : {Nav.load.miss(~fs, _, Proto.path(uri), R, tt => Nav.hover.in(~fs, tt, docs, uri, line, col, R, k))
+    == k(Laws.nav.local(Bind.binder(Laws.nav.binds(Bind.bound(text)), tl, tc), uri)) : IO.OP<R>}
+  nav.hover_bound_local(fs, Bind.bound(text), Outline.items(text), docs, uri, Word.at(text, line, col), line, col,
+    n, l, c, tl, tc, hs, R, k)
+
+# the server's positions for a site are the law's, whatever the site
+law nav.sites_spec:
+  for site: Maybe<&2, Bind.Site>
+  for +bb: Bind.Bound
+  {Nav.sites.of(site, bb) == Laws.nav.referenced(site, bb) : Nav.Sites}
+
+def nav.sites_spec(site, _bb):
+  match site:
+    case None{}:
+      {==}
+    case Some{ss}:
+      match ss:
+        case Bind.SBind{b}:
+          match b:
+            case Bind.Bind{_name, _l, _c, kind, _note}:
+              match kind:
+                case Bind.KItem{}:
+                  {==}
+                case Bind.KCtor{}:
+                  {==}
+                case Bind.KParam{}:
+                  {==}
+                case Bind.KTypeParam{}:
+                  {==}
+                case Bind.KField{}:
+                  {==}
+                case Bind.KLocal{}:
+                  {==}
+                case Bind.KPat{}:
+                  {==}
+                case Bind.KFor{}:
+                  {==}
+                case Bind.KTypeVar{}:
+                  {==}
+        case Bind.SUse{u}:
+          match u:
+            case Bind.Use{_n, _l, _c, tg}:
+              match tg:
+                case Bind.TLocal{_tl, _tc}:
+                  {==}
+                case Bind.TItem{_item}:
+                  {==}
+                case Bind.TQual{_alias, _name}:
+                  {==}
+                case Bind.TFree{}:
+                  {==}
+
+def Laws.nav_references(fs, docs, uri, text, h, line, col, R, k):
+  h2 = Equal.sym(Maybe<&2, String>, Docs.get(docs, uri), Some{text}, h)
+  %h2 : {Nav.load.miss(~fs, _, Proto.path(uri), R, tt => k(Nav.sites.in(tt, line, col)))
+    == k(Laws.nav.referenced(Bind.at(Bind.bound(text), line, col), Bind.bound(text))) : IO.OP<R>}
+  Equal.cong(Nav.Sites, IO.OP<R>, k, Nav.sites.in(text, line, col),
+    Laws.nav.referenced(Bind.at(Bind.bound(text), line, col), Bind.bound(text)),
+    nav.sites_spec(Bind.at(Bind.bound(text), line, col), Bind.bound(text)))
+
+def Laws.nav_completion(fs, docs, uri, text, h, prefix, line, hp, R, k):
+  h2 = Equal.sym(Maybe<&2, String>, Docs.get(docs, uri), Some{text}, h)
+  hp2 = Equal.sym(Maybe<&2, String>, Outline.import_path(Outline.items(text), Word.head(prefix)), None{}, hp)
+  %h2 : {Nav.load.miss(~fs, _, Proto.path(uri), R, tt => Nav.candidates.in(~fs, tt, docs, uri, prefix, line, R, k))
+    == Nav.from_base(~fs, Bool.not(String.is_empty(prefix)), docs, prefix, R,
+      base => k(List.append(&2, Outline.Item, Laws.nav.locals(text, prefix, line), Laws.nav.after(text, prefix, base))))
+    : IO.OP<R>}
+  %hp2 : {Nav.candidates.via(~fs, _, Outline.items(text), docs, uri, prefix,
+      Nav.as_items(Bind.visible(Bind.bound(text), line)), R, k)
+    == Nav.from_base(~fs, Bool.not(String.is_empty(prefix)), docs, prefix, R,
+      base => k(List.append(&2, Outline.Item, Laws.nav.locals(text, prefix, line), Laws.nav.after(text, prefix, base))))
+    : IO.OP<R>}
+  {==}
 
