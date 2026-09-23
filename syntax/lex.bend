@@ -1,7 +1,9 @@
 # syntax/lex: a source as tokens with positions. Lossless: every char lands
 # in exactly one token, so the texts concatenate back to the source, whatever
-# the source is -- an unclosed string ends at its line's end rather than
-# swallowing the file. One char per step, a tail-recursive state machine.
+# the source is. A string runs to its closing quote across newlines, as in
+# bend, so an unclosed one runs to the end of the file (bend rejects that
+# file). A char literal and a comment end at their line's end. One char per
+# step, a tail-recursive state machine.
 #
 # A name is letters, digits, `_` and `.` (`List.map`, `M.go`). Operator chars
 # group into runs (`->`, `<-`, `=>`, `==`, `++`), except `:`, which always
@@ -127,12 +129,8 @@ def continues(mm: Mode, cls: Class) -> Bool:
       True{}
     case InNum{} CAlpha{}:
       True{}
-    case InStr{} CNewline{}:
-      False{}
     case InStr{} c:
       True{}
-    case InStrEsc{} CNewline{}:
-      False{}
     case InStrEsc{} c:
       True{}
     case InChar{} CNewline{}:

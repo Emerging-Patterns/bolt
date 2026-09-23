@@ -7,9 +7,11 @@ What an editor needs to know about a Bend source without checking it.
   and the comment block above it. It reads line by line: a top-level item
   starts at column 0, so a line it does not understand is skipped and the items
   around it still stand. Half-written files are the normal case in an editor.
+  A line that starts inside a string literal is text, never an item.
 - `word.bend`: the name under a (line, col), and the name being typed there.
 - `lex.bend`: a lossless lexer with positions (the texts spell the source
-  back, whatever it is).
+  back, whatever it is). A string runs across newlines to its closing quote,
+  as bend reads it; an unclosed one runs to the end of the file.
   Token kinds tell apart what binds from what does not (keywords, dotted and
   capitalized names, `_`, and the operators `:` `=` `<-` `->` `=>` `@` `&`),
   so a walk can branch by constructor.

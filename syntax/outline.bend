@@ -2,6 +2,10 @@
 # item starts at column 0, so a line the outline does not understand costs
 # nothing: it is skipped, and the items around it still stand. That tolerance
 # is the point: an editor asks about files that are half-written.
+#
+# A line that starts inside a string literal (the lexer's, which runs across
+# newlines as bend's does) is text, not a line of code: it is never an item,
+# a comment or a blank, and it joins a pending header as one more line.
 import Base
 import ../lazy/lazy.bend as Lazy
 import ./lex.bend as Lex
@@ -467,27 +471,109 @@ def step.use(pp: Cls & String, mode: Mode, +nn: U32, doc: List<&2, String>, out:
   (cls, s) = pp
   step.go(cls, mode, s, nn, doc, out)
 
-# one line, by its class
-def step(ss: String, st: St) -> St:
+# a line inside a string: more of a pending header, else nothing
+def step.text.go(mode: Mode, ss: String, +nn: U32, doc: List<&2, String>, out: List<&2, Item>) -> St:
+  match mode:
+    case Pending{k, nm, l, d, sig}:
+      St{Pending{k, nm, l, d, ss <> sig}, (nn + 1 : U32), doc, out}
+    case m:
+      St{m, (nn + 1 : U32), doc, out}
+
+# a line inside a string, applied to the outline
+def step.text(ss: String, st: St) -> St:
+  St{mode, n, doc, out} = st
+  step.text.go(mode, ss, n, doc, out)
+
+# a line of code, by its class
+def step.code(ss: String, st: St) -> St:
   St{mode, n, doc, out} = st
   step.use(classify.hold(ss), mode, n, doc, out)
 
-# every line, in order
-def run(lines: List<&2, String>, st: St) -> St:
+# one line, by its class, or as text when within says it starts inside a string
+def step(within: Bool, ss: String, st: St) -> St:
+  match within:
+    case True{}:
+      step.text(ss, st)
+    case False{}:
+      step.code(ss, st)
+
+# the lines after a string's first, numbered from nn, onto acc (reversed)
+def spanned(ls: List<&2, String>, +nn: U32, acc: List<&2, U32>) -> List<&2, U32>:
+  match ls:
+    case Nil{}:
+      acc
+    case Con{h, t}:
+      spanned(t, (nn + 1 : U32), nn <> acc)
+
+# a string's first line starts outside it; the lines after it start inside
+def spanned.first(ls: List<&2, String>, +nn: U32, acc: List<&2, U32>) -> List<&2, U32>:
+  match ls:
+    case Nil{}:
+      acc
+    case Con{h, t}:
+      spanned(t, (nn + 1 : U32), acc)
+
+# the lines a token starts inside, when it is a string, onto acc (reversed)
+def inside.tok(kk: Lex.TokKind, tt: String, +ll: U32, acc: List<&2, U32>) -> List<&2, U32>:
+  match kk:
+    case Lex.TStr{}:
+      spanned.first(String.lines(tt), ll, acc)
+    case other:
+      acc
+
+def inside.go(toks: List<&2, Lex.Tok>, acc: List<&2, U32>) -> List<&2, U32>:
+  match toks:
+    case Nil{}:
+      acc
+    case Con{Lex.Tok{k, t, l, c}, rest}:
+      inside.go(rest, inside.tok(k, t, l, acc))
+
+# the lines (0-based, ascending) that start inside a string token
+def inside(toks: List<&2, Lex.Tok>) -> List<&2, U32>:
+  List.reverse(&2, U32, inside.go(toks, []))
+
+# does line nn start inside a string? ins are the inside lines ahead
+def inside.hit(ins: List<&2, U32>, +nn: U32) -> Bool:
+  match ins:
+    case Nil{}:
+      False{}
+    case Con{h, t}:
+      U32.is_eq(h, nn)
+
+# the inside lines ahead once line nn is read
+def inside.rest(ins: List<&2, U32>, +nn: U32) -> List<&2, U32>:
+  match ins:
+    case Nil{}:
+      Nil{}
+    case Con{+h, +t}:
+      Bool.pick(List<&2, U32>, U32.is_eq(h, nn), t, h <> t)
+
+# the line number the state is at
+def line_of(st: St) -> U32:
+  St{mode, n, doc, out} = st
+  n
+
+# every line, in order; ins are the lines ahead that start inside a string
+def run(lines: List<&2, String>, +st: St, +ins: List<&2, U32>) -> St:
   match lines:
     case Nil{}:
       st
     case Con{l, t}:
-      run(t, step(l, st))
+      +nn = line_of(st)
+      run(t, step(inside.hit(ins, nn), l, st), inside.rest(ins, nn))
 
 # the items once the lines are over, a pending header flushed
 def finish(st: St) -> List<&2, Item>:
   St{mode, n, doc, out} = st
   List.reverse(&2, Item, flush(mode, out))
 
+# the top-level items of a source whose tokens are already lexed, in order
+def of_tokens(text: String, toks: List<&2, Lex.Tok>) -> List<&2, Item>:
+  finish(run(String.lines(text), St{Top{}, 0, [], []}, inside(toks)))
+
 # the top-level items of a source, in order
-def items(text: String) -> List<&2, Item>:
-  finish(run(String.lines(text), St{Top{}, 0, [], []}))
+def items(+text: String) -> List<&2, Item>:
+  of_tokens(text, Lex.tokens(text))
 
 # lookups
 # -------
