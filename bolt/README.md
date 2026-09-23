@@ -188,9 +188,11 @@ beside the groups.
   arguments depend on the step, are left alone.
 - `ring` — a self-call replaces a binder with a drop of a constant count and
   an append (`List.drop` / `List.tail` / `String.drop` / `String.tail`, then
-  `List.append` / `String.append` / `++`). Each step copies the window. Keep
-  it in an `Array` and advance an index. A list the def matches as input, and
-  a one-shot trim, are left alone.
+  `List.append` / `String.append` / `++`), passed back in that binder's own
+  parameter position. Each step copies the window. Keep it in an `Array` and
+  advance an index. A list the def matches as input (any scrutinee of a
+  match), a window dropped into another parameter's slot, and a one-shot trim
+  are left alone.
 - `rewalk` — one straight piece of a def calls the same walk twice on the
   same argument, and one result is used only for a single value (one index,
   one field, or a let read only that way) while the other result is kept

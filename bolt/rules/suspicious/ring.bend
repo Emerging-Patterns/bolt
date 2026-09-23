@@ -1,8 +1,10 @@
 # rule ring: a self-call replaces a binder with `List.append` of `List.drop`
-# (or `String.append` / `++`, or `tail`) by a constant count. Each step copies
-# that fixed window. Keep it in an Array and advance an index. A list the def
-# matches and walks is variable-length input, and a one-shot trim is not a
-# loop: both stay quiet. Growing an accumulator by append, with no drop of
+# (or `String.append` / `++`, or `tail`) by a constant count, passing it back
+# in the binder's own parameter position. Each step copies that fixed window.
+# Keep it in an Array and advance an index. A list the def matches and walks
+# (as any scrutinee of a match) is variable-length input, a window dropped
+# into another parameter's slot is not carried, and a one-shot trim is not a
+# loop: all stay quiet. Growing an accumulator by append, with no drop of
 # that same value, is `concat`. Laws and proofs do not run.
 import Base
 import ../../src.bend as Src
@@ -203,46 +205,73 @@ def slide_at(mm: Maybe<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
 def slide(aa: Tree.Node, +path: String, +wins: List<&2, String>) -> List<&2, F.Finding>:
   slide_at(plus_scan(aa, None{}, wins), path)
 
-# every self-call argument that slides
-def slides(as: List<&2, Tree.Node>, +path: String, +wins: List<&2, String>) -> List<&2, F.Finding>:
+# the windows an argument in this parameter's slot may slide: the parameter
+# itself when it is a window, else none
+def slot_wins(+slot: String, +wins: List<&2, String>) -> List<&2, String>:
+  Bool.pick(List<&2, String>, List.contains(~String, ~String.eq, wins, slot), [slot], [])
+
+# every self-call argument that slides the window of its own slot (params,
+# from the argument's position on)
+def slides(
+  as: List<&2, Tree.Node>,
+  +params: List<&2, String>,
+  +path: String,
+  +wins: List<&2, String>
+) -> List<&2, F.Finding>:
   match as:
     case Nil{}:
       Nil{}
     case Con{h, rest}:
-      List.append(&2, F.Finding, slide(h, path, wins), slides(rest, path, wins))
+      +slot = Maybe.default(&2, String, List.head(&2, String, params), "")
+      List.append(&2, F.Finding, slide(h, path, slot_wins(slot, wins)),
+        slides(rest, List.tail(&2, String, params), path, wins))
 
 # every self-call's sliding arguments
-def walk(nn: Tree.Node, +self: String, +path: String, +wins: List<&2, String>) -> List<&2, F.Finding>:
+def walk(
+  nn: Tree.Node,
+  +self: String,
+  +params: List<&2, String>,
+  +path: String,
+  +wins: List<&2, String>
+) -> List<&2, F.Finding>:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +me = Bool.and(String.eq(o, "("), String.eq(t, self))
-      +own = Lazy.stop(List<&2, F.Finding>, Bool.not(me), [], _u => slides(Calls.args(kids), path, wins))
-      List.concat(&2, F.Finding, [own, walk(kids, self, path, wins), walk(rest, self, path, wins)])
+      +own = Lazy.stop(List<&2, F.Finding>, Bool.not(me), [], _u => slides(Calls.args(kids), params, path, wins))
+      List.concat(&2, F.Finding, [own, walk(kids, self, params, path, wins), walk(rest, self, params, path, wins)])
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
-      List.concat(&2, F.Finding, [walk(kids, self, path, wins), walk(rest, self, path, wins)])
+      List.concat(&2, F.Finding, [walk(kids, self, params, path, wins), walk(rest, self, params, path, wins)])
     case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
-      List.concat(&2, F.Finding, [walk(kids, self, path, wins), walk(body, self, path, wins),
-        walk(rest, self, path, wins)])
+      List.concat(&2, F.Finding, [walk(kids, self, params, path, wins), walk(body, self, params, path, wins),
+        walk(rest, self, params, path, wins)])
     case Tree.NCons{h, rest}:
-      walk(rest, self, path, wins)
+      walk(rest, self, params, path, wins)
     case other:
       Nil{}
 
-# `match name`, or empty
-def match_name(kids: Tree.Node) -> String:
-  match kids:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TKey{}, +kw, l, c}},
-        Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, +t, l2, c2}}, rest}}:
-      Bool.pick(String, String.eq(kw, "match"), t, "")
+# the top-level names of a chain, onto acc
+def names_in(nn: Tree.Node, acc: List<&2, String>) -> List<&2, String>:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, rest}:
+      t <> names_in(rest, acc)
+    case Tree.NCons{h, rest}:
+      names_in(rest, acc)
     case other:
-      ""
+      acc
 
-# names the def matches as a list: variable-length input, not a window
+# every scrutinee of `match a b ..:`, onto acc (acc alone for any other chain)
+def match_names(kids: Tree.Node, +acc: List<&2, String>) -> List<&2, String>:
+  match kids:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TKey{}, +kw, l, c}}, +rest}:
+      Lazy.stop(List<&2, String>, Bool.not(String.eq(kw, "match")), acc, _u => names_in(rest, acc))
+    case other:
+      acc
+
+# names the def matches, as any scrutinee: variable-length input, not a window
 def matched(nn: Tree.Node, +acc: List<&2, String>) -> List<&2, String>:
   match nn:
     case Tree.NCons{Tree.Stmt{Tree.STerm{}, +kids, body}, rest}:
-      +nm = match_name(kids)
-      +here = Bool.pick(List<&2, String>, String.is_empty(nm), acc, nm <> acc)
+      +here = match_names(kids, acc)
       matched(rest, matched(body, matched(kids, here)))
     case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
       matched(rest, matched(body, matched(kids, acc)))
@@ -274,7 +303,7 @@ def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Fi
       check.go(rest, path,
         Lazy.stop(List<&2, F.Finding>,
           Bool.not(Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))), [],
-          _u => walk(body, name, path, windows(sig, body))) <> acc)
+          _u => walk(body, name, Calls.names(sig), path, windows(sig, body))) <> acc)
 
 # the rule
 def check(ss: Src.Src) -> List<&2, F.Finding>:

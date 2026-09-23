@@ -43,7 +43,7 @@ A Trusted requirement's ID appears once in a requirement table and once in the t
 | BOLT-RULE-U007 | `index` reports exactly a `List.get` or `String.get` at a non-literal index in a recursive def. | Proved | pending |  |
 | BOLT-RULE-U008 | `table` reports exactly a get or set at a computed index on a fixed table inside a recursive def. | Proved | pending |  |
 | BOLT-RULE-U009 | `hoist` reports exactly a table of more than eight cells rebuilt per step from carried inputs. | Proved | pending |  |
-| BOLT-RULE-U010 | `ring` reports exactly a fixed window dropped and appended per step. | Proved | pending |  |
+| BOLT-RULE-U010 | `ring` reports exactly a fixed window dropped and appended per step and passed back in its own parameter position. | Proved | pending |  |
 | BOLT-RULE-U011 | `rewalk` reports exactly the same walk twice on the same argument, one result read for a single value. | Proved | pending |  |
 | BOLT-RULE-U012 | `unit` reports exactly a multiply or divide by one on a recursive step. | Proved | pending |  |
 | BOLT-RULE-S001 | `doc` reports exactly a top-level def, type or law with no comment block right above it, with the header's exemptions. | Proved | pending |  |
