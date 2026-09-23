@@ -120,7 +120,10 @@ beside the groups.
   claims by convention, filled by PROOF.bend).
 - `space` — trailing whitespace, a tab, or a line over 120 wide. Width counts
   a string literal as two characters: a long fixture or message does not make
-  a line hard to read, code does. `#|` trailers are data and exempt.
+  a line hard to read, code does. A comment counts at its full width. `#|`
+  trailers are data and exempt from the width only: trailing whitespace on a
+  `#|` line is still reported. A tab is reported anywhere, inside a string
+  literal too.
 - `wrap` — a def header's shape. A one-line header over 120 wide must break,
   counted the same way as `space` (a string literal is two characters). The
   header is the text through its `:`. A one-line header that fits stays one
