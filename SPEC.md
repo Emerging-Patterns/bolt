@@ -25,7 +25,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
 | BOLT-RULE-C002 | `hole` reports exactly a TODO hole bend counts, a `?` then `TODO` with only spaces, newlines or comments between, outside a LAWS.bend, and nothing else. | Proved | proved | bolt/rules/LAWS.bend hole_counts |
-| BOLT-RULE-C003 | `pick` reports exactly a self-call in one or both branches of `Bool.pick`, and does not report again a nested pick in a branch it reported. | Proved | pending |  |
+| BOLT-RULE-C003 | `pick` reports exactly a self-call in one or both branches of `Bool.pick`, and does not report again a nested pick in a branch it reported. | Proved | pending | bolt/rules/LAWS.bend pick_walk_counts; bolt/rules/LAWS.bend pick_counts |
 | BOLT-RULE-C004 | `put` reports exactly one finding for each `Map.put` token with a `(` token right after it among the significant tokens, and none in a file where a `def` keyword has a `Map.put` token right after it. | Proved | proved | bolt/rules/LAWS.bend put_counts |
 | BOLT-RULE-C005 | `arms` reports exactly, in a single-scrutinee match, a Nat arm already covered by an earlier `kn+p`, `Succ{p}` or `Succ{_}` arm. | Proved | pending |  |
 | BOLT-RULE-C006 | `escape` reports exactly one finding for each `\0` followed by a digit in a string or char literal, its escapes read as a backslash and the one char after it, and none for anything else. | Proved | proved | bolt/rules/LAWS.bend escape_counts; bolt/rules/LAWS.bend escape_scan_counts |
@@ -34,7 +34,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | BOLT-RULE-C009 | `chars` reports exactly a match with more than eight arms whose first match column opens with a char literal. | Proved | pending |  |
 | BOLT-RULE-C010 | `foreign` reports exactly a foreign def with a `.c` body and no `.js` or the reverse, where a file whose leading comment lines include the exact line `# lanes: native` needs no `.js`. | Proved | pending |  |
 | BOLT-RULE-U001 | `unused` reports exactly an unused let, do-bind, lambda binder or parameter, with the header's exemptions. | Proved | pending |  |
-| BOLT-RULE-U002 | `strict` reports exactly a self-call inside `Bool.and` or `Bool.or`, or on either side of `&&` or `\|\|`, matched by that exact text, where a lambda body counts only by its own `&&` or `\|\|`. | Proved | pending |  |
+| BOLT-RULE-U002 | `strict` reports exactly a self-call inside `Bool.and` or `Bool.or`, or on either side of `&&` or `\|\|`, matched by that exact text, where a lambda body counts only by its own `&&` or `\|\|`. | Proved | proved | bolt/rules/LAWS.bend strict_walk_counts; bolt/rules/LAWS.bend strict_counts |
 | BOLT-RULE-U003 | `eager` reports exactly a looping def of the file called in a `Bool.pick` branch. | Proved | pending |  |
 | BOLT-RULE-U004 | `concat` reports exactly a self-call argument that appends onto the parameter in its own position. | Proved | pending |  |
 | BOLT-RULE-U005 | `nat` reports exactly one finding for each token the lexer reads as a Nat literal of 1000 or more (digits then `n`, four or more digits once leading zeros are dropped), and none for any other token. | Proved | proved | bolt/rules/LAWS.bend nat_counts |

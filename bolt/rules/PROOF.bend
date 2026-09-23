@@ -1476,3 +1476,1139 @@ def ex.unit(ds, path, n, e):
 
 def Laws.unit_exempt(path, _text, _toks, tree, _bound, _items, e):
   ex.unit(Calls.defs(tree), path, 0n, e)
+
+# The eager Bool combinators (BOLT-RULE-C003, BOLT-RULE-U002). A walk joins
+# the finding lists of a node's parts; each count adds their counts.
+
+# appending Nil keeps a list's length
+law pick.nil:
+  for a: List<&2, F.Finding>
+  {List.length(&2, F.Finding, List.append(&2, F.Finding, a, Nil{})) == List.length(&2, F.Finding, a) : Nat}
+
+def pick.nil(a):
+  match a:
+    case Nil{}:
+      {==}
+    case Con{h, t}:
+      Equal.cong(Nat, Nat, n => 1n+n, List.length(&2, F.Finding, List.append(&2, F.Finding, t, Nil{})),
+        List.length(&2, F.Finding, t), pick.nil(t))
+
+# two lists of known lengths appended: the sum
+law pick.join:
+  for a: List<&2, F.Finding>
+  for r: List<&2, F.Finding>
+  for -ma: Nat
+  for -mr: Nat
+  for ea: {List.length(&2, F.Finding, a) == ma : Nat}
+  for er: {List.length(&2, F.Finding, r) == mr : Nat}
+  {List.length(&2, F.Finding, List.append(&2, F.Finding, a, r)) == Nat.add(ma, mr) : Nat}
+
+def pick.join(a, r, ma, mr, ea, er):
+  Equal.trans(Nat, List.length(&2, F.Finding, List.append(&2, F.Finding, a, r)),
+    Nat.add(List.length(&2, F.Finding, a), List.length(&2, F.Finding, r)), Nat.add(ma, mr),
+    esc.app(a, r), esc.add(List.length(&2, F.Finding, a), ma, List.length(&2, F.Finding, r), mr, ea, er))
+
+# the last list of a join: Nil appended
+law pick.last:
+  for b: List<&2, F.Finding>
+  for -mb: Nat
+  for eb: {List.length(&2, F.Finding, b) == mb : Nat}
+  {List.length(&2, F.Finding, List.append(&2, F.Finding, b, Nil{})) == mb : Nat}
+
+def pick.last(b, mb, eb):
+  Equal.trans(Nat, List.length(&2, F.Finding, List.append(&2, F.Finding, b, Nil{})),
+    List.length(&2, F.Finding, b), mb, pick.nil(b), eb)
+
+# the rule's quiet for a pick's group is the law's: reported in both
+# branches or in one is a self-call in a branch
+law pick.quiet:
+  for p: Bool
+  for q: Bool
+  for a: Bool
+  for b: Bool
+  {Bool.or(q, Bool.or(Bool.and(Bool.and(p, Bool.not(q)), Bool.and(a, b)),
+      Bool.and(Bool.and(p, Bool.not(Bool.and(Bool.and(p, Bool.not(q)), Bool.and(a, b)))),
+        Bool.and(Bool.not(q), Bool.or(a, b)))))
+    == Bool.or(q, Bool.and(p, Bool.and(Bool.not(q), Bool.or(a, b)))) : Bool}
+
+def pick.quiet(p, q, a, b):
+  match p q a b:
+    case False{} q a b:
+      {==}
+    case True{} True{} a b:
+      {==}
+    case True{} False{} True{} True{}:
+      {==}
+    case True{} False{} True{} False{}:
+      {==}
+    case True{} False{} False{} b:
+      {==}
+
+# a finding for both branches, else one for one branch, adds one to the count
+# exactly when a branch calls the def
+law pick.hit:
+  for p: Bool
+  for q: Bool
+  for a: Bool
+  for b: Bool
+  for -x: F.Finding
+  for -y: F.Finding
+  for -more: List<&2, F.Finding>
+  for -m: Nat
+  for ih: {List.length(&2, F.Finding, more) == m : Nat}
+  {List.length(&2, F.Finding,
+      Bool.pick(List<&2, F.Finding>, Bool.and(Bool.and(p, Bool.not(q)), Bool.and(a, b)), x <> more,
+        Bool.pick(List<&2, F.Finding>,
+          Bool.and(Bool.and(p, Bool.not(Bool.and(Bool.and(p, Bool.not(q)), Bool.and(a, b)))),
+            Bool.and(Bool.not(q), Bool.or(a, b))), y <> more, more)))
+    == Bool.pick(Nat, Bool.and(p, Bool.and(Bool.not(q), Bool.or(a, b))), 1n+m, m) : Nat}
+
+def pick.hit(p, q, a, b, _x, _y, more, m, ih):
+  match p q a b:
+    case False{} q a b:
+      ih
+    case True{} True{} a b:
+      ih
+    case True{} False{} True{} True{}:
+      Equal.cong(Nat, Nat, n => 1n+n, List.length(&2, F.Finding, more), m, ih)
+    case True{} False{} True{} False{}:
+      Equal.cong(Nat, Nat, n => 1n+n, List.length(&2, F.Finding, more), m, ih)
+    case True{} False{} False{} True{}:
+      Equal.cong(Nat, Nat, n => 1n+n, List.length(&2, F.Finding, more), m, ih)
+    case True{} False{} False{} False{}:
+      ih
+
+def Laws.pick_walk_counts(nn, name, path, quiet):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, +t, +l, +c}:
+              match rest:
+                case Tree.NCons{h2, +r2}:
+                  match h2:
+                    case Tree.Group{open, +kids, close}:
+                      +as = Calls.args(kids)
+                      +p = String.eq(t, "Bool.pick")
+                      +a = Calls.calls(Calls.arg(as, 2n), name)
+                      +b = Calls.calls(Calls.arg(as, 3n), name)
+                      +two = Bool.and(Bool.and(p, Bool.not(quiet)), Bool.and(a, b))
+                      +one = Bool.and(Bool.and(p, Bool.not(two)), Bool.and(Bool.not(quiet), Bool.or(a, b)))
+                      +hit = Bool.and(p, Bool.and(Bool.not(quiet), Bool.or(a, b)))
+                      +q1 = Bool.or(quiet, Bool.or(two, one))
+                      +q2 = Bool.or(quiet, hit)
+                      +fk = Pick.picks(kids, name, path, q1)
+                      +fr = Pick.picks(r2, name, path, quiet)
+                      +ck = Laws.pick.count(kids, name, q2)
+                      +cr = Laws.pick.count(r2, name, quiet)
+                      +ek = Equal.trans(Nat, List.length(&2, F.Finding, fk), Laws.pick.count(kids, name, q1), ck,
+                        Laws.pick_walk_counts(kids, name, path, q1),
+                        Equal.cong(Bool, Nat, qq => Laws.pick.count(kids, name, qq), q1, q2, pick.quiet(p, quiet, a,
+                          b)))
+                      pick.hit(p, quiet, a, b,
+                        F.Finding{path, l, c, 9, "pick",
+                          name ++ " recurses in both branches of Bool.pick, so both calls run; bind the recursive call once above the pick."},
+                        F.Finding{path, l, c, 9, "pick",
+                          name ++ " recurses in one branch of Bool.pick, so the call runs whatever the condition and there is no early exit; bind it above the pick."},
+                        List.concat(&2, F.Finding, [fk, fr]), Nat.add(ck, cr),
+                        pick.join(fk, List.append(&2, F.Finding, fr, Nil{}), ck, cr, ek,
+                          pick.last(fr, cr, Laws.pick_walk_counts(r2, name, path, quiet))))
+                    case Tree.Leaf{tk}:
+                      Laws.pick_walk_counts(rest, name, path, quiet)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.pick_walk_counts(rest, name, path, quiet)
+                    case Tree.NNil{}:
+                      Laws.pick_walk_counts(rest, name, path, quiet)
+                    case Tree.NCons{x, y}:
+                      Laws.pick_walk_counts(rest, name, path, quiet)
+                case Tree.Leaf{tk}:
+                  Laws.pick_walk_counts(rest, name, path, quiet)
+                case Tree.Group{open, kids, close}:
+                  Laws.pick_walk_counts(rest, name, path, quiet)
+                case Tree.Stmt{kind, kids, body}:
+                  Laws.pick_walk_counts(rest, name, path, quiet)
+                case Tree.NNil{}:
+                  Laws.pick_walk_counts(rest, name, path, quiet)
+        case Tree.Group{open, +kids, close}:
+          +fr = Pick.picks(rest, name, path, quiet)
+          pick.join(Pick.picks(kids, name, path, quiet), List.append(&2, F.Finding, fr, Nil{}),
+            Laws.pick.count(kids, name, quiet), Laws.pick.count(rest, name, quiet),
+            Laws.pick_walk_counts(kids, name, path, quiet),
+            pick.last(fr, Laws.pick.count(rest, name, quiet), Laws.pick_walk_counts(rest, name, path, quiet)))
+        case Tree.Stmt{kind, +kids, +body}:
+          +fb = Pick.picks(body, name, path, quiet)
+          +fr = Pick.picks(rest, name, path, quiet)
+          pick.join(Pick.picks(kids, name, path, quiet),
+            List.append(&2, F.Finding, fb, List.append(&2, F.Finding, fr, Nil{})),
+            Laws.pick.count(kids, name, quiet),
+            Nat.add(Laws.pick.count(body, name, quiet), Laws.pick.count(rest, name, quiet)),
+            Laws.pick_walk_counts(kids, name, path, quiet),
+            pick.join(fb, List.append(&2, F.Finding, fr, Nil{}), Laws.pick.count(body, name, quiet),
+              Laws.pick.count(rest, name, quiet), Laws.pick_walk_counts(body, name, path, quiet),
+              pick.last(fr, Laws.pick.count(rest, name, quiet), Laws.pick_walk_counts(rest, name, path, quiet))))
+        case Tree.NNil{}:
+          Laws.pick_walk_counts(rest, name, path, quiet)
+        case Tree.NCons{x, y}:
+          Laws.pick_walk_counts(rest, name, path, quiet)
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{open, kids, close}:
+      {==}
+    case Tree.Stmt{kind, kids, body}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# the findings of lists reversed onto ys: the lengths of acc summed onto theirs
+def pick.sum(acc: List<&2, List<&2, F.Finding>>, n: Nat) -> Nat:
+  match acc:
+    case Nil{}:
+      n
+    case Con{h, t}:
+      pick.sum(t, Nat.add(List.length(&2, F.Finding, h), n))
+
+# reversing finding lists onto ys and joining them: acc's lengths onto ys's
+law pick.rev:
+  for acc: List<&2, List<&2, F.Finding>>
+  for +ys: List<&2, List<&2, F.Finding>>
+  {List.length(&2, F.Finding, List.concat(&2, F.Finding, List.reverse.go(&2, List<&2, F.Finding>, acc, ys)))
+    == pick.sum(acc, List.length(&2, F.Finding, List.concat(&2, F.Finding, ys))) : Nat}
+
+def pick.rev(acc, ys):
+  match acc:
+    case Nil{}:
+      {==}
+    case Con{+h, t}:
+      Equal.trans(Nat,
+        List.length(&2, F.Finding, List.concat(&2, F.Finding, List.reverse.go(&2, List<&2, F.Finding>, t, h <> ys))),
+        pick.sum(t, List.length(&2, F.Finding, List.concat(&2, F.Finding, h <> ys))),
+        pick.sum(t, Nat.add(List.length(&2, F.Finding, h), List.length(&2, F.Finding, List.concat(&2, F.Finding, ys)))),
+        pick.rev(t, h <> ys),
+        Equal.cong(Nat, Nat, n => pick.sum(t, n), List.length(&2, F.Finding, List.concat(&2, F.Finding, h <> ys)),
+          Nat.add(List.length(&2, F.Finding, h), List.length(&2, F.Finding, List.concat(&2, F.Finding, ys))),
+          esc.app(h, List.concat(&2, F.Finding, ys))))
+
+# one def's findings, exempt or walked
+law pick.stop:
+  for b: Bool
+  for +body: Tree.Node
+  for +name: String
+  for +path: String
+  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, b, [], _u => Pick.picks(body, name, path, False{})))
+    == Bool.pick(Nat, b, 0n, Laws.pick.count(body, name, False{})) : Nat}
+
+def pick.stop(b, body, name, path):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      Laws.pick_walk_counts(body, name, path, False{})
+
+# pick's def walk: the findings gathered so far, then each def's
+law pick.go:
+  for ds: List<&2, Calls.Def>
+  for +path: String
+  for +acc: List<&2, List<&2, F.Finding>>
+  {List.length(&2, F.Finding, Pick.check.go(ds, path, acc)) == pick.sum(acc, Laws.pick.defs(ds, path)) : Nat}
+
+def pick.go(ds, path, acc):
+  match ds:
+    case Nil{}:
+      pick.rev(acc, Nil{})
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +x = Lazy.stop(List<&2, F.Finding>, Calls.exempt(path, sig), [], _u => Pick.picks(body, name, path, False{}))
+      Equal.trans(Nat, List.length(&2, F.Finding, Pick.check.go(rest, path, x <> acc)),
+        pick.sum(acc, Nat.add(List.length(&2, F.Finding, x), Laws.pick.defs(rest, path))),
+        pick.sum(acc, Nat.add(Bool.pick(Nat, Calls.exempt(path, sig), 0n, Laws.pick.count(body, name, False{})),
+          Laws.pick.defs(rest, path))),
+        pick.go(rest, path, x <> acc),
+        Equal.cong(Nat, Nat, n => pick.sum(acc, Nat.add(n, Laws.pick.defs(rest, path))),
+          List.length(&2, F.Finding, x), Bool.pick(Nat, Calls.exempt(path, sig), 0n, Laws.pick.count(body, name,
+            False{})),
+          pick.stop(Calls.exempt(path, sig), body, name, path)))
+
+def Laws.pick_counts(path, _text, _toks, tree, _bound, _items):
+  pick.go(Calls.defs(tree), path, Nil{})
+
+# `&&` or `||` in a stretch, to the rule and to the law, past one token
+law strict.segk:
+  for k: Lex.TokKind
+  for +t: String
+  for l: U32
+  for c: U32
+  for +rest: Tree.Node
+  for ih: {Strict.seg_op(rest) == Laws.strict.ops(rest) : Bool}
+  {Strict.seg_op(Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, rest})
+    == Laws.strict.ops(Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, rest}) : Bool}
+
+def strict.segk(k, t, _l, _c, rest, ih):
+  match k:
+    case Lex.TName{}:
+      ih
+    case Lex.TUpper{}:
+      ih
+    case Lex.TDotted{}:
+      ih
+    case Lex.TWild{}:
+      ih
+    case Lex.TKey{}:
+      ih
+    case Lex.TNum{}:
+      ih
+    case Lex.TStr{}:
+      ih
+    case Lex.TChar{}:
+      ih
+    case Lex.TComment{}:
+      ih
+    case Lex.TSpace{}:
+      ih
+    case Lex.TNewline{}:
+      ih
+    case Lex.TOp{}:
+      Equal.cong(Bool, Bool, x => Bool.or(Strict.logic(t), x), Strict.seg_op(rest), Laws.strict.ops(rest), ih)
+    case Lex.TColon{}:
+      ih
+    case Lex.TEq{}:
+      ih
+    case Lex.TBind{}:
+      ih
+    case Lex.TArrow{}:
+      ih
+    case Lex.TLam{}:
+      ih
+    case Lex.TAll{}:
+      ih
+    case Lex.TAmp{}:
+      ih
+    case Lex.TOpen{}:
+      ih
+    case Lex.TClose{}:
+      ih
+    case Lex.TComma{}:
+      {==}
+
+# `&&` or `||` in a stretch, to the rule and to the law
+law strict.seg:
+  for nn: Tree.Node
+  {Strict.seg_op(nn) == Laws.strict.ops(nn) : Bool}
+
+def strict.seg(nn):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, +t, l, c}:
+              strict.segk(k, t, l, c, rest, strict.seg(rest))
+        case Tree.Group{open, kids, close}:
+          strict.seg(rest)
+        case Tree.Stmt{kind, kids, body}:
+          strict.seg(rest)
+        case Tree.NNil{}:
+          strict.seg(rest)
+        case Tree.NCons{x, y}:
+          strict.seg(rest)
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{open, kids, close}:
+      {==}
+    case Tree.Stmt{kind, kids, body}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# the walk at a hot the law's count reaches another way
+law strict.hot:
+  for +nn: Tree.Node
+  for +name: String
+  for +path: String
+  for +outer: Bool
+  for +h1: Bool
+  for +h2: Bool
+  for e: {h1 == h2 : Bool}
+  for ih: {List.length(&2, F.Finding, Strict.walk(nn, name, path, outer, h1))
+    == Laws.strict.count(nn, name, outer, h1) : Nat}
+  {List.length(&2, F.Finding, Strict.walk(nn, name, path, outer, h1)) == Laws.strict.count(nn, name, outer, h2) : Nat}
+
+def strict.hot(nn, name, path, outer, h1, h2, e, ih):
+  Equal.trans(Nat, List.length(&2, F.Finding, Strict.walk(nn, name, path, outer, h1)), Laws.strict.count(nn, name,
+    outer, h1), Laws.strict.count(nn, name, outer, h2), ih,
+    Equal.cong(Bool, Nat, hh => Laws.strict.count(nn, name, outer, hh), h1, h2, e))
+
+
+# past a comma: the next stretch is hot in an operand or by its own `&&`/`||`
+law strict.comma:
+  for +rest: Tree.Node
+  for +name: String
+  for +path: String
+  for +outer: Bool
+  for ih: {List.length(&2, F.Finding, Strict.walk(rest, name, path, outer, Bool.or(outer, Strict.seg_op(rest))))
+    == Laws.strict.count(rest, name, outer, Bool.or(outer, Strict.seg_op(rest))) : Nat}
+  {List.length(&2, F.Finding, Strict.walk(rest, name, path, outer, Bool.or(outer, Strict.seg_op(rest))))
+    == Laws.strict.count(rest, name, outer, Bool.or(outer, Laws.strict.ops(rest))) : Nat}
+
+def strict.comma(rest, name, path, outer, ih):
+  strict.hot(rest, name, path, outer, Bool.or(outer, Strict.seg_op(rest)), Bool.or(outer, Laws.strict.ops(rest)),
+    Equal.cong(Bool, Bool, x => Bool.or(outer, x), Strict.seg_op(rest), Laws.strict.ops(rest), strict.seg(rest)), ih)
+
+# past a `=>`: the lambda body is hot only by its own `&&`/`||`
+law strict.lam:
+  for +rest: Tree.Node
+  for +name: String
+  for +path: String
+  for +outer: Bool
+  for ih: {List.length(&2, F.Finding, Strict.walk(rest, name, path, outer, Strict.seg_op(rest)))
+    == Laws.strict.count(rest, name, outer, Strict.seg_op(rest)) : Nat}
+  {List.length(&2, F.Finding, Strict.walk(rest, name, path, outer, Strict.seg_op(rest)))
+    == Laws.strict.count(rest, name, outer, Laws.strict.ops(rest)) : Nat}
+
+def strict.lam(rest, name, path, outer, ih):
+  strict.hot(rest, name, path, outer, Strict.seg_op(rest), Laws.strict.ops(rest), strict.seg(rest), ih)
+
+# is the group after a name an operand: the stretch is hot, or it is the `(`
+# of `Bool.and` or `Bool.or`
+def strict.inner(+hot: Bool, +o: String, +t: String) -> Bool:
+  Bool.or(hot, Bool.and(String.eq(o, "("), Bool.or(String.eq(t, "Bool.and"), String.eq(t, "Bool.or"))))
+
+# a name, then a group: a finding when the name is the def, the group a
+# `(` call and the stretch hot; the group an operand when the name is
+# `Bool.and` or `Bool.or` or the stretch is hot
+law strict.call:
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for ok: Lex.TokKind
+  for +o: String
+  for ol: U32
+  for oc: U32
+  for +kids: Tree.Node
+  for close: Maybe<&2, Lex.Tok>
+  for +r2: Tree.Node
+  for +name: String
+  for +path: String
+  for +outer: Bool
+  for +hot: Bool
+  for ik: {List.length(&2, F.Finding, Strict.walk(kids, name, path, strict.inner(hot, o, t), Bool.or(strict.inner(hot,
+    o, t), Strict.seg_op(kids))))
+      == Laws.strict.count(kids, name, strict.inner(hot, o, t), Bool.or(strict.inner(hot, o, t),
+        Strict.seg_op(kids))) : Nat}
+  for ir: {List.length(&2, F.Finding, Strict.walk(r2, name, path, outer, hot))
+    == Laws.strict.count(r2, name, outer, hot) : Nat}
+  {List.length(&2, F.Finding, Strict.walk(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}},
+    Tree.NCons{Tree.Group{Lex.Tok{ok, o, ol, oc}, kids, close}, r2}}, name, path, outer, hot))
+      == Laws.strict.count(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{ok, o, ol,
+        oc}, kids, close}, r2}}, name, outer, hot) : Nat}
+
+def strict.call(t, l, c, _ok, o, _ol, _oc, kids, _close, r2, name, path, outer, hot, ik, ir):
+  +call = String.eq(o, "(")
+  +inner = strict.inner(hot, o, t)
+  +hk = Bool.or(inner, Strict.seg_op(kids))
+  +fk = Strict.walk(kids, name, path, inner, hk)
+  +fr = Strict.walk(r2, name, path, outer, hot)
+  +ck = Laws.strict.count(kids, name, inner, Bool.or(inner, Laws.strict.ops(kids)))
+  +cr = Laws.strict.count(r2, name, outer, hot)
+  nat.pick(Bool.and(Bool.and(call, String.eq(t, name)), hot),
+    F.Finding{path, l, c, U32.from_nat(String.length(name)), "strict",
+      name ++ " recurses inside Bool.and or Bool.or, so both sides always run and there is no short-circuit; bind the call above."},
+    List.concat(&2, F.Finding, [fk, fr]), Nat.add(ck, cr),
+    pick.join(fk, List.append(&2, F.Finding, fr, Nil{}), ck, cr,
+      strict.hot(kids, name, path, inner, hk, Bool.or(inner, Laws.strict.ops(kids)),
+        Equal.cong(Bool, Bool, x => Bool.or(inner, x), Strict.seg_op(kids), Laws.strict.ops(kids),
+          strict.seg(kids)), ik),
+      pick.last(fr, cr, ir)))
+
+def Laws.strict_walk_counts(nn, name, path, outer, hot):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, +t, +l, +c}:
+              match k:
+                case Lex.TName{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TUpper{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TDotted{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TWild{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TKey{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TNum{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TStr{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TChar{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TComment{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TSpace{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TNewline{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TOp{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TColon{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TEq{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TBind{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TArrow{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TLam{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.lam(rest, name, path, outer, Laws.strict_walk_counts(rest, name, path, outer,
+                                Strict.seg_op(rest)))
+                        case Tree.Leaf{x}:
+                          strict.lam(rest, name, path, outer, Laws.strict_walk_counts(rest, name, path, outer,
+                            Strict.seg_op(rest)))
+                        case Tree.Stmt{kind, kids, body}:
+                          strict.lam(rest, name, path, outer, Laws.strict_walk_counts(rest, name, path, outer,
+                            Strict.seg_op(rest)))
+                        case Tree.NNil{}:
+                          strict.lam(rest, name, path, outer, Laws.strict_walk_counts(rest, name, path, outer,
+                            Strict.seg_op(rest)))
+                        case Tree.NCons{x, y}:
+                          strict.lam(rest, name, path, outer, Laws.strict_walk_counts(rest, name, path, outer,
+                            Strict.seg_op(rest)))
+                    case Tree.Leaf{x}:
+                      strict.lam(rest, name, path, outer, Laws.strict_walk_counts(rest, name, path, outer,
+                        Strict.seg_op(rest)))
+                    case Tree.Group{open, kids, close}:
+                      strict.lam(rest, name, path, outer, Laws.strict_walk_counts(rest, name, path, outer,
+                        Strict.seg_op(rest)))
+                    case Tree.Stmt{kind, kids, body}:
+                      strict.lam(rest, name, path, outer, Laws.strict_walk_counts(rest, name, path, outer,
+                        Strict.seg_op(rest)))
+                    case Tree.NNil{}:
+                      strict.lam(rest, name, path, outer, Laws.strict_walk_counts(rest, name, path, outer,
+                        Strict.seg_op(rest)))
+                case Lex.TAll{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TAmp{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TOpen{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TClose{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.call(t, l, c, ok, o, ol, oc, kids, close, r2, name, path, outer, hot,
+                                  Laws.strict_walk_counts(kids, name, path, strict.inner(hot, o, t),
+                                    Bool.or(strict.inner(hot, o, t), Strict.seg_op(kids))),
+                                  Laws.strict_walk_counts(r2, name, path, outer, hot))
+                        case Tree.Leaf{x}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.Stmt{kind, kids, body}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NNil{}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                        case Tree.NCons{x, y}:
+                          Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Leaf{x}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Group{open, kids, close}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.Stmt{kind, kids, body}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                    case Tree.NNil{}:
+                      Laws.strict_walk_counts(rest, name, path, outer, hot)
+                case Lex.TComma{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              strict.comma(rest, name, path, outer, Laws.strict_walk_counts(rest, name, path, outer,
+                                Bool.or(outer, Strict.seg_op(rest))))
+                        case Tree.Leaf{x}:
+                          strict.comma(rest, name, path, outer, Laws.strict_walk_counts(rest, name, path, outer,
+                            Bool.or(outer, Strict.seg_op(rest))))
+                        case Tree.Stmt{kind, kids, body}:
+                          strict.comma(rest, name, path, outer, Laws.strict_walk_counts(rest, name, path, outer,
+                            Bool.or(outer, Strict.seg_op(rest))))
+                        case Tree.NNil{}:
+                          strict.comma(rest, name, path, outer, Laws.strict_walk_counts(rest, name, path, outer,
+                            Bool.or(outer, Strict.seg_op(rest))))
+                        case Tree.NCons{x, y}:
+                          strict.comma(rest, name, path, outer, Laws.strict_walk_counts(rest, name, path, outer,
+                            Bool.or(outer, Strict.seg_op(rest))))
+                    case Tree.Leaf{x}:
+                      strict.comma(rest, name, path, outer, Laws.strict_walk_counts(rest, name, path, outer,
+                        Bool.or(outer, Strict.seg_op(rest))))
+                    case Tree.Group{open, kids, close}:
+                      strict.comma(rest, name, path, outer, Laws.strict_walk_counts(rest, name, path, outer,
+                        Bool.or(outer, Strict.seg_op(rest))))
+                    case Tree.Stmt{kind, kids, body}:
+                      strict.comma(rest, name, path, outer, Laws.strict_walk_counts(rest, name, path, outer,
+                        Bool.or(outer, Strict.seg_op(rest))))
+                    case Tree.NNil{}:
+                      strict.comma(rest, name, path, outer, Laws.strict_walk_counts(rest, name, path, outer,
+                        Bool.or(outer, Strict.seg_op(rest))))
+        case Tree.Group{open, +kids, close}:
+          +fr = Strict.walk(rest, name, path, outer, hot)
+          +hk = Bool.or(hot, Strict.seg_op(kids))
+          pick.join(Strict.walk(kids, name, path, hot, hk), List.append(&2, F.Finding, fr, Nil{}),
+            Laws.strict.count(kids, name, hot, Bool.or(hot, Laws.strict.ops(kids))), Laws.strict.count(rest, name,
+              outer, hot),
+            strict.hot(kids, name, path, hot, hk, Bool.or(hot, Laws.strict.ops(kids)),
+              Equal.cong(Bool, Bool, x => Bool.or(hot, x), Strict.seg_op(kids), Laws.strict.ops(kids),
+                strict.seg(kids)),
+              Laws.strict_walk_counts(kids, name, path, hot, hk)),
+            pick.last(fr, Laws.strict.count(rest, name, outer, hot), Laws.strict_walk_counts(rest, name, path, outer,
+              hot)))
+        case Tree.Stmt{kind, +kids, +body}:
+          +fb = Strict.walk(body, name, path, False{}, False{})
+          +fr = Strict.walk(rest, name, path, outer, hot)
+          +cb = Laws.strict.count(body, name, False{}, False{})
+          +cr = Laws.strict.count(rest, name, outer, hot)
+          pick.join(Strict.walk(kids, name, path, False{}, Strict.seg_op(kids)),
+            List.append(&2, F.Finding, fb, List.append(&2, F.Finding, fr, Nil{})),
+            Laws.strict.count(kids, name, False{}, Laws.strict.ops(kids)), Nat.add(cb, cr),
+            strict.hot(kids, name, path, False{}, Strict.seg_op(kids), Laws.strict.ops(kids), strict.seg(kids),
+              Laws.strict_walk_counts(kids, name, path, False{}, Strict.seg_op(kids))),
+            pick.join(fb, List.append(&2, F.Finding, fr, Nil{}), cb, cr, Laws.strict_walk_counts(body, name, path,
+              False{}, False{}),
+              pick.last(fr, cr, Laws.strict_walk_counts(rest, name, path, outer, hot))))
+        case Tree.NNil{}:
+          Laws.strict_walk_counts(rest, name, path, outer, hot)
+        case Tree.NCons{x, y}:
+          Laws.strict_walk_counts(rest, name, path, outer, hot)
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{open, kids, close}:
+      {==}
+    case Tree.Stmt{kind, kids, body}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# one def's findings, exempt or walked
+law strict.stop:
+  for +b: Bool
+  for +body: Tree.Node
+  for +name: String
+  for +path: String
+  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, b, [], _u => Strict.walk(body, name, path, False{},
+    False{})))
+    == Bool.pick(Nat, b, 0n, Laws.strict.count(body, name, False{}, False{})) : Nat}
+
+def strict.stop(b, body, name, path):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      Laws.strict_walk_counts(body, name, path, False{}, False{})
+
+# strict's def walk: the findings gathered so far, then each def's
+law strict.go:
+  for ds: List<&2, Calls.Def>
+  for +path: String
+  for +acc: List<&2, List<&2, F.Finding>>
+  {List.length(&2, F.Finding, Strict.check.go(ds, path, acc)) == pick.sum(acc, Laws.strict.defs(ds, path)) : Nat}
+
+def strict.go(ds, path, acc):
+  match ds:
+    case Nil{}:
+      pick.rev(acc, Nil{})
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +x = Lazy.stop(List<&2, F.Finding>, Calls.exempt(path, sig), [], _u => Strict.walk(body, name, path, False{},
+        False{}))
+      +cb = Bool.pick(Nat, Calls.exempt(path, sig), 0n, Laws.strict.count(body, name, False{}, False{}))
+      Equal.trans(Nat, List.length(&2, F.Finding, Strict.check.go(rest, path, x <> acc)),
+        pick.sum(acc, Nat.add(List.length(&2, F.Finding, x), Laws.strict.defs(rest, path))),
+        pick.sum(acc, Nat.add(cb, Laws.strict.defs(rest, path))),
+        strict.go(rest, path, x <> acc),
+        Equal.cong(Nat, Nat, n => pick.sum(acc, Nat.add(n, Laws.strict.defs(rest, path))),
+          List.length(&2, F.Finding, x), cb, strict.stop(Calls.exempt(path, sig), body, name, path)))
+
+def Laws.strict_counts(path, _text, _toks, tree, _bound, _items):
+  strict.go(Calls.defs(tree), path, Nil{})
