@@ -1,7 +1,11 @@
 # rule space: trailing whitespace, a tab, or a line over 120 characters. The
 # width counts a string literal as two characters: a long message or a test
-# fixture does not make a line hard to read, code does. Expectation trailers
-# (`#|` lines) are data and exempt.
+# fixture does not make a line hard to read, code does. A comment counts at
+# its full width. Expectation trailers (`#|` lines) are data and exempt from
+# the width only: trailing whitespace on a `#|` line is still reported. A tab
+# is reported wherever it sits, inside a string literal included. A line
+# with both trailing whitespace and a tab is reported once, for the
+# whitespace.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
