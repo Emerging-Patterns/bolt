@@ -40,6 +40,9 @@ import ./suspicious/unused.bend as Unused
 import ./suspicious/fuel.bend as FuelRule
 import ./style/wrap.bend as Wrap
 import ../../lazy/lazy.bend as Lazy
+import ./laws/law.bend as Coverage
+import ./laws/unsafe.bend as Unsafe
+import ./imports.bend as Imports
 
 # how many tokens are Nat literals of 1000 or more
 def big_count(toks: List<&2, Lex.Tok>) -> Nat:
@@ -2449,6 +2452,277 @@ law wrap_counts:
   for bound: Bind.Bound
   for items: List<&2, Outline.Item>
   {List.length(&2, F.Finding, Wrap.check(Src.Src{path, text, toks, tree, bound, items})) == wrap.count(items) : Nat}
+
+# coverage (BOLT-LAW-1). The rule reads the digests of the files in the run
+# (bolt/rules/digest.bend), and so do these laws: they hold for every list of
+# digests. A digest records, for a LAWS.bend, each use its quantified laws
+# make, as the path and name the use resolves to (`Digest.Mention`); which
+# uses those are is the binder's (BOLT-SYN-5) and Digest.of's, not the
+# rule's. Under law is every file of the run when one of them is a LAWS.bend
+# (BOLT-SCOPE-3), else none.
+
+# the uses name the item: its path and its name
+def coverage.names(ms: List<&2, Digest.Mention>, +pp: String, +name: String) -> Bool:
+  match ms:
+    case Nil{}:
+      False{}
+    case Con{Digest.Mention{mp, mn}, rest}:
+      Bool.or(Bool.and(String.eq(mp, pp), String.eq(mn, name)), coverage.names(rest, pp, name))
+
+# some LAWS.bend among the digests uses the item
+def coverage.used(ds: List<&2, Digest.Digest>, +pp: String, +name: String) -> Bool:
+  match ds:
+    case Nil{}:
+      False{}
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+      Bool.or(Bool.and(is_laws, coverage.names(says, pp, name)), coverage.used(rest, pp, name))
+
+# some LAWS.bend uses one of the names (a type's constructors) in the file
+def coverage.any(ns: List<&2, String>, +ds: List<&2, Digest.Digest>, +pp: String) -> Bool:
+  match ns:
+    case Nil{}:
+      False{}
+    case Con{name, rest}:
+      Bool.or(coverage.used(ds, pp, name), coverage.any(rest, ds, pp))
+
+# the items no LAWS.bend uses, in order: a def whose name has no dot (a
+# helper's has), and a type when neither it nor any of its constructors is
+# used (a use of another def of its file does not count)
+def coverage.gaps(
+  ts: List<&2, Digest.Top>,
+  +ds: List<&2, Digest.Digest>,
+  +pp: String,
+  +path: String
+) -> List<&2, F.Finding>:
+  match ts:
+    case Nil{}:
+      Nil{}
+    case Con{Digest.Top{Outline.IDef{}, +name, +line, cs}, rest}:
+      +more = coverage.gaps(rest, ds, pp, path)
+      Bool.pick(List<&2, F.Finding>, Bool.or(String.contains(name, "."), coverage.used(ds, pp, name)), more,
+        F.Finding{path, line, 0, 0, "coverage", "Def " ++ name ++ " is named by no law."} <> more)
+    case Con{Digest.Top{Outline.IType{}, +name, +line, cs}, rest}:
+      +more = coverage.gaps(rest, ds, pp, path)
+      Bool.pick(List<&2, F.Finding>, Bool.or(coverage.used(ds, pp, name), coverage.any(cs, ds, pp)), more,
+        F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ " is named by no law, nor are its constructors."}
+          <> more)
+    case Con{other, rest}:
+      coverage.gaps(rest, ds, pp, path)
+
+# the gaps of every file of fs not exempt (a law file or a test), against
+# the uses the laws of all record
+def coverage.files(fs: List<&2, Digest.Digest>, +all: List<&2, Digest.Digest>) -> List<&2, F.Finding>:
+  match fs:
+    case Nil{}:
+      Nil{}
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+      match exempt:
+        case True{}:
+          coverage.files(rest, all)
+        case False{}:
+          List.append(&2, F.Finding, coverage.gaps(tops, all, norm, path), coverage.files(rest, all))
+
+# some digest is a LAWS.bend
+def coverage.lawful(ds: List<&2, Digest.Digest>) -> Bool:
+  match ds:
+    case Nil{}:
+      False{}
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+      Bool.or(is_laws, coverage.lawful(rest))
+
+# LAW: over every list of digests, coverage reports exactly this: when one
+# is a LAWS.bend, in every file that is not a law file or a test, each def
+# with no dot in its name that no LAWS.bend's quantified laws use, and each
+# type they use neither by name nor by a constructor; else nothing
+# BOLT-LAW-1
+law coverage_reports:
+  for +ds: List<&2, Digest.Digest>
+  {Coverage.check(ds) == Bool.pick(List<&2, F.Finding>, coverage.lawful(ds), coverage.files(ds, ds), [])
+    : List<&2, F.Finding>}
+
+# unsafe (BOLT-LAW-3). Over every list of digests, as coverage's laws are.
+# A digest records a file's relative imports (normalized, `deps`) and its
+# `@unsafe def`s; the import graph is theirs, and the closure a law file
+# reaches over it is Imports.closure.go's, the walk every project rule
+# shares.
+
+# every file of the digests the file at from reaches by relative imports,
+# itself first, as the closure walk takes it
+def unsafe.closure(+all: List<&2, Digest.Digest>, from: String) -> List<&2, String>:
+  Imports.closure.go(Digest.edges(all), Imports.paths(Digest.edges(all)), List.length(&2, Digest.Digest, all), from)
+
+# the path of the first law file among ls (a LAWS.bend or a PROOF.bend)
+# whose closure over all holds the path pp
+def unsafe.origin(ls: List<&2, Digest.Digest>, +all: List<&2, Digest.Digest>, +pp: String) -> Maybe<&2, String>:
+  match ls:
+    case Nil{}:
+      None{}
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+      +more = unsafe.origin(rest, all, pp)
+      Bool.pick(Maybe<&2, String>, Bool.and(is_law_file, Imports.has(unsafe.closure(all, norm), pp)), Some{path}, more)
+
+# one finding for each `@unsafe def`, at its `@`, naming the law file
+def unsafe.each(us: List<&2, Digest.Unsafe>, +origin: String, +path: String) -> List<&2, F.Finding>:
+  match us:
+    case Nil{}:
+      Nil{}
+    case Con{Digest.Unsafe{n, l, c}, rest}:
+      F.Finding{path, l, c, 7, "unsafe", "@unsafe def " ++ n ++ " is reached from " ++ origin
+        ++ "; the checker only warns there and exits 0. Recurse on a shrinking argument or fuel."}
+        <> unsafe.each(rest, origin, path)
+
+# a file's unsafe defs when a law file reaches it, else nothing
+def unsafe.at(mm: Maybe<&2, String>, us: List<&2, Digest.Unsafe>, path: String) -> List<&2, F.Finding>:
+  match mm:
+    case None{}:
+      Nil{}
+    case Some{origin}:
+      unsafe.each(us, origin, path)
+
+# the findings of every file of fs, in order, against the law files of all
+def unsafe.files(fs: List<&2, Digest.Digest>, +all: List<&2, Digest.Digest>) -> List<&2, F.Finding>:
+  match fs:
+    case Nil{}:
+      Nil{}
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+      List.append(&2, F.Finding, unsafe.at(unsafe.origin(all, all, norm), unsafes, path), unsafe.files(rest, all))
+
+# LAW: over every list of digests, unsafe reports exactly each `@unsafe def`
+# of each file that the closure of some law file holds, in file order, and
+# names the first such law file
+# BOLT-LAW-3
+law unsafe_reports:
+  for +ds: List<&2, Digest.Digest>
+  {Unsafe.check(ds) == unsafe.files(ds, ds) : List<&2, F.Finding>}
+
+# The recursion rule, hoist. It reads each def of the file whose body calls
+# its own name and that is not a law or a proof, and walks that body as
+# chains: a `=>` token makes the rest of its chain cold, a case's pattern is
+# cold, and a case arm's body stays hot only when it calls the def; the rest
+# keeps the heat it came in with, and the def's body starts hot. On a hot
+# path it reports each call, a name token then a `(` group, that is a
+# `List.get` / `List.set` (collection argument 2), `String.get` (0) or
+# `Array.get` / `Array.set` (1) whose collection is a table, and each
+# statement that is not a case, whose tokens before its first `=` hold exactly
+# one lowercase name and no constructor or group, whose right side is a
+# table, and whose name is indexed (`name[..]`, or a get or set's collection,
+# bare or in parentheses) anywhere in its own block or the statements after
+# it. A table is the rule's own recognizer (`is_table`): a list literal with
+# eight or more top-level commas, an array literal `[v : T*n]` or `[v : T^d]`
+# whose size is not a literal 0 to 8 after `*` or 0 to 3 after `^` (2^d
+# slots), a `List.replicate` / `Array.new` / `List.range` whose count is not
+# such a literal, a `List.map` / `Array.map`, or a call to a def of the file
+# (not an undotted self-call) whose body is one constant-size table of that
+# width (`wide_defs`); in every case
+# with each value name under it (callees, `~` templates, dotted names and
+# types aside) a parameter that every self-call passes back as that same lone
+# name in its own position.
+
+# does a get or set's collection argument, at its slot, hold a table?
+def hoist.slot(
+  ss: Hoist.Slot,
+  +as: List<&2, Tree.Node>,
+  +self: String,
+  +wides: List<&2, String>,
+  +carried: List<&2, String>
+) -> Bool:
+  match ss:
+    case Hoist.Slot{on, at}:
+      Bool.and(on, Hoist.is_table(Calls.arg(as, at), self, wides, carried))
+
+# does a call site report: hot, a `(` group, and a get or set on a table
+def hoist.call(
+  +hot: Bool,
+  +open: Bool,
+  +tt: String,
+  kids: Tree.Node,
+  +self: String,
+  +wides: List<&2, String>,
+  +carried: List<&2, String>
+) -> Bool:
+  Bool.and(hot, Bool.and(open, hoist.slot(Hoist.slot_of(tt), Calls.args(kids), self, wides, carried)))
+
+# a plain let's name and right side: a table, and the name indexed afterwards
+def hoist.got(
+  mm: Maybe<&2, Hoist.Got>,
+  +body: Tree.Node,
+  +rest: Tree.Node,
+  +self: String,
+  +wides: List<&2, String>,
+  +carried: List<&2, String>
+) -> Bool:
+  match mm:
+    case None{}:
+      False{}
+    case Some{Hoist.Got{+nm, +expr}}:
+      Bool.and(Hoist.is_table(expr, self, wides, carried), Hoist.uses_or(body, rest, nm))
+
+# does a statement report: hot, and a plain let of a table indexed afterwards
+def hoist.let(
+  +hot: Bool,
+  kids: Tree.Node,
+  +body: Tree.Node,
+  +rest: Tree.Node,
+  +self: String,
+  +wides: List<&2, String>,
+  +carried: List<&2, String>
+) -> Bool:
+  Bool.and(hot, hoist.got(Hoist.eat(kids, False{}, False{}, ""), body, rest, self, wides, carried))
+
+# how many calls and lets hoist reports under the node, entered hot or cold
+def hoist.count(
+  nn: Tree.Node,
+  +self: String,
+  +wides: List<&2, String>,
+  +carried: List<&2, String>,
+  +hot: Bool
+) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
+      +heat = Hoist.warm(hot, k)
+      Nat.add(Bool.pick(Nat, hoist.call(heat, String.eq(o, "("), t, kids, self, wides, carried), 1n, 0n),
+        Nat.add(hoist.count(kids, self, wides, carried, heat), hoist.count(rest, self, wides, carried, heat)))
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, rest}:
+      hoist.count(rest, self, wides, carried, Hoist.warm(hot, k))
+    case Tree.NCons{Tree.Group{o, kids, cl}, rest}:
+      Nat.add(hoist.count(kids, self, wides, carried, hot), hoist.count(rest, self, wides, carried, hot))
+    case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, +body}, rest}:
+      Nat.add(hoist.count(kids, self, wides, carried, False{}),
+        Nat.add(hoist.count(body, self, wides, carried, Bool.and(hot, Calls.calls(body, self))),
+          hoist.count(rest, self, wides, carried, hot)))
+    case Tree.NCons{Tree.Stmt{kind, +kids, +body}, +rest}:
+      Nat.add(Bool.pick(Nat, hoist.let(hot, kids, body, rest, self, wides, carried), 1n, 0n),
+        Nat.add(hoist.count(kids, self, wides, carried, hot),
+          Nat.add(hoist.count(body, self, wides, carried, hot), hoist.count(rest, self, wides, carried, hot))))
+    case Tree.NCons{h, rest}:
+      hoist.count(rest, self, wides, carried, hot)
+    case other:
+      0n
+
+# how many hoist reports over the defs: those in each def that calls itself
+# and is not a law or a proof, walked hot, with its carried parameters
+def hoist.total(ds: List<&2, Calls.Def>, +wides: List<&2, String>, +path: String) -> Nat:
+  match ds:
+    case Nil{}:
+      0n
+    case Con{Calls.Def{+name, +sig, +body}, rest}:
+      Nat.add(Bool.pick(Nat, Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig))),
+        hoist.count(body, name, wides, Hoist.carried(sig, body, name), True{}), 0n), hoist.total(rest, wides, path))
+
+# LAW: hoist reports one finding for each call and each let the walk above
+# counts, in each def that calls itself and is not a law or a proof, with
+# the file's defs whose body is one wide constant-size table as builders;
+# none for anything else
+# BOLT-RULE-U009
+law hoist_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Hoist.check(Src.Src{path, text, toks, tree, bound, items}))
+    == hoist.total(Calls.defs(tree), Hoist.wide_defs(Calls.defs(tree), []), path) : Nat}
 
 # Scope: a path exemption is decided by the path alone. The `law` rule lets
 # off a file by its digest's `exempt` flag, and a per-file rule's header
