@@ -218,7 +218,8 @@ beside the groups.
   `Bool.pick` branch beside a self-call is still the step.
 - `put` — `Map.put`. It is Base's internal helper: at a leaf it keeps the old
   key and replaces the value without comparing, so a new key silently
-  overwrites another entry. `Map.set` compares.
+  overwrites another entry. `Map.set` compares. A file that defines
+  `Map.put` (`def Map.put`, Base's own source) is exempt.
 - `escape` — `\0` then a digit in a literal (`"\033"`). Bend has no octal
   escape: that is NUL followed by the digits. Write `\u{1B}`.
 - `nat` — a `Nat` literal of 1000 or more. `Nat` is unary, so `4294967295n`

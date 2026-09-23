@@ -1,8 +1,10 @@
-# rule put: a call to `Map.put(`. Base's Map.put is an internal helper of
-# Map.set: on a leaf it keeps the old key and replaces the value without
+# rule put: a call to `Map.put(`: among the significant tokens, a `Map.put`
+# token with a `(` token right after it. Base's Map.put is an internal helper
+# of Map.set: on a leaf it keeps the old key and replaces the value without
 # comparing keys, so putting a new key silently overwrites another entry
 # (bend-http c91bdf8: "b" into a map of "a" replaced "a"). Use Map.set. A
-# file that defines Map.put itself (Base's source) is exempt.
+# file that defines Map.put itself (Base's source), a `def` keyword with a
+# `Map.put` token right after it, is exempt.
 import Base
 import ../../src.bend as Src
 import ../../../lazy/lazy.bend as Lazy
@@ -10,11 +12,19 @@ import ../../finding.bend as F
 import ../../../syntax/lex.bend as Lex
 import ../tokens.bend as T
 
-# does the file define Map.put?
+# is the first token `Map.put`?
+def defines.named(toks: List<&2, Lex.Tok>) -> Bool:
+  match toks:
+    case Con{Lex.Tok{k, +t, l, c}, rest}:
+      String.eq(t, "Map.put")
+    case Nil{}:
+      False{}
+
+# does the file define Map.put: a `def` keyword right before a `Map.put`?
 def defines(toks: List<&2, Lex.Tok>) -> Bool:
   match toks:
-    case Con{Lex.Tok{Lex.TKey{}, +d, l, c}, Con{Lex.Tok{k, +t, l2, c2}, rest}}:
-      Lazy.or_else(Bool.and(String.eq(d, "def"), String.eq(t, "Map.put")), _u => defines(rest))
+    case Con{Lex.Tok{Lex.TKey{}, +d, l, c}, +rest}:
+      Lazy.or_else(Bool.and(String.eq(d, "def"), defines.named(rest)), _u => defines(rest))
     case Con{h, rest}:
       defines(rest)
     case Nil{}:
