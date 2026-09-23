@@ -5,6 +5,8 @@ import Base
 import ./config.bend as Config
 import ./finding.bend as F
 import ./rules.bend as Rules
+import ./codes.bend as Codes
+import ../lazy/lazy.bend as Lazy
 
 # LAW: nothing is set in an empty config
 # BOLT-CFG-1
@@ -139,3 +141,68 @@ law opt_in_off:
   for h_opt: {Config.opt_in(rule) == True{} : Bool}
   for h_rule: {Config.set_level(sets, rule) == None{} : Maybe<&2, Config.Level>}
   {Config.level(Config.Config{sets}, group, rule) == Config.Off{} : Config.Level}
+
+# The code table and the printed line (BOLT-OUT). The table is finite, so
+# its laws quantify over every index into it: the row there, looked up again
+# by its slug and by its code, is the same row.
+
+# the row at an index, looked up again by its slug; none stays none
+def by_slug(mm: Maybe<&2, Codes.Entry>) -> Maybe<&2, Codes.Entry>:
+  match mm:
+    case None{}:
+      None{}
+    case Some{Codes.Entry{+s, _id, _grp}}:
+      Codes.find(Codes.table(), s)
+
+# this row carries the code
+def by_code.same(+row: Codes.Entry, +id: String) -> Bool:
+  Codes.Entry{_s, +rid, _grp} = row
+  String.eq(rid, id)
+
+# the first row with the code
+def by_code(rows: List<&2, Codes.Entry>, +id: String) -> Maybe<&2, Codes.Entry>:
+  match rows:
+    case Nil{}:
+      None{}
+    case Con{+row, rest}:
+      Lazy.stop(Maybe<&2, Codes.Entry>, by_code.same(row, id), Some{row}, _u => by_code(rest, id))
+
+# the row at an index, looked up again by its code; none stays none
+def code_back(mm: Maybe<&2, Codes.Entry>) -> Maybe<&2, Codes.Entry>:
+  match mm:
+    case None{}:
+      None{}
+    case Some{Codes.Entry{_s, +id, _grp}}:
+      by_code(Codes.table(), id)
+
+# LAW: every row of the code table is the row its own slug finds, so no slug
+# is listed twice and `code`, `group` and `source` read each rule's own row
+# BOLT-OUT-1
+law slug_finds_row:
+  for +n: Nat
+  {by_slug(List.get(&2, Codes.Entry, Codes.table(), n)) == List.get(&2, Codes.Entry, Codes.table(), n)
+    : Maybe<&2, Codes.Entry>}
+
+# LAW: every row of the code table is the row its own code finds, so no code
+# is listed twice: with slug_finds_row, slugs and codes are one-to-one
+# BOLT-OUT-1
+law code_finds_row:
+  for +n: Nat
+  {code_back(List.get(&2, Codes.Entry, Codes.table(), n)) == List.get(&2, Codes.Entry, Codes.table(), n)
+    : Maybe<&2, Codes.Entry>}
+
+# LAW: a graded finding prints as `path:line:col: level: CODE: message`, line
+# and column counted from 1, the level as the config shows it and the code
+# the table's for the finding's rule
+# BOLT-OUT-2
+law shown:
+  for path: String
+  for line: U32
+  for col: U32
+  for len: U32
+  for rule: String
+  for msg: String
+  for level: Config.Level
+  {F.show_graded(F.Graded{level, F.Finding{path, line, col, len, rule, msg}})
+    == path ++ ":" ++ U32.show((line + 1 : U32)) ++ ":" ++ U32.show((col + 1 : U32)) ++ ": "
+      ++ Config.show(level) ++ ": " ++ Codes.code(rule) ++ ": " ++ msg : String}
