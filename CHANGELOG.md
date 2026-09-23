@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/Emerging-Patterns/bolt/compare/v1.0.3...v1.1.0) (2026-09-23)
+
+
+### Features
+
+* **trace:** SPEC.md and the laws agree (L005) ([#55](https://github.com/Emerging-Patterns/bolt/issues/55)) ([21f7e27](https://github.com/Emerging-Patterns/bolt/commit/21f7e271608e3b89dfcf28834e68f601383b1261))
+
 ## [1.0.3](https://github.com/Emerging-Patterns/bolt/compare/v1.0.2...v1.0.3) (2026-09-23)
 
 
