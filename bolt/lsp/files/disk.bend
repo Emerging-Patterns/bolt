@@ -3,6 +3,7 @@
 import Base
 import ./service.bend as S
 import ../frame.bend as Frame
+import ../../walk/disk.bend as WalkDisk
 
 def slurp.end(file: File, acc: List<&2, U32>) -> IO(Maybe<&2, String>):
   do IO<Maybe<&2, String>>:
@@ -77,6 +78,10 @@ def base_path(_u: Unit) -> IO(String):
     r : Result<&1, &1, U32 & String, String> <- IO.get_env("HOME")
     base_path.of(r)
 
+# the working directory, as the lint's walk names it
+def cwd(_u: Unit) -> IO(String):
+  WalkDisk.cwd(Unit{})
+
 # the real file system
 def new() -> S.Files:
-  S.Files{read, base_path}
+  S.Files{read, base_path, cwd}
