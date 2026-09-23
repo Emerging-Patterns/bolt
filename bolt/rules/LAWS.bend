@@ -28,6 +28,8 @@ import ./suspicious/index.bend as Index
 import ./suspicious/ring.bend as Ring
 import ./suspicious/table.bend as Table
 import ./suspicious/unit.bend as UnitRule
+import ./correctness/chars.bend as Chars
+import ./correctness/strings.bend as Strings
 
 # how many tokens are Nat literals of 1000 or more
 def big_count(toks: List<&2, Lex.Tok>) -> Nat:
@@ -550,3 +552,109 @@ law unit_exempt:
   for items: List<&2, Outline.Item>
   for e: {Paths.is_law_file(path) == True{} : Bool}
   {UnitRule.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# The match rules, chars and strings. Each walks every statement of the tree
+# at any depth; a match is read by the case statements of its body, and a
+# case by the first node of its pattern, the node after `case` (the first
+# match column). Nothing else in the tree counts.
+
+# does a statement's kids open with the `match` keyword?
+def chars.is_match(kids: Tree.Node) -> Bool:
+  match kids:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TKey{}, +t, l, c}}, rest}:
+      String.eq(t, "match")
+    case other:
+      False{}
+
+# one when a case statement's first match column opens with a char literal,
+# else zero
+def chars.opens(kids: Tree.Node) -> U32:
+  match kids:
+    case Tree.NCons{k, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TChar{}, t, l, c}}, rest}}:
+      1
+    case other:
+      0
+
+# acc and the case statements among a match body's statements that open
+# with a char literal
+def chars.arms(body: Tree.Node, +acc: U32) -> U32:
+  match body:
+    case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, b}, rest}:
+      chars.arms(rest, (acc + chars.opens(kids) : U32))
+    case Tree.NCons{h, rest}:
+      chars.arms(rest, acc)
+    case other:
+      acc
+
+# how many statements, at any depth, are a match with more than eight arms
+# opening with a char literal
+def chars.count(nn: Tree.Node) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Stmt{kind, +kids, +body}, rest}:
+      Nat.add(Bool.pick(Nat, Bool.and(chars.is_match(kids), U32.is_gt(chars.arms(body, 0), 8)), 1n, 0n),
+        Nat.add(chars.count(body), chars.count(rest)))
+    case Tree.NCons{h, rest}:
+      chars.count(rest)
+    case other:
+      0n
+
+# LAW: chars reports one finding for each match, at any depth, with more than
+# eight case arms whose first match column opens with a char literal, and
+# none for anything else: a literal later in a pattern or in a later column
+# does not count
+# BOLT-RULE-C009
+law chars_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Chars.check(Src.Src{path, text, toks, tree, bound, items})) == chars.count(tree)
+    : Nat}
+
+# the chars between the quotes of the string a case statement's first match
+# column opens with, when it does and the string is closed, else zero
+def strings.size(kids: Tree.Node) -> U32:
+  match kids:
+    case Tree.NCons{k, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TStr{}, +t, l, c}}, rest}}:
+      Bool.pick(U32, Strings.terminated(t), (U32.from_nat(String.length(t)) - 2 : U32), 0)
+    case other:
+      0
+
+# acc and the chars of the closed string arms among a match body's statements
+def strings.total(body: Tree.Node, +acc: U32) -> U32:
+  match body:
+    case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, b}, rest}:
+      strings.total(rest, (acc + strings.size(kids) : U32))
+    case Tree.NCons{h, rest}:
+      strings.total(rest, acc)
+    case other:
+      acc
+
+# how many statements, at any depth, are a match whose closed string arms
+# total over 64 chars
+def strings.count(nn: Tree.Node) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Stmt{kind, +kids, +body}, rest}:
+      Nat.add(Bool.pick(Nat, Bool.and(chars.is_match(kids), U32.is_gt(strings.total(body, 0), 64)), 1n, 0n),
+        Nat.add(strings.count(body), strings.count(rest)))
+    case Tree.NCons{h, rest}:
+      strings.count(rest)
+    case other:
+      0n
+
+# LAW: strings reports one finding for each match, at any depth, whose case
+# arms opening their first match column with a closed string literal total
+# over 64 chars between their quotes, and none for anything else: an
+# unclosed string or one in a later column does not count
+# BOLT-RULE-C008
+law strings_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Strings.check(Src.Src{path, text, toks, tree, bound, items})) == strings.count(tree)
+    : Nat}
