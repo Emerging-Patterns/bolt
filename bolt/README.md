@@ -316,10 +316,14 @@ line with [shake](https://github.com/Emerging-Patterns/shake)
 (`import 0x65bf91e14c96bf0c25491d716ec9f68c/main.bend`) and dispatches on
 the selected command; a first word that names no subcommand is a file, so
 `bolt a.bend b.bend` lints those files, and with no files at all `bolt`
-lints every `.bend` file under the current directory
-(`glob.bend`, which never descends into a hidden directory or
-`node_modules`, and reads a directory through the `walk/` service — a
-foreign effect, `dir.c` and `dir.js`). `bolt help` prints usage. A run
+lints every `.bend` file under the current directory (the walk in
+`lint/plan.bend`, which never descends into a hidden directory or
+`node_modules`). The lint is a pure planner, `lint/plan.bend`, over a
+World of answers, `lint/world.bend`, and a thin interpreter, `lint.bend`,
+that answers the planner's questions (a directory listed through the
+`walk/` service, a foreign effect in `dir.c` and `dir.js`; a file read
+through `lsp/files/`) until it asks for nothing more, then prints the
+plan's lines and exits with its status. `bolt help` prints usage. A run
 that found errors exits 1. Bend's runtime takes its own flags out of the
 line before the program sees it, so `bolt lsp` reaches `main` as `lsp`.
 With no `--gpu` that launch is `--gpu off` (the cores); `--gpu on` or
