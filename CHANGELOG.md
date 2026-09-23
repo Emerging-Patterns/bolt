@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/Emerging-Patterns/bolt/compare/v1.0.1...v1.0.2) (2026-09-23)
+
+
+### Bug Fixes
+
+* **law:** only a quantified law in a LAWS.bend covers a def ([#52](https://github.com/Emerging-Patterns/bolt/issues/52)) ([88895f0](https://github.com/Emerging-Patterns/bolt/commit/88895f03f81e7d1e88680b3604c5e60a4601910a))
+
 ## [1.0.1](https://github.com/Emerging-Patterns/bolt/compare/v1.0.0...v1.0.1) (2026-09-22)
 
 
