@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/Emerging-Patterns/bolt/compare/v1.2.1...v1.2.2) (2026-09-23)
+
+
+### Bug Fixes
+
+* **rules:** pick reports a pick in another's condition, strict stops at =&gt;, and prove both (BOLT-RULE-C003, U002) ([#120](https://github.com/Emerging-Patterns/bolt/issues/120)) ([75f9c23](https://github.com/Emerging-Patterns/bolt/commit/75f9c23087fdaf54f962b5a5d855b754c12c97ca))
+
 ## [1.2.1](https://github.com/Emerging-Patterns/bolt/compare/v1.2.0...v1.2.1) (2026-09-23)
 
 

@@ -35,6 +35,8 @@ import ./correctness/foreign.bend as Foreign
 import ./tokens.bend as T
 import ./correctness/arms.bend as Arms
 import ./correctness/twice.bend as Twice
+import ./laws/closed.bend as Closed
+import ./suspicious/unused.bend as Unused
 
 # how many tokens are Nat literals of 1000 or more
 def big_count(toks: List<&2, Lex.Tok>) -> Nat:
@@ -1238,6 +1240,491 @@ law strict_counts:
   for items: List<&2, Outline.Item>
   {List.length(&2, F.Finding, Strict.check(Src.Src{path, text, toks, tree, bound, items}))
     == strict.defs(Calls.defs(tree), path) : Nat}
+
+# closed (BOLT-LAW-2). Over the file's top-level statements the rule reports
+# each law whose body holds no `for` or `exs` line (the tree's SFor
+# statement), and it reads only a LAWS.bend.
+
+# some statement of a law's body is a `for` or `exs` binder
+def closed.bound(body: Tree.Node) -> Bool:
+  match body:
+    case Tree.NCons{Tree.Stmt{Tree.SFor{}, kids, b}, rest}:
+      True{}
+    case Tree.NCons{h, rest}:
+      closed.bound(rest)
+    case other:
+      False{}
+
+# how many of the top-level laws bind nothing
+def closed.count(root: Tree.Node) -> Nat:
+  match root:
+    case Tree.NCons{Tree.Stmt{Tree.SLaw{}, kids, +body}, rest}:
+      +m = closed.count(rest)
+      Bool.pick(Nat, closed.bound(body), m, 1n+m)
+    case Tree.NCons{h, rest}:
+      closed.count(rest)
+    case other:
+      0n
+
+# LAW: over the file's top-level statements, closed reports one finding for
+# each law with no `for` or `exs` binder, equality or not, and none for any
+# other statement
+# BOLT-LAW-2
+law closed_walk_counts:
+  for root: Tree.Node
+  for +path: String
+  {List.length(&2, F.Finding, Closed.check.go(root, path)) == closed.count(root) : Nat}
+
+# LAW: closed reports exactly those laws of a LAWS.bend, and nothing in any
+# other file, whatever the source holds
+# BOLT-LAW-2
+law closed_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Closed.check(Src.Src{path, text, toks, tree, bound, items}))
+    == Bool.pick(Nat, Paths.is_laws(path), closed.count(tree), 0n) : Nat}
+
+# doc (BOLT-RULE-S001). Over the outline's items the rule reports each def,
+# type and law with no comment block right above it: its outline doc text is
+# empty and the line right above it does not start with `#` (a block of bare
+# `#` lines has an empty text). The header's exemptions: a name that is
+# `main` or holds a dot (a helper), and a PROOF.bend or a file under a
+# `tests` directory.
+
+# a def, a type or a law: the kinds that need a comment
+def doc.kind(kk: Outline.ItemKind) -> Bool:
+  match kk:
+    case Outline.IDef{}:
+      True{}
+    case Outline.IType{}:
+      True{}
+    case Outline.ILaw{}:
+      True{}
+    case other:
+      False{}
+
+# `main`, or a helper: a name holding a dot
+def doc.free(+name: String) -> Bool:
+  Bool.or(String.eq(name, "main"), String.contains(name, "."))
+
+# line nn of the lines (0-based) starts with `#`
+def doc.hash(lines: List<&2, String>, +nn: U32) -> Bool:
+  match lines:
+    case Nil{}:
+      False{}
+    case Con{hh, tt}:
+      Bool.pick(Bool, U32.is_eq(nn, 0), String.starts_with(hh, "#"), doc.hash(tt, U32.sub(nn, 1)))
+
+# an item that needs a comment and has none: an unexempt def, type or law
+# whose doc text is empty and whose line has no `#` line right above it
+def doc.bare(kk: Outline.ItemKind, +name: String, +line: U32, +doc: String, +lines: List<&2, String>) -> Bool:
+  Bool.and(Bool.and(Bool.and(doc.kind(kk), Bool.not(doc.free(name))), String.is_empty(doc)),
+    Bool.not(Bool.and(Bool.not(U32.is_eq(line, 0)), doc.hash(lines, U32.sub(line, 1)))))
+
+# how many items need a comment and have none
+def doc.count(items: List<&2, Outline.Item>, +lines: List<&2, String>) -> Nat:
+  match items:
+    case Nil{}:
+      0n
+    case Con{Outline.Item{kk, +name, +line, sig, +doc, pp}, rest}:
+      +m = doc.count(rest, lines)
+      Bool.pick(Nat, doc.bare(kk, name, line, doc, lines), 1n+m, m)
+
+# LAW: over the outline's items, doc reports one finding for each def, type
+# or law not named `main` and holding no dot whose doc text is empty and
+# whose line has no `#` line right above it, and none for any other item
+# BOLT-RULE-S001
+law doc_walk_counts:
+  for items: List<&2, Outline.Item>
+  for +path: String
+  for +lines: List<&2, String>
+  {List.length(&2, F.Finding, Doc.check.go(items, path, lines)) == doc.count(items, lines) : Nat}
+
+# LAW: doc reports exactly those items of the file, read against its lines,
+# and nothing in a PROOF.bend or a file under a `tests` directory
+# BOLT-RULE-S001
+law doc_counts:
+  for +path: String
+  for +text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Doc.check(Src.Src{path, text, toks, tree, bound, items}))
+    == Bool.pick(Nat, Bool.or(Paths.is_proof(path), Paths.is_test(path)), 0n, doc.count(items, String.lines(text)))
+    : Nat}
+
+# The binding rule, unused. It reads the binder's lists: every binder, and
+# every use with what it resolves to. A binder counts when it is a let, a
+# do-bind or a lambda binder (KLocal), or a parameter (KParam) that is not
+# erased (its declaration opens with `-`) and does not sit on a header line
+# of a foreign def; its name does not start with `_`; and no use resolves to
+# its position. Pattern binders (KPat), a law's `for` names (KFor) and every
+# other kind never count.
+
+# does a def's body open with an import statement? then the def is foreign
+def unused.imported(body: Tree.Node) -> Bool:
+  match body:
+    case Tree.NCons{Tree.Stmt{Tree.SImport{}, kids, b}, rest}:
+      True{}
+    case other:
+      False{}
+
+# the line of each token
+def unused.token_lines(ts: List<&2, Lex.Tok>) -> List<&2, U32>:
+  match ts:
+    case Nil{}:
+      Nil{}
+    case Con{Lex.Tok{k, t, +l, c}, rest}:
+      l <> unused.token_lines(rest)
+
+# every line a foreign def's header covers, however it is wrapped: the lines
+# of its own tokens, def by def
+def unused.headers(root: Tree.Node) -> List<&2, U32>:
+  match root:
+    case Tree.NCons{Tree.Stmt{Tree.SDef{}, kids, body}, rest}:
+      +more = unused.headers(rest)
+      Bool.pick(List<&2, U32>, unused.imported(body),
+        List.append(&2, U32, unused.token_lines(Tree.leaves(kids)), more), more)
+    case Tree.NCons{h, rest}:
+      unused.headers(rest)
+    case other:
+      Nil{}
+
+# does a use's target name the binder at (line, col)?
+def unused.names(tg: Bind.Target, +line: U32, +col: U32) -> Bool:
+  match tg:
+    case Bind.TLocal{tl, tc}:
+      Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col))
+    case Bind.TItem{n}:
+      False{}
+    case Bind.TQual{a, n}:
+      False{}
+    case Bind.TFree{}:
+      False{}
+
+# does any use resolve to the binder at (line, col)?
+def unused.seen(uses: List<&2, Bind.Use>, +line: U32, +col: U32) -> Bool:
+  match uses:
+    case Nil{}:
+      False{}
+    case Con{Bind.Use{n, l, c, tg}, rest}:
+      Bool.or(unused.names(tg, line, col), unused.seen(rest, line, col))
+
+# is a binder of this kind one the rule speaks for? A let, do-bind or lambda
+# binder is; a parameter is unless erased or on a foreign header line;
+# nothing else is
+def unused.kept(kk: Bind.BindKind, +note: String, +line: U32, +fl: List<&2, U32>) -> Bool:
+  match kk:
+    case Bind.KItem{}:
+      False{}
+    case Bind.KCtor{}:
+      False{}
+    case Bind.KParam{}:
+      Bool.and(Bool.not(String.starts_with(note, "-")), Bool.not(List.contains(~U32, ~U32.is_eq, fl, line)))
+    case Bind.KTypeParam{}:
+      False{}
+    case Bind.KField{}:
+      False{}
+    case Bind.KLocal{}:
+      True{}
+    case Bind.KPat{}:
+      False{}
+    case Bind.KFor{}:
+      False{}
+    case Bind.KTypeVar{}:
+      False{}
+
+# how many binders count, are not named `_..`, and have no use
+def unused.count(binds: List<&2, Bind.Bind>, +uses: List<&2, Bind.Use>, +fl: List<&2, U32>) -> Nat:
+  match binds:
+    case Nil{}:
+      0n
+    case Con{Bind.Bind{+name, +line, +col, kk, +note}, rest}:
+      +m = unused.count(rest, uses, fl)
+      Bool.pick(Nat, Bool.and(Bool.and(unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+        Bool.not(unused.seen(uses, line, col))), 1n+m, m)
+
+# LAW: unused reports one finding for each let, do-bind, lambda binder or
+# parameter no use resolves to, and none for any other binder: not a pattern
+# binder, a name starting with `_`, an erased parameter, a law's `for` name,
+# or a parameter of a foreign def (one whose body opens with `import`),
+# however its header is wrapped
+# BOLT-RULE-U001
+law unused_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for binds: List<&2, Bind.Bind>
+  for +uses: List<&2, Bind.Use>
+  for scopes: List<&2, Bind.Scope>
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Unused.check(Src.Src{path, text, toks, tree, Bind.Bound{binds, uses, scopes}, items}))
+    == unused.count(binds, uses, unused.headers(tree)) : Nat}
+
+# The recursion rule, index. It reads each def of the file whose body calls
+# its own name and that is not a law or a proof, and every call in that body
+# at any depth: a name token, then a group. A `String.get(..)` whose index
+# (argument 1) is not one number token is a finding. So is a `List.get(..)`
+# whose index (argument 3) is not one number token, unless `table` reports
+# that same call: its fixed-table test, over the tables it finds in that def.
+
+# is the chain exactly one number token?
+def index.lit(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, t, l, c}}, Tree.NNil{}}:
+      True{}
+    case other:
+      False{}
+
+# does a call report, given whether its name is List.get (list) or
+# String.get (sget), whether its group opens with `(` (ob), its arguments,
+# and what `table` reports for it?
+def index.fires(list: Bool, +ob: Bool, +sget: Bool, +as: List<&2, Tree.Node>, table: List<&2, F.Finding>) -> Bool:
+  match list:
+    case True{}:
+      Bool.and(ob, Bool.and(Bool.not(index.lit(Calls.arg(as, 3n))), List.is_empty(&2, F.Finding, table)))
+    case False{}:
+      Bool.and(ob, Bool.and(sget, Bool.not(index.lit(Calls.arg(as, 1n)))))
+
+# one when the name token tt at (ll, cc), then the rest, is a call index reports
+def index.site(+tt: String, +ll: U32, +cc: U32, rest: Tree.Node, +path: String, +fixed: List<&2, String>) -> Nat:
+  match rest:
+    case Tree.NCons{Tree.Group{Lex.Tok{k, +o, ol, oc}, +kids, cl}, r}:
+      Bool.pick(Nat, index.fires(String.eq(tt, "List.get"), String.eq(o, "("), String.eq(tt, "String.get"),
+        Calls.args(kids), Table.hit(String.eq(o, "("), "List.get", kids, fixed, path, ll, cc)), 1n, 0n)
+    case other:
+      0n
+
+# how many calls at any depth of the node index reports, fixed the tables
+# `table` sees
+def index.count(nn: Tree.Node, +path: String, +fixed: List<&2, String>) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, +rest}:
+      Nat.add(index.site(t, l, c, rest, path, fixed), index.count(rest, path, fixed))
+    case Tree.NCons{Tree.Group{o, kids, cl}, rest}:
+      Nat.add(index.count(kids, path, fixed), index.count(rest, path, fixed))
+    case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
+      Nat.add(index.count(kids, path, fixed), Nat.add(index.count(body, path, fixed), index.count(rest, path, fixed)))
+    case Tree.NCons{h, rest}:
+      index.count(rest, path, fixed)
+    case other:
+      0n
+
+# how many calls index reports over the defs: those in each def that calls
+# itself and is not a law or a proof, with the fixed tables `table` sees in it
+def index.total(ds: List<&2, Calls.Def>, +mods: List<&2, String>, +path: String) -> Nat:
+  match ds:
+    case Nil{}:
+      0n
+    case Con{Calls.Def{+name, +sig, +body}, rest}:
+      Nat.add(Bool.pick(Nat, Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig))),
+        index.count(body, path, Table.scope(body, mods)), 0n), index.total(rest, mods, path))
+
+# LAW: index reports one finding for each `List.get(..)` or `String.get(..)`
+# at an index that is not one number token, anywhere in a def that calls
+# itself (a base arm included) and is not a law or a proof, except a
+# `List.get` that `table` reports as a get on a fixed table; none for
+# anything else
+# BOLT-RULE-U007
+law index_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Index.check(Src.Src{path, text, toks, tree, bound, items}))
+    == index.total(Calls.defs(tree), Table.modules(Calls.defs(tree), []), path) : Nat}
+
+# concat (BOLT-RULE-U004). concat walks each def's body tree: a self-call is
+# a leaf whose text is the def's name followed by a `(` group, its arguments
+# are the group's kids split at top-level commas (Calls.args), and the
+# parameter in an argument's position is the def's parameter at the same
+# index ("" past the last, the same as an unnamed type parameter). The name
+# an argument appends onto is Concat.onto's: `p ++ ..`, `List.append(.., p,
+# ..)` or `String.append(p, ..)`, written as the argument itself.
+
+# True when the argument appends onto a name and that name is the slot's
+def concat.is(mm: Maybe<&2, Lex.Tok>, +slot: String) -> Bool:
+  match mm:
+    case None{}:
+      False{}
+    case Some{Lex.Tok{k, +t, l, c}}:
+      String.eq(t, slot)
+
+# how many arguments append onto the parameter in their own position
+def concat.slots(as: List<&2, Tree.Node>, +params: List<&2, String>) -> Nat:
+  match as params:
+    case Nil{} ps:
+      0n
+    case Con{a, rest} Nil{}:
+      +m = concat.slots(rest, Nil{})
+      Bool.pick(Nat, concat.is(Concat.onto(a), ""), 1n+m, m)
+    case Con{a, rest} Con{p, ps}:
+      +m = concat.slots(rest, ps)
+      Bool.pick(Nat, concat.is(Concat.onto(a), p), 1n+m, m)
+
+# how many arguments of self-calls under the node append onto the parameter
+# in their own position: a self-call's own arguments, then what its group and
+# what follows it hold
+def concat.count(nn: Tree.Node, +name: String, +params: List<&2, String>) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
+      +here = Bool.pick(Nat, Bool.and(String.eq(o, "("), String.eq(t, name)),
+        concat.slots(Calls.args(kids), params), 0n)
+      Nat.add(here, Nat.add(concat.count(kids, name, params), concat.count(rest, name, params)))
+    case Tree.NCons{Tree.Group{open, kids, close}, rest}:
+      Nat.add(concat.count(kids, name, params), concat.count(rest, name, params))
+    case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
+      Nat.add(concat.count(kids, name, params),
+        Nat.add(concat.count(body, name, params), concat.count(rest, name, params)))
+    case Tree.NCons{h, rest}:
+      concat.count(rest, name, params)
+    case other:
+      0n
+
+# the count over a file's defs, none in a def that is exempt (a law file, a
+# proof file, a def that returns a proof)
+def concat.file(ds: List<&2, Calls.Def>, +path: String) -> Nat:
+  match ds:
+    case Nil{}:
+      0n
+    case Con{Calls.Def{+name, +sig, body}, rest}:
+      Nat.add(Bool.pick(Nat, Calls.exempt(path, sig), 0n, concat.count(body, name, Calls.names(sig))),
+        concat.file(rest, path))
+
+# LAW: concat reports one finding for each self-call argument that appends
+# onto the parameter in its own position, in every def its header does not
+# exempt, and none for anything else
+# BOLT-RULE-U004
+law concat_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Concat.check(Src.Src{path, text, toks, tree, bound, items}))
+    == concat.file(Calls.defs(tree), path) : Nat}
+
+# eager (BOLT-RULE-U003). eager walks each def's body tree carrying three
+# things: hot (the node runs whatever a pick's condition says: it sits in a
+# branch argument of a `Bool.pick`, the third argument on, and not in a
+# lambda's body after a `=>`), seg (which argument of a pick's own group the
+# walk is in, 9 in a group that is not a pick's) and keep (what hot returns to
+# at a comma of a group that is not a pick's). A leaf moves them by its kind,
+# Eager.work.hot and Eager.work.seg; a statement starts cold. A looping def of
+# the file is one Eager.loops lists: it calls itself, or a looping def above
+# it.
+
+# how many calls under the node, `f(..)` with f a looping def of the file
+# (in ns) other than the def itself, sit where hot holds
+def eager.count(
+  nn: Tree.Node,
+  +ns: List<&2, String>,
+  +self: String,
+  +hot: Bool,
+  +seg: U32,
+  +keep: Bool
+) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{+k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
+      +now = Eager.work.hot(k, hot, seg, keep)
+      +call = Bool.and(Eager.work.name(k), String.eq(o, "("))
+      +is_pick = Bool.and(call, String.eq(t, "Bool.pick"))
+      +mine = Bool.and(Bool.not(String.eq(t, self)), List.contains(~String, ~String.eq, ns, t))
+      +inner = Bool.and(now, Bool.not(is_pick))
+      +m = Nat.add(eager.count(kids, ns, self, inner, Bool.pick(U32, is_pick, 0, 9), inner),
+        eager.count(rest, ns, self, now, Eager.work.seg(k, seg), keep))
+      Bool.pick(Nat, Bool.and(now, Bool.and(call, mine)), 1n+m, m)
+    case Tree.NCons{Tree.Leaf{Lex.Tok{+k, t, l, c}}, rest}:
+      eager.count(rest, ns, self, Eager.work.hot(k, hot, seg, keep), Eager.work.seg(k, seg), keep)
+    case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
+      Nat.add(eager.count(kids, ns, self, hot, 9, hot), eager.count(rest, ns, self, hot, seg, keep))
+    case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
+      Nat.add(eager.count(kids, ns, self, False{}, 9, False{}),
+        Nat.add(eager.count(body, ns, self, False{}, 9, False{}), eager.count(rest, ns, self, hot, seg, keep)))
+    case Tree.NCons{h, rest}:
+      eager.count(rest, ns, self, hot, seg, keep)
+    case other:
+      0n
+
+# the count over a file's defs, each body walked cold, none in a def that is
+# exempt (a law file, a proof file, a def that returns a proof)
+def eager.file(ds: List<&2, Calls.Def>, +ns: List<&2, String>, +path: String) -> Nat:
+  match ds:
+    case Nil{}:
+      0n
+    case Con{Calls.Def{+name, +sig, body}, rest}:
+      Nat.add(Bool.pick(Nat, Calls.exempt(path, sig), 0n, eager.count(body, ns, name, False{}, 9, False{})),
+        eager.file(rest, ns, path))
+
+# LAW: eager reports one finding for each call to a looping def of the file,
+# not the def itself, in a branch of a `Bool.pick` (and not in a lambda's
+# body there), in every def its header does not exempt, and none for
+# anything else
+# BOLT-RULE-U003
+law eager_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Eager.check(Src.Src{path, text, toks, tree, bound, items}))
+    == eager.file(Calls.defs(tree), Eager.loops(Calls.defs(tree)), path) : Nat}
+
+# True for a leaf that is neither a `=>` nor a comma
+def eager.plain(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TLam{}:
+      False{}
+    case Lex.TComma{}:
+      False{}
+    case other:
+      True{}
+
+# LAW: a `=>` leaves the rest of its argument cold, keeps the argument count
+# and names no call
+# BOLT-RULE-U003
+law eager_lambda:
+  for hot: Bool
+  for +seg: U32
+  for keep: Bool
+  {(Eager.work.hot(Lex.TLam{}, hot, seg, keep), Eager.work.seg(Lex.TLam{}, seg), Eager.work.name(Lex.TLam{}))
+    == (False{}, seg, False{}) : Bool & U32 & Bool}
+
+# LAW: a comma of a pick's own group (seg 0 to 8) moves to its next
+# argument, cold after the type and hot from the first branch on, and past
+# the ninth it is a group like any other; a comma of any other group (seg 9)
+# returns hot to keep; neither the hot it had nor the comma names a call
+# BOLT-RULE-U003
+law eager_comma:
+  for +hot: Bool
+  for +keep: Bool
+  {([Eager.work.hot(Lex.TComma{}, hot, 0, keep), Eager.work.hot(Lex.TComma{}, hot, 1, keep),
+      Eager.work.hot(Lex.TComma{}, hot, 2, keep), Eager.work.hot(Lex.TComma{}, hot, 8, keep),
+      Eager.work.hot(Lex.TComma{}, hot, 9, keep), Eager.work.name(Lex.TComma{})],
+    [Eager.work.seg(Lex.TComma{}, 0), Eager.work.seg(Lex.TComma{}, 1), Eager.work.seg(Lex.TComma{}, 2),
+      Eager.work.seg(Lex.TComma{}, 8), Eager.work.seg(Lex.TComma{}, 9)])
+    == ([False{}, True{}, True{}, True{}, keep, False{}], [1, 2, 3, 9, 9]) : List<&2, Bool> & List<&2, U32>}
+
+# LAW: any other leaf leaves the state as it was and may name a call
+# BOLT-RULE-U003
+law eager_plain:
+  for kk: Lex.TokKind
+  for +hot: Bool
+  for +seg: U32
+  for keep: Bool
+  for e: {eager.plain(kk) == True{} : Bool}
+  {(Eager.work.hot(kk, hot, seg, keep), Eager.work.seg(kk, seg), Eager.work.name(kk))
+    == (hot, seg, True{}) : Bool & U32 & Bool}
 
 # The table rules: table (BOLT-RULE-U008) and ring (BOLT-RULE-U010). Each
 # reads each def of the file whose body calls it, `name(..)` (Calls.calls),
