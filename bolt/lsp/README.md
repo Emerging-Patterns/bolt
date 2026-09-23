@@ -70,6 +70,12 @@ findings are exactly what `bolt <path>` grades for that file and text
 publish is decided by server.bend's `pub.*`, pure over the checker's errors and
 the texts the files hold, and `LAWS.bend` states it (BOLT-LSP-4).
 
+Positions follow LSP 3.17's `positionEncoding`: initialize answers `utf-32`
+when the client offers it and `utf-16` otherwise, and `enc.bend` converts
+every character offset read or sent between bolt's code-point columns and
+the negotiated encoding (a char past U+FFFF is two UTF-16 units). On a line
+with no such char the two agree (BOLT-LSP-7 in `LAWS.bend`).
+
 Completion offers what could finish the name being typed: `Alias.pre` from the
 file behind the alias; anything else from the document, its aliases and (once
 a char is typed) Base. The server filters by prefix and each candidate replaces

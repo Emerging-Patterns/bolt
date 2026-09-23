@@ -22,6 +22,8 @@ import ../../syntax/bind.bend as Bind
 import ../../syntax/outline.bend as Outline
 import ../../syntax/word.bend as Word
 import ./path.bend as Path
+import ./enc.bend as Enc
+import ./semantic.bend as Semantic
 
 # a digit as its char
 def digit_char(dd: Frame.Digit) -> Char:
@@ -307,77 +309,85 @@ law lint_is_cli:
 # LAW: open publishes the checker's errors plus the lint of the text opened
 # BOLT-LSP-4
 law open_publishes:
+  for +ee: Enc.Enc
   for +uri: String
   for +text: String
   for +ds: List<&2, Rep.Diag>
   for +rs: List<&2, Maybe<&2, String>>
   for +docs: List<&2, Docs.Doc>
-  {pub.notes(Server.pub.open(uri, text, ds, rs, docs))
-    == [Server.pub.note(uri, ds, Server.pub.lint(Proto.path(uri), text, rs))] : List<&2, String>}
+  {pub.notes(Server.pub.open(ee, uri, text, ds, rs, docs))
+    == [Server.pub.note(Enc.cols(ee, text), uri, ds, Server.pub.lint(Proto.path(uri), text, rs))] : List<&2, String>}
 
 # LAW: save publishes the checker's new errors plus the lint of the text the
 # editor shows
 # BOLT-LSP-4
 law save_publishes:
+  for +ee: Enc.Enc
   for +uri: String
   for +ds: List<&2, Rep.Diag>
   for +rs: List<&2, Maybe<&2, String>>
   for +docs: List<&2, Docs.Doc>
-  {pub.notes(Server.pub.save(uri, ds, rs, docs))
-    == [Server.pub.note(uri, ds, Server.pub.lint(Proto.path(uri), Maybe.default(&2, String, Docs.get(docs, uri), ""),
-      rs))] : List<&2, String>}
+  {pub.notes(Server.pub.save(ee, uri, ds, rs, docs))
+    == [Server.pub.note(Enc.cols(ee, Maybe.default(&2, String, Docs.get(docs, uri), "")), uri, ds,
+      Server.pub.lint(Proto.path(uri), Maybe.default(&2, String, Docs.get(docs, uri), ""), rs))] : List<&2, String>}
 
 # LAW: change publishes the lint of the new text plus the checker's errors
 # the documents hold for it
 # BOLT-LSP-4
 law change_publishes:
+  for +ee: Enc.Enc
   for +uri: String
   for +text: String
   for +rs: List<&2, Maybe<&2, String>>
   for +docs: List<&2, Docs.Doc>
-  {pub.notes(Server.pub.change(uri, text, rs, docs))
-    == [Server.pub.note(uri, Docs.errors(docs, uri), Server.pub.lint(Proto.path(uri), text, rs))] : List<&2, String>}
+  {pub.notes(Server.pub.change(ee, uri, text, rs, docs))
+    == [Server.pub.note(Enc.cols(ee, text), uri, Docs.errors(docs, uri),
+      Server.pub.lint(Proto.path(uri), text, rs))] : List<&2, String>}
 
 # LAW: after open the documents hold the errors it published and the text
 # opened
 # BOLT-LSP-4
 law open_keeps:
+  for +ee: Enc.Enc
   for +uri: String
   for +text: String
   for +ds: List<&2, Rep.Diag>
   for +rs: List<&2, Maybe<&2, String>>
   for +docs: List<&2, Docs.Doc>
-  {Docs.errors(pub.docs(Server.pub.open(uri, text, ds, rs, docs)), uri) == ds : List<&2, Rep.Diag>}
-    & {Docs.get(pub.docs(Server.pub.open(uri, text, ds, rs, docs)), uri) == Some{text} : Maybe<&2, String>}
+  {Docs.errors(pub.docs(Server.pub.open(ee, uri, text, ds, rs, docs)), uri) == ds : List<&2, Rep.Diag>}
+    & {Docs.get(pub.docs(Server.pub.open(ee, uri, text, ds, rs, docs)), uri) == Some{text} : Maybe<&2, String>}
 
 # LAW: after save the documents hold the errors it published
 # BOLT-LSP-4
 law save_keeps:
+  for +ee: Enc.Enc
   for +uri: String
   for +ds: List<&2, Rep.Diag>
   for +rs: List<&2, Maybe<&2, String>>
   for +docs: List<&2, Docs.Doc>
-  {Docs.errors(pub.docs(Server.pub.save(uri, ds, rs, docs)), uri) == ds : List<&2, Rep.Diag>}
+  {Docs.errors(pub.docs(Server.pub.save(ee, uri, ds, rs, docs)), uri) == ds : List<&2, Rep.Diag>}
 
 # LAW: change keeps the checker's errors as they were, so every change
 # publishes the last checker result, and keeps the new text
 # BOLT-LSP-4
 law change_keeps:
+  for +ee: Enc.Enc
   for +uri: String
   for +text: String
   for +rs: List<&2, Maybe<&2, String>>
   for +docs: List<&2, Docs.Doc>
-  {Docs.errors(pub.docs(Server.pub.change(uri, text, rs, docs)), uri) == Docs.errors(docs, uri)
+  {Docs.errors(pub.docs(Server.pub.change(ee, uri, text, rs, docs)), uri) == Docs.errors(docs, uri)
     : List<&2, Rep.Diag>}
-    & {Docs.get(pub.docs(Server.pub.change(uri, text, rs, docs)), uri) == Some{text} : Maybe<&2, String>}
+    & {Docs.get(pub.docs(Server.pub.change(ee, uri, text, rs, docs)), uri) == Some{text} : Maybe<&2, String>}
 
 # LAW: close publishes an empty list, and forgets the document's errors
 # BOLT-LSP-4
 law close_publishes:
+  for +ee: Enc.Enc
   for +uri: String
   for +docs: List<&2, Docs.Doc>
-  {pub.notes(Server.pub.close(uri, docs)) == [Server.pub.note(uri, [], [])] : List<&2, String>}
-    & {Docs.errors(pub.docs(Server.pub.close(uri, docs)), uri) == [] : List<&2, Rep.Diag>}
+  {pub.notes(Server.pub.close(ee, uri, docs)) == [Server.pub.note(Enc.cols(ee, ""), uri, [], [])] : List<&2, String>}
+    & {Docs.errors(pub.docs(Server.pub.close(ee, uri, docs)), uri) == [] : List<&2, Rep.Diag>}
 
 # LAW: an open bolt.bend gets no lint, whatever its text and the candidates
 # BOLT-LSP-4
@@ -776,3 +786,97 @@ law nav_completion_import:
   {Nav.candidates(~fs, docs, uri, prefix, line, R, k)
     == Nav.starting_in(~fs, docs, Path.join(Path.dir(Proto.path(uri)), rel), Word.rest(prefix), Word.head(prefix) ++ ".",
       R, k) : IO.OP<R>}
+
+# positions
+# ---------
+
+# bolt counts columns in code points. initialize settles the encoding
+# (utf-32 when the client offers it, else UTF-16), the loop keeps it, and
+# enc.bend is the one place a column crosses the boundary: every position
+# the server sends is built by Proto.position, which sends its character
+# through Enc.out, and every one it reads is Server.col_in, through
+# Enc.into; semantic tokens send each column and length through
+# Enc.out.col. Under UTF-16 a char past U+FFFF counts two units.
+
+# the initialize params of a client that lists these position encodings
+def nav.offered(xs: List<&2, String>) -> J.Json:
+  J.obj([("capabilities", J.obj([("general", J.obj([("positionEncodings", J.arr(Proto.strings(xs)))]))]))])
+
+# LAW: initialize settles on utf-32 exactly when the client offers it, and
+# on UTF-16 otherwise
+# BOLT-LSP-7
+law enc_negotiated:
+  for +xs: List<&2, String>
+  {Enc.negotiate(nav.offered(xs)) == Enc.chosen(List.contains(~String, ~String.eq, xs, "utf-32")) : Enc.Enc}
+
+# LAW: initialize's reply names the encoding it settled on
+# BOLT-LSP-7
+law enc_advertised:
+  for +params: J.Json
+  {J.get(J.get(Proto.capabilities(Server.encoding(Server.MInitialize{}, params, Enc.Utf16{})), "capabilities"),
+    "positionEncoding") == J.JStr{Enc.name(Enc.negotiate(params))} : J.Json}
+
+# is this method initialize?
+def nav.is_init(mm: Server.Method) -> Bool:
+  match mm:
+    case Server.MInitialize{}:
+      True{}
+    case _other:
+      False{}
+
+# LAW: every message but initialize leaves the encoding as it was
+# BOLT-LSP-7
+law enc_kept:
+  for mm: Server.Method
+  for h: {nav.is_init(mm) == False{} : Bool}
+  for params: J.Json
+  for +ee: Enc.Enc
+  {Server.encoding(mm, params, ee) == ee : Enc.Enc}
+
+# LAW: the helper round-trips: a code-point column sent in an encoding and
+# read back in it is the same column, on every line
+# BOLT-LSP-7
+law enc_round:
+  for +ee: Enc.Enc
+  for +cs: List<&2, Char>
+  for nn: Nat
+  {Enc.into.of(ee, cs, Enc.out.of(ee, cs, nn)) == nn : Nat}
+
+# LAW: every position the server sends carries its character in the
+# negotiated encoding
+# BOLT-LSP-7
+law enc_sent:
+  for +cc: Enc.Cols
+  for +line: U32
+  for ch: U32
+  {Proto.position(cc, line, ch) == Proto.position.at(line, Enc.out(cc, line, ch)) : J.Json}
+
+# LAW: every position the server reads is read in the negotiated encoding
+# BOLT-LSP-7
+law enc_read:
+  for cc: Enc.Cols
+  for +params: J.Json
+  {Server.col_in(cc, params) == Enc.into(cc, Server.line_of(params), Server.col_of(params)) : U32}
+
+# LAW: every semantic token's column and length are sent in the negotiated
+# encoding
+# BOLT-LSP-7
+law enc_tokens:
+  for +ee: Enc.Enc
+  for +cs: List<&2, Char>
+  for line: U32
+  for +col: U32
+  for +len: U32
+  for typ: U32
+  {Semantic.sent.one(ee, cs, Semantic.Sem{line, col, len, typ})
+    == Semantic.Sem{line, Enc.out.col(ee, cs, col),
+      (Enc.out.col(ee, cs, (col + len : U32)) - Enc.out.col(ee, cs, col) : U32), typ} : Semantic.Sem}
+
+# LAW: in utf-32 a column crosses the boundary unchanged
+# BOLT-LSP-7
+law enc_utf32:
+  for lines: List<&2, String>
+  for line: U32
+  for +col: U32
+  {Enc.out(Enc.Cols{Enc.Utf32{}, lines}, line, col) == col : U32}
+    & {Enc.into(Enc.Cols{Enc.Utf32{}, lines}, line, col) == col : U32}
