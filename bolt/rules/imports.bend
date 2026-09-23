@@ -110,8 +110,9 @@ def paths(es: List<&2, Edge>) -> List<&2, String>:
     case Con{Edge{p, ds}, rest}:
       p <> paths(rest)
 
-# a worklist walk; each read file enters todo once, so fuel as many as the
-# files never runs out
+# a worklist walk; each read file enters todo once, and a start that was
+# not read imports nothing, so fuel as many as the files never runs out
+# (bolt/rules/LAWS.bend unsafe_shut)
 def reach(
   fuel: Nat,
   todo: List<&2, String>,
@@ -129,9 +130,9 @@ def reach(
       reach(f, List.append(&2, String, found, rest), List.append(&2, String, List.reverse(&2, String, found), seen), es,
         read)
 
-def closure.go(es: List<&2, Edge>, +read: List<&2, String>, +fuel: Nat, from: String) -> List<&2, String>:
-  +start = norm(from)
-  List.reverse(&2, String, reach(fuel, [start], [start], es, read))
+# the closure of the file at from, a path normalized already, over the graph
+def closure.go(es: List<&2, Edge>, +read: List<&2, String>, +fuel: Nat, +from: String) -> List<&2, String>:
+  List.reverse(&2, String, reach(fuel, [from], [from], es, read))
 
 # every read file the file at from reaches by relative imports, itself
 # first (normalized paths, in the order they are found). A caller that takes
@@ -139,4 +140,4 @@ def closure.go(es: List<&2, Edge>, +read: List<&2, String>, +fuel: Nat, from: St
 # rebuilding it per law file walked every file again.
 def closure(+files: List<&2, Src.Src>, from: String) -> List<&2, String>:
   +es = graph(files)
-  closure.go(es, paths(es), List.length(&2, Src.Src, files), from)
+  closure.go(es, paths(es), List.length(&2, Src.Src, files), norm(from))
