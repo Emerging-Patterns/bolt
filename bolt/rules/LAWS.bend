@@ -561,35 +561,97 @@ law unit_exempt:
 def pick.branch(+as: List<&2, Tree.Node>, +name: String) -> Bool:
   Bool.or(Calls.calls(Calls.arg(as, 2n), name), Calls.calls(Calls.arg(as, 3n), name))
 
+# is argument nth of `Bool.pick(T, c, a, b)` a branch: a or b?
+def pick.branch_arg(nth: Nat) -> Bool:
+  match nth:
+    case 2n:
+      True{}
+    case 3n:
+      True{}
+    case other:
+      False{}
+
+# is the token a top-level comma, which starts the next argument?
+def pick.comma(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TComma{}:
+      True{}
+    case other:
+      False{}
+
+# the argument after a token: one further past a comma
+def pick.step(kk: Lex.TokKind, +nth: Nat) -> Nat:
+  Bool.pick(Nat, pick.comma(kk), 1n+nth, nth)
+
+# argument nth of a group is quiet when the group is (quiet), or when it is
+# a branch of a pick counted (hush)
+def pick.hushed(+quiet: Bool, +hush: Bool, nth: Nat) -> Bool:
+  Bool.or(quiet, Bool.and(hush, pick.branch_arg(nth)))
+
 # how many `Bool.pick` calls in the chain, at any depth, call the def in a
-# branch; one inside the group of a pick counted is not counted again (quiet:
-# the chain is inside such a group)
-def pick.count(nn: Tree.Node, +name: String, +quiet: Bool) -> Nat:
+# branch and are not quiet: a pick in a branch of a pick counted is not
+# counted again, one in its condition is. The chain is argument nth of a
+# group with quiet and hush
+def pick.count(nn: Tree.Node, +name: String, +quiet: Bool, +hush: Bool, +nth: Nat) -> Nat:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, Tree.NCons{Tree.Group{open, +kids, close}, rest}}:
-      +hit = Bool.and(String.eq(t, "Bool.pick"), Bool.and(Bool.not(quiet), pick.branch(Calls.args(kids), name)))
-      +m = Nat.add(pick.count(kids, name, Bool.or(quiet, hit)), pick.count(rest, name, quiet))
+      +at = pick.step(k, nth)
+      +q = pick.hushed(quiet, hush, at)
+      +hit = Bool.and(String.eq(t, "Bool.pick"), Bool.and(Bool.not(q), pick.branch(Calls.args(kids), name)))
+      +m = Nat.add(pick.count(kids, name, q, hit, 0n), pick.count(rest, name, quiet, hush, at))
       Bool.pick(Nat, hit, 1n+m, m)
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, rest}:
+      pick.count(rest, name, quiet, hush, pick.step(k, nth))
     case Tree.NCons{Tree.Group{open, kids, close}, rest}:
-      Nat.add(pick.count(kids, name, quiet), pick.count(rest, name, quiet))
+      Nat.add(pick.count(kids, name, pick.hushed(quiet, hush, nth), False{}, 0n), pick.count(rest, name, quiet, hush,
+        nth))
     case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
-      Nat.add(pick.count(kids, name, quiet), Nat.add(pick.count(body, name, quiet), pick.count(rest, name, quiet)))
+      Nat.add(pick.count(kids, name, pick.hushed(quiet, hush, nth), False{}, 0n),
+        Nat.add(pick.count(body, name, pick.hushed(quiet, hush, nth), False{}, 0n), pick.count(rest, name, quiet, hush,
+          nth)))
     case Tree.NCons{h, rest}:
-      pick.count(rest, name, quiet)
+      pick.count(rest, name, quiet, hush, nth)
     case other:
       0n
 
+# LAW: the rule's quiet for argument nth of a group is the law's: the
+# group's quiet, hushed too in a branch (the third or fourth argument)
+# BOLT-RULE-C003
+law pick_mute:
+  for +quiet: Bool
+  for +hush: Bool
+  for nth: Nat
+  {Pick.mute(quiet, hush, nth) == pick.hushed(quiet, hush, nth) : Bool}
+
+# LAW: the rule moves to the next argument exactly past a comma
+# BOLT-RULE-C003
+law pick_next:
+  for kk: Lex.TokKind
+  for +nth: Nat
+  {Pick.next(kk, nth) == pick.step(kk, nth) : Nat}
+
 # LAW: over any chain, pick reports one finding for each `Bool.pick(..)` whose
-# third or fourth argument calls the def, in both or in one, and none for a
-# pick inside the group of one it reported. That group includes the
-# condition, so a pick there goes unreported too: the row stays pending
+# third or fourth argument calls the def, in both or in one, none for a pick
+# inside a branch of one it reported, and one for a pick in its condition
 # BOLT-RULE-C003
 law pick_walk_counts:
   for nn: Tree.Node
   for +name: String
   for +path: String
   for +quiet: Bool
-  {List.length(&2, F.Finding, Pick.picks(nn, name, path, quiet)) == pick.count(nn, name, quiet) : Nat}
+  for +hush: Bool
+  for +nth: Nat
+  {List.length(&2, F.Finding, Pick.walk(nn, name, path, quiet, hush, nth))
+    == pick.count(nn, name, quiet, hush, nth) : Nat}
+
+# LAW: a def's body is walked outside any pick's arguments
+# BOLT-RULE-C003
+law pick_picks_counts:
+  for nn: Tree.Node
+  for +name: String
+  for +path: String
+  for +quiet: Bool
+  {List.length(&2, F.Finding, Pick.picks(nn, name, path, quiet)) == pick.count(nn, name, quiet, False{}, 0n) : Nat}
 
 # the picks of each def of the list, none in an exempt one (a law file, a
 # proof file, a def that returns a proof)
@@ -598,7 +660,8 @@ def pick.defs(ds: List<&2, Calls.Def>, +path: String) -> Nat:
     case Nil{}:
       0n
     case Con{Calls.Def{+name, +sig, body}, rest}:
-      Nat.add(Bool.pick(Nat, Calls.exempt(path, sig), 0n, pick.count(body, name, False{})), pick.defs(rest, path))
+      Nat.add(Bool.pick(Nat, Calls.exempt(path, sig), 0n, pick.count(body, name, False{}, False{}, 0n)),
+        pick.defs(rest, path))
 
 # LAW: pick reports exactly those picks, def by def, over the defs of the tree
 # BOLT-RULE-C003
