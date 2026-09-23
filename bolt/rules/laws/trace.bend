@@ -10,7 +10,8 @@
 # lacks the tag; a Trusted row with no trust row; and a tag naming an ID
 # SPEC.md does not list as Proved and proved. A Law entry is
 # `<path> <law>`, the path relative to SPEC.md, entries joined by `; `. Only
-# a bolt.bend that names the rule turns it on (bolt/config.bend).
+# a bolt.bend that names the rule turns it on (bolt/config.bend). It runs
+# only when bolt lints the whole tree, never over files named on the line.
 import Base
 import ../../finding.bend as F
 import ../digest.bend as Digest
@@ -373,10 +374,19 @@ def check.spec(+sp: Spec, +ds: List<&2, Digest.Digest>) -> List<&2, F.Finding>:
   List.concat(&2, F.Finding, [malformed(List.reverse(&2, Mark, bad)),
     judge_rows(List.reverse(&2, Row, reqs), sp, ds), twins(List.reverse(&2, Mark, trust), trust), strays(ds, reqs)])
 
-# the rule, over SPEC.md's text (None when there is none) and every file read
-def check(mm: Maybe<&2, String>, +ds: List<&2, Digest.Digest>) -> List<&2, F.Finding>:
+# the rule over SPEC.md's text (None when there is none) and every file read
+def check.at(mm: Maybe<&2, String>, +ds: List<&2, Digest.Digest>) -> List<&2, F.Finding>:
   match mm:
     case None{}:
       [at(0, "Cannot read SPEC.md.")]
     case Some{text}:
       check.spec(parse(text), ds)
+
+# the rule, when bolt lints the whole tree; a run over the files named on the
+# line holds only some of the laws, so it has nothing sound to check
+def check(whole: Bool, mm: Maybe<&2, String>, +ds: List<&2, Digest.Digest>) -> List<&2, F.Finding>:
+  match whole:
+    case True{}:
+      check.at(mm, ds)
+    case False{}:
+      Nil{}
