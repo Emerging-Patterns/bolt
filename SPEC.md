@@ -126,7 +126,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | BOLT-LSP-2 | Diagnostics for an open document equal the CLI's per-file findings for that file and text under the same bolt.bend. | Proved | pending |  |
 | BOLT-LSP-3 | Each request gets exactly one response with the same id, in order; an unknown request gets -32601; an unknown notification gets nothing. | Proved | proved | bolt/lsp/LAWS.bend replies_pair; bolt/lsp/LAWS.bend unknown_refused |
 | BOLT-LSP-4 | Open and save publish checker plus lint; change publishes lint plus the last checker result; close publishes an empty list; an open bolt.bend gets no lint. | Proved | pending |  |
-| BOLT-LSP-5 | The checker never runs `main`. | Proved | pending |  |
+| BOLT-LSP-5 | The checker never runs `main`. | Proved | proved | bolt/lsp/LAWS.bend check_only; bolt/lsp/LAWS.bend followup_check_only |
 | BOLT-LSP-6 | Hover, definition, references and completion answer from the binder (BOLT-SYN-5) over the open text and its relative imports. | Proved | pending |  |
 | BOLT-LSP-7 | Positions are in the encoding the client negotiated. | Proved | pending |  |
 

@@ -1,6 +1,7 @@
-// bendcheck.exec: runs `bend <path> --check-only` and answers everything it
-// printed. --check-only checks the file and its imports and never runs
-// main: a language server must not execute the file being edited. The child
+// bendcheck.exec: runs `bend <path> <flag>` and answers everything it
+// printed. The flag is argv.bend's, always --check-only, which checks the
+// file and its imports and never runs main: a language server must not
+// execute the file being edited. The child
 // gets /dev/null for stdin and a pipe for stdout and stderr, so it cannot
 // touch the server's own stdio, which is the protocol.
 #include <fcntl.h>
@@ -17,6 +18,8 @@
 Term bendcheck_exec_run(Env e, Term* f, IoWork* w) {
   uint64_t n = 0;
   char* path = io_cstr(e, f[0], &n);
+  uint64_t fn = 0;
+  char* flag = io_cstr(e, f[1], &fn);
   size_t len = 0;
   size_t cap = 4096;
   char* buf = malloc(cap);
@@ -30,7 +33,7 @@ Term bendcheck_exec_run(Env e, Term* f, IoWork* w) {
       dup2(fds[1], 2);
       close(fds[0]);
       close(fds[1]);
-      execlp("bend", "bend", path, "--check-only", (char*)NULL);
+      execlp("bend", "bend", path, flag, (char*)NULL);
       _exit(127);
     }
     close(fds[1]);
@@ -49,6 +52,7 @@ Term bendcheck_exec_run(Env e, Term* f, IoWork* w) {
     }
   }
   free(path);
+  free(flag);
   Term s = io_str(e, buf, len);
   free(buf);
   return s;

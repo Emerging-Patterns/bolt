@@ -43,8 +43,10 @@ so navigation works in files that do not check, and sees unsaved edits.
 ## What the checker gives
 
 - `bend <path> --check-only` checks the file and its imports and never runs
-  `main`. The server must not execute the file being edited;
-  `tests/checker.bend` holds that (a live `bend --check-only`).
+  `main`. The server must not execute the file being edited. Which runs the
+  checker makes is data (`checker/argv.bend`), so `LAWS.bend` proves every
+  one carries `--check-only` (BOLT-LSP-5); that bend honours the flag is
+  BOLT-TRUST-5, and `tests/checker.bend` runs a live `bend --check-only`.
 - The report is text for people, parsed from bend's output
   (BOLT-TRUST-5 in SPEC.md): an update that changes the format breaks it.
 - A `LAWS.bend` alone always has open laws, since `PROOF.bend` beside it fills
