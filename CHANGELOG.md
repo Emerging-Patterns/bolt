@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.5](https://github.com/Emerging-Patterns/bolt/compare/v1.2.4...v1.2.5) (2026-09-23)
+
+
+### Bug Fixes
+
+* **hoist:** read [v : T^d] as 2^d slots, and prove hoist (BOLT-RULE-U009) ([#132](https://github.com/Emerging-Patterns/bolt/issues/132)) ([ae67935](https://github.com/Emerging-Patterns/bolt/commit/ae679356c45033c2e2901a7f10b9fa495dba74d1))
+
 ## [1.2.4](https://github.com/Emerging-Patterns/bolt/compare/v1.2.3...v1.2.4) (2026-09-23)
 
 
