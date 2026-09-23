@@ -15,6 +15,8 @@ import ./files/service.bend as F
 import ../../syntax/bind.bend as Bind
 import ../../syntax/outline.bend as Outline
 import ../../syntax/word.bend as Word
+import ./path.bend as Path
+import ./proto.bend as Proto
 
 # a digit as its char
 def digit_char(dd: Frame.Digit) -> Char:
@@ -296,23 +298,22 @@ law followup_check_only:
 # text the editor shows, and answer from syntax's binder over it
 # (BOLT-SYN-5). The laws below hold for every files service and every set of
 # open documents, and each answer is run to its end (R and k are whatever
-# the loop does next). They prove part of BOLT-LSP-6, which stays pending:
-# definition and hover look a dotted use up behind its import alias before
-# the file's own items, so `Lib.f()` in a file that has `def Lib.f` and
-# `import ./lib.bend as Lib` answers null there, though the binder resolves
-# it to the file's item.
+# the loop does next). Definition answers a use as the binder resolved it:
+# a binder, an item of the document (before any alias), a name in the file
+# an import names (relative to the document, and read from the editor when
+# open), or Base; hover on a use answers the same.
 
 # LAW: an open document is read as the text the editor shows, whatever the
 # files service holds
 # BOLT-LSP-6
 law nav_open_text:
-  for fs: F.Files
+  for -fs: F.Files
   for +docs: List<&2, Docs.Doc>
   for +uri: String
   for +text: String
   for h: {Docs.get(docs, uri) == Some{text} : Maybe<&2, String>}
   for -R: Type
-  for k: String -> IO.OP<R>
+  for -k: String -> IO.OP<R>
   {Nav.text_of(~fs, docs, uri, R, k) == k(text) : IO.OP<R>}
 
 # a binder the binder found, in the document
@@ -331,64 +332,141 @@ def nav.binds(bb: Bind.Bound) -> List<&2, Bind.Bind>:
 # LAW: definition on a binder of the open text is that binder
 # BOLT-LSP-6
 law nav_definition_binder:
-  for fs: F.Files
+  for -fs: F.Files
   for +docs: List<&2, Docs.Doc>
   for +uri: String
   for +text: String
   for h: {Docs.get(docs, uri) == Some{text} : Maybe<&2, String>}
   for +line: U32
   for +col: U32
-  for b: Bind.Bind
+  for +b: Bind.Bind
   for hs: {Bind.at(Bind.bound(text), line, col) == Some{Bind.SBind{b}} : Maybe<&2, Bind.Site>}
   for -R: Type
-  for k: Maybe<&2, Nav.Found> -> IO.OP<R>
+  for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
   {Nav.at(~fs, docs, uri, line, col, R, k) == k(Some{Nav.Here{uri, b}}) : IO.OP<R>}
 
 # LAW: definition on a use the binder resolves to a binder of the open text
 # lands on that binder
 # BOLT-LSP-6
 law nav_definition_local:
-  for fs: F.Files
+  for -fs: F.Files
   for +docs: List<&2, Docs.Doc>
   for +uri: String
   for +text: String
   for h: {Docs.get(docs, uri) == Some{text} : Maybe<&2, String>}
   for +line: U32
   for +col: U32
-  for n: String
-  for l: U32
-  for c: U32
+  for +n: String
+  for +l: U32
+  for +c: U32
   for +tl: U32
   for +tc: U32
   for hs: {Bind.at(Bind.bound(text), line, col) == Some{Bind.SUse{Bind.Use{n, l, c, Bind.TLocal{tl, tc}}}}
     : Maybe<&2, Bind.Site>}
   for -R: Type
-  for k: Maybe<&2, Nav.Found> -> IO.OP<R>
+  for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
   {Nav.at(~fs, docs, uri, line, col, R, k) == k(nav.local(Bind.binder(nav.binds(Bind.bound(text)), tl, tc), uri))
     : IO.OP<R>}
 
-# LAW: hover on a use the binder resolves to a binder of the open text shows
-# that binder
+# LAW: definition on a use the binder resolves to an item of the open text
+# lands on that item, before any import alias is looked at
 # BOLT-LSP-6
-law nav_hover_local:
-  for fs: F.Files
+law nav_definition_item:
+  for -fs: F.Files
   for +docs: List<&2, Docs.Doc>
   for +uri: String
   for +text: String
   for h: {Docs.get(docs, uri) == Some{text} : Maybe<&2, String>}
   for +line: U32
   for +col: U32
-  for n: String
-  for l: U32
-  for c: U32
-  for +tl: U32
-  for +tc: U32
-  for hs: {Bind.at(Bind.bound(text), line, col) == Some{Bind.SUse{Bind.Use{n, l, c, Bind.TLocal{tl, tc}}}}
+  for +n: String
+  for +l: U32
+  for +c: U32
+  for +item: String
+  for hs: {Bind.at(Bind.bound(text), line, col) == Some{Bind.SUse{Bind.Use{n, l, c, Bind.TItem{item}}}}
     : Maybe<&2, Bind.Site>}
+  for +it: Outline.Item
+  for hi: {Outline.find(Outline.items(text), item) == Some{it} : Maybe<&2, Outline.Item>}
   for -R: Type
-  for k: Maybe<&2, Nav.Found> -> IO.OP<R>
-  {Nav.hover(~fs, docs, uri, line, col, R, k) == k(nav.local(Bind.binder(nav.binds(Bind.bound(text)), tl, tc), uri))
+  for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
+  {Nav.at(~fs, docs, uri, line, col, R, k) == k(Some{Nav.Found{uri, it}}) : IO.OP<R>}
+
+# LAW: definition on a use the binder resolves to `rest` behind an import
+# alias is `rest` in the file that import names, relative to the document
+# BOLT-LSP-6
+law nav_definition_import:
+  for -fs: F.Files
+  for +docs: List<&2, Docs.Doc>
+  for +uri: String
+  for +text: String
+  for h: {Docs.get(docs, uri) == Some{text} : Maybe<&2, String>}
+  for +line: U32
+  for +col: U32
+  for +n: String
+  for +l: U32
+  for +c: U32
+  for +alias: String
+  for +rest: String
+  for hs: {Bind.at(Bind.bound(text), line, col) == Some{Bind.SUse{Bind.Use{n, l, c, Bind.TQual{alias, rest}}}}
+    : Maybe<&2, Bind.Site>}
+  for +rel: String
+  for hi: {Outline.import_path(Outline.items(text), alias) == Some{rel} : Maybe<&2, String>}
+  for -R: Type
+  for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
+  {Nav.at(~fs, docs, uri, line, col, R, k)
+    == Nav.in_file(~fs, docs, Path.join(Path.dir(Proto.path(uri)), rel), rest, R, k) : IO.OP<R>}
+
+# LAW: definition on a use the binder leaves free, which no item of the open
+# text names, is looked up in Base
+# BOLT-LSP-6
+law nav_definition_free:
+  for -fs: F.Files
+  for +docs: List<&2, Docs.Doc>
+  for +uri: String
+  for +text: String
+  for h: {Docs.get(docs, uri) == Some{text} : Maybe<&2, String>}
+  for +line: U32
+  for +col: U32
+  for +n: String
+  for +l: U32
+  for +c: U32
+  for hs: {Bind.at(Bind.bound(text), line, col) == Some{Bind.SUse{Bind.Use{n, l, c, Bind.TFree{}}}}
+    : Maybe<&2, Bind.Site>}
+  for hi: {Outline.find(Outline.items(text), n) == None{} : Maybe<&2, Outline.Item>}
+  for -R: Type
+  for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
+  {Nav.at(~fs, docs, uri, line, col, R, k) == Nav.in_base(~fs, docs, n, R, k) : IO.OP<R>}
+
+# LAW: a file behind an import is read, like the document, as the text the
+# editor shows when it is open: a name in it is that text's item
+# BOLT-LSP-6
+law nav_import_open:
+  for -fs: F.Files
+  for +docs: List<&2, Docs.Doc>
+  for +path: String
+  for +text: String
+  for h: {Docs.get(docs, "file://" ++ path) == Some{text} : Maybe<&2, String>}
+  for +name: String
+  for -R: Type
+  for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
+  {Nav.in_file(~fs, docs, path, name, R, k) == k(Nav.found(Outline.find(Outline.items(text), name), "file://" ++ path))
     : IO.OP<R>}
+
+# LAW: hover on a use answers what definition answers on it
+# BOLT-LSP-6
+law nav_hover_use:
+  for -fs: F.Files
+  for +docs: List<&2, Docs.Doc>
+  for +uri: String
+  for +text: String
+  for +h: {Docs.get(docs, uri) == Some{text} : Maybe<&2, String>}
+  for +line: U32
+  for +col: U32
+  for +u: Bind.Use
+  for +hs: {Bind.at(Bind.bound(text), line, col) == Some{Bind.SUse{u}} : Maybe<&2, Bind.Site>}
+  for -R: Type
+  for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
+  {Nav.hover(~fs, docs, uri, line, col, R, k) == Nav.at(~fs, docs, uri, line, col, R, k) : IO.OP<R>}
 
 # the positions of a binder the binder found: an item's or a constructor's
 # declaration and uses, any other binder's own position and its uses'
@@ -428,7 +506,7 @@ def nav.referenced(site: Maybe<&2, Bind.Site>, +bb: Bind.Bound) -> Nav.Sites:
 # of the binder, item or name the binder finds at the position
 # BOLT-LSP-6
 law nav_references:
-  for fs: F.Files
+  for -fs: F.Files
   for +docs: List<&2, Docs.Doc>
   for +uri: String
   for +text: String
@@ -436,7 +514,7 @@ law nav_references:
   for +line: U32
   for +col: U32
   for -R: Type
-  for k: Nav.Sites -> IO.OP<R>
+  for -k: Nav.Sites -> IO.OP<R>
   {Nav.sites(~fs, docs, uri, line, col, R, k)
     == k(nav.referenced(Bind.at(Bind.bound(text), line, col), Bind.bound(text))) : IO.OP<R>}
 
@@ -456,7 +534,7 @@ def nav.after(+text: String, +prefix: String, base: List<&2, Outline.Item>) -> L
 # start with what is typed, then the document's items, its aliases and Base
 # BOLT-LSP-6
 law nav_completion:
-  for fs: F.Files
+  for -fs: F.Files
   for +docs: List<&2, Docs.Doc>
   for +uri: String
   for +text: String
@@ -465,7 +543,7 @@ law nav_completion:
   for +line: U32
   for hp: {Outline.import_path(Outline.items(text), Word.head(prefix)) == None{} : Maybe<&2, String>}
   for -R: Type
-  for k: List<&2, Outline.Item> -> IO.OP<R>
+  for -k: List<&2, Outline.Item> -> IO.OP<R>
   {Nav.candidates(~fs, docs, uri, prefix, line, R, k)
     == Nav.from_base(~fs, Bool.not(String.is_empty(prefix)), docs, prefix, R,
       base => k(List.append(&2, Outline.Item, nav.locals(text, prefix, line), nav.after(text, prefix, base))))
