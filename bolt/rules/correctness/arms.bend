@@ -3,8 +3,9 @@
 # m >= k, never runs. The checker accepts it and the match quietly returns
 # the earlier arm (nohzafk pat_bad: 0n, 1n+p, 2n+p gives f(2n) = 1; bend
 # 2.0.16 still does). Put the narrower arms first: the literals, then the
-# larger n+p. `Succ{p}` counts as 1n+p. Only a single-scrutinee match is
-# read: a column of a multi-scrutinee match is skipped.
+# larger n+p. `Succ{p}` and `Succ{_}` count as 1n+p. Only a
+# single-scrutinee match is read: a column of a multi-scrutinee match is
+# skipped.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
@@ -42,15 +43,25 @@ def lit.of(mm: Maybe<&2, U32>, +tt: String, +rest: Tree.Node, +line: U32, +col: 
     case Some{+k}:
       lit.shape(rest, k, tt, line, col)
 
+# a lone binder inside `Succ{..}`: a name or `_`
+def binder(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TName{}:
+      True{}
+    case Lex.TWild{}:
+      True{}
+    case other:
+      False{}
+
 # a case pattern's arm
 def arm(pat: Tree.Node) -> Arm:
   match pat:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, +t, l, c}}, rest}:
       lit.of(T.nat_value(t), t, rest, l, c)
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, +t, l, c}},
-        Tree.NCons{Tree.Group{open, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, +p, l2, c2}}, Tree.NNil{}}, close},
+        Tree.NCons{Tree.Group{open, Tree.NCons{Tree.Leaf{Lex.Tok{k, +p, l2, c2}}, Tree.NNil{}}, close},
           more}}:
-      Bool.pick(Arm, String.eq(t, "Succ"), APlus{1, "Succ{" ++ p ++ "}", l, c, 4}, AOther{})
+      Bool.pick(Arm, Bool.and(String.eq(t, "Succ"), binder(k)), APlus{1, "Succ{" ++ p ++ "}", l, c, 4}, AOther{})
     case other:
       AOther{}
 

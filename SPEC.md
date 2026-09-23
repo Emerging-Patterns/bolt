@@ -28,7 +28,7 @@ A Trusted requirement's ID appears once in a requirement table and once in the t
 | BOLT-RULE-C002 | `hole` reports exactly a `?TODO` outside a LAWS.bend, and nothing else. | Proved | pending |  |
 | BOLT-RULE-C003 | `pick` reports exactly a self-call in one or both branches of `Bool.pick`, and does not report again a nested pick in a branch it reported. | Proved | pending |  |
 | BOLT-RULE-C004 | `put` reports exactly a `Map.put(` call, except in a file that defines `Map.put`. | Proved | pending |  |
-| BOLT-RULE-C005 | `arms` reports exactly, in a single-scrutinee match, a Nat arm already covered by an earlier `kn+p` or `Succ{p}` arm. | Proved | pending |  |
+| BOLT-RULE-C005 | `arms` reports exactly, in a single-scrutinee match, a Nat arm already covered by an earlier `kn+p`, `Succ{p}` or `Succ{_}` arm. | Proved | pending |  |
 | BOLT-RULE-C006 | `escape` reports exactly one finding for each `\0` followed by a digit in a string or char literal, its escapes read as a backslash and the one char after it, and none for anything else. | Proved | proved | bolt/rules/LAWS.bend escape_counts; bolt/rules/LAWS.bend escape_scan_counts |
 | BOLT-RULE-C007 | `twice` reports exactly, in a recursive def, a list pattern opening with the same literal twice. | Proved | pending |  |
 | BOLT-RULE-C008 | `strings` reports exactly a match whose string-literal arms total over 64 characters. | Proved | pending |  |
