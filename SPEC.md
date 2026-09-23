@@ -112,7 +112,7 @@ A Trusted requirement's ID appears once in a requirement table and once in the t
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-SYN-1 | `Lex.text(Lex.tokens(s)) == s` for every `s`. | Proved | pending |  |
+| BOLT-SYN-1 | `Lex.text(Lex.tokens(s)) == s` for every `s`. | Proved | proved | syntax/LAWS.bend lossless |
 | BOLT-SYN-2 | A token's line and column are those of its first character, 0-based, in code points. | Proved | pending |  |
 | BOLT-SYN-3 | The tree drops no token, and its leaves are the significant tokens in order. | Proved | pending |  |
 | BOLT-SYN-4 | The outline lists every column-0 import, def, type, law and `@unsafe def`. | Proved | pending |  |
