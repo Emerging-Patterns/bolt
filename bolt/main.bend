@@ -5,69 +5,56 @@
 # prints the release and the short commit when the build has one. Build it native (`bend bolt/main.bend -o
 # bin/bolt.bin`). `bolt lsp` runs on the cores: with no `--gpu` it is
 # `--gpu off`, and `--gpu on` or `--gpu 4GB` asks for the device. The
-# runtime takes `--gpu` out of the line itself.
+# runtime takes `--gpu` out of the line itself. What the line does is
+# Args.out's decision (bolt/LAWS.bend proves it); this file only does it.
 import Base
-import 0x65bf91e14c96bf0c25491d716ec9f68c/main.bend as Shake
 import ./args.bend as Args
 import ./lint.bend as Lint
 import ./check.bend as Check
 import ./lsp/run.bend as Lsp
 
-# a subcommand
-type Cmd is Data:
-  CLint{}
-  CCheck{}
-  CLsp{}
-
-# a subcommand by its name; the empty name (no subcommand) is `lint`
-def command(+name: String) -> Cmd:
-  Bool.pick(Cmd, String.eq(name, "check"), CCheck{},
-    Bool.pick(Cmd, String.eq(name, "lsp"), CLsp{}, CLint{}))
-
 # what a subcommand runs, over the files after it
-def dispatch(cmd: Cmd, paths: List<&2, String>) -> IO(Unit):
+def dispatch(cmd: Args.Cmd, paths: List<&2, String>) -> IO(Unit):
   match cmd:
-    case CLint{}:
+    case Args.CLint{}:
       Lint.run(paths)
-    case CCheck{}:
+    case Args.CCheck{}:
       Check.run(paths)
-    case CLsp{}:
+    case Args.CLsp{}:
       Lsp.run()
 
-def run.at(ask: Bool, +mm: Shake.Matched) -> IO(Unit):
-  match ask:
+# a text on its stream
+def say(to: Args.Stream, text: String) -> IO(Unit):
+  match to:
+    case Args.Line{}:
+      IO.print(text)
+    case Args.Page{}:
+      IO.write(text)
+    case Args.Err{}:
+      IO.print_err(text)
+
+def leave.at(zero: Bool, code: U32) -> IO(Unit):
+  match zero:
     case True{}:
-      IO.print("bolt " ++ Args.version())
+      IO.pure(Unit, Unit{})
     case False{}:
-      dispatch(command(String.join(Shake.path_of(mm), "/")), Shake.get_all(mm, "files"))
+      IO.die(Unit, code, "")
 
-# a successful parse: the version, or the selected command and its files
-def run(+mm: Shake.Matched) -> IO(Unit):
-  run.at(Shake.on(mm, "version"), mm)
+# exit with a code: 0 falls through, any other ends the run with it
+def leave(+code: U32) -> IO(Unit):
+  leave.at(U32.is_eq(code, 0), code)
 
-# a hard error
-def fail.err(ee: Shake.ParseErr) -> IO(Unit):
-  do IO<Unit>:
-    IO.print_err(Args.err_text(ee))
-    IO.die(Unit, 1, "")
-
-# a failed parse: help text, or an error
-def fail(ee: Shake.ParseErr) -> IO(Unit):
-  match ee:
-    case Shake.NeedHelp{path}:
-      IO.write(Args.help_text(path))
-    case other:
-      fail.err(other)
-
-# the parse result
-def go(rr: Result<&2, &2, Shake.ParseErr, Shake.Matched>) -> IO(Unit):
-  match rr:
-    case Fail{e}:
-      fail(e)
-    case Done{m}:
-      run(m)
+# what a parsed line does, done
+def perform(oo: Args.Out) -> IO(Unit):
+  match oo:
+    case Args.Stop{to, text, code}:
+      do IO<Unit>:
+        say(to, text)
+        leave(code)
+    case Args.Go{cmd, paths}:
+      dispatch(cmd, paths)
 
 def main() -> IO(Unit):
   do IO<Unit>:
     +av : List<&2, String> <- Args.argv()
-    go(Args.parse(av))
+    perform(Args.out(Args.parse(av)))

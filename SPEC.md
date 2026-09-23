@@ -98,8 +98,8 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-CLI-1 | bolt accepts `bolt [lint] [files]`, `bolt check files`, `bolt lsp`, `bolt help [cmd]` and `--`; an argv parse error exits 1, and `help` and `--version` exit 0. | Proved | pending |  |
-| BOLT-CLI-2 | `--version` prints the release and, when the build has one, the short commit in parentheses. | Proved | pending |  |
+| BOLT-CLI-1 | bolt accepts `bolt [lint] [files]`, `bolt check files`, `bolt lsp`, `bolt help [cmd]` and `--`; an argv parse error exits 1, and `help` and `--version` exit 0. | Proved | proved | bolt/LAWS.bend cli_bare; bolt/LAWS.bend cli_bare_raw; bolt/LAWS.bend cli_lint; bolt/LAWS.bend cli_lint_raw; bolt/LAWS.bend cli_check; bolt/LAWS.bend cli_check_raw; bolt/LAWS.bend cli_lsp; bolt/LAWS.bend cli_help; bolt/LAWS.bend cli_version; bolt/LAWS.bend cli_error_exits; bolt/LAWS.bend cli_help_exits; bolt/LAWS.bend cli_version_exits; bolt/LAWS.bend cli_runs |
+| BOLT-CLI-2 | `--version` prints the release and, when the build has one, the short commit in parentheses. | Proved | proved | bolt/LAWS.bend cli_version; bolt/LAWS.bend cli_version_exits; bolt/LAWS.bend version_release; bolt/LAWS.bend version_commit |
 
 ### Checker (BOLT-CHK)
 
