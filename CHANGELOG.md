@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2](https://github.com/Emerging-Patterns/bolt/compare/v1.4.1...v1.4.2) (2026-09-23)
+
+
+### Bug Fixes
+
+* **rules:** reword finding messages in plain English ([afa5e01](https://github.com/Emerging-Patterns/bolt/commit/afa5e013d1c8415c25a1daf6d45fe1e778c2e96f))
+
 ## [1.4.1](https://github.com/Emerging-Patterns/bolt/compare/v1.4.0...v1.4.1) (2026-09-23)
 
 
