@@ -26,8 +26,10 @@ github:Emerging-Patterns/bolt` is what puts it on the PATH as `bolt`.
 
 What bolt enforces, and how hard, is the project's to say, in a `bolt.bend`
 at its root. Each file is graded by the nearest `bolt.bend` above it (its
-directory, then each parent), so a monorepo can set one at the top and a
-project can override below. The file is plain Bend that `bend` can check: a
+directory, then each parent up to `/`), so a monorepo can set one at the top
+and a project can override below. A relative path is resolved against the
+working directory first, so the same file is graded the same way whether bolt
+runs from the project root, a subdirectory or elsewhere. The file is plain Bend that `bend` can check: a
 def a setting, its body one string, `"off"`, `"warn"` or `"error"`.
 
 ```
