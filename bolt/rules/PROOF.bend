@@ -37,6 +37,8 @@ import ./correctness/twice.bend as Twice
 import ./laws/closed.bend as Closed
 import ./suspicious/unused.bend as Unused
 import ./suspicious/fuel.bend as FuelRule
+import ./digest.bend as Digest
+import ./imports.bend as Imports
 import ./LAWS.bend as Laws
 
 # a finding in front when b holds adds one to the count
@@ -9727,3 +9729,1830 @@ def unit.go(ds, path, acc):
 
 def Laws.unit_counts(path, _text, _toks, tree, _bound, _items):
   unit.go(Calls.defs(tree), path, Nil{})
+
+# trace
+# -----
+
+# the cells a Cells state ends with, once the pieces still to come are cut
+def trace.closed(ps: List<&2, List<&2, Char>>, pp: List<&2, Char>) -> List<&2, String>:
+  match ps:
+    case Nil{}:
+      [String.from_list(pp)]
+    case Con{qq, rest}:
+      String.trim(String.from_list(pp)) <> trace.closed(rest, qq)
+
+# what cells.go returns from a state, given the pieces the rest of the line cuts into
+def trace.close(cut: Laws.trace.Cut, st: Trace.Cells) -> List<&2, String>:
+  match cut st:
+    case Laws.trace.Cut{hh, tl} Trace.Cells{cur, done}:
+      List.reverse.go(&2, String, done, trace.closed(tl, List.reverse.go(&2, Char, cur, hh)))
+
+# one char onto the state is one piece onto the cut
+law trace.at:
+  for bar: Bool
+  for cc: Char
+  for cut: Laws.trace.Cut
+  for st: Trace.Cells
+  {trace.close(cut, Trace.cells.at(bar, cc, st)) == trace.close(Laws.trace.piece(bar, cc, cut), st)
+    : List<&2, String>}
+
+def trace.at(bar, _cc, cut, st):
+  match bar cut st:
+    case True{} Laws.trace.Cut{hh, tl} Trace.Cells{cur, done}:
+      {==}
+    case False{} Laws.trace.Cut{hh, tl} Trace.Cells{cur, done}:
+      {==}
+
+# the rule's walk over a line is the spec's cut of it, closed
+law trace.go:
+  for cs: List<&2, Char>
+  for +esc: Bool
+  for +st: Trace.Cells
+  {Trace.cells.go(cs, esc, st) == trace.close(Laws.trace.split(cs, esc), st) : List<&2, String>}
+
+def trace.go(cs, esc, st):
+  match cs:
+    case Nil{}:
+      match st:
+        case Trace.Cells{cur, done}:
+          {==}
+    case Con{+cc, +t}:
+      Equal.trans(List<&2, String>,
+        Trace.cells.go(t, Char.is_eq(cc, '\\'), Trace.cells.at(Bool.and(Char.is_eq(cc, '|'), Bool.not(esc)), cc, st)),
+        trace.close(Laws.trace.split(t, Char.is_eq(cc, '\\')),
+          Trace.cells.at(Bool.and(Char.is_eq(cc, '|'), Bool.not(esc)), cc, st)),
+        trace.close(Laws.trace.piece(Bool.and(Char.is_eq(cc, '|'), Bool.not(esc)), cc,
+          Laws.trace.split(t, Char.is_eq(cc, '\\'))), st),
+        trace.go(t, Char.is_eq(cc, '\\'), Trace.cells.at(Bool.and(Char.is_eq(cc, '|'), Bool.not(esc)), cc, st)),
+        trace.at(Bool.and(Char.is_eq(cc, '|'), Bool.not(esc)), cc, Laws.trace.split(t, Char.is_eq(cc, '\\')), st))
+
+# taking nothing away from a Nat leaves it
+law trace.sub0:
+  for nn: Nat
+  {Nat.sub(nn, 0n) == nn : Nat}
+
+def trace.sub0(nn):
+  match nn:
+    case 0n:
+      {==}
+    case 1n+pp:
+      {==}
+
+# every closed piece but the last is the spec's middle
+law trace.mid:
+  for ps: List<&2, List<&2, Char>>
+  for +pp: List<&2, Char>
+  {List.take(&2, String, trace.closed(ps, pp), Nat.sub(List.length(&2, String, trace.closed(ps, pp)), 1n))
+    == Laws.trace.mid(ps, pp) : List<&2, String>}
+
+def trace.mid(ps, pp):
+  match ps:
+    case Nil{}:
+      {==}
+    case Con{+qq, +rest}:
+      match rest:
+        case Nil{}:
+          {==}
+        case Con{+aa, +bb}:
+          %trace.sub0(List.length(&2, String, trace.closed(bb, aa))) :
+            {String.trim(String.from_list(pp)) <> List.take(&2, String,
+              String.trim(String.from_list(qq)) <> trace.closed(bb, aa),
+              _) == String.trim(String.from_list(pp)) <> Laws.trace.mid(Con{aa, bb}, qq) : List<&2, String>}
+          Equal.cong(List<&2, String>, List<&2, String>, xs => String.trim(String.from_list(pp)) <> xs,
+            List.take(&2, String, trace.closed(Con{aa, bb}, qq),
+              Nat.sub(List.length(&2, String, trace.closed(Con{aa, bb}, qq)), 1n)),
+            Laws.trace.mid(Con{aa, bb}, qq), trace.mid(Con{aa, bb}, qq))
+
+# the cells between the outer bars of the closed pieces are the spec's inner ones
+law trace.inner:
+  for cut: Laws.trace.Cut
+  {List.take(&2, String, List.drop(&2, String, trace.close(cut, Trace.Cells{[], []}), 1n),
+    Nat.sub(List.length(&2, String, trace.close(cut, Trace.Cells{[], []})), 2n)) == Laws.trace.inner(cut)
+    : List<&2, String>}
+
+def trace.inner(cut):
+  match cut:
+    case Laws.trace.Cut{hh, Nil{}}:
+      {==}
+    case Laws.trace.Cut{hh, Con{+qq, rest}}:
+      match rest:
+        case Nil{}:
+          trace.mid(Nil{}, qq)
+        case Con{+aa, +bb}:
+          trace.mid(Con{aa, bb}, qq)
+
+# the rule's cells of a line are the spec's
+law trace.cells:
+  for +line: String
+  {Trace.cells(line) == Laws.trace.cells(line) : List<&2, String>}
+
+def trace.cells(line):
+  %Equal.sym(List<&2, String>, Trace.cells.go(String.to_list(String.trim(line)), False{}, Trace.Cells{[], []}),
+    trace.close(Laws.trace.split(String.to_list(String.trim(line)), False{}), Trace.Cells{[], []}),
+    trace.go(String.to_list(String.trim(line)), False{}, Trace.Cells{[], []})) :
+    {List.take(&2, String, List.drop(&2, String, _, 1n), Nat.sub(List.length(&2, String, _), 2n))
+      == Laws.trace.cells(line) : List<&2, String>}
+  trace.inner(Laws.trace.split(String.to_list(String.trim(line)), False{}))
+
+# the rule's Law entries of a cell are the spec's
+law trace.entries:
+  for ss: List<&2, String>
+  {Trace.entries.go(ss) == Laws.trace.laws(ss) : List<&2, String>}
+
+def trace.entries(ss):
+  match ss:
+    case Nil{}:
+      {==}
+    case Con{+s1, +rest}:
+      Equal.cong(List<&2, String>, List<&2, String>,
+        xs => Bool.pick(List<&2, String>, String.is_empty(String.trim(s1)), xs, String.trim(s1) <> xs),
+        Trace.entries.go(rest), Laws.trace.laws(rest), trace.entries(rest))
+
+# reversing a joined list onto an accumulator reverses each part in turn
+law trace.rev_app:
+  for -A: Data
+  for ys: List<&2, A>
+  for xs: List<&2, A>
+  for acc: List<&2, A>
+  {List.reverse.go(&2, A, List.append(&2, A, ys, xs), acc)
+    == List.reverse.go(&2, A, xs, List.reverse.go(&2, A, ys, acc)) : List<&2, A>}
+
+def trace.rev_app(A, ys, xs, acc):
+  match ys:
+    case Nil{}:
+      {==}
+    case Con{hh, tl}:
+      trace.rev_app(A, tl, xs, hh <> acc)
+
+# the malformed-row mark a requirement table line of these cells adds
+def trace.bad5(+cs: List<&2, String>, +nn: U32) -> List<&2, Trace.Mark>:
+  Bool.pick(List<&2, Trace.Mark>, Nat.is_eq(List.length(&2, String, cs), 5n), [],
+    [Trace.Mark{"a requirement row has five cells", nn}])
+
+# the malformed-row mark a trust table line of these cells adds
+def trace.bad3(+cs: List<&2, String>, +nn: U32) -> List<&2, Trace.Mark>:
+  Bool.pick(List<&2, Trace.Mark>, Nat.is_eq(List.length(&2, String, cs), 3n), [],
+    [Trace.Mark{"a trust row has three cells", nn}])
+
+# a requirement table line of any cells adds the spec's row, or a mark
+law trace.five:
+  for +cs: List<&2, String>
+  for +nn: U32
+  for +mm: Trace.Mode
+  for +rr: List<&2, Trace.Row>
+  for +tt: List<&2, Trace.Mark>
+  for +bb: List<&2, Trace.Mark>
+  {Lazy.stop(Trace.Spec, Bool.not(Nat.is_eq(List.length(&2, String, cs), 5n)),
+    Trace.Spec{mm, rr, tt, Trace.Mark{"a requirement row has five cells", nn} <> bb},
+    _u => Trace.Spec{mm, Trace.Row{Trace.cell(cs, 0n), Trace.cell(cs, 2n), Trace.cell(cs, 3n),
+      Trace.entries(Trace.cell(cs, 4n)), nn} <> rr, tt, bb})
+    == Trace.Spec{mm, List.reverse.go(&2, Trace.Row, Laws.trace.req_row(cs, nn), rr), tt,
+      List.reverse.go(&2, Trace.Mark, trace.bad5(cs, nn), bb)} : Trace.Spec}
+
+def trace.five(cs, nn, mm, rr, tt, bb):
+  match cs:
+    case Nil{}:
+      {==}
+    case Con{+c0, +r1}:
+      match r1:
+        case Nil{}:
+          {==}
+        case Con{+c1, +r2}:
+          match r2:
+            case Nil{}:
+              {==}
+            case Con{+c2, +r3}:
+              match r3:
+                case Nil{}:
+                  {==}
+                case Con{+c3, +r4}:
+                  match r4:
+                    case Nil{}:
+                      {==}
+                    case Con{+c4, +r5}:
+                      match r5:
+                        case Nil{}:
+                          Equal.cong(List<&2, String>, Trace.Spec,
+                            es => Trace.Spec{mm, Trace.Row{c0, c2, c3, es, nn} <> rr, tt, bb},
+                            Trace.entries(c4), Laws.trace.laws(String.split(c4, ';')),
+                            trace.entries(String.split(c4, ';')))
+                        case Con{+c5, +r6}:
+                          {==}
+
+# a trust table line of any cells adds the spec's row, or a mark
+law trace.three:
+  for +cs: List<&2, String>
+  for +nn: U32
+  for +mm: Trace.Mode
+  for +rr: List<&2, Trace.Row>
+  for +tt: List<&2, Trace.Mark>
+  for +bb: List<&2, Trace.Mark>
+  {Bool.pick(Trace.Spec, Nat.is_eq(List.length(&2, String, cs), 3n),
+    Trace.Spec{mm, rr, Trace.Mark{Trace.cell(cs, 0n), nn} <> tt, bb},
+    Trace.Spec{mm, rr, tt, Trace.Mark{"a trust row has three cells", nn} <> bb})
+    == Trace.Spec{mm, rr, List.reverse.go(&2, Trace.Mark, Laws.trace.trust_row(cs, nn), tt),
+      List.reverse.go(&2, Trace.Mark, trace.bad3(cs, nn), bb)} : Trace.Spec}
+
+def trace.three(cs, _nn, _mm, _rr, _tt, _bb):
+  match cs:
+    case Nil{}:
+      {==}
+    case Con{+c0, +r1}:
+      match r1:
+        case Nil{}:
+          {==}
+        case Con{+c1, +r2}:
+          match r2:
+            case Nil{}:
+              {==}
+            case Con{+c2, +r3}:
+              match r3:
+                case Nil{}:
+                  {==}
+                case Con{+c3, +r4}:
+                  {==}
+
+# the malformed-row mark a table line adds in place mm
+def trace.bad_in(mm: Trace.Mode, +tt: String, +nn: U32) -> List<&2, Trace.Mark>:
+  match mm:
+    case Trace.Reqs{}:
+      trace.bad5(Laws.trace.cells(tt), nn)
+    case Trace.Trusts{}:
+      trace.bad3(Laws.trace.cells(tt), nn)
+    case _other:
+      Nil{}
+
+# the malformed-row mark a line of kind kk adds in place mm
+def trace.bad_at(kk: Laws.trace.Line, mm: Trace.Mode, +tt: String, +nn: U32) -> List<&2, Trace.Mark>:
+  match kk:
+    case Laws.trace.Bar{}:
+      trace.bad_in(mm, tt, nn)
+    case _other:
+      Nil{}
+
+# a table line inside a table adds what the spec reads of it
+law trace.table:
+  for +mm: Trace.Mode
+  for +tt: String
+  for +nn: U32
+  for +rr: List<&2, Trace.Row>
+  for +ts: List<&2, Trace.Mark>
+  for +bb: List<&2, Trace.Mark>
+  {Trace.in_table(mm, tt, nn, Trace.Spec{mm, rr, ts, bb})
+    == Trace.Spec{Laws.trace.on_bar(mm), List.reverse.go(&2, Trace.Row, Laws.trace.req_in(mm, tt, nn), rr),
+      List.reverse.go(&2, Trace.Mark, Laws.trace.trust_in(mm, tt, nn), ts),
+      List.reverse.go(&2, Trace.Mark, trace.bad_in(mm, tt, nn), bb)} : Trace.Spec}
+
+def trace.table(mm, tt, nn, rr, ts, bb):
+  match mm:
+    case Trace.Out{}:
+      {==}
+    case Trace.ReqHead{}:
+      {==}
+    case Trace.Reqs{}:
+      Equal.trans(Trace.Spec, Trace.in_table(Trace.Reqs{}, tt, nn, Trace.Spec{Trace.Reqs{}, rr, ts, bb}),
+        Trace.Spec{Trace.Reqs{}, List.reverse.go(&2, Trace.Row, Laws.trace.req_row(Trace.cells(tt), nn), rr), ts,
+          List.reverse.go(&2, Trace.Mark, trace.bad5(Trace.cells(tt), nn), bb)},
+        Trace.Spec{Trace.Reqs{}, List.reverse.go(&2, Trace.Row, Laws.trace.req_row(Laws.trace.cells(tt), nn), rr), ts,
+          List.reverse.go(&2, Trace.Mark, trace.bad5(Laws.trace.cells(tt), nn), bb)},
+        trace.five(Trace.cells(tt), nn, Trace.Reqs{}, rr, ts, bb),
+        Equal.cong(List<&2, String>, Trace.Spec,
+          cs => Trace.Spec{Trace.Reqs{}, List.reverse.go(&2, Trace.Row, Laws.trace.req_row(cs, nn), rr), ts,
+            List.reverse.go(&2, Trace.Mark, trace.bad5(cs, nn), bb)},
+          Trace.cells(tt), Laws.trace.cells(tt), trace.cells(tt)))
+    case Trace.TrustHead{}:
+      {==}
+    case Trace.Trusts{}:
+      Equal.trans(Trace.Spec, Trace.in_table(Trace.Trusts{}, tt, nn, Trace.Spec{Trace.Trusts{}, rr, ts, bb}),
+        Trace.Spec{Trace.Trusts{}, rr, List.reverse.go(&2, Trace.Mark, Laws.trace.trust_row(Trace.cells(tt), nn), ts),
+          List.reverse.go(&2, Trace.Mark, trace.bad3(Trace.cells(tt), nn), bb)},
+        Trace.Spec{Trace.Trusts{}, rr, List.reverse.go(&2, Trace.Mark, Laws.trace.trust_row(Laws.trace.cells(tt),
+          nn), ts),
+          List.reverse.go(&2, Trace.Mark, trace.bad3(Laws.trace.cells(tt), nn), bb)},
+        trace.three(Trace.cells(tt), nn, Trace.Trusts{}, rr, ts, bb),
+        Equal.cong(List<&2, String>, Trace.Spec,
+          cs => Trace.Spec{Trace.Trusts{}, rr, List.reverse.go(&2, Trace.Mark, Laws.trace.trust_row(cs, nn), ts),
+            List.reverse.go(&2, Trace.Mark, trace.bad3(cs, nn), bb)},
+          Trace.cells(tt), Laws.trace.cells(tt), trace.cells(tt)))
+
+# what the spec reads of a line of kind kk in place mm, onto what was read
+def trace.onto(
+  kk: Laws.trace.Line,
+  +mm: Trace.Mode,
+  +tt: String,
+  +nn: U32,
+  rr: List<&2, Trace.Row>,
+  ts: List<&2, Trace.Mark>,
+  bb: List<&2, Trace.Mark>
+) -> Trace.Spec:
+  match kk:
+    case Laws.trace.ReqHeader{}:
+      Trace.Spec{Trace.ReqHead{}, rr, ts, bb}
+    case Laws.trace.TrustHeader{}:
+      Trace.Spec{Trace.TrustHead{}, rr, ts, bb}
+    case Laws.trace.Bar{}:
+      Trace.Spec{Laws.trace.on_bar(mm), List.reverse.go(&2, Trace.Row, Laws.trace.req_in(mm, tt, nn), rr),
+        List.reverse.go(&2, Trace.Mark, Laws.trace.trust_in(mm, tt, nn), ts),
+        List.reverse.go(&2, Trace.Mark, trace.bad_in(mm, tt, nn), bb)}
+    case Laws.trace.Prose{}:
+      Trace.Spec{Trace.Out{}, rr, ts, bb}
+
+# the rule's step, whatever the three tests on the line say, is the spec's reading
+law trace.bools:
+  for b1: Bool
+  for b2: Bool
+  for b3: Bool
+  for +tt: String
+  for +nn: U32
+  for +mm: Trace.Mode
+  for +rr: List<&2, Trace.Row>
+  for +ts: List<&2, Trace.Mark>
+  for +bb: List<&2, Trace.Mark>
+  {Bool.pick(Trace.Spec, b1, Trace.moved(Trace.Spec{mm, rr, ts, bb}, Trace.ReqHead{}),
+    Bool.pick(Trace.Spec, b2, Trace.moved(Trace.Spec{mm, rr, ts, bb}, Trace.TrustHead{}),
+      Lazy.stop(Trace.Spec, Bool.not(b3), Trace.moved(Trace.Spec{mm, rr, ts, bb}, Trace.Out{}),
+        _u => Trace.in_table(Trace.mode_of(Trace.Spec{mm, rr, ts, bb}), tt, nn, Trace.Spec{mm, rr, ts, bb}))))
+    == trace.onto(Bool.pick(Laws.trace.Line, b1, Laws.trace.ReqHeader{},
+      Bool.pick(Laws.trace.Line, b2, Laws.trace.TrustHeader{},
+        Bool.pick(Laws.trace.Line, b3, Laws.trace.Bar{}, Laws.trace.Prose{}))), mm, tt, nn, rr, ts, bb) : Trace.Spec}
+
+def trace.bools(b1, b2, b3, tt, nn, mm, rr, ts, bb):
+  match b1 b2 b3:
+    case True{} _ _:
+      {==}
+    case False{} True{} _:
+      {==}
+    case False{} False{} True{}:
+      trace.table(mm, tt, nn, rr, ts, bb)
+    case False{} False{} False{}:
+      {==}
+
+# the spec's reading written out
+def trace.read(
+  +kk: Laws.trace.Line,
+  +mm: Trace.Mode,
+  +tt: String,
+  +nn: U32,
+  rr: List<&2, Trace.Row>,
+  ts: List<&2, Trace.Mark>,
+  bb: List<&2, Trace.Mark>
+) -> Trace.Spec:
+  Trace.Spec{Laws.trace.after(kk, mm), List.reverse.go(&2, Trace.Row, Laws.trace.req_at(kk, mm, tt, nn), rr),
+    List.reverse.go(&2, Trace.Mark, Laws.trace.trust_at(kk, mm, tt, nn), ts),
+    List.reverse.go(&2, Trace.Mark, trace.bad_at(kk, mm, tt, nn), bb)}
+
+# the reading by kind is the reading written out
+law trace.kind:
+  for +kk: Laws.trace.Line
+  for +mm: Trace.Mode
+  for +tt: String
+  for +nn: U32
+  for rr: List<&2, Trace.Row>
+  for ts: List<&2, Trace.Mark>
+  for bb: List<&2, Trace.Mark>
+  {trace.onto(kk, mm, tt, nn, rr, ts, bb) == trace.read(kk, mm, tt, nn, rr, ts, bb) : Trace.Spec}
+
+def trace.kind(kk, _mm, _tt, _nn, _rr, _ts, _bb):
+  match kk:
+    case Laws.trace.ReqHeader{}:
+      {==}
+    case Laws.trace.TrustHeader{}:
+      {==}
+    case Laws.trace.Bar{}:
+      {==}
+    case Laws.trace.Prose{}:
+      {==}
+
+# one line onto what was read is the spec's reading of it
+law trace.step:
+  for +ll: String
+  for +nn: U32
+  for +mm: Trace.Mode
+  for +rr: List<&2, Trace.Row>
+  for +ts: List<&2, Trace.Mark>
+  for +bb: List<&2, Trace.Mark>
+  {Trace.step(ll, nn, Trace.Spec{mm, rr, ts, bb})
+    == trace.read(Laws.trace.line(String.trim(ll)), mm, String.trim(ll), nn, rr, ts, bb) : Trace.Spec}
+
+def trace.step(ll, nn, mm, rr, ts, bb):
+  Equal.trans(Trace.Spec, Trace.step(ll, nn, Trace.Spec{mm, rr, ts, bb}),
+    trace.onto(Laws.trace.line(String.trim(ll)), mm, String.trim(ll), nn, rr, ts, bb),
+    trace.read(Laws.trace.line(String.trim(ll)), mm, String.trim(ll), nn, rr, ts, bb),
+    trace.bools(String.eq(String.trim(ll), "| ID | Requirement | Level | Status | Law |"),
+      String.eq(String.trim(ll), "| ID | Assumption | Why it is trusted |"), String.starts_with(String.trim(ll), "|"),
+      String.trim(ll), nn, mm, rr, ts, bb),
+    trace.kind(Laws.trace.line(String.trim(ll)), mm, String.trim(ll), nn, rr, ts, bb))
+
+# the place the spec's reading ends in
+def trace.last(ls: List<&2, String>, +mm: Trace.Mode) -> Trace.Mode:
+  match ls:
+    case Nil{}:
+      mm
+    case Con{ll, rest}:
+      trace.last(rest, Laws.trace.after(Laws.trace.line(String.trim(ll)), mm))
+
+# the malformed-row marks of the lines, in file order
+def trace.bads(ls: List<&2, String>, +nn: U32, +mm: Trace.Mode) -> List<&2, Trace.Mark>:
+  match ls:
+    case Nil{}:
+      Nil{}
+    case Con{ll, rest}:
+      +tt = String.trim(ll)
+      +kk = Laws.trace.line(tt)
+      List.append(&2, Trace.Mark, trace.bad_at(kk, mm, tt, nn), trace.bads(rest, (nn + 1 : U32),
+        Laws.trace.after(kk, mm)))
+
+# two readings with equal lists are equal
+law trace.fields:
+  for -mm: Trace.Mode
+  for -r1: List<&2, Trace.Row>
+  for -r2: List<&2, Trace.Row>
+  for -t1: List<&2, Trace.Mark>
+  for -t2: List<&2, Trace.Mark>
+  for -b1: List<&2, Trace.Mark>
+  for -b2: List<&2, Trace.Mark>
+  for er: {r1 == r2 : List<&2, Trace.Row>}
+  for et: {t1 == t2 : List<&2, Trace.Mark>}
+  for eb: {b1 == b2 : List<&2, Trace.Mark>}
+  {Trace.Spec{mm, r1, t1, b1} == Trace.Spec{mm, r2, t2, b2} : Trace.Spec}
+
+def trace.fields(mm, r1, r2, t1, t2, b1, b2, er, et, eb):
+  Equal.trans(Trace.Spec, Trace.Spec{mm, r1, t1, b1}, Trace.Spec{mm, r2, t1, b1}, Trace.Spec{mm, r2, t2, b2},
+    Equal.cong(List<&2, Trace.Row>, Trace.Spec, xs => Trace.Spec{mm, xs, t1, b1}, r1, r2, er),
+    Equal.trans(Trace.Spec, Trace.Spec{mm, r2, t1, b1}, Trace.Spec{mm, r2, t2, b1}, Trace.Spec{mm, r2, t2, b2},
+      Equal.cong(List<&2, Trace.Mark>, Trace.Spec, xs => Trace.Spec{mm, r2, xs, b1}, t1, t2, et),
+      Equal.cong(List<&2, Trace.Mark>, Trace.Spec, xs => Trace.Spec{mm, r2, t2, xs}, b1, b2, eb)))
+
+# the rule's reading of the lines is the spec's, each list reversed onto what was read
+law trace.parse:
+  for ls: List<&2, String>
+  for +nn: U32
+  for +mm: Trace.Mode
+  for +rr: List<&2, Trace.Row>
+  for +ts: List<&2, Trace.Mark>
+  for +bb: List<&2, Trace.Mark>
+  {Trace.parse.go(ls, nn, Trace.Spec{mm, rr, ts, bb})
+    == Trace.Spec{trace.last(ls, mm), List.reverse.go(&2, Trace.Row, Laws.trace.reqs(ls, nn, mm), rr),
+      List.reverse.go(&2, Trace.Mark, Laws.trace.trusts(ls, nn, mm), ts),
+      List.reverse.go(&2, Trace.Mark, trace.bads(ls, nn, mm), bb)} : Trace.Spec}
+
+def trace.parse(ls, nn, mm, rr, ts, bb):
+  match ls:
+    case Nil{}:
+      {==}
+    case Con{+ll, +rest}:
+      +tt = String.trim(ll)
+      +kk = Laws.trace.line(tt)
+      +m2 = Laws.trace.after(kk, mm)
+      +n2 = (nn + 1 : U32)
+      +r2 = List.reverse.go(&2, Trace.Row, Laws.trace.req_at(kk, mm, tt, nn), rr)
+      +t2 = List.reverse.go(&2, Trace.Mark, Laws.trace.trust_at(kk, mm, tt, nn), ts)
+      +b2 = List.reverse.go(&2, Trace.Mark, trace.bad_at(kk, mm, tt, nn), bb)
+      Equal.trans(Trace.Spec, Trace.parse.go(rest, n2, Trace.step(ll, nn, Trace.Spec{mm, rr, ts, bb})),
+        Trace.parse.go(rest, n2, Trace.Spec{m2, r2, t2, b2}),
+        Trace.Spec{trace.last(rest, m2), List.reverse.go(&2, Trace.Row, Laws.trace.reqs(ll <> rest, nn, mm), rr),
+          List.reverse.go(&2, Trace.Mark, Laws.trace.trusts(ll <> rest, nn, mm), ts),
+          List.reverse.go(&2, Trace.Mark, trace.bads(ll <> rest, nn, mm), bb)},
+        Equal.cong(Trace.Spec, Trace.Spec, sp => Trace.parse.go(rest, n2, sp),
+          Trace.step(ll, nn, Trace.Spec{mm, rr, ts, bb}), Trace.Spec{m2, r2, t2, b2}, trace.step(ll, nn, mm, rr,
+            ts, bb)),
+        Equal.trans(Trace.Spec, Trace.parse.go(rest, n2, Trace.Spec{m2, r2, t2, b2}),
+          Trace.Spec{trace.last(rest, m2), List.reverse.go(&2, Trace.Row, Laws.trace.reqs(rest, n2, m2), r2),
+            List.reverse.go(&2, Trace.Mark, Laws.trace.trusts(rest, n2, m2), t2),
+            List.reverse.go(&2, Trace.Mark, trace.bads(rest, n2, m2), b2)},
+          Trace.Spec{trace.last(rest, m2), List.reverse.go(&2, Trace.Row, Laws.trace.reqs(ll <> rest, nn, mm), rr),
+            List.reverse.go(&2, Trace.Mark, Laws.trace.trusts(ll <> rest, nn, mm), ts),
+            List.reverse.go(&2, Trace.Mark, trace.bads(ll <> rest, nn, mm), bb)},
+          trace.parse(rest, n2, m2, r2, t2, b2),
+          trace.fields(trace.last(rest, m2),
+            List.reverse.go(&2, Trace.Row, Laws.trace.reqs(rest, n2, m2), r2),
+            List.reverse.go(&2, Trace.Row, Laws.trace.reqs(ll <> rest, nn, mm), rr),
+            List.reverse.go(&2, Trace.Mark, Laws.trace.trusts(rest, n2, m2), t2),
+            List.reverse.go(&2, Trace.Mark, Laws.trace.trusts(ll <> rest, nn, mm), ts),
+            List.reverse.go(&2, Trace.Mark, trace.bads(rest, n2, m2), b2),
+            List.reverse.go(&2, Trace.Mark, trace.bads(ll <> rest, nn, mm), bb),
+            Equal.sym(List<&2, Trace.Row>, List.reverse.go(&2, Trace.Row, Laws.trace.reqs(ll <> rest, nn, mm), rr),
+              List.reverse.go(&2, Trace.Row, Laws.trace.reqs(rest, n2, m2), r2),
+              trace.rev_app(Trace.Row, Laws.trace.req_at(kk, mm, tt, nn), Laws.trace.reqs(rest, n2, m2), rr)),
+            Equal.sym(List<&2, Trace.Mark>, List.reverse.go(&2, Trace.Mark, Laws.trace.trusts(ll <> rest, nn, mm), ts),
+              List.reverse.go(&2, Trace.Mark, Laws.trace.trusts(rest, n2, m2), t2),
+              trace.rev_app(Trace.Mark, Laws.trace.trust_at(kk, mm, tt, nn), Laws.trace.trusts(rest, n2, m2), ts)),
+            Equal.sym(List<&2, Trace.Mark>, List.reverse.go(&2, Trace.Mark, trace.bads(ll <> rest, nn, mm), bb),
+              List.reverse.go(&2, Trace.Mark, trace.bads(rest, n2, m2), b2),
+              trace.rev_app(Trace.Mark, trace.bad_at(kk, mm, tt, nn), trace.bads(rest, n2, m2), bb)))))
+
+# the text up to the first `-`
+def trace.first(ss: String) -> String:
+  match ss:
+    case SNil{}:
+      SNil{}
+    case SCon{+cc, tl}:
+      Bool.pick(String, Char.is_eq(cc, '-'), SNil{}, SCon{cc, trace.first(tl)})
+
+# the segments after the first `-`
+def trace.after(ss: String) -> List<&2, String>:
+  match ss:
+    case SNil{}:
+      Nil{}
+    case SCon{+cc, +tl}:
+      Bool.pick(List<&2, String>, Char.is_eq(cc, '-'), trace.first(tl) <> trace.after(tl), trace.after(tl))
+
+# a split's first segment and the rest, whatever the char says
+law trace.cut:
+  for dd: Bool
+  for +cc: Char
+  for +tl: String
+  {String.split.fin(cc, trace.first(tl) <> trace.after(tl), dd)
+    == Bool.pick(String, dd, SNil{}, SCon{cc, trace.first(tl)})
+      <> Bool.pick(List<&2, String>, dd, trace.first(tl) <> trace.after(tl), trace.after(tl)) : List<&2, String>}
+
+def trace.cut(dd, _cc, _tl):
+  match dd:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# a split at `-` is the first segment, then the rest
+law trace.dash:
+  for ss: String
+  {String.split(ss, '-') == trace.first(ss) <> trace.after(ss) : List<&2, String>}
+
+def trace.dash(ss):
+  match ss:
+    case SNil{}:
+      {==}
+    case SCon{+cc, +tl}:
+      Equal.trans(List<&2, String>, String.split.fin(cc, String.split(tl, '-'), Char.is_eq(cc, '-')),
+        String.split.fin(cc, trace.first(tl) <> trace.after(tl), Char.is_eq(cc, '-')),
+        trace.first(SCon{cc, tl}) <> trace.after(SCon{cc, tl}),
+        Equal.cong(List<&2, String>, List<&2, String>, xs => String.split.fin(cc, xs, Char.is_eq(cc, '-')),
+          String.split(tl, '-'), trace.first(tl) <> trace.after(tl), trace.dash(tl)),
+        trace.cut(Char.is_eq(cc, '-'), cc, tl))
+
+# what the rule asks of the segments p, ps, read so far to a `-` (dashed) or
+# not, with the first segment known to hold a char (not empty) or not
+def trace.segs(+pp: String, +ps: List<&2, String>, dashed: Bool, empty: Bool) -> Bool:
+  Bool.and(Bool.or(dashed, Bool.not(List.is_empty(&2, String, ps))),
+    Bool.and(Bool.pick(Bool, empty, Trace.segment(pp), Trace.id_chars(String.to_list(pp))), Trace.segments(ps)))
+
+# the empty text ends an ID as the rule says
+law trace.run_nil:
+  for dashed: Bool
+  for empty: Bool
+  {Laws.trace.run(SNil{}, dashed, empty) == trace.segs(SNil{}, Nil{}, dashed, empty) : Bool}
+
+def trace.run_nil(dashed, empty):
+  match dashed empty:
+    case True{} True{}:
+      {==}
+    case True{} False{}:
+      {==}
+    case False{} True{}:
+      {==}
+    case False{} False{}:
+      {==}
+
+# a `-` at the head: the segment it ends must hold a char
+law trace.run_dash:
+  for aa: Bool
+  for bb: Bool
+  for +rs: List<&2, String>
+  for dashed: Bool
+  for empty: Bool
+  {Bool.and(Bool.not(empty), Bool.and(Bool.or(True{}, Bool.not(List.is_empty(&2, String, rs))),
+    Bool.and(aa, bb)))
+    == Bool.and(Bool.or(dashed, Bool.not(False{})),
+      Bool.and(Bool.pick(Bool, empty, False{}, True{}), Lazy.and_then(aa, _u => bb))) : Bool}
+
+def trace.run_dash(aa, _bb, _rs, dashed, empty):
+  match aa dashed empty:
+    case True{} True{} True{}:
+      {==}
+    case True{} True{} False{}:
+      {==}
+    case True{} False{} True{}:
+      {==}
+    case True{} False{} False{}:
+      {==}
+    case False{} True{} True{}:
+      {==}
+    case False{} True{} False{}:
+      {==}
+    case False{} False{} True{}:
+      {==}
+    case False{} False{} False{}:
+      {==}
+
+# any other char at the head: it must be an uppercase letter or a digit
+law trace.run_char:
+  for aa: Bool
+  for oo: Bool
+  for xx: Bool
+  for yy: Bool
+  {Bool.and(aa, Bool.and(oo, Bool.and(xx, yy))) == Bool.and(oo, Bool.and(Lazy.and_then(aa, _u => xx), yy)) : Bool}
+
+def trace.run_char(aa, oo, _xx, _yy):
+  match aa oo:
+    case True{} True{}:
+      {==}
+    case True{} False{}:
+      {==}
+    case False{} True{}:
+      {==}
+    case False{} False{}:
+      {==}
+
+# one char at the head, whatever Char.is_eq says of it
+law trace.run_head:
+  for dd: Bool
+  for +cc: Char
+  for +tl: String
+  for +dashed: Bool
+  for +empty: Bool
+  for ih: {Laws.trace.run(tl, Bool.or(dd, dashed), dd)
+    == trace.segs(trace.first(tl), trace.after(tl), Bool.or(dd, dashed), dd) : Bool}
+  {Bool.and(Bool.pick(Bool, dd, Bool.not(empty), Laws.trace.alnum(cc)), Laws.trace.run(tl, Bool.or(dd, dashed), dd))
+    == trace.segs(Bool.pick(String, dd, SNil{}, SCon{cc, trace.first(tl)}),
+      Bool.pick(List<&2, String>, dd, trace.first(tl) <> trace.after(tl), trace.after(tl)), dashed, empty) : Bool}
+
+def trace.run_head(dd, cc, tl, dashed, empty, ih):
+  match dd empty:
+    case True{} True{}:
+      %Equal.sym(Bool, Laws.trace.run(tl, True{}, True{}),
+        trace.segs(trace.first(tl), trace.after(tl), True{}, True{}), ih) :
+        {Bool.and(Bool.not(True{}), _) == trace.segs(SNil{}, trace.first(tl) <> trace.after(tl), dashed, True{}) : Bool}
+      trace.run_dash(Trace.segment(trace.first(tl)), Trace.segments(trace.after(tl)), trace.after(tl), dashed, True{})
+    case True{} False{}:
+      %Equal.sym(Bool, Laws.trace.run(tl, True{}, True{}),
+        trace.segs(trace.first(tl), trace.after(tl), True{}, True{}), ih) :
+        {Bool.and(Bool.not(False{}), _) == trace.segs(SNil{}, trace.first(tl) <> trace.after(tl), dashed,
+          False{}) : Bool}
+      trace.run_dash(Trace.segment(trace.first(tl)), Trace.segments(trace.after(tl)), trace.after(tl), dashed, False{})
+    case False{} True{}:
+      %Equal.sym(Bool, Laws.trace.run(tl, dashed, False{}),
+        trace.segs(trace.first(tl), trace.after(tl), dashed, False{}), ih) :
+        {Bool.and(Laws.trace.alnum(cc), _) == trace.segs(SCon{cc, trace.first(tl)}, trace.after(tl), dashed, True{})
+          : Bool}
+      trace.run_char(Laws.trace.alnum(cc), Bool.or(dashed, Bool.not(List.is_empty(&2, String, trace.after(tl)))),
+        Trace.id_chars(String.to_list(trace.first(tl))), Trace.segments(trace.after(tl)))
+    case False{} False{}:
+      %Equal.sym(Bool, Laws.trace.run(tl, dashed, False{}),
+        trace.segs(trace.first(tl), trace.after(tl), dashed, False{}), ih) :
+        {Bool.and(Laws.trace.alnum(cc), _) == trace.segs(SCon{cc, trace.first(tl)}, trace.after(tl), dashed, False{})
+          : Bool}
+      trace.run_char(Laws.trace.alnum(cc), Bool.or(dashed, Bool.not(List.is_empty(&2, String, trace.after(tl)))),
+        Trace.id_chars(String.to_list(trace.first(tl))), Trace.segments(trace.after(tl)))
+
+# the spec's reading of an ID's segments is the rule's split
+law trace.run:
+  for ss: String
+  for +dashed: Bool
+  for +empty: Bool
+  {Laws.trace.run(ss, dashed, empty) == trace.segs(trace.first(ss), trace.after(ss), dashed, empty) : Bool}
+
+def trace.run(ss, dashed, empty):
+  match ss:
+    case SNil{}:
+      trace.run_nil(dashed, empty)
+    case SCon{+cc, +tl}:
+      trace.run_head(Char.is_eq(cc, '-'), cc, tl, dashed, empty,
+        trace.run(tl, Bool.or(Char.is_eq(cc, '-'), dashed), Char.is_eq(cc, '-')))
+
+# any Nat is at least zero
+law trace.ge0:
+  for nn: Nat
+  {Cmp.is_ge(Nat.cmp(nn, 0n)) == True{} : Bool}
+
+def trace.ge0(nn):
+  match nn:
+    case 0n:
+      {==}
+    case 1n+pp:
+      {==}
+
+# two or more segments, each well formed, as the rule tests them
+law trace.id_top:
+  for rs: List<&2, String>
+  for aa: Bool
+  for -bb: Bool
+  for -ll: Bool
+  {Bool.and(Bool.and(Nat.is_ge(1n+List.length(&2, String, rs), 2n), Lazy.and_then(aa, _u => bb)), ll)
+    == Bool.and(Bool.and(Bool.not(List.is_empty(&2, String, rs)), Bool.and(aa, bb)), ll) : Bool}
+
+def trace.id_top(rs, aa, bb, ll):
+  match rs aa:
+    case Nil{} _:
+      {==}
+    case Con{hh, tl} True{}:
+      %Equal.sym(Bool, Cmp.is_ge(Nat.cmp(List.length(&2, String, tl), 0n)), True{},
+        trace.ge0(List.length(&2, String, tl))) :
+        {Bool.and(Bool.and(_, bb), ll) == Bool.and(Bool.and(True{}, bb), ll) : Bool}
+      {==}
+    case Con{hh, tl} False{}:
+      %Equal.sym(Bool, Cmp.is_ge(Nat.cmp(List.length(&2, String, tl), 0n)), True{},
+        trace.ge0(List.length(&2, String, tl))) :
+        {Bool.and(Bool.and(_, False{}), ll) == Bool.and(Bool.and(True{}, False{}), ll) : Bool}
+      {==}
+
+# the rule's first letter is the spec's
+law trace.lead:
+  for +ss: String
+  {Trace.lettered(ss) == Laws.trace.lead(ss) : Bool}
+
+def trace.lead(ss):
+  match ss:
+    case SNil{}:
+      {==}
+    case SCon{cc, tl}:
+      {==}
+
+# the rule's ID test is the spec's
+law trace.is_id:
+  for +ss: String
+  {Trace.is_id(ss) == Laws.trace.is_id(ss) : Bool}
+
+def trace.is_id(ss):
+  +fs = trace.first(ss)
+  +rs = trace.after(ss)
+  +a1 = Bool.and(Bool.and(Nat.is_ge(List.length(&2, String, fs <> rs), 2n), Trace.segments(fs <> rs)),
+    Trace.lettered(ss))
+  +a2 = Bool.and(Bool.and(Bool.not(List.is_empty(&2, String, rs)), Bool.and(Trace.segment(fs), Trace.segments(rs))),
+    Laws.trace.lead(ss))
+  Equal.trans(Bool, Trace.is_id(ss), a1, Laws.trace.is_id(ss),
+    Equal.cong(List<&2, String>, Bool,
+      xs => Bool.and(Bool.and(Nat.is_ge(List.length(&2, String, xs), 2n), Trace.segments(xs)), Trace.lettered(ss)),
+      String.split(ss, '-'), fs <> rs, trace.dash(ss)),
+    Equal.trans(Bool, a1, a2, Laws.trace.is_id(ss),
+      Equal.trans(Bool, a1,
+        Bool.and(Bool.and(Bool.not(List.is_empty(&2, String, rs)), Bool.and(Trace.segment(fs), Trace.segments(rs))),
+          Trace.lettered(ss)), a2,
+        trace.id_top(rs, Trace.segment(fs), Trace.segments(rs), Trace.lettered(ss)),
+        Equal.cong(Bool, Bool,
+          ll => Bool.and(Bool.and(Bool.not(List.is_empty(&2, String, rs)), Bool.and(Trace.segment(fs),
+            Trace.segments(rs))),
+            ll), Trace.lettered(ss), Laws.trace.lead(ss), trace.lead(ss))),
+      Equal.sym(Bool, Laws.trace.is_id(ss), a2,
+        Equal.cong(Bool, Bool, xx => Bool.and(xx, Laws.trace.lead(ss)), Laws.trace.run(ss, False{}, True{}),
+          trace.segs(fs, rs, False{}, True{}), trace.run(ss, False{}, True{})))))
+
+# the rule's count of rows with an ID is the spec's
+law trace.many:
+  for rs: List<&2, Trace.Row>
+  for +id: String
+  {Trace.rows_with(rs, id) == Laws.trace.many(rs, id) : Nat}
+
+def trace.many(rs, id):
+  match rs:
+    case Nil{}:
+      {==}
+    case Con{Trace.Row{+ii, lv, st, ls, nn}, +rest}:
+      Equal.cong(Nat, Nat, mm => Bool.pick(Nat, String.eq(ii, id), 1n+mm, mm), Trace.rows_with(rest, id),
+        Laws.trace.many(rest, id), trace.many(rest, id))
+
+# the rule's count of trust rows with an ID is the spec's
+law trace.marks:
+  for ms: List<&2, Trace.Mark>
+  for +id: String
+  {Trace.marks_with(ms, id) == Laws.trace.marks(ms, id) : Nat}
+
+def trace.marks(ms, id):
+  match ms:
+    case Nil{}:
+      {==}
+    case Con{Trace.Mark{+ii, nn}, +rest}:
+      Equal.cong(Nat, Nat, mm => Bool.pick(Nat, String.eq(ii, id), 1n+mm, mm), Trace.marks_with(rest, id),
+        Laws.trace.marks(rest, id), trace.marks(rest, id))
+
+# the three shape messages: some message exactly when some test holds
+law trace.why:
+  for xx: Bool
+  for yy: Bool
+  for zz: Bool
+  {Bool.not(String.is_empty(Bool.pick(String, xx,
+    "the level is Proved or Trusted, the status proved or pending for Proved and empty for Trusted",
+    Bool.pick(String, yy, "a proved row names its law", Bool.pick(String, zz, "a Trusted row names no law", "")))))
+    == Bool.or(xx, Bool.or(yy, zz)) : Bool}
+
+def trace.why(xx, yy, zz):
+  match xx yy zz:
+    case True{} _ _:
+      {==}
+    case False{} True{} _:
+      {==}
+    case False{} False{} True{}:
+      {==}
+    case False{} False{} False{}:
+      {==}
+
+# the rule finds a shape wrong exactly when the spec does
+law trace.shape:
+  for +lv: String
+  for +st: String
+  for +ls: List<&2, String>
+  {Bool.not(String.is_empty(Trace.shape(lv, st, ls))) == Laws.trace.misshapen(lv, st, ls) : Bool}
+
+def trace.shape(lv, st, ls):
+  +trusted = Bool.and(String.eq(lv, "Trusted"), String.is_empty(st))
+  +none = List.is_empty(&2, String, ls)
+  trace.why(Bool.not(Bool.or(Laws.trace.claim(lv, st), trusted)),
+    Bool.and(Bool.and(String.eq(lv, "Proved"), String.eq(st, "proved")), none), Bool.and(trusted, Bool.not(none)))
+
+# a finding when a test fails counts one exactly when it fails
+law trace.flip:
+  for cc: Bool
+  for -xx: F.Finding
+  {List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, cc, [], [xx])) == Laws.trace.one(Bool.not(cc)) : Nat}
+
+def trace.flip(cc, _xx):
+  match cc:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# the lazy stop is the eager pick, when the thunk ignores its argument
+law trace.stop:
+  for -A: Data
+  for cc: Bool
+  for -aa: A
+  for -xx: A
+  for -yy: A
+  for ih: {xx == yy : A}
+  {Lazy.stop(A, cc, aa, _u => xx) == Bool.pick(A, cc, aa, yy) : A}
+
+def trace.stop(_A, cc, _aa, _xx, _yy, ih):
+  match cc:
+    case True{}:
+      {==}
+    case False{}:
+      ih
+
+# the rule's law lookup is the spec's
+law trace.law:
+  for ls: List<&2, Digest.Law>
+  for +name: String
+  {Trace.law_named(ls, name) == Laws.trace.law(ls, name) : Maybe<&2, Digest.Law>}
+
+def trace.law(ls, name):
+  match ls:
+    case Nil{}:
+      {==}
+    case Con{Digest.Law{+nn, +ll, +bb, +dd}, +rest}:
+      trace.stop(Maybe<&2, Digest.Law>, String.eq(nn, name), Some{Digest.Law{nn, ll, bb, dd}},
+        Trace.law_named(rest, name),
+        Laws.trace.law(rest, name), trace.law(rest, name))
+
+# the rule's file lookup is the spec's
+law trace.file:
+  for ds: List<&2, Digest.Digest>
+  for +pp: String
+  {Trace.laws_file(ds, pp) == Laws.trace.file(ds, pp) : Maybe<&2, List<&2, Digest.Law>>}
+
+def trace.file(ds, pp):
+  match ds:
+    case Nil{}:
+      {==}
+    case Con{Digest.Digest{path, +norm, dir, +is_laws, lf, ex, tops, says, deps, uns, +laws}, +rest}:
+      trace.stop(Maybe<&2, List<&2, Digest.Law>>, Bool.and(is_laws, String.eq(norm, pp)), Some{laws},
+        Trace.laws_file(rest, pp), Laws.trace.file(rest, pp), trace.file(rest, pp))
+
+# the rule's tag test is the spec's
+law trace.tagged:
+  for doc: List<&2, String>
+  for +id: String
+  {Trace.tagged(doc, id) == Laws.trace.tagged(doc, id) : Bool}
+
+def trace.tagged(doc, id):
+  match doc:
+    case Nil{}:
+      {==}
+    case Con{+dd, +rest}:
+      put.or(String.eq(String.trim(dd), id), Trace.tagged(rest, id), Laws.trace.tagged(rest, id),
+        trace.tagged(rest, id))
+
+# the findings on a law an entry names are the spec's defects of it
+law trace.judge_law:
+  for mm: Maybe<&2, Digest.Law>
+  for +id: String
+  for +entry: String
+  for +nn: U32
+  {List.length(&2, F.Finding, Trace.judge_law(mm, id, entry, nn)) == Laws.trace.law_at(mm, id) : Nat}
+
+def trace.judge_law(mm, id, entry, nn):
+  match mm:
+    case None{}:
+      {==}
+    case Some{Digest.Law{na, li, +bb, +dd}}:
+      +xb = Trace.at(nn, id ++ " names " ++ entry ++ ", which has no for or exs.")
+      +xt = Trace.at(nn, id ++ " names " ++ entry ++ ", which is not tagged # " ++ id ++ ".")
+      Equal.trans(Nat,
+        List.length(&2, F.Finding, List.append(&2, F.Finding, Bool.pick(List<&2, F.Finding>, bb, [], [xb]),
+          Bool.pick(List<&2, F.Finding>, Trace.tagged(dd, id), [], [xt]))),
+        Nat.add(List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, bb, [], [xb])),
+          List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, Trace.tagged(dd, id), [], [xt]))),
+        Laws.trace.law_at(Some{Digest.Law{na, li, bb, dd}}, id),
+        esc.app(Bool.pick(List<&2, F.Finding>, bb, [], [xb]), Bool.pick(List<&2, F.Finding>, Trace.tagged(dd, id),
+          [], [xt])),
+        esc.add(List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, bb, [], [xb])),
+          Laws.trace.one(Bool.not(bb)),
+          List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, Trace.tagged(dd, id), [], [xt])),
+          Laws.trace.one(Bool.not(Laws.trace.tagged(dd, id))),
+          trace.flip(bb, xb),
+          Equal.trans(Nat, List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, Trace.tagged(dd, id), [], [xt])),
+            Laws.trace.one(Bool.not(Trace.tagged(dd, id))), Laws.trace.one(Bool.not(Laws.trace.tagged(dd, id))),
+            trace.flip(Trace.tagged(dd, id), xt),
+            Equal.cong(Bool, Nat, bx => Laws.trace.one(Bool.not(bx)), Trace.tagged(dd, id), Laws.trace.tagged(dd, id),
+              trace.tagged(dd, id)))))
+
+# the findings on an entry's file are the spec's defects of it
+law trace.judge_file:
+  for mm: Maybe<&2, List<&2, Digest.Law>>
+  for +name: String
+  for +id: String
+  for +entry: String
+  for +nn: U32
+  {List.length(&2, F.Finding, Trace.judge_file(mm, name, id, entry, nn)) == Laws.trace.file_at(mm, name, id) : Nat}
+
+def trace.judge_file(mm, name, id, entry, nn):
+  match mm:
+    case None{}:
+      {==}
+    case Some{+ls}:
+      Equal.trans(Nat, List.length(&2, F.Finding, Trace.judge_law(Trace.law_named(ls, name), id, entry, nn)),
+        List.length(&2, F.Finding, Trace.judge_law(Laws.trace.law(ls, name), id, entry, nn)),
+        Laws.trace.law_at(Laws.trace.law(ls, name), id),
+        Equal.cong(Maybe<&2, Digest.Law>, Nat, ml => List.length(&2, F.Finding, Trace.judge_law(ml, id, entry, nn)),
+          Trace.law_named(ls, name), Laws.trace.law(ls, name), trace.law(ls, name)),
+        trace.judge_law(Laws.trace.law(ls, name), id, entry, nn))
+
+# the findings on an entry, as its words, are the spec's defects of it
+law trace.words:
+  for +ws: List<&2, String>
+  for +ds: List<&2, Digest.Digest>
+  for +id: String
+  for +entry: String
+  for +nn: U32
+  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Bool.not(Nat.is_eq(List.length(&2, String, ws), 2n)),
+    [Trace.at(nn, id ++ ": a Law entry is <path> <law>, not " ++ entry ++ ".")],
+    _u => Trace.judge_file(Trace.laws_file(ds, Imports.norm(Trace.cell(ws, 0n))), Trace.cell(ws, 1n), id, entry, nn)))
+    == Laws.trace.entry(ws, ds, id) : Nat}
+
+def trace.words(ws, ds, id, entry, nn):
+  match ws:
+    case Nil{}:
+      {==}
+    case Con{+w0, +r1}:
+      match r1:
+        case Nil{}:
+          {==}
+        case Con{+w1, +r2}:
+          match r2:
+            case Nil{}:
+              Equal.trans(Nat,
+                List.length(&2, F.Finding, Trace.judge_file(Trace.laws_file(ds, Imports.norm(w0)), w1, id, entry, nn)),
+                List.length(&2, F.Finding, Trace.judge_file(Laws.trace.file(ds, Imports.norm(w0)), w1, id, entry, nn)),
+                Laws.trace.file_at(Laws.trace.file(ds, Imports.norm(w0)), w1, id),
+                Equal.cong(Maybe<&2, List<&2, Digest.Law>>, Nat,
+                  mf => List.length(&2, F.Finding, Trace.judge_file(mf, w1, id, entry, nn)),
+                  Trace.laws_file(ds, Imports.norm(w0)), Laws.trace.file(ds, Imports.norm(w0)),
+                  trace.file(ds, Imports.norm(w0))),
+                trace.judge_file(Laws.trace.file(ds, Imports.norm(w0)), w1, id, entry, nn))
+            case Con{+w2, +r3}:
+              {==}
+
+# the findings on a row's Law entries are the spec's defects of them
+law trace.judge_entries:
+  for es: List<&2, String>
+  for +ds: List<&2, Digest.Digest>
+  for +id: String
+  for +nn: U32
+  {List.length(&2, F.Finding, Trace.judge_entries(es, ds, id, nn)) == Laws.trace.entries(es, ds, id) : Nat}
+
+def trace.judge_entries(es, ds, id, nn):
+  match es:
+    case Nil{}:
+      {==}
+    case Con{+ee, +rest}:
+      Equal.trans(Nat, List.length(&2, F.Finding, Trace.judge_entries(ee <> rest, ds, id, nn)),
+        Nat.add(List.length(&2, F.Finding, Trace.judge_entry(ds, id, ee, nn)),
+          List.length(&2, F.Finding, Trace.judge_entries(rest, ds, id, nn))),
+        Laws.trace.entries(ee <> rest, ds, id),
+        esc.app(Trace.judge_entry(ds, id, ee, nn), Trace.judge_entries(rest, ds, id, nn)),
+        esc.add(List.length(&2, F.Finding, Trace.judge_entry(ds, id, ee, nn)),
+          Laws.trace.entry(String.split(ee, ' '), ds, id),
+          List.length(&2, F.Finding, Trace.judge_entries(rest, ds, id, nn)), Laws.trace.entries(rest, ds, id),
+          trace.words(String.split(ee, ' '), ds, id, ee, nn), trace.judge_entries(rest, ds, id, nn)))
+
+# adding zero leaves a Nat
+law trace.add0:
+  for nn: Nat
+  {Nat.add(nn, 0n) == nn : Nat}
+
+def trace.add0(nn):
+  match nn:
+    case 0n:
+      {==}
+    case 1n+pp:
+      Equal.cong(Nat, Nat, xx => 1n+xx, Nat.add(pp, 0n), pp, trace.add0(pp))
+
+# five finding lists joined count the sum of their counts
+law trace.len5:
+  for +p1: List<&2, F.Finding>
+  for +p2: List<&2, F.Finding>
+  for +p3: List<&2, F.Finding>
+  for +p4: List<&2, F.Finding>
+  for +p5: List<&2, F.Finding>
+  {List.length(&2, F.Finding, List.concat(&2, F.Finding, [p1, p2, p3, p4, p5]))
+    == Nat.add(List.length(&2, F.Finding, p1), Nat.add(List.length(&2, F.Finding, p2),
+      Nat.add(List.length(&2, F.Finding, p3), Nat.add(List.length(&2, F.Finding, p4), List.length(&2, F.Finding, p5)))))
+    : Nat}
+
+def trace.len5(p1, p2, p3, p4, p5):
+  +l5 = List.length(&2, F.Finding, List.append(&2, F.Finding, p5, []))
+  +e5 = Equal.trans(Nat, l5, Nat.add(List.length(&2, F.Finding, p5), 0n), List.length(&2, F.Finding, p5),
+    esc.app(p5, []), trace.add0(List.length(&2, F.Finding, p5)))
+  +q4 = List.append(&2, F.Finding, p4, List.append(&2, F.Finding, p5, []))
+  +e4 = Equal.trans(Nat, List.length(&2, F.Finding, q4), Nat.add(List.length(&2, F.Finding, p4), l5),
+    Nat.add(List.length(&2, F.Finding, p4), List.length(&2, F.Finding, p5)),
+    esc.app(p4, List.append(&2, F.Finding, p5, [])),
+    Equal.cong(Nat, Nat, xx => Nat.add(List.length(&2, F.Finding, p4), xx), l5, List.length(&2, F.Finding, p5), e5))
+  +s4 = Nat.add(List.length(&2, F.Finding, p4), List.length(&2, F.Finding, p5))
+  +q3 = List.append(&2, F.Finding, p3, q4)
+  +e3 = Equal.trans(Nat, List.length(&2, F.Finding, q3), Nat.add(List.length(&2, F.Finding, p3), List.length(&2,
+    F.Finding, q4)),
+    Nat.add(List.length(&2, F.Finding, p3), s4), esc.app(p3, q4),
+    Equal.cong(Nat, Nat, xx => Nat.add(List.length(&2, F.Finding, p3), xx), List.length(&2, F.Finding, q4), s4, e4))
+  +s3 = Nat.add(List.length(&2, F.Finding, p3), s4)
+  +q2 = List.append(&2, F.Finding, p2, q3)
+  +e2 = Equal.trans(Nat, List.length(&2, F.Finding, q2), Nat.add(List.length(&2, F.Finding, p2), List.length(&2,
+    F.Finding, q3)),
+    Nat.add(List.length(&2, F.Finding, p2), s3), esc.app(p2, q3),
+    Equal.cong(Nat, Nat, xx => Nat.add(List.length(&2, F.Finding, p2), xx), List.length(&2, F.Finding, q3), s3, e3))
+  +s2 = Nat.add(List.length(&2, F.Finding, p2), s3)
+  Equal.trans(Nat, List.length(&2, F.Finding, List.append(&2, F.Finding, p1, q2)),
+    Nat.add(List.length(&2, F.Finding, p1), List.length(&2, F.Finding, q2)),
+    Nat.add(List.length(&2, F.Finding, p1), s2), esc.app(p1, q2),
+    Equal.cong(Nat, Nat, xx => Nat.add(List.length(&2, F.Finding, p1), xx), List.length(&2, F.Finding, q2), s2, e2))
+
+# equal summands give equal sums of five
+law trace.add5:
+  for -a1: Nat
+  for -a2: Nat
+  for -a3: Nat
+  for -a4: Nat
+  for -a5: Nat
+  for -b1: Nat
+  for -b2: Nat
+  for -b3: Nat
+  for -b4: Nat
+  for -b5: Nat
+  for e1: {a1 == b1 : Nat}
+  for e2: {a2 == b2 : Nat}
+  for e3: {a3 == b3 : Nat}
+  for e4: {a4 == b4 : Nat}
+  for e5: {a5 == b5 : Nat}
+  {Nat.add(a1, Nat.add(a2, Nat.add(a3, Nat.add(a4, a5)))) == Nat.add(b1, Nat.add(b2, Nat.add(b3, Nat.add(b4, b5))))
+    : Nat}
+
+def trace.add5(a1, a2, a3, a4, a5, b1, b2, b3, b4, b5, e1, e2, e3, e4, e5):
+  esc.add(a1, b1, Nat.add(a2, Nat.add(a3, Nat.add(a4, a5))), Nat.add(b2, Nat.add(b3, Nat.add(b4, b5))), e1,
+    esc.add(a2, b2, Nat.add(a3, Nat.add(a4, a5)), Nat.add(b3, Nat.add(b4, b5)), e2,
+      esc.add(a3, b3, Nat.add(a4, a5), Nat.add(b4, b5), e3, esc.add(a4, b4, a5, b5, e4, e5))))
+
+# a pick on a negated test is the pick the other way round
+law trace.unpick:
+  for cc: Bool
+  for -mm: Nat
+  {Bool.pick(Nat, Bool.not(cc), 0n, mm) == Bool.pick(Nat, cc, mm, 0n) : Nat}
+
+def trace.unpick(cc, _mm):
+  match cc:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# the rule's findings on one requirement row are the spec's defects of it
+law trace.row:
+  for +id: String
+  for +lv: String
+  for +st: String
+  for +ls: List<&2, String>
+  for +nn: U32
+  for +mo: Trace.Mode
+  for +rs: List<&2, Trace.Row>
+  for +ts: List<&2, Trace.Mark>
+  for +bs: List<&2, Trace.Mark>
+  for +ds: List<&2, Digest.Digest>
+  {List.length(&2, F.Finding, Trace.judge_row(Trace.Row{id, lv, st, ls, nn}, Trace.Spec{mo, rs, ts, bs}, ds))
+    == Laws.trace.row(Trace.Row{id, lv, st, ls, nn}, rs, ts, ds) : Nat}
+
+def trace.row(id, lv, st, ls, nn, _mo, rs, ts, _bs, ds):
+  +why = Trace.shape(lv, st, ls)
+  +x1 = Trace.at(nn, id ++ " is not an ID: [A-Z][A-Z0-9]*(-[A-Z0-9]+)+.")
+  +x2 = Trace.at(nn, id ++ " is listed twice.")
+  +x3 = Trace.at(nn, id ++ ": " ++ why ++ ".")
+  +x4 = Trace.at(nn, id ++ " is Trusted and has no row in the trust boundary table.")
+  +p1 = Bool.pick(List<&2, F.Finding>, Trace.is_id(id), [], [x1])
+  +p2 = Bool.pick(List<&2, F.Finding>, Nat.is_gt(Trace.rows_with(rs, id), 1n), [x2], [])
+  +p3 = Bool.pick(List<&2, F.Finding>, String.is_empty(why), [], [x3])
+  +p4 = Bool.pick(List<&2, F.Finding>, Bool.and(String.eq(lv, "Trusted"), Nat.is_eq(Trace.marks_with(ts, id), 0n)), [x4], [])
+  +p5 = Lazy.stop(List<&2, F.Finding>, Bool.not(Trace.claims(lv, st)), [], _u => Trace.judge_entries(ls, ds, id, nn))
+  Equal.trans(Nat, List.length(&2, F.Finding, List.concat(&2, F.Finding, [p1, p2, p3, p4, p5])),
+    Nat.add(List.length(&2, F.Finding, p1), Nat.add(List.length(&2, F.Finding, p2),
+      Nat.add(List.length(&2, F.Finding, p3), Nat.add(List.length(&2, F.Finding, p4), List.length(&2, F.Finding,
+        p5))))),
+    Laws.trace.row(Trace.Row{id, lv, st, ls, nn}, rs, ts, ds),
+    trace.len5(p1, p2, p3, p4, p5),
+    trace.add5(List.length(&2, F.Finding, p1), List.length(&2, F.Finding, p2), List.length(&2, F.Finding, p3),
+      List.length(&2, F.Finding, p4), List.length(&2, F.Finding, p5),
+      Laws.trace.one(Bool.not(Laws.trace.is_id(id))), Laws.trace.one(Nat.is_gt(Laws.trace.many(rs, id), 1n)),
+      Laws.trace.one(Laws.trace.misshapen(lv, st, ls)),
+      Laws.trace.one(Bool.and(String.eq(lv, "Trusted"), Nat.is_eq(Laws.trace.marks(ts, id), 0n))),
+      Bool.pick(Nat, Laws.trace.claim(lv, st), Laws.trace.entries(ls, ds, id), 0n),
+      Equal.trans(Nat, List.length(&2, F.Finding, p1), Laws.trace.one(Bool.not(Trace.is_id(id))),
+        Laws.trace.one(Bool.not(Laws.trace.is_id(id))), trace.flip(Trace.is_id(id), x1),
+        Equal.cong(Bool, Nat, bx => Laws.trace.one(Bool.not(bx)), Trace.is_id(id), Laws.trace.is_id(id),
+          trace.is_id(id))),
+      Equal.trans(Nat, List.length(&2, F.Finding, p2), Laws.trace.one(Nat.is_gt(Trace.rows_with(rs, id), 1n)),
+        Laws.trace.one(Nat.is_gt(Laws.trace.many(rs, id), 1n)), chars.one(Nat.is_gt(Trace.rows_with(rs, id), 1n), x2),
+        Equal.cong(Nat, Nat, nx => Laws.trace.one(Nat.is_gt(nx, 1n)), Trace.rows_with(rs, id), Laws.trace.many(rs, id),
+          trace.many(rs, id))),
+      Equal.trans(Nat, List.length(&2, F.Finding, p3), Laws.trace.one(Bool.not(String.is_empty(why))),
+        Laws.trace.one(Laws.trace.misshapen(lv, st, ls)), trace.flip(String.is_empty(why), x3),
+        Equal.cong(Bool, Nat, bx => Laws.trace.one(bx), Bool.not(String.is_empty(why)), Laws.trace.misshapen(lv,
+          st, ls),
+          trace.shape(lv, st, ls))),
+      Equal.trans(Nat, List.length(&2, F.Finding, p4),
+        Laws.trace.one(Bool.and(String.eq(lv, "Trusted"), Nat.is_eq(Trace.marks_with(ts, id), 0n))),
+        Laws.trace.one(Bool.and(String.eq(lv, "Trusted"), Nat.is_eq(Laws.trace.marks(ts, id), 0n))),
+        chars.one(Bool.and(String.eq(lv, "Trusted"), Nat.is_eq(Trace.marks_with(ts, id), 0n)), x4),
+        Equal.cong(Nat, Nat, nx => Laws.trace.one(Bool.and(String.eq(lv, "Trusted"), Nat.is_eq(nx, 0n))),
+          Trace.marks_with(ts, id), Laws.trace.marks(ts, id), trace.marks(ts, id))),
+      Equal.trans(Nat, List.length(&2, F.Finding, p5),
+        Bool.pick(Nat, Bool.not(Laws.trace.claim(lv, st)), 0n, Laws.trace.entries(ls, ds, id)),
+        Bool.pick(Nat, Laws.trace.claim(lv, st), Laws.trace.entries(ls, ds, id), 0n),
+        put.stop(Bool.not(Laws.trace.claim(lv, st)), Trace.judge_entries(ls, ds, id, nn), Laws.trace.entries(ls,
+          ds, id),
+          trace.judge_entries(ls, ds, id, nn)),
+        trace.unpick(Laws.trace.claim(lv, st), Laws.trace.entries(ls, ds, id)))))
+
+# the rule's findings on the requirement rows are the spec's defects of them
+law trace.rows:
+  for xs: List<&2, Trace.Row>
+  for +mo: Trace.Mode
+  for +rs: List<&2, Trace.Row>
+  for +ts: List<&2, Trace.Mark>
+  for +bs: List<&2, Trace.Mark>
+  for +ds: List<&2, Digest.Digest>
+  {List.length(&2, F.Finding, Trace.judge_rows(xs, Trace.Spec{mo, rs, ts, bs}, ds)) == Laws.trace.rows(xs, rs, ts, ds)
+    : Nat}
+
+def trace.rows(xs, mo, rs, ts, bs, ds):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{Trace.Row{+id, +lv, +st, +ls, +nn}, +rest}:
+      +sp = {Trace.Spec{mo, rs, ts, bs} : Trace.Spec}
+      +rw = {Trace.Row{id, lv, st, ls, nn} : Trace.Row}
+      Equal.trans(Nat, List.length(&2, F.Finding, List.append(&2, F.Finding, Trace.judge_row(rw, sp, ds),
+        Trace.judge_rows(rest, sp, ds))),
+        Nat.add(List.length(&2, F.Finding, Trace.judge_row(rw, sp, ds)),
+          List.length(&2, F.Finding, Trace.judge_rows(rest, sp, ds))),
+        Laws.trace.rows(rw <> rest, rs, ts, ds),
+        esc.app(Trace.judge_row(rw, sp, ds), Trace.judge_rows(rest, sp, ds)),
+        esc.add(List.length(&2, F.Finding, Trace.judge_row(rw, sp, ds)), Laws.trace.row(rw, rs, ts, ds),
+          List.length(&2, F.Finding, Trace.judge_rows(rest, sp, ds)), Laws.trace.rows(rest, rs, ts, ds),
+          trace.row(id, lv, st, ls, nn, mo, rs, ts, bs, ds), trace.rows(rest, mo, rs, ts, bs, ds)))
+
+# a trust row's findings, whatever its two tests say
+law trace.twin:
+  for aa: Bool
+  for bb: Bool
+  for -x1: F.Finding
+  for -x2: F.Finding
+  for -more: List<&2, F.Finding>
+  for -mm: Nat
+  for ih: {List.length(&2, F.Finding, more) == mm : Nat}
+  {List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, aa, Bool.pick(List<&2, F.Finding>, bb, x2 <> more, more),
+    x1 <> Bool.pick(List<&2, F.Finding>, bb, x2 <> more, more)))
+    == Nat.add(Nat.add(Laws.trace.one(Bool.not(aa)), Laws.trace.one(bb)), mm) : Nat}
+
+def trace.twin(aa, bb, _x1, _x2, more, mm, ih):
+  match aa bb:
+    case True{} True{}:
+      Equal.cong(Nat, Nat, nx => 1n+nx, List.length(&2, F.Finding, more), mm, ih)
+    case True{} False{}:
+      ih
+    case False{} True{}:
+      Equal.cong(Nat, Nat, nx => 2n+nx, List.length(&2, F.Finding, more), mm, ih)
+    case False{} False{}:
+      Equal.cong(Nat, Nat, nx => 1n+nx, List.length(&2, F.Finding, more), mm, ih)
+
+# the rule's findings on the trust rows are the spec's defects of them
+law trace.twins:
+  for ms: List<&2, Trace.Mark>
+  for +all: List<&2, Trace.Mark>
+  {List.length(&2, F.Finding, Trace.twins(ms, all)) == Laws.trace.trust(ms, all) : Nat}
+
+def trace.twins(ms, all):
+  match ms:
+    case Nil{}:
+      {==}
+    case Con{Trace.Mark{+id, +nn}, +rest}:
+      +x1 = Trace.at(nn, id ++ " is not an ID: [A-Z][A-Z0-9]*(-[A-Z0-9]+)+.")
+      +x2 = Trace.at(nn, id ++ " is listed twice.")
+      +mm = Laws.trace.trust(rest, all)
+      Equal.trans(Nat, List.length(&2, F.Finding, Trace.twins(Trace.Mark{id, nn} <> rest, all)),
+        Nat.add(Nat.add(Laws.trace.one(Bool.not(Trace.is_id(id))),
+          Laws.trace.one(Nat.is_gt(Trace.marks_with(all, id), 1n))), mm),
+        Laws.trace.trust(Trace.Mark{id, nn} <> rest, all),
+        trace.twin(Trace.is_id(id), Nat.is_gt(Trace.marks_with(all, id), 1n), x1, x2, Trace.twins(rest, all), mm,
+          trace.twins(rest, all)),
+        Equal.trans(Nat,
+          Nat.add(Nat.add(Laws.trace.one(Bool.not(Trace.is_id(id))),
+            Laws.trace.one(Nat.is_gt(Trace.marks_with(all, id), 1n))), mm),
+          Nat.add(Nat.add(Laws.trace.one(Bool.not(Laws.trace.is_id(id))),
+            Laws.trace.one(Nat.is_gt(Trace.marks_with(all, id), 1n))), mm),
+          Laws.trace.trust(Trace.Mark{id, nn} <> rest, all),
+          Equal.cong(Bool, Nat,
+            bx => Nat.add(Nat.add(Laws.trace.one(Bool.not(bx)), Laws.trace.one(Nat.is_gt(Trace.marks_with(all, id),
+              1n))),
+              mm), Trace.is_id(id), Laws.trace.is_id(id), trace.is_id(id)),
+          Equal.cong(Nat, Nat,
+            nx => Nat.add(Nat.add(Laws.trace.one(Bool.not(Laws.trace.is_id(id))), Laws.trace.one(Nat.is_gt(nx,
+              1n))), mm),
+            Trace.marks_with(all, id), Laws.trace.marks(all, id), trace.marks(all, id))))
+
+# the rule's claim lookup is the spec's
+law trace.claimed:
+  for rs: List<&2, Trace.Row>
+  for +id: String
+  {Trace.claimed(rs, id) == Laws.trace.claimed(rs, id) : Bool}
+
+def trace.claimed(rs, id):
+  match rs:
+    case Nil{}:
+      {==}
+    case Con{Trace.Row{+ii, +lv, +st, ls, nn}, +rest}:
+      put.or(Bool.and(Trace.claims(lv, st), String.eq(ii, id)), Trace.claimed(rest, id), Laws.trace.claimed(rest, id),
+        trace.claimed(rest, id))
+
+# a tag line's finding, whatever its two tests say
+law trace.loose:
+  for aa: Bool
+  for cc: Bool
+  for -xx: F.Finding
+  for -more: List<&2, F.Finding>
+  for -mm: Nat
+  for ih: {List.length(&2, F.Finding, more) == mm : Nat}
+  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Lazy.or_else(Bool.not(aa), _u => cc), more,
+    _u => xx <> more)) == Bool.pick(Nat, Bool.and(aa, Bool.not(cc)), 1n+mm, mm) : Nat}
+
+def trace.loose(aa, cc, _xx, more, mm, ih):
+  match aa cc:
+    case True{} True{}:
+      ih
+    case True{} False{}:
+      Equal.cong(Nat, Nat, nx => 1n+nx, List.length(&2, F.Finding, more), mm, ih)
+    case False{} _:
+      ih
+
+# the rule's stray tags of a comment block are the spec's
+law trace.stray:
+  for doc: List<&2, String>
+  for +rs: List<&2, Trace.Row>
+  for +path: String
+  for +name: String
+  for +ll: U32
+  {List.length(&2, F.Finding, Trace.stray(doc, rs, path, name, ll)) == Laws.trace.stray(doc, rs) : Nat}
+
+def trace.stray(doc, rs, path, name, ll):
+  match doc:
+    case Nil{}:
+      {==}
+    case Con{+dd, +rest}:
+      +tt = String.trim(dd)
+      +mm = Laws.trace.stray(rest, rs)
+      +xx = {F.Finding{path, ll, 0, 0, "trace",
+        "Law " ++ name ++ " is tagged " ++ tt ++ ", which SPEC.md does not list as Proved, proved or pending."} : F.Finding}
+      Equal.trans(Nat, List.length(&2, F.Finding, Trace.stray(dd <> rest, rs, path, name, ll)),
+        Bool.pick(Nat, Bool.and(Trace.is_id(tt), Bool.not(Trace.claimed(rs, tt))), 1n+mm, mm),
+        Laws.trace.stray(dd <> rest, rs),
+        trace.loose(Trace.is_id(tt), Trace.claimed(rs, tt), xx, Trace.stray(rest, rs, path, name, ll), mm,
+          trace.stray(rest, rs, path, name, ll)),
+        Equal.trans(Nat, Bool.pick(Nat, Bool.and(Trace.is_id(tt), Bool.not(Trace.claimed(rs, tt))), 1n+mm, mm),
+          Bool.pick(Nat, Bool.and(Laws.trace.is_id(tt), Bool.not(Trace.claimed(rs, tt))), 1n+mm, mm),
+          Laws.trace.stray(dd <> rest, rs),
+          Equal.cong(Bool, Nat, bx => Bool.pick(Nat, Bool.and(bx, Bool.not(Trace.claimed(rs, tt))), 1n+mm, mm),
+            Trace.is_id(tt), Laws.trace.is_id(tt), trace.is_id(tt)),
+          Equal.cong(Bool, Nat, bx => Bool.pick(Nat, Bool.and(Laws.trace.is_id(tt), Bool.not(bx)), 1n+mm, mm),
+            Trace.claimed(rs, tt), Laws.trace.claimed(rs, tt), trace.claimed(rs, tt))))
+
+# the rule's stray tags of each law are the spec's
+law trace.stray_laws:
+  for ls: List<&2, Digest.Law>
+  for +rs: List<&2, Trace.Row>
+  for +path: String
+  {List.length(&2, F.Finding, Trace.strays.laws(ls, rs, path)) == Laws.trace.stray_laws(ls, rs) : Nat}
+
+def trace.stray_laws(ls, rs, path):
+  match ls:
+    case Nil{}:
+      {==}
+    case Con{Digest.Law{+nn, +ll, bb, +dd}, +rest}:
+      Equal.trans(Nat, List.length(&2, F.Finding, List.append(&2, F.Finding, Trace.stray(dd, rs, path, nn, ll),
+        Trace.strays.laws(rest, rs, path))),
+        Nat.add(List.length(&2, F.Finding, Trace.stray(dd, rs, path, nn, ll)),
+          List.length(&2, F.Finding, Trace.strays.laws(rest, rs, path))),
+        Nat.add(Laws.trace.stray(dd, rs), Laws.trace.stray_laws(rest, rs)),
+        esc.app(Trace.stray(dd, rs, path, nn, ll), Trace.strays.laws(rest, rs, path)),
+        esc.add(List.length(&2, F.Finding, Trace.stray(dd, rs, path, nn, ll)), Laws.trace.stray(dd, rs),
+          List.length(&2, F.Finding, Trace.strays.laws(rest, rs, path)), Laws.trace.stray_laws(rest, rs),
+          trace.stray(dd, rs, path, nn, ll), trace.stray_laws(rest, rs, path)))
+
+# the rule's stray tags of each file are the spec's
+law trace.strays:
+  for ds: List<&2, Digest.Digest>
+  for +rs: List<&2, Trace.Row>
+  {List.length(&2, F.Finding, Trace.strays(ds, rs)) == Laws.trace.strays(ds, rs) : Nat}
+
+def trace.strays(ds, rs):
+  match ds:
+    case Nil{}:
+      {==}
+    case Con{Digest.Digest{+path, norm, dir, il, lf, ex, tops, says, deps, uns, +laws}, +rest}:
+      Equal.trans(Nat, List.length(&2, F.Finding, List.append(&2, F.Finding, Trace.strays.laws(laws, rs, path),
+        Trace.strays(rest, rs))),
+        Nat.add(List.length(&2, F.Finding, Trace.strays.laws(laws, rs, path)),
+          List.length(&2, F.Finding, Trace.strays(rest, rs))),
+        Nat.add(Laws.trace.stray_laws(laws, rs), Laws.trace.strays(rest, rs)),
+        esc.app(Trace.strays.laws(laws, rs, path), Trace.strays(rest, rs)),
+        esc.add(List.length(&2, F.Finding, Trace.strays.laws(laws, rs, path)), Laws.trace.stray_laws(laws, rs),
+          List.length(&2, F.Finding, Trace.strays(rest, rs)), Laws.trace.strays(rest, rs),
+          trace.stray_laws(laws, rs, path), trace.strays(rest, rs)))
+
+# one more on the right is one more in the sum
+law trace.adds:
+  for aa: Nat
+  for -bb: Nat
+  {Nat.add(aa, 1n+bb) == 1n+Nat.add(aa, bb) : Nat}
+
+def trace.adds(aa, bb):
+  match aa:
+    case 0n:
+      {==}
+    case 1n+pp:
+      Equal.cong(Nat, Nat, nx => 1n+nx, Nat.add(pp, 1n+bb), 1n+Nat.add(pp, bb), trace.adds(pp, bb))
+
+# a count that picks one more moves across a sum
+law trace.swap:
+  for cc: Bool
+  for +m1: Nat
+  for +m2: Nat
+  {Nat.add(m1, Bool.pick(Nat, cc, 1n+m2, m2)) == Nat.add(Bool.pick(Nat, cc, 1n+m1, m1), m2) : Nat}
+
+def trace.swap(cc, m1, m2):
+  match cc:
+    case True{}:
+      trace.adds(m1, m2)
+    case False{}:
+      {==}
+
+# the spec's count of rows with an ID, over a list reversed onto another
+law trace.many_rev:
+  for xs: List<&2, Trace.Row>
+  for +acc: List<&2, Trace.Row>
+  for +id: String
+  {Laws.trace.many(List.reverse.go(&2, Trace.Row, xs, acc), id)
+    == Nat.add(Laws.trace.many(xs, id), Laws.trace.many(acc, id)) : Nat}
+
+def trace.many_rev(xs, acc, id):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{Trace.Row{+ii, +lv, +st, +ls, +nn}, +rest}:
+      Equal.trans(Nat, Laws.trace.many(List.reverse.go(&2, Trace.Row, rest, Trace.Row{ii, lv, st, ls, nn} <> acc), id),
+        Nat.add(Laws.trace.many(rest, id), Laws.trace.many(Trace.Row{ii, lv, st, ls, nn} <> acc, id)),
+        Nat.add(Laws.trace.many(Trace.Row{ii, lv, st, ls, nn} <> rest, id), Laws.trace.many(acc, id)),
+        trace.many_rev(rest, Trace.Row{ii, lv, st, ls, nn} <> acc, id),
+        trace.swap(String.eq(ii, id), Laws.trace.many(rest, id), Laws.trace.many(acc, id)))
+
+# the spec's count of trust rows with an ID, over a list reversed onto another
+law trace.marks_rev:
+  for xs: List<&2, Trace.Mark>
+  for +acc: List<&2, Trace.Mark>
+  for +id: String
+  {Laws.trace.marks(List.reverse.go(&2, Trace.Mark, xs, acc), id)
+    == Nat.add(Laws.trace.marks(xs, id), Laws.trace.marks(acc, id)) : Nat}
+
+def trace.marks_rev(xs, acc, id):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{Trace.Mark{+ii, +nn}, +rest}:
+      Equal.trans(Nat, Laws.trace.marks(List.reverse.go(&2, Trace.Mark, rest, Trace.Mark{ii, nn} <> acc), id),
+        Nat.add(Laws.trace.marks(rest, id), Laws.trace.marks(Trace.Mark{ii, nn} <> acc, id)),
+        Nat.add(Laws.trace.marks(Trace.Mark{ii, nn} <> rest, id), Laws.trace.marks(acc, id)),
+        trace.marks_rev(rest, Trace.Mark{ii, nn} <> acc, id),
+        trace.swap(String.eq(ii, id), Laws.trace.marks(rest, id), Laws.trace.marks(acc, id)))
+
+# or moves across a join
+law trace.or3:
+  for bb: Bool
+  for c1: Bool
+  for -c2: Bool
+  {Bool.or(c1, Bool.or(bb, c2)) == Bool.or(Bool.or(bb, c1), c2) : Bool}
+
+def trace.or3(bb, c1, _c2):
+  match bb c1:
+    case True{} True{}:
+      {==}
+    case True{} False{}:
+      {==}
+    case False{} True{}:
+      {==}
+    case False{} False{}:
+      {==}
+
+# or with false leaves a Bool
+law trace.or0:
+  for bb: Bool
+  {Bool.or(bb, False{}) == bb : Bool}
+
+def trace.or0(bb):
+  match bb:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# the spec's claim lookup, over a list reversed onto another
+law trace.claimed_rev:
+  for xs: List<&2, Trace.Row>
+  for +acc: List<&2, Trace.Row>
+  for +id: String
+  {Laws.trace.claimed(List.reverse.go(&2, Trace.Row, xs, acc), id)
+    == Bool.or(Laws.trace.claimed(xs, id), Laws.trace.claimed(acc, id)) : Bool}
+
+def trace.claimed_rev(xs, acc, id):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{Trace.Row{+ii, +lv, +st, +ls, +nn}, +rest}:
+      Equal.trans(Bool,
+        Laws.trace.claimed(List.reverse.go(&2, Trace.Row, rest, Trace.Row{ii, lv, st, ls, nn} <> acc), id),
+        Bool.or(Laws.trace.claimed(rest, id), Laws.trace.claimed(Trace.Row{ii, lv, st, ls, nn} <> acc, id)),
+        Bool.or(Laws.trace.claimed(Trace.Row{ii, lv, st, ls, nn} <> rest, id), Laws.trace.claimed(acc, id)),
+        trace.claimed_rev(rest, Trace.Row{ii, lv, st, ls, nn} <> acc, id),
+        trace.or3(Bool.and(Laws.trace.claim(lv, st), String.eq(ii, id)), Laws.trace.claimed(rest, id),
+          Laws.trace.claimed(acc, id)))
+
+# a row's defects are the same against the rows reversed
+law trace.row_rev:
+  for xx: Trace.Row
+  for +rs: List<&2, Trace.Row>
+  for +ts: List<&2, Trace.Mark>
+  for +ds: List<&2, Digest.Digest>
+  {Laws.trace.row(xx, List.reverse(&2, Trace.Row, rs), List.reverse(&2, Trace.Mark, ts), ds)
+    == Laws.trace.row(xx, rs, ts, ds) : Nat}
+
+def trace.row_rev(xx, rs, ts, ds):
+  match xx:
+    case Trace.Row{+id, +lv, +st, +es, +nn}:
+      +a1 = Laws.trace.one(Bool.not(Laws.trace.is_id(id)))
+      +a3 = Laws.trace.one(Laws.trace.misshapen(lv, st, es))
+      +a5 = Bool.pick(Nat, Laws.trace.claim(lv, st), Laws.trace.entries(es, ds, id), 0n)
+      Equal.trans(Nat, Laws.trace.row(Trace.Row{id, lv, st, es, nn}, List.reverse(&2, Trace.Row, rs),
+        List.reverse(&2, Trace.Mark, ts), ds),
+        Nat.add(a1, Nat.add(Laws.trace.one(Nat.is_gt(Laws.trace.many(rs, id), 1n)), Nat.add(a3,
+          Nat.add(Laws.trace.one(Bool.and(String.eq(lv, "Trusted"),
+            Nat.is_eq(Laws.trace.marks(List.reverse(&2, Trace.Mark, ts), id), 0n))), a5)))),
+        Laws.trace.row(Trace.Row{id, lv, st, es, nn}, rs, ts, ds),
+        Equal.cong(Nat, Nat, nx => Nat.add(a1, Nat.add(Laws.trace.one(Nat.is_gt(nx, 1n)), Nat.add(a3,
+          Nat.add(Laws.trace.one(Bool.and(String.eq(lv, "Trusted"),
+            Nat.is_eq(Laws.trace.marks(List.reverse(&2, Trace.Mark, ts), id), 0n))), a5)))),
+          Laws.trace.many(List.reverse(&2, Trace.Row, rs), id), Laws.trace.many(rs, id),
+          Equal.trans(Nat, Laws.trace.many(List.reverse(&2, Trace.Row, rs), id), Nat.add(Laws.trace.many(rs, id), 0n),
+            Laws.trace.many(rs, id), trace.many_rev(rs, [], id), trace.add0(Laws.trace.many(rs, id)))),
+        Equal.cong(Nat, Nat, nx => Nat.add(a1, Nat.add(Laws.trace.one(Nat.is_gt(Laws.trace.many(rs, id), 1n)),
+          Nat.add(a3,
+          Nat.add(Laws.trace.one(Bool.and(String.eq(lv, "Trusted"), Nat.is_eq(nx, 0n))), a5)))),
+          Laws.trace.marks(List.reverse(&2, Trace.Mark, ts), id), Laws.trace.marks(ts, id),
+          Equal.trans(Nat, Laws.trace.marks(List.reverse(&2, Trace.Mark, ts), id), Nat.add(Laws.trace.marks(ts,
+            id), 0n),
+            Laws.trace.marks(ts, id), trace.marks_rev(ts, [], id), trace.add0(Laws.trace.marks(ts, id)))))
+
+# the rows' defects are the same against the rows reversed
+law trace.rows_rev:
+  for xs: List<&2, Trace.Row>
+  for +rs: List<&2, Trace.Row>
+  for +ts: List<&2, Trace.Mark>
+  for +ds: List<&2, Digest.Digest>
+  {Laws.trace.rows(xs, List.reverse(&2, Trace.Row, rs), List.reverse(&2, Trace.Mark, ts), ds)
+    == Laws.trace.rows(xs, rs, ts, ds) : Nat}
+
+def trace.rows_rev(xs, rs, ts, ds):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{+xx, +rest}:
+      esc.add(Laws.trace.row(xx, List.reverse(&2, Trace.Row, rs), List.reverse(&2, Trace.Mark, ts), ds),
+        Laws.trace.row(xx, rs, ts, ds),
+        Laws.trace.rows(rest, List.reverse(&2, Trace.Row, rs), List.reverse(&2, Trace.Mark, ts), ds),
+        Laws.trace.rows(rest, rs, ts, ds), trace.row_rev(xx, rs, ts, ds), trace.rows_rev(rest, rs, ts, ds))
+
+# the trust rows' defects are the same against the trust rows reversed
+law trace.trust_rev:
+  for ms: List<&2, Trace.Mark>
+  for +all: List<&2, Trace.Mark>
+  {Laws.trace.trust(ms, List.reverse(&2, Trace.Mark, all)) == Laws.trace.trust(ms, all) : Nat}
+
+def trace.trust_rev(ms, all):
+  match ms:
+    case Nil{}:
+      {==}
+    case Con{Trace.Mark{+id, +nn}, +rest}:
+      +a1 = Laws.trace.one(Bool.not(Laws.trace.is_id(id)))
+      esc.add(Nat.add(a1, Laws.trace.one(Nat.is_gt(Laws.trace.marks(List.reverse(&2, Trace.Mark, all), id), 1n))),
+        Nat.add(a1, Laws.trace.one(Nat.is_gt(Laws.trace.marks(all, id), 1n))),
+        Laws.trace.trust(rest, List.reverse(&2, Trace.Mark, all)), Laws.trace.trust(rest, all),
+        Equal.cong(Nat, Nat, nx => Nat.add(a1, Laws.trace.one(Nat.is_gt(nx, 1n))),
+          Laws.trace.marks(List.reverse(&2, Trace.Mark, all), id), Laws.trace.marks(all, id),
+          Equal.trans(Nat, Laws.trace.marks(List.reverse(&2, Trace.Mark, all), id), Nat.add(Laws.trace.marks(all,
+            id), 0n),
+            Laws.trace.marks(all, id), trace.marks_rev(all, [], id), trace.add0(Laws.trace.marks(all, id)))),
+        trace.trust_rev(rest, all))
+
+# a comment block's stray tags are the same against the rows reversed
+law trace.stray_rev:
+  for doc: List<&2, String>
+  for +rs: List<&2, Trace.Row>
+  {Laws.trace.stray(doc, List.reverse(&2, Trace.Row, rs)) == Laws.trace.stray(doc, rs) : Nat}
+
+def trace.stray_rev(doc, rs):
+  match doc:
+    case Nil{}:
+      {==}
+    case Con{+dd, +rest}:
+      +tt = String.trim(dd)
+      Equal.trans(Nat, Laws.trace.stray(dd <> rest, List.reverse(&2, Trace.Row, rs)),
+        Bool.pick(Nat, Bool.and(Laws.trace.is_id(tt), Bool.not(Laws.trace.claimed(rs, tt))),
+          1n+Laws.trace.stray(rest, List.reverse(&2, Trace.Row, rs)), Laws.trace.stray(rest, List.reverse(&2,
+            Trace.Row, rs))),
+        Laws.trace.stray(dd <> rest, rs),
+        Equal.cong(Bool, Nat, bx => Bool.pick(Nat, Bool.and(Laws.trace.is_id(tt), Bool.not(bx)),
+          1n+Laws.trace.stray(rest, List.reverse(&2, Trace.Row, rs)), Laws.trace.stray(rest, List.reverse(&2,
+            Trace.Row, rs))),
+          Laws.trace.claimed(List.reverse(&2, Trace.Row, rs), tt), Laws.trace.claimed(rs, tt),
+          Equal.trans(Bool, Laws.trace.claimed(List.reverse(&2, Trace.Row, rs), tt),
+            Bool.or(Laws.trace.claimed(rs, tt), False{}), Laws.trace.claimed(rs, tt),
+            trace.claimed_rev(rs, [], tt), trace.or0(Laws.trace.claimed(rs, tt)))),
+        Equal.cong(Nat, Nat, nx => Bool.pick(Nat, Bool.and(Laws.trace.is_id(tt), Bool.not(Laws.trace.claimed(rs, tt))),
+          1n+nx, nx), Laws.trace.stray(rest, List.reverse(&2, Trace.Row, rs)), Laws.trace.stray(rest, rs),
+          trace.stray_rev(rest, rs)))
+
+# each law's stray tags are the same against the rows reversed
+law trace.stray_laws_rev:
+  for ls: List<&2, Digest.Law>
+  for +rs: List<&2, Trace.Row>
+  {Laws.trace.stray_laws(ls, List.reverse(&2, Trace.Row, rs)) == Laws.trace.stray_laws(ls, rs) : Nat}
+
+def trace.stray_laws_rev(ls, rs):
+  match ls:
+    case Nil{}:
+      {==}
+    case Con{Digest.Law{nn, ll, bb, +dd}, +rest}:
+      esc.add(Laws.trace.stray(dd, List.reverse(&2, Trace.Row, rs)), Laws.trace.stray(dd, rs),
+        Laws.trace.stray_laws(rest, List.reverse(&2, Trace.Row, rs)), Laws.trace.stray_laws(rest, rs),
+        trace.stray_rev(dd, rs), trace.stray_laws_rev(rest, rs))
+
+# each file's stray tags are the same against the rows reversed
+law trace.strays_rev:
+  for ds: List<&2, Digest.Digest>
+  for +rs: List<&2, Trace.Row>
+  {Laws.trace.strays(ds, List.reverse(&2, Trace.Row, rs)) == Laws.trace.strays(ds, rs) : Nat}
+
+def trace.strays_rev(ds, rs):
+  match ds:
+    case Nil{}:
+      {==}
+    case Con{Digest.Digest{path, norm, dir, il, lf, ex, tops, says, deps, uns, +laws}, +rest}:
+      esc.add(Laws.trace.stray_laws(laws, List.reverse(&2, Trace.Row, rs)), Laws.trace.stray_laws(laws, rs),
+        Laws.trace.strays(rest, List.reverse(&2, Trace.Row, rs)), Laws.trace.strays(rest, rs),
+        trace.stray_laws_rev(laws, rs), trace.strays_rev(rest, rs))
+
+# a mark when a test fails counts one exactly when it fails
+law trace.mark:
+  for cc: Bool
+  for -xx: Trace.Mark
+  {List.length(&2, Trace.Mark, Bool.pick(List<&2, Trace.Mark>, cc, [], [xx])) == Bool.pick(Nat, cc, 0n, 1n) : Nat}
+
+def trace.mark(cc, _xx):
+  match cc:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# the marks a line adds are the spec's count of it
+law trace.bad_len:
+  for kk: Laws.trace.Line
+  for mm: Trace.Mode
+  for +tt: String
+  for +nn: U32
+  {List.length(&2, Trace.Mark, trace.bad_at(kk, mm, tt, nn)) == Laws.trace.bad_at(kk, mm, tt) : Nat}
+
+def trace.bad_len(kk, mm, tt, nn):
+  match kk mm:
+    case Laws.trace.Bar{} Trace.Reqs{}:
+      trace.mark(Nat.is_eq(List.length(&2, String, Laws.trace.cells(tt)), 5n),
+        Trace.Mark{"a requirement row has five cells", nn})
+    case Laws.trace.Bar{} Trace.Trusts{}:
+      trace.mark(Nat.is_eq(List.length(&2, String, Laws.trace.cells(tt)), 3n), Trace.Mark{"a trust row has three cells", nn})
+    case Laws.trace.Bar{} Trace.Out{}:
+      {==}
+    case Laws.trace.Bar{} Trace.ReqHead{}:
+      {==}
+    case Laws.trace.Bar{} Trace.TrustHead{}:
+      {==}
+    case Laws.trace.ReqHeader{} _:
+      {==}
+    case Laws.trace.TrustHeader{} _:
+      {==}
+    case Laws.trace.Prose{} _:
+      {==}
+
+# the length of two lists joined is the sum of theirs
+law trace.len_app:
+  for -A: Data
+  for xs: List<&2, A>
+  for -ys: List<&2, A>
+  {List.length(&2, A, List.append(&2, A, xs, ys)) == Nat.add(List.length(&2, A, xs), List.length(&2, A, ys)) : Nat}
+
+def trace.len_app(A, xs, ys):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{hh, tl}:
+      Equal.cong(Nat, Nat, nx => 1n+nx, List.length(&2, A, List.append(&2, A, tl, ys)),
+        Nat.add(List.length(&2, A, tl), List.length(&2, A, ys)), trace.len_app(A, tl, ys))
+
+# the marks of the lines are the spec's count of rows with the wrong number of cells
+law trace.bads_len:
+  for ls: List<&2, String>
+  for +nn: U32
+  for +mm: Trace.Mode
+  {List.length(&2, Trace.Mark, trace.bads(ls, nn, mm)) == Laws.trace.bad(ls, mm) : Nat}
+
+def trace.bads_len(ls, nn, mm):
+  match ls:
+    case Nil{}:
+      {==}
+    case Con{+ll, +rest}:
+      +tt = String.trim(ll)
+      +kk = Laws.trace.line(tt)
+      Equal.trans(Nat, List.length(&2, Trace.Mark, trace.bads(ll <> rest, nn, mm)),
+        Nat.add(List.length(&2, Trace.Mark, trace.bad_at(kk, mm, tt, nn)),
+          List.length(&2, Trace.Mark, trace.bads(rest, (nn + 1 : U32), Laws.trace.after(kk, mm)))),
+        Laws.trace.bad(ll <> rest, mm),
+        trace.len_app(Trace.Mark, trace.bad_at(kk, mm, tt, nn), trace.bads(rest, (nn + 1 : U32),
+          Laws.trace.after(kk, mm))),
+        esc.add(List.length(&2, Trace.Mark, trace.bad_at(kk, mm, tt, nn)), Laws.trace.bad_at(kk, mm, tt),
+          List.length(&2, Trace.Mark, trace.bads(rest, (nn + 1 : U32), Laws.trace.after(kk, mm))),
+          Laws.trace.bad(rest, Laws.trace.after(kk, mm)), trace.bad_len(kk, mm, tt, nn),
+          trace.bads_len(rest, (nn + 1 : U32), Laws.trace.after(kk, mm))))
+
+# a list joined with nothing is itself
+law trace.app_nil:
+  for -A: Data
+  for xs: List<&2, A>
+  {List.append(&2, A, xs, []) == xs : List<&2, A>}
+
+def trace.app_nil(A, xs):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{hh, tl}:
+      Equal.cong(List<&2, A>, List<&2, A>, ys => hh <> ys, List.append(&2, A, tl, []), tl, trace.app_nil(A, tl))
+
+# reversing a list reversed onto an accumulator
+law trace.rev_rev_go:
+  for -A: Data
+  for xs: List<&2, A>
+  for acc: List<&2, A>
+  for ys: List<&2, A>
+  {List.reverse.go(&2, A, List.reverse.go(&2, A, xs, acc), ys) == List.reverse.go(&2, A, acc, List.append(&2, A,
+    xs, ys))
+    : List<&2, A>}
+
+def trace.rev_rev_go(A, xs, acc, ys):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{hh, tl}:
+      trace.rev_rev_go(A, tl, hh <> acc, ys)
+
+# a list reversed twice is itself
+law trace.rev_rev:
+  for -A: Data
+  for +xs: List<&2, A>
+  {List.reverse(&2, A, List.reverse(&2, A, xs)) == xs : List<&2, A>}
+
+def trace.rev_rev(A, xs):
+  Equal.trans(List<&2, A>, List.reverse(&2, A, List.reverse(&2, A, xs)), List.append(&2, A, xs, []), xs,
+    trace.rev_rev_go(A, xs, [], []), trace.app_nil(A, xs))
+
+# one finding for each malformed row
+law trace.malformed:
+  for ms: List<&2, Trace.Mark>
+  {List.length(&2, F.Finding, Trace.malformed(ms)) == List.length(&2, Trace.Mark, ms) : Nat}
+
+def trace.malformed(ms):
+  match ms:
+    case Nil{}:
+      {==}
+    case Con{Trace.Mark{why, nn}, rest}:
+      Equal.cong(Nat, Nat, nx => 1n+nx, List.length(&2, F.Finding, Trace.malformed(rest)),
+        List.length(&2, Trace.Mark, rest), trace.malformed(rest))
+
+# four finding lists joined count the sum of their counts
+law trace.len4:
+  for +p1: List<&2, F.Finding>
+  for +p2: List<&2, F.Finding>
+  for +p3: List<&2, F.Finding>
+  for +p4: List<&2, F.Finding>
+  {List.length(&2, F.Finding, List.concat(&2, F.Finding, [p1, p2, p3, p4]))
+    == Nat.add(List.length(&2, F.Finding, p1), Nat.add(List.length(&2, F.Finding, p2),
+      Nat.add(List.length(&2, F.Finding, p3), List.length(&2, F.Finding, p4)))) : Nat}
+
+def trace.len4(p1, p2, p3, p4):
+  +l1 = List.length(&2, F.Finding, p1)
+  +l2 = List.length(&2, F.Finding, p2)
+  +l3 = List.length(&2, F.Finding, p3)
+  +l4 = List.length(&2, F.Finding, p4)
+  Equal.trans(Nat, List.length(&2, F.Finding, List.concat(&2, F.Finding, [p1, p2, p3, p4, []])),
+    Nat.add(l1, Nat.add(l2, Nat.add(l3, Nat.add(l4, 0n)))), Nat.add(l1, Nat.add(l2, Nat.add(l3, l4))),
+    trace.len5(p1, p2, p3, p4, []),
+    Equal.cong(Nat, Nat, nx => Nat.add(l1, Nat.add(l2, Nat.add(l3, nx))), Nat.add(l4, 0n), l4, trace.add0(l4)))
+
+def Laws.trace_named(_mm, _ds):
+  {==}
+
+def Laws.trace_unread(_ds):
+  {==}
+
+def Laws.trace_counts(text, ds):
+  +ls = String.lines(text)
+  +rs = Laws.trace.reqs(ls, 0, Trace.Out{})
+  +ts = Laws.trace.trusts(ls, 0, Trace.Out{})
+  +bs = trace.bads(ls, 0, Trace.Out{})
+  +r0 = List.reverse(&2, Trace.Row, rs)
+  +t0 = List.reverse(&2, Trace.Mark, ts)
+  +b0 = List.reverse(&2, Trace.Mark, bs)
+  +sp = {Trace.Spec{trace.last(ls, Trace.Out{}), r0, t0, b0} : Trace.Spec}
+  +p1 = Trace.malformed(List.reverse(&2, Trace.Mark, b0))
+  +p2 = Trace.judge_rows(List.reverse(&2, Trace.Row, r0), sp, ds)
+  +p3 = Trace.twins(List.reverse(&2, Trace.Mark, t0), t0)
+  +p4 = Trace.strays(ds, r0)
+  +ea = Equal.trans(Nat, List.length(&2, F.Finding, p1), List.length(&2, Trace.Mark, List.reverse(&2, Trace.Mark, b0)),
+    Laws.trace.bad(ls, Trace.Out{}), trace.malformed(List.reverse(&2, Trace.Mark, b0)),
+    Equal.trans(Nat, List.length(&2, Trace.Mark, List.reverse(&2, Trace.Mark, b0)), List.length(&2, Trace.Mark, bs),
+      Laws.trace.bad(ls, Trace.Out{}),
+      Equal.cong(List<&2, Trace.Mark>, Nat, xs => List.length(&2, Trace.Mark, xs), List.reverse(&2, Trace.Mark, b0), bs,
+        trace.rev_rev(Trace.Mark, bs)),
+      trace.bads_len(ls, 0, Trace.Out{})))
+  +eb = Equal.trans(Nat, List.length(&2, F.Finding, p2), List.length(&2, F.Finding, Trace.judge_rows(rs, sp, ds)),
+    Laws.trace.rows(rs, rs, ts, ds),
+    Equal.cong(List<&2, Trace.Row>, Nat, xs => List.length(&2, F.Finding, Trace.judge_rows(xs, sp, ds)),
+      List.reverse(&2, Trace.Row, r0), rs, trace.rev_rev(Trace.Row, rs)),
+    Equal.trans(Nat, List.length(&2, F.Finding, Trace.judge_rows(rs, sp, ds)), Laws.trace.rows(rs, r0, t0, ds),
+      Laws.trace.rows(rs, rs, ts, ds), trace.rows(rs, trace.last(ls, Trace.Out{}), r0, t0, b0, ds),
+      trace.rows_rev(rs, rs, ts, ds)))
+  +ec = Equal.trans(Nat, List.length(&2, F.Finding, p3), List.length(&2, F.Finding, Trace.twins(ts, t0)),
+    Laws.trace.trust(ts, ts),
+    Equal.cong(List<&2, Trace.Mark>, Nat, xs => List.length(&2, F.Finding, Trace.twins(xs, t0)),
+      List.reverse(&2, Trace.Mark, t0), ts, trace.rev_rev(Trace.Mark, ts)),
+    Equal.trans(Nat, List.length(&2, F.Finding, Trace.twins(ts, t0)), Laws.trace.trust(ts, t0),
+      Laws.trace.trust(ts, ts),
+      trace.twins(ts, t0), trace.trust_rev(ts, ts)))
+  +ed = Equal.trans(Nat, List.length(&2, F.Finding, p4), Laws.trace.strays(ds, r0), Laws.trace.strays(ds, rs),
+    trace.strays(ds, r0), trace.strays_rev(ds, rs))
+  Equal.trans(Nat, List.length(&2, F.Finding, Trace.check(True{}, Some{text}, ds)),
+    List.length(&2, F.Finding, Trace.check.spec(sp, ds)), Laws.trace.count(ls, ds),
+    Equal.cong(Trace.Spec, Nat, sx => List.length(&2, F.Finding, Trace.check.spec(sx, ds)),
+      Trace.parse.go(ls, 0, Trace.Spec{Trace.Out{}, [], [], []}), sp, trace.parse(ls, 0, Trace.Out{}, [], [], [])),
+    Equal.trans(Nat, List.length(&2, F.Finding, List.concat(&2, F.Finding, [p1, p2, p3, p4])),
+      Nat.add(List.length(&2, F.Finding, p1), Nat.add(List.length(&2, F.Finding, p2),
+        Nat.add(List.length(&2, F.Finding, p3), List.length(&2, F.Finding, p4)))),
+      Laws.trace.count(ls, ds), trace.len4(p1, p2, p3, p4),
+      esc.add(List.length(&2, F.Finding, p1), Laws.trace.bad(ls, Trace.Out{}),
+        Nat.add(List.length(&2, F.Finding, p2), Nat.add(List.length(&2, F.Finding, p3), List.length(&2, F.Finding,
+          p4))),
+        Nat.add(Laws.trace.rows(rs, rs, ts, ds), Nat.add(Laws.trace.trust(ts, ts), Laws.trace.strays(ds, rs))), ea,
+        esc.add(List.length(&2, F.Finding, p2), Laws.trace.rows(rs, rs, ts, ds),
+          Nat.add(List.length(&2, F.Finding, p3), List.length(&2, F.Finding, p4)),
+          Nat.add(Laws.trace.trust(ts, ts), Laws.trace.strays(ds, rs)), eb,
+          esc.add(List.length(&2, F.Finding, p3), Laws.trace.trust(ts, ts), List.length(&2, F.Finding, p4),
+            Laws.trace.strays(ds, rs), ec, ed)))))
