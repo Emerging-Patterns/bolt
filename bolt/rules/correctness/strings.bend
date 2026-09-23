@@ -20,9 +20,29 @@ import ../tokens.bend as T
 type Tally is Data:
   Tally{arms: U32, chars: U32}
 
-# is a string token closed: a quote at each end, so two characters at least?
-def terminated(+tt: String, +ww: U32) -> Bool:
-  Bool.and(U32.is_ge(ww, 2), String.ends_with(tt, "\""))
+# does the text end on a closing quote, its escapes read as a backslash and
+# the one char after it? esc: the char before was an unescaped backslash;
+# shut: it was an unescaped quote
+def closes(cs: List<&2, Char>, +esc: Bool, +shut: Bool) -> Bool:
+  match cs:
+    case Nil{}:
+      shut
+    case Con{ch, rest}:
+      +code = Char.to_u32(ch)
+      closes(rest, Bool.and(Bool.not(esc), U32.is_eq(code, 92)), Bool.and(Bool.not(esc), U32.is_eq(code, 34)))
+
+# past its opening char, do the chars end on a closing quote?
+def opened(cs: List<&2, Char>) -> Bool:
+  match cs:
+    case Nil{}:
+      False{}
+    case Con{_q, rest}:
+      closes(rest, False{}, False{})
+
+# is a string token closed: past its opening quote, does it end on a quote no
+# backslash escapes? `"\"`, an unclosed string at the end of the file, is not
+def terminated(+tt: String) -> Bool:
+  opened(String.to_list(tt))
 
 # the characters of the string a case pattern opens with, if it does and the
 # string is closed
@@ -30,7 +50,7 @@ def literal(kids: Tree.Node) -> Maybe<&2, U32>:
   match kids:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TStr{}, +t, l, c}}, rest}:
       +w = T.width(t)
-      Bool.pick(Maybe<&2, U32>, terminated(t, w), Some{(w - 2 : U32)}, None{})
+      Bool.pick(Maybe<&2, U32>, terminated(t), Some{(w - 2 : U32)}, None{})
     case other:
       None{}
 

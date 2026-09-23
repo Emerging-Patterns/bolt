@@ -29,6 +29,8 @@ import ./suspicious/index.bend as Index
 import ./suspicious/ring.bend as Ring
 import ./suspicious/table.bend as Table
 import ./suspicious/unit.bend as UnitRule
+import ./correctness/chars.bend as Chars
+import ./correctness/strings.bend as Strings
 import ./LAWS.bend as Laws
 
 # a finding in front when b holds adds one to the count
@@ -1476,3 +1478,629 @@ def ex.unit(ds, path, n, e):
 
 def Laws.unit_exempt(path, _text, _toks, tree, _bound, _items, e):
   ex.unit(Calls.defs(tree), path, 0n, e)
+
+# The match rules, chars and strings: a statement's walk joins three lists,
+# its own finding, its body's and the rest's, so the count is their sum.
+
+# appending nothing keeps the length
+law chars.nil:
+  for xs: List<&2, F.Finding>
+  {List.length(&2, F.Finding, List.append(&2, F.Finding, xs, [])) == List.length(&2, F.Finding, xs) : Nat}
+
+def chars.nil(xs):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{h, t}:
+      Equal.cong(Nat, Nat, n => 1n+n, List.length(&2, F.Finding, List.append(&2, F.Finding, t, [])),
+        List.length(&2, F.Finding, t), chars.nil(t))
+
+# three lists joined count as the sum of their counts
+law chars.three:
+  for +a: List<&2, F.Finding>
+  for +b: List<&2, F.Finding>
+  for +c: List<&2, F.Finding>
+  {List.length(&2, F.Finding, List.concat(&2, F.Finding, [a, b, c]))
+    == Nat.add(List.length(&2, F.Finding, a), Nat.add(List.length(&2, F.Finding, b), List.length(&2, F.Finding, c)))
+    : Nat}
+
+def chars.three(a, b, c):
+  +bc = List.append(&2, F.Finding, b, List.append(&2, F.Finding, c, []))
+  Equal.trans(Nat,
+    List.length(&2, F.Finding, List.append(&2, F.Finding, a, bc)),
+    Nat.add(List.length(&2, F.Finding, a), List.length(&2, F.Finding, bc)),
+    Nat.add(List.length(&2, F.Finding, a), Nat.add(List.length(&2, F.Finding, b), List.length(&2, F.Finding, c))),
+    esc.app(a, bc),
+    esc.add(List.length(&2, F.Finding, a), List.length(&2, F.Finding, a), List.length(&2, F.Finding, bc),
+      Nat.add(List.length(&2, F.Finding, b), List.length(&2, F.Finding, c)), {==},
+      Equal.trans(Nat,
+        List.length(&2, F.Finding, bc),
+        Nat.add(List.length(&2, F.Finding, b), List.length(&2, F.Finding, List.append(&2, F.Finding, c, []))),
+        Nat.add(List.length(&2, F.Finding, b), List.length(&2, F.Finding, c)),
+        esc.app(b, List.append(&2, F.Finding, c, [])),
+        esc.add(List.length(&2, F.Finding, b), List.length(&2, F.Finding, b),
+          List.length(&2, F.Finding, List.append(&2, F.Finding, c, [])), List.length(&2, F.Finding, c), {==},
+          chars.nil(c)))))
+
+# a lone finding when b holds counts one, else none
+law chars.one:
+  for b: Bool
+  for -x: F.Finding
+  {List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, b, [x], [])) == Bool.pick(Nat, b, 1n, 0n) : Nat}
+
+def chars.one(b, _x):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# a statement that is not a match adds nothing; a match adds what its report does
+law chars.gate:
+  for b: Bool
+  for -more: List<&2, F.Finding>
+  for -g: Bool
+  for ih: {List.length(&2, F.Finding, more) == Bool.pick(Nat, g, 1n, 0n) : Nat}
+  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Bool.not(b), [], _u => more))
+    == Bool.pick(Nat, Bool.and(b, g), 1n, 0n) : Nat}
+
+def chars.gate(b, _more, _g, ih):
+  match b:
+    case True{}:
+      ih
+    case False{}:
+      {==}
+
+# the rule's keyword test is the law's
+law chars.key:
+  for kids: Tree.Node
+  {T.keyword(kids, "match") == Laws.chars.is_match(kids) : Bool}
+
+def chars.key(kids):
+  match kids:
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{o, gk, cl}:
+      {==}
+    case Tree.Stmt{kind, sk, sb}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+    case Tree.NCons{h, rest}:
+      match h:
+        case Tree.Leaf{Lex.Tok{kind, t, l, c}}:
+          match kind:
+            case Lex.TName{}:
+              {==}
+            case Lex.TUpper{}:
+              {==}
+            case Lex.TDotted{}:
+              {==}
+            case Lex.TWild{}:
+              {==}
+            case Lex.TKey{}:
+              {==}
+            case Lex.TNum{}:
+              {==}
+            case Lex.TStr{}:
+              {==}
+            case Lex.TChar{}:
+              {==}
+            case Lex.TComment{}:
+              {==}
+            case Lex.TSpace{}:
+              {==}
+            case Lex.TNewline{}:
+              {==}
+            case Lex.TOp{}:
+              {==}
+            case Lex.TColon{}:
+              {==}
+            case Lex.TEq{}:
+              {==}
+            case Lex.TBind{}:
+              {==}
+            case Lex.TArrow{}:
+              {==}
+            case Lex.TLam{}:
+              {==}
+            case Lex.TAll{}:
+              {==}
+            case Lex.TAmp{}:
+              {==}
+            case Lex.TOpen{}:
+              {==}
+            case Lex.TClose{}:
+              {==}
+            case Lex.TComma{}:
+              {==}
+        case Tree.Group{o, gk, cl}:
+          {==}
+        case Tree.Stmt{kind, sk, sb}:
+          {==}
+        case Tree.NNil{}:
+          {==}
+        case Tree.NCons{nh, nt}:
+          {==}
+
+# the rule's literal test on the pattern is the law's on the case
+law chars.lit:
+  for kids: Tree.Node
+  {Chars.literal(T.pattern(kids)) == Laws.chars.opens(kids) : U32}
+
+def chars.lit(kids):
+  match kids:
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{o, gk, cl}:
+      {==}
+    case Tree.Stmt{kind, sk, sb}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+    case Tree.NCons{h, rest}:
+      match rest:
+        case Tree.Leaf{tok}:
+          {==}
+        case Tree.Group{o, gk, cl}:
+          {==}
+        case Tree.Stmt{kind, sk, sb}:
+          {==}
+        case Tree.NNil{}:
+          {==}
+        case Tree.NCons{h2, r2}:
+          match h2:
+            case Tree.Leaf{Lex.Tok{kind, +t, l, c}}:
+              match kind:
+                case Lex.TName{}:
+                  {==}
+                case Lex.TUpper{}:
+                  {==}
+                case Lex.TDotted{}:
+                  {==}
+                case Lex.TWild{}:
+                  {==}
+                case Lex.TKey{}:
+                  {==}
+                case Lex.TNum{}:
+                  {==}
+                case Lex.TStr{}:
+                  {==}
+                case Lex.TChar{}:
+                  {==}
+                case Lex.TComment{}:
+                  {==}
+                case Lex.TSpace{}:
+                  {==}
+                case Lex.TNewline{}:
+                  {==}
+                case Lex.TOp{}:
+                  {==}
+                case Lex.TColon{}:
+                  {==}
+                case Lex.TEq{}:
+                  {==}
+                case Lex.TBind{}:
+                  {==}
+                case Lex.TArrow{}:
+                  {==}
+                case Lex.TLam{}:
+                  {==}
+                case Lex.TAll{}:
+                  {==}
+                case Lex.TAmp{}:
+                  {==}
+                case Lex.TOpen{}:
+                  {==}
+                case Lex.TClose{}:
+                  {==}
+                case Lex.TComma{}:
+                  {==}
+            case Tree.Group{o, gk, cl}:
+              {==}
+            case Tree.Stmt{kind, sk, sb}:
+              {==}
+            case Tree.NNil{}:
+              {==}
+            case Tree.NCons{nh, nt}:
+              {==}
+
+# a case statement onto a body the law holds for, at the rule's count
+law chars.step:
+  for +rest: Tree.Node
+  for +nn: U32
+  for +kids: Tree.Node
+  for ih: {Chars.tally(rest, (nn + Chars.literal(T.pattern(kids)) : U32))
+    == Laws.chars.arms(rest, (nn + Chars.literal(T.pattern(kids)) : U32)) : U32}
+  {Chars.tally(rest, (nn + Chars.literal(T.pattern(kids)) : U32))
+    == Laws.chars.arms(rest, (nn + Laws.chars.opens(kids) : U32)) : U32}
+
+def chars.step(rest, nn, kids, ih):
+  Equal.trans(U32,
+    Chars.tally(rest, (nn + Chars.literal(T.pattern(kids)) : U32)),
+    Laws.chars.arms(rest, (nn + Chars.literal(T.pattern(kids)) : U32)),
+    Laws.chars.arms(rest, (nn + Laws.chars.opens(kids) : U32)),
+    ih,
+    Equal.cong(U32, U32, z => Laws.chars.arms(rest, (nn + z : U32)),
+      Chars.literal(T.pattern(kids)), Laws.chars.opens(kids), chars.lit(kids)))
+
+# chars' tally counts the arms the law counts
+law chars.tally:
+  for body: Tree.Node
+  for +nn: U32
+  {Chars.tally(body, nn) == Laws.chars.arms(body, nn) : U32}
+
+def chars.tally(body, nn):
+  match body:
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{o, gk, cl}:
+      {==}
+    case Tree.Stmt{kind, sk, sb}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          chars.tally(rest, nn)
+        case Tree.Group{o, gk, cl}:
+          chars.tally(rest, nn)
+        case Tree.Stmt{kind, +kids, b}:
+          match kind:
+            case Tree.SDef{}:
+              chars.tally(rest, nn)
+            case Tree.SType{}:
+              chars.tally(rest, nn)
+            case Tree.SLaw{}:
+              chars.tally(rest, nn)
+            case Tree.SImport{}:
+              chars.tally(rest, nn)
+            case Tree.SCase{}:
+              chars.step(rest, nn, kids, chars.tally(rest, (nn + Chars.literal(T.pattern(kids)) : U32)))
+            case Tree.SFor{}:
+              chars.tally(rest, nn)
+            case Tree.SLet{}:
+              chars.tally(rest, nn)
+            case Tree.STerm{}:
+              chars.tally(rest, nn)
+        case Tree.NNil{}:
+          chars.tally(rest, nn)
+        case Tree.NCons{nh, nt}:
+          chars.tally(rest, nn)
+
+# a statement's own finding: one when it is a match over more than eight
+# char arms
+law chars.stmt:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +path: String
+  {List.length(&2, F.Finding, Chars.on_stmt(kids, body, path))
+    == Bool.pick(Nat, Bool.and(Laws.chars.is_match(kids), U32.is_gt(Laws.chars.arms(body, 0), 8)), 1n, 0n) : Nat}
+
+def chars.stmt(kids, body, path):
+  +n = Chars.tally(body, 0)
+  Equal.trans(Nat,
+    List.length(&2, F.Finding, Chars.on_stmt(kids, body, path)),
+    Bool.pick(Nat, Bool.and(T.keyword(kids, "match"), U32.is_gt(n, 8)), 1n, 0n),
+    Bool.pick(Nat, Bool.and(Laws.chars.is_match(kids), U32.is_gt(Laws.chars.arms(body, 0), 8)), 1n, 0n),
+    chars.gate(T.keyword(kids, "match"), Chars.report(n, path, Tree.line(kids), Tree.col(kids)), U32.is_gt(n, 8),
+      chars.one(U32.is_gt(n, 8), F.Finding{path, Tree.line(kids), Tree.col(kids), 5, "chars",
+        "A match over " ++ U32.show(n) ++ " character literals exceeds the limit of 8 and blows up compile time and"
+        ++ " memory; compare Char.to_u32(c) instead."})),
+    Equal.trans(Nat,
+      Bool.pick(Nat, Bool.and(T.keyword(kids, "match"), U32.is_gt(n, 8)), 1n, 0n),
+      Bool.pick(Nat, Bool.and(Laws.chars.is_match(kids), U32.is_gt(n, 8)), 1n, 0n),
+      Bool.pick(Nat, Bool.and(Laws.chars.is_match(kids), U32.is_gt(Laws.chars.arms(body, 0), 8)), 1n, 0n),
+      Equal.cong(Bool, Nat, z => Bool.pick(Nat, Bool.and(z, U32.is_gt(n, 8)), 1n, 0n),
+        T.keyword(kids, "match"), Laws.chars.is_match(kids), chars.key(kids)),
+      Equal.cong(U32, Nat, z => Bool.pick(Nat, Bool.and(Laws.chars.is_match(kids), U32.is_gt(z, 8)), 1n, 0n),
+        n, Laws.chars.arms(body, 0), chars.tally(body, 0))))
+
+# a statement onto the rest: its finding, its body's and the rest's
+law chars.sum:
+  for +a: List<&2, F.Finding>
+  for +b: List<&2, F.Finding>
+  for +c: List<&2, F.Finding>
+  for -x: Nat
+  for -y: Nat
+  for -z: Nat
+  for e1: {List.length(&2, F.Finding, a) == x : Nat}
+  for e2: {List.length(&2, F.Finding, b) == y : Nat}
+  for e3: {List.length(&2, F.Finding, c) == z : Nat}
+  {List.length(&2, F.Finding, List.concat(&2, F.Finding, [a, b, c])) == Nat.add(x, Nat.add(y, z)) : Nat}
+
+def chars.sum(a, b, c, x, y, z, e1, e2, e3):
+  Equal.trans(Nat,
+    List.length(&2, F.Finding, List.concat(&2, F.Finding, [a, b, c])),
+    Nat.add(List.length(&2, F.Finding, a), Nat.add(List.length(&2, F.Finding, b), List.length(&2, F.Finding, c))),
+    Nat.add(x, Nat.add(y, z)),
+    chars.three(a, b, c),
+    esc.add(List.length(&2, F.Finding, a), x,
+      Nat.add(List.length(&2, F.Finding, b), List.length(&2, F.Finding, c)), Nat.add(y, z), e1,
+      esc.add(List.length(&2, F.Finding, b), y, List.length(&2, F.Finding, c), z, e2, e3)))
+
+# chars' walk counts the matches the law counts
+law chars.walk:
+  for nn: Tree.Node
+  for +path: String
+  {List.length(&2, F.Finding, Chars.walk(nn, path)) == Laws.chars.count(nn) : Nat}
+
+def chars.walk(nn, path):
+  match nn:
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{o, gk, cl}:
+      {==}
+    case Tree.Stmt{kind, sk, sb}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          chars.walk(rest, path)
+        case Tree.Group{o, gk, cl}:
+          chars.walk(rest, path)
+        case Tree.Stmt{kind, +kids, +body}:
+          chars.sum(Chars.on_stmt(kids, body, path), Chars.walk(body, path), Chars.walk(rest, path),
+            Bool.pick(Nat, Bool.and(Laws.chars.is_match(kids), U32.is_gt(Laws.chars.arms(body, 0), 8)), 1n, 0n),
+            Laws.chars.count(body), Laws.chars.count(rest),
+            chars.stmt(kids, body, path), chars.walk(body, path), chars.walk(rest, path))
+        case Tree.NNil{}:
+          chars.walk(rest, path)
+        case Tree.NCons{nh, nt}:
+          chars.walk(rest, path)
+
+def Laws.chars_counts(path, _text, _toks, tree, _bound, _items):
+  chars.walk(tree, path)
+
+# the chars of a closed string arm, else zero, to the rule and to the law
+law strings.pick:
+  for b: Bool
+  for -x: U32
+  {Strings.size(Bool.pick(Maybe<&2, U32>, b, Some{x}, None{})) == Bool.pick(U32, b, x, 0) : U32}
+
+def strings.pick(b, _x):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# the rule's string arm test on the pattern is the law's on the case
+law strings.lit:
+  for kids: Tree.Node
+  {Strings.size(Strings.literal(T.pattern(kids))) == Laws.strings.size(kids) : U32}
+
+def strings.lit(kids):
+  match kids:
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{o, gk, cl}:
+      {==}
+    case Tree.Stmt{kind, sk, sb}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+    case Tree.NCons{h, rest}:
+      match rest:
+        case Tree.Leaf{tok}:
+          {==}
+        case Tree.Group{o, gk, cl}:
+          {==}
+        case Tree.Stmt{kind, sk, sb}:
+          {==}
+        case Tree.NNil{}:
+          {==}
+        case Tree.NCons{h2, r2}:
+          match h2:
+            case Tree.Leaf{Lex.Tok{kind, +t, l, c}}:
+              match kind:
+                case Lex.TName{}:
+                  {==}
+                case Lex.TUpper{}:
+                  {==}
+                case Lex.TDotted{}:
+                  {==}
+                case Lex.TWild{}:
+                  {==}
+                case Lex.TKey{}:
+                  {==}
+                case Lex.TNum{}:
+                  {==}
+                case Lex.TStr{}:
+                  strings.pick(Strings.terminated(t), (U32.from_nat(String.length(t)) - 2 : U32))
+                case Lex.TChar{}:
+                  {==}
+                case Lex.TComment{}:
+                  {==}
+                case Lex.TSpace{}:
+                  {==}
+                case Lex.TNewline{}:
+                  {==}
+                case Lex.TOp{}:
+                  {==}
+                case Lex.TColon{}:
+                  {==}
+                case Lex.TEq{}:
+                  {==}
+                case Lex.TBind{}:
+                  {==}
+                case Lex.TArrow{}:
+                  {==}
+                case Lex.TLam{}:
+                  {==}
+                case Lex.TAll{}:
+                  {==}
+                case Lex.TAmp{}:
+                  {==}
+                case Lex.TOpen{}:
+                  {==}
+                case Lex.TClose{}:
+                  {==}
+                case Lex.TComma{}:
+                  {==}
+            case Tree.Group{o, gk, cl}:
+              {==}
+            case Tree.Stmt{kind, sk, sb}:
+              {==}
+            case Tree.NNil{}:
+              {==}
+            case Tree.NCons{nh, nt}:
+              {==}
+
+# a body with no case left: the report reads the chars so far
+law strings.base:
+  for +nn: U32
+  for +ch: U32
+  for +path: String
+  for +ll: U32
+  for +cc: U32
+  {List.length(&2, F.Finding, Strings.report(Strings.Tally{nn, ch}, path, ll, cc))
+    == Bool.pick(Nat, U32.is_gt(ch, 64), 1n, 0n) : Nat}
+
+def strings.base(nn, ch, path, ll, cc):
+  chars.one(U32.is_gt(ch, 64), F.Finding{path, ll, cc, 5, "strings",
+    "A match over " ++ U32.show(nn) ++ " string literals totals " ++ U32.show(ch)
+    ++ " characters, over the 64-character limit, and blows up compile time and memory;"
+    ++ " map the string to a sum type once."})
+
+# a case statement onto a body the law holds for, at the rule's count
+law strings.step:
+  for +rest: Tree.Node
+  for +nn: U32
+  for +ch: U32
+  for +kids: Tree.Node
+  for +path: String
+  for +ll: U32
+  for +cc: U32
+  for ih: {List.length(&2, F.Finding, Strings.report(Strings.tally(rest,
+      (nn + Strings.one(Strings.literal(T.pattern(kids))) : U32),
+      (ch + Strings.size(Strings.literal(T.pattern(kids))) : U32)), path, ll, cc))
+    == Bool.pick(Nat, U32.is_gt(Laws.strings.total(rest, (ch + Strings.size(Strings.literal(T.pattern(kids))) : U32)),
+      64), 1n, 0n) : Nat}
+  {List.length(&2, F.Finding, Strings.report(Strings.tally(rest,
+      (nn + Strings.one(Strings.literal(T.pattern(kids))) : U32),
+      (ch + Strings.size(Strings.literal(T.pattern(kids))) : U32)), path, ll, cc))
+    == Bool.pick(Nat, U32.is_gt(Laws.strings.total(rest, (ch + Laws.strings.size(kids) : U32)), 64), 1n, 0n) : Nat}
+
+def strings.step(rest, nn, ch, kids, path, ll, cc, ih):
+  Equal.trans(Nat,
+    List.length(&2, F.Finding, Strings.report(Strings.tally(rest,
+      (nn + Strings.one(Strings.literal(T.pattern(kids))) : U32),
+      (ch + Strings.size(Strings.literal(T.pattern(kids))) : U32)), path, ll, cc)),
+    Bool.pick(Nat, U32.is_gt(Laws.strings.total(rest, (ch + Strings.size(Strings.literal(T.pattern(kids))) : U32)),
+      64), 1n, 0n),
+    Bool.pick(Nat, U32.is_gt(Laws.strings.total(rest, (ch + Laws.strings.size(kids) : U32)), 64), 1n, 0n),
+    ih,
+    Equal.cong(U32, Nat, z => Bool.pick(Nat, U32.is_gt(Laws.strings.total(rest, (ch + z : U32)), 64), 1n, 0n),
+      Strings.size(Strings.literal(T.pattern(kids))), Laws.strings.size(kids), strings.lit(kids)))
+
+# strings' tally reports when the chars the law totals are over 64
+law strings.tally:
+  for body: Tree.Node
+  for +nn: U32
+  for +ch: U32
+  for +path: String
+  for +ll: U32
+  for +cc: U32
+  {List.length(&2, F.Finding, Strings.report(Strings.tally(body, nn, ch), path, ll, cc))
+    == Bool.pick(Nat, U32.is_gt(Laws.strings.total(body, ch), 64), 1n, 0n) : Nat}
+
+def strings.tally(body, nn, ch, path, ll, cc):
+  match body:
+    case Tree.Leaf{tok}:
+      strings.base(nn, ch, path, ll, cc)
+    case Tree.Group{o, gk, cl}:
+      strings.base(nn, ch, path, ll, cc)
+    case Tree.Stmt{kind, sk, sb}:
+      strings.base(nn, ch, path, ll, cc)
+    case Tree.NNil{}:
+      strings.base(nn, ch, path, ll, cc)
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          strings.tally(rest, nn, ch, path, ll, cc)
+        case Tree.Group{o, gk, cl}:
+          strings.tally(rest, nn, ch, path, ll, cc)
+        case Tree.Stmt{kind, +kids, b}:
+          match kind:
+            case Tree.SDef{}:
+              strings.tally(rest, nn, ch, path, ll, cc)
+            case Tree.SType{}:
+              strings.tally(rest, nn, ch, path, ll, cc)
+            case Tree.SLaw{}:
+              strings.tally(rest, nn, ch, path, ll, cc)
+            case Tree.SImport{}:
+              strings.tally(rest, nn, ch, path, ll, cc)
+            case Tree.SCase{}:
+              strings.step(rest, nn, ch, kids, path, ll, cc,
+                strings.tally(rest, (nn + Strings.one(Strings.literal(T.pattern(kids))) : U32),
+                  (ch + Strings.size(Strings.literal(T.pattern(kids))) : U32), path, ll, cc))
+            case Tree.SFor{}:
+              strings.tally(rest, nn, ch, path, ll, cc)
+            case Tree.SLet{}:
+              strings.tally(rest, nn, ch, path, ll, cc)
+            case Tree.STerm{}:
+              strings.tally(rest, nn, ch, path, ll, cc)
+        case Tree.NNil{}:
+          strings.tally(rest, nn, ch, path, ll, cc)
+        case Tree.NCons{nh, nt}:
+          strings.tally(rest, nn, ch, path, ll, cc)
+
+# a statement's own finding: one when it is a match whose closed string arms
+# total over 64 chars
+law strings.stmt:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +path: String
+  {List.length(&2, F.Finding, Strings.on_stmt(kids, body, path))
+    == Bool.pick(Nat, Bool.and(Laws.chars.is_match(kids), U32.is_gt(Laws.strings.total(body, 0), 64)), 1n, 0n) : Nat}
+
+def strings.stmt(kids, body, path):
+  Equal.trans(Nat,
+    List.length(&2, F.Finding, Strings.on_stmt(kids, body, path)),
+    Bool.pick(Nat, Bool.and(T.keyword(kids, "match"), U32.is_gt(Laws.strings.total(body, 0), 64)), 1n, 0n),
+    Bool.pick(Nat, Bool.and(Laws.chars.is_match(kids), U32.is_gt(Laws.strings.total(body, 0), 64)), 1n, 0n),
+    chars.gate(T.keyword(kids, "match"),
+      Strings.report(Strings.tally(body, 0, 0), path, Tree.line(kids), Tree.col(kids)),
+      U32.is_gt(Laws.strings.total(body, 0), 64),
+      strings.tally(body, 0, 0, path, Tree.line(kids), Tree.col(kids))),
+    Equal.cong(Bool, Nat, z => Bool.pick(Nat, Bool.and(z, U32.is_gt(Laws.strings.total(body, 0), 64)), 1n, 0n),
+      T.keyword(kids, "match"), Laws.chars.is_match(kids), chars.key(kids)))
+
+# strings' walk counts the matches the law counts
+law strings.walk:
+  for nn: Tree.Node
+  for +path: String
+  {List.length(&2, F.Finding, Strings.walk(nn, path)) == Laws.strings.count(nn) : Nat}
+
+def strings.walk(nn, path):
+  match nn:
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{o, gk, cl}:
+      {==}
+    case Tree.Stmt{kind, sk, sb}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          strings.walk(rest, path)
+        case Tree.Group{o, gk, cl}:
+          strings.walk(rest, path)
+        case Tree.Stmt{kind, +kids, +body}:
+          chars.sum(Strings.on_stmt(kids, body, path), Strings.walk(body, path), Strings.walk(rest, path),
+            Bool.pick(Nat, Bool.and(Laws.chars.is_match(kids), U32.is_gt(Laws.strings.total(body, 0), 64)), 1n, 0n),
+            Laws.strings.count(body), Laws.strings.count(rest),
+            strings.stmt(kids, body, path), strings.walk(body, path), strings.walk(rest, path))
+        case Tree.NNil{}:
+          strings.walk(rest, path)
+        case Tree.NCons{nh, nt}:
+          strings.walk(rest, path)
+
+def Laws.strings_counts(path, _text, _toks, tree, _bound, _items):
+  strings.walk(tree, path)
