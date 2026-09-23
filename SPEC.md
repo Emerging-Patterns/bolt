@@ -68,7 +68,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | BOLT-CFG-1 | A rule's level is its own setting, else its group's setting, else its group's default. | Proved | proved | bolt/LAWS.bend set_level_none; bolt/LAWS.bend set_level_first; bolt/LAWS.bend set_level_skip; bolt/LAWS.bend level_own; bolt/LAWS.bend level_group; bolt/LAWS.bend level_default |
 | BOLT-CFG-2 | Grading drops a finding at `off` and attaches the level to every other. | Proved | proved | bolt/LAWS.bend graded_keeps |
 | BOLT-CFG-3 | A level word that is not `off` or `warn` grades as error. | Proved | proved | bolt/LAWS.bend word_error |
-| BOLT-CFG-4 | A finding is graded by the nearest readable bolt.bend in its file's directory, then each parent, and only that one applies. | Proved | pending |  |
+| BOLT-CFG-4 | A finding is graded by the nearest readable bolt.bend in its file's directory, then each parent, and only that one applies. | Proved | proved | bolt/LAWS.bend absolute_root; bolt/LAWS.bend absolute_under; bolt/LAWS.bend home_empty; bolt/LAWS.bend home_here; bolt/LAWS.bend home_up; bolt/LAWS.bend home_down; bolt/LAWS.bend chain_parent; bolt/LAWS.bend nearest_grades |
 | BOLT-CFG-5 | Group defaults are correctness at error, pedantic off, and the rest at warn. | Proved | proved | bolt/LAWS.bend default_correctness; bolt/LAWS.bend default_pedantic; bolt/LAWS.bend default_rest |
 | BOLT-CFG-6 | An opt-in rule is off unless its own setting names it. | Proved | proved | bolt/LAWS.bend level_own; bolt/LAWS.bend opt_in_off |
 | BOLT-CFG-7 | A setting in a bolt.bend whose name is no rule or group is a finding. | Proved | pending |  |

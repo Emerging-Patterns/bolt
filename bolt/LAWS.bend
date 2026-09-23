@@ -323,13 +323,13 @@ law scope_findings:
 
 # every finding at the level the config of its path gives its rule, in
 # order, the ones at off dropped
-def graded_by(+cs: List<&2, Plan.Conf>, fs: List<&2, F.Finding>) -> List<&2, F.Graded>:
+def graded_by(+cs: List<&2, Plan.Conf>, +world: W.World, fs: List<&2, F.Finding>) -> List<&2, F.Graded>:
   match fs:
     case Nil{}:
       Nil{}
     case Con{F.Finding{+path, line, col, len, +rule, msg}, rest}:
-      keep(Config.level(Plan.config.at(cs, path), Rules.group(rule), rule), F.Finding{path, line, col, len, rule, msg},
-        graded_by(cs, rest))
+      keep(Config.level(Plan.config.at(cs, world, path), Rules.group(rule), rule),
+        F.Finding{path, line, col, len, rule, msg}, graded_by(cs, world, rest))
 
 # each graded finding's line, in order
 def shown_all(gs: List<&2, F.Graded>) -> List<&2, String>:
@@ -412,7 +412,7 @@ def any_error(gs: List<&2, F.Graded>) -> Bool:
 # a run's graded findings: the planner's config for each path, over the
 # findings in the order in_scope lists them
 def run_graded(+world: W.World) -> List<&2, F.Graded>:
-  graded_by(Plan.confs(world), in_scope(world))
+  graded_by(Plan.confs(world), world, in_scope(world))
 
 # the lines a run prints: each graded finding, in order, then the summary
 def out_lines(+world: W.World) -> List<&2, String>:
@@ -610,3 +610,101 @@ law under_law_all:
   for +world: W.World
   {Law.check(handed(world)) == coverage_of(has_laws(handed(world)), handed(world), Law.named(handed(world)))
     : List<&2, F.Finding>}
+
+# Where a finding is graded (BOLT-CFG-4). The planner grades a finding by the
+# config of its path's directory (plan.bend, config.at), from a table it builds
+# once for each directory in the run. The laws below say what that config is,
+# for every World and every path: the path's directory is resolved against
+# the World's working directory (Config.home: absolute, then home.step over
+# each segment), and of it and each parent up to the root (Config.chain),
+# nearest first, the first whose bolt.bend the World holds a text for grades
+# the finding.
+
+# LAW: a path that starts at the root is itself, wherever bolt runs from
+# BOLT-CFG-4
+law absolute_root:
+  for +cwd: String
+  for +path: String
+  for h: {String.starts_with(path, "/") == True{} : Bool}
+  {Config.absolute(cwd, path) == path : String}
+
+# LAW: any other path is read under the working directory
+# BOLT-CFG-4
+law absolute_under:
+  for +cwd: String
+  for +path: String
+  for h: {String.starts_with(path, "/") == False{} : Bool}
+  {Config.absolute(cwd, path) == cwd ++ "/" ++ path : String}
+
+# LAW: an empty segment (from `//`, or the `/` a directory ends in) leaves the
+# directory where it is
+# BOLT-CFG-4
+law home_empty:
+  for +above: List<&2, String>
+  {Config.home.step("", above) == above : List<&2, String>}
+
+# LAW: a `.` segment leaves the directory where it is
+# BOLT-CFG-4
+law home_here:
+  for +above: List<&2, String>
+  {Config.home.step(".", above) == above : List<&2, String>}
+
+# LAW: a `..` segment goes up one directory: it drops the innermost one, and
+# at the root there is none to drop (home.up)
+# BOLT-CFG-4
+law home_up:
+  for +above: List<&2, String>
+  {Config.home.step("..", above) == Config.home.up(above) : List<&2, String>}
+
+# LAW: any other segment goes into the directory it names
+# BOLT-CFG-4
+law home_down:
+  for +seg: String
+  for +above: List<&2, String>
+  for h_here: {Bool.or(String.is_empty(seg), String.eq(seg, ".")) == False{} : Bool}
+  for h_up: {String.eq(seg, "..") == False{} : Bool}
+  {Config.home.step(seg, above) == seg <> above : List<&2, String>}
+
+# LAW: a resolved directory's candidates are its own bolt.bend, then its
+# parent's candidates, so they reach every parent up to the root
+# BOLT-CFG-4
+law chain_parent:
+  for +dd: String
+  for +rest: List<&2, String>
+  {Config.chain(dd <> rest) == (Config.root(dd <> rest, "") ++ "bolt.bend") <> Config.chain(rest)
+    : List<&2, String>}
+
+# the config a World's answer for a candidate gives: its text parsed when it
+# was read, else what the candidates after it give. Law vocabulary, as is
+# first_read.
+def first_read.at(mm: Maybe<&2, W.Answer>, more: Config.Config) -> Config.Config:
+  match mm:
+    case None{}:
+      more
+    case Some{W.Listed{_names}}:
+      more
+    case Some{W.Read{text}}:
+      Config.parse(text)
+    case Some{W.Unread{}}:
+      more
+
+# the config of the first of the paths the World read a text for, the
+# defaults when it read none of them
+def first_read(+world: W.World, ps: List<&2, String>) -> Config.Config:
+  match ps:
+    case Nil{}:
+      Config.none()
+    case Con{p, rest}:
+      first_read.at(W.answer(world, W.Text{p}), first_read(world, rest))
+
+# LAW: a finding at a path is graded by the nearest bolt.bend the World read:
+# of the bolt.bend in the path's directory, resolved against the working
+# directory, then in each parent up to the root, the first read, and only
+# that one; the defaults when none was
+# BOLT-CFG-4
+law nearest_grades:
+  for +world: W.World
+  for +path: String
+  {Plan.config.at(Plan.confs(world), world, path)
+    == first_read(world, Config.chain(Config.home(W.cwd.of(world), Config.dir_of(path))))
+    : Config.Config}
