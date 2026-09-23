@@ -23,13 +23,22 @@ import ../digest.bend as Digest
 # what the laws name
 # ------------------
 
-# what the laws of every file name
+# a file's uses onto the others', when the file is a LAWS.bend
+def named.put(laws: Bool, ms: List<&2, Digest.Mention>, more: List<&2, Digest.Mention>) -> List<&2, Digest.Mention>:
+  match laws:
+    case True{}:
+      List.append(&2, Digest.Mention, ms, more)
+    case False{}:
+      more
+
+# what the laws of every LAWS.bend name (Digest.of records uses for no
+# other file; a digest list handed in from elsewhere is read the same way)
 def named(ds: List<&2, Digest.Digest>) -> List<&2, Digest.Mention>:
   match ds:
     case Nil{}:
       Nil{}
     case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
-      List.append(&2, Digest.Mention, says, named(rest))
+      named.put(is_laws, says, named(rest))
 
 # is the item named?
 def has_item(ms: List<&2, Digest.Mention>, +pp: String, +name: String) -> Bool:
