@@ -4,9 +4,9 @@
 # loop's state. The checker runs on open and save, against the file on disk;
 # the linter on every open, change and save, on the text the editor shows.
 import Base
-import 0xa3c2445eb44c5d8406e6229be518fccb/value.bend as J
-import 0xa3c2445eb44c5d8406e6229be518fccb/parse.bend as Parse
-import 0xa3c2445eb44c5d8406e6229be518fccb/print.bend as Print
+import 0xd9c8d4d2899ddda845dfa7525a3568ea/value.bend as J
+import 0xd9c8d4d2899ddda845dfa7525a3568ea/parse.bend as Parse
+import 0xd9c8d4d2899ddda845dfa7525a3568ea/print.bend as Print
 import ./proto.bend as Proto
 import ./docs.bend as Docs
 import ./nav.bend as Nav
@@ -124,7 +124,7 @@ def role(mm: Method) -> Role:
 
 # a message's method name, empty when it has none
 def name_of(msg: J.Json) -> String:
-  J.str_or(J.get(msg, "method"), "")
+  Maybe.default(&2, String, J.as_str(J.get(msg, "method")), "")
 
 # a message's id: null for a notification
 def id_of(msg: J.Json) -> J.Json:
@@ -132,15 +132,15 @@ def id_of(msg: J.Json) -> J.Json:
 
 # the document a request is about
 def uri_of(params: J.Json) -> String:
-  J.str_or(J.get(J.get(params, "textDocument"), "uri"), "")
+  Maybe.default(&2, String, J.as_str(J.get(J.get(params, "textDocument"), "uri")), "")
 
 # the line of a request's position
 def line_of(params: J.Json) -> U32:
-  J.u32_or(J.get(J.get(params, "position"), "line"), 0)
+  Maybe.default(&2, U32, J.as_u32(J.get(J.get(params, "position"), "line")), 0)
 
 # the character of a request's position
 def col_of(params: J.Json) -> U32:
-  J.u32_or(J.get(J.get(params, "position"), "character"), 0)
+  Maybe.default(&2, U32, J.as_u32(J.get(J.get(params, "position"), "character")), 0)
 
 # a reply as the text sent
 def text(rr: Reply) -> String:
@@ -400,7 +400,7 @@ def renamed(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String, 
     +line : U32 = line_of(params)
     +col : U32 = col_in(cc, params)
     s : Nav.Sites <- Nav.sites(~fs, docs, uri, line, col)
-    return Work{[], rename.of(cc, s, uri, Word.at(text, line, col), J.str_or(J.get(params, "newName"), "")), docs}
+    return Work{[], rename.of(cc, s, uri, Word.at(text, line, col), Maybe.default(&2, String, J.as_str(J.get(params, "newName")), "")), docs}
 
 # the document's semantic tokens
 def semantic(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, uri: String) -> IO(Work):
@@ -433,9 +433,11 @@ def work(
     case MExit{}:
       IO.pure(Work, noted([], docs))
     case MOpen{}:
-      pub.opened(~ck, ~fs, ee, uri_of(params), J.str_or(J.get(J.get(params, "textDocument"), "text"), ""), docs)
+      pub.opened(~ck, ~fs, ee, uri_of(params),
+        Maybe.default(&2, String, J.as_str(J.get(J.get(params, "textDocument"), "text")), ""), docs)
     case MChange{}:
-      pub.changed(~fs, ee, uri_of(params), J.str_or(J.get(J.first(J.get(params, "contentChanges")), "text"), ""), docs)
+      pub.changed(~fs, ee, uri_of(params),
+        Maybe.default(&2, String, J.as_str(J.get(J.at(J.get(params, "contentChanges"), 0), "text")), ""), docs)
     case MSave{}:
       pub.saved(~ck, ~fs, ee, uri_of(params), docs)
     case MClose{}:

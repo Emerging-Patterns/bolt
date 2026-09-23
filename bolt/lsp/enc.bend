@@ -6,7 +6,7 @@
 # server reads goes through `into`, and every one it sends through `out`
 # (proto.bend's position, semantic.bend's tokens).
 import Base
-import 0xa3c2445eb44c5d8406e6229be518fccb/value.bend as J
+import 0xd9c8d4d2899ddda845dfa7525a3568ea/value.bend as J
 
 # the encodings the server speaks
 type Enc is Data:
@@ -21,14 +21,13 @@ def name(ee: Enc) -> String:
     case Utf32{}:
       "utf-32"
 
-# does a list of encodings (JSON cells) offer utf-32?
+# does a list of encodings (JSON cells) offer utf-32? A cell that is not a
+# string offers nothing
 def offers(cells: J.Json) -> Bool:
   match cells:
-    case J.JCons{J.JStr{+s}, t}:
+    case J.JCons{h, t}:
       +more = offers(t)
-      Bool.or(String.eq(s, "utf-32"), more)
-    case J.JCons{_h, t}:
-      offers(t)
+      Bool.or(String.eq(Maybe.default(&2, String, J.as_str(h), ""), "utf-32"), more)
     case _other:
       False{}
 
