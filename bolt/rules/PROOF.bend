@@ -35,6 +35,7 @@ import ./correctness/foreign.bend as Foreign
 import ./correctness/arms.bend as Arms
 import ./correctness/twice.bend as Twice
 import ./laws/closed.bend as Closed
+import ./suspicious/unused.bend as Unused
 import ./LAWS.bend as Laws
 
 # a finding in front when b holds adds one to the count
@@ -6989,3 +6990,763 @@ def Laws.doc_walk_counts(items, path, lines):
 def Laws.doc_counts(path, text, _toks, _tree, _bound, items):
   param.stop(Bool.or(Paths.is_proof(path), Paths.is_test(path)), Doc.check.go(items, path, String.lines(text)),
     Laws.doc.count(items, String.lines(text)), Laws.doc_walk_counts(items, path, String.lines(text)))
+
+# The binding rule, unused: the rule's foreign lines are the law's header
+# lines, its kind test and use search are the law's, and each binder adds the
+# finding the law counts.
+
+# the lines of some tokens onto acc are those lines, then acc
+law unused.lines:
+  for ts: List<&2, Lex.Tok>
+  for +acc: List<&2, U32>
+  {Unused.lines(ts, acc) == List.append(&2, U32, Laws.unused.token_lines(ts), acc) : List<&2, U32>}
+
+def unused.lines(ts, acc):
+  match ts:
+    case Nil{}:
+      {==}
+    case Con{Lex.Tok{k, t, +l, c}, rest}:
+      Equal.cong(List<&2, U32>, List<&2, U32>, xs => l <> xs, Unused.lines(rest, acc),
+        List.append(&2, U32, Laws.unused.token_lines(rest), acc), unused.lines(rest, acc))
+
+# a foreign def's header lines onto the lines after it, to the rule and to
+# the law
+law unused.header:
+  for +kids: Tree.Node
+  for +rest: Tree.Node
+  for ih: {Unused.foreign(rest) == Laws.unused.headers(rest) : List<&2, U32>}
+  {Unused.lines(Tree.leaves(kids), Unused.foreign(rest))
+    == List.append(&2, U32, Laws.unused.token_lines(Tree.leaves(kids)), Laws.unused.headers(rest)) : List<&2, U32>}
+
+def unused.header(kids, rest, ih):
+  Equal.trans(List<&2, U32>,
+    Unused.lines(Tree.leaves(kids), Unused.foreign(rest)),
+    List.append(&2, U32, Laws.unused.token_lines(Tree.leaves(kids)), Unused.foreign(rest)),
+    List.append(&2, U32, Laws.unused.token_lines(Tree.leaves(kids)), Laws.unused.headers(rest)),
+    unused.lines(Tree.leaves(kids), Unused.foreign(rest)),
+    Equal.cong(List<&2, U32>, List<&2, U32>, xs => List.append(&2, U32, Laws.unused.token_lines(Tree.leaves(kids)), xs),
+      Unused.foreign(rest), Laws.unused.headers(rest), ih))
+
+# the rule's foreign lines are the law's header lines
+law unused.foreign:
+  for root: Tree.Node
+  {Unused.foreign(root) == Laws.unused.headers(root) : List<&2, U32>}
+
+def unused.foreign(root):
+  match root:
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{o, gk, cl}:
+      {==}
+    case Tree.Stmt{kind, sk, sb}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          unused.foreign(rest)
+        case Tree.Group{o, gk, cl}:
+          unused.foreign(rest)
+        case Tree.Stmt{kind, +kids, body}:
+          match kind:
+            case Tree.SDef{}:
+              match body:
+                case Tree.Leaf{tok}:
+                  unused.foreign(rest)
+                case Tree.Group{o, gk, cl}:
+                  unused.foreign(rest)
+                case Tree.Stmt{bk, bs, bb}:
+                  unused.foreign(rest)
+                case Tree.NNil{}:
+                  unused.foreign(rest)
+                case Tree.NCons{bh, more}:
+                  match bh:
+                    case Tree.Leaf{tok}:
+                      unused.foreign(rest)
+                    case Tree.Group{o, gk, cl}:
+                      unused.foreign(rest)
+                    case Tree.NNil{}:
+                      unused.foreign(rest)
+                    case Tree.NCons{nh, nt}:
+                      unused.foreign(rest)
+                    case Tree.Stmt{ik, ks, ib}:
+                      match ik:
+                        case Tree.SDef{}:
+                          unused.foreign(rest)
+                        case Tree.SType{}:
+                          unused.foreign(rest)
+                        case Tree.SLaw{}:
+                          unused.foreign(rest)
+                        case Tree.SImport{}:
+                          unused.header(kids, rest, unused.foreign(rest))
+                        case Tree.SCase{}:
+                          unused.foreign(rest)
+                        case Tree.SFor{}:
+                          unused.foreign(rest)
+                        case Tree.SLet{}:
+                          unused.foreign(rest)
+                        case Tree.STerm{}:
+                          unused.foreign(rest)
+            case Tree.SType{}:
+              unused.foreign(rest)
+            case Tree.SLaw{}:
+              unused.foreign(rest)
+            case Tree.SImport{}:
+              unused.foreign(rest)
+            case Tree.SCase{}:
+              unused.foreign(rest)
+            case Tree.SFor{}:
+              unused.foreign(rest)
+            case Tree.SLet{}:
+              unused.foreign(rest)
+            case Tree.STerm{}:
+              unused.foreign(rest)
+        case Tree.NNil{}:
+          unused.foreign(rest)
+        case Tree.NCons{nh, nt}:
+          unused.foreign(rest)
+
+# a stop at the first True is Bool.or
+law unused.or:
+  for a: Bool
+  for -x: Bool
+  for -y: Bool
+  for ih: {x == y : Bool}
+  {Lazy.or_else(a, _u => x) == Bool.or(a, y) : Bool}
+
+def unused.or(a, _x, _y, ih):
+  match a:
+    case True{}:
+      {==}
+    case False{}:
+      ih
+
+# the rule's use search is the law's
+law unused.used:
+  for uses: List<&2, Bind.Use>
+  for +line: U32
+  for +col: U32
+  {Unused.used(uses, line, col) == Laws.unused.seen(uses, line, col) : Bool}
+
+def unused.used(uses, line, col):
+  match uses:
+    case Nil{}:
+      {==}
+    case Con{Bind.Use{n, l, c, tg}, +rest}:
+      match tg:
+        case Bind.TLocal{+tl, +tc}:
+          unused.or(Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col)), Unused.used(rest, line, col),
+            Laws.unused.seen(rest, line, col), unused.used(rest, line, col))
+        case Bind.TItem{nm}:
+          unused.used(rest, line, col)
+        case Bind.TQual{a, nm}:
+          unused.used(rest, line, col)
+        case Bind.TFree{}:
+          unused.used(rest, line, col)
+
+# the rule's kind test is the law's
+law unused.kind:
+  for kk: Bind.BindKind
+  for +note: String
+  for +line: U32
+  for +fl: List<&2, U32>
+  {Unused.reportable(kk, note, line, fl) == Laws.unused.kept(kk, note, line, fl) : Bool}
+
+def unused.kind(kk, _note, _line, _fl):
+  match kk:
+    case Bind.KItem{}:
+      {==}
+    case Bind.KCtor{}:
+      {==}
+    case Bind.KParam{}:
+      {==}
+    case Bind.KTypeParam{}:
+      {==}
+    case Bind.KField{}:
+      {==}
+    case Bind.KLocal{}:
+      {==}
+    case Bind.KPat{}:
+      {==}
+    case Bind.KFor{}:
+      {==}
+    case Bind.KTypeVar{}:
+      {==}
+
+# the rule's finding test for a binder is the law's
+law unused.hit:
+  for +kk: Bind.BindKind
+  for +name: String
+  for +note: String
+  for +line: U32
+  for +col: U32
+  for +uses: List<&2, Bind.Use>
+  for +fl: List<&2, U32>
+  {Bool.and(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+      Bool.not(Unused.used(uses, line, col)))
+    == Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+      Bool.not(Laws.unused.seen(uses, line, col))) : Bool}
+
+def unused.hit(kk, name, note, line, col, uses, fl):
+  Equal.trans(Bool,
+    Bool.and(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+      Bool.not(Unused.used(uses, line, col))),
+    Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+      Bool.not(Unused.used(uses, line, col))),
+    Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+      Bool.not(Laws.unused.seen(uses, line, col))),
+    Equal.cong(Bool, Bool,
+      z => Bool.and(Bool.and(z, Bool.not(String.starts_with(name, "_"))), Bool.not(Unused.used(uses, line, col))),
+      Unused.reportable(kk, note, line, fl), Laws.unused.kept(kk, note, line, fl), unused.kind(kk, note, line, fl)),
+    Equal.cong(Bool, Bool,
+      z => Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+        Bool.not(z)),
+      Unused.used(uses, line, col), Laws.unused.seen(uses, line, col), unused.used(uses, line, col)))
+
+# over the binder list, the rule counts what the law counts
+law unused.go:
+  for binds: List<&2, Bind.Bind>
+  for +uses: List<&2, Bind.Use>
+  for +fl: List<&2, U32>
+  for +path: String
+  {List.length(&2, F.Finding, Unused.check.go(binds, uses, fl, path)) == Laws.unused.count(binds, uses, fl) : Nat}
+
+def unused.go(binds, uses, fl, path):
+  match binds:
+    case Nil{}:
+      {==}
+    case Con{Bind.Bind{+name, +line, +col, +kk, +note}, +rest}:
+      +m = Laws.unused.count(rest, uses, fl)
+      +b = Bool.and(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+        Bool.not(Unused.used(uses, line, col)))
+      Equal.trans(Nat,
+        List.length(&2, F.Finding, Unused.check.go(Bind.Bind{name, line, col, kk, note} <> rest, uses, fl, path)),
+        Bool.pick(Nat, b, 1n+m, m),
+        Laws.unused.count(Bind.Bind{name, line, col, kk, note} <> rest, uses, fl),
+        nat.pick(b, F.Finding{path, line, col, U32.from_nat(String.length(name)), "unused",
+            Unused.what(kk) ++ " " ++ name ++ " is never used."},
+          Unused.check.go(rest, uses, fl, path), m, unused.go(rest, uses, fl, path)),
+        Equal.cong(Bool, Nat, z => Bool.pick(Nat, z, 1n+m, m), b,
+          Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+            Bool.not(Laws.unused.seen(uses, line, col))),
+          unused.hit(kk, name, note, line, col, uses, fl)))
+
+def Laws.unused_counts(path, _text, _toks, tree, binds, uses, _scopes, _items):
+  Equal.trans(Nat,
+    List.length(&2, F.Finding, Unused.check.go(binds, uses, Unused.foreign(tree), path)),
+    Laws.unused.count(binds, uses, Unused.foreign(tree)),
+    Laws.unused.count(binds, uses, Laws.unused.headers(tree)),
+    unused.go(binds, uses, Unused.foreign(tree), path),
+    Equal.cong(List<&2, U32>, Nat, z => Laws.unused.count(binds, uses, z),
+      Unused.foreign(tree), Laws.unused.headers(tree), unused.foreign(tree)))
+
+# The recursion rule, index: its literal test is the law's, its fire test is
+# the law's (a List.get held by a fixed table is exactly one `table`
+# reports), each call adds what the law counts, and the def walk joins the
+# per-def lists into their sum.
+
+# the rule's literal test is the law's
+law index.lit:
+  for nn: Tree.Node
+  {Index.literal(nn) == Laws.index.lit(nn) : Bool}
+
+def index.lit(nn):
+  match nn:
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{o, gk, cl}:
+      {==}
+    case Tree.Stmt{kind, sk, sb}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+    case Tree.NCons{h, rest}:
+      match h:
+        case Tree.Group{o, gk, cl}:
+          {==}
+        case Tree.Stmt{kind, sk, sb}:
+          {==}
+        case Tree.NNil{}:
+          {==}
+        case Tree.NCons{nh, nt}:
+          {==}
+        case Tree.Leaf{Lex.Tok{kind, t, l, c}}:
+          match kind:
+            case Lex.TName{}:
+              {==}
+            case Lex.TUpper{}:
+              {==}
+            case Lex.TDotted{}:
+              {==}
+            case Lex.TWild{}:
+              {==}
+            case Lex.TKey{}:
+              {==}
+            case Lex.TNum{}:
+              match rest:
+                case Tree.Leaf{tok}:
+                  {==}
+                case Tree.Group{o, gk, cl}:
+                  {==}
+                case Tree.Stmt{sk, skids, sb}:
+                  {==}
+                case Tree.NNil{}:
+                  {==}
+                case Tree.NCons{nh, nt}:
+                  {==}
+            case Lex.TStr{}:
+              {==}
+            case Lex.TChar{}:
+              {==}
+            case Lex.TComment{}:
+              {==}
+            case Lex.TSpace{}:
+              {==}
+            case Lex.TNewline{}:
+              {==}
+            case Lex.TOp{}:
+              {==}
+            case Lex.TColon{}:
+              {==}
+            case Lex.TEq{}:
+              {==}
+            case Lex.TBind{}:
+              {==}
+            case Lex.TArrow{}:
+              {==}
+            case Lex.TLam{}:
+              {==}
+            case Lex.TAll{}:
+              {==}
+            case Lex.TAmp{}:
+              {==}
+            case Lex.TOpen{}:
+              {==}
+            case Lex.TClose{}:
+              {==}
+            case Lex.TComma{}:
+              {==}
+
+# table's literal test is the law's too
+law index.tlit:
+  for nn: Tree.Node
+  {Table.literal(nn) == Laws.index.lit(nn) : Bool}
+
+def index.tlit(nn):
+  match nn:
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{o, gk, cl}:
+      {==}
+    case Tree.Stmt{kind, sk, sb}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+    case Tree.NCons{h, rest}:
+      match h:
+        case Tree.Group{o, gk, cl}:
+          {==}
+        case Tree.Stmt{kind, sk, sb}:
+          {==}
+        case Tree.NNil{}:
+          {==}
+        case Tree.NCons{nh, nt}:
+          {==}
+        case Tree.Leaf{Lex.Tok{kind, t, l, c}}:
+          match kind:
+            case Lex.TName{}:
+              {==}
+            case Lex.TUpper{}:
+              {==}
+            case Lex.TDotted{}:
+              {==}
+            case Lex.TWild{}:
+              {==}
+            case Lex.TKey{}:
+              {==}
+            case Lex.TNum{}:
+              match rest:
+                case Tree.Leaf{tok}:
+                  {==}
+                case Tree.Group{o, gk, cl}:
+                  {==}
+                case Tree.Stmt{sk, skids, sb}:
+                  {==}
+                case Tree.NNil{}:
+                  {==}
+                case Tree.NCons{nh, nt}:
+                  {==}
+            case Lex.TStr{}:
+              {==}
+            case Lex.TChar{}:
+              {==}
+            case Lex.TComment{}:
+              {==}
+            case Lex.TSpace{}:
+              {==}
+            case Lex.TNewline{}:
+              {==}
+            case Lex.TOp{}:
+              {==}
+            case Lex.TColon{}:
+              {==}
+            case Lex.TEq{}:
+              {==}
+            case Lex.TBind{}:
+              {==}
+            case Lex.TArrow{}:
+              {==}
+            case Lex.TLam{}:
+              {==}
+            case Lex.TAll{}:
+              {==}
+            case Lex.TAmp{}:
+              {==}
+            case Lex.TOpen{}:
+              {==}
+            case Lex.TClose{}:
+              {==}
+            case Lex.TComma{}:
+              {==}
+
+# a List.get whose index is not a literal: index reports it exactly when its
+# list is not a fixed table, which is exactly when table does not
+law index.gate:
+  for a: Bool
+  for o: Bool
+  for -x: F.Finding
+  {Bool.and(Bool.not(a), Bool.not(o))
+    == Bool.and(Bool.not(a),
+      List.is_empty(&2, F.Finding, Bool.pick(List<&2, F.Finding>, Bool.and(Bool.not(a), o), [x], []))) : Bool}
+
+def index.gate(a, o, _x):
+  match a:
+    case True{}:
+      {==}
+    case False{}:
+      match o:
+        case True{}:
+          {==}
+        case False{}:
+          {==}
+
+# a String.get's test, the held test dropped
+law index.tail:
+  for sb: Bool
+  for a: Bool
+  {Bool.and(sb, Bool.and(Bool.not(a), True{})) == Bool.and(sb, Bool.not(a)) : Bool}
+
+def index.tail(sb, a):
+  match sb:
+    case False{}:
+      {==}
+    case True{}:
+      match a:
+        case True{}:
+          {==}
+        case False{}:
+          {==}
+
+# the rule's fire test for a call is the law's
+law index.fire:
+  for list: Bool
+  for ob: Bool
+  for +sb: Bool
+  for +kids: Tree.Node
+  for +fixed: List<&2, String>
+  for +path: String
+  for +l: U32
+  for +c: U32
+  {Bool.and(Bool.and(ob, Bool.or(list, sb)),
+      Bool.and(Bool.not(Index.literal(Calls.arg(Calls.args(kids), Bool.pick(Nat, list, 3n, 1n)))),
+        Bool.not(Index.held(list, Calls.arg(Calls.args(kids), 2n), fixed))))
+    == Laws.index.fires(list, ob, sb, Calls.args(kids), Table.hit(ob, "List.get", kids, fixed, path, l, c)) : Bool}
+
+def index.fire(list, ob, sb, kids, fixed, path, l, c):
+  match list:
+    case True{}:
+      match ob:
+        case False{}:
+          {==}
+        case True{}:
+          +a3 = Calls.arg(Calls.args(kids), 3n)
+          +own = Table.owns(Calls.arg(Calls.args(kids), 2n), fixed)
+          +x = Table.cite(True{}, path, l, c, U32.from_nat(String.length("List.get")))
+          Equal.trans(Bool,
+            Bool.and(Bool.not(Index.literal(a3)), Bool.not(own)),
+            Bool.and(Bool.not(Laws.index.lit(a3)), Bool.not(own)),
+            Bool.and(Bool.not(Laws.index.lit(a3)), List.is_empty(&2, F.Finding,
+              Bool.pick(List<&2, F.Finding>, Bool.and(Bool.not(Table.literal(a3)), own), [x], []))),
+            Equal.cong(Bool, Bool, z => Bool.and(Bool.not(z), Bool.not(own)),
+              Index.literal(a3), Laws.index.lit(a3), index.lit(a3)),
+            Equal.trans(Bool,
+              Bool.and(Bool.not(Laws.index.lit(a3)), Bool.not(own)),
+              Bool.and(Bool.not(Laws.index.lit(a3)), List.is_empty(&2, F.Finding,
+                Bool.pick(List<&2, F.Finding>, Bool.and(Bool.not(Laws.index.lit(a3)), own), [x], []))),
+              Bool.and(Bool.not(Laws.index.lit(a3)), List.is_empty(&2, F.Finding,
+                Bool.pick(List<&2, F.Finding>, Bool.and(Bool.not(Table.literal(a3)), own), [x], []))),
+              index.gate(Laws.index.lit(a3), own, x),
+              Equal.cong(Bool, Bool,
+                z => Bool.and(Bool.not(Laws.index.lit(a3)), List.is_empty(&2, F.Finding,
+                  Bool.pick(List<&2, F.Finding>, Bool.and(Bool.not(z), own), [x], []))),
+                Laws.index.lit(a3), Table.literal(a3),
+                Equal.sym(Bool, Table.literal(a3), Laws.index.lit(a3), index.tlit(a3)))))
+    case False{}:
+      match ob:
+        case False{}:
+          {==}
+        case True{}:
+          +a1 = Calls.arg(Calls.args(kids), 1n)
+          Equal.trans(Bool,
+            Bool.and(sb, Bool.and(Bool.not(Index.literal(a1)), True{})),
+            Bool.and(sb, Bool.and(Bool.not(Laws.index.lit(a1)), True{})),
+            Bool.and(sb, Bool.not(Laws.index.lit(a1))),
+            Equal.cong(Bool, Bool, z => Bool.and(sb, Bool.and(Bool.not(z), True{})),
+              Index.literal(a1), Laws.index.lit(a1), index.lit(a1)),
+            index.tail(sb, Laws.index.lit(a1)))
+
+# two lists joined count as the sum of their counts
+law index.two:
+  for +a: List<&2, F.Finding>
+  for +b: List<&2, F.Finding>
+  for -x: Nat
+  for -y: Nat
+  for e1: {List.length(&2, F.Finding, a) == x : Nat}
+  for e2: {List.length(&2, F.Finding, b) == y : Nat}
+  {List.length(&2, F.Finding, List.concat(&2, F.Finding, [a, b])) == Nat.add(x, y) : Nat}
+
+def index.two(a, b, x, y, e1, e2):
+  Equal.trans(Nat,
+    List.length(&2, F.Finding, List.append(&2, F.Finding, a, List.append(&2, F.Finding, b, []))),
+    Nat.add(List.length(&2, F.Finding, a), List.length(&2, F.Finding, List.append(&2, F.Finding, b, []))),
+    Nat.add(x, y),
+    esc.app(a, List.append(&2, F.Finding, b, [])),
+    esc.add(List.length(&2, F.Finding, a), x, List.length(&2, F.Finding, List.append(&2, F.Finding, b, [])), y, e1,
+      Equal.trans(Nat, List.length(&2, F.Finding, List.append(&2, F.Finding, b, [])), List.length(&2, F.Finding, b), y,
+        chars.nil(b), e2)))
+
+# a count one higher when b holds is b's one or none, then the count
+law index.one:
+  for b: Bool
+  for -m: Nat
+  {Bool.pick(Nat, b, 1n+m, m) == Nat.add(Bool.pick(Nat, b, 1n, 0n), m) : Nat}
+
+def index.one(b, _m):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# a call onto the rest: its own finding, then its group's and the rest's
+law index.call:
+  for +k: Lex.TokKind
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for +gk: Lex.TokKind
+  for +o: String
+  for +gl: U32
+  for +gc: U32
+  for +kids: Tree.Node
+  for +cl: Maybe<&2, Lex.Tok>
+  for +rr: Tree.Node
+  for +path: String
+  for +fixed: List<&2, String>
+  for ih1: {List.length(&2, F.Finding, Index.walk(kids, path, fixed)) == Laws.index.count(kids, path, fixed) : Nat}
+  for ih2: {List.length(&2, F.Finding, Index.walk(rr, path, fixed)) == Laws.index.count(rr, path, fixed) : Nat}
+  {List.length(&2, F.Finding, Index.walk(Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}},
+      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, kids, cl}, rr}}, path, fixed))
+    == Laws.index.count(Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}},
+      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, kids, cl}, rr}}, path, fixed) : Nat}
+
+def index.call(_k, t, l, c, _gk, o, _gl, _gc, kids, _cl, rr, path, fixed, ih1, ih2):
+  +list = String.eq(t, "List.get")
+  +ob = String.eq(o, "(")
+  +sb = String.eq(t, "String.get")
+  +as = Calls.args(kids)
+  +fire = Bool.and(Bool.and(ob, Bool.or(list, sb)),
+    Bool.and(Bool.not(Index.literal(Calls.arg(as, Bool.pick(Nat, list, 3n, 1n)))),
+      Bool.not(Index.held(list, Calls.arg(as, 2n), fixed))))
+  +more = List.concat(&2, F.Finding, [Index.walk(kids, path, fixed), Index.walk(rr, path, fixed)])
+  +m = Nat.add(Laws.index.count(kids, path, fixed), Laws.index.count(rr, path, fixed))
+  +spec = Laws.index.fires(list, ob, sb, as, Table.hit(ob, "List.get", kids, fixed, path, l, c))
+  +x = {F.Finding{path, l, c, U32.from_nat(String.length(t)), "index",
+    t ++ " inside a recursive def walks the list again on each step, which is quadratic; walk the list itself."}
+    : F.Finding}
+  Equal.trans(Nat,
+    List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, fire, x <> more, more)),
+    Bool.pick(Nat, fire, 1n+m, m),
+    Nat.add(Bool.pick(Nat, spec, 1n, 0n), m),
+    nat.pick(fire, x, more, m, index.two(Index.walk(kids, path, fixed), Index.walk(rr, path, fixed),
+      Laws.index.count(kids, path, fixed), Laws.index.count(rr, path, fixed), ih1, ih2)),
+    Equal.trans(Nat,
+      Bool.pick(Nat, fire, 1n+m, m),
+      Nat.add(Bool.pick(Nat, fire, 1n, 0n), m),
+      Nat.add(Bool.pick(Nat, spec, 1n, 0n), m),
+      index.one(fire, m),
+      Equal.cong(Bool, Nat, z => Nat.add(Bool.pick(Nat, z, 1n, 0n), m), fire, spec,
+        index.fire(list, ob, sb, kids, fixed, path, l, c))))
+
+# index's walk counts the calls the law counts
+law index.walk:
+  for nn: Tree.Node
+  for +path: String
+  for +fixed: List<&2, String>
+  {List.length(&2, F.Finding, Index.walk(nn, path, fixed)) == Laws.index.count(nn, path, fixed) : Nat}
+
+def index.walk(nn, path, fixed):
+  match nn:
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{o, gk, cl}:
+      {==}
+    case Tree.Stmt{kind, sk, sb}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{Lex.Tok{k, t, l, c}}:
+          match rest:
+            case Tree.Leaf{tok}:
+              {==}
+            case Tree.Group{o, gk, cl}:
+              {==}
+            case Tree.Stmt{kind, sk, sb}:
+              {==}
+            case Tree.NNil{}:
+              {==}
+            case Tree.NCons{rh, +rr}:
+              match rh:
+                case Tree.Group{Lex.Tok{gk, o, gl, gc}, +kids, cl}:
+                  index.call(k, t, l, c, gk, o, gl, gc, kids, cl, rr, path, fixed,
+                    index.walk(kids, path, fixed), index.walk(rr, path, fixed))
+                case Tree.Leaf{tok}:
+                  index.walk(rest, path, fixed)
+                case Tree.Stmt{kind, sk, sb}:
+                  index.walk(rest, path, fixed)
+                case Tree.NNil{}:
+                  index.walk(rest, path, fixed)
+                case Tree.NCons{nh, nt}:
+                  index.walk(rest, path, fixed)
+        case Tree.Group{o, +kids, cl}:
+          index.two(Index.walk(kids, path, fixed), Index.walk(rest, path, fixed),
+            Laws.index.count(kids, path, fixed), Laws.index.count(rest, path, fixed),
+            index.walk(kids, path, fixed), index.walk(rest, path, fixed))
+        case Tree.Stmt{kind, +kids, +body}:
+          chars.sum(Index.walk(kids, path, fixed), Index.walk(body, path, fixed), Index.walk(rest, path, fixed),
+            Laws.index.count(kids, path, fixed), Laws.index.count(body, path, fixed),
+            Laws.index.count(rest, path, fixed),
+            index.walk(kids, path, fixed), index.walk(body, path, fixed), index.walk(rest, path, fixed))
+        case Tree.NNil{}:
+          index.walk(rest, path, fixed)
+        case Tree.NCons{nh, nt}:
+          index.walk(rest, path, fixed)
+
+# the counts of gathered finding lists, the last gathered first
+def index.sum(acc: List<&2, List<&2, F.Finding>>) -> Nat:
+  match acc:
+    case Nil{}:
+      0n
+    case Con{h, t}:
+      Nat.add(index.sum(t), List.length(&2, F.Finding, h))
+
+# adding is associative
+law index.assoc:
+  for a: Nat
+  for +b: Nat
+  for +c: Nat
+  {Nat.add(Nat.add(a, b), c) == Nat.add(a, Nat.add(b, c)) : Nat}
+
+def index.assoc(a, b, c):
+  match a:
+    case 0n:
+      {==}
+    case 1n+p:
+      Equal.cong(Nat, Nat, n => 1n+n, Nat.add(Nat.add(p, b), c), Nat.add(p, Nat.add(b, c)), index.assoc(p, b, c))
+
+# reversing gathered lists onto others and joining them counts them all
+law index.flat:
+  for xs: List<&2, List<&2, F.Finding>>
+  for +ys: List<&2, List<&2, F.Finding>>
+  {List.length(&2, F.Finding, List.concat(&2, F.Finding, List.reverse.go(&2, List<&2, F.Finding>, xs, ys)))
+    == Nat.add(index.sum(xs), List.length(&2, F.Finding, List.concat(&2, F.Finding, ys))) : Nat}
+
+def index.flat(xs, ys):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{+h, +t}:
+      +cs = List.concat(&2, F.Finding, ys)
+      Equal.trans(Nat,
+        List.length(&2, F.Finding, List.concat(&2, F.Finding, List.reverse.go(&2, List<&2, F.Finding>, t, h <> ys))),
+        Nat.add(index.sum(t), List.length(&2, F.Finding, List.append(&2, F.Finding, h, cs))),
+        Nat.add(Nat.add(index.sum(t), List.length(&2, F.Finding, h)), List.length(&2, F.Finding, cs)),
+        index.flat(t, h <> ys),
+        Equal.trans(Nat,
+          Nat.add(index.sum(t), List.length(&2, F.Finding, List.append(&2, F.Finding, h, cs))),
+          Nat.add(index.sum(t), Nat.add(List.length(&2, F.Finding, h), List.length(&2, F.Finding, cs))),
+          Nat.add(Nat.add(index.sum(t), List.length(&2, F.Finding, h)), List.length(&2, F.Finding, cs)),
+          Equal.cong(Nat, Nat, z => Nat.add(index.sum(t), z),
+            List.length(&2, F.Finding, List.append(&2, F.Finding, h, cs)),
+            Nat.add(List.length(&2, F.Finding, h), List.length(&2, F.Finding, cs)), esc.app(h, cs)),
+          Equal.sym(Nat,
+            Nat.add(Nat.add(index.sum(t), List.length(&2, F.Finding, h)), List.length(&2, F.Finding, cs)),
+            Nat.add(index.sum(t), Nat.add(List.length(&2, F.Finding, h), List.length(&2, F.Finding, cs))),
+            index.assoc(index.sum(t), List.length(&2, F.Finding, h), List.length(&2, F.Finding, cs)))))
+
+# a def that calls itself and is not exempt gathers its walk, any other
+# nothing
+law index.def:
+  for g: Bool
+  for +body: Tree.Node
+  for +path: String
+  for +fixed: List<&2, String>
+  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Bool.not(g), [], _u => Index.walk(body, path, fixed)))
+    == Bool.pick(Nat, g, Laws.index.count(body, path, fixed), 0n) : Nat}
+
+def index.def(g, body, path, fixed):
+  match g:
+    case True{}:
+      index.walk(body, path, fixed)
+    case False{}:
+      {==}
+
+# over the defs, the rule's join counts what it gathered and what the law
+# counts
+law index.go:
+  for ds: List<&2, Calls.Def>
+  for +mods: List<&2, String>
+  for +path: String
+  for +acc: List<&2, List<&2, F.Finding>>
+  {List.length(&2, F.Finding, Index.check.go(ds, mods, path, acc))
+    == Nat.add(index.sum(acc), Laws.index.total(ds, mods, path)) : Nat}
+
+def index.go(ds, mods, path, acc):
+  match ds:
+    case Nil{}:
+      index.flat(acc, Nil{})
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +g = Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))
+      +fixed = Table.scope(body, mods)
+      +x = Lazy.stop(List<&2, F.Finding>, Bool.not(g), [], _u => Index.walk(body, path, fixed))
+      +n = Bool.pick(Nat, g, Laws.index.count(body, path, fixed), 0n)
+      +tot = Laws.index.total(rest, mods, path)
+      Equal.trans(Nat,
+        List.length(&2, F.Finding, Index.check.go(rest, mods, path, x <> acc)),
+        Nat.add(Nat.add(index.sum(acc), List.length(&2, F.Finding, x)), tot),
+        Nat.add(index.sum(acc), Nat.add(n, tot)),
+        index.go(rest, mods, path, x <> acc),
+        Equal.trans(Nat,
+          Nat.add(Nat.add(index.sum(acc), List.length(&2, F.Finding, x)), tot),
+          Nat.add(index.sum(acc), Nat.add(List.length(&2, F.Finding, x), tot)),
+          Nat.add(index.sum(acc), Nat.add(n, tot)),
+          index.assoc(index.sum(acc), List.length(&2, F.Finding, x), tot),
+          Equal.cong(Nat, Nat, z => Nat.add(index.sum(acc), Nat.add(z, tot)), List.length(&2, F.Finding, x), n,
+            index.def(g, body, path, fixed))))
+
+def Laws.index_counts(path, _text, _toks, tree, _bound, _items):
+  +ds = Calls.defs(tree)
+  index.go(ds, Table.modules(ds, Nil{}), path, Nil{})

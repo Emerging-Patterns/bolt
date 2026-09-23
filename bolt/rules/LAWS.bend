@@ -36,6 +36,7 @@ import ./tokens.bend as T
 import ./correctness/arms.bend as Arms
 import ./correctness/twice.bend as Twice
 import ./laws/closed.bend as Closed
+import ./suspicious/unused.bend as Unused
 
 # how many tokens are Nat literals of 1000 or more
 def big_count(toks: List<&2, Lex.Tok>) -> Nat:
@@ -1356,3 +1357,187 @@ law doc_counts:
   {List.length(&2, F.Finding, Doc.check(Src.Src{path, text, toks, tree, bound, items}))
     == Bool.pick(Nat, Bool.or(Paths.is_proof(path), Paths.is_test(path)), 0n, doc.count(items, String.lines(text)))
     : Nat}
+
+# The binding rule, unused. It reads the binder's lists: every binder, and
+# every use with what it resolves to. A binder counts when it is a let, a
+# do-bind or a lambda binder (KLocal), or a parameter (KParam) that is not
+# erased (its declaration opens with `-`) and does not sit on a header line
+# of a foreign def; its name does not start with `_`; and no use resolves to
+# its position. Pattern binders (KPat), a law's `for` names (KFor) and every
+# other kind never count.
+
+# does a def's body open with an import statement? then the def is foreign
+def unused.imported(body: Tree.Node) -> Bool:
+  match body:
+    case Tree.NCons{Tree.Stmt{Tree.SImport{}, kids, b}, rest}:
+      True{}
+    case other:
+      False{}
+
+# the line of each token
+def unused.token_lines(ts: List<&2, Lex.Tok>) -> List<&2, U32>:
+  match ts:
+    case Nil{}:
+      Nil{}
+    case Con{Lex.Tok{k, t, +l, c}, rest}:
+      l <> unused.token_lines(rest)
+
+# every line a foreign def's header covers, however it is wrapped: the lines
+# of its own tokens, def by def
+def unused.headers(root: Tree.Node) -> List<&2, U32>:
+  match root:
+    case Tree.NCons{Tree.Stmt{Tree.SDef{}, kids, body}, rest}:
+      +more = unused.headers(rest)
+      Bool.pick(List<&2, U32>, unused.imported(body),
+        List.append(&2, U32, unused.token_lines(Tree.leaves(kids)), more), more)
+    case Tree.NCons{h, rest}:
+      unused.headers(rest)
+    case other:
+      Nil{}
+
+# does a use's target name the binder at (line, col)?
+def unused.names(tg: Bind.Target, +line: U32, +col: U32) -> Bool:
+  match tg:
+    case Bind.TLocal{tl, tc}:
+      Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col))
+    case Bind.TItem{n}:
+      False{}
+    case Bind.TQual{a, n}:
+      False{}
+    case Bind.TFree{}:
+      False{}
+
+# does any use resolve to the binder at (line, col)?
+def unused.seen(uses: List<&2, Bind.Use>, +line: U32, +col: U32) -> Bool:
+  match uses:
+    case Nil{}:
+      False{}
+    case Con{Bind.Use{n, l, c, tg}, rest}:
+      Bool.or(unused.names(tg, line, col), unused.seen(rest, line, col))
+
+# is a binder of this kind one the rule speaks for? A let, do-bind or lambda
+# binder is; a parameter is unless erased or on a foreign header line;
+# nothing else is
+def unused.kept(kk: Bind.BindKind, +note: String, +line: U32, +fl: List<&2, U32>) -> Bool:
+  match kk:
+    case Bind.KItem{}:
+      False{}
+    case Bind.KCtor{}:
+      False{}
+    case Bind.KParam{}:
+      Bool.and(Bool.not(String.starts_with(note, "-")), Bool.not(List.contains(~U32, ~U32.is_eq, fl, line)))
+    case Bind.KTypeParam{}:
+      False{}
+    case Bind.KField{}:
+      False{}
+    case Bind.KLocal{}:
+      True{}
+    case Bind.KPat{}:
+      False{}
+    case Bind.KFor{}:
+      False{}
+    case Bind.KTypeVar{}:
+      False{}
+
+# how many binders count, are not named `_..`, and have no use
+def unused.count(binds: List<&2, Bind.Bind>, +uses: List<&2, Bind.Use>, +fl: List<&2, U32>) -> Nat:
+  match binds:
+    case Nil{}:
+      0n
+    case Con{Bind.Bind{+name, +line, +col, kk, +note}, rest}:
+      +m = unused.count(rest, uses, fl)
+      Bool.pick(Nat, Bool.and(Bool.and(unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+        Bool.not(unused.seen(uses, line, col))), 1n+m, m)
+
+# LAW: unused reports one finding for each let, do-bind, lambda binder or
+# parameter no use resolves to, and none for any other binder: not a pattern
+# binder, a name starting with `_`, an erased parameter, a law's `for` name,
+# or a parameter of a foreign def (one whose body opens with `import`),
+# however its header is wrapped
+# BOLT-RULE-U001
+law unused_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for binds: List<&2, Bind.Bind>
+  for +uses: List<&2, Bind.Use>
+  for scopes: List<&2, Bind.Scope>
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Unused.check(Src.Src{path, text, toks, tree, Bind.Bound{binds, uses, scopes}, items}))
+    == unused.count(binds, uses, unused.headers(tree)) : Nat}
+
+# The recursion rule, index. It reads each def of the file whose body calls
+# its own name and that is not a law or a proof, and every call in that body
+# at any depth: a name token, then a group. A `String.get(..)` whose index
+# (argument 1) is not one number token is a finding. So is a `List.get(..)`
+# whose index (argument 3) is not one number token, unless `table` reports
+# that same call: its fixed-table test, over the tables it finds in that def.
+
+# is the chain exactly one number token?
+def index.lit(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, t, l, c}}, Tree.NNil{}}:
+      True{}
+    case other:
+      False{}
+
+# does a call report, given whether its name is List.get (list) or
+# String.get (sget), whether its group opens with `(` (ob), its arguments,
+# and what `table` reports for it?
+def index.fires(list: Bool, +ob: Bool, +sget: Bool, +as: List<&2, Tree.Node>, table: List<&2, F.Finding>) -> Bool:
+  match list:
+    case True{}:
+      Bool.and(ob, Bool.and(Bool.not(index.lit(Calls.arg(as, 3n))), List.is_empty(&2, F.Finding, table)))
+    case False{}:
+      Bool.and(ob, Bool.and(sget, Bool.not(index.lit(Calls.arg(as, 1n)))))
+
+# one when the name token tt at (ll, cc), then the rest, is a call index reports
+def index.site(+tt: String, +ll: U32, +cc: U32, rest: Tree.Node, +path: String, +fixed: List<&2, String>) -> Nat:
+  match rest:
+    case Tree.NCons{Tree.Group{Lex.Tok{k, +o, ol, oc}, +kids, cl}, r}:
+      Bool.pick(Nat, index.fires(String.eq(tt, "List.get"), String.eq(o, "("), String.eq(tt, "String.get"),
+        Calls.args(kids), Table.hit(String.eq(o, "("), "List.get", kids, fixed, path, ll, cc)), 1n, 0n)
+    case other:
+      0n
+
+# how many calls at any depth of the node index reports, fixed the tables
+# `table` sees
+def index.count(nn: Tree.Node, +path: String, +fixed: List<&2, String>) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, +rest}:
+      Nat.add(index.site(t, l, c, rest, path, fixed), index.count(rest, path, fixed))
+    case Tree.NCons{Tree.Group{o, kids, cl}, rest}:
+      Nat.add(index.count(kids, path, fixed), index.count(rest, path, fixed))
+    case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
+      Nat.add(index.count(kids, path, fixed), Nat.add(index.count(body, path, fixed), index.count(rest, path, fixed)))
+    case Tree.NCons{h, rest}:
+      index.count(rest, path, fixed)
+    case other:
+      0n
+
+# how many calls index reports over the defs: those in each def that calls
+# itself and is not a law or a proof, with the fixed tables `table` sees in it
+def index.total(ds: List<&2, Calls.Def>, +mods: List<&2, String>, +path: String) -> Nat:
+  match ds:
+    case Nil{}:
+      0n
+    case Con{Calls.Def{+name, +sig, +body}, rest}:
+      Nat.add(Bool.pick(Nat, Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig))),
+        index.count(body, path, Table.scope(body, mods)), 0n), index.total(rest, mods, path))
+
+# LAW: index reports one finding for each `List.get(..)` or `String.get(..)`
+# at an index that is not one number token, anywhere in a def that calls
+# itself (a base arm included) and is not a law or a proof, except a
+# `List.get` that `table` reports as a get on a fixed table; none for
+# anything else
+# BOLT-RULE-U007
+law index_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Index.check(Src.Src{path, text, toks, tree, bound, items}))
+    == index.total(Calls.defs(tree), Table.modules(Calls.defs(tree), []), path) : Nat}
