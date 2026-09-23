@@ -19,6 +19,7 @@ import ./transport/service.bend as T
 import ./checker/service.bend as C
 import ./files/service.bend as F
 import ./report.bend as Rep
+import ./enc.bend as Enc
 import ../../syntax/outline.bend as Outline
 import ../../syntax/word.bend as Word
 
@@ -212,8 +213,8 @@ def step(mm: Method, id: J.Json, ww: Work) -> Out:
 
 # a document's diagnostics, as the notification sent: the checker's errors,
 # then the linter's findings
-def pub.note(uri: String, ds: List<&2, Rep.Diag>, gs: List<&2, Finding.Graded>) -> String:
-  Print.print(Proto.publish(uri, ds, gs))
+def pub.note(cc: Enc.Cols, uri: String, ds: List<&2, Rep.Diag>, gs: List<&2, Finding.Graded>) -> String:
+  Print.print(Proto.publish(cc, uri, ds, gs))
 
 # the bolt.bend candidates of a document's path, nearest first: the ones the
 # CLI reads for a file at that path, run from the same directory
@@ -229,36 +230,51 @@ def pub.lint(+path: String, +text: String, rs: List<&2, Maybe<&2, String>>) -> L
 # open or save: the checker's errors with the lint of the text, the errors
 # kept for the changes after
 def pub.checked(
+  ee: Enc.Enc,
   +uri: String,
   +text: String,
   +ds: List<&2, Rep.Diag>,
   rs: List<&2, Maybe<&2, String>>,
   +docs: List<&2, Docs.Doc>
 ) -> Work:
-  noted([pub.note(uri, ds, pub.lint(Proto.path(uri), text, rs))], Docs.set_errors(docs, uri, ds))
+  noted([pub.note(Enc.cols(ee, text), uri, ds, pub.lint(Proto.path(uri), text, rs))], Docs.set_errors(docs, uri, ds))
 
 # open: the document's text kept, then published with the checker's errors
 def pub.open(
+  ee: Enc.Enc,
   +uri: String,
   +text: String,
   ds: List<&2, Rep.Diag>,
   rs: List<&2, Maybe<&2, String>>,
   +docs: List<&2, Docs.Doc>
 ) -> Work:
-  pub.checked(uri, text, ds, rs, Docs.set(docs, uri, text))
+  pub.checked(ee, uri, text, ds, rs, Docs.set(docs, uri, text))
 
 # save: the text the editor shows published with the checker's new errors
-def pub.save(+uri: String, ds: List<&2, Rep.Diag>, rs: List<&2, Maybe<&2, String>>, +docs: List<&2, Docs.Doc>) -> Work:
-  pub.checked(uri, Maybe.default(&2, String, Docs.get(docs, uri), ""), ds, rs, docs)
+def pub.save(
+  ee: Enc.Enc,
+  +uri: String,
+  ds: List<&2, Rep.Diag>,
+  rs: List<&2, Maybe<&2, String>>,
+  +docs: List<&2, Docs.Doc>
+) -> Work:
+  pub.checked(ee, uri, Maybe.default(&2, String, Docs.get(docs, uri), ""), ds, rs, docs)
 
 # change: the new text kept, and its lint published with the checker's last
 # errors
-def pub.change(+uri: String, +text: String, rs: List<&2, Maybe<&2, String>>, +docs: List<&2, Docs.Doc>) -> Work:
-  noted([pub.note(uri, Docs.errors(docs, uri), pub.lint(Proto.path(uri), text, rs))], Docs.set(docs, uri, text))
+def pub.change(
+  ee: Enc.Enc,
+  +uri: String,
+  +text: String,
+  rs: List<&2, Maybe<&2, String>>,
+  +docs: List<&2, Docs.Doc>
+) -> Work:
+  noted([pub.note(Enc.cols(ee, text), uri, Docs.errors(docs, uri), pub.lint(Proto.path(uri), text, rs))],
+    Docs.set(docs, uri, text))
 
 # close: the document forgotten, and an empty list published
-def pub.close(+uri: String, docs: List<&2, Docs.Doc>) -> Work:
-  noted([pub.note(uri, [], [])], Docs.del(docs, uri))
+def pub.close(ee: Enc.Enc, +uri: String, docs: List<&2, Docs.Doc>) -> Work:
+  noted([pub.note(Enc.cols(ee, ""), uri, [], [])], Docs.del(docs, uri))
 
 # the texts of a document's bolt.bend candidates, as the files hold them
 def pub.configs(~fs: F.Files, +uri: String) -> IO(List<&2, Maybe<&2, String>>):
@@ -267,24 +283,31 @@ def pub.configs(~fs: F.Files, +uri: String) -> IO(List<&2, Maybe<&2, String>>):
     F.read_all(~fs, pub.cands(cwd, Proto.path(uri)))
 
 # open, on the checker's run on the file on disk
-def pub.opened(~ck: C.Checker, ~fs: F.Files, +uri: String, text: String, docs: List<&2, Docs.Doc>) -> IO(Work):
+def pub.opened(
+  ~ck: C.Checker,
+  ~fs: F.Files,
+  ee: Enc.Enc,
+  +uri: String,
+  text: String,
+  docs: List<&2, Docs.Doc>
+) -> IO(Work):
   do IO<Work>:
     aa : C.Answer <- C.check(ck, Proto.path(uri))
     rs : List<&2, Maybe<&2, String>> <- pub.configs(~fs, uri)
-    return pub.open(uri, text, C.errors(aa), rs, docs)
+    return pub.open(ee, uri, text, C.errors(aa), rs, docs)
 
 # save, on the checker's run on the file on disk
-def pub.saved(~ck: C.Checker, ~fs: F.Files, +uri: String, docs: List<&2, Docs.Doc>) -> IO(Work):
+def pub.saved(~ck: C.Checker, ~fs: F.Files, ee: Enc.Enc, +uri: String, docs: List<&2, Docs.Doc>) -> IO(Work):
   do IO<Work>:
     aa : C.Answer <- C.check(ck, Proto.path(uri))
     rs : List<&2, Maybe<&2, String>> <- pub.configs(~fs, uri)
-    return pub.save(uri, C.errors(aa), rs, docs)
+    return pub.save(ee, uri, C.errors(aa), rs, docs)
 
 # change: the linter only
-def pub.changed(~fs: F.Files, +uri: String, text: String, docs: List<&2, Docs.Doc>) -> IO(Work):
+def pub.changed(~fs: F.Files, ee: Enc.Enc, +uri: String, text: String, docs: List<&2, Docs.Doc>) -> IO(Work):
   do IO<Work>:
     rs : List<&2, Maybe<&2, String>> <- pub.configs(~fs, uri)
-    return pub.change(uri, text, rs, docs)
+    return pub.change(ee, uri, text, rs, docs)
 
 def hover.of(mm: Maybe<&2, Nav.Found>) -> J.Json:
   match mm:
@@ -295,17 +318,38 @@ def hover.of(mm: Maybe<&2, Nav.Found>) -> J.Json:
     case Some{Nav.Here{uri, b}}:
       Proto.hover.local(b)
 
-def definition.of(mm: Maybe<&2, Nav.Found>) -> J.Json:
+def definition.of(cc: Enc.Cols, mm: Maybe<&2, Nav.Found>) -> J.Json:
   match mm:
     case None{}:
       J.JNull{}
     case Some{Nav.Found{uri, item}}:
-      Proto.location(uri, item)
+      Proto.location(cc, uri, item)
     case Some{Nav.Here{uri, b}}:
-      Proto.location.local(uri, b)
+      Proto.location.local(cc, uri, b)
+
+# the column a request's position names, read in the negotiated encoding of
+# the document's text
+def col_in(cc: Enc.Cols, +params: J.Json) -> U32:
+  Enc.into(cc, line_of(params), col_of(params))
+
+# hover at a request's position
+def hovered(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String, +params: J.Json) -> IO(Work):
+  do IO<Work>:
+    text : String <- Nav.text_of(~fs, docs, uri)
+    f : Maybe<&2, Nav.Found> <- Nav.hover(~fs, docs, uri, line_of(params), col_in(Enc.cols(ee, text), params))
+    return answered(hover.of(f), docs)
+
+# definition at a request's position
+def defined(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String, +params: J.Json) -> IO(Work):
+  do IO<Work>:
+    +text : String <- Nav.text_of(~fs, docs, uri)
+    +cc : Enc.Cols = Enc.cols(ee, text)
+    f : Maybe<&2, Nav.Found> <- Nav.at(~fs, docs, uri, line_of(params), col_in(cc, params))
+    return answered(definition.of(cc, f), docs)
 
 def complete.with(
   ~fs: F.Files,
+  cc: Enc.Cols,
   +prefix: String,
   +docs: List<&2, Docs.Doc>,
   uri: String,
@@ -314,109 +358,123 @@ def complete.with(
 ) -> IO(Work):
   do IO<Work>:
     items : List<&2, Outline.Item> <- Nav.candidates(~fs, docs, uri, prefix, line)
-    return answered(Proto.completions(items, line, (col - U32.from_nat(String.length(prefix)) : U32), col), docs)
+    return answered(Proto.completions(cc, items, line, (col - U32.from_nat(String.length(prefix)) : U32), col), docs)
 
 # the candidates for the name being typed at a position
-def complete(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, +line: U32, +col: U32) -> IO(Work):
+def complete(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String, +params: J.Json) -> IO(Work):
   do IO<Work>:
-    text : String <- Nav.text_of(~fs, docs, uri)
-    complete.with(~fs, Word.before(text, line, col), docs, uri, line, col)
+    +text : String <- Nav.text_of(~fs, docs, uri)
+    +cc : Enc.Cols = Enc.cols(ee, text)
+    +line : U32 = line_of(params)
+    +col : U32 = col_in(cc, params)
+    complete.with(~fs, cc, Word.before(text, line, col), docs, uri, line, col)
 
-def references.of(ss: Nav.Sites, uri: String, name: String) -> J.Json:
+def references.of(cc: Enc.Cols, ss: Nav.Sites, uri: String, name: String) -> J.Json:
   Nav.Sites{mine, at} = ss
-  Proto.locations(uri, name, at)
+  Proto.locations(cc, uri, name, at)
 
 # only a name bound in the document renames; the editor shows the refusal
-def rename.of(ss: Nav.Sites, uri: String, name: String, new: String) -> Answer:
+def rename.of(cc: Enc.Cols, ss: Nav.Sites, uri: String, name: String, new: String) -> Answer:
   Nav.Sites{mine, at} = ss
   match mine:
     case True{}:
-      Answer{Proto.rename(uri, name, new, at)}
+      Answer{Proto.rename(cc, uri, name, new, at)}
     case False{}:
       Refusal{"-32803", "only a name bound in this file can be renamed"}
 
 # every position of the name at a position
-def references(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, +line: U32, +col: U32) -> IO(Work):
+def references(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String, +params: J.Json) -> IO(Work):
   do IO<Work>:
-    text : String <- Nav.text_of(~fs, docs, uri)
+    +text : String <- Nav.text_of(~fs, docs, uri)
+    +cc : Enc.Cols = Enc.cols(ee, text)
+    +line : U32 = line_of(params)
+    +col : U32 = col_in(cc, params)
     s : Nav.Sites <- Nav.sites(~fs, docs, uri, line, col)
-    return answered(references.of(s, uri, Word.at(text, line, col)), docs)
+    return answered(references.of(cc, s, uri, Word.at(text, line, col)), docs)
 
 # the edit renaming the name at a position, or a refusal
-def renamed(
-  ~fs: F.Files,
-  +docs: List<&2, Docs.Doc>,
-  +uri: String,
-  +line: U32,
-  +col: U32,
-  new: String
-) -> IO(Work):
+def renamed(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String, +params: J.Json) -> IO(Work):
   do IO<Work>:
-    text : String <- Nav.text_of(~fs, docs, uri)
+    +text : String <- Nav.text_of(~fs, docs, uri)
+    +cc : Enc.Cols = Enc.cols(ee, text)
+    +line : U32 = line_of(params)
+    +col : U32 = col_in(cc, params)
     s : Nav.Sites <- Nav.sites(~fs, docs, uri, line, col)
-    return Work{[], rename.of(s, uri, Word.at(text, line, col), new), docs}
+    return Work{[],
+      rename.of(cc, s, uri, Word.at(text, line, col), Maybe.default(&2, String, J.as_str(J.get(params, "newName")), "")),
+      docs}
 
 # the document's semantic tokens
-def semantic(~fs: F.Files, +docs: List<&2, Docs.Doc>, uri: String) -> IO(Work):
+def semantic(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, uri: String) -> IO(Work):
   do IO<Work>:
     text : String <- Nav.text_of(~fs, docs, uri)
-    return answered(Proto.semantic(Semantic.data(text)), docs)
+    return answered(Proto.semantic(Semantic.data(ee, text)), docs)
+
+# the document's symbols
+def symbols(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String) -> IO(Work):
+  do IO<Work>:
+    text : String <- Nav.text_of(~fs, docs, uri)
+    items : List<&2, Outline.Item> <- Nav.outline(~fs, docs, uri)
+    return answered(Proto.symbols(Enc.cols(ee, text), items), docs)
 
 # the work behind a method: what the checker, the files and the documents
 # give it. It does not see the message's id: step alone puts that on a reply
 def work(
   ~ck: C.Checker,
   ~fs: F.Files,
+  ee: Enc.Enc,
   mm: Method,
   +params: J.Json,
   +docs: List<&2, Docs.Doc>
 ) -> IO(Work):
   match mm:
     case MInitialize{}:
-      IO.pure(Work, answered(Proto.capabilities(), docs))
+      IO.pure(Work, answered(Proto.capabilities(ee), docs))
     case MShutdown{}:
       IO.pure(Work, answered(J.JNull{}, docs))
     case MExit{}:
       IO.pure(Work, noted([], docs))
     case MOpen{}:
-      pub.opened(~ck, ~fs, uri_of(params),
+      pub.opened(~ck, ~fs, ee, uri_of(params),
         Maybe.default(&2, String, J.as_str(J.get(J.get(params, "textDocument"), "text")), ""), docs)
     case MChange{}:
-      pub.changed(~fs, uri_of(params),
+      pub.changed(~fs, ee, uri_of(params),
         Maybe.default(&2, String, J.as_str(J.get(J.at(J.get(params, "contentChanges"), 0), "text")), ""), docs)
     case MSave{}:
-      pub.saved(~ck, ~fs, uri_of(params), docs)
+      pub.saved(~ck, ~fs, ee, uri_of(params), docs)
     case MClose{}:
-      IO.pure(Work, pub.close(uri_of(params), docs))
+      IO.pure(Work, pub.close(ee, uri_of(params), docs))
     case MHover{}:
-      do IO<Work>:
-        f : Maybe<&2, Nav.Found> <- Nav.hover(~fs, docs, uri_of(params), line_of(params), col_of(params))
-        return answered(hover.of(f), docs)
+      hovered(~fs, ee, docs, uri_of(params), params)
     case MDefinition{}:
-      do IO<Work>:
-        f : Maybe<&2, Nav.Found> <- Nav.at(~fs, docs, uri_of(params), line_of(params), col_of(params))
-        return answered(definition.of(f), docs)
+      defined(~fs, ee, docs, uri_of(params), params)
     case MSymbols{}:
-      do IO<Work>:
-        items : List<&2, Outline.Item> <- Nav.outline(~fs, docs, uri_of(params))
-        return answered(Proto.symbols(items), docs)
+      symbols(~fs, ee, docs, uri_of(params))
     case MCompletion{}:
-      complete(~fs, docs, uri_of(params), line_of(params), col_of(params))
+      complete(~fs, ee, docs, uri_of(params), params)
     case MReferences{}:
-      references(~fs, docs, uri_of(params), line_of(params), col_of(params))
+      references(~fs, ee, docs, uri_of(params), params)
     case MRename{}:
-      renamed(~fs, docs, uri_of(params), line_of(params), col_of(params),
-        Maybe.default(&2, String, J.as_str(J.get(params, "newName")), ""))
+      renamed(~fs, ee, docs, uri_of(params), params)
     case MSemantic{}:
-      semantic(~fs, docs, uri_of(params))
+      semantic(~fs, ee, docs, uri_of(params))
     case MOther{}:
       IO.pure(Work, noted([], docs))
 
+# the encoding after a message: initialize settles it (enc.bend's
+# negotiate); every other message keeps it
+def encoding(mm: Method, params: J.Json, ee: Enc.Enc) -> Enc.Enc:
+  match mm:
+    case MInitialize{}:
+      Enc.negotiate(params)
+    case _other:
+      ee
+
 # one message: its method's work, then step's decision on it
-def handle(~ck: C.Checker, ~fs: F.Files, +msg: J.Json, docs: List<&2, Docs.Doc>) -> IO(Out):
+def handle(~ck: C.Checker, ~fs: F.Files, ee: Enc.Enc, +msg: J.Json, docs: List<&2, Docs.Doc>) -> IO(Out):
   +mm = method(name_of(msg))
   do IO<Out>:
-    w : Work <- work(~ck, ~fs, mm, J.get(msg, "params"), docs)
+    w : Work <- work(~ck, ~fs, ee, mm, J.get(msg, "params"), docs)
     return step(mm, id_of(msg), w)
 
 # a parsed message, or null when it did not parse
@@ -438,21 +496,46 @@ def next(
   -H: Type,
   quit: Bool,
   h3: H,
+  ee: Enc.Enc,
   docs: List<&2, Docs.Doc>,
-  rest: H -> List<&2, Docs.Doc> -> IO(Unit)
+  rest: H -> Enc.Enc -> List<&2, Docs.Doc> -> IO(Unit)
 ) -> IO(Unit):
   match quit:
     case True{}:
       IO.pure(Unit, Unit{})
     case False{}:
-      rest(h3, docs)
+      rest(h3, ee, docs)
 
 # the replies sent, then the loop goes on
-def answer(~H: Type, ~tr: T.Transport<H>, out: Out, h3: H, rest: H -> List<&2, Docs.Doc> -> IO(Unit)) -> IO(Unit):
+def answer(
+  ~H: Type,
+  ~tr: T.Transport<H>,
+  out: Out,
+  h3: H,
+  ee: Enc.Enc,
+  rest: H -> Enc.Enc -> List<&2, Docs.Doc> -> IO(Unit)
+) -> IO(Unit):
   Out{replies, quit, docs} = out
   do IO<Unit>:
     h2 : H <- send_all(~H, ~tr, replies, h3)
-    next(H, quit, h2, docs, rest)
+    next(H, quit, h2, ee, docs, rest)
+
+# a message handled under the encoding it leaves, and answered
+def turn.msg(
+  ~H: Type,
+  ~tr: T.Transport<H>,
+  ~ck: C.Checker,
+  ~fs: F.Files,
+  +msg: J.Json,
+  h3: H,
+  ee: Enc.Enc,
+  docs: List<&2, Docs.Doc>,
+  rest: H -> Enc.Enc -> List<&2, Docs.Doc> -> IO(Unit)
+) -> IO(Unit):
+  +e2 = encoding(method(name_of(msg)), J.get(msg, "params"), ee)
+  do IO<Unit>:
+    out : Out <- handle(~ck, ~fs, e2, msg, docs)
+    answer(~H, ~tr, out, h3, e2, rest)
 
 # one message body handled and answered; none means the peer is gone
 def turn(
@@ -462,16 +545,15 @@ def turn(
   ~fs: F.Files,
   mm: Maybe<&2, String>,
   h3: H,
+  ee: Enc.Enc,
   docs: List<&2, Docs.Doc>,
-  rest: H -> List<&2, Docs.Doc> -> IO(Unit)
+  rest: H -> Enc.Enc -> List<&2, Docs.Doc> -> IO(Unit)
 ) -> IO(Unit):
   match mm:
     case None{}:
       IO.pure(Unit, Unit{})
     case Some{body}:
-      do IO<Unit>:
-        out : Out <- handle(~ck, ~fs, decoded(Parse.parse(body)), docs)
-        answer(~H, ~tr, out, h3, rest)
+      turn.msg(~H, ~tr, ~ck, ~fs, decoded(Parse.parse(body)), h3, ee, docs, rest)
 
 # what recv gave: the handle and maybe a body
 def got(
@@ -480,13 +562,33 @@ def got(
   ~ck: C.Checker,
   ~fs: F.Files,
   rr: H & Maybe<&2, String>,
+  ee: Enc.Enc,
   docs: List<&2, Docs.Doc>,
-  rest: H -> List<&2, Docs.Doc> -> IO(Unit)
+  rest: H -> Enc.Enc -> List<&2, Docs.Doc> -> IO(Unit)
 ) -> IO(Unit):
   (h, m) = rr
-  turn(~H, ~tr, ~ck, ~fs, m, h, docs, rest)
+  turn(~H, ~tr, ~ck, ~fs, m, h, ee, docs, rest)
 
-# serves until exit, the peer's end, or the fuel's (a message each)
+def serve.go(
+  ~H: Type,
+  ~tr: T.Transport<H>,
+  ~ck: C.Checker,
+  ~fs: F.Files,
+  fuel: Nat,
+  h3: H,
+  ee: Enc.Enc,
+  docs: List<&2, Docs.Doc>
+) -> IO(Unit):
+  match fuel:
+    case 0n:
+      IO.pure(Unit, Unit{})
+    case 1n+f:
+      do IO<Unit>:
+        r : H & Maybe<&2, String> <- T.recv(H, tr, h3)
+        got(~H, ~tr, ~ck, ~fs, r, ee, docs, hh => e2 => dd => serve.go(~H, ~tr, ~ck, ~fs, f, hh, e2, dd))
+
+# serves until exit, the peer's end, or the fuel's (a message each), in
+# UTF-16 until initialize negotiates
 def serve(
   ~H: Type,
   ~tr: T.Transport<H>,
@@ -496,10 +598,4 @@ def serve(
   h3: H,
   docs: List<&2, Docs.Doc>
 ) -> IO(Unit):
-  match fuel:
-    case 0n:
-      IO.pure(Unit, Unit{})
-    case 1n+f:
-      do IO<Unit>:
-        r : H & Maybe<&2, String> <- T.recv(H, tr, h3)
-        got(~H, ~tr, ~ck, ~fs, r, docs, hh => dd => serve(~H, ~tr, ~ck, ~fs, f, hh, dd))
+  serve.go(~H, ~tr, ~ck, ~fs, fuel, h3, Enc.Utf16{}, docs)
