@@ -147,7 +147,10 @@ beside the groups.
   20 ms as one pass); in one branch, the call runs even when the condition
   says stop, so a search never exits early. Bind the call once above the pick
   (`+more = go(rest)`) and pick between `x <> more` and `more`, or hand a
-  helper that matches on the Bool.
+  helper that matches on the Bool. A self-call is the def's name followed by
+  `(..)`, so a parameter named like the def is not one. A pick nested in a
+  branch of one already reported is not reported again. Law files, proof
+  files and defs that return a proof are exempt.
 - `strict` — a self-call inside `Bool.and`/`Bool.or`, or either side of
   `&&`/`||`, matched by exactly those texts (a qualified `Base.Bool.or` is not
   seen). They are functions too: both sides always run, so there is no
