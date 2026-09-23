@@ -10,6 +10,7 @@ import ../../syntax/bind.bend as Bind
 import ../paths.bend as Paths
 import ../../lazy/lazy.bend as Lazy
 import ./correctness/put.bend as Put
+import ./laws/trace.bend as Trace
 import ./LAWS.bend as Laws
 
 # a finding in front when b holds adds one to the count
@@ -714,3 +715,34 @@ def Laws.put_counts(toks, path):
     put.stop(Put.defines(toks), Put.calls(toks, path), Laws.put_count(toks), put.calls(toks, path)),
     Equal.cong(Bool, Nat, z => Bool.pick(Nat, z, 0n, Laws.put_count(toks)),
       Put.defines(toks), Laws.put_defined(toks), put.defines(toks)))
+
+def Laws.trace_pending_judged(_id, _e, _es, _nn, sp, _ds):
+  match sp:
+    case Trace.Spec{_m, _r, _t, _b}:
+      {==}
+
+def Laws.trace_pending_shape(_ls):
+  {==}
+
+def Laws.trace_proved_shape(ls):
+  match ls:
+    case Nil{}:
+      {==}
+    case Con{_h, _t}:
+      {==}
+
+def Laws.trace_trusted_shape(ls):
+  match ls:
+    case Nil{}:
+      {==}
+    case Con{_h, _t}:
+      {==}
+
+def Laws.trace_pending_claimed(_i, _ls, _n, _rs, _id):
+  {==}
+
+def Laws.trace_trusted_unclaimed(_i, _st, _ls, _n, _rs, _id):
+  {==}
+
+def Laws.trace_unlisted_unclaimed(_id):
+  {==}

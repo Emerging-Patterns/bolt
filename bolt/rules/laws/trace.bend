@@ -4,13 +4,16 @@
 # rows in tables headed `| ID | Assumption | Why it is trusted |`. An ID is
 # uppercase letters and digits in two or more segments joined by `-`
 # (`BOLT-CFG-1`); a law proves one when a line of its comment block is exactly
-# that ID (`# BOLT-CFG-1`). The findings: a row that is not a well-formed
-# requirement; an ID listed twice; a Proved row with status proved whose Law
-# cell names no law, or a law that is missing, has no `for`/`exs` binder, or
-# lacks the tag; a Trusted row with no trust row; and a tag naming an ID
-# SPEC.md does not list as Proved and proved. A Law entry is
-# `<path> <law>`, the path relative to SPEC.md, entries joined by `; `. Only
-# a bolt.bend that names the rule turns it on (bolt/config.bend). It runs
+# that ID (`# BOLT-CFG-1`). A Proved row, proved or pending, is a claim: a
+# proved row's Law cell names the laws that prove it, and a pending row's may
+# name laws that prove part of it while the row stays pending. The findings: a
+# row that is not a well-formed requirement; an ID listed twice; a proved row
+# whose Law cell names no law; a Trusted row that names a law; a Law entry of
+# a Proved row, proved or pending, whose law is missing, has no `for`/`exs`
+# binder, or lacks the row's tag; a Trusted row with no trust row; and a tag
+# naming an ID SPEC.md does not list as Proved, proved or pending. A Law entry
+# is `<path> <law>`, the path relative to SPEC.md, entries joined by `; `.
+# Only a bolt.bend that names the rule turns it on (bolt/config.bend). It runs
 # only when bolt lints the whole tree, never over files named on the line.
 import Base
 import ../../finding.bend as F
@@ -235,7 +238,7 @@ def tagged(doc: List<&2, String>, +id: String) -> Bool:
     case Con{d, rest}:
       Lazy.or_else(String.eq(trim(d), id), _u => tagged(rest, id))
 
-# what is wrong with the law a proved row names, found or not
+# what is wrong with the law a Proved row names, found or not
 def judge_law(mm: Maybe<&2, Digest.Law>, +id: String, +entry: String, +nn: U32) -> List<&2, F.Finding>:
   match mm:
     case None{}:
@@ -260,7 +263,7 @@ def judge_file(
     case Some{ls}:
       judge_law(law_named(ls, name), id, entry, nn)
 
-# one Law entry of a proved row: `<path> <law>`
+# one Law entry of a Proved row: `<path> <law>`
 def judge_entry(+ds: List<&2, Digest.Digest>, +id: String, +entry: String, +nn: U32) -> List<&2, F.Finding>:
   +words = String.split(entry, ' ')
   +path = Imports.norm(cell(words, 0n))
@@ -268,7 +271,7 @@ def judge_entry(+ds: List<&2, Digest.Digest>, +id: String, +entry: String, +nn: 
     [at(nn, id ++ ": a Law entry is <path> <law>, not " ++ entry ++ ".")],
     _u => judge_file(laws_file(ds, path), cell(words, 1n), id, entry, nn))
 
-# every Law entry of a proved row
+# every Law entry of a Proved row
 def judge_entries(es: List<&2, String>, +ds: List<&2, Digest.Digest>, +id: String, +nn: U32) -> List<&2, F.Finding>:
   match es:
     case Nil{}:
@@ -276,16 +279,19 @@ def judge_entries(es: List<&2, String>, +ds: List<&2, Digest.Digest>, +id: Strin
     case Con{e, rest}:
       List.append(&2, F.Finding, judge_entry(ds, id, e, nn), judge_entries(rest, ds, id, nn))
 
+# is the row a claim: Proved, and proved or pending?
+def claims(+lv: String, +st: String) -> Bool:
+  Bool.and(String.eq(lv, "Proved"), Bool.or(String.eq(st, "proved"), String.eq(st, "pending")))
+
 # what is wrong with a row's level, status and Law cell
 def shape(+lv: String, +st: String, +ls: List<&2, String>) -> String:
   +proved = Bool.and(String.eq(lv, "Proved"), String.eq(st, "proved"))
-  +pending = Bool.and(String.eq(lv, "Proved"), String.eq(st, "pending"))
   +trusted = Bool.and(String.eq(lv, "Trusted"), String.is_empty(st))
   +none = List.is_empty(&2, String, ls)
-  Bool.pick(String, Bool.not(Bool.or(Bool.or(proved, pending), trusted)),
+  Bool.pick(String, Bool.not(Bool.or(claims(lv, st), trusted)),
     "the level is Proved or Trusted, the status proved or pending for Proved and empty for Trusted",
     Bool.pick(String, Bool.and(proved, none), "a proved row names its law",
-      Bool.pick(String, Bool.and(Bool.not(proved), Bool.not(none)), "only a proved row names a law", "")))
+      Bool.pick(String, Bool.and(trusted, Bool.not(none)), "a Trusted row names no law", "")))
 
 # every finding of one requirement row
 def judge_row(rr: Row, +sp: Spec, +ds: List<&2, Digest.Digest>) -> List<&2, F.Finding>:
@@ -298,8 +304,7 @@ def judge_row(rr: Row, +sp: Spec, +ds: List<&2, Digest.Digest>) -> List<&2, F.Fi
     Bool.pick(List<&2, F.Finding>, String.is_empty(why), [], [at(nn, id ++ ": " ++ why ++ ".")]),
     Bool.pick(List<&2, F.Finding>, Bool.and(String.eq(lv, "Trusted"), U32.is_eq(marks_with(trust, id), 0)),
       [at(nn, id ++ " is Trusted and has no row in the trust boundary table.")], []),
-    Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(String.eq(lv, "Proved"), String.eq(st, "proved"))), [],
-      _u => judge_entries(ls, ds, id, nn))])
+    Lazy.stop(List<&2, F.Finding>, Bool.not(claims(lv, st)), [], _u => judge_entries(ls, ds, id, nn))])
 
 # every finding of every requirement row
 def judge_rows(rs: List<&2, Row>, +sp: Spec, +ds: List<&2, Digest.Digest>) -> List<&2, F.Finding>:
@@ -309,16 +314,15 @@ def judge_rows(rs: List<&2, Row>, +sp: Spec, +ds: List<&2, Digest.Digest>) -> Li
     case Con{r, rest}:
       List.append(&2, F.Finding, judge_row(r, sp, ds), judge_rows(rest, sp, ds))
 
-# is the ID a Proved, proved row?
-def proved(rs: List<&2, Row>, +id: String) -> Bool:
+# is the ID a row that is a claim: Proved, and proved or pending?
+def claimed(rs: List<&2, Row>, +id: String) -> Bool:
   match rs:
     case Nil{}:
       False{}
     case Con{Row{+i, +lv, +st, ls, n}, rest}:
-      Lazy.or_else(Bool.and(String.eq(i, id), Bool.and(String.eq(lv, "Proved"), String.eq(st, "proved"))),
-        _u => proved(rest, id))
+      Lazy.or_else(Bool.and(claims(lv, st), String.eq(i, id)), _u => claimed(rest, id))
 
-# the tags of a law SPEC.md does not list as proved
+# the tags of a law SPEC.md does not list as Proved, proved or pending
 def stray(
   doc: List<&2, String>,
   +rs: List<&2, Row>,
@@ -332,9 +336,9 @@ def stray(
     case Con{d, rest}:
       +tt = trim(d)
       +more = stray(rest, rs, path, name, ll)
-      Lazy.stop(List<&2, F.Finding>, Lazy.or_else(Bool.not(is_id(tt)), _u => proved(rs, tt)), more,
+      Lazy.stop(List<&2, F.Finding>, Lazy.or_else(Bool.not(is_id(tt)), _u => claimed(rs, tt)), more,
         _u => F.Finding{path, ll, 0, 0, "trace",
-          "Law " ++ name ++ " is tagged " ++ tt ++ ", which SPEC.md does not list as Proved and proved."} <> more)
+          "Law " ++ name ++ " is tagged " ++ tt ++ ", which SPEC.md does not list as Proved, proved or pending."} <> more)
 
 def strays.laws(ls: List<&2, Digest.Law>, +rs: List<&2, Row>, +path: String) -> List<&2, F.Finding>:
   match ls:
