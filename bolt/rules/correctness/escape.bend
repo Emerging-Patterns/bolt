@@ -9,29 +9,58 @@ import ../../finding.bend as F
 import ../../../syntax/lex.bend as Lex
 import ../../../lazy/lazy.bend as Lazy
 
-# an octal digit's value, or none
-def octal(cc: Char) -> Maybe<&2, U32>:
+# a literal's char as the rule reads it: a backslash, a `0`, another digit,
+# or anything else. Read once, so the scan below matches constructors, not
+# char literals.
+type Sym is Data:
+  SSlash{}
+  SZero{}
+  SDigit{c: Char}
+  SOther{c: Char}
+
+# a char as a Sym
+def sym(cc: Char) -> Sym:
   match cc:
     case Chr{+x}:
-      Bool.pick(Maybe<&2, U32>, Bool.and(U32.is_ge(x, 48), U32.is_le(x, 55)), Some{(x - 48 : U32)}, None{})
+      Bool.pick(Sym, U32.is_eq(x, 92), SSlash{},
+        Bool.pick(Sym, U32.is_eq(x, 48), SZero{},
+          Bool.pick(Sym, Bool.and(U32.is_ge(x, 49), U32.is_le(x, 57)), SDigit{Chr{x}}, SOther{Chr{x}})))
 
-# keep the char when it is an octal digit, and those after it
-def run.if(mm: Maybe<&2, U32>, cc: Char, rest: List<&2, Char>) -> List<&2, Char>:
+# a literal's chars as Syms
+def syms(cs: List<&2, Char>) -> List<&2, Sym>:
+  match cs:
+    case Nil{}:
+      Nil{}
+    case Con{c, t}:
+      sym(c) <> syms(t)
+
+# the Sym's char when it is an octal digit
+def octal(ss: Sym) -> Maybe<&2, Char>:
+  match ss:
+    case SZero{}:
+      Some{'0'}
+    case SDigit{Chr{+x}}:
+      Bool.pick(Maybe<&2, Char>, U32.is_le(x, 55), Some{Chr{x}}, None{})
+    case other:
+      None{}
+
+# keep the octal digit, and those after it
+def run.if(mm: Maybe<&2, Char>, rest: List<&2, Char>) -> List<&2, Char>:
   match mm:
     case None{}:
       Nil{}
-    case Some{v}:
-      cc <> rest
+    case Some{c}:
+      c <> rest
 
 # the octal digits (at most two) right after the `\0`, in order
-def run(cs: List<&2, Char>, nn: Nat) -> List<&2, Char>:
-  match cs nn:
+def run(ss: List<&2, Sym>, nn: Nat) -> List<&2, Char>:
+  match ss nn:
     case Nil{} m:
       Nil{}
-    case Con{c, t} 0n:
+    case Con{s, t} 0n:
       Nil{}
-    case Con{+c, t} 1n+p:
-      run.if(octal(c), c, run(t, p))
+    case Con{s, t} 1n+p:
+      run.if(octal(s), run(t, p))
 
 # the digits' octal value
 def value(cs: List<&2, Char>, +acc: U32) -> U32:
@@ -59,22 +88,23 @@ def finding(+ds: List<&2, Char>, +path: String, +line: U32, +col: U32) -> F.Find
       "\\0" ++ digits ++ " is NUL then \"" ++ digits ++ "\", not an octal escape; write \\u{" ++ hex(value(ds, 0)) ++ "}."})
 
 # after a `\0` at a column: a finding when a digit follows
-def after(ds: List<&2, Char>, +path: String, +line: U32, +col: U32, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
-  match ds:
-    case Con{+d, t}:
-      Lazy.stop(List<&2, F.Finding>, Bool.not(Char.is_digit(d)), more,
-        _u => finding(run(d <> t, 2n), path, line, col) <> more)
-    case Nil{}:
+def after(ss: List<&2, Sym>, +path: String, +line: U32, +col: U32, more: List<&2, F.Finding>) -> List<&2, F.Finding>:
+  match ss:
+    case Con{SZero{}, t}:
+      finding(run(SZero{} <> t, 2n), path, line, col) <> more
+    case Con{SDigit{d}, t}:
+      finding(run(SDigit{d} <> t, 2n), path, line, col) <> more
+    case other:
       more
 
-# a literal's chars from a column; an escape is its backslash and one char
-def scan(cs: List<&2, Char>, +path: String, +line: U32, +col: U32) -> List<&2, F.Finding>:
-  match cs:
-    case Con{'\\', Con{'0', +rest}}:
+# a literal's Syms from a column; an escape is its backslash and one char
+def scan(ss: List<&2, Sym>, +path: String, +line: U32, +col: U32) -> List<&2, F.Finding>:
+  match ss:
+    case Con{SSlash{}, Con{SZero{}, +rest}}:
       after(rest, path, line, col, scan(rest, path, line, (col + 2 : U32)))
-    case Con{'\\', Con{e, rest}}:
+    case Con{SSlash{}, Con{e, rest}}:
       scan(rest, path, line, (col + 2 : U32))
-    case Con{c, rest}:
+    case Con{s, rest}:
       scan(rest, path, line, (col + 1 : U32))
     case Nil{}:
       Nil{}
@@ -82,9 +112,9 @@ def scan(cs: List<&2, Char>, +path: String, +line: U32, +col: U32) -> List<&2, F
 def check.go(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
   match toks:
     case Con{Lex.Tok{Lex.TStr{}, t, l, c}, rest}:
-      List.append(&2, F.Finding, scan(String.to_list(t), path, l, c), check.go(rest, path))
+      List.append(&2, F.Finding, scan(syms(String.to_list(t)), path, l, c), check.go(rest, path))
     case Con{Lex.Tok{Lex.TChar{}, t, l, c}, rest}:
-      List.append(&2, F.Finding, scan(String.to_list(t), path, l, c), check.go(rest, path))
+      List.append(&2, F.Finding, scan(syms(String.to_list(t)), path, l, c), check.go(rest, path))
     case Con{h, rest}:
       check.go(rest, path)
     case Nil{}:
