@@ -467,3 +467,141 @@ law read_is_correctness:
   {Rules.graded(cfg, [F.Finding{path, line, col, len, "read", msg}])
     == keep(Config.level(cfg, "correctness", "read"), F.Finding{path, line, col, len, "read", msg}, [])
     : List<&2, F.Graded>}
+
+# The walk (BOLT-SCOPE-1). With no paths named, the planner lints what a
+# breadth-first search over the World's listings reaches from `.`. The spec
+# below writes that search apart from plan.bend's walk, which threads a queue,
+# the files found so far and the directories read through one fuelled loop:
+# here the directories read come first, in order, and their files are
+# gathered after. The law holds for every fuel. It stops short of the row:
+# `Plan.tree` runs the walk at `U32.to_nat(100000)`, and the checker cannot
+# compare two copies of that term (it expands each in unary and overflows its
+# stack), so no law can name the bound itself while plan.bend writes it that
+# way; the literal `100000n` it can compare, but `nat` (U005) and `fuel`
+# (U006) forbid that literal.
+
+# an entry's name without the "/" that marks a directory
+def entry_name(+ee: String) -> String:
+  String.take(ee, Nat.sub(String.length(ee), 1n))
+
+# whether an entry is a directory the search descends into: it ends in "/",
+# and its name neither starts with "." (hidden) nor is node_modules
+def descends(+ee: String) -> Bool:
+  +nn = entry_name(ee)
+  Bool.and(String.ends_with(ee, "/"), Bool.not(Bool.or(String.starts_with(nn, "."), String.eq(nn, "node_modules"))))
+
+# the directories a listing of a directory names and the search descends
+# into, as paths, in listing order
+def subdirs(es: List<&2, String>, +dir: String) -> List<&2, String>:
+  match es:
+    case Nil{}:
+      []
+    case Con{+ee, rest}:
+      +more = subdirs(rest, dir)
+      Bool.pick(List<&2, String>, descends(ee), (dir ++ "/" ++ entry_name(ee)) <> more, more)
+
+# the `.bend` files a listing of a directory names, as paths, in listing
+# order
+def bends_in(es: List<&2, String>, +dir: String) -> List<&2, String>:
+  match es:
+    case Nil{}:
+      []
+    case Con{+ee, rest}:
+      +more = bends_in(rest, dir)
+      Bool.pick(List<&2, String>, String.ends_with(ee, ".bend"), (dir ++ "/" ++ ee) <> more, more)
+
+# the directories a breadth-first search from the queue reads, in the order
+# it reads them, at most `fuel` of them: each is listed, and the ones its
+# listing names that the search descends into join the back of the queue.
+# Past the fuel the search stops, and says nothing.
+def bfs(fuel: Nat, +world: W.World, queue: List<&2, String>) -> List<&2, String>:
+  match fuel:
+    case 0n:
+      []
+    case 1n+ff:
+      match queue:
+        case Nil{}:
+          []
+        case Con{+dd, rest}:
+          dd <> bfs(ff, world, List.append(&2, String, rest, subdirs(W.listing(world, dd), dd)))
+
+# the `.bend` files the listings of the directories name, the last directory
+# read first (the order the planner sorts from)
+def found_in(ds: List<&2, String>, +world: W.World) -> List<&2, String>:
+  match ds:
+    case Nil{}:
+      []
+    case Con{+dd, rest}:
+      List.append(&2, String, found_in(rest, world), bends_in(W.listing(world, dd), dd))
+
+# LAW: the walk from `.`, with any fuel, finds the `.bend` files of the
+# directories the breadth-first search reads with that fuel: those its
+# listings name, and none from a directory it does not descend into (hidden,
+# or node_modules) or does not reach before the fuel runs out
+# BOLT-SCOPE-1
+law walk_bfs:
+  for +fuel: Nat
+  for +world: W.World
+  {Plan.walk.found(Plan.walk(fuel, world, ["."], [], [])) == found_in(bfs(fuel, world, ["."]), world)
+    : List<&2, String>}
+
+# Under law (BOLT-SCOPE-3). The coverage rule (rules/laws/law.bend) grades a
+# file's defs and types only when the file is under law. This law says, over
+# the digests the planner hands the project rules, which files those are.
+
+# the digests the planner hands the project rules: one for each source of the
+# run it could read
+def handed(+world: W.World) -> List<&2, Digest.Digest>:
+  Digest.all(Plan.srcs_of(Plan.gots(Plan.inputs(world), world)))
+
+# whether some file of the run is a LAWS.bend
+def has_laws(ds: List<&2, Digest.Digest>) -> Bool:
+  match ds:
+    case Nil{}:
+      False{}
+    case Con{Digest.Digest{_path, _norm, _dir, is_laws, _is_law_file, _exempt, _tops, _says, _deps, _unsafes, _laws},
+      rest}:
+      Bool.or(is_laws, has_laws(rest))
+
+# a file under law, graded against what the laws name: nothing when it is
+# exempt, otherwise every def and type of it that no law reaches
+def graded_file(
+  exempt: Bool,
+  +tops: List<&2, Digest.Top>,
+  +ms: List<&2, Digest.Mention>,
+  +norm: String,
+  path: String
+) -> List<&2, F.Finding>:
+  match exempt:
+    case True{}:
+      []
+    case False{}:
+      Law.gaps(tops, ms, norm, path, Law.reached(tops, ms, norm))
+
+# every file of the run put under law, each graded against what the laws
+# name, in order
+def under_law(ds: List<&2, Digest.Digest>, +ms: List<&2, Digest.Mention>) -> List<&2, F.Finding>:
+  match ds:
+    case Nil{}:
+      []
+    case Con{Digest.Digest{path, norm, _dir, _is_laws, _is_law_file, exempt, tops, _says, _deps, _unsafes, _laws},
+      rest}:
+      List.append(&2, F.Finding, graded_file(exempt, tops, ms, norm, path), under_law(rest, ms))
+
+# a run's coverage findings: every file under law when the run holds a
+# LAWS.bend, none otherwise
+def coverage_of(on: Bool, ds: List<&2, Digest.Digest>, ms: List<&2, Digest.Mention>) -> List<&2, F.Finding>:
+  match on:
+    case True{}:
+      under_law(ds, ms)
+    case False{}:
+      []
+
+# LAW: when the files in the run include a LAWS.bend, every file in the run
+# that is not exempt is under law, graded against what every law of the run
+# names; otherwise none is
+# BOLT-SCOPE-3
+law under_law_all:
+  for +world: W.World
+  {Law.check(handed(world)) == coverage_of(has_laws(handed(world)), handed(world), Law.named(handed(world)))
+    : List<&2, F.Finding>}
