@@ -51,7 +51,7 @@ unset group has its default. The groups:
 | group         | rules                                                                            | default |
 |---------------|----------------------------------------------------------------------------------|---------|
 | `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign`          | error   |
-| `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` | warn    |
+| `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` (`snoc`: opt-in) | warn    |
 | `style`       | `doc` `space` `wrap` `param`                                                     | warn    |
 | `laws`        | `coverage` `closed` `unsafe` (`trace`: opt-in)                                   | warn    |
 | `pedantic`    | `tail`                                                                           | off     |
@@ -72,6 +72,7 @@ The stable codes, assigned once (do not renumber):
 | C010 | `foreign` | U010 | `ring` | P001 | `tail` |
 | | | U011 | `rewalk` | | |
 | | | U012 | `unit` | | |
+| | | U013 | `snoc` | | |
 
 Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic.
 
@@ -79,7 +80,8 @@ Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic.
 asks for it. L004 was `quantify`, the opt-in strict mode of `closed`;
 `closed` is strict itself now, and L004 is never reused. `trace` is opt-in:
 it is in `laws`, but no group setting reaches it; only `def trace()` in a
-bolt.bend turns it on. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
+bolt.bend turns it on. `snoc` is opt-in the same way, in `suspicious`: only
+`def snoc()` turns it on. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
 read, never linted. Without one, the defaults apply. This repo's
 [bolt.bend](../bolt.bend) sets every group to error: the gate must see
 `clean`.
@@ -182,6 +184,13 @@ beside the groups.
   Prepend with `<>` and reverse once. A parameter appended into another slot
   is not counted, and neither is a parenthesized `(acc ++ x)` or an append
   bound by a let first.
+- `snoc` (opt-in) — `List.append(&2, T, xs, [y])`: a list grown by one
+  cell at its end copies every cell of `xs` to add one. Prepend (`y <> xs`)
+  and reverse once when order matters, or build with `h <> go(t)`. Only a
+  last argument that is a one-element list literal alone counts: `[]`,
+  `[a, b]`, `[y] ++ zs` and a name bound to `[y]` are left alone. `xs ++ [y]`
+  does not check (`++` is `String.append`). A self-call onto the carried
+  parameter is reported by `concat` as well.
 - `index` — `List.get`/`String.get` at a computed index inside a def that
   calls itself: the list is walked again each step. Walk the cells instead
   (one sort phase went 39 s -> 0.9 s). A get anywhere in the def is

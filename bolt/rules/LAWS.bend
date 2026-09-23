@@ -27,6 +27,7 @@ import ./suspicious/index.bend as Index
 import ./suspicious/ring.bend as Ring
 import ./suspicious/table.bend as Table
 import ./suspicious/unit.bend as UnitRule
+import ./suspicious/snoc.bend as Snoc
 import ./correctness/chars.bend as Chars
 import ./correctness/strings.bend as Strings
 import ./calls.bend as Calls
@@ -546,6 +547,18 @@ law unit_exempt:
   for items: List<&2, Outline.Item>
   for e: {Paths.is_law_file(path) == True{} : Bool}
   {UnitRule.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: snoc reports nothing in a LAWS.bend or a PROOF.bend, which never run, whatever the source holds
+# BOLT-RULE-EXEMPT
+law snoc_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_law_file(path) == True{} : Bool}
+  {Snoc.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
 
 # The match rules, chars and strings. Each walks every statement of the tree
 # at any depth; a match is read by the case statements of its body, and a
@@ -2132,6 +2145,115 @@ law unit_counts:
   for items: List<&2, Outline.Item>
   {List.length(&2, F.Finding, UnitRule.check(Src.Src{path, text, toks, tree, bound, items}))
     == unit.defs(Calls.defs(tree), path) : Nat}
+
+# snoc (BOLT-RULE-U013). snoc walks each def's body tree: a call is a leaf
+# followed by a group, its arguments are the group's kids split at top-level
+# commas (Calls.args), and Snoc.grows reads one: the leaf is `List.append`,
+# the group opens with `(`, and its last argument is a `[` group alone whose
+# own kids split into one argument that holds something.
+
+# an argument that holds something
+def snoc.full(mm: Maybe<&2, Tree.Node>) -> Bool:
+  match mm:
+    case Some{Tree.NCons{h, t}}:
+      True{}
+    case other:
+      False{}
+
+# a split into exactly one argument, n its length and mm its head, that
+# holds something
+def snoc.sole(nn: Nat, mm: Maybe<&2, Tree.Node>) -> Bool:
+  match nn:
+    case 1n:
+      snoc.full(mm)
+    case other:
+      False{}
+
+# a last argument that is a one-element list literal alone: a `[` group with
+# nothing after it whose kids split into one argument that holds something
+def snoc.lit(mm: Maybe<&2, Tree.Node>) -> Bool:
+  match mm:
+    case Some{Tree.NCons{Tree.Group{Lex.Tok{k, +o, l, c}, +kids, cl}, Tree.NNil{}}}:
+      +as = Calls.args(kids)
+      Bool.and(String.eq(o, "["), snoc.sole(List.length(&2, Tree.Node, as), List.head(&2, Tree.Node, as)))
+    case other:
+      False{}
+
+# LAW: the rule's last argument is Base's List.last, from any head
+law snoc_last:
+  for t: List<&2, Tree.Node>
+  for -h: Tree.Node
+  {Snoc.last(h <> t) == List.last.go(&2, Tree.Node, t, h) : Tree.Node}
+
+# LAW: the rule's one argument that holds something is the law's, read by
+# the split's length and head
+law snoc_one:
+  for as: List<&2, Tree.Node>
+  {Snoc.one(as) == snoc.sole(List.length(&2, Tree.Node, as), List.head(&2, Tree.Node, as)) : Bool}
+
+# LAW: the rule's literal test on any chain is the law's on that chain
+law snoc_single:
+  for nn: Tree.Node
+  {Snoc.single(nn) == snoc.lit(Some{nn}) : Bool}
+
+# a leaf's text and the group after it, read as the row reads a call: the
+# leaf is `List.append`, the group opens with `(`, and the last of its
+# arguments is a one-element list literal alone
+def snoc.shape(+tt: String, +oo: String, kids: Tree.Node) -> Bool:
+  Bool.and(Bool.and(String.eq(tt, "List.append"), String.eq(oo, "(")),
+    snoc.lit(List.last(&2, Tree.Node, Calls.args(kids))))
+
+# LAW: snoc reads a call exactly as the row does
+# BOLT-RULE-U013
+law snoc_shape:
+  for +tt: String
+  for +oo: String
+  for kids: Tree.Node
+  {Snoc.grows(tt, oo, kids) == snoc.shape(tt, oo, kids) : Bool}
+
+# how many List.append calls onto a one-element list literal the chain holds,
+# at any depth: a call's own, then what its group and what follows it hold
+def snoc.count(nn: Tree.Node) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
+      Nat.add(Bool.pick(Nat, Snoc.grows(t, o, kids), 1n, 0n), Nat.add(snoc.count(kids), snoc.count(rest)))
+    case Tree.NCons{Tree.Group{open, kids, close}, rest}:
+      Nat.add(snoc.count(kids), snoc.count(rest))
+    case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
+      Nat.add(snoc.count(kids), Nat.add(snoc.count(body), snoc.count(rest)))
+    case Tree.NCons{h, rest}:
+      snoc.count(rest)
+    case other:
+      0n
+
+# LAW: over any chain, snoc reports one finding for each List.append call
+# onto a one-element list literal, and none for anything else
+# BOLT-RULE-U013
+law snoc_walk_counts:
+  for nn: Tree.Node
+  for +path: String
+  {List.length(&2, F.Finding, Snoc.walk(nn, path)) == snoc.count(nn) : Nat}
+
+# the count over a file's defs, none in a def that is exempt (a law file, a
+# proof file, a def that returns a proof)
+def snoc.file(ds: List<&2, Calls.Def>, +path: String) -> Nat:
+  match ds:
+    case Nil{}:
+      0n
+    case Con{Calls.Def{_name, +sig, body}, rest}:
+      Nat.add(Bool.pick(Nat, Calls.exempt(path, sig), 0n, snoc.count(body)), snoc.file(rest, path))
+
+# LAW: snoc reports exactly those, def by def, over the defs of the tree
+# BOLT-RULE-U013
+law snoc_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Snoc.check(Src.Src{path, text, toks, tree, bound, items}))
+    == snoc.file(Calls.defs(tree), path) : Nat}
 
 # The header rule wrap (BOLT-RULE-S003) judges each def header of the
 # outline by its sig's tokens (Lex.tokens), once: a finding or none. A
