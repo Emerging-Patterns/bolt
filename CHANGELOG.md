@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.4](https://github.com/Emerging-Patterns/bolt/compare/v1.3.3...v1.3.4) (2026-09-23)
+
+
+### Bug Fixes
+
+* **check:** treat a failure to run bend as an error (BOLT-CHK-1, partial) ([#156](https://github.com/Emerging-Patterns/bolt/issues/156)) ([f233165](https://github.com/Emerging-Patterns/bolt/commit/f233165bb5647d3de4608986e8893c8bab25d68d))
+
 ## [1.3.3](https://github.com/Emerging-Patterns/bolt/compare/v1.3.2...v1.3.3) (2026-09-23)
 
 
