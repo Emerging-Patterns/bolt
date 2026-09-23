@@ -4,12 +4,16 @@
 # with "no .c import", an interpreted or JS run with "a foreign def without a
 # .js import". Give every foreign def both bodies, `x.c` and `x.js`. A file
 # headed `# lanes: native` never runs on the JS lane, so it needs no `.js`.
+# Headed means the exact line `# lanes: native` is one of the file's leading
+# comment lines, those before its first line that does not start with `#`;
+# the line anywhere later does not count.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
 import ../../../syntax/lex.bend as Lex
 import ../../../syntax/tree.bend as Tree
 import ../../../syntax/bind.bend as Bind
+import ../../../lazy/lazy.bend as Lazy
 
 # which lanes a foreign def's bodies cover
 type Lanes is Data:
@@ -78,9 +82,18 @@ def check.go(root: Tree.Node, +native: Bool, +path: String) -> List<&2, F.Findin
     case other:
       Nil{}
 
-# is the file headed `# lanes: native`?
-def native_only(+text: String) -> Bool:
-  Bool.or(String.starts_with(text, "# lanes: native"), String.contains(text, "\n# lanes: native"))
+def native_only.go(ls: List<&2, String>) -> Bool:
+  match ls:
+    case Nil{}:
+      False{}
+    case Con{+l, rest}:
+      Lazy.stop(Bool, Bool.not(String.starts_with(l, "#")), False{},
+        _u => Lazy.or_else(String.eq(l, "# lanes: native"), _v => native_only.go(rest)))
+
+# is the file headed `# lanes: native`: that exact line among the comment
+# lines before its first line that is not a comment?
+def native_only(text: String) -> Bool:
+  native_only.go(String.lines(text))
 
 # the rule
 def check(ss: Src.Src) -> List<&2, F.Finding>:
