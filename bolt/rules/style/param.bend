@@ -52,8 +52,11 @@ def check.go(binds: List<&2, Bind.Bind>, +path: String) -> List<&2, F.Finding>:
         F.Finding{path, line, col, U32.from_nat(String.length(nm)), "param",
           "Parameter " ++ nm ++ " is shorter than 2 characters."} <> more, more)
 
+def check.on(binds: List<&2, Bind.Bind>, +path: String) -> List<&2, F.Finding>:
+  Lazy.stop(List<&2, F.Finding>, Paths.is_proof(path), [], _u => check.go(binds, path))
+
 # the rule; a proof's parameters stay the law's names
 def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{+path, text, toks, tree, bound, items} = ss
+  Src.Src{path, text, toks, tree, bound, items} = ss
   Bind.Bound{binds, uses, scopes} = bound
-  Lazy.stop(List<&2, F.Finding>, Paths.is_proof(path), [], _u => check.go(binds, path))
+  check.on(binds, path)
