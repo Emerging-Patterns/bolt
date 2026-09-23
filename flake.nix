@@ -26,7 +26,7 @@
       boltPkg = ez.mkPackage {
         inherit bend;
         src = self;
-        version = "1.1.0"; # x-release-please-version
+        version = "1.1.1"; # x-release-please-version
         wrapFlags = [ "--gpu" "off" ];
         meta = {
           description = "A linter, checker and language server for Bend 2";
