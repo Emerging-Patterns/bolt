@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/Emerging-Patterns/bolt/compare/v1.3.4...v1.4.0) (2026-09-23)
+
+
+### Features
+
+* **lsp:** checker flag as data, binder-first navigation, negotiated position encoding (BOLT-LSP-5, BOLT-LSP-6, BOLT-LSP-7) ([#160](https://github.com/Emerging-Patterns/bolt/issues/160)) ([929ce75](https://github.com/Emerging-Patterns/bolt/commit/929ce75313358840e95e8d040754615977895b47))
+
 ## [1.3.4](https://github.com/Emerging-Patterns/bolt/compare/v1.3.3...v1.3.4) (2026-09-23)
 
 
