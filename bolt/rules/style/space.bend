@@ -10,16 +10,15 @@ import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
 import ../../../syntax/lex.bend as Lex
+import ../../../lazy/lazy.bend as Lazy
 
 # is there a tab among the chars?
 def has_tab(cs: List<&2, Char>) -> Bool:
   match cs:
     case Nil{}:
       False{}
-    case Con{'\t', t}:
-      True{}
     case Con{c, t}:
-      has_tab(t)
+      Lazy.or_else(Char.is_eq(c, '\t'), _u => has_tab(t))
 
 # does the line end in whitespace?
 def trailing(cs: List<&2, Char>) -> Bool:

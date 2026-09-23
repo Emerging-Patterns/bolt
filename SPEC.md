@@ -6,7 +6,7 @@ The reasoning behind each requirement, the verdict of each against the code at `
 
 ## Format
 
-A requirement table is any table whose header row is exactly `| ID | Requirement | Level | Status | Law |`. An ID is uppercase segments joined by hyphens, at least two (`[A-Z][A-Z0-9]*(-[A-Z0-9]+)+`), unique within the requirement tables, and never reused once released. Level is `Proved` or `Trusted`. Status is `proved` or `pending` for a Proved row and empty for a Trusted row. The Law cell is empty unless the row is proved; then it holds one or more `<path> <law>` entries, paths relative to this file, separated by `; `.
+A requirement table is any table whose header row is exactly `| ID | Requirement | Level | Status | Law |`. An ID is uppercase segments joined by hyphens, at least two (`[A-Z][A-Z0-9]*(-[A-Z0-9]+)+`), unique within the requirement tables, and never reused once released. Level is `Proved` or `Trusted`. Status is `proved` or `pending` for a Proved row and empty for a Trusted row. A Law cell holds `<path> <law>` entries, paths relative to this file, separated by `; `. A proved row names one or more laws, and together they prove it. A pending row may name laws that each prove part of it; the row stays pending until its requirement is proved in full, and its entries are checked as a proved row's are. A Trusted row names none.
 
 A law proves a requirement when a comment line `# <ID>`, alone on its line, sits in the unbroken comment block directly above its `law` line. A law may carry several tags, one per line:
 
@@ -16,7 +16,7 @@ A law proves a requirement when a comment line `# <ID>`, alone on its line, sits
 law stop_is_pick:
 ```
 
-A Trusted requirement's ID appears once in a requirement table and once in the trust boundary table. Untagged quantified laws are allowed; they pass the gate like any law, but nothing here protects them. A law with no binder is a `closed` finding.
+A tag may name a proved or a pending requirement, never a Trusted one or an ID no requirement table lists. A Trusted requirement's ID appears once in a requirement table and once in the trust boundary table. Untagged quantified laws are allowed; they pass the gate like any law, but nothing here protects them. A law with no binder is a `closed` finding.
 
 ## Requirements
 
@@ -24,7 +24,7 @@ A Trusted requirement's ID appears once in a requirement table and once in the t
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-RULE-C002 | `hole` reports exactly a TODO hole bend counts, a `?` then `TODO` with only spaces, newlines or comments between, outside a LAWS.bend, and nothing else. | Proved | pending |  |
+| BOLT-RULE-C002 | `hole` reports exactly a TODO hole bend counts, a `?` then `TODO` with only spaces, newlines or comments between, outside a LAWS.bend, and nothing else. | Proved | proved | bolt/rules/LAWS.bend hole_counts |
 | BOLT-RULE-C003 | `pick` reports exactly a self-call in one or both branches of `Bool.pick`, and does not report again a nested pick in a branch it reported. | Proved | pending |  |
 | BOLT-RULE-C004 | `put` reports exactly one finding for each `Map.put` token with a `(` token right after it among the significant tokens, and none in a file where a `def` keyword has a `Map.put` token right after it. | Proved | proved | bolt/rules/LAWS.bend put_counts |
 | BOLT-RULE-C005 | `arms` reports exactly, in a single-scrutinee match, a Nat arm already covered by an earlier `kn+p`, `Succ{p}` or `Succ{_}` arm. | Proved | pending |  |
@@ -46,7 +46,7 @@ A Trusted requirement's ID appears once in a requirement table and once in the t
 | BOLT-RULE-U011 | `rewalk` reports exactly the same walk twice on the same argument, one result read for a single value. | Proved | pending |  |
 | BOLT-RULE-U012 | `unit` reports exactly a multiply or divide by one on a recursive step. | Proved | pending |  |
 | BOLT-RULE-S001 | `doc` reports exactly a top-level def, type or law with no comment block right above it, with the header's exemptions. | Proved | pending |  |
-| BOLT-RULE-S002 | `space` reports exactly trailing whitespace or a tab on any line, string literals and `#\|` lines included, or a line over 120 columns with string literals counted as two, comments at full width, and `#\|` lines not counted. | Proved | pending |  |
+| BOLT-RULE-S002 | `space` reports exactly trailing whitespace or a tab on any line, string literals and `#\|` lines included, or a line over 120 columns with string literals counted as two, comments at full width, and `#\|` lines not counted. | Proved | proved | bolt/rules/LAWS.bend space_counts; bolt/rules/LAWS.bend space_line_counts; bolt/rules/LAWS.bend space_width_counts |
 | BOLT-RULE-S003 | `wrap` reports exactly a def header whose shape breaks the header's rules. | Proved | pending |  |
 | BOLT-RULE-S004 | `param` reports exactly one finding for each parameter binder whose name is shorter than two characters, unless the name is one capital letter (a type parameter) or the parameter is bare or typed `: Quant` (a quantity), none for any other binder, and none at all in a PROOF.bend. | Proved | proved | bolt/rules/LAWS.bend param_counts |
 | BOLT-RULE-P001 | `tail` reports exactly a non-tail self-call outside any `Bool.pick(..)` in a def whose first live parameter's type is a List or String, whether or not the call shrinks it. | Proved | pending |  |
@@ -60,18 +60,18 @@ A Trusted requirement's ID appears once in a requirement table and once in the t
 | BOLT-LAW-1 | In every file under a law directory, except helpers, law files and tests, every def and type is referenced by a quantified law in a LAWS.bend: a use in the law's statement that the binder (BOLT-SYN-5) resolves to that def, through an import alias or in the same file. | Proved | pending |  |
 | BOLT-LAW-2 | `closed` reports any law in a LAWS.bend with no binder. | Proved | pending |  |
 | BOLT-LAW-3 | An `@unsafe def` reachable by relative imports from a law file in the run is a finding. | Proved | pending |  |
-| BOLT-LAW-5 | The traceability rule reports exactly the findings listed under "Tagging and traceability" for the SPEC.md format stated there. | Proved | pending |  |
+| BOLT-LAW-5 | The traceability rule reports exactly the findings listed under "Tagging and traceability" for the SPEC.md format stated there, where a pending row may name laws that prove part of it and a tag may name a pending row. | Proved | pending | bolt/rules/LAWS.bend trace_pending_judged; bolt/rules/LAWS.bend trace_pending_shape; bolt/rules/LAWS.bend trace_proved_shape; bolt/rules/LAWS.bend trace_trusted_shape; bolt/rules/LAWS.bend trace_pending_claimed; bolt/rules/LAWS.bend trace_trusted_unclaimed; bolt/rules/LAWS.bend trace_unlisted_unclaimed |
 
 ### Grading and config (BOLT-CFG)
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-CFG-1 | A rule's level is its own setting, else its group's setting, else its group's default. | Proved | pending |  |
-| BOLT-CFG-2 | Grading drops a finding at `off` and attaches the level to every other. | Proved | pending |  |
-| BOLT-CFG-3 | A level word that is not `off` or `warn` grades as error. | Proved | pending |  |
+| BOLT-CFG-1 | A rule's level is its own setting, else its group's setting, else its group's default. | Proved | proved | bolt/LAWS.bend set_level_none; bolt/LAWS.bend set_level_first; bolt/LAWS.bend set_level_skip; bolt/LAWS.bend level_own; bolt/LAWS.bend level_group; bolt/LAWS.bend level_default |
+| BOLT-CFG-2 | Grading drops a finding at `off` and attaches the level to every other. | Proved | proved | bolt/LAWS.bend graded_keeps |
+| BOLT-CFG-3 | A level word that is not `off` or `warn` grades as error. | Proved | proved | bolt/LAWS.bend word_error |
 | BOLT-CFG-4 | A finding is graded by the nearest readable bolt.bend in its file's directory, then each parent, and only that one applies. | Proved | pending |  |
-| BOLT-CFG-5 | Group defaults are correctness at error, pedantic off, and the rest at warn. | Proved | pending |  |
-| BOLT-CFG-6 | An opt-in rule is off unless its own setting names it. | Proved | pending |  |
+| BOLT-CFG-5 | Group defaults are correctness at error, pedantic off, and the rest at warn. | Proved | proved | bolt/LAWS.bend default_correctness; bolt/LAWS.bend default_pedantic; bolt/LAWS.bend default_rest |
+| BOLT-CFG-6 | An opt-in rule is off unless its own setting names it. | Proved | proved | bolt/LAWS.bend level_own; bolt/LAWS.bend opt_in_off |
 | BOLT-CFG-7 | A setting in a bolt.bend whose name is no rule or group is a finding. | Proved | pending |  |
 
 ### Scope (BOLT-SCOPE)
@@ -112,7 +112,7 @@ A Trusted requirement's ID appears once in a requirement table and once in the t
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-SYN-1 | `Lex.text(Lex.tokens(s)) == s` for every `s`. | Proved | pending |  |
+| BOLT-SYN-1 | `Lex.text(Lex.tokens(s)) == s` for every `s`. | Proved | proved | syntax/LAWS.bend lossless |
 | BOLT-SYN-2 | A token's line and column are those of its first character, 0-based, in code points. | Proved | pending |  |
 | BOLT-SYN-3 | The tree drops no token, and its leaves are the significant tokens in order. | Proved | pending |  |
 | BOLT-SYN-4 | The outline lists every column-0 import, def, type, law and `@unsafe def`. | Proved | pending |  |

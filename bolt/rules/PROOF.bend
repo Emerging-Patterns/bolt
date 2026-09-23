@@ -10,11 +10,13 @@ import ../../syntax/bind.bend as Bind
 import ../paths.bend as Paths
 import ../../lazy/lazy.bend as Lazy
 import ./correctness/put.bend as Put
+import ./correctness/hole.bend as Hole
+import ./laws/trace.bend as Trace
+import ./style/space.bend as Space
 import ../src.bend as Src
 import ../../syntax/tree.bend as Tree
 import ../../syntax/outline.bend as Outline
 import ./calls.bend as Calls
-import ./correctness/hole.bend as Hole
 import ./style/doc.bend as Doc
 import ./correctness/pick.bend as Pick
 import ./pedantic/tail.bend as Tail
@@ -731,6 +733,398 @@ def Laws.put_counts(toks, path):
     put.stop(Put.defines(toks), Put.calls(toks, path), Laws.put_count(toks), put.calls(toks, path)),
     Equal.cong(Bool, Nat, z => Bool.pick(Nat, z, 0n, Laws.put_count(toks)),
       Put.defines(toks), Laws.put_defined(toks), put.defines(toks)))
+
+# one token onto a list the TODO test agrees on
+law hole.todo.step:
+  for kk: Lex.TokKind
+  for +t: String
+  for l: U32
+  for c: U32
+  for +rest: List<&2, Lex.Tok>
+  for ih: {Hole.check.todo(rest) == Laws.todo_next(rest) : Bool}
+  {Hole.check.todo(Lex.Tok{kk, t, l, c} <> rest) == Laws.todo_next(Lex.Tok{kk, t, l, c} <> rest) : Bool}
+
+def hole.todo.step(kk, _t, _l, _c, _rest, ih):
+  match kk:
+    case Lex.TNum{}:
+      {==}
+    case Lex.TName{}:
+      {==}
+    case Lex.TUpper{}:
+      {==}
+    case Lex.TDotted{}:
+      {==}
+    case Lex.TWild{}:
+      {==}
+    case Lex.TKey{}:
+      {==}
+    case Lex.TStr{}:
+      {==}
+    case Lex.TChar{}:
+      {==}
+    case Lex.TComment{}:
+      ih
+    case Lex.TSpace{}:
+      ih
+    case Lex.TNewline{}:
+      ih
+    case Lex.TOp{}:
+      {==}
+    case Lex.TColon{}:
+      {==}
+    case Lex.TEq{}:
+      {==}
+    case Lex.TBind{}:
+      {==}
+    case Lex.TArrow{}:
+      {==}
+    case Lex.TLam{}:
+      {==}
+    case Lex.TAll{}:
+      {==}
+    case Lex.TAmp{}:
+      {==}
+    case Lex.TOpen{}:
+      {==}
+    case Lex.TClose{}:
+      {==}
+    case Lex.TComma{}:
+      {==}
+
+# the TODO test is the same to the rule and to the law
+law hole.todo:
+  for toks: List<&2, Lex.Tok>
+  {Hole.check.todo(toks) == Laws.todo_next(toks) : Bool}
+
+def hole.todo(toks):
+  match toks:
+    case Nil{}:
+      {==}
+    case Con{Lex.Tok{kk, t, l, c}, +rest}:
+      hole.todo.step(kk, t, l, c, rest, hole.todo(rest))
+
+# the early-exit and of a Bool and a thunk is the plain and
+law hole.and:
+  for a: Bool
+  for -x: Bool
+  for -y: Bool
+  for ih: {x == y : Bool}
+  {Lazy.and_then(a, _u => x) == Bool.and(a, y) : Bool}
+
+def hole.and(a, _x, _y, ih):
+  match a:
+    case True{}:
+      ih
+    case False{}:
+      {==}
+
+# a finding in front unless b fails adds one to the count
+law hole.stop:
+  for b: Bool
+  for -x: F.Finding
+  for -more: List<&2, F.Finding>
+  for -m: Nat
+  for ih: {List.length(&2, F.Finding, more) == m : Nat}
+  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Bool.not(b), more, _u => x <> more))
+    == Bool.pick(Nat, b, 1n+m, m) : Nat}
+
+def hole.stop(b, _x, more, m, ih):
+  match b:
+    case True{}:
+      Equal.cong(Nat, Nat, n => 1n+n, List.length(&2, F.Finding, more), m, ih)
+    case False{}:
+      ih
+
+# one token onto a list the law holds for
+law hole.step:
+  for kk: Lex.TokKind
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for +rest: List<&2, Lex.Tok>
+  for +path: String
+  for ih: {List.length(&2, F.Finding, Hole.check.go(rest, path)) == Laws.hole_count(rest) : Nat}
+  {List.length(&2, F.Finding, Hole.check.go(Lex.Tok{kk, t, l, c} <> rest, path))
+    == Laws.hole_count(Lex.Tok{kk, t, l, c} <> rest) : Nat}
+
+def hole.step(kk, t, l, c, rest, path, ih):
+  match kk:
+    case Lex.TNum{}:
+      ih
+    case Lex.TName{}:
+      ih
+    case Lex.TUpper{}:
+      ih
+    case Lex.TDotted{}:
+      ih
+    case Lex.TWild{}:
+      ih
+    case Lex.TKey{}:
+      ih
+    case Lex.TStr{}:
+      ih
+    case Lex.TChar{}:
+      ih
+    case Lex.TComment{}:
+      ih
+    case Lex.TSpace{}:
+      ih
+    case Lex.TNewline{}:
+      ih
+    case Lex.TOp{}:
+      Equal.trans(Nat,
+        List.length(&2, F.Finding, Hole.check.go(Lex.Tok{Lex.TOp{}, t, l, c} <> rest, path)),
+        Bool.pick(Nat, Lazy.and_then(String.eq(t, "?"), _u => Hole.check.todo(rest)),
+          1n+Laws.hole_count(rest), Laws.hole_count(rest)),
+        Laws.hole_count(Lex.Tok{Lex.TOp{}, t, l, c} <> rest),
+        hole.stop(Lazy.and_then(String.eq(t, "?"), _u => Hole.check.todo(rest)),
+          F.Finding{path, l, c, Hole.check.width(rest, l, c), "hole", "A ?TODO is left here."},
+          Hole.check.go(rest, path), Laws.hole_count(rest), ih),
+        Equal.cong(Bool, Nat, z => Bool.pick(Nat, z, 1n+Laws.hole_count(rest), Laws.hole_count(rest)),
+          Lazy.and_then(String.eq(t, "?"), _u => Hole.check.todo(rest)),
+          Bool.and(String.eq(t, "?"), Laws.todo_next(rest)),
+          hole.and(String.eq(t, "?"), Hole.check.todo(rest), Laws.todo_next(rest), hole.todo(rest))))
+    case Lex.TColon{}:
+      ih
+    case Lex.TEq{}:
+      ih
+    case Lex.TBind{}:
+      ih
+    case Lex.TArrow{}:
+      ih
+    case Lex.TLam{}:
+      ih
+    case Lex.TAll{}:
+      ih
+    case Lex.TAmp{}:
+      ih
+    case Lex.TOpen{}:
+      ih
+    case Lex.TClose{}:
+      ih
+    case Lex.TComma{}:
+      ih
+
+# hole's walk counts the `?TODO` holes
+law hole.go:
+  for toks: List<&2, Lex.Tok>
+  for +path: String
+  {List.length(&2, F.Finding, Hole.check.go(toks, path)) == Laws.hole_count(toks) : Nat}
+
+def hole.go(toks, path):
+  match toks:
+    case Nil{}:
+      {==}
+    case Con{Lex.Tok{kk, t, l, c}, +rest}:
+      hole.step(kk, t, l, c, rest, path, hole.go(rest, path))
+
+def Laws.hole_counts(toks, path):
+  put.stop(Paths.is_laws(path), Hole.check.go(toks, path), Laws.hole_count(toks), hole.go(toks, path))
+def Laws.trace_pending_judged(_id, _e, _es, _nn, sp, _ds):
+  match sp:
+    case Trace.Spec{_m, _r, _t, _b}:
+      {==}
+
+def Laws.trace_pending_shape(_ls):
+  {==}
+
+def Laws.trace_proved_shape(ls):
+  match ls:
+    case Nil{}:
+      {==}
+    case Con{_h, _t}:
+      {==}
+
+def Laws.trace_trusted_shape(ls):
+  match ls:
+    case Nil{}:
+      {==}
+    case Con{_h, _t}:
+      {==}
+
+def Laws.trace_pending_claimed(_i, _ls, _n, _rs, _id):
+  {==}
+
+def Laws.trace_trusted_unclaimed(_i, _st, _ls, _n, _rs, _id):
+  {==}
+
+def Laws.trace_unlisted_unclaimed(_id):
+  {==}
+
+# a tab among the chars, to the rule and to the law
+law sp.tab:
+  for cs: List<&2, Char>
+  {Space.has_tab(cs) == Laws.tabbed(cs) : Bool}
+
+def sp.tab(cs):
+  match cs:
+    case Nil{}:
+      {==}
+    case Con{c, t}:
+      put.or(Char.is_eq(c, '\t'), Space.has_tab(t), Laws.tabbed(t), sp.tab(t))
+
+# trailing whitespace, to the rule and to the law
+law sp.tail:
+  for cs: List<&2, Char>
+  {Space.trailing(cs) == Laws.ends_space(cs) : Bool}
+
+def sp.tail(cs):
+  match cs:
+    case Nil{}:
+      {==}
+    case Con{c, +t}:
+      match t:
+        case Nil{}:
+          {==}
+        case Con{d, r}:
+          sp.tail(t)
+
+# one finding for a line with trailing whitespace, else one for a tab
+law sp.two:
+  for a: Bool
+  for b: Bool
+  for -x: F.Finding
+  for -y: F.Finding
+  for -more: List<&2, F.Finding>
+  for -m: Nat
+  for ih: {List.length(&2, F.Finding, more) == m : Nat}
+  {List.length(&2, F.Finding,
+    Bool.pick(List<&2, F.Finding>, a, x <> more, Bool.pick(List<&2, F.Finding>, b, y <> more, more)))
+    == Bool.pick(Nat, Bool.or(a, b), 1n+m, m) : Nat}
+
+def sp.two(a, b, _x, y, more, m, ih):
+  match a:
+    case True{}:
+      Equal.cong(Nat, Nat, n => 1n+n, List.length(&2, F.Finding, more), m, ih)
+    case False{}:
+      nat.pick(b, y, more, m, ih)
+
+# one line onto lines the law holds for
+law sp.line:
+  for +line: String
+  for +rest: List<&2, String>
+  for +path: String
+  for +nn: U32
+  for ih: {List.length(&2, F.Finding, Space.check.go(rest, path, (nn + 1 : U32))) == Laws.space_count(rest) : Nat}
+  {List.length(&2, F.Finding, Space.check.go(line <> rest, path, nn)) == Laws.space_count(line <> rest) : Nat}
+
+def sp.line(line, rest, path, nn, ih):
+  Equal.trans(Nat,
+    List.length(&2, F.Finding, Space.check.go(line <> rest, path, nn)),
+    Bool.pick(Nat, Bool.or(Space.trailing(String.to_list(line)), Space.has_tab(String.to_list(line))),
+      1n+Laws.space_count(rest), Laws.space_count(rest)),
+    Laws.space_count(line <> rest),
+    sp.two(Space.trailing(String.to_list(line)), Space.has_tab(String.to_list(line)),
+      F.Finding{path, nn, (U32.from_nat(List.length(&2, Char, String.to_list(line))) - 1 : U32), 1, "space",
+        "Line has trailing whitespace."},
+      F.Finding{path, nn, 0, 1, "space", "Line contains a tab; indent with spaces."},
+      Space.check.go(rest, path, (nn + 1 : U32)), Laws.space_count(rest), ih),
+    Equal.trans(Nat,
+      Bool.pick(Nat, Bool.or(Space.trailing(String.to_list(line)), Space.has_tab(String.to_list(line))),
+        1n+Laws.space_count(rest), Laws.space_count(rest)),
+      Bool.pick(Nat, Bool.or(Laws.ends_space(String.to_list(line)), Space.has_tab(String.to_list(line))),
+        1n+Laws.space_count(rest), Laws.space_count(rest)),
+      Laws.space_count(line <> rest),
+      Equal.cong(Bool, Nat,
+        z => Bool.pick(Nat, Bool.or(z, Space.has_tab(String.to_list(line))), 1n+Laws.space_count(rest),
+          Laws.space_count(rest)),
+        Space.trailing(String.to_list(line)), Laws.ends_space(String.to_list(line)), sp.tail(String.to_list(line))),
+      Equal.cong(Bool, Nat,
+        z => Bool.pick(Nat, Bool.or(Laws.ends_space(String.to_list(line)), z), 1n+Laws.space_count(rest),
+          Laws.space_count(rest)),
+        Space.has_tab(String.to_list(line)), Laws.tabbed(String.to_list(line)), sp.tab(String.to_list(line)))))
+
+def Laws.space_line_counts(lines, path, nn):
+  match lines:
+    case Nil{}:
+      {==}
+    case Con{line, +rest}:
+      sp.line(line, rest, path, nn, Laws.space_line_counts(rest, path, (nn + 1 : U32)))
+
+# one token onto tokens the law holds for, at the width after it
+law sp.wstep:
+  for kk: Lex.TokKind
+  for +t: String
+  for l: U32
+  for c: U32
+  for +rest: List<&2, Lex.Tok>
+  for +path: String
+  for +nn: U32
+  for +acc: U32
+  for nl: {List.length(&2, F.Finding, Space.widths(rest, path, (nn + 1 : U32), 0)) == Laws.wide_count(rest, 0) : Nat}
+  for ih: {List.length(&2, F.Finding, Space.widths(rest, path, nn, (acc + Space.width_of(kk, t) : U32)))
+    == Laws.wide_count(rest, (acc + Space.width_of(kk, t) : U32)) : Nat}
+  {List.length(&2, F.Finding, Space.widths(Lex.Tok{kk, t, l, c} <> rest, path, nn, acc))
+    == Laws.wide_count(Lex.Tok{kk, t, l, c} <> rest, acc) : Nat}
+
+def sp.wstep(kk, _t, _l, _c, rest, path, nn, acc, nl, ih):
+  match kk:
+    case Lex.TNewline{}:
+      nat.pick(U32.is_gt(acc, 120), F.Finding{path, nn, 120, 0, "space", "Line exceeds the 120-character limit."},
+        Space.widths(rest, path, (nn + 1 : U32), 0), Laws.wide_count(rest, 0), nl)
+    case Lex.TStr{}:
+      ih
+    case Lex.TComment{}:
+      ih
+    case Lex.TName{}:
+      ih
+    case Lex.TUpper{}:
+      ih
+    case Lex.TDotted{}:
+      ih
+    case Lex.TWild{}:
+      ih
+    case Lex.TKey{}:
+      ih
+    case Lex.TNum{}:
+      ih
+    case Lex.TChar{}:
+      ih
+    case Lex.TSpace{}:
+      ih
+    case Lex.TOp{}:
+      ih
+    case Lex.TColon{}:
+      ih
+    case Lex.TEq{}:
+      ih
+    case Lex.TBind{}:
+      ih
+    case Lex.TArrow{}:
+      ih
+    case Lex.TLam{}:
+      ih
+    case Lex.TAll{}:
+      ih
+    case Lex.TAmp{}:
+      ih
+    case Lex.TOpen{}:
+      ih
+    case Lex.TClose{}:
+      ih
+    case Lex.TComma{}:
+      ih
+
+def Laws.space_width_counts(toks, path, nn, acc):
+  match toks:
+    case Nil{}:
+      nat.pick(U32.is_gt(acc, 120), F.Finding{path, nn, 120, 0, "space", "Line exceeds the 120-character limit."},
+        [], 0n, {==})
+    case Con{Lex.Tok{+kk, +t, l, c}, +rest}:
+      sp.wstep(kk, t, l, c, rest, path, nn, acc, Laws.space_width_counts(rest, path, (nn + 1 : U32), 0),
+        Laws.space_width_counts(rest, path, nn, (acc + Space.width_of(kk, t) : U32)))
+
+def Laws.space_counts(path, text, toks, tree, bound, items):
+  Equal.trans(Nat,
+    List.length(&2, F.Finding, Space.check(Src.Src{path, text, toks, tree, bound, items})),
+    Nat.add(List.length(&2, F.Finding, Space.check.go(String.lines(text), path, 0)),
+      List.length(&2, F.Finding, Space.widths(toks, path, 0, 0))),
+    Nat.add(Laws.space_count(String.lines(text)), Laws.wide_count(toks, 0)),
+    esc.app(Space.check.go(String.lines(text), path, 0), Space.widths(toks, path, 0, 0)),
+    esc.add(List.length(&2, F.Finding, Space.check.go(String.lines(text), path, 0)),
+      Laws.space_count(String.lines(text)), List.length(&2, F.Finding, Space.widths(toks, path, 0, 0)),
+      Laws.wide_count(toks, 0), Laws.space_line_counts(String.lines(text), path, 0),
+      Laws.space_width_counts(toks, path, 0, 0)))
 
 # The header exemptions (BOLT-RULE-EXEMPT). A rule that stops on its path
 # stops with Nil; one that walks the file's defs stops on every def of a law

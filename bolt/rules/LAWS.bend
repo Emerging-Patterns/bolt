@@ -6,13 +6,16 @@ import ../finding.bend as F
 import ./suspicious/nat.bend as NatRule
 import ./correctness/escape.bend as Esc
 import ./correctness/put.bend as Put
+import ./correctness/hole.bend as Hole
 import ./style/param.bend as Param
 import ../../syntax/bind.bend as Bind
 import ../paths.bend as Paths
+import ./laws/trace.bend as Trace
+import ./digest.bend as Digest
+import ./style/space.bend as Space
 import ../src.bend as Src
 import ../../syntax/tree.bend as Tree
 import ../../syntax/outline.bend as Outline
-import ./correctness/hole.bend as Hole
 import ./style/doc.bend as Doc
 import ./correctness/pick.bend as Pick
 import ./pedantic/tail.bend as Tail
@@ -187,6 +190,193 @@ law put_counts:
   for +path: String
   {List.length(&2, F.Finding, Put.check.on(toks, path))
     == Bool.pick(Nat, put_defined(toks), 0n, put_count(toks)) : Nat}
+
+# True when the first token past spaces, newlines and comments is `TODO`
+def todo_next(toks: List<&2, Lex.Tok>) -> Bool:
+  match toks:
+    case Con{Lex.Tok{Lex.TSpace{}, t, l, c}, rest}:
+      todo_next(rest)
+    case Con{Lex.Tok{Lex.TNewline{}, t, l, c}, rest}:
+      todo_next(rest)
+    case Con{Lex.Tok{Lex.TComment{}, t, l, c}, rest}:
+      todo_next(rest)
+    case Con{Lex.Tok{Lex.TUpper{}, +t, l, c}, rest}:
+      String.eq(t, "TODO")
+    case other:
+      False{}
+
+# how many `?` tokens have `TODO` next past spaces, newlines and comments
+def hole_count(toks: List<&2, Lex.Tok>) -> Nat:
+  match toks:
+    case Nil{}:
+      0n
+    case Con{Lex.Tok{Lex.TOp{}, +q, l, c}, +rest}:
+      +m = hole_count(rest)
+      Bool.pick(Nat, Bool.and(String.eq(q, "?"), todo_next(rest)), 1n+m, m)
+    case Con{h, rest}:
+      hole_count(rest)
+
+# LAW: hole reports one finding for each `?` token with `TODO` next past
+# spaces, newlines and comments, none for any other token, and none at all in
+# a LAWS.bend
+# BOLT-RULE-C002
+law hole_counts:
+  for toks: List<&2, Lex.Tok>
+  for +path: String
+  {List.length(&2, F.Finding, Hole.check.on(toks, path))
+    == Bool.pick(Nat, Paths.is_laws(path), 0n, hole_count(toks)) : Nat}
+# LAW: trace takes a pending row that names laws as it takes a proved row
+# that names the same laws: each entry is checked (the law exists, has a
+# binder, carries the row's tag), and the Law cell adds no finding of its own
+# BOLT-LAW-5
+law trace_pending_judged:
+  for +id: String
+  for +e: String
+  for +es: List<&2, String>
+  for +nn: U32
+  for +sp: Trace.Spec
+  for +ds: List<&2, Digest.Digest>
+  {Trace.judge_row(Trace.Row{id, "Proved", "pending", e <> es, nn}, sp, ds)
+    == Trace.judge_row(Trace.Row{id, "Proved", "proved", e <> es, nn}, sp, ds) : List<&2, F.Finding>}
+
+# LAW: a pending row's level, status and Law cell are well formed whatever
+# laws it names, none included
+# BOLT-LAW-5
+law trace_pending_shape:
+  for +ls: List<&2, String>
+  {Trace.shape("Proved", "pending", ls) == "" : String}
+
+# LAW: a proved row is well formed exactly when its Law cell names a law
+# BOLT-LAW-5
+law trace_proved_shape:
+  for +ls: List<&2, String>
+  {Trace.shape("Proved", "proved", ls)
+    == Bool.pick(String, List.is_empty(&2, String, ls), "a proved row names its law", "") : String}
+
+# LAW: a Trusted row is well formed exactly when its Law cell is empty
+# BOLT-LAW-5
+law trace_trusted_shape:
+  for +ls: List<&2, String>
+  {Trace.shape("Trusted", "", ls)
+    == Bool.pick(String, List.is_empty(&2, String, ls), "", "a Trusted row names no law") : String}
+
+# LAW: a tag naming a pending row is claimed exactly as one naming a proved
+# row is, so neither is a stray
+# BOLT-LAW-5
+law trace_pending_claimed:
+  for +i: String
+  for +ls: List<&2, String>
+  for +n: U32
+  for +rs: List<&2, Trace.Row>
+  for +id: String
+  {Trace.claimed(Trace.Row{i, "Proved", "pending", ls, n} <> rs, id)
+    == Trace.claimed(Trace.Row{i, "Proved", "proved", ls, n} <> rs, id) : Bool}
+
+# LAW: a Trusted row claims no tag, whatever its status: a tag naming it is
+# judged by the rows after it alone
+# BOLT-LAW-5
+law trace_trusted_unclaimed:
+  for +i: String
+  for +st: String
+  for +ls: List<&2, String>
+  for +n: U32
+  for +rs: List<&2, Trace.Row>
+  for +id: String
+  {Trace.claimed(Trace.Row{i, "Trusted", st, ls, n} <> rs, id) == Trace.claimed(rs, id) : Bool}
+
+# LAW: with no rows, no ID is claimed: a tag naming an ID SPEC.md does not
+# list is a stray
+# BOLT-LAW-5
+law trace_unlisted_unclaimed:
+  for +id: String
+  {Trace.claimed([], id) == False{} : Bool}
+
+# True when the line's last char is whitespace
+def ends_space(cs: List<&2, Char>) -> Bool:
+  match cs:
+    case Nil{}:
+      False{}
+    case Con{c, Nil{}}:
+      Char.is_space(c)
+    case Con{c, t}:
+      ends_space(t)
+
+# True when a tab is among the chars
+def tabbed(cs: List<&2, Char>) -> Bool:
+  match cs:
+    case Nil{}:
+      False{}
+    case Con{c, t}:
+      Bool.or(Char.is_eq(c, '\t'), tabbed(t))
+
+# how many lines end in whitespace or hold a tab, one each
+def space_count(lines: List<&2, String>) -> Nat:
+  match lines:
+    case Nil{}:
+      0n
+    case Con{+line, rest}:
+      +m = space_count(rest)
+      Bool.pick(Nat, Bool.or(ends_space(String.to_list(line)), tabbed(String.to_list(line))), 1n+m, m)
+
+# LAW: over the text's lines, space reports one finding for each line that
+# ends in whitespace or holds a tab, anywhere in it (a string literal or a
+# `#|` line included), and none for any other line
+# BOLT-RULE-S002
+law space_line_counts:
+  for lines: List<&2, String>
+  for +path: String
+  for +nn: U32
+  {List.length(&2, F.Finding, Space.check.go(lines, path, nn)) == space_count(lines) : Nat}
+
+# a token's columns: a string literal two, a `#|` comment none, a comment
+# otherwise at its full width, and any other token its length
+def share(kk: Lex.TokKind, +tt: String) -> U32:
+  match kk:
+    case Lex.TStr{}:
+      2
+    case Lex.TComment{}:
+      Bool.pick(U32, String.starts_with(tt, "#|"), 0, U32.from_nat(String.length(tt)))
+    case other:
+      U32.from_nat(String.length(tt))
+
+# the count more, one higher when a line is over 120 columns wide
+def over(+width: U32, +more: Nat) -> Nat:
+  Bool.pick(Nat, U32.is_gt(width, 120), 1n+more, more)
+
+# how many lines are over 120 columns, the first already acc wide; a newline
+# token closes a line
+def wide_count(toks: List<&2, Lex.Tok>, +acc: U32) -> Nat:
+  match toks:
+    case Nil{}:
+      over(acc, 0n)
+    case Con{Lex.Tok{Lex.TNewline{}, t, l, c}, rest}:
+      over(acc, wide_count(rest, 0))
+    case Con{Lex.Tok{k, +t, l, c}, rest}:
+      wide_count(rest, (acc + share(k, t) : U32))
+
+# LAW: over the tokens, space reports one finding for each line over 120
+# columns, a string literal counted as two, a comment at its full width and a
+# `#|` comment as nothing, and none for any other line
+# BOLT-RULE-S002
+law space_width_counts:
+  for toks: List<&2, Lex.Tok>
+  for +path: String
+  for +nn: U32
+  for +acc: U32
+  {List.length(&2, F.Finding, Space.widths(toks, path, nn, acc)) == wide_count(toks, acc) : Nat}
+
+# LAW: space reports exactly those two: the lines of the text with trailing
+# whitespace or a tab, then the lines of the tokens over 120 columns
+# BOLT-RULE-S002
+law space_counts:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Space.check(Src.Src{path, text, toks, tree, bound, items}))
+    == Nat.add(space_count(String.lines(text)), wide_count(toks, 0)) : Nat}
 
 # The header exemptions. A per-file rule whose header exempts a path (a law
 # file, a proof, a test) returns no findings on it, for every source: any
