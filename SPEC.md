@@ -30,8 +30,8 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | BOLT-RULE-C005 | `arms` reports exactly, in a single-scrutinee match, a Nat arm already covered by an earlier `kn+p`, `Succ{p}` or `Succ{_}` arm. | Proved | pending |  |
 | BOLT-RULE-C006 | `escape` reports exactly one finding for each `\0` followed by a digit in a string or char literal, its escapes read as a backslash and the one char after it, and none for anything else. | Proved | proved | bolt/rules/LAWS.bend escape_counts; bolt/rules/LAWS.bend escape_scan_counts |
 | BOLT-RULE-C007 | `twice` reports exactly, in a def that calls itself, a list pattern in a case's first match column opening with the same literal twice. | Proved | pending |  |
-| BOLT-RULE-C008 | `strings` reports exactly a match whose closed string-literal arms, read in the first match column, total over 64 characters. | Proved | pending |  |
-| BOLT-RULE-C009 | `chars` reports exactly a match with more than eight arms whose first match column opens with a char literal. | Proved | pending |  |
+| BOLT-RULE-C008 | `strings` reports exactly a match whose closed string-literal arms, read in the first match column, total over 64 characters. | Proved | proved | bolt/rules/LAWS.bend strings_counts |
+| BOLT-RULE-C009 | `chars` reports exactly a match with more than eight arms whose first match column opens with a char literal. | Proved | proved | bolt/rules/LAWS.bend chars_counts |
 | BOLT-RULE-C010 | `foreign` reports exactly a foreign def with a `.c` body and no `.js` or the reverse, where a file whose leading comment lines include the exact line `# lanes: native` needs no `.js`. | Proved | proved | bolt/rules/LAWS.bend foreign_native; bolt/rules/LAWS.bend foreign_walk_counts; bolt/rules/LAWS.bend foreign_counts |
 | BOLT-RULE-U001 | `unused` reports exactly an unused let, do-bind, lambda binder or parameter, with the header's exemptions. | Proved | pending |  |
 | BOLT-RULE-U002 | `strict` reports exactly a self-call inside `Bool.and` or `Bool.or`, or on either side of `&&` or `\|\|`, matched by that exact text, where a lambda body counts only by its own `&&` or `\|\|`. | Proved | pending |  |
@@ -114,7 +114,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | :---- | :---- | :---- | :---- | :---- |
 | BOLT-SYN-1 | `Lex.text(Lex.tokens(s)) == s` for every `s`. | Proved | proved | syntax/LAWS.bend lossless |
 | BOLT-SYN-2 | A token's line and column are those of its first character, 0-based, in code points. | Proved | proved | syntax/LAWS.bend positions |
-| BOLT-SYN-3 | The tree drops no token, and its leaves are the significant tokens in order. | Proved | pending |  |
+| BOLT-SYN-3 | The tree drops no token: its leaves are the significant tokens in order, except that each token that is a run of `>` (a close of angle groups or an operator such as `>>`) becomes one `>` leaf per character at consecutive columns. | Proved | proved | syntax/LAWS.bend leaves |
 | BOLT-SYN-4 | The outline lists every column-0 import, def, type, law and `@unsafe def`. | Proved | pending |  |
 | BOLT-SYN-5 | The binder resolves a use to the innermost binder, then a file item, then an alias qualifier, else free. | Proved | pending |  |
 | BOLT-SYN-6 | Every function in `syntax/` terminates on every input without fuel. | Trusted |  |  |
