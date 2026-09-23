@@ -214,7 +214,8 @@ beside the groups.
   `F32.mul` (and `.div`, only when the divisor is one). Drop the operation.
   Any other factor or divisor is left alone, and so is a base case: a case
   arm that does not call the def. Only a `case` arm can be a base case, so a
-  `Bool.pick` branch beside a self-call is still the step.
+  `Bool.pick` branch beside a self-call is still the step, and so is a lambda
+  body inside it. One finding per operation: `Nat.mul(1n, 1n)` is one.
 - `put` — `Map.put`. It is Base's internal helper: at a leaf it keeps the old
   key and replaces the value without comparing, so a new key silently
   overwrites another entry. `Map.set` compares. A file that defines
@@ -253,9 +254,10 @@ beside the groups.
   reverse: the missing lane cannot run it. A file headed `# lanes: native`
   needs no `.js`: that exact line must be one of the comment lines before the
   file's first non-comment line.
-- `fuel` — a `Nat` literal passed to a fuel parameter of a def of the same
-  file. A fuel parameter is known by its name alone: `fuel`, `gas`, `steps`
-  or `budget`, or any name starting with `fuel`. Input past it is cut short
+- `fuel` — a `Nat` literal (digits, then `n`) passed in a call, `name(..)`,
+  to a fuel parameter of a def of the same file. A fuel parameter is known by
+  its name alone, the one before its colon: `fuel`, `gas`, `steps` or
+  `budget`, or any name starting with `fuel`. Input past it is cut short
   with no error: derive the fuel from the input. A literal of any size counts,
   `3n` included. Only an argument that is one literal token alone counts, so
   `U32.to_nat(1000)`, a let-bound literal and `(7n)` are not seen. A def's
@@ -289,7 +291,7 @@ beside the groups.
   counted marks: "with N unsafe annotations.") and exits 0, so a gate that
   reads the exit status goes green on an unproven claim.
 - `coverage` (project) — in a project that states laws (a LAWS.bend among the
-  files bolt read), a def that no law names. It is `coverage`, not `law`,
+  files bolt read), a def or a type that no law names. It is `coverage`, not `law`,
   because `law` is a Bend keyword: `def law()` is no def, so a bolt.bend
   could never set it by name. IO is no exemption: a def that
   returns `IO(..)` is graded like any other (a law can state an IO equality
@@ -302,9 +304,9 @@ beside the groups.
   names `join` of `core/monoid/service.bend`) or in the law's own file. A
   closed law, a law's own name, and a law outside a LAWS.bend (PROOF.bend's
   lemmas included) name nothing. A type is covered when such a law names it
-  or a def of its module: a law about an instance names the accessors, never
-  the service type. Out of scope: helpers (dotted names), tests, and the law
-  files. `main` is a def: a law that names it covers it. A project without
+  or one of its constructors (`M.Sq{nn}` covers `type Shape` with `Sq{..}`);
+  naming another def of its module does not cover it. Out of scope: helper
+  defs (dotted names), tests, and the law files; a dotted type is graded. `main` is a def: a law that names it covers it. A project without
   a LAWS.bend is not under law.
 
 ## One binary
