@@ -49,7 +49,7 @@ unset group has its default. The groups:
 | `correctness` | `shadow` `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign` | error   |
 | `suspicious`  | `unused` `strict` `eager` `concat` `nat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` | warn    |
 | `style`       | `doc` `space` `wrap` `param`                                                     | warn    |
-| `laws`        | `law` `closed` `unsafe`                                                          | warn    |
+| `laws`        | `law` `closed` `unsafe` (`trace`: opt-in)                                        | warn    |
 | `pedantic`    | `tail`                                                                           | off     |
 
 The stable codes, assigned once (do not renumber):
@@ -64,8 +64,8 @@ The stable codes, assigned once (do not renumber):
 | C006 | `escape` | U006 | `fuel` | L002 | `closed` |
 | C007 | `twice` | U007 | `index` | L003 | `unsafe` |
 | C008 | `strings` | U008 | `table` | L004 | retired |
-| C009 | `chars` | U009 | `hoist` | P001 | `tail` |
-| C010 | `foreign` | U010 | `ring` | | |
+| C009 | `chars` | U009 | `hoist` | L005 | `trace` |
+| C010 | `foreign` | U010 | `ring` | P001 | `tail` |
 | | | U011 | `rewalk` | | |
 | | | U012 | `unit` | | |
 
@@ -73,7 +73,9 @@ Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic.
 
 `pedantic` is advice that is noisy on idiomatic code: off until a project
 asks for it. L004 was `quantify`, the opt-in strict mode of `closed`;
-`closed` is strict itself now, and L004 is never reused. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
+`closed` is strict itself now, and L004 is never reused. `trace` is opt-in:
+it is in `laws`, but no group setting reaches it; only `def trace()` in a
+bolt.bend turns it on. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
 read, never linted. Without one, the defaults apply. This repo's
 [bolt.bend](../bolt.bend) sets every group to error: the gate must see
 `clean`.
@@ -222,6 +224,15 @@ beside the groups.
   an equality (`{lhs == rhs : T}`, including `IO(T)`) or not, holds for the
   one input it names: a unit test the checker runs, not a guarantee.
   Nothing exempts one: quantify it, or delete it.
+- `trace` (project, opt-in) — `SPEC.md`, read from the directory bolt runs
+  in, and the laws agree. A requirement table is headed exactly
+  `| ID | Requirement | Level | Status | Law |` and a trust table
+  `| ID | Assumption | Why it is trusted |`. An ID is uppercase letters and
+  digits in two or more `-` segments (`BOLT-CFG-1`). A law proves one when
+  a line of its comment block is exactly that ID. A finding is a row that is
+  not well formed, an ID listed twice, a Proved/proved row whose `<path>
+  <law>` entry is missing, has no binder or lacks the tag, a Trusted row with
+  no trust row, and a tag SPEC.md does not list as proved.
 - `unsafe` (project) — an `@unsafe def` that a LAWS.bend or PROOF.bend
   reaches through its imports. There the checker prints "All terms check,
   but N defs rely on unsafe or foreign code:" and a `- name` list (2.0.16

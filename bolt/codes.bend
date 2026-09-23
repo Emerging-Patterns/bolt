@@ -42,6 +42,7 @@ def table() -> List<&2, Entry>:
     Entry{"law", "L001", "laws"},
     Entry{"closed", "L002", "laws"},
     Entry{"unsafe", "L003", "laws"},
+    Entry{"trace", "L005", "laws"},
     Entry{"tail", "P001", "pedantic"}]
 
 # this row is the slug

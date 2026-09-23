@@ -27,7 +27,7 @@ def named(ds: List<&2, Digest.Digest>) -> List<&2, Digest.Mention>:
   match ds:
     case Nil{}:
       Nil{}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes}, rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
       List.append(&2, Digest.Mention, says, named(rest))
 
 # is the item named?
@@ -57,7 +57,7 @@ def law_dirs(ds: List<&2, Digest.Digest>) -> List<&2, String>:
   match ds:
     case Nil{}:
       Nil{}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes}, rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
       +more = law_dirs(rest)
       Bool.pick(List<&2, String>, is_laws, dir <> more, more)
 
@@ -92,7 +92,7 @@ def check.go(ds: List<&2, Digest.Digest>, +ms: List<&2, Digest.Mention>) -> List
   match ds:
     case Nil{}:
       Nil{}
-    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, +tops, says, deps, unsafes}, rest}:
+    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, +tops, says, deps, unsafes, laws}, rest}:
       +more = check.go(rest, ms)
       Lazy.stop(List<&2, F.Finding>, exempt, more,
         _u => List.append(&2, F.Finding, gaps(tops, ms, norm, path, reached(tops, ms, norm)), more))

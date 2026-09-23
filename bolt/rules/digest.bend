@@ -32,13 +32,19 @@ type Top is Data:
 type Unsafe is Data:
   Unsafe{name: String, line: U32, col: U32}
 
+# a law of a LAWS.bend: its name, the line it starts on, whether it binds
+# (a `for` or `exs` line), and the lines of its comment block, `# ` dropped
+type Law is Data:
+  Law{name: String, line: U32, binds: Bool, doc: List<&2, String>}
+
 # one file as the project rules see it: its path as given and normalized, its
 # directory, whether it states laws (LAWS.bend) or proves them too
 # (PROOF.bend), whether the law rule lets it off, its top-level items, what
 # its own laws name, the files it imports, and its `@unsafe` defs
 type Digest is Data:
   Digest{path: String, norm: String, dir: String, is_laws: Bool, is_law_file: Bool, exempt: Bool,
-    tops: List<&2, Top>, says: List<&2, Mention>, deps: List<&2, String>, unsafes: List<&2, Unsafe>}
+    tops: List<&2, Top>, says: List<&2, Mention>, deps: List<&2, String>, unsafes: List<&2, Unsafe>,
+    laws: List<&2, Law>}
 
 # what the laws name
 # ------------------
@@ -154,6 +160,38 @@ def unsafe_defs(toks: List<&2, Lex.Tok>) -> List<&2, Unsafe>:
       +more = unsafe_defs(rest)
       Bool.pick(List<&2, Unsafe>, String.eq(at, "@"), push(unsafe_name(rest), l, c, more), more)
 
+# the laws
+# --------
+
+# the doc of the item on a line; the items are in line order, so the search
+# stops at it
+def doc_at(items: List<&2, Outline.Item>, +at: U32) -> String:
+  match items:
+    case Nil{}:
+      ""
+    case Con{Outline.Item{kk, nn, +ln, sig, +doc, pp}, rest}:
+      Lazy.stop(String, U32.is_le(at, ln), Bool.pick(String, U32.is_eq(ln, at), doc, ""), _u => doc_at(rest, at))
+
+# every law of a tree, with whether it binds and its doc lines
+def laws_of(root: Tree.Node, +items: List<&2, Outline.Item>) -> List<&2, Law>:
+  match root:
+    case Tree.NCons{Tree.Stmt{Tree.SLaw{}, +kids, body}, rest}:
+      +at = Tree.line(kids)
+      Law{Closed.name.of(Bind.declared(kids)), at, Closed.binds(body), String.lines(doc_at(items, at))}
+        <> laws_of(rest, items)
+    case Tree.NCons{h, rest}:
+      laws_of(rest, items)
+    case other:
+      Nil{}
+
+# the laws of a LAWS.bend; no other file states any
+def laws.in(is_laws: Bool, root: Tree.Node, items: List<&2, Outline.Item>) -> List<&2, Law>:
+  match is_laws:
+    case True{}:
+      laws_of(root, items)
+    case False{}:
+      Nil{}
+
 # the digest
 # ----------
 
@@ -167,11 +205,11 @@ def stated(is_laws: Bool, root: Tree.Node, as: List<&2, Alias>, file: String) ->
 
 # one parsed file read down to its digest
 def of(s2: Src.Src) -> Digest:
-  Src.Src{+path, text, toks, tree, bound, +items} = s2
+  Src.Src{+path, text, toks, +tree, bound, +items} = s2
   +p = Imports.norm(path)
   Digest{path, p, Imports.dir_of(path), Paths.is_laws(path), Paths.is_law_file(path), is_exempt(p),
     top_items(items), stated(Paths.is_laws(path), tree, aliases(items, p), p), Imports.targets(items, p),
-    unsafe_defs(significant(toks))}
+    unsafe_defs(significant(toks)), laws.in(Paths.is_laws(path), tree, items)}
 
 # every file the linter read, in one pass, in order
 def all(ss: List<&2, Src.Src>) -> List<&2, Digest>:
@@ -186,5 +224,5 @@ def edges(ds: List<&2, Digest>) -> List<&2, Imports.Edge>:
   match ds:
     case Nil{}:
       Nil{}
-    case Con{Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes}, rest}:
+    case Con{Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
       Imports.Edge{norm, deps} <> edges(rest)
