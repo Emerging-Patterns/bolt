@@ -28,6 +28,10 @@ import ./suspicious/index.bend as Index
 import ./suspicious/ring.bend as Ring
 import ./suspicious/table.bend as Table
 import ./suspicious/unit.bend as UnitRule
+import ./tokens.bend as T
+import ./calls.bend as Calls
+import ./correctness/arms.bend as Arms
+import ./correctness/twice.bend as Twice
 
 # how many tokens are Nat literals of 1000 or more
 def big_count(toks: List<&2, Lex.Tok>) -> Nat:
@@ -550,3 +554,215 @@ law unit_exempt:
   for items: List<&2, Outline.Item>
   for e: {Paths.is_law_file(path) == True{} : Bool}
   {UnitRule.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# The match rules arms and twice read a case statement's pattern: its tokens
+# after `case` in the tree (T.pattern), the first match column first.
+
+# after a Nat literal, `+ p :`: the arm matches every Nat from the literal up
+def arms.plus(rest: Tree.Node) -> Bool:
+  match rest:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +o, l, c}},
+        Tree.NCons{Tree.Leaf{Lex.Tok{b, p, l2, c2}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, s, l3, c3}}, more}}}:
+      String.eq(o, "+")
+    case other:
+      False{}
+
+# after a Nat literal, `:`: the arm matches the literal alone
+def arms.exact(rest: Tree.Node) -> Bool:
+  match rest:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, s, l, c}}, more}:
+      True{}
+    case other:
+      False{}
+
+# a name or `_`: what `Succ{..}` binds when it matches every Nat from 1 up
+def arms.binder(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TName{}:
+      True{}
+    case Lex.TWild{}:
+      True{}
+    case other:
+      False{}
+
+# `Succ{x}` with x one name or `_`: every Nat from 1 up
+def arms.succ(+tt: String, kk: Lex.TokKind) -> Bool:
+  Bool.and(String.eq(tt, "Succ"), arms.binder(kk))
+
+# a Nat literal's value k, when what follows it makes the arm one that counts
+def arms.num(mm: Maybe<&2, U32>, +when: Bool) -> Maybe<&2, U32>:
+  match mm:
+    case None{}:
+      None{}
+    case Some{k}:
+      Bool.pick(Maybe<&2, U32>, when, Some{k}, None{})
+
+# k when the pattern matches every Nat from k up: `kn+p:`, or `Succ{p}` and
+# `Succ{_}` (k is 1); none for any other pattern
+def arms.from(pat: Tree.Node) -> Maybe<&2, U32>:
+  match pat:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, +t, l, c}}, rest}:
+      arms.num(T.nat_value(t), arms.plus(rest))
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, +t, l, c}},
+        Tree.NCons{Tree.Group{open, Tree.NCons{Tree.Leaf{Lex.Tok{k, p, l2, c2}}, Tree.NNil{}}, close}, more}}:
+      Bool.pick(Maybe<&2, U32>, arms.succ(t, k), Some{1}, None{})
+    case other:
+      None{}
+
+# the least Nat a Nat arm matches: k for `kn:` and `kn+p:`, 1 for `Succ{p}`
+# and `Succ{_}`; none for any other pattern
+def arms.least(pat: Tree.Node) -> Maybe<&2, U32>:
+  match pat:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, +t, l, c}}, +rest}:
+      arms.num(T.nat_value(t), Bool.or(arms.plus(rest), arms.exact(rest)))
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, +t, l, c}},
+        Tree.NCons{Tree.Group{open, Tree.NCons{Tree.Leaf{Lex.Tok{k, p, l2, c2}}, Tree.NNil{}}, close}, more}}:
+      Bool.pick(Maybe<&2, U32>, arms.succ(t, k), Some{1}, None{})
+    case other:
+      None{}
+
+# an arm is covered when its least Nat is at or above low, the least k of the
+# from-k-up arms above it
+def arms.hit(low: Maybe<&2, U32>, least: Maybe<&2, U32>) -> Bool:
+  match low least:
+    case None{} m:
+      False{}
+    case Some{k} None{}:
+      False{}
+    case Some{k} Some{j}:
+      U32.is_ge(j, k)
+
+# the least k of the from-k-up arms so far, once one more arm is read
+def arms.lower(low: Maybe<&2, U32>, from: Maybe<&2, U32>) -> Maybe<&2, U32>:
+  match low from:
+    case None{} f:
+      f
+    case Some{k} None{}:
+      Some{k}
+    case Some{+k} Some{+j}:
+      Bool.pick(Maybe<&2, U32>, U32.is_lt(j, k), Some{j}, Some{k})
+
+# how many of a match's case arms an earlier from-k-up arm already covers,
+# low the least k of those above them
+def arms.covered(body: Tree.Node, +low: Maybe<&2, U32>) -> Nat:
+  match body:
+    case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, b}, rest}:
+      +pat = T.pattern(kids)
+      +m = arms.covered(rest, arms.lower(low, arms.from(pat)))
+      Bool.pick(Nat, arms.hit(low, arms.least(pat)), 1n+m, m)
+    case Tree.NCons{h, rest}:
+      arms.covered(rest, low)
+    case other:
+      0n
+
+# a statement's own tokens are `match x:`: one scrutinee
+def arms.single(kids: Tree.Node) -> Bool:
+  match kids:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TKey{}, +t, l, c}},
+        Tree.NCons{x, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, s, l2, c2}}, Tree.NNil{}}}}:
+      String.eq(t, "match")
+    case other:
+      False{}
+
+# how many covered arms the single-scrutinee matches under the node hold, at
+# any depth
+def arms_count(nn: Tree.Node) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Stmt{kind, kids, +body}, rest}:
+      Nat.add(Bool.pick(Nat, arms.single(kids), arms.covered(body, None{}), 0n),
+        Nat.add(arms_count(body), arms_count(rest)))
+    case Tree.NCons{h, rest}:
+      arms_count(rest)
+    case other:
+      0n
+
+# LAW: arms reports one finding for each case arm of a single-scrutinee
+# match, at any depth, whose least Nat an earlier `kn+p`, `Succ{p}` or
+# `Succ{_}` arm of the same match already matches, and none for any other arm
+# BOLT-RULE-C005
+law arms_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Arms.check(Src.Src{path, text, toks, tree, bound, items})) == arms_count(tree) : Nat}
+
+# the text of the literal a list pattern opens with: `x <> ..` or `Con{x, ..}`
+def twice.first(pat: Tree.Node) -> Maybe<&2, String>:
+  match pat:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, Tree.NCons{Tree.Leaf{Lex.Tok{k2, +o, l2, c2}}, rest}}:
+      Bool.pick(Maybe<&2, String>, Bool.and(T.is_lit(k), String.eq(o, "<>")), Some{t}, None{})
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, +t, l, c}},
+        Tree.NCons{Tree.Group{open, Tree.NCons{Tree.Leaf{Lex.Tok{k, x, l2, c2}}, kids}, close}, rest}}:
+      Bool.pick(Maybe<&2, String>, Bool.and(String.eq(t, "Con"), T.is_lit(k)), Some{x}, None{})
+    case other:
+      None{}
+
+# a list pattern past its first element: past `x <>`, or past `Con{x,`
+def twice.after(pat: Tree.Node) -> Tree.Node:
+  match pat:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}},
+        Tree.NCons{Tree.Group{open, Tree.NCons{x, Tree.NCons{comma, kids}}, close}, rest}}:
+      kids
+    case Tree.NCons{x, Tree.NCons{op, rest}}:
+      rest
+    case other:
+      Tree.NNil{}
+
+# two literals, both there and the same text
+def twice.same(aa: Maybe<&2, String>, bb: Maybe<&2, String>) -> Bool:
+  match aa bb:
+    case Some{x} Some{y}:
+      String.eq(x, y)
+    case a2 b2:
+      False{}
+
+# a list pattern that opens with the same literal twice
+def twice.dup(+pat: Tree.Node) -> Bool:
+  twice.same(twice.first(pat), twice.first(twice.after(pat)))
+
+# how many case statements under the node, at any depth, hold a pattern that
+# opens with the same literal twice
+def twice.cases(nn: Tree.Node) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, body}, rest}:
+      Nat.add(Bool.pick(Nat, twice.dup(T.pattern(kids)), 1n, 0n), Nat.add(twice.cases(body), twice.cases(rest)))
+    case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
+      Nat.add(twice.cases(body), twice.cases(rest))
+    case Tree.NCons{h, rest}:
+      twice.cases(rest)
+    case other:
+      0n
+
+# a def's such case statements, when its body calls it, `name(..)`
+def twice.def(mm: Maybe<&2, String>, +body: Tree.Node) -> Nat:
+  match mm:
+    case None{}:
+      0n
+    case Some{+name}:
+      Bool.pick(Nat, Calls.calls(body, name), twice.cases(body), 0n)
+
+# how many such case statements the top-level defs that call themselves hold
+def twice_count(root: Tree.Node) -> Nat:
+  match root:
+    case Tree.NCons{Tree.Stmt{Tree.SDef{}, kids, body}, rest}:
+      Nat.add(twice.def(Bind.declared(kids), body), twice_count(rest))
+    case Tree.NCons{h, rest}:
+      twice_count(rest)
+    case other:
+      0n
+
+# LAW: twice reports one finding for each case statement, at any depth under
+# a top-level def whose body calls the def, whose pattern (read from its first
+# column) opens with the same literal twice, and none for any other
+# BOLT-RULE-C007
+law twice_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Twice.check(Src.Src{path, text, toks, tree, bound, items})) == twice_count(tree) : Nat}
