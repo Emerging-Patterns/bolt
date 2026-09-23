@@ -2,10 +2,12 @@
 # `String.get(..)`. Both walk the cons list from the head to the index, so a
 # per-index loop is quadratic (AppSprout's sort went from 39 s to 0.9 s
 # walking the list itself). Walk the list in the recursion, or materialize
-# what the loop needs in one pass. A literal index (`List.get(.., xs, 0n)`)
-# is a head access and exempt, as are laws and proofs. A fixed table (a
-# literal, a sized array, a constant `List.replicate`) is `table`'s finding
-# instead, so the two rules do not both report that call.
+# what the loop needs in one pass. A get anywhere in the def is reported,
+# one in a base arm that runs once included. A literal index of any size
+# (`List.get(.., xs, 0n)`, `5000n`) is exempt, as are laws and proofs. A
+# `List.get` on a fixed table (a literal, a sized array, a constant
+# `List.replicate`) is `table`'s finding instead, so the two rules do not
+# both report that call. `String.get` is never `table`'s: it stays here.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F

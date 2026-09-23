@@ -180,7 +180,10 @@ beside the groups.
   bound by a let first.
 - `index` — `List.get`/`String.get` at a computed index inside a def that
   calls itself: the list is walked again each step. Walk the cells instead
-  (one sort phase went 39 s -> 0.9 s).
+  (one sort phase went 39 s -> 0.9 s). A get anywhere in the def is
+  reported, one in a base arm that runs once included. A literal index of
+  any size is exempt. A `List.get` on a fixed table is `table`'s; a
+  `String.get` always stays here.
 - `table` — `List.get` or `List.set` at a computed index inside a def that
   calls itself, when the list is a fixed table (a literal, a sized array, or
   `List.replicate` / `Array.new` / `List.range` with a constant count),
