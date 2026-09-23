@@ -18,6 +18,8 @@ import ./args.bend as Args
 import ./version.bend as Ver
 import ./build_rev.bend as Rev
 import ./check.bend as Check
+import ./lsp/checker/service.bend as Checker
+import ./lsp/checker/bend.bend as BendChecker
 import ./lsp/report.bend as Rep
 import 0x65bf91e14c96bf0c25491d716ec9f68c/main.bend as Shake
 
@@ -920,9 +922,12 @@ law version_commit:
 # Check.out decides, from the diagnostics each file got, every line the
 # command prints and its exit code; Check.run only does it (BOLT-TRUST-9).
 # The laws below quantify over every list of files and every diagnostics
-# each could get. What they do not cover: a failure to run bend reaches
-# Check.out as a clean file today (exec.c answers the empty text), so the
-# row stays pending.
+# each could get, and over a file bend could not be run on: exec tags its
+# text (checker/bend.bend's bendcheck.exec; that the tag is honest is
+# BOLT-TRUST-9), BendChecker.answer reads the tag, and a file with no check
+# is an error line of its own. What they do not cover is "on the line bend
+# marks": that bend's text says what Rep.parse reads is BOLT-TRUST-5, and an
+# error in an import lands on line 0, so the row stays pending.
 
 # the line for an error bend reported at a 0-based line of a file: the
 # path, the line counted from 1, column 1, and the message
@@ -945,23 +950,30 @@ def chk_lines(runs: List<&2, Check.Run>) -> List<&2, String>:
       []
     case Con{Check.Run{path, ds}, rest}:
       chk_file(ds, path, chk_lines(rest))
+    case Con{Check.Failed{path}, rest}:
+      (path ++ ":1:1: error: could not run bend") <> chk_lines(rest)
 
-# how many errors bend reported, over every file
+# how many errors bend reported, over every file, and one for each file
+# bend could not be run on
 def chk_count(runs: List<&2, Check.Run>) -> Nat:
   match runs:
     case Nil{}:
       0n
     case Con{Check.Run{_path, ds}, rest}:
       Nat.add(List.length(&2, Rep.Diag, ds), chk_count(rest))
+    case Con{Check.Failed{_path}, rest}:
+      1n+chk_count(rest)
 
 # LAW: `bolt check` prints, for each file in turn, one line per error bend
-# reported, in bend's order, on the line bend marked
+# reported, in bend's order, on the line bend marked, and for a file bend
+# could not be run on, `path:1:1: error: could not run bend`
 # BOLT-CHK-1
 law check_lines:
   for runs: List<&2, Check.Run>
   {Check.lines_of(runs) == chk_lines(runs) : List<&2, String>}
 
-# LAW: there are exactly as many error lines as errors
+# LAW: there are exactly as many error lines as errors, a file bend could
+# not be run on counting as one
 # BOLT-CHK-1
 law check_one_each:
   for runs: List<&2, Check.Run>
@@ -993,3 +1005,77 @@ law check_many:
   {Check.out(runs)
     == Check.Out{List.append(&2, String, chk_lines(runs),
       [U32.show(U32.from_nat(2n+more)) ++ " errors, 0 warnings"]), 1} : Check.Out}
+
+# an Out's exit code
+def chk_code(oo: Check.Out) -> U32:
+  Check.Out{_lines, code} = oo
+  code
+
+# LAW: a file bend could not be run on is an error: whatever the other files
+# got, `bolt check` exits 1
+# BOLT-CHK-1
+law check_unrun_error:
+  for +path: String
+  for +runs: List<&2, Check.Run>
+  {chk_code(Check.out(Check.Failed{path} <> runs)) == 1 : U32}
+
+# LAW: a file's run is the checker's diagnostics for it
+# BOLT-CHK-1
+law check_run_of:
+  for +path: String
+  for ds: List<&2, Rep.Diag>
+  {Check.run_of(path, Checker.Checked{ds}) == Check.Run{path, ds} : Check.Run}
+
+# LAW: a checker that could not run bend gives a failed run, never a clean one
+# BOLT-CHK-1
+law check_run_unrun:
+  for +path: String
+  {Check.run_of(path, Checker.Unrun{}) == Check.Failed{path} : Check.Run}
+
+# LAW: when bend ran and exited, however it exited, the checker's answer is
+# what it printed read as diagnostics, as it was before exec tagged its text
+# BOLT-CHK-1
+law check_exec_ran:
+  for text: String
+  {BendChecker.answer("r" ++ text) == Checker.Checked{Rep.parse(text)} : Checker.Answer}
+
+# LAW: when bend could not be run (no pipe, no fork, or exit 127), the answer
+# is Unrun, whatever was printed
+# BOLT-CHK-1
+law check_exec_unrun:
+  for text: String
+  {BendChecker.answer("x" ++ text) == Checker.Unrun{} : Checker.Answer}
+
+# LAW: when a signal killed bend before it reported an error, the answer is
+# Unrun, not clean
+# BOLT-CHK-1
+law check_exec_died:
+  for +text: String
+  for h: {Rep.parse(text) == [] : List<&2, Rep.Diag>}
+  {BendChecker.answer("s" ++ text) == Checker.Unrun{} : Checker.Answer}
+
+# LAW: when a signal killed bend after it reported errors, the answer is
+# those errors
+# BOLT-CHK-1
+law check_exec_died_reported:
+  for +text: String
+  for dd: Rep.Diag
+  for ds: List<&2, Rep.Diag>
+  for h: {Rep.parse(text) == dd <> ds : List<&2, Rep.Diag>}
+  {BendChecker.answer("s" ++ text) == Checker.Checked{dd <> ds} : Checker.Answer}
+
+# LAW: any other text from exec, the empty text included, is Unrun: text
+# with no tag is never read as a clean check
+# BOLT-CHK-1
+law check_exec_untagged:
+  for +cc: Char
+  for text: String
+  for h: {Bool.or(Char.is_eq(cc, 'r'), Char.is_eq(cc, 's')) == False{} : Bool}
+  {BendChecker.answer(SCon{cc, text}) == Checker.Unrun{} : Checker.Answer}
+
+# LAW: a LAWS.bend whose PROOF.bend bend could not be run on is not settled
+# clean: its answer is Unrun
+# BOLT-CHK-1
+law check_proof_unrun:
+  for ds: List<&2, Rep.Diag>
+  {BendChecker.proved(Checker.Unrun{}, ds) == Checker.Unrun{} : Checker.Answer}
