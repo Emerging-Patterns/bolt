@@ -15994,7 +15994,8 @@ def unsafe.in_pre(aa, ss, xs, h):
         unsafe.all_in(List.append(&2, String, aa, ss), t),
         Equal.trans(Bool, Imports.has(List.append(&2, String, aa, ss), x),
           Bool.or(Imports.has(aa, x), Imports.has(ss, x)), True{}, unsafe.has_app(aa, ss, x),
-          unsafe.or_r(Imports.has(aa, x), Imports.has(ss, x), unsafe.and_l(Imports.has(ss, x), unsafe.all_in(ss, t), h))),
+          unsafe.or_r(Imports.has(aa, x), Imports.has(ss, x), unsafe.and_l(Imports.has(ss, x), unsafe.all_in(ss, t),
+            h))),
         unsafe.in_pre(aa, ss, t, unsafe.and_r(Imports.has(ss, x), unsafe.all_in(ss, t), h)))
 
 # a list that holds xs, with more behind, still holds it
@@ -16014,7 +16015,8 @@ def unsafe.in_suf(ss, bb, xs, h):
         unsafe.all_in(List.append(&2, String, ss, bb), t),
         Equal.trans(Bool, Imports.has(List.append(&2, String, ss, bb), x),
           Bool.or(Imports.has(ss, x), Imports.has(bb, x)), True{}, unsafe.has_app(ss, bb, x),
-          unsafe.or_l(Imports.has(ss, x), Imports.has(bb, x), unsafe.and_l(Imports.has(ss, x), unsafe.all_in(ss, t), h))),
+          unsafe.or_l(Imports.has(ss, x), Imports.has(bb, x), unsafe.and_l(Imports.has(ss, x), unsafe.all_in(ss, t),
+            h))),
         unsafe.in_suf(ss, bb, t, unsafe.and_r(Imports.has(ss, x), unsafe.all_in(ss, t), h)))
 
 # a list holds itself
@@ -16063,7 +16065,8 @@ def unsafe.in_rgo(ss, xs, acc, hx, hacc):
       hacc
     case Con{+x, +t}:
       unsafe.in_rgo(ss, t, x <> acc, unsafe.and_r(Imports.has(ss, x), unsafe.all_in(ss, t), hx),
-        unsafe.and_true(Imports.has(ss, x), unsafe.all_in(ss, acc), unsafe.and_l(Imports.has(ss, x), unsafe.all_in(ss, t),
+        unsafe.and_true(Imports.has(ss, x), unsafe.all_in(ss, acc), unsafe.and_l(Imports.has(ss, x),
+          unsafe.all_in(ss, t),
           hx), hacc))
 
 # a list that holds xs holds it reversed
@@ -16088,7 +16091,8 @@ def unsafe.in_rev_set(ss, xs):
       {==}
     case Con{+x, +t}:
       %Equal.sym(Bool, Imports.has(List.reverse(&2, String, ss), x), Imports.has(ss, x), unsafe.has_rev(ss, x)) :
-        {Bool.and(_, unsafe.all_in(List.reverse(&2, String, ss), t)) == Bool.and(Imports.has(ss, x), unsafe.all_in(ss, t))
+        {Bool.and(_, unsafe.all_in(List.reverse(&2, String, ss), t)) == Bool.and(Imports.has(ss, x),
+          unsafe.all_in(ss, t))
           : Bool}
       %Equal.sym(Bool, unsafe.all_in(List.reverse(&2, String, ss), t), unsafe.all_in(ss, t), unsafe.in_rev_set(ss, t)) :
         {Bool.and(Imports.has(ss, x), _) == Bool.and(Imports.has(ss, x), unsafe.all_in(ss, t)) : Bool}
@@ -16168,7 +16172,8 @@ law unsafe.shut_at.at:
   for eb: {String.eq(h, p) == b : Bool}
   for hh: {Laws.unsafe.held(ds, ss, Laws.unsafe.imports(ds, h)) == True{} : Bool}
   for hx: {Bool.or(b, Imports.has(t, p)) == True{} : Bool}
-  for ih: {Imports.has(t, p) == True{} : Bool} -> {Laws.unsafe.held(ds, ss, Laws.unsafe.imports(ds, p)) == True{} : Bool}
+  for ih: {Imports.has(t, p) == True{} : Bool}
+    -> {Laws.unsafe.held(ds, ss, Laws.unsafe.imports(ds, p)) == True{} : Bool}
   {Laws.unsafe.held(ds, ss, Laws.unsafe.imports(ds, p)) == True{} : Bool}
 
 def unsafe.shut_at.at(ds, ss, h, _t, p, b, eb, hh, hx, ih):
@@ -16325,8 +16330,12 @@ def Laws.unsafe_least(ds, from, ss, pp, hf, hs, hp):
 
 # the walk's invariant over qs: each path of qs is still on the worklist, or
 # what the run has of its imports is seen
-def unsafe.inv(+ds: List<&2, Digest.Digest>, +todo: List<&2, String>, +seen: List<&2, String>, qs: List<&2, String>)
-  -> Bool:
+def unsafe.inv(
+  +ds: List<&2, Digest.Digest>,
+  +todo: List<&2, String>,
+  +seen: List<&2, String>,
+  qs: List<&2, String>
+) -> Bool:
   match qs:
     case Nil{}:
       True{}
@@ -16535,7 +16544,8 @@ law unsafe.inv_keep.at:
   for hp: {Laws.unsafe.held(ds, seen2, Laws.unsafe.imports(ds, p)) == True{} : Bool}
   for hg: {unsafe.all_in(seen2, seen) == True{} : Bool}
   for h0: {Bool.or(Bool.or(b2, b3), b1) == True{} : Bool}
-  {Bool.or(Imports.has(List.append(&2, String, found, rest), q), Laws.unsafe.held(ds, seen2, Laws.unsafe.imports(ds, q)))
+  {Bool.or(Imports.has(List.append(&2, String, found, rest), q), Laws.unsafe.held(ds, seen2, Laws.unsafe.imports(ds,
+    q)))
     == True{} : Bool}
 
 def unsafe.inv_keep.at(ds, p, rest, seen, found, seen2, q, b1, b2, b3, e1, e2, e3, hp, hg, h0):
@@ -16777,11 +16787,13 @@ def unsafe.miss_rev(rr, xs, ss):
       +bb = List.append(&2, String, xs, ss)
       eh = Equal.trans(Bool, Imports.has(aa, h), Bool.or(Imports.has(rv, h), Imports.has(ss, h)), Imports.has(bb, h),
         unsafe.has_app(rv, ss, h),
-        Equal.trans(Bool, Bool.or(Imports.has(rv, h), Imports.has(ss, h)), Bool.or(Imports.has(xs, h), Imports.has(ss, h)),
+        Equal.trans(Bool, Bool.or(Imports.has(rv, h), Imports.has(ss, h)), Bool.or(Imports.has(xs, h),
+          Imports.has(ss, h)),
           Imports.has(bb, h),
           Equal.cong(Bool, Bool, z => Bool.or(z, Imports.has(ss, h)), Imports.has(rv, h), Imports.has(xs, h),
             unsafe.has_rev(xs, h)),
-          Equal.sym(Bool, Imports.has(bb, h), Bool.or(Imports.has(xs, h), Imports.has(ss, h)), unsafe.has_app(xs, ss, h))))
+          Equal.sym(Bool, Imports.has(bb, h), Bool.or(Imports.has(xs, h), Imports.has(ss, h)), unsafe.has_app(xs, ss,
+            h))))
       %Equal.sym(Bool, Imports.has(aa, h), Imports.has(bb, h), eh) :
         {Bool.pick(Nat, _, unsafe.miss(t, aa), 1n+unsafe.miss(t, aa))
           == Bool.pick(Nat, Imports.has(bb, h), unsafe.miss(t, bb), 1n+unsafe.miss(t, bb)) : Nat}
@@ -17104,7 +17116,8 @@ def unsafe.shut_walk(ds, fuel, todo, seen, k, hf, hi):
   match fuel todo:
     case 0n Nil{}:
       Equal.trans(Bool, Laws.unsafe.shut(ds, seen, seen), unsafe.inv(ds, [], seen, seen), True{},
-        Equal.sym(Bool, unsafe.inv(ds, [], seen, seen), Laws.unsafe.shut(ds, seen, seen), unsafe.inv_nil(ds, seen, seen)),
+        Equal.sym(Bool, unsafe.inv(ds, [], seen, seen), Laws.unsafe.shut(ds, seen, seen), unsafe.inv_nil(ds, seen,
+          seen)),
         hi)
     case 0n Con{_p, rest}:
       Empty.absurd({Laws.unsafe.shut(ds, seen, seen) == True{} : Bool},
@@ -17112,7 +17125,8 @@ def unsafe.shut_walk(ds, fuel, todo, seen, k, hf, hi):
           seen), k)), hf))
     case 1n+_f Nil{}:
       Equal.trans(Bool, Laws.unsafe.shut(ds, seen, seen), unsafe.inv(ds, [], seen, seen), True{},
-        Equal.sym(Bool, unsafe.inv(ds, [], seen, seen), Laws.unsafe.shut(ds, seen, seen), unsafe.inv_nil(ds, seen, seen)),
+        Equal.sym(Bool, unsafe.inv(ds, [], seen, seen), Laws.unsafe.shut(ds, seen, seen), unsafe.inv_nil(ds, seen,
+          seen)),
         hi)
     case 1n+(+f) Con{+p, +rest}:
       +rr = Imports.paths(Digest.edges(ds))
@@ -17126,7 +17140,8 @@ def unsafe.shut_walk(ds, fuel, todo, seen, k, hf, hi):
         True{}, unsafe.in_rev_set(found, found), unsafe.in_refl(found)))
       hd = unsafe.fresh_held(ds, seen2, deps, seen, hg, hfs)
       hp = Equal.trans(Bool, Laws.unsafe.held(ds, seen2, Laws.unsafe.imports(ds, p)), Laws.unsafe.held(ds, seen2, deps),
-        True{}, Equal.sym(Bool, Laws.unsafe.held(ds, seen2, deps), Laws.unsafe.held(ds, seen2, Laws.unsafe.imports(ds, p)),
+        True{}, Equal.sym(Bool, Laws.unsafe.held(ds, seen2, deps), Laws.unsafe.held(ds, seen2,
+          Laws.unsafe.imports(ds, p)),
           Equal.cong(List<&2, String>, Bool, z => Laws.unsafe.held(ds, seen2, z), deps, Laws.unsafe.imports(ds, p),
             unsafe.deps_imports(ds, p))), hd)
       ha = unsafe.inv_todo(ds, todo2, seen2, rf, unsafe.in_rev(todo2, found, unsafe.in_suf(found, rest, found,
@@ -17262,7 +17277,8 @@ def unsafe.shut_top.go(ds, from, w):
   +hh = Laws.unsafe.held(ds, [from], Laws.unsafe.imports(ds, from))
   unsafe.shut_walk(ds, List.length(&2, Digest.Digest, ds), [from], [from], k, e,
     unsafe.and_true(Bool.or(Imports.has([from], from), hh), True{},
-      unsafe.or_l(Imports.has([from], from), hh, unsafe.or_l(String.eq(from, from), False{}, unsafe.srefl(from))), {==}))
+      unsafe.or_l(Imports.has([from], from), hh, unsafe.or_l(String.eq(from, from), False{}, unsafe.srefl(from))),
+        {==}))
 
 # the walk from any start returns a shut list: a start that was read is
 # covered by the fuel, and one that was not imports nothing
