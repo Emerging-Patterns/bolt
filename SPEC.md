@@ -27,7 +27,7 @@ A Trusted requirement's ID appears once in a requirement table and once in the t
 | BOLT-RULE-C001 | `shadow` reports exactly a let, do-bind, lambda or pattern binder named like a top-level def above it in the file, and nothing else. | Proved | pending |  |
 | BOLT-RULE-C002 | `hole` reports exactly a TODO hole bend counts, a `?` then `TODO` with only spaces, newlines or comments between, outside a LAWS.bend, and nothing else. | Proved | pending |  |
 | BOLT-RULE-C003 | `pick` reports exactly a self-call in one or both branches of `Bool.pick`, and does not report again a nested pick in a branch it reported. | Proved | pending |  |
-| BOLT-RULE-C004 | `put` reports exactly a `Map.put(` call, except in a file that defines `Map.put`. | Proved | pending |  |
+| BOLT-RULE-C004 | `put` reports exactly one finding for each `Map.put` token with a `(` token right after it among the significant tokens, and none in a file where a `def` keyword has a `Map.put` token right after it. | Proved | proved | bolt/rules/LAWS.bend put_counts |
 | BOLT-RULE-C005 | `arms` reports exactly, in a single-scrutinee match, a Nat arm already covered by an earlier `kn+p`, `Succ{p}` or `Succ{_}` arm. | Proved | pending |  |
 | BOLT-RULE-C006 | `escape` reports exactly one finding for each `\0` followed by a digit in a string or char literal, its escapes read as a backslash and the one char after it, and none for anything else. | Proved | proved | bolt/rules/LAWS.bend escape_counts; bolt/rules/LAWS.bend escape_scan_counts |
 | BOLT-RULE-C007 | `twice` reports exactly, in a def that calls itself, a list pattern in a case's first match column opening with the same literal twice. | Proved | pending |  |
