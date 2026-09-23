@@ -37,6 +37,9 @@ import ./correctness/arms.bend as Arms
 import ./correctness/twice.bend as Twice
 import ./laws/closed.bend as Closed
 import ./suspicious/unused.bend as Unused
+import ./suspicious/fuel.bend as FuelRule
+import ./style/wrap.bend as Wrap
+import ../../lazy/lazy.bend as Lazy
 import ./laws/law.bend as Coverage
 import ./laws/unsafe.bend as Unsafe
 import ./imports.bend as Imports
@@ -1728,6 +1731,727 @@ law eager_plain:
   for e: {eager.plain(kk) == True{} : Bool}
   {(Eager.work.hot(kk, hot, seg, keep), Eager.work.seg(kk, seg), Eager.work.name(kk))
     == (hot, seg, True{}) : Bool & U32 & Bool}
+
+# The table rules: table (BOLT-RULE-U008) and ring (BOLT-RULE-U010). Each
+# reads each def of the file whose body calls it, `name(..)` (Calls.calls),
+# and is not exempt, and walks that body at any depth: a call site is a name
+# token then a group.
+
+# table: is the call `List.get(..)` or `List.set(..)` whose index (argument
+# 3, counting `&2` and the type) is not one number token (Table.literal) and
+# whose list (argument 2) is a fixed table (Table.owns): a list literal with
+# a top-level comma, a `[v : T*n]` or `[v : T^n]` array sized by a number, or
+# `List.replicate` / `Array.new` / `List.range` with a number count, written
+# inline, as `name()` or `name` for a def of the file whose body is one such
+# table (Table.modules), or as a use of a name whose let in scope binds one
+# (Table.scope). A let reaches the statements after it and their blocks, not
+# an enclosing block or a sibling case arm, and a later let of the name to
+# anything else ends it; a case pattern, a lambda or a parameter binding the
+# same name does not end it.
+def table.site(+tt: String, +op: String, kids: Tree.Node, +fixed: List<&2, String>) -> Bool:
+  +as = Calls.args(kids)
+  Bool.and(Bool.and(String.eq(op, "("), Bool.or(String.eq(tt, "List.get"), String.eq(tt, "List.set"))),
+    Bool.and(Bool.not(Table.literal(Calls.arg(as, 3n))), Table.owns(Calls.arg(as, 2n), fixed)))
+
+# how many call sites under the node, at any depth, are a fixed-table get or
+# set at a computed index
+def table.count(nn: Tree.Node, +fixed: List<&2, String>) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_k, +o, _l, _c}, +kids, _e}, rest}}:
+      Nat.add(Bool.pick(Nat, table.site(t, o, kids, fixed), 1n, 0n),
+        Nat.add(table.count(kids, fixed), table.count(rest, fixed)))
+    case Tree.NCons{Tree.Group{open, kids, close}, rest}:
+      Nat.add(table.count(kids, fixed), table.count(rest, fixed))
+    case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
+      Nat.add(table.count(kids, fixed), Nat.add(table.count(body, fixed), table.count(rest, fixed)))
+    case Tree.NCons{h, rest}:
+      table.count(rest, fixed)
+    case other:
+      0n
+
+# LAW: over any chain, table reports one finding for each fixed-table
+# `List.get(..)` or `List.set(..)` at an index that is not one number token,
+# and none for any other call: a literal index (0 and 1 included), a list
+# that is not a fixed table, `List.head` and `List.tail` stay quiet
+# BOLT-RULE-U008
+law table_walk_counts:
+  for nn: Tree.Node
+  for +path: String
+  for +fixed: List<&2, String>
+  {List.length(&2, F.Finding, Table.walk(nn, path, fixed)) == table.count(nn, fixed) : Nat}
+
+# the fixed-table gets and sets of each def of the list that calls itself
+# and is not exempt, the tables in scope of its body
+def table.defs(ds: List<&2, Calls.Def>, +mods: List<&2, String>, +path: String) -> Nat:
+  match ds:
+    case Nil{}:
+      0n
+    case Con{Calls.Def{+name, +sig, +body}, rest}:
+      Nat.add(Bool.pick(Nat, Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig))),
+        table.count(body, Table.scope(body, mods)), 0n), table.defs(rest, mods, path))
+
+# LAW: table reports exactly those gets and sets, def by def, over the defs
+# of the tree that call themselves, and none in a def that does not
+# BOLT-RULE-U008
+law table_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Table.check(Src.Src{path, text, toks, tree, bound, items}))
+    == table.defs(Calls.defs(tree), Table.modules(Calls.defs(tree), []), path) : Nat}
+
+# ring: one when the scan found a drop, else zero
+def ring.hit(mm: Maybe<&2, Lex.Tok>) -> Nat:
+  match mm:
+    case None{}:
+      0n
+    case Some{t}:
+      1n
+
+# how many self-call arguments slide the window of their own slot: argument
+# i is read against parameter i only (Ring.slot_wins: that parameter, when
+# it is a window), and slides when Ring.plus_scan finds, over it, a
+# `List.drop` / `String.drop` of the window by a number literal or a
+# `List.tail` / `String.tail` of it, that is then `++`-appended onto or is
+# the receiver of `List.append` / `String.append`. What is appended is not
+# measured: the drop is the fixed part.
+def ring.args(as: List<&2, Tree.Node>, +params: List<&2, String>, +wins: List<&2, String>) -> Nat:
+  match as:
+    case Nil{}:
+      0n
+    case Con{h, rest}:
+      +slot = Maybe.default(&2, String, List.head(&2, String, params), "")
+      Nat.add(ring.hit(Ring.plus_scan(h, None{}, Ring.slot_wins(slot, wins))),
+        ring.args(rest, List.tail(&2, String, params), wins))
+
+# how many sliding arguments the self-calls `self(..)` under the node hold,
+# at any depth
+def ring.count(nn: Tree.Node, +self: String, +params: List<&2, String>, +wins: List<&2, String>) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_k, +o, _l, _c}, +kids, _e}, rest}}:
+      Nat.add(Bool.pick(Nat, Bool.and(String.eq(o, "("), String.eq(t, self)), ring.args(Calls.args(kids), params, wins),
+        0n), Nat.add(ring.count(kids, self, params, wins), ring.count(rest, self, params, wins)))
+    case Tree.NCons{Tree.Group{open, kids, close}, rest}:
+      Nat.add(ring.count(kids, self, params, wins), ring.count(rest, self, params, wins))
+    case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
+      Nat.add(ring.count(kids, self, params, wins),
+        Nat.add(ring.count(body, self, params, wins), ring.count(rest, self, params, wins)))
+    case Tree.NCons{h, rest}:
+      ring.count(rest, self, params, wins)
+    case other:
+      0n
+
+# LAW: over any chain, ring reports one finding for each argument of a
+# self-call that drops and appends the window in its own parameter slot, and
+# none for a window moved to another parameter's slot or any other call
+# BOLT-RULE-U010
+law ring_walk_counts:
+  for nn: Tree.Node
+  for +self: String
+  for +params: List<&2, String>
+  for +path: String
+  for +wins: List<&2, String>
+  {List.length(&2, F.Finding, Ring.walk(nn, self, params, path, wins)) == ring.count(nn, self, params, wins) : Nat}
+
+# the sliding arguments of each def of the list that calls itself and is not
+# exempt; its windows are its parameters not named as any scrutinee of a
+# `match` in its body (Ring.windows)
+def ring.defs(ds: List<&2, Calls.Def>, +path: String) -> Nat:
+  match ds:
+    case Nil{}:
+      0n
+    case Con{Calls.Def{+name, +sig, +body}, rest}:
+      Nat.add(Bool.pick(Nat, Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig))),
+        ring.count(body, name, Calls.names(sig), Ring.windows(sig, body)), 0n), ring.defs(rest, path))
+
+# LAW: ring reports exactly those arguments, def by def, over the defs of the
+# tree that call themselves, and none in a def that does not
+# BOLT-RULE-U010
+law ring_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Ring.check(Src.Src{path, text, toks, tree, bound, items}))
+    == ring.defs(Calls.defs(tree), path) : Nat}
+
+# fuel (BOLT-RULE-U006). The rule lists the file's fuel parameters: for each
+# def of the file (Calls.defs), each parameter (Calls.params) whose name, its
+# first lowercase name before the colon (Calls.param_name), is `fuel`, `gas`,
+# `steps` or `budget` or starts with `fuel`, with its position. Over each
+# top-level statement it then reads every call at any depth, a name token
+# then a `(` group, that is not a call of the statement's own name (a
+# self-call): for each fuel parameter of a def of that name, one finding when
+# the argument in its position (Calls.args, split at top-level commas) is one
+# Nat literal token alone, digits then `n`.
+
+# is the name a fuel parameter's: `fuel`, `gas`, `steps` or `budget`, or one
+# starting with `fuel`?
+def fuel.named(+nn: String) -> Bool:
+  Bool.or(String.starts_with(nn, "fuel"), List.contains(~String, ~String.eq, ["gas", "steps",
+    "budget"], nn))
+
+# the parameters with a fuel name among ps, the first at position i, each
+# with the def's name
+def fuel.slots.of(ps: List<&2, Tree.Node>, +name: String, +ii: Nat) -> List<&2, FuelRule.Fuel>:
+  match ps:
+    case Nil{}:
+      Nil{}
+    case Con{p, rest}:
+      +more = fuel.slots.of(rest, name, 1n+ii)
+      Bool.pick(List<&2, FuelRule.Fuel>, fuel.named(Calls.param_name(p)), FuelRule.Fuel{name, ii} <> more, more)
+
+# every fuel parameter of every def, in order
+def fuel.slots(ds: List<&2, Calls.Def>) -> List<&2, FuelRule.Fuel>:
+  match ds:
+    case Nil{}:
+      Nil{}
+    case Con{Calls.Def{name, sig, body}, rest}:
+      List.append(&2, FuelRule.Fuel, fuel.slots.of(Calls.params(sig), name, 0n), fuel.slots(rest))
+
+# is the argument one Nat literal token alone, digits then `n`?
+def fuel.lone(aa: Tree.Node) -> Bool:
+  match aa:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, +t, l, c}}, Tree.NNil{}}:
+      T.nat_ok(String.to_list(t))
+    case other:
+      False{}
+
+# how many fuel parameters of defs named name a call with these arguments
+# fills with a lone Nat literal
+def fuel.hits(fs: List<&2, FuelRule.Fuel>, +name: String, +as: List<&2, Tree.Node>) -> Nat:
+  match fs:
+    case Nil{}:
+      0n
+    case Con{FuelRule.Fuel{+fn, at}, rest}:
+      +m = fuel.hits(rest, name, as)
+      Bool.pick(Nat, Bool.and(String.eq(fn, name), fuel.lone(Calls.arg(as, at))), 1n+m, m)
+
+# how many lone Nat literals the calls under the node pass for fuel, at any
+# depth: a call is a name token then a `(` group, and a call of self is not
+# counted
+def fuel.count(nn: Tree.Node, +fs: List<&2, FuelRule.Fuel>, +self: String) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{ok, +o, ol, oc}, +kids, close},
+      rest}}:
+      +m = Nat.add(fuel.count(kids, fs, self), fuel.count(rest, fs, self))
+      Bool.pick(Nat, Bool.and(Bool.and(Lex.is_name(k), String.eq(o, "(")), Bool.not(String.eq(t, self))),
+        Nat.add(fuel.hits(fs, t, Calls.args(kids)), m), m)
+    case Tree.NCons{Tree.Group{open, kids, close}, rest}:
+      Nat.add(fuel.count(kids, fs, self), fuel.count(rest, fs, self))
+    case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
+      Nat.add(fuel.count(kids, fs, self), Nat.add(fuel.count(body, fs, self), fuel.count(rest, fs, self)))
+    case Tree.NCons{h, rest}:
+      fuel.count(rest, fs, self)
+    case other:
+      0n
+
+# a statement's own name, "" when it has none
+def fuel.own(mm: Maybe<&2, String>) -> String:
+  match mm:
+    case None{}:
+      ""
+    case Some{nm}:
+      nm
+
+# the fuel literals of the file: each top-level statement's calls, its own
+# name the self it does not count
+def fuel.total(root: Tree.Node, +fs: List<&2, FuelRule.Fuel>) -> Nat:
+  match root:
+    case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
+      +self = fuel.own(Bind.declared(kids))
+      Nat.add(fuel.count(kids, fs, self), Nat.add(fuel.count(body, fs, self), fuel.total(rest, fs)))
+    case Tree.NCons{h, rest}:
+      fuel.total(rest, fs)
+    case other:
+      0n
+
+# LAW: the rule's fuel parameters are the file's defs' parameters with a fuel
+# name, each at its position
+# BOLT-RULE-U006
+law fuel_slots:
+  for ds: List<&2, Calls.Def>
+  {FuelRule.fuels(ds) == fuel.slots(ds) : List<&2, FuelRule.Fuel>}
+
+# LAW: over any chain, fuel reports one finding for each fuel parameter a
+# call (not of self) fills with a lone Nat literal, and none for anything else
+# BOLT-RULE-U006
+law fuel_walk_counts:
+  for nn: Tree.Node
+  for +fs: List<&2, FuelRule.Fuel>
+  for +self: String
+  for +path: String
+  {List.length(&2, F.Finding, FuelRule.calls(nn, fs, self, path)) == fuel.count(nn, fs, self) : Nat}
+
+# LAW: fuel reports exactly those literals over the file's top-level
+# statements, against the fuel parameters of the file's defs
+# BOLT-RULE-U006
+law fuel_counts:
+  for path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, FuelRule.check(Src.Src{path, text, toks, tree, bound, items}))
+    == fuel.total(tree, fuel.slots(Calls.defs(tree))) : Nat}
+
+# unit (BOLT-RULE-U012). The rule walks each def of the file that calls
+# itself (Calls.calls) and is not exempt (a law file, a proof file, a def
+# returning a proof), its body hot: the recursive step. A case arm's body is
+# hot only when it calls the def too (a base case is not), a case's own
+# pattern tokens never; anything else, lambda bodies included, is as hot as
+# what holds it. In a hot region it reports one finding for each operator
+# `*` with the literal one (a number token `1`, `1n` or `1.0`) right after or
+# right before it, or `/` with it right after (the divisor); and one for each
+# call, a leaf then a `(` group, of `Nat.mul`, `U32.mul` or `F32.mul` with
+# the literal one alone as some argument, or of `Nat.div`, `U32.div` or
+# `F32.div` with it alone as the last. Right before an operator is the leaf
+# just before it in its chain, none past a group, a statement or another
+# operator; right after is the node just after it, when a leaf.
+
+# does the maybe hold the literal one: a number token `1`, `1n` or `1.0`?
+def unit.one(mm: Maybe<&2, Lex.Tok>) -> Bool:
+  match mm:
+    case Some{Lex.Tok{Lex.TNum{}, +t, l, c}}:
+      Bool.or(String.eq(t, "1"), Bool.or(String.eq(t, "1n"), String.eq(t, "1.0")))
+    case other:
+      False{}
+
+# is the operator's text `*` with the literal one after or before it, or `/`
+# with it after?
+def unit.by_one(+op: String, prev: Maybe<&2, Lex.Tok>, +nxt: Maybe<&2, Lex.Tok>) -> Bool:
+  Bool.pick(Bool, String.eq(op, "*"), Bool.or(unit.one(nxt), unit.one(prev)),
+    Bool.and(String.eq(op, "/"), unit.one(nxt)))
+
+# is the token an operator by one, between prev and nxt?
+def unit.hit(tok: Lex.Tok, prev: Maybe<&2, Lex.Tok>, nxt: Maybe<&2, Lex.Tok>) -> Bool:
+  match tok:
+    case Lex.Tok{Lex.TOp{}, t, l, c}:
+      unit.by_one(t, prev, nxt)
+    case other:
+      False{}
+
+# what an operator after this leaf sees before it: the leaf, none when it is
+# an operator
+def unit.next(tok: Lex.Tok) -> Maybe<&2, Lex.Tok>:
+  match tok:
+    case Lex.Tok{Lex.TOp{}, t, l, c}:
+      None{}
+    case other:
+      Some{other}
+
+# the node right after, when it is a leaf
+def unit.first(nn: Tree.Node) -> Maybe<&2, Lex.Tok>:
+  match nn:
+    case Tree.NCons{Tree.Leaf{tok}, rest}:
+      Some{tok}
+    case other:
+      None{}
+
+# the name a group right after the leaf calls, "" after no leaf
+def unit.name(mm: Maybe<&2, Lex.Tok>) -> String:
+  match mm:
+    case None{}:
+      ""
+    case Some{Lex.Tok{k, t, l, c}}:
+      t
+
+# is the argument the literal one alone?
+def unit.lone(aa: Tree.Node) -> Bool:
+  match aa:
+    case Tree.NCons{Tree.Leaf{tok}, Tree.NNil{}}:
+      unit.one(Some{tok})
+    case other:
+      False{}
+
+# is some argument the literal one alone?
+def unit.any(as: List<&2, Tree.Node>) -> Bool:
+  match as:
+    case Nil{}:
+      False{}
+    case Con{h, rest}:
+      Bool.or(unit.lone(h), unit.any(rest))
+
+# is the last argument the literal one alone?
+def unit.last(as: List<&2, Tree.Node>) -> Bool:
+  match as:
+    case Nil{}:
+      False{}
+    case Con{h, Nil{}}:
+      unit.lone(h)
+    case Con{h, rest}:
+      unit.last(rest)
+
+# is the call a multiply with some argument one, else a divide by one?
+def unit.call(+tt: String, +as: List<&2, Tree.Node>) -> Bool:
+  Bool.pick(Bool, List.contains(~String, ~String.eq, ["Nat.mul", "U32.mul", "F32.mul"], tt),
+    unit.any(as),
+    Bool.and(List.contains(~String, ~String.eq, ["Nat.div", "U32.div", "F32.div"], tt),
+      unit.last(as)))
+
+# how many multiplies and divides by one the chain holds, at any depth, from
+# a region as hot as hot, the leaf before it prev
+def unit.count(nn: Tree.Node, +prev: Maybe<&2, Lex.Tok>, +self: String, +hot: Bool) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Leaf{+tok}, +rest}:
+      +m = unit.count(rest, unit.next(tok), self, hot)
+      Bool.pick(Nat, Bool.and(hot, unit.hit(tok, prev, unit.first(rest))), 1n+m, m)
+    case Tree.NCons{Tree.Group{Lex.Tok{ok, +o, ol, oc}, +kids, close}, rest}:
+      +own = Bool.and(String.eq(o, "("), Bool.and(hot, unit.call(unit.name(prev), Calls.args(kids))))
+      Nat.add(unit.count(kids, None{}, self, hot),
+        Nat.add(Bool.pick(Nat, own, 1n, 0n), unit.count(rest, None{}, self, hot)))
+    case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, +body}, rest}:
+      Nat.add(unit.count(kids, None{}, self, False{}),
+        Nat.add(unit.count(body, None{}, self, Bool.and(hot, Calls.calls(body, self))), unit.count(rest, None{}, self,
+          hot)))
+    case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
+      Nat.add(unit.count(kids, None{}, self, hot),
+        Nat.add(unit.count(body, None{}, self, hot), unit.count(rest, None{}, self, hot)))
+    case Tree.NCons{h, rest}:
+      unit.count(rest, prev, self, hot)
+    case other:
+      0n
+
+# LAW: over any chain, unit reports one finding for each multiply or divide
+# by one in a hot region, and none for anything else
+# BOLT-RULE-U012
+law unit_walk_counts:
+  for nn: Tree.Node
+  for +prev: Maybe<&2, Lex.Tok>
+  for +self: String
+  for +path: String
+  for +hot: Bool
+  {List.length(&2, F.Finding, UnitRule.walk(nn, prev, self, path, hot)) == unit.count(nn, prev, self, hot) : Nat}
+
+# the multiplies and divides by one of each def of the list that calls itself
+# and is not exempt, its body hot
+def unit.defs(ds: List<&2, Calls.Def>, +path: String) -> Nat:
+  match ds:
+    case Nil{}:
+      0n
+    case Con{Calls.Def{+name, +sig, +body}, rest}:
+      Nat.add(Bool.pick(Nat, Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig))),
+        unit.count(body, None{}, name, True{}), 0n), unit.defs(rest, path))
+
+# LAW: unit reports exactly those, def by def, over the defs of the tree
+# BOLT-RULE-U012
+law unit_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, UnitRule.check(Src.Src{path, text, toks, tree, bound, items}))
+    == unit.defs(Calls.defs(tree), path) : Nat}
+
+# The header rule wrap (BOLT-RULE-S003) judges each def header of the
+# outline by its sig's tokens (Lex.tokens), once: a finding or none. A
+# header on one line is too wide past 120 columns, measured through its last
+# `:` (the whole header when it has none), each token counted the way space
+# counts it (Space.width_of: a string literal two, a `#|` comment none, any
+# other token its length). A header across lines is judged by its parameter
+# list. The list opens at the first `(` read while no bracket is open. Inside
+# it, with only that `(` open, a `)` ends the list and a `,` ends a
+# parameter; every other significant token is part of a parameter. A
+# parameter is misplaced when it spans lines, starts on the `(` line, or
+# starts on the line a later parameter starts on; the list is cramped when
+# it closed and its `)` is not on a line below the last parameter's last
+# line. The spec reads single tokens with the rule's own readings and no
+# more: Wrap.check.is_colon (a `:`), Wrap.check.is_oparen and
+# Wrap.check.is_cparen (the text `(`, `)`), Lex.is_comma, Lex.significant,
+# Lex.is_name (a name glues a `<` right after it), Wrap.check.brackets (the
+# bracket a token opens or closes: `(` `[` `{` and `)` `]` `}`, a `<` or
+# `<&` glued to a name opening an angle, a run of `>` closing) and
+# Wrap.check.ticks_of (how many angles that run closes).
+
+# some token of the list is a `:`
+def wrap.colons(toks: List<&2, Lex.Tok>) -> Bool:
+  match toks:
+    case Nil{}:
+      False{}
+    case Con{Lex.Tok{kk, tx, ln, cl}, rest}:
+      Bool.or(Wrap.check.is_colon(kk), wrap.colons(rest))
+
+# the width, acc so far, through the last `:` of the tokens
+def wrap.upto(toks: List<&2, Lex.Tok>, +acc: U32) -> U32:
+  match toks:
+    case Nil{}:
+      acc
+    case Con{Lex.Tok{+kk, +tx, ln, cl}, +rest}:
+      +next = (acc + Space.width_of(kk, tx) : U32)
+      Bool.pick(U32, wrap.colons(rest), wrap.upto(rest, next), next)
+
+# the width of all the tokens, acc so far
+def wrap.total(toks: List<&2, Lex.Tok>, +acc: U32) -> U32:
+  match toks:
+    case Nil{}:
+      acc
+    case Con{Lex.Tok{+kk, +tx, ln, cl}, rest}:
+      wrap.total(rest, (acc + Space.width_of(kk, tx) : U32))
+
+# a one-line header's width: through its last `:`, else all of it
+def wrap.width(+toks: List<&2, Lex.Tok>) -> U32:
+  Bool.pick(U32, wrap.colons(toks), wrap.upto(toks, 0), wrap.total(toks, 0))
+
+# LAW: wrap measures a header through its last `:`, the whole header when it
+# has none, a string literal two columns and a comment after the `:` none
+# BOLT-RULE-S003
+law wrap_width:
+  for +toks: List<&2, Lex.Tok>
+  {Wrap.check.width.go(toks, 0, 0, False{}) == wrap.width(toks) : U32}
+
+# a broken header read so far: where it stands (before its parameter list,
+# inside it, past its `)`), the paren, bracket, brace and angle depths, the
+# `(` line, the `)` line, the parameter being read, and those read, last first
+type wrap.Read is Data:
+  wrap.Read{at: Wrap.Phase, paren: U32, bracket: U32, brace: U32, angle: U32, open: U32, shut: U32,
+    cur: Maybe<&2, Wrap.Span>, done: List<&2, Wrap.Span>}
+
+# nothing read yet
+def wrap.start() -> wrap.Read:
+  wrap.Read{Wrap.Seek{}, 0, 0, 0, 0, 0, 0, None{}, []}
+
+# no depth open
+def wrap.shut_all(+paren: U32, +bracket: U32, +brace: U32, +angle: U32) -> Bool:
+  Bool.and(U32.is_eq(paren, 0), Bool.and(U32.is_eq(angle, 0), Bool.and(U32.is_eq(brace, 0), U32.is_eq(bracket, 0))))
+
+# only the list's own `(` open
+def wrap.flat(+paren: U32, +bracket: U32, +brace: U32, +angle: U32) -> Bool:
+  Bool.and(U32.is_eq(paren, 1), Bool.and(U32.is_eq(angle, 0), Bool.and(U32.is_eq(brace, 0), U32.is_eq(bracket, 0))))
+
+# at the list's own depth: a `)` ends the list, a `,` a parameter, and any
+# other token moves as it would anywhere
+def wrap.edge(+kk: Lex.TokKind, +tx: String, move: Wrap.Act) -> Wrap.Act:
+  Bool.pick(Wrap.Act, Wrap.check.is_cparen(kk, tx), Wrap.AEnd{},
+    Bool.pick(Wrap.Act, Lex.is_comma(kk), Wrap.AComma{}, move))
+
+# what a significant token does. Before the list a `(` with no depth open
+# opens it; inside it, with only its `(` open, a `)` or a `,` is an edge;
+# past it nothing moves; any other token moves the depths as
+# Wrap.check.brackets reads it
+def wrap.motion(
+  at: Wrap.Phase,
+  +kk: Lex.TokKind,
+  +tx: String,
+  +glued: Bool,
+  +paren: U32,
+  +bracket: U32,
+  +brace: U32,
+  +angle: U32
+) -> Wrap.Act:
+  match at:
+    case Wrap.Seek{}:
+      Bool.pick(Wrap.Act, Bool.and(Wrap.check.is_oparen(kk, tx), wrap.shut_all(paren, bracket, brace, angle)),
+        Wrap.AOpen{}, Wrap.check.brackets(kk, tx, glued))
+    case Wrap.Args{}:
+      Bool.pick(Wrap.Act, wrap.flat(paren, bracket, brace, angle),
+        wrap.edge(kk, tx, Wrap.check.brackets(kk, tx, glued)), Wrap.check.brackets(kk, tx, glued))
+    case Wrap.Past{}:
+      Wrap.ANone{}
+
+# one less, not below zero
+def wrap.less(+nn: U32) -> U32:
+  Lazy.stop(U32, U32.is_eq(nn, 0), 0, _u => (nn - 1 : U32))
+
+# left angles closed, the depth staying at zero once there
+def wrap.lower(left: Nat, +angle: U32) -> U32:
+  match left:
+    case Zero{}:
+      angle
+    case Succ{p}:
+      Bool.pick(U32, U32.is_eq(angle, 0), angle, wrap.lower(p, (angle - 1 : U32)))
+
+# the parameter being read, taken on to this token
+def wrap.extend(cur: Maybe<&2, Wrap.Span>, +ln: U32, +cl: U32) -> Maybe<&2, Wrap.Span>:
+  match cur:
+    case None{}:
+      Some{Wrap.Span{ln, ln, cl}}
+    case Some{Wrap.Span{line, _end, col}}:
+      Some{Wrap.Span{line, ln, col}}
+
+# the parameter being read, onto those read
+def wrap.close(cur: Maybe<&2, Wrap.Span>, done: List<&2, Wrap.Span>) -> List<&2, Wrap.Span>:
+  match cur:
+    case None{}:
+      done
+    case Some{sp}:
+      sp <> done
+
+# new depths; inside the list the token joins the parameter being read
+def wrap.join(
+  at: Wrap.Phase,
+  paren: U32,
+  bracket: U32,
+  brace: U32,
+  angle: U32,
+  open: U32,
+  shut: U32,
+  cur: Maybe<&2, Wrap.Span>,
+  done: List<&2, Wrap.Span>,
+  +ln: U32,
+  +cl: U32
+) -> wrap.Read:
+  match at:
+    case Wrap.Args{}:
+      wrap.Read{Wrap.Args{}, paren, bracket, brace, angle, open, shut, wrap.extend(cur, ln, cl), done}
+    case Wrap.Seek{}:
+      wrap.Read{Wrap.Seek{}, paren, bracket, brace, angle, open, shut, cur, done}
+    case Wrap.Past{}:
+      wrap.Read{Wrap.Past{}, paren, bracket, brace, angle, open, shut, cur, done}
+
+# a significant token's motion applied to the read, the token on line ln at
+# column cl, closing ticks angles if it closes any
+def wrap.move(
+  act: Wrap.Act,
+  at: Wrap.Phase,
+  +paren: U32,
+  +bracket: U32,
+  +brace: U32,
+  +angle: U32,
+  open: U32,
+  shut: U32,
+  cur: Maybe<&2, Wrap.Span>,
+  done: List<&2, Wrap.Span>,
+  +ln: U32,
+  +cl: U32,
+  ticks: Nat
+) -> wrap.Read:
+  match act:
+    case Wrap.AOpen{}:
+      wrap.Read{Wrap.Args{}, 1, bracket, brace, angle, ln, 0, None{}, done}
+    case Wrap.AEnd{}:
+      wrap.Read{Wrap.Past{}, wrap.less(paren), bracket, brace, angle, open, ln, None{}, wrap.close(cur, done)}
+    case Wrap.AComma{}:
+      wrap.Read{at, paren, bracket, brace, angle, open, shut, None{}, wrap.close(cur, done)}
+    case Wrap.AParen{}:
+      wrap.join(at, (paren + 1 : U32), bracket, brace, angle, open, shut, cur, done, ln, cl)
+    case Wrap.AUnparen{}:
+      wrap.join(at, wrap.less(paren), bracket, brace, angle, open, shut, cur, done, ln, cl)
+    case Wrap.ABrack{}:
+      wrap.join(at, paren, (bracket + 1 : U32), brace, angle, open, shut, cur, done, ln, cl)
+    case Wrap.AUnbrack{}:
+      wrap.join(at, paren, wrap.less(bracket), brace, angle, open, shut, cur, done, ln, cl)
+    case Wrap.ABrace{}:
+      wrap.join(at, paren, bracket, (brace + 1 : U32), angle, open, shut, cur, done, ln, cl)
+    case Wrap.AUnbrace{}:
+      wrap.join(at, paren, bracket, wrap.less(brace), angle, open, shut, cur, done, ln, cl)
+    case Wrap.AAngle{}:
+      wrap.join(at, paren, bracket, brace, (angle + 1 : U32), open, shut, cur, done, ln, cl)
+    case Wrap.AUnangle{}:
+      wrap.join(at, paren, bracket, brace, wrap.lower(ticks, angle), open, shut, cur, done, ln, cl)
+    case Wrap.ANone{}:
+      wrap.join(at, paren, bracket, brace, angle, open, shut, cur, done, ln, cl)
+
+# one token onto the read; a space, a newline or a comment changes nothing
+def wrap.step(+tok: Lex.Tok, +rd: wrap.Read, glued: Bool) -> wrap.Read:
+  Lex.Tok{+kk, +tx, +ln, +cl} = tok
+  wrap.Read{+at, +paren, +bracket, +brace, +angle, +open, +shut, +cur, +done} = rd
+  Bool.pick(wrap.Read, Lex.significant(kk),
+    wrap.move(wrap.motion(at, kk, tx, glued, paren, bracket, brace, angle), at, paren, bracket, brace, angle, open,
+      shut, cur, done, ln, cl, Wrap.check.ticks_of(tx)),
+    wrap.Read{at, paren, bracket, brace, angle, open, shut, cur, done})
+
+# the tokens read in order, each glued when the token before it is a name;
+# at the end the parameter being read is done
+def wrap.run(toks: List<&2, Lex.Tok>, rd: wrap.Read, glued: Bool) -> wrap.Read:
+  match toks:
+    case Nil{}:
+      wrap.Read{at, paren, bracket, brace, angle, open, shut, cur, done} = rd
+      wrap.Read{at, paren, bracket, brace, angle, open, shut, None{}, wrap.close(cur, done)}
+    case Con{+tok, rest}:
+      Lex.Tok{+kk, _tx, _ln, _cl} = tok
+      wrap.run(rest, wrap.step(tok, rd, glued), Lex.is_name(kk))
+
+# some parameter of the list starts on the line
+def wrap.starts_on(ps: List<&2, Wrap.Span>, +ln: U32) -> Bool:
+  match ps:
+    case Nil{}:
+      False{}
+    case Con{Wrap.Span{+line, _end, _col}, rest}:
+      Bool.or(U32.is_eq(line, ln), wrap.starts_on(rest, ln))
+
+# some parameter, in source order, spans lines, starts on the `(` line, or
+# starts on the line a later one starts on
+def wrap.misplaced(ps: List<&2, Wrap.Span>, +open: U32) -> Bool:
+  match ps:
+    case Nil{}:
+      False{}
+    case Con{Wrap.Span{+line, +end, _col}, +rest}:
+      Bool.or(Bool.or(Bool.not(U32.is_eq(line, end)), Bool.or(U32.is_eq(line, open), wrap.starts_on(rest, line))),
+        wrap.misplaced(rest, open))
+
+# the last parameter (the first of those read, last first) does not end on a
+# line above the `)` line
+def wrap.tight(ps: List<&2, Wrap.Span>, +shut: U32) -> Bool:
+  match ps:
+    case Nil{}:
+      False{}
+    case Con{Wrap.Span{_line, +end, _col}, _rest}:
+      Bool.not(U32.is_lt(end, shut))
+
+# the list closed, and its `)` is not on a line below the last parameter's
+def wrap.cramped(at: Wrap.Phase, +shut: U32, done: List<&2, Wrap.Span>) -> Bool:
+  match at:
+    case Wrap.Past{}:
+      wrap.tight(done, shut)
+    case Wrap.Seek{}:
+      False{}
+    case Wrap.Args{}:
+      False{}
+
+# a header read to its end is misshapen: a parameter misplaced, or the list
+# cramped
+def wrap.bad_shape(rd: wrap.Read) -> Bool:
+  wrap.Read{at, _paren, _bracket, _brace, _angle, +open, +shut, _cur, +done} = rd
+  Bool.or(wrap.misplaced(List.reverse(&2, Wrap.Span, done), open), wrap.cramped(at, shut, done))
+
+# a broken header's tokens are misshapen
+def wrap.shape(toks: List<&2, Lex.Tok>) -> Bool:
+  wrap.bad_shape(wrap.run(toks, wrap.start(), False{}))
+
+# LAW: over the tokens of a broken header, wrap reports one finding when a
+# parameter spans lines, starts on the `(` line or on another parameter's
+# line, or the list's `)` is not on a line below the last parameter, and
+# none otherwise
+# BOLT-RULE-S003
+law wrap_shape_counts:
+  for toks: List<&2, Lex.Tok>
+  for +line: U32
+  for +path: String
+  {List.length(&2, F.Finding, Wrap.check.jam(line, toks, path, [])) == Bool.pick(Nat, wrap.shape(toks), 1n, 0n) : Nat}
+
+# a header is misshapen: across lines by its parameter list, on one line by
+# a width over 120
+def wrap.bad(+sig: String) -> Bool:
+  Bool.pick(Bool, String.contains(sig, "\n"), wrap.shape(Lex.tokens(sig)), U32.is_gt(wrap.width(Lex.tokens(sig)), 120))
+
+# how many items of the outline are def headers that are misshapen
+def wrap.count(items: List<&2, Outline.Item>) -> Nat:
+  match items:
+    case Nil{}:
+      0n
+    case Con{Outline.Item{kk, _name, _line, +sig, _doc, _pp}, rest}:
+      +m = wrap.count(rest)
+      Bool.pick(Nat, Bool.and(Outline.is_def(kk), wrap.bad(sig)), 1n+m, m)
+
+# LAW: wrap reports exactly one finding for each def header of the outline
+# that is misshapen, and none for anything else
+# BOLT-RULE-S003
+law wrap_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Wrap.check(Src.Src{path, text, toks, tree, bound, items})) == wrap.count(items) : Nat}
 
 # coverage (BOLT-LAW-1). The rule reads the digests of the files in the run
 # (bolt/rules/digest.bend), and so do these laws: they hold for every list of
