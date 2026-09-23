@@ -35,16 +35,20 @@ proves BOLT-LSP-1 over every body: the count is the body's UTF-8 bytes, every
 proper prefix of a message waits, and a message cuts back to its body),
 `report.bend` (the checker's text to diagnostics),
 `proto.bend` (the JSON the server sends; URI to path), `docs.bend` (the open
-documents, the loop's state), `path.bend`, and `nav.bend`: a name `Alias.rest`
-is `rest` in the file behind the import `Alias`; any other name is an item of
-the document, or else of Base. Items come from [syntax](../../syntax/)'s outline,
+documents, the loop's state), `path.bend`, and `nav.bend`: a use is answered
+as [syntax](../../syntax/)'s binder resolves it (BOLT-SYN-5): a binder of the
+document, else an item of the document (`def Lib.f` wins over the import
+`Lib`), else `rest` in the file behind the import `Alias` of `Alias.rest`,
+else Base (BOLT-LSP-6 in `LAWS.bend`). Items come from [syntax](../../syntax/)'s outline,
 so navigation works in files that do not check, and sees unsaved edits.
 
 ## What the checker gives
 
 - `bend <path> --check-only` checks the file and its imports and never runs
-  `main`. The server must not execute the file being edited;
-  `tests/checker.bend` holds that (a live `bend --check-only`).
+  `main`. The server must not execute the file being edited. Which runs the
+  checker makes is data (`checker/argv.bend`), so `LAWS.bend` proves every
+  one carries `--check-only` (BOLT-LSP-5); that bend honours the flag is
+  BOLT-TRUST-5, and `tests/checker.bend` runs a live `bend --check-only`.
 - The report is text for people, parsed from bend's output
   (BOLT-TRUST-5 in SPEC.md): an update that changes the format breaks it.
 - A `LAWS.bend` alone always has open laws, since `PROOF.bend` beside it fills
@@ -65,6 +69,12 @@ findings are exactly what `bolt <path>` grades for that file and text
 (BOLT-LSP-2, `LAWS.bend` `lint_is_cli`). What open, change, save and close
 publish is decided by server.bend's `pub.*`, pure over the checker's errors and
 the texts the files hold, and `LAWS.bend` states it (BOLT-LSP-4).
+
+Positions follow LSP 3.17's `positionEncoding`: initialize answers `utf-32`
+when the client offers it and `utf-16` otherwise, and `enc.bend` converts
+every character offset read or sent between bolt's code-point columns and
+the negotiated encoding (a char past U+FFFF is two UTF-16 units). On a line
+with no such char the two agree (BOLT-LSP-7 in `LAWS.bend`).
 
 Completion offers what could finish the name being typed: `Alias.pre` from the
 file behind the alias; anything else from the document, its aliases and (once

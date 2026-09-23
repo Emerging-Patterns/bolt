@@ -1,5 +1,6 @@
-// bendcheck.exec: runs `bend <path> --check-only` and answers a tag (how the
-// run went, below), then everything it printed. --check-only checks the file and its imports and never runs
+// bendcheck.exec: runs `bend <path> <flag>` (the flag argv.bend's, always
+// --check-only) and answers a tag (how the run went, below), then everything
+// it printed. --check-only checks the file and its imports and never runs
 // main: a language server must not execute the file being edited. The child
 // gets /dev/null for stdin and a pipe for stdout and stderr, so it cannot
 // touch the server's own stdio, which is the protocol.
@@ -18,6 +19,8 @@
 Term bendcheck_exec_run(Env e, Term* f, IoWork* w) {
   uint64_t n = 0;
   char* path = io_cstr(e, f[0], &n);
+  uint64_t fn = 0;
+  char* flag = io_cstr(e, f[1], &fn);
   // buf[0] is the tag (bend.bend's bendcheck.exec): 'r' ran and exited, 's'
   // killed by a signal, 'x' could not be run (no pipe, no fork, or exit 127,
   // which the child exits with when exec fails)
@@ -35,7 +38,7 @@ Term bendcheck_exec_run(Env e, Term* f, IoWork* w) {
       dup2(fds[1], 2);
       close(fds[0]);
       close(fds[1]);
-      execlp("bend", "bend", path, "--check-only", (char*)NULL);
+      execlp("bend", "bend", path, flag, (char*)NULL);
       _exit(127);
     }
     close(fds[1]);
@@ -63,6 +66,7 @@ Term bendcheck_exec_run(Env e, Term* f, IoWork* w) {
     }
   }
   free(path);
+  free(flag);
   buf[0] = tag;
   Term s = io_str(e, buf, len);
   free(buf);

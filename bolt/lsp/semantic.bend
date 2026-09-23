@@ -7,6 +7,7 @@
 import Base
 import ../../syntax/lex.bend as Lex
 import ../../syntax/bind.bend as Bind
+import ./enc.bend as Enc
 
 # the legend, by index: keyword 0, function 1, type 2, enumMember 3,
 # parameter 4, variable 5, property 6, string 7, number 8, comment 9,
@@ -238,6 +239,28 @@ def classify(toks: List<&2, Lex.Tok>, cur: Cursor, +all: List<&2, Bind.Bind>) ->
       +st = of_tok(k, cur, all, t, l, c, opens_brace(rest))
       put(typ_of(st), l, c, U32.from_nat(String.length(t)), classify(rest, cur_of(st), all))
 
+# a token's column and length in an encoding, on its line's chars
+def sent.one(+ee: Enc.Enc, +cs: List<&2, Char>, sem: Sem) -> Sem:
+  Sem{line, +col, +len, typ} = sem
+  +start = Enc.out.col(ee, cs, col)
+  Sem{line, start, (Enc.out.col(ee, cs, (col + len : U32)) - start : U32), typ}
+
+# the lines from a token's line on, from lines that start at line cur
+def sent.seek(lines: List<&2, String>, cur: U32, line: U32) -> List<&2, String>:
+  List.drop(&2, String, lines, U32.to_nat((line - cur : U32)))
+
+# the tokens, in order, with columns and lengths in the negotiated encoding
+# (enc.bend's out.col); lines starts at line cur, and the tokens never go
+# back a line
+def sent(sems: List<&2, Sem>, +ee: Enc.Enc, lines: List<&2, String>, cur: U32) -> List<&2, Sem>:
+  match sems:
+    case Nil{}:
+      Nil{}
+    case Con{Sem{+line, col, len, typ}, rest}:
+      +here = sent.seek(lines, cur, line)
+      +cs = String.to_list(Maybe.default(&2, String, List.head(&2, String, here), ""))
+      sent.one(ee, cs, Sem{line, col, len, typ}) <> sent(rest, ee, here, line)
+
 # LSP's encoding: five numbers a token, positions relative to the previous
 # token (a line delta, and a column delta on the same line, absolute on a new
 # one)
@@ -250,10 +273,11 @@ def encode(sems: List<&2, Sem>, +pl: U32, +pc: U32) -> List<&2, U32>:
       +dcol = Bool.pick(U32, same, (col - pc : U32), col)
       (line - pl : U32) <> (dcol <> (len <> (typ <> (0 <> encode(rest, line, col)))))
 
-def data.of(bb: Bind.Bound, toks: List<&2, Lex.Tok>) -> List<&2, U32>:
+def data.of(ee: Enc.Enc, +lines: List<&2, String>, bb: Bind.Bound, toks: List<&2, Lex.Tok>) -> List<&2, U32>:
   Bind.Bound{+binds, uses, scopes} = bb
-  encode(classify(toks, Cursor{binds, uses}, binds), 0, 0)
+  encode(sent(classify(toks, Cursor{binds, uses}, binds), ee, lines, 0), 0, 0)
 
-# a document's semantic tokens, encoded
-def data(+text: String) -> List<&2, U32>:
-  data.of(Bind.bound(text), Lex.tokens(text))
+# a document's semantic tokens, encoded, their columns and lengths in the
+# negotiated encoding
+def data(ee: Enc.Enc, +text: String) -> List<&2, U32>:
+  data.of(ee, String.lines(text), Bind.bound(text), Lex.tokens(text))
