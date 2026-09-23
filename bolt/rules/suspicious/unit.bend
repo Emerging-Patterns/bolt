@@ -4,7 +4,9 @@
 # `U32.mul` / `F32.mul` or `.div`, does nothing when an operand is one
 # (`/` only when the divisor is). Drop the operation. Any other factor or
 # divisor is left alone, and so is a base case or a def that does not call
-# itself. Laws and proofs do not run.
+# itself. A base case is a case arm that does not call the def; the arms are
+# judged per `case` only, so a `Bool.pick` branch beside a self-call is still
+# the recursive step. Laws and proofs do not run.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
@@ -144,22 +146,23 @@ def first_tok(nn: Tree.Node) -> Maybe<&2, Lex.Tok>:
     case other:
       None{}
 
-# `*` / `/` by one, and the same through calls, in a hot region
+# `*` / `/` by one, and the same through calls, in a hot region; an operator
+# is checked before a `(` after it is taken for a call
 def walk(nn: Tree.Node, +prev: Maybe<&2, Lex.Tok>, +self: String, +path: String, +hot: Bool) -> List<&2, F.Finding>:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}}, +rest}:
       walk(rest, None{}, self, path, False{})
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +t, l, c}}, +rest}:
+      +nxt = first_tok(rest)
+      +hit = Bool.and(hot, identity(t, prev, nxt))
+      +more = walk(rest, None{}, self, path, hot)
+      List.append(&2, F.Finding, Bool.pick(List<&2, F.Finding>, hit, cite(which(t, prev, nxt), path), []), more)
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +call = String.eq(o, "(")
       +own = own_of(call, t, kids, path, hot)
       +inner = walk(kids, None{}, self, path, hot)
       +after = walk(rest, None{}, self, path, hot)
       List.concat(&2, F.Finding, [inner, own, after])
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +t, l, c}}, +rest}:
-      +nxt = first_tok(rest)
-      +hit = Bool.and(hot, identity(t, prev, nxt))
-      +more = walk(rest, None{}, self, path, hot)
-      List.append(&2, F.Finding, Bool.pick(List<&2, F.Finding>, hit, cite(which(t, prev, nxt), path), []), more)
     case Tree.NCons{Tree.Leaf{tok}, +rest}:
       walk(rest, Some{tok}, self, path, hot)
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
