@@ -2,7 +2,8 @@
 # (`wrap`); a diagnostic shows the code (`S003`) and, in an editor, the
 # source `bolt(group:slug)`. Numbers are assigned once, in the group order
 # of bolt/README.md: do not renumber a rule, and do not reuse a retired code
-# (L004 was `quantify`, now `closed` itself).
+# (L004 was `quantify`, now `closed` itself; C001 was `shadow`, whose failure
+# bend 2.0.25 no longer has).
 import Base
 import ../lazy/lazy.bend as Lazy
 
@@ -13,7 +14,6 @@ type Entry is Data:
 # every rule, in group order
 def table() -> List<&2, Entry>:
   [
-    Entry{"shadow", "C001", "correctness"},
     Entry{"hole", "C002", "correctness"},
     Entry{"pick", "C003", "correctness"},
     Entry{"put", "C004", "correctness"},

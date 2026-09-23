@@ -46,7 +46,7 @@ unset group has its default. The groups:
 
 | group         | rules                                                                            | default |
 |---------------|----------------------------------------------------------------------------------|---------|
-| `correctness` | `shadow` `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign` | error   |
+| `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign`          | error   |
 | `suspicious`  | `unused` `strict` `eager` `concat` `nat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` | warn    |
 | `style`       | `doc` `space` `wrap` `param`                                                     | warn    |
 | `laws`        | `coverage` `closed` `unsafe` (`trace`: opt-in)                                   | warn    |
@@ -56,7 +56,7 @@ The stable codes, assigned once (do not renumber):
 
 | code | rule | code | rule | code | rule |
 |------|------|------|------|------|------|
-| C001 | `shadow` | U001 | `unused` | S001 | `doc` |
+| C001 | retired | U001 | `unused` | S001 | `doc` |
 | C002 | `hole` | U002 | `strict` | S002 | `space` |
 | C003 | `pick` | U003 | `eager` | S003 | `wrap` |
 | C004 | `put` | U004 | `concat` | S004 | `param` |
@@ -115,10 +115,6 @@ beside the groups.
   a law's `for` names, and every parameter of a foreign def, one whose body
   starts with `import` (its C and JS read them), however its header is
   wrapped.
-- `shadow` — a let or a pattern binds a name that a def above it in the file
-  already has. When the file is imported, Bend reads the name as the def and
-  the binder fails ("a pattern (a binder or a constructor)"). Parameters and
-  `for` names are declared, not parsed as terms, and are safe.
 - `hole` — a TODO hole left in code, the one bend counts in "N TODO found":
   `?` and then `TODO`, with spaces, newlines or comments allowed between
   (`?TODO`, `? TODO`). `?todo` and `?TODO_later` are other names, a type
