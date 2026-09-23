@@ -3568,16 +3568,6 @@ def Laws.uses(name, line, col, env, its, als, binds, us, scopes):
 # the environment the walk threads (BOLT-SYN-5)
 # ---------------------------------------------
 
-def Laws.fronts(_name, _line, _col, _kind, _env, out):
-  match out:
-    case Bind.Out{_b, _u, _s}:
-      {==}
-
-def Laws.fronts_decl(name, _line, _col, _kind, quantity, rest, _env, out):
-  match out:
-    case Bind.Out{_b, _u, _s}:
-      (quantity ++ name ++ Bind.render(rest), {==})
-
 def Laws.restores(kk, kids, body, rest, env, ns, out, e):
   match kk:
     case Tree.SDef{}:
@@ -3591,7 +3581,8 @@ def Laws.restores(kk, kids, body, rest, env, ns, out, e):
       +h = Bind.walk(kids, Bind.MHead{}, env, ns, out)
       (Bind.out_of(Bind.walk(body, Bind.MBlock{}, Bind.env_of(h), ns, Bind.out_of(h))), {==})
     case Tree.SImport{}:
-      (out, {==})
+      +h = Bind.walk(kids, Bind.MStop{}, env, ns, out)
+      (Bind.out_of(Bind.walk(body, Bind.MStop{}, Bind.env_of(h), ns, Bind.out_of(h))), {==})
     case Tree.SCase{}:
       +p = Bind.walk(kids, Bind.MLhs{env, Bind.KPat{}}, env, ns, Bind.mark(Tree.line(kids), env, out))
       (Bind.out_of(Bind.walk(body, Bind.MBlock{}, Bind.env_of(p), ns, Bind.out_of(p))), {==})
@@ -3611,3 +3602,247 @@ def Laws.groups(open, gkids, _close, _rest, env, ns, out):
   match open:
     case Lex.Tok{_k, _t, _l, _c}:
       (Bind.out_of(Bind.walk(gkids, Bind.MTerm{}, env, ns, out)), {==})
+
+# the environment big is small with binders put in front
+def rs.Ext(big: List<&2, Bind.Bind>, small: List<&2, Bind.Bind>) -> Type:
+  &x: List<&2, Bind.Bind> -> {big == List.append(&2, Bind.Bind, x, small) : List<&2, Bind.Bind>}
+
+# appending binders is associative
+law rs.app:
+  for +a: List<&2, Bind.Bind>
+  for +b: List<&2, Bind.Bind>
+  for +c: List<&2, Bind.Bind>
+  {List.append(&2, Bind.Bind, List.append(&2, Bind.Bind, a, b), c)
+    == List.append(&2, Bind.Bind, a, List.append(&2, Bind.Bind, b, c)) : List<&2, Bind.Bind>}
+
+def rs.app(a, b, c):
+  match a:
+    case Nil{}:
+      {==}
+    case Con{+h, +t}:
+      Equal.cong(List<&2, Bind.Bind>, List<&2, Bind.Bind>, x => h <> x,
+        List.append(&2, Bind.Bind, List.append(&2, Bind.Bind, t, b), c),
+        List.append(&2, Bind.Bind, t, List.append(&2, Bind.Bind, b, c)), rs.app(t, b, c))
+
+# binders in front of binders in front of an environment are binders in front
+# of it
+law rs.chain:
+  for +env: List<&2, Bind.Bind>
+  for +env1: List<&2, Bind.Bind>
+  for +env2: List<&2, Bind.Bind>
+  for w1: rs.Ext(env1, env)
+  for w2: rs.Ext(env2, env1)
+  rs.Ext(env2, env)
+
+def rs.chain(env, env1, env2, w1, w2):
+  (x1, e1) = w1
+  (x2, e2) = w2
+  +a = {x1 : List<&2, Bind.Bind>}
+  +b = {x2 : List<&2, Bind.Bind>}
+  (List.append(&2, Bind.Bind, b, a),
+    Equal.trans(List<&2, Bind.Bind>, env2, List.append(&2, Bind.Bind, b, env1),
+      List.append(&2, Bind.Bind, List.append(&2, Bind.Bind, b, a), env), e2,
+      Equal.trans(List<&2, Bind.Bind>, List.append(&2, Bind.Bind, b, env1),
+        List.append(&2, Bind.Bind, b, List.append(&2, Bind.Bind, a, env)),
+        List.append(&2, Bind.Bind, List.append(&2, Bind.Bind, b, a), env),
+        Equal.cong(List<&2, Bind.Bind>, List<&2, Bind.Bind>, y => List.append(&2, Bind.Bind, b, y),
+          env1, List.append(&2, Bind.Bind, a, env), e1),
+        Equal.sym(List<&2, Bind.Bind>, List.append(&2, Bind.Bind, List.append(&2, Bind.Bind, b, a), env),
+          List.append(&2, Bind.Bind, b, List.append(&2, Bind.Bind, a, env)), rs.app(b, a, env)))))
+
+# no binder in front
+law rs.same:
+  for +env: List<&2, Bind.Bind>
+  rs.Ext(env, env)
+
+def rs.same(_env):
+  ([], {==})
+
+# after a leaf: at a let's `=` the walk hands back the environment it had;
+# anything else it read the rest with, the leaf's binder in front when it
+# pushed one
+law rs.leaf:
+  for +kp: Bool
+  for +ou: List<&2, Bind.Bind>
+  for +ps: Bool
+  for +bb: Bind.Bind
+  for +env: List<&2, Bind.Bind>
+  for +x: List<&2, Bind.Bind>
+  rs.Ext(x, Bind.plan.enter(kp, ou, ps, bb, env)) -> rs.Ext(Bool.pick(List<&2, Bind.Bind>, kp, env, x), env)
+
+def rs.leaf(kp, _ou, ps, bb, env, x):
+  match kp:
+    case True{}:
+      _ih => rs.same(env)
+    case False{}:
+      match ps:
+        case True{}:
+          ih => rs.chain(env, bb <> env, x, ([bb], {==}), ih)
+        case False{}:
+          ih => ih
+
+# the environment after a group or a statement's header, when it is kept
+law rs.kept:
+  for +b: Bool
+  for +x: List<&2, Bind.Bind>
+  for +env: List<&2, Bind.Bind>
+  rs.Ext(x, env) -> rs.Ext(Bool.pick(List<&2, Bind.Bind>, b, x, env), env)
+
+def rs.kept(b, _x, env):
+  match b:
+    case True{}:
+      w => w
+    case False{}:
+      _w => rs.same(env)
+
+# the environment after a statement's header, unless it closes its scope
+law rs.scoped:
+  for +b: Bool
+  for +x: List<&2, Bind.Bind>
+  for +env: List<&2, Bind.Bind>
+  rs.Ext(x, env) -> rs.Ext(Bool.pick(List<&2, Bind.Bind>, b, env, x), env)
+
+def rs.scoped(b, _x, env):
+  match b:
+    case True{}:
+      _w => rs.same(env)
+    case False{}:
+      w => w
+
+def Laws.extends(nn, mode, env, ns, out):
+  match nn:
+    case Tree.NCons{hd, +rest}:
+      match hd:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              +keep = Bind.plan.keep(mode, k)
+              +bb = Bind.plan.binder(mode, k, t, l, c, rest)
+              +o1 = Bind.plan.recorded(Bind.plan.rec(mode, k, rest), bb, out)
+              +o2 = Bind.plan.used(Bind.plan.use(mode, k, rest), t, l, c, env, ns, o1)
+              +ps = Bind.plan.push(mode, k, rest)
+              +ou = Bind.plan.outer(mode)
+              +e2 = Bind.plan.enter(keep, ou, ps, bb, env)
+              +r = Bind.walk(rest, Bind.plan.lmode(mode, k, rest), e2, ns, o2)
+              rs.leaf(keep, ou, ps, bb, env, Bind.env_of(r))(
+                Laws.extends(rest, Bind.plan.lmode(mode, k, rest), e2, ns, o2))
+        case Tree.Group{open, gkids, _close}:
+          match open:
+            case Lex.Tok{_gk, +gt, _gl, _gc}:
+              +g = Bind.walk(gkids, Bind.plan.ginner(mode, gt), env, ns, out)
+              +e2 = Bool.pick(List<&2, Bind.Bind>, Bind.plan.gkeeps(mode), Bind.env_of(g), env)
+              rs.chain(env, e2, Bind.env_of(Bind.walk(rest, Bind.plan.gnext(mode), e2, ns, Bind.out_of(g))),
+                rs.kept(Bind.plan.gkeeps(mode), Bind.env_of(g), env)(
+                  Laws.extends(gkids, Bind.plan.ginner(mode, gt), env, ns, out)),
+                Laws.extends(rest, Bind.plan.gnext(mode), e2, ns, Bind.out_of(g)))
+        case Tree.Stmt{+sk, +kids, body}:
+          +o1 = Bind.plan.marked(Bind.plan.mark_head(mode, sk), Tree.line(kids), env, out)
+          +h = Bind.walk(kids, Bind.plan.kmode(mode, sk, env), env, ns, o1)
+          +b = Bind.walk(body, Bind.plan.bmode(mode, sk), Bind.env_of(h), ns,
+            Bind.plan.marked(Bind.plan.mark_body(mode, sk), Tree.line(kids), Bind.env_of(h), Bind.out_of(h)))
+          +e3 = Bool.pick(List<&2, Bind.Bind>, Bind.plan.scoped(mode, sk), env, Bind.env_of(h))
+          rs.chain(env, e3, Bind.env_of(Bind.walk(rest, Bind.plan.snext(mode), e3, ns, Bind.out_of(b))),
+            rs.scoped(Bind.plan.scoped(mode, sk), Bind.env_of(h), env)(
+              Laws.extends(kids, Bind.plan.kmode(mode, sk, env), env, ns, o1)),
+            Laws.extends(rest, Bind.plan.snext(mode), e3, ns, Bind.out_of(b)))
+        case Tree.NNil{}:
+          Laws.extends(rest, Bind.plan.skip(mode), env, ns, out)
+        case Tree.NCons{_a, _b}:
+          Laws.extends(rest, Bind.plan.skip(mode), env, ns, out)
+    case Tree.NNil{}:
+      rs.same(env)
+    case Tree.Leaf{_tok}:
+      rs.same(env)
+    case Tree.Group{_o, _g, _cl}:
+      rs.same(env)
+    case Tree.Stmt{_sk, _kids, _body}:
+      rs.same(env)
+
+# binders in front, one binder further in: the one here when it has the name
+law rs.shadows.arm:
+  for +b: Bool
+  for +bb: Bind.Bind
+  for -front: List<&2, Bind.Bind>
+  for -all: List<&2, Bind.Bind>
+  for +behind: Maybe<&2, Bind.Bind>
+  for ih: {List.head(&2, Bind.Bind, all) == Laws.res.first(List.head(&2, Bind.Bind, front), behind)
+    : Maybe<&2, Bind.Bind>}
+  {List.head(&2, Bind.Bind, Bool.pick(List<&2, Bind.Bind>, b, bb <> all, all))
+    == Laws.res.first(List.head(&2, Bind.Bind, Bool.pick(List<&2, Bind.Bind>, b, bb <> front, front)), behind)
+    : Maybe<&2, Bind.Bind>}
+
+def rs.shadows.arm(b, _bb, _front, _all, _behind, ih):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      ih
+
+def Laws.shadows(ext, env, name):
+  match ext:
+    case Nil{}:
+      {==}
+    case Con{Bind.Bind{+n, +l, +c, +k, +note}, +t}:
+      rs.shadows.arm(String.eq(n, name), Bind.Bind{n, l, c, k, note}, Laws.res.all(t, name),
+        Laws.res.all(List.append(&2, Bind.Bind, t, env), name), List.head(&2, Bind.Bind, Laws.res.all(env, name)),
+        Laws.shadows(t, env, name))
+
+# a let's or a `for`'s header, as binders in front, carried to what follows
+law rs.lets.arm:
+  for +rest: Tree.Node
+  for +env: List<&2, Bind.Bind>
+  for +ns: Bind.Names
+  for +hv: List<&2, Bind.Bind>
+  for +o: Bind.Out
+  for w: rs.Ext(hv, env)
+  exs ext: List<&2, Bind.Bind>
+  exs o2: Bind.Out
+  {Bind.walk(rest, Bind.MBlock{}, hv, ns, o)
+    == Bind.walk(rest, Bind.MBlock{}, List.append(&2, Bind.Bind, ext, env), ns, o2) : Bind.W}
+
+def rs.lets.arm(rest, env, ns, hv, o, w):
+  (x, e) = w
+  +xs = {x : List<&2, Bind.Bind>}
+  (xs, o, Equal.cong(List<&2, Bind.Bind>, Bind.W, y => Bind.walk(rest, Bind.MBlock{}, y, ns, o),
+    hv, List.append(&2, Bind.Bind, xs, env), e))
+
+# what `lets` claims of a statement of kind kk
+def rs.lets.ty(
+  kk: Tree.StmtKind,
+  kids: Tree.Node,
+  body: Tree.Node,
+  +rest: Tree.Node,
+  +env: List<&2, Bind.Bind>,
+  +ns: Bind.Names,
+  out: Bind.Out
+) -> Type:
+  (&ext: List<&2, Bind.Bind> -> &o: Bind.Out
+    -> {Bind.walk(Tree.NCons{Tree.Stmt{kk, kids, body}, rest}, Bind.MBlock{}, env, ns, out)
+      == Bind.walk(rest, Bind.MBlock{}, List.append(&2, Bind.Bind, ext, env), ns, o) : Bind.W})
+
+def Laws.lets(kk, kids, body, rest, env, ns, out, e):
+  match kk:
+    case Tree.SFor{}:
+      +o1 = Bind.mark(Tree.line(kids), env, out)
+      +h = Bind.walk(kids, Bind.MLhs{env, Bind.KFor{}}, env, ns, o1)
+      rs.lets.arm(rest, env, ns, Bind.env_of(h),
+        Bind.out_of(Bind.walk(body, Bind.MBlock{}, Bind.env_of(h), ns, Bind.out_of(h))),
+        Laws.extends(kids, Bind.MLhs{env, Bind.KFor{}}, env, ns, o1))
+    case Tree.SLet{}:
+      +o1 = Bind.mark(Tree.line(kids), env, out)
+      +h = Bind.walk(kids, Bind.MLhs{env, Bind.KLocal{}}, env, ns, o1)
+      rs.lets.arm(rest, env, ns, Bind.env_of(h),
+        Bind.out_of(Bind.walk(body, Bind.MBlock{}, Bind.env_of(h), ns, Bind.out_of(h))),
+        Laws.extends(kids, Bind.MLhs{env, Bind.KLocal{}}, env, ns, o1))
+    case Tree.SDef{}:
+      Empty.absurd(rs.lets.ty(Tree.SDef{}, kids, body, rest, env, ns, out), true_false(e))
+    case Tree.SType{}:
+      Empty.absurd(rs.lets.ty(Tree.SType{}, kids, body, rest, env, ns, out), true_false(e))
+    case Tree.SLaw{}:
+      Empty.absurd(rs.lets.ty(Tree.SLaw{}, kids, body, rest, env, ns, out), true_false(e))
+    case Tree.SImport{}:
+      Empty.absurd(rs.lets.ty(Tree.SImport{}, kids, body, rest, env, ns, out), true_false(e))
+    case Tree.SCase{}:
+      Empty.absurd(rs.lets.ty(Tree.SCase{}, kids, body, rest, env, ns, out), true_false(e))
+    case Tree.STerm{}:
+      Empty.absurd(rs.lets.ty(Tree.STerm{}, kids, body, rest, env, ns, out), true_false(e))
