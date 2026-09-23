@@ -400,7 +400,9 @@ def renamed(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String, 
     +line : U32 = line_of(params)
     +col : U32 = col_in(cc, params)
     s : Nav.Sites <- Nav.sites(~fs, docs, uri, line, col)
-    return Work{[], rename.of(cc, s, uri, Word.at(text, line, col), Maybe.default(&2, String, J.as_str(J.get(params, "newName")), "")), docs}
+    return Work{[],
+      rename.of(cc, s, uri, Word.at(text, line, col), Maybe.default(&2, String, J.as_str(J.get(params, "newName")), "")),
+      docs}
 
 # the document's semantic tokens
 def semantic(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, uri: String) -> IO(Work):
