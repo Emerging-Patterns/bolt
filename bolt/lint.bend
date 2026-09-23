@@ -1,5 +1,6 @@
 # bolt/lint: the interpreter for `bolt` itself. It starts from a World
-# holding the paths it was given (bolt/lint/world.bend), then loops: it asks
+# holding the paths it was given and the working directory
+# (bolt/lint/world.bend), then loops: it asks
 # the planner (bolt/lint/plan.bend) what is still open, answers each question
 # by IO, a directory listed through bolt/walk/ and a file read through
 # bolt/lsp/files/, and adds the answers to the World, until nothing is left to
@@ -15,6 +16,7 @@ import ./lsp/files/disk.bend as Disk
 import ./walk/service.bend as Walk
 import ./walk/disk.bend as WalkDisk
 import ./status.bend as Status
+import ../lazy/lazy.bend as Lazy
 
 # a file's text as an answer
 def read.answer(mm: Maybe<&2, String>) -> W.Answer:
@@ -49,8 +51,8 @@ def answer.all(asks: List<&2, W.Ask>) -> IO(List<&2, W.Reply>):
 
 # the World with more answers in it
 def more(world: W.World, rs: List<&2, W.Reply>) -> W.World:
-  W.World{paths, replies} = world
-  W.World{paths, List.append(&2, W.Reply, replies, rs)}
+  W.World{paths, cwd, replies} = world
+  W.World{paths, cwd, List.append(&2, W.Reply, replies, rs)}
 
 # each line printed
 def print_all(lines: List<&2, String>) -> IO(Unit):
@@ -90,6 +92,14 @@ def loop(fuel: Nat, +world: W.World) -> IO(Unit):
     case 1n+f:
       loop.step(Plan.wants(world), world, ww => loop(f, ww))
 
+# the lint from a working directory; none that can be named is fatal, as no
+# relative path could be resolved against it
+def run.from(paths: List<&2, String>, +cwd: String) -> IO(Unit):
+  Lazy.stop(IO(Unit), String.is_empty(cwd), IO.die(Unit, 1, "bolt: cannot name the working directory"),
+    _u => loop(Nat.add(Plan.limit(), 2n), W.World{paths, cwd, []}))
+
 # the linter, over the files given, or the tree below
-def run(+paths: List<&2, String>) -> IO(Unit):
-  loop(Nat.add(Plan.limit(), 2n), W.World{paths, []})
+def run(paths: List<&2, String>) -> IO(Unit):
+  do IO<Unit>:
+    cwd : String <- Walk.cwd(WalkDisk.new())
+    run.from(paths, cwd)

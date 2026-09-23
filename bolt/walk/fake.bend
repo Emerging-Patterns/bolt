@@ -15,6 +15,10 @@ def at(+dir: String) -> List<&2, String>:
 def entries(dir: String) -> IO(List<&2, String>):
   IO.pure(List<&2, String>, at(dir))
 
+# the canned tree's working directory
+def cwd(_u: Unit) -> IO(String):
+  IO.pure(String, "/fake")
+
 # the canned tree
 def new() -> S.Walk:
-  S.Walk{entries}
+  S.Walk{entries, cwd}

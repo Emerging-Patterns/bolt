@@ -10,6 +10,9 @@
 # for, so each round of the loop lists one more level of the tree. Once every
 # directory the walk reads is listed, it asks for the text of each source, of
 # SPEC.md, and of every bolt.bend candidate of their directories, each once.
+# A directory's candidates are taken once it is resolved against the World's
+# working directory (Config.home), so a relative path is graded by the same
+# bolt.bend wherever bolt runs from.
 # `wants` never parses a file; `plan` parses and lints once.
 import Base
 import ../../lazy/lazy.bend as Lazy
@@ -188,13 +191,19 @@ def dirs.of(ps: List<&2, String>) -> List<&2, String>:
 def conf.dirs(+ps: List<&2, String>) -> List<&2, String>:
   uniq(dirs.of(List.append(&2, String, ps, ["SPEC.md"])), [])
 
+# the bolt.bend candidates of a directory as a path names it, nearest first:
+# the directory resolved against the working directory, then each parent up to
+# the root
+def conf.chain(+world: W.World, dir: String) -> List<&2, String>:
+  Config.chain(Config.home(W.cwd.of(world), dir))
+
 # the bolt.bend candidates of each directory, nearest first
-def conf.cands(ds: List<&2, String>) -> List<&2, String>:
+def conf.cands(ds: List<&2, String>, +world: W.World) -> List<&2, String>:
   match ds:
     case Nil{}:
       Nil{}
     case Con{d, rest}:
-      List.append(&2, String, Config.candidates(64n, d), conf.cands(rest))
+      List.append(&2, String, conf.chain(world, d), conf.cands(rest, world))
 
 # the listing of each directory, as a question
 def asks.entries(ds: List<&2, String>) -> List<&2, W.Ask>:
@@ -229,7 +238,7 @@ def lists(+world: W.World) -> List<&2, W.Ask>:
 # candidate of their directories, each once
 def texts(+world: W.World) -> List<&2, W.Ask>:
   +ps = inputs(world)
-  asks.texts(uniq(List.concat(&2, String, [ps, ["SPEC.md"], conf.cands(conf.dirs(ps))]), []))
+  asks.texts(uniq(List.concat(&2, String, [ps, ["SPEC.md"], conf.cands(conf.dirs(ps), world)]), []))
 
 # every question the plan reads the World through: the listings, then the
 # texts
@@ -325,44 +334,50 @@ def texts.at(ps: List<&2, String>, +world: W.World) -> List<&2, Maybe<&2, String
     case Con{p, rest}:
       W.text(world, p) <> texts.at(rest, world)
 
-# each directory's config: the nearest bolt.bend the World could read among
-# its candidates, or the defaults
+# a directory's config: the nearest bolt.bend the World could read among its
+# candidates, or the defaults
+def conf.near(+world: W.World, dir: String) -> Config.Config:
+  Config.nearest(texts.at(conf.chain(world, dir), world))
+
+# each directory's config
 def confs.at(ds: List<&2, String>, +world: W.World) -> List<&2, Conf>:
   match ds:
     case Nil{}:
       Nil{}
     case Con{+d, rest}:
-      Conf{d, Config.nearest(texts.at(Config.candidates(64n, d), world))} <> confs.at(rest, world)
+      Conf{d, conf.near(world, d)} <> confs.at(rest, world)
 
 # the config of every directory grading needs
 def confs(+world: W.World) -> List<&2, Conf>:
   confs.at(conf.dirs(inputs(world)), world)
 
-# the config of a directory; the defaults for one the plan did not ask about
-def conf.find(cs: List<&2, Conf>, +dir: String) -> Config.Config:
+# the config of a directory, from the table; one the table does not hold is
+# worked out the same way (every finding's directory is in the table, so this
+# never happens in a run)
+def conf.find(cs: List<&2, Conf>, +world: W.World, +dir: String) -> Config.Config:
   match cs:
     case Nil{}:
-      Config.none()
+      conf.near(world, dir)
     case Con{Conf{d, cfg}, rest}:
-      Lazy.stop(Config.Config, String.eq(d, dir), cfg, _u => conf.find(rest, dir))
+      Lazy.stop(Config.Config, String.eq(d, dir), cfg, _u => conf.find(rest, world, dir))
 
 # the config a finding at a path is graded by: its directory's
-def config.at(+cs: List<&2, Conf>, path: String) -> Config.Config:
-  conf.find(cs, Config.dir_of(path))
+def config.at(+cs: List<&2, Conf>, +world: W.World, path: String) -> Config.Config:
+  conf.find(cs, world, Config.dir_of(path))
 
 # every finding graded by the config of its directory, in order, the ones at
 # off dropped
-def grade(+cs: List<&2, Conf>, fs: List<&2, F.Finding>) -> List<&2, F.Graded>:
+def grade(+cs: List<&2, Conf>, +world: W.World, fs: List<&2, F.Finding>) -> List<&2, F.Graded>:
   match fs:
     case Nil{}:
       Nil{}
     case Con{F.Finding{+path, line, col, len, rule, msg}, rest}:
-      List.append(&2, F.Graded, Rules.graded(config.at(cs, path), [F.Finding{path, line, col, len, rule, msg}]),
-        grade(cs, rest))
+      List.append(&2, F.Graded, Rules.graded(config.at(cs, world, path), [F.Finding{path, line, col, len, rule, msg}]),
+        grade(cs, world, rest))
 
 # every finding of the run, graded
 def graded(+world: W.World) -> List<&2, F.Graded>:
-  grade(confs(world), found(world))
+  grade(confs(world), world, found(world))
 
 # ---------------------------------------------------------------------------
 # the plan

@@ -5,8 +5,9 @@
 # docs/rfc/bolt-lint-planner.md.
 #
 # The World holds only what the lint reads: the paths named on the command
-# line and every answer the interpreter gave. A question with no answer yet
-# reads as a directory with no entries or a file that cannot be read.
+# line, the working directory they are named from, and every answer the
+# interpreter gave. A question with no answer yet reads as a directory with no
+# entries or a file that cannot be read.
 import Base
 import ../../lazy/lazy.bend as Lazy
 
@@ -27,15 +28,21 @@ type Answer is Data:
 type Reply is Data:
   Reply{ask: Ask, answer: Answer}
 
-# everything `bolt` reads: the paths named on the command line, and every
-# answer the interpreter gave, in the order it gave them
+# everything `bolt` reads: the paths named on the command line, the working
+# directory (absolute) that relative paths are named from, and every answer
+# the interpreter gave, in the order it gave them
 type World is Data:
-  World{paths: List<&2, String>, replies: List<&2, Reply>}
+  World{paths: List<&2, String>, cwd: String, replies: List<&2, Reply>}
 
 # the paths named on the command line
 def paths.of(world: World) -> List<&2, String>:
-  World{paths, _replies} = world
+  World{paths, _cwd, _replies} = world
   paths
+
+# the working directory the run was started in
+def cwd.of(world: World) -> String:
+  World{_paths, cwd, _replies} = world
+  cwd
 
 # whether two questions are the same question
 def ask.eq(aa: Ask, bb: Ask) -> Bool:
@@ -59,7 +66,7 @@ def answer.in(rs: List<&2, Reply>, +ask: Ask) -> Maybe<&2, Answer>:
 
 # the answer a World holds for a question, None while there is none
 def answer(world: World, +ask: Ask) -> Maybe<&2, Answer>:
-  World{_paths, rs} = world
+  World{_paths, _cwd, rs} = world
   answer.in(rs, ask)
 
 # whether a World answers a question
