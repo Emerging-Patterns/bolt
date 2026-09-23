@@ -92,7 +92,7 @@ A Trusted requirement's ID appears once in a requirement table and once in the t
 | BOLT-OUT-1 | The code table maps each rule slug to exactly one code and each code to exactly one slug. | Proved | pending |  |
 | BOLT-OUT-6 | A released code is never renumbered or reused. | Trusted |  |  |
 | BOLT-OUT-2 | A finding prints as `path:line:col: level: CODE: message`, 1-based. | Proved | pending |  |
-| BOLT-OUT-3 | Output order is read failures, then per-file findings in file-list order and `Rules.on` order, then `law` and `unsafe`. | Proved | pending |  |
+| BOLT-OUT-3 | Output order is read failures, then per-file findings in file-list order and `Rules.on` order, then `coverage` and `unsafe`. | Proved | pending |  |
 | BOLT-OUT-4 | The last line is `clean` or `N errors, M warnings`, and the exit status is 1 exactly when some graded finding is an error. | Proved | pending |  |
 | BOLT-OUT-5 | A path that cannot be read is a `read` finding graded with correctness. | Proved | pending |  |
 

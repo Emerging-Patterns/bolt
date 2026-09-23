@@ -39,7 +39,7 @@ type Law is Data:
 
 # one file as the project rules see it: its path as given and normalized, its
 # directory, whether it states laws (LAWS.bend) or proves them too
-# (PROOF.bend), whether the law rule lets it off, its top-level items, what
+# (PROOF.bend), whether the coverage rule lets it off, its top-level items, what
 # its own laws name, the files it imports, and its `@unsafe` defs
 type Digest is Data:
   Digest{path: String, norm: String, dir: String, is_laws: Bool, is_law_file: Bool, exempt: Bool,
@@ -108,7 +108,7 @@ def law_mentions(root: Tree.Node, +as: List<&2, Alias>, +file: String) -> List<&
 # what the file holds besides
 # ---------------------------
 
-# the top-level defs and types, by name and line: what the law rule grades
+# the top-level defs and types, by name and line: what the coverage rule grades
 def top_items(items: List<&2, Outline.Item>) -> List<&2, Top>:
   match items:
     case Nil{}:
