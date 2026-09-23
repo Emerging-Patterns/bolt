@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/Emerging-Patterns/bolt/compare/v1.2.5...v1.3.0) (2026-09-23)
+
+
+### Features
+
+* **wrap:** report a return type off the ) line and a split header with no parameters ([#137](https://github.com/Emerging-Patterns/bolt/issues/137)) ([10904e0](https://github.com/Emerging-Patterns/bolt/commit/10904e0eacb67441762c0a070cf5c230c676ffb6))
+
 ## [1.2.5](https://github.com/Emerging-Patterns/bolt/compare/v1.2.4...v1.2.5) (2026-09-23)
 
 

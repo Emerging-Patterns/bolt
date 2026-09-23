@@ -109,9 +109,17 @@ def walk(
           walk(f, world, List.append(&2, String, rest, walk.dirs(es, dir)),
             List.append(&2, String, walk.bends(es, dir), acc), dir <> seen)
 
-# the walk of the tree under `.`, reading at most 100000 directories
+# how many directories the walk reads at most; past it the walk stops,
+# silently. A literal, not `U32.to_nat(100000)`: the checker keeps a literal
+# whole and steps it one at a time, so BOLT-SCOPE-1's law can name the bound,
+# where it would expand the call in unary and overflow. The compiler emits
+# the same `U32.to_nat` for either.
+def limit() -> Nat:
+  100000n
+
+# the walk of the tree under `.`, reading at most `limit()` directories
 def tree(+world: W.World) -> Walk:
-  walk(U32.to_nat(100000), world, ["."], [], [])
+  walk(limit(), world, ["."], [], [])
 
 # ---------------------------------------------------------------------------
 # the files of the run
