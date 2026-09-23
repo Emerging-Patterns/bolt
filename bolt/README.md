@@ -235,7 +235,7 @@ beside the groups.
   (`case 10 <> 10 <> ..`) in a recursive def: the checker hangs. Match one
   element a step.
 - `arms` — a later `Nat` arm that an earlier `kn+p` already matches, so it is
-  unreachable. The checker takes it silently and the answer is wrong: put the
+  unreachable. `Succ{p}` and `Succ{_}` count as `1n+p`. The checker takes it silently and the answer is wrong: put the
   narrow arms first.
 - `foreign` — a foreign def with a `.c` body and no `.js` body, or the
   reverse: the missing lane cannot run it. A file headed `# lanes: native`
