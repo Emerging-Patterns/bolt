@@ -77,7 +77,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-SCOPE-1 | With no files named, bolt lints every `.bend` file under `.` found within the first 100000 directories the walk reads, not descending into hidden directories or `node_modules`, sorted by code point; past that bound the walk stops silently. | Proved | pending | bolt/LAWS.bend walk_bfs |
+| BOLT-SCOPE-1 | With no files named, bolt lints every `.bend` file under `.` found within the first 100000 directories the walk reads, not descending into hidden directories or `node_modules`, sorted by code point; past that bound the walk stops silently. | Proved | proved | bolt/LAWS.bend walk_files |
 | BOLT-SCOPE-2 | A per-file rule sees one file's `Src`; a project rule sees the digests of every file in the run, and nothing else. | Proved | proved | bolt/LAWS.bend scope_findings |
 | BOLT-SCOPE-3 | When the files in the run include a LAWS.bend, every file in the run that is not exempt is under law; otherwise none is. | Proved | proved | bolt/LAWS.bend under_law_all |
 | BOLT-SCOPE-4 | Exemptions are decided by the path alone, never by content. | Proved | pending |  |

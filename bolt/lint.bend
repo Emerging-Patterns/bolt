@@ -92,4 +92,4 @@ def loop(fuel: Nat, +world: W.World) -> IO(Unit):
 
 # the linter, over the files given, or the tree below
 def run(+paths: List<&2, String>) -> IO(Unit):
-  loop(Nat.add(U32.to_nat(100000), 2n), W.World{paths, []})
+  loop(Nat.add(Plan.limit(), 2n), W.World{paths, []})

@@ -876,12 +876,21 @@ def scope1.walk(fuel, world, queue, acc, seen):
             scope1.walk(ff, world, List.append(&2, String, rest, Plan.walk.dirs(W.listing(world, dd), dd)),
               List.append(&2, String, Plan.walk.bends(W.listing(world, dd), dd), acc), dd <> seen))
 
-def Laws.walk_bfs(fuel, world):
-  Equal.trans(List<&2, String>, Plan.walk.found(Plan.walk(fuel, world, ["."], [], [])),
-    List.append(&2, String, Laws.found_in(Laws.bfs(fuel, world, ["."]), world), []),
-    Laws.found_in(Laws.bfs(fuel, world, ["."]), world),
-    scope1.walk(fuel, world, ["."], [], []),
-    lint.app_nil(String, Laws.found_in(Laws.bfs(fuel, world, ["."]), world)))
+def Laws.walk_bfs(reads, world):
+  Equal.trans(List<&2, String>, Plan.walk.found(Plan.walk(reads, world, ["."], [], [])),
+    List.append(&2, String, Laws.found_in(Laws.bfs(reads, world, ["."]), world), []),
+    Laws.found_in(Laws.bfs(reads, world, ["."]), world),
+    scope1.walk(reads, world, ["."], [], []),
+    lint.app_nil(String, Laws.found_in(Laws.bfs(reads, world, ["."]), world)))
+
+def Laws.walk_files(world, h):
+  e = Equal.sym(List<&2, String>, W.paths.of(world), [], h)
+  %e : {Plan.files.named(_, world)
+    == List.sort(~String, ~String.is_le, Laws.found_in(Laws.bfs(100000n, world, ["."]), world))
+    : List<&2, String>}
+  Equal.cong(List<&2, String>, List<&2, String>, xs => List.sort(~String, ~String.is_le, xs),
+    Plan.walk.found(Plan.tree(world)), Laws.found_in(Laws.bfs(100000n, world, ["."]), world),
+    Laws.walk_bfs(100000n, world))
 
 # Under law (BOLT-SCOPE-3). The coverage rule turns on at the first LAWS.bend
 # directory it finds and then walks every file; the laws say which files it

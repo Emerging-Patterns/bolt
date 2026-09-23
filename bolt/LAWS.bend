@@ -473,12 +473,8 @@ law read_is_correctness:
 # below writes that search apart from plan.bend's walk, which threads a queue,
 # the files found so far and the directories read through one fuelled loop:
 # here the directories read come first, in order, and their files are
-# gathered after. The law holds for every fuel. It stops short of the row:
-# `Plan.tree` runs the walk at `U32.to_nat(100000)`, and the checker cannot
-# compare two copies of that term (it expands each in unary and overflows its
-# stack), so no law can name the bound itself while plan.bend writes it that
-# way; the literal `100000n` it can compare, but `nat` (U005) and `fuel`
-# (U006) forbid that literal.
+# gathered after. walk_bfs holds for every bound on the directories read;
+# walk_files is the row, at 100000.
 
 # an entry's name without the "/" that marks a directory
 def entry_name(+ee: String) -> String:
@@ -511,11 +507,11 @@ def bends_in(es: List<&2, String>, +dir: String) -> List<&2, String>:
       Bool.pick(List<&2, String>, String.ends_with(ee, ".bend"), (dir ++ "/" ++ ee) <> more, more)
 
 # the directories a breadth-first search from the queue reads, in the order
-# it reads them, at most `fuel` of them: each is listed, and the ones its
+# it reads them, at most `reads` of them: each is listed, and the ones its
 # listing names that the search descends into join the back of the queue.
-# Past the fuel the search stops, and says nothing.
-def bfs(fuel: Nat, +world: W.World, queue: List<&2, String>) -> List<&2, String>:
-  match fuel:
+# Past that bound the search stops, and says nothing.
+def bfs(reads: Nat, +world: W.World, queue: List<&2, String>) -> List<&2, String>:
+  match reads:
     case 0n:
       []
     case 1n+ff:
@@ -534,15 +530,24 @@ def found_in(ds: List<&2, String>, +world: W.World) -> List<&2, String>:
     case Con{+dd, rest}:
       List.append(&2, String, found_in(rest, world), bends_in(W.listing(world, dd), dd))
 
-# LAW: the walk from `.`, with any fuel, finds the `.bend` files of the
-# directories the breadth-first search reads with that fuel: those its
-# listings name, and none from a directory it does not descend into (hidden,
-# or node_modules) or does not reach before the fuel runs out
-# BOLT-SCOPE-1
+# LAW: the walk from `.`, reading at most `reads` directories, finds the
+# `.bend` files of the directories the breadth-first search reads within that
+# bound: those its listings name, and none from a directory it does not
+# descend into (hidden, or node_modules) or does not reach before the bound
 law walk_bfs:
-  for +fuel: Nat
+  for +reads: Nat
   for +world: W.World
-  {Plan.walk.found(Plan.walk(fuel, world, ["."], [], [])) == found_in(bfs(fuel, world, ["."]), world)
+  {Plan.walk.found(Plan.walk(reads, world, ["."], [], [])) == found_in(bfs(reads, world, ["."]), world)
+    : List<&2, String>}
+
+# LAW: with no paths named, the planner's file list is the `.bend` files the
+# search reaches from `.` within the first 100000 directories it reads,
+# sorted by code point; past that bound the walk stops silently
+# BOLT-SCOPE-1
+law walk_files:
+  for +world: W.World
+  for h: {W.paths.of(world) == [] : List<&2, String>}
+  {Plan.files(world) == List.sort(~String, ~String.is_le, found_in(bfs(100000n, world, ["."]), world))
     : List<&2, String>}
 
 # Under law (BOLT-SCOPE-3). The coverage rule (rules/laws/law.bend) grades a
