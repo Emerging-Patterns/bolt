@@ -27,7 +27,7 @@ def reaches(
   match ds:
     case Nil{}:
       Nil{}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes}, rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
       +more = reaches(rest, es, read, fuel)
       Bool.pick(List<&2, Reach>, is_law_file, Reach{path, Imports.closure.go(es, read, fuel, norm)} <> more, more)
 
@@ -61,7 +61,7 @@ def check.go(ds: List<&2, Digest.Digest>, +rs: List<&2, Reach>) -> List<&2, F.Fi
   match ds:
     case Nil{}:
       Nil{}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes}, rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
       List.append(&2, F.Finding, found(reacher(rs, norm), unsafes, path), check.go(rest, rs))
 
 # the rule, over every file the linter read

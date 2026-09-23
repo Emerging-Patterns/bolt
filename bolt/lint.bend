@@ -100,10 +100,10 @@ def sources(ps: List<&2, String>) -> List<&2, String>:
       +more = sources(rest)
       Bool.pick(List<&2, String>, is_config(p), more, p <> more)
 
-# every finding of every rule on the files read
-def findings(+rs: List<&2, Read>) -> List<&2, F.Finding>:
+# every finding of every rule on the files read, and SPEC.md's text
+def findings(+rs: List<&2, Read>, spec: Maybe<&2, String>) -> List<&2, F.Finding>:
   +ss = srcs_of(rs)
-  List.concat(&2, F.Finding, [unread(rs), per_file(ss), Rules.project(ss)])
+  List.concat(&2, F.Finding, [unread(rs), per_file(ss), Rules.project(ss, spec)])
 
 # how many are errors
 def errors(gs: List<&2, F.Graded>) -> U32:
@@ -143,7 +143,8 @@ def run(paths: List<&2, String>) -> IO(Unit):
   do IO<Unit>:
     files : List<&2, String> <- chosen(~WalkDisk.new(), paths)
     rs : List<&2, Read> <- read_all(~Disk.new(), sources(files))
-    +gs : List<&2, F.Graded> <- grade_all(~Disk.new(), findings(rs))
+    spec : Maybe<&2, String> <- Files.read(Disk.new(), "SPEC.md")
+    +gs : List<&2, F.Graded> <- grade_all(~Disk.new(), findings(rs, spec))
     print_all(show_all(gs))
     +e : U32 = errors(gs)
     IO.print(summary(U32.from_nat(List.length(&2, F.Graded, gs)), e))

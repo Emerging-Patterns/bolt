@@ -42,6 +42,7 @@ import ./rules/correctness/arms.bend as Arms
 import ./rules/correctness/foreign.bend as Foreign
 import ./rules/suspicious/fuel.bend as Fuel
 import ./rules/laws/closed.bend as Closed
+import ./rules/laws/trace.bend as Trace
 import ./rules/laws/unsafe.bend as Unsafe
 
 # every rule's findings on a file read once
@@ -80,11 +81,12 @@ def on(+ss: Src.Src) -> List<&2, F.Finding>:
 def all(+path: String, +text: String) -> List<&2, F.Finding>:
   on(Src.of(path, text))
 
-# every project rule's findings on the files: each file is read down to its
-# digest once (rules/digest.bend), and the rules run over those
-def project(srcs: List<&2, Src.Src>) -> List<&2, F.Finding>:
+# every project rule's findings on the files and SPEC.md's text (None when
+# there is none): each file is read down to its digest once
+# (rules/digest.bend), and the rules run over those
+def project(srcs: List<&2, Src.Src>, spec: Maybe<&2, String>) -> List<&2, F.Finding>:
   +ds = Digest.all(srcs)
-  List.concat(&2, F.Finding, [Law.check(ds), Unsafe.check(ds)])
+  List.concat(&2, F.Finding, [Law.check(ds), Unsafe.check(ds), Trace.check(spec, ds)])
 
 # the group a rule is in; an unknown slug grades with correctness
 def group(+rule: String) -> String:
