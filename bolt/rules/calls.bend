@@ -31,13 +31,73 @@ def defs(root: Tree.Node) -> List<&2, Def>:
     case other:
       Nil{}
 
+# a leaf's kind, none for anything else: kind tests read this, never a text
+def leaf.kind(nn: Tree.Node) -> Maybe<&2, Lex.TokKind>:
+  match nn:
+    case Tree.Leaf{Lex.Tok{k, t, l, c}}:
+      Some{k}
+    case other:
+      None{}
+
+# a kind test on a kind, when there is one
+def kind.of(~test: Lex.TokKind -> Bool, mm: Maybe<&2, Lex.TokKind>) -> Bool:
+  match mm:
+    case None{}:
+      False{}
+    case Some{k}:
+      test(k)
+
+# a leaf of this kind?
+def kind.leaf(~test: Lex.TokKind -> Bool, nn: Tree.Node) -> Bool:
+  kind.of(~test, leaf.kind(nn))
+
+# a `:`
+def kind.colon(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TColon{}:
+      True{}
+    case other:
+      False{}
+
+# a capitalized name
+def kind.upper(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TUpper{}:
+      True{}
+    case other:
+      False{}
+
+# `->`
+def kind.arrow(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TArrow{}:
+      True{}
+    case other:
+      False{}
+
+# a plain operator (`-`, `~`, `+`)
+def kind.oper(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TOp{}:
+      True{}
+    case other:
+      False{}
+
+# a leaf's text, "" for anything else
+def leaf.text(nn: Tree.Node) -> String:
+  match nn:
+    case Tree.Leaf{Lex.Tok{k, t, l, c}}:
+      t
+    case other:
+      ""
+
 # the arguments of a group, split at its top-level commas (each a chain)
-def args.go(kids: Tree.Node, cur: Tree.Node, acc: List<&2, Tree.Node>) -> List<&2, Tree.Node>:
+def args.go(kids: Tree.Node, +cur: Tree.Node, +acc: List<&2, Tree.Node>) -> List<&2, Tree.Node>:
   match kids:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}, rest}:
-      args.go(rest, Tree.NNil{}, Tree.reverse(cur, Tree.NNil{}) <> acc)
-    case Tree.NCons{h, rest}:
-      args.go(rest, Tree.NCons{h, cur}, acc)
+    case Tree.NCons{+h, +rest}:
+      Lazy.either(List<&2, Tree.Node>, kind.leaf(~Lex.is_comma, h),
+        _u => args.go(rest, Tree.NNil{}, Tree.reverse(cur, Tree.NNil{}) <> acc),
+        _v => args.go(rest, Tree.NCons{h, cur}, acc))
     case other:
       List.reverse(&2, Tree.Node, Tree.reverse(cur, Tree.NNil{}) <> acc)
 
@@ -135,33 +195,32 @@ def names(sig: Tree.Node) -> List<&2, String>:
 # does a chain hold a top-level colon?
 def has_colon(pp: Tree.Node) -> Bool:
   match pp:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}}, rest}:
-      True{}
     case Tree.NCons{h, rest}:
-      has_colon(rest)
+      Lazy.or_else(kind.leaf(~kind.colon, h), _u => has_colon(rest))
+    case other:
+      False{}
+
+# does the chain open with a `-` or `~` operator?
+def is_live.sign(pp: Tree.Node) -> Bool:
+  match pp:
+    case Tree.NCons{+h, rest}:
+      +t = leaf.text(h)
+      Bool.and(kind.leaf(~kind.oper, h), Bool.or(String.eq(t, "-"), String.eq(t, "~")))
     case other:
       False{}
 
 # a live parameter: typed, and neither erased (`-A: Type`) nor a template
 # (`~f: A -> B`); a bare quantity name (`a` in `List.get(a, ..)`) is not one
-def is_live(pp: Tree.Node) -> Bool:
-  match pp:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +t, l, c}}, rest}:
-      Bool.and(Bool.not(Bool.or(String.eq(t, "-"), String.eq(t, "~"))), has_colon(rest))
-    case other:
-      has_colon(other)
+def is_live(+pp: Tree.Node) -> Bool:
+  Bool.and(Bool.not(is_live.sign(pp)), has_colon(pp))
 
 # the head of a parameter's type: the first capitalized name after the colon
 # (`List` in `+xs: +List<A>`), "" for none
 def type_head(pp: Tree.Node, +after: Bool) -> String:
   match pp:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}}, rest}:
-      type_head(rest, True{})
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, +t, l, c}}, rest}:
-      +more = type_head(rest, after)
-      Bool.pick(String, after, t, more)
-    case Tree.NCons{h, rest}:
-      type_head(rest, after)
+    case Tree.NCons{+h, rest}:
+      +more = type_head(rest, Bool.or(after, kind.leaf(~kind.colon, h)))
+      Bool.pick(String, Bool.and(after, kind.leaf(~kind.upper, h)), leaf.text(h), more)
     case other:
       ""
 
@@ -186,14 +245,20 @@ def seq(sig: Tree.Node) -> Bool:
   +h = walked(sig)
   Bool.or(String.eq(h, "List"), String.eq(h, "String"))
 
+# a `{` group after the arrow, or a proof further on
+def returns_proof.or(+brace: Bool, more: Bool) -> Bool:
+  Bool.or(brace, more)
+
 # does the signature return a proof, `-> {a == b : T}`?
 def returns_proof(sig: Tree.Node) -> Bool:
   match sig:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TArrow{}, t, l, c}}, Tree.NCons{g, rest}}:
-      +more = returns_proof(rest)
-      Bool.or(Tree.opens(g, "{"), more)
-    case Tree.NCons{h, rest}:
-      returns_proof(rest)
+    case Tree.NCons{h, +rest}:
+      match rest:
+        case Tree.NCons{+g, r2}:
+          Lazy.either(Bool, kind.leaf(~kind.arrow, h), _u => returns_proof.or(Tree.opens(g, "{"), returns_proof(r2)),
+            _v => returns_proof(rest))
+        case _r:
+          returns_proof(rest)
     case other:
       False{}
 

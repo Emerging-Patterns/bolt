@@ -67,25 +67,55 @@ type Pos is Data:
 # names of the file
 # -----------------
 
-# the item a statement declares: the first name after its keyword
-def declared.go(kids: Tree.Node) -> Maybe<&2, String>:
-  match kids:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, rest}:
-      Some{t}
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}}, rest}:
-      Some{t}
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TDotted{}, t, l, c}}, rest}:
-      Some{t}
+# a name that can be declared: plain, capitalized or dotted
+def declared.is_name(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TName{}:
+      True{}
+    case Lex.TUpper{}:
+      True{}
+    case Lex.TDotted{}:
+      True{}
+    case other:
+      False{}
+
+# a leaf's name, when its kind is one: the kind is tested, the text only kept
+def declared.name(nn: Tree.Node) -> Maybe<&2, String>:
+  match nn:
+    case Tree.Leaf{Lex.Tok{k, t, l, c}}:
+      Bool.pick(Maybe<&2, String>, declared.is_name(k), Some{t}, None{})
     case other:
       None{}
 
 # the item a statement declares: the first name after its keyword
+def declared.go(kids: Tree.Node) -> Maybe<&2, String>:
+  match kids:
+    case Tree.NCons{h, rest}:
+      declared.name(h)
+    case other:
+      None{}
+
+# a keyword?
+def declared.is_key(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TKey{}:
+      True{}
+    case other:
+      False{}
+
+# a keyword leaf? its kind is read, never its text
+def declared.key(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.Leaf{Lex.Tok{k, t, l, c}}:
+      declared.is_key(k)
+    case other:
+      False{}
+
+# the item a statement declares: the first name after its keyword
 def declared(kids: Tree.Node) -> Maybe<&2, String>:
   match kids:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TKey{}, t, l, c}}, rest}:
-      declared.go(rest)
-    case Tree.NCons{h, rest}:
-      declared(rest)
+    case Tree.NCons{h, +rest}:
+      Lazy.either(Maybe<&2, String>, declared.key(h), _u => declared.go(rest), _v => declared(rest))
     case other:
       None{}
 

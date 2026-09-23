@@ -23,18 +23,26 @@ import ../../../lazy/lazy.bend as Lazy
 def logic(+tt: String) -> Bool:
   Bool.or(String.eq(tt, "&&"), String.eq(tt, "||"))
 
+# a comma or a `=>`: the end of a stretch
+def seg_op.ends(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TComma{}:
+      True{}
+    case Lex.TLam{}:
+      True{}
+    case other:
+      False{}
+
+# this leaf's `&&` or `||`, or one further on in the stretch
+def seg_op.or(+here: Bool, more: Bool) -> Bool:
+  Bool.or(here, more)
+
 # does the chain, up to its first top-level comma or `=>`, hold `&&` or `||`?
 def seg_op(nn: Tree.Node) -> Bool:
   match nn:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}, rest}:
-      False{}
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}}, rest}:
-      False{}
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +t, l, c}}, rest}:
-      +more = seg_op(rest)
-      Bool.or(logic(t), more)
-    case Tree.NCons{h, rest}:
-      seg_op(rest)
+    case Tree.NCons{+h, rest}:
+      Lazy.stop(Bool, Calls.kind.leaf(~seg_op.ends, h), False{},
+        _u => seg_op.or(Bool.and(Calls.kind.leaf(~Calls.kind.oper, h), logic(Calls.leaf.text(h))), seg_op(rest)))
     case other:
       False{}
 
