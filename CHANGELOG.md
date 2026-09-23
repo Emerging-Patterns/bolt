@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.2.0](https://github.com/Emerging-Patterns/bolt/compare/v1.1.1...v1.2.0) (2026-09-23)
+
+
+### Features
+
+* **trace:** let a pending requirement carry partial tagged laws ([#106](https://github.com/Emerging-Patterns/bolt/issues/106)) ([acbdafb](https://github.com/Emerging-Patterns/bolt/commit/acbdafb9ba7ad58e11f3e3b5b403a5a9d2dc3cb3))
+
+
+### Bug Fixes
+
+* **foreign:** honour `# lanes: native` only in the file's header ([#92](https://github.com/Emerging-Patterns/bolt/issues/92)) ([9612d64](https://github.com/Emerging-Patterns/bolt/commit/9612d64a2cd2d0ce9d999c61e169d2df446c9280))
+* **put:** exempt every file that defines Map.put, and prove put (BOLT-RULE-C004) ([#74](https://github.com/Emerging-Patterns/bolt/issues/74)) ([6d84313](https://github.com/Emerging-Patterns/bolt/commit/6d843139742c3578329908b50a8f35528e352e0e))
+* **shadow:** retire the rule, whose failure bend no longer has ([#94](https://github.com/Emerging-Patterns/bolt/issues/94)) ([60f481b](https://github.com/Emerging-Patterns/bolt/commit/60f481bc76df1d8bc7f70eb1aff173f929fab5d5))
+* **strings:** skip an unterminated string arm instead of underflowing ([#83](https://github.com/Emerging-Patterns/bolt/issues/83)) ([1a4eb6a](https://github.com/Emerging-Patterns/bolt/commit/1a4eb6af6bd1d9a3398230f01600436918056d73))
+* **syntax:** a string literal runs across newlines, as bend reads it ([#72](https://github.com/Emerging-Patterns/bolt/issues/72)) ([d483dbf](https://github.com/Emerging-Patterns/bolt/commit/d483dbfe1ccc285db813bd27f862d41db42af8f2))
+* **trace:** check SPEC.md only when bolt lints the whole tree ([#91](https://github.com/Emerging-Patterns/bolt/issues/91)) ([219c89f](https://github.com/Emerging-Patterns/bolt/commit/219c89ff1d755c0473787a16d66234a7b43cd976))
+
 ## [1.1.1](https://github.com/Emerging-Patterns/bolt/compare/v1.1.0...v1.1.1) (2026-09-23)
 
 
