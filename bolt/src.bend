@@ -16,4 +16,5 @@ type Src is Data:
 # read a file's text once
 def of(+path: String, +text: String) -> Src:
   +tree = Tree.parse(text)
-  Src{path, text, Lex.tokens(text), tree, Bind.of_tree(tree, String.lines(text)), Outline.items(text)}
+  +toks = Lex.tokens(text)
+  Src{path, text, toks, tree, Bind.of_tree(tree, String.lines(text)), Outline.of_tokens(text, toks)}
