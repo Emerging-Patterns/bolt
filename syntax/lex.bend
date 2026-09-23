@@ -396,3 +396,11 @@ def significant(kk: TokKind) -> Bool:
       False{}
     case other:
       True{}
+
+# a string literal?
+def is_str(kk: TokKind) -> Bool:
+  match kk:
+    case TStr{}:
+      True{}
+    case other:
+      False{}
