@@ -1,7 +1,7 @@
 # lsp/proto: the messages the server sends, and the little it reads of a URI.
 import Base
-import 0xa3c2445eb44c5d8406e6229be518fccb/value.bend as J
-import 0xa3c2445eb44c5d8406e6229be518fccb/lex.bend as Lex
+import 0xd9c8d4d2899ddda845dfa7525a3568ea/value.bend as J
+import 0xd9c8d4d2899ddda845dfa7525a3568ea/lex.bend as Lex
 import ./frame.bend as Frame
 import ./report.bend as Rep
 import ../../syntax/outline.bend as Outline
@@ -39,7 +39,7 @@ def notify(method: String, params: J.Json) -> J.Json:
 def capabilities() -> J.Json:
   J.obj([
     ("capabilities", J.obj([
-      ("textDocumentSync", J.obj([("openClose", J.JBool{True{}}), ("change", J.num(1)), ("save", J.JBool{True{}})])),
+      ("textDocumentSync", J.obj([("openClose", J.JBool{True{}}), ("change", J.JNum{U32.show(1)}), ("save", J.JBool{True{}})])),
       ("hoverProvider", J.JBool{True{}}),
       ("definitionProvider", J.JBool{True{}}),
       ("documentSymbolProvider", J.JBool{True{}}),
@@ -53,14 +53,14 @@ def capabilities() -> J.Json:
 
 # an LSP position (0-based line and character)
 def position(line: U32, character: U32) -> J.Json:
-  J.obj([("line", J.num(line)), ("character", J.num(character))])
+  J.obj([("line", J.JNum{U32.show(line)}), ("character", J.JNum{U32.show(character)})])
 
 # the checker gives a line and no columns: a diagnostic covers its whole line
 def diagnostic(dd: Rep.Diag) -> J.Json:
   Rep.Diag{+line, msg} = dd
   J.obj([
     ("range", J.obj([("start", position(line, 0)), ("end", position((line + 1 : U32), 0))])),
-    ("severity", J.num(1)), ("source", J.JStr{"bend"}), ("message", J.JStr{msg})])
+    ("severity", J.JNum{U32.show(1)}), ("source", J.JStr{"bend"}), ("message", J.JStr{msg})])
 
 # diagnostics as JSON
 def diagnostics(ds: List<&2, Rep.Diag>) -> List<&2, J.Json>:
@@ -79,7 +79,7 @@ def finding_range(+line: U32, +col: U32, +len: U32) -> J.Json:
 # its stable code, and bolt(group:slug) as the source
 def finding(gg: Lint.Graded) -> J.Json:
   Lint.Graded{level, Lint.Finding{path, line, col, len, +rule, msg}} = gg
-  J.obj([("range", finding_range(line, col, len)), ("severity", J.num(Bool.pick(U32, Config.is_error(level), 1, 2))),
+  J.obj([("range", finding_range(line, col, len)), ("severity", J.JNum{U32.show(Bool.pick(U32, Config.is_error(level), 1, 2))}),
     ("code", J.JStr{Codes.code(rule)}), ("source", J.JStr{Codes.source(rule)}), ("message", J.JStr{msg})])
 
 # findings as JSON
@@ -183,7 +183,7 @@ def symbol.kind(kk: Outline.ItemKind) -> U32:
 # an item as a DocumentSymbol
 def symbol(item: Outline.Item) -> J.Json:
   Outline.Item{k, name, +line, sig, doc, path} = item
-  J.obj([("name", J.JStr{name}), ("kind", J.num(symbol.kind(k))),
+  J.obj([("name", J.JStr{name}), ("kind", J.JNum{U32.show(symbol.kind(k))}),
     ("range", line_range(line)), ("selectionRange", line_range(line))])
 
 def symbols.go(items: List<&2, Outline.Item>) -> List<&2, J.Json>:
@@ -222,7 +222,7 @@ def first_line(s2: String) -> String:
 # editor's own idea of a word stops at a dot
 def completion(item: Outline.Item, +line: U32, start: U32, col: U32) -> J.Json:
   Outline.Item{k, +name, l, sig, doc, path} = item
-  J.obj([("label", J.JStr{name}), ("kind", J.num(completion.kind(k))), ("detail", J.JStr{first_line(sig)}),
+  J.obj([("label", J.JStr{name}), ("kind", J.JNum{U32.show(completion.kind(k))}), ("detail", J.JStr{first_line(sig)}),
     ("documentation", J.obj([("kind", J.JStr{"markdown"}), ("value", J.JStr{doc})])),
     ("filterText", J.JStr{name}),
     ("textEdit", J.obj([("range", J.obj([("start", position(line, start)), ("end", position(line, col))])),
@@ -288,7 +288,7 @@ def nums(ns: List<&2, U32>) -> List<&2, J.Json>:
     case Nil{}:
       Nil{}
     case Con{h, t}:
-      J.num(h) <> nums(t)
+      J.JNum{U32.show(h)} <> nums(t)
 
 # the semantic tokens response
 def semantic(data: List<&2, U32>) -> J.Json:

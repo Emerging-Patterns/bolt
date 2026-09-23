@@ -1,8 +1,17 @@
 # bolt/lsp: the proofs. `bend PROOF.bend` is the gate.
 import Base
-import 0xa3c2445eb44c5d8406e6229be518fccb/value.bend as J
+import 0xd9c8d4d2899ddda845dfa7525a3568ea/value.bend as J
 import ./frame.bend as Frame
 import ./server.bend as Server
+import ../../lazy/lazy.bend as Lazy
+import ./docs.bend as Docs
+import ./report.bend as Rep
+import ../finding.bend as F
+import ../config.bend as Config
+import ../rules.bend as Rules
+import ../lint/world.bend as W
+import ../lint/plan.bend as Plan
+import ../src.bend as Src
 import ./LAWS.bend as Laws
 
 # small facts
@@ -1264,6 +1273,10 @@ def unknown_ids(id, _more):
       {==}
     case J.JPair{k, v, r}:
       {==}
+    case J.JSpan{src, n}:
+      {==}
+    case J.JBind{src, n, v, r}:
+      {==}
 
 # a response carries its request's id, a result or an error alike
 law respond_ids:
@@ -1368,6 +1381,10 @@ def unknown_other(w, id):
           {==}
         case J.JPair{k, v, r}:
           {==}
+        case J.JSpan{src, n}:
+          {==}
+        case J.JBind{src, n, v, r}:
+          {==}
 
 def Laws.unknown_refused(name, h, id, w):
   Equal.trans(List<&2, Server.Reply>, Laws.sent(Server.step(Server.method(name), id, w)),
@@ -1376,3 +1393,308 @@ def Laws.unknown_refused(name, h, id, w):
       Server.MOther{}, h),
     unknown_other(w, id))
 
+
+# Publishing (BOLT-LSP-2, BOLT-LSP-4). The documents are looked up by
+# String.eq, so the keep laws need it to be reflexive; that goes down to the
+# words a U32 is made of. The CLI side walks the planner's run over one named
+# file, cased on whether that file is a bolt.bend.
+
+# a bit compares equal to itself
+law pub.bcmp:
+  for b: Bool
+  {Bool.cmp(b, b) == EQ{} : Cmp}
+
+def pub.bcmp(b):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# a word compares equal to itself
+law pub.weq_refl:
+  for n: Nat
+  for a: Word(n)
+  {Word.cmp(n, a, a) == EQ{} : Cmp}
+
+def pub.weq_refl(n, a):
+  match n:
+    case 0n:
+      {==}
+    case 1n+(+p):
+      match a:
+        case WCon{b, +t}:
+          e = Equal.sym(Cmp, Word.cmp(p, t, t), EQ{}, pub.weq_refl(p, t))
+          %e : {Word.cmp.fin(b, b, _) == EQ{} : Cmp}
+          pub.bcmp(b)
+
+# a compare that went on past equal first characters answers as the rest's
+law pub.rec:
+  for -h1: Char
+  for -h2: Char
+  for rr: (String & String) & Cmp
+  {String.eq.fin(String.cmp.rec(h1, h2, rr)) == String.eq.fin(rr) : Bool}
+
+def pub.rec(_h1, _h2, rr):
+  ((_a, _b), _c) = rr
+  {==}
+
+# a string is equal to itself
+law pub.seq_refl:
+  for s: String
+  {String.eq(s, s) == True{} : Bool}
+
+def pub.seq_refl(s):
+  match s:
+    case SNil{}:
+      {==}
+    case SCon{Chr{U32{+w}}, +t}:
+      e = Equal.sym(Cmp, Word.cmp(32n, w, w), EQ{}, pub.weq_refl(32n, w))
+      %e : {String.eq.fin(String.cmp.fin(t, t, ((Chr{U32{w}}, Chr{U32{w}}), _))) == True{} : Bool}
+      Equal.trans(Bool, String.eq.fin(String.cmp.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t))),
+        String.eq(t, t), True{}, pub.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t)), pub.seq_refl(t))
+
+# the document just put at the head of the list is the one a lookup of its
+# URI finds: its errors
+law pub.errors_head:
+  for +uri: String
+  for -text: String
+  for -ds: List<&2, Rep.Diag>
+  for -rest: List<&2, Docs.Doc>
+  {Docs.errors(Docs.Doc{uri, text, ds} <> rest, uri) == ds : List<&2, Rep.Diag>}
+
+def pub.errors_head(uri, _text, ds, rest):
+  e = Equal.sym(Bool, String.eq(uri, uri), True{}, pub.seq_refl(uri))
+  %e : {Lazy.stop(List<&2, Rep.Diag>, _, ds, _u => Docs.errors(rest, uri)) == ds : List<&2, Rep.Diag>}
+  {==}
+
+# and its text
+law pub.get_head:
+  for +uri: String
+  for -text: String
+  for -ds: List<&2, Rep.Diag>
+  for -rest: List<&2, Docs.Doc>
+  {Docs.get(Docs.Doc{uri, text, ds} <> rest, uri) == Some{text} : Maybe<&2, String>}
+
+def pub.get_head(uri, text, _ds, rest):
+  e = Equal.sym(Bool, String.eq(uri, uri), True{}, pub.seq_refl(uri))
+  %e : {Lazy.stop(Maybe<&2, String>, _, Some{text}, _u => Docs.get(rest, uri)) == Some{text} : Maybe<&2, String>}
+  {==}
+
+# one document onto the rest, the URI's removed: none of its errors survive
+law pub.del.step:
+  for bb: Bool
+  for +u: String
+  for +uri: String
+  for -t: String
+  for -e: List<&2, Rep.Diag>
+  for +rest: List<&2, Docs.Doc>
+  for h: {String.eq(u, uri) == bb : Bool}
+  for ih: {Docs.errors(rest, uri) == [] : List<&2, Rep.Diag>}
+  {Docs.errors(Bool.pick(List<&2, Docs.Doc>, bb, rest, Docs.Doc{u, t, e} <> rest), uri) == [] : List<&2, Rep.Diag>}
+
+def pub.del.step(bb, u, uri, _t, e, rest, h, ih):
+  match bb:
+    case True{}:
+      ih
+    case False{}:
+      g = Equal.sym(Bool, String.eq(u, uri), False{}, h)
+      %g : {Lazy.stop(List<&2, Rep.Diag>, _, e, _u => Docs.errors(rest, uri)) == [] : List<&2, Rep.Diag>}
+      ih
+
+# the documents without a URI hold no errors for it
+law pub.del:
+  for docs: List<&2, Docs.Doc>
+  for +uri: String
+  {Docs.errors(Docs.del(docs, uri), uri) == [] : List<&2, Rep.Diag>}
+
+def pub.del(docs, uri):
+  match docs:
+    case Nil{}:
+      {==}
+    case Con{Docs.Doc{+u, t, e}, +r}:
+      pub.del.step(String.eq(u, uri), u, uri, t, e, Docs.del(r, uri), {==}, pub.del(r, uri))
+
+def Laws.open_publishes(_uri, _text, _ds, _rs, _docs):
+  {==}
+
+def Laws.save_publishes(_uri, _ds, _rs, _docs):
+  {==}
+
+def Laws.change_publishes(_uri, _text, _rs, _docs):
+  {==}
+
+def Laws.open_keeps(uri, text, ds, _rs, docs):
+  (pub.errors_head(uri, Maybe.default(&2, String, Docs.get(Docs.set(docs, uri, text), uri), ""), ds,
+      Docs.del(Docs.set(docs, uri, text), uri)),
+    Equal.trans(Maybe<&2, String>,
+      Docs.get(Docs.set_errors(Docs.set(docs, uri, text), uri, ds), uri),
+      Some{Maybe.default(&2, String, Docs.get(Docs.set(docs, uri, text), uri), "")}, Some{text},
+      pub.get_head(uri, Maybe.default(&2, String, Docs.get(Docs.set(docs, uri, text), uri), ""), ds,
+        Docs.del(Docs.set(docs, uri, text), uri)),
+      Equal.cong(Maybe<&2, String>, Maybe<&2, String>, m => Some{Maybe.default(&2, String, m, "")},
+        Docs.get(Docs.set(docs, uri, text), uri), Some{text},
+        pub.get_head(uri, text, Docs.errors(docs, uri), Docs.del(docs, uri)))))
+
+def Laws.save_keeps(uri, ds, _rs, docs):
+  pub.errors_head(uri, Maybe.default(&2, String, Docs.get(docs, uri), ""), ds, Docs.del(docs, uri))
+
+def Laws.change_keeps(uri, text, _rs, docs):
+  (pub.errors_head(uri, text, Docs.errors(docs, uri), Docs.del(docs, uri)),
+    pub.get_head(uri, text, Docs.errors(docs, uri), Docs.del(docs, uri)))
+
+def Laws.close_publishes(uri, docs):
+  ({==}, pub.del(docs, uri))
+
+def Laws.config_unlinted(path, h, _text, _rs):
+  e = Equal.sym(Bool, Plan.is_config(path), True{}, h)
+  %e : {Bool.pick(List<&2, F.Graded>, _, [], Rules.graded(Config.nearest(_rs), Rules.all(path, _text)))
+    == [] : List<&2, F.Graded>}
+  {==}
+
+# appending nothing leaves a list as it was
+law pub.app_nil:
+  for -A: Kind(&2)
+  for xs: List<&2, A>
+  {List.append(&2, A, xs, []) == xs : List<&2, A>}
+
+def pub.app_nil(A, xs):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{hd, +tl}:
+      Equal.cong(List<&2, A>, List<&2, A>, rr => hd <> rr, List.append(&2, A, tl, []), tl, pub.app_nil(A, tl))
+
+# one finding graded alone and put before the rest graded is the rest graded
+# with it
+law pub.grade.step:
+  for bb: Bool
+  for -g: F.Graded
+  for -a: List<&2, F.Graded>
+  for -b: List<&2, F.Graded>
+  for e: {a == b : List<&2, F.Graded>}
+  {List.append(&2, F.Graded, Bool.pick(List<&2, F.Graded>, bb, [], [g]), a)
+    == Bool.pick(List<&2, F.Graded>, bb, b, g <> b) : List<&2, F.Graded>}
+
+def pub.grade.step(bb, g, a, _b, e):
+  match bb:
+    case True{}:
+      e
+    case False{}:
+      %e : {g <> a == g <> _ : List<&2, F.Graded>}
+      {==}
+
+# findings all at one path: the CLI's grading, finding by finding, is
+# grading them all by that path's config
+law pub.grade_at:
+  for +cs: List<&2, Plan.Conf>
+  for +world: W.World
+  for +path: String
+  for fs: List<&2, F.Finding>
+  {Plan.grade(cs, world, Rules.on.at(path, fs)) == Rules.graded(Plan.config.at(cs, world, path), Rules.on.at(path, fs))
+    : List<&2, F.Graded>}
+
+def pub.grade_at(cs, world, path, fs):
+  match fs:
+    case Nil{}:
+      {==}
+    case Con{F.Finding{_p, line, col, len, +rule, msg}, +rest}:
+      pub.grade.step(Config.is_off(Config.level(Plan.config.at(cs, world, path), Rules.group(rule), rule)),
+        F.Graded{Config.level(Plan.config.at(cs, world, path), Rules.group(rule), rule),
+          F.Finding{path, line, col, len, rule, msg}},
+        Plan.grade(cs, world, Rules.on.at(path, rest)),
+        Rules.graded(Plan.config.at(cs, world, path), Rules.on.at(path, rest)),
+        pub.grade_at(cs, world, path, rest))
+
+# a table whose first row is a directory's own: its config is that row's
+law pub.find_head:
+  for +d: String
+  for -rest: List<&2, Plan.Conf>
+  for +world: W.World
+  {Plan.conf.find(Plan.Conf{d, Plan.conf.near(world, d)} <> rest, world, d) == Plan.conf.near(world, d)
+    : Config.Config}
+
+def pub.find_head(d, rest, world):
+  e = Equal.sym(Bool, String.eq(d, d), True{}, pub.seq_refl(d))
+  %e : {Lazy.stop(Config.Config, _, Plan.conf.near(world, d), _u => Plan.conf.find(rest, world, d))
+    == Plan.conf.near(world, d) : Config.Config}
+  {==}
+
+# `bolt <path>` runs over that path alone, unless it is a bolt.bend
+law pub.cli.named:
+  for +world: W.World
+  for +path: String
+  for h: {W.paths.of(world) == [path] : List<&2, String>}
+  {Plan.inputs(world) == Plan.sources([path]) : List<&2, String>}
+
+def pub.cli.named(world, path, h):
+  e = Equal.sym(List<&2, String>, W.paths.of(world), [path], h)
+  %e : {Plan.sources(Plan.files.named(_, world)) == Plan.sources([path]) : List<&2, String>}
+  {==}
+
+# the LSP's lint and the CLI's per-file findings for a source (bb False) or
+# a bolt.bend (bb True)
+law pub.cli.case:
+  for bb: Bool
+  for +world: W.World
+  for +path: String
+  for +text: String
+  for hc: {Plan.is_config(path) == bb : Bool}
+  for ht: {W.text(world, path) == Some{text} : Maybe<&2, String>}
+  {Server.pub.lint(path, text, Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world))
+    == Plan.grade(Plan.confs.at(Plan.conf.dirs(Bool.pick(List<&2, String>, bb, [], [path])), world), world,
+      Plan.per_file(Plan.srcs_of(Plan.gots(Bool.pick(List<&2, String>, bb, [], [path]), world))))
+    : List<&2, F.Graded>}
+
+def pub.cli.case(bb, world, path, text, hc, ht):
+  match bb:
+    case True{}:
+      e = Equal.sym(Bool, Plan.is_config(path), True{}, hc)
+      %e : {Bool.pick(List<&2, F.Graded>, _, [],
+          Rules.graded(Config.nearest(Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world)),
+            Rules.all(path, text)))
+        == [] : List<&2, F.Graded>}
+      {==}
+    case False{}:
+      e = Equal.sym(Bool, Plan.is_config(path), False{}, hc)
+      %e : {Bool.pick(List<&2, F.Graded>, _, [],
+          Rules.graded(Config.nearest(Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world)),
+            Rules.all(path, text)))
+        == Plan.grade(Plan.confs.at(Plan.conf.dirs([path]), world), world,
+          Plan.per_file(Plan.srcs_of(Plan.gots([path], world))))
+        : List<&2, F.Graded>}
+      t = Equal.sym(Maybe<&2, String>, W.text(world, path), Some{text}, ht)
+      %t : {Rules.graded(Config.nearest(Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world)),
+          Rules.all(path, text))
+        == Plan.grade(Plan.confs.at(Plan.conf.dirs([path]), world), world,
+          Plan.per_file(Plan.srcs_of([Plan.Got{path, _}])))
+        : List<&2, F.Graded>}
+      a = Equal.sym(List<&2, F.Finding>, List.append(&2, F.Finding, Rules.all(path, text), []), Rules.all(path, text),
+        pub.app_nil(F.Finding, Rules.all(path, text)))
+      %a : {Rules.graded(Config.nearest(Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world)),
+          Rules.all(path, text))
+        == Plan.grade(Plan.confs.at(Plan.conf.dirs([path]), world), world, _)
+        : List<&2, F.Graded>}
+      Equal.sym(List<&2, F.Graded>,
+        Plan.grade(Plan.confs.at(Plan.conf.dirs([path]), world), world, Rules.all(path, text)),
+        Rules.graded(Config.nearest(Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world)),
+          Rules.all(path, text)),
+        Equal.trans(List<&2, F.Graded>,
+          Plan.grade(Plan.confs.at(Plan.conf.dirs([path]), world), world, Rules.all(path, text)),
+          Rules.graded(Plan.config.at(Plan.confs.at(Plan.conf.dirs([path]), world), world, path),
+            Rules.all(path, text)),
+          Rules.graded(Config.nearest(Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world)),
+            Rules.all(path, text)),
+          pub.grade_at(Plan.confs.at(Plan.conf.dirs([path]), world), world, path, Rules.on.rules(Src.of(path, text))),
+          Equal.cong(Config.Config, List<&2, F.Graded>, c => Rules.graded(c, Rules.all(path, text)),
+            Plan.config.at(Plan.confs.at(Plan.conf.dirs([path]), world), world, path),
+            Plan.conf.near(world, Config.dir_of(path)),
+            pub.find_head(Config.dir_of(path),
+              Plan.confs.at(Plan.uniq([Config.dir_of("SPEC.md")], [Config.dir_of(path)]), world), world))))
+
+def Laws.lint_is_cli(world, path, text, h, ht):
+  n = Equal.sym(List<&2, String>, Plan.inputs(world), Plan.sources([path]), pub.cli.named(world, path, h))
+  %n : {Server.pub.lint(path, text, Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world))
+    == Plan.grade(Plan.confs.at(Plan.conf.dirs(_), world), world, Plan.per_file(Plan.srcs_of(Plan.gots(_, world))))
+    : List<&2, F.Graded>}
+  pub.cli.case(Plan.is_config(path), world, path, text, {==}, ht)

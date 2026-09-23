@@ -13,9 +13,8 @@ it, and it does not go in at all (SPEC.md, docs/rfc/bolt-spec.md).
 
 `tests/*.bend` and `#|` exist only for claims Bend cannot prove:
 host/integration (bend, nix, node, disk, process). The stay list is
-`tests/bare.bend`, `bolt/lsp/tests/checker.bend` and
-`bolt/lsp/tests/levels.bend`, plus companions (`bolt/lsp/tests/spawn.js`,
-`tests/locate.js`). Levels goes when the LSP has a files model. A test
+`tests/bare.bend` and `bolt/lsp/tests/checker.bend`, plus companions
+(`bolt/lsp/tests/spawn.js`, `tests/locate.js`). A test
 is never evidence for a SPEC.md requirement: what one cannot prove is a
 Trusted row, not a test (the lazy branches skipping their thunk is
 BOLT-LIB-2).
@@ -26,9 +25,9 @@ A `#|` equality for a proveable claim is a bug. A directory with
 ## Layout
 
     ez.toml            the ledger: bolt's name, its entry `bolt/main.bend`, and
-                       shake v0.1.1 (`0x65bf91e14c96bf0c25491d716ec9f68c`),
-                       ezjson v0.1.0 (`0xa3c2445eb44c5d8406e6229be518fccb`)
-                       and snap v0.1.0 (`0x29fbb19f01e963cc6271864b7e442159`)
+                       shake v0.1.1 (`0xba6940aab8a335b70bf79944bd9b53c4`),
+                       ezjson v0.4.2 (`0xd9c8d4d2899ddda845dfa7525a3568ea`)
+                       and snap v0.1.0 (`0x9bfd9d57916f3439316c2775fd1f10b4`)
                        as git-backed deps
     ez.lock.toml       the resolved pin: rev, narHash, and file digests
     flake.nix          bolt via ez's nix lib (bend follows bendlang/bend; bend-cc,

@@ -123,9 +123,9 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
 | BOLT-LSP-1 | `Content-Length` counts UTF-8 bytes; a partial header or body waits; `cut` of `wrap(s)` gives `s`. | Proved | proved | bolt/lsp/LAWS.bend frame_counts; bolt/lsp/LAWS.bend frame_round; bolt/lsp/LAWS.bend frame_waits |
-| BOLT-LSP-2 | Diagnostics for an open document equal the CLI's per-file findings for that file and text under the same bolt.bend. | Proved | pending |  |
+| BOLT-LSP-2 | Diagnostics for an open document equal the CLI's per-file findings for that file and text under the same bolt.bend. | Proved | proved | bolt/lsp/LAWS.bend lint_is_cli |
 | BOLT-LSP-3 | Each request gets exactly one response with the same id, in order; an unknown request gets -32601; an unknown notification gets nothing. | Proved | proved | bolt/lsp/LAWS.bend replies_pair; bolt/lsp/LAWS.bend unknown_refused |
-| BOLT-LSP-4 | Open and save publish checker plus lint; change publishes lint plus the last checker result; close publishes an empty list; an open bolt.bend gets no lint. | Proved | pending |  |
+| BOLT-LSP-4 | Open and save publish checker plus lint; change publishes lint plus the last checker result; close publishes an empty list; an open bolt.bend gets no lint. | Proved | proved | bolt/lsp/LAWS.bend open_publishes; bolt/lsp/LAWS.bend save_publishes; bolt/lsp/LAWS.bend change_publishes; bolt/lsp/LAWS.bend open_keeps; bolt/lsp/LAWS.bend save_keeps; bolt/lsp/LAWS.bend change_keeps; bolt/lsp/LAWS.bend close_publishes; bolt/lsp/LAWS.bend config_unlinted |
 | BOLT-LSP-5 | The checker never runs `main`. | Proved | pending |  |
 | BOLT-LSP-6 | Hover, definition, references and completion answer from the binder (BOLT-SYN-5) over the open text and its relative imports. | Proved | pending |  |
 | BOLT-LSP-7 | Positions are in the encoding the client negotiated. | Proved | pending |  |
@@ -150,7 +150,7 @@ These assumptions sit outside the proofs. They are the complete list of Trusted 
 | BOLT-TRUST-5 | `bend <file> --check-only` never runs `main`, and prints its report in the shape `bolt/lsp/report.bend` parses. | bend is a separate program, and the report format has already drifted once (`report_import`). |
 | BOLT-TRUST-6 | The proof gate runner runs bend on every PROOF.bend and accepts only an exact `All terms check.` first line. | It is ez code run by `mkProofs` (`ez test --unit-only` today, `ez prove` when ez ships it). CI builds from a clean tree. |
 | BOLT-TRUST-7 | Every commit on `main` passed `ci.yml`. | The repository ruleset "main: require ci" requires the `check / check` job on `main` (since 2026-09-22). release-please PRs, which get no CI run, merge through an admin pull-request bypass. |
-| BOLT-TRUST-8 | shake v0.1.1 parses argv as its spec says, and ezjson v0.1.0 parses and prints JSON correctly. | Pinned dependencies, by ez.toml hash; bolt's gate does not re-check them. The surrogate-pair bug sits here. |
+| BOLT-TRUST-8 | shake v0.1.1 parses argv as its spec says, and ezjson v0.4.2 parses and prints JSON correctly. | Pinned dependencies, by ez.toml hash; bolt's gate does not re-check them. The surrogate-pair bug sits here. |
 | BOLT-TRUST-9 | Each interpreter answers the World's questions and executes plans faithfully. | It makes no decisions and is kept small enough to review line by line. The listing and read effects it calls are BOLT-TRUST-3. |
 | BOLT-OUT-6 | A released code is never renumbered or reused. | A property across versions, enforced by review of the SPEC row that lists the table. |
 | BOLT-SYN-6 | Every function in `syntax/` terminates on every input without fuel. | Termination is what the Bend checker's structural-recursion check establishes, so this rests on BOLT-TRUST-1 and needs no law of its own. |
