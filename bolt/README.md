@@ -117,8 +117,11 @@ beside the groups.
   already has. When the file is imported, Bend reads the name as the def and
   the binder fails ("a pattern (a binder or a constructor)"). Parameters and
   `for` names are declared, not parsed as terms, and are safe.
-- `hole` — a `?TODO` left in code (LAWS.bend is exempt: its laws are open
-  claims by convention, filled by PROOF.bend).
+- `hole` — a TODO hole left in code, the one bend counts in "N TODO found":
+  `?` and then `TODO`, with spaces, newlines or comments allowed between
+  (`?TODO`, `? TODO`). `?todo` and `?TODO_later` are other names, a type
+  error to bend, and are not reported. LAWS.bend is exempt: its laws are open
+  claims by convention, filled by PROOF.bend.
 - `space` — trailing whitespace, a tab, or a line over 120 wide. Width counts
   a string literal as two characters: a long fixture or message does not make
   a line hard to read, code does. A comment counts at its full width. `#|`
