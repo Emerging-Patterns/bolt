@@ -1,6 +1,8 @@
 # bolt/lsp: the proofs. `bend PROOF.bend` is the gate.
 import Base
+import 0xa3c2445eb44c5d8406e6229be518fccb/value.bend as J
 import ./frame.bend as Frame
+import ./server.bend as Server
 import ./LAWS.bend as Laws
 
 # small facts
@@ -1218,3 +1220,159 @@ def Laws.frame_waits(s, kk0, h):
         Equal.cong(List<&2, U32>, Bool, w => Nat.is_lt(kk, List.length(&2, U32, w)), w2, Laws.wire(s),
           Equal.sym(List<&2, U32>, Laws.wire(s), w2, wire.shape(s))),
         h)))
+
+# dispatch
+# --------
+
+# notifications carry no response ids
+law notices_ids:
+  for ns: List<&2, String>
+  for -more: List<&2, Server.Reply>
+  {Laws.ids(List.append(&2, Server.Reply, Server.notices(ns), more)) == Laws.ids(more) : List<&2, J.Json>}
+
+def notices_ids(ns, more):
+  match ns:
+    case Nil{}:
+      {==}
+    case Con{n, t}:
+      notices_ids(t, more)
+
+# an unknown method's replies carry its id when it has one
+law unknown_ids:
+  for id: J.Json
+  for -more: List<&2, Server.Reply>
+  {Laws.ids(List.append(&2, Server.Reply, Server.unknown(id), more))
+    == List.append(&2, J.Json, Laws.if_id(id), Laws.ids(more)) : List<&2, J.Json>}
+
+def unknown_ids(id, _more):
+  match id:
+    case J.JNull{}:
+      {==}
+    case J.JBool{b}:
+      {==}
+    case J.JNum{raw}:
+      {==}
+    case J.JStr{s}:
+      {==}
+    case J.JArr{items}:
+      {==}
+    case J.JObj{pairs}:
+      {==}
+    case J.JNil{}:
+      {==}
+    case J.JCons{h, t}:
+      {==}
+    case J.JPair{k, v, r}:
+      {==}
+
+# a response carries its request's id, a result or an error alike
+law respond_ids:
+  for -id: J.Json
+  for aa: Server.Answer
+  for -more: List<&2, Server.Reply>
+  {Laws.ids(Server.respond(id, aa) <> more) == id <> Laws.ids(more) : List<&2, J.Json>}
+
+def respond_ids(_id, aa, _more):
+  match aa:
+    case Server.Answer{r}:
+      {==}
+    case Server.Refusal{c, m}:
+      {==}
+
+# one message's replies carry the ids it is owed, then the rest's unless it
+# was exit, whatever its work gave
+law turn_ids:
+  for w: Server.Work
+  for mm: Server.Method
+  for id: J.Json
+  for -more: List<&2, Server.Reply>
+  {Laws.ids(Laws.then(Server.step(mm, id, w), more)) == Laws.owed_all.go(mm, id, Laws.ids(more))
+    : List<&2, J.Json>}
+
+def turn_ids(w, mm, id, more):
+  match w:
+    case Server.Work{notes, answer, docs}:
+      match mm:
+        case Server.MInitialize{}:
+          respond_ids(id, answer, more)
+        case Server.MShutdown{}:
+          respond_ids(id, answer, more)
+        case Server.MExit{}:
+          {==}
+        case Server.MOpen{}:
+          notices_ids(notes, more)
+        case Server.MChange{}:
+          notices_ids(notes, more)
+        case Server.MSave{}:
+          notices_ids(notes, more)
+        case Server.MClose{}:
+          notices_ids(notes, more)
+        case Server.MHover{}:
+          respond_ids(id, answer, more)
+        case Server.MDefinition{}:
+          respond_ids(id, answer, more)
+        case Server.MSymbols{}:
+          respond_ids(id, answer, more)
+        case Server.MCompletion{}:
+          respond_ids(id, answer, more)
+        case Server.MReferences{}:
+          respond_ids(id, answer, more)
+        case Server.MRename{}:
+          respond_ids(id, answer, more)
+        case Server.MSemantic{}:
+          respond_ids(id, answer, more)
+        case Server.MOther{}:
+          unknown_ids(id, more)
+
+def Laws.replies_pair(ts):
+  match ts:
+    case Nil{}:
+      {==}
+    case Con{tt, rest}:
+      match tt:
+        case Laws.Turn{+msg, w}:
+          +mm = Server.method(Server.name_of(msg))
+          +id = Server.id_of(msg)
+          Equal.trans(List<&2, J.Json>, Laws.ids(Laws.then(Server.step(mm, id, w), Laws.replies(rest))),
+            Laws.owed_all.go(mm, id, Laws.ids(Laws.replies(rest))), Laws.owed_all.go(mm, id, Laws.owed_all(rest)),
+            turn_ids(w, mm, id, Laws.replies(rest)),
+            Equal.cong(List<&2, J.Json>, List<&2, J.Json>, x => Laws.owed_all.go(mm, id, x),
+              Laws.ids(Laws.replies(rest)), Laws.owed_all(rest), Laws.replies_pair(rest)))
+
+# the method the server does not know is refused with the id, or ignored
+# without one, whatever its work gave
+law unknown_other:
+  for w: Server.Work
+  for id: J.Json
+  {Laws.sent(Server.step(Server.MOther{}, id, w)) == Laws.refusal(id) : List<&2, Server.Reply>}
+
+def unknown_other(w, id):
+  match w:
+    case Server.Work{notes, answer, docs}:
+      match id:
+        case J.JNull{}:
+          {==}
+        case J.JBool{b}:
+          {==}
+        case J.JNum{raw}:
+          {==}
+        case J.JStr{s}:
+          {==}
+        case J.JArr{items}:
+          {==}
+        case J.JObj{pairs}:
+          {==}
+        case J.JNil{}:
+          {==}
+        case J.JCons{h, t}:
+          {==}
+        case J.JPair{k, v, r}:
+          {==}
+
+def Laws.unknown_refused(name, h, id, w):
+  Equal.trans(List<&2, Server.Reply>, Laws.sent(Server.step(Server.method(name), id, w)),
+    Laws.sent(Server.step(Server.MOther{}, id, w)), Laws.refusal(id),
+    Equal.cong(Server.Method, List<&2, Server.Reply>, m => Laws.sent(Server.step(m, id, w)), Server.method(name),
+      Server.MOther{}, h),
+    unknown_other(w, id))
+

@@ -5,6 +5,8 @@
 # runtime. A compiled binary does pass its arguments through; the runtime
 # takes only its own out of the line (`--threads`, `--gpu`, `--gpu-build`,
 # `--help`), wherever they stand, and `--` hands even those to the program.
+# `out` is every decision the line makes, as data: what to print, where, and
+# the exit code, or the subcommand to run and its files. main only does it.
 import Base
 import 0x65bf91e14c96bf0c25491d716ec9f68c/main.bend as Shake
 import ./version.bend as Ver
@@ -50,10 +52,6 @@ def spec() -> Shake.Cli:
 def parse(av: List<&2, String>) -> Result<&2, &2, Shake.ParseErr, Shake.Matched>:
   Shake.parse(spec(), av)
 
-# a parse as shake's one-line tag
-def shown(av: List<&2, String>) -> String:
-  Shake.show(parse(av))
-
 # usage for a command path
 def help_text(path: List<&2, String>) -> String:
   Shake.help(spec(), path)
@@ -62,26 +60,53 @@ def help_text(path: List<&2, String>) -> String:
 def err_text(ee: Shake.ParseErr) -> String:
   Shake.err_text(spec(), ee)
 
-# the selected command name; none, ""
-def command.of(rr: Result<&2, &2, Shake.ParseErr, Shake.Matched>) -> String:
+# a subcommand
+type Cmd is Data:
+  CLint{}
+  CCheck{}
+  CLsp{}
+
+# a subcommand by its name; the empty name (no subcommand) is `lint`
+def command(+name: String) -> Cmd:
+  Bool.pick(Cmd, String.eq(name, "check"), CCheck{},
+    Bool.pick(Cmd, String.eq(name, "lsp"), CLsp{}, CLint{}))
+
+# where a line that stops puts its text
+type Stream is Data:
+  Line{}
+  Page{}
+  Err{}
+
+# what a parsed line does: print a text and exit with a code, or run a
+# subcommand over files (which then exits as that command decides)
+type Out is Data:
+  Stop{to: Stream, text: String, code: U32}
+  Go{cmd: Cmd, paths: List<&2, String>}
+
+# a successful parse: the version, or the selected command and its files
+def out.run(ask: Bool, +mm: Shake.Matched) -> Out:
+  match ask:
+    case True{}:
+      Stop{Line{}, "bolt " ++ version(), 0}
+    case False{}:
+      Go{command(String.join(Shake.path_of(mm), "/")), Shake.get_all(mm, "files")}
+
+# a failed parse: help text, or an error
+def out.fail(ee: Shake.ParseErr) -> Out:
+  match ee:
+    case Shake.NeedHelp{path}:
+      Stop{Page{}, help_text(path), 0}
+    case other:
+      Stop{Err{}, err_text(other), 1}
+
+# a successful parse, read once for the version flag
+def out.done(+mm: Shake.Matched) -> Out:
+  out.run(Shake.on(mm, "version"), mm)
+
+# what a parse result does
+def out(rr: Result<&2, &2, Shake.ParseErr, Shake.Matched>) -> Out:
   match rr:
+    case Fail{e}:
+      out.fail(e)
     case Done{m}:
-      String.join(Shake.path_of(m), "/")
-    case Fail{_e}:
-      ""
-
-# the subcommand the line opens with; none, ""
-def command(av: List<&2, String>) -> String:
-  command.of(parse(av))
-
-# the files a successful parse bound; none on error
-def files.of(rr: Result<&2, &2, Shake.ParseErr, Shake.Matched>) -> List<&2, String>:
-  match rr:
-    case Done{m}:
-      Shake.get_all(m, "files")
-    case Fail{_e}:
-      []
-
-# the files: leftover words under the rest name
-def files(av: List<&2, String>) -> List<&2, String>:
-  files.of(parse(av))
+      out.done(m)

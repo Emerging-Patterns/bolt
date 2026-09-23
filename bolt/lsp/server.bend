@@ -38,9 +38,34 @@ type Method is Data:
   MSemantic{}
   MOther{}
 
-# what one message leads to: the bodies to send, whether to stop, the documents
+# a message the server sends: a notification, already printed, or the
+# response to a request, its result or its error
+type Reply is Data:
+  RNote{body: String}
+  RResult{id: J.Json, result: J.Json}
+  RError{id: J.Json, code: String, message: String}
+
+# what a request is answered with: a result, or an error's code and message
+type Answer is Data:
+  Answer{result: J.Json}
+  Refusal{code: String, message: String}
+
+# what the work behind a method gave: the notifications it sends, the answer
+# (read for a request only), the documents after it. It never sees the id
+type Work is Data:
+  Work{notes: List<&2, String>, answer: Answer, docs: List<&2, Docs.Doc>}
+
+# what one message leads to: the replies to send, whether to stop, the documents
 type Out is Data:
-  Out{replies: List<&2, String>, quit: Bool, docs: List<&2, Docs.Doc>}
+  Out{replies: List<&2, Reply>, quit: Bool, docs: List<&2, Docs.Doc>}
+
+# how the server treats a method: a request owed one response, a
+# notification, exit, or a method it does not know
+type Role is Data:
+  RRequest{}
+  RNotice{}
+  RExit{}
+  RUnknown{}
 
 # a method by its name
 def method(+name: String) -> Method:
@@ -60,6 +85,48 @@ def method(+name: String) -> Method:
                             Bool.pick(Method, String.eq(name, "textDocument/semanticTokens/full"), MSemantic{},
                               MOther{}))))))))))))))
 
+# a method's role
+def role(mm: Method) -> Role:
+  match mm:
+    case MInitialize{}:
+      RRequest{}
+    case MShutdown{}:
+      RRequest{}
+    case MExit{}:
+      RExit{}
+    case MOpen{}:
+      RNotice{}
+    case MChange{}:
+      RNotice{}
+    case MSave{}:
+      RNotice{}
+    case MClose{}:
+      RNotice{}
+    case MHover{}:
+      RRequest{}
+    case MDefinition{}:
+      RRequest{}
+    case MSymbols{}:
+      RRequest{}
+    case MCompletion{}:
+      RRequest{}
+    case MReferences{}:
+      RRequest{}
+    case MRename{}:
+      RRequest{}
+    case MSemantic{}:
+      RRequest{}
+    case MOther{}:
+      RUnknown{}
+
+# a message's method name, empty when it has none
+def name_of(msg: J.Json) -> String:
+  J.str_or(J.get(msg, "method"), "")
+
+# a message's id: null for a notification
+def id_of(msg: J.Json) -> J.Json:
+  J.get(msg, "id")
+
 # the document a request is about
 def uri_of(params: J.Json) -> String:
   J.str_or(J.get(J.get(params, "textDocument"), "uri"), "")
@@ -72,17 +139,68 @@ def line_of(params: J.Json) -> U32:
 def col_of(params: J.Json) -> U32:
   J.u32_or(J.get(J.get(params, "position"), "character"), 0)
 
-# one reply body
-def reply(id: J.Json, result: J.Json) -> List<&2, String>:
-  [Print.print(Proto.response(id, result))]
+# a reply as the text sent
+def text(rr: Reply) -> String:
+  match rr:
+    case RNote{body}:
+      body
+    case RResult{id, result}:
+      Print.print(Proto.response(id, result))
+    case RError{id, code, message}:
+      Print.print(Proto.failure(id, code, message))
+
+# notifications as replies
+def notices(ns: List<&2, String>) -> List<&2, Reply>:
+  match ns:
+    case Nil{}:
+      Nil{}
+    case Con{n, t}:
+      RNote{n} <> notices(t)
+
+# the response to the request with this id
+def respond(id: J.Json, aa: Answer) -> Reply:
+  match aa:
+    case Answer{result}:
+      RResult{id, result}
+    case Refusal{code, message}:
+      RError{id, code, message}
 
 # a request the server does not know is refused; a notification is ignored
-def unknown(id: J.Json) -> List<&2, String>:
+def unknown(id: J.Json) -> List<&2, Reply>:
   match id:
     case J.JNull{}:
       []
     case other:
-      [Print.print(Proto.failure(other, "-32601", "method not found"))]
+      [RError{other, "-32601", "method not found"}]
+
+# the work of a request: its result, no notifications
+def answered(result: J.Json, docs: List<&2, Docs.Doc>) -> Work:
+  Work{[], Answer{result}, docs}
+
+# the work of a notification: what it sends, and no answer
+def noted(notes: List<&2, String>, docs: List<&2, Docs.Doc>) -> Work:
+  Work{notes, Answer{J.JNull{}}, docs}
+
+def step.go(rr: Role, id: J.Json, ww: Work) -> Out:
+  match rr:
+    case RRequest{}:
+      Work{notes, answer, docs} = ww
+      Out{[respond(id, answer)], False{}, docs}
+    case RNotice{}:
+      Work{notes, answer, docs} = ww
+      Out{notices(notes), False{}, docs}
+    case RExit{}:
+      Work{notes, answer, docs} = ww
+      Out{[], True{}, docs}
+    case RUnknown{}:
+      Work{notes, answer, docs} = ww
+      Out{unknown(id), False{}, docs}
+
+# the dispatcher's decision for one message, whatever its method's work gave:
+# a request gets one response with its id, a notification its notices, exit
+# stops, and a method it does not know is refused or ignored
+def step(mm: Method, id: J.Json, ww: Work) -> Out:
+  step.go(role(mm), id, ww)
 
 # a bolt.bend is bolt's configuration, not source to lint
 def is_config(+path: String) -> Bool:
@@ -98,15 +216,15 @@ def linted(~fs: F.Files, +uri: String, +docs: List<&2, Docs.Doc>) -> IO(List<&2,
       Lint.graded(Config.nearest(rs), Lint.all(path, Maybe.default(&2, String, Docs.get(docs, uri), ""))))
 
 # the checker's errors and the linter's findings published for a document
-def published(~fs: F.Files, +uri: String, +docs: List<&2, Docs.Doc>) -> IO(Out):
-  do IO<Out>:
+def published(~fs: F.Files, +uri: String, +docs: List<&2, Docs.Doc>) -> IO(Work):
+  do IO<Work>:
     gs : List<&2, Finding.Graded> <- linted(~fs, uri, docs)
-    return Out{[Print.print(Proto.publish(uri, Docs.errors(docs, uri), gs))], False{}, docs}
+    return noted([Print.print(Proto.publish(uri, Docs.errors(docs, uri), gs))], docs)
 
 # diagnostics for a document, the checker run (on the file on disk) and the
 # linter (on the text)
-def checked(~fs: F.Files, +uri: String, ck: C.Checker, +docs: List<&2, Docs.Doc>) -> IO(Out):
-  do IO<Out>:
+def checked(~fs: F.Files, +uri: String, ck: C.Checker, +docs: List<&2, Docs.Doc>) -> IO(Work):
+  do IO<Work>:
     ds : List<&2, Rep.Diag> <- C.check(ck, Proto.path(uri))
     published(~fs, uri, Docs.set_errors(docs, uri, ds))
 
@@ -134,39 +252,37 @@ def complete.with(
   +docs: List<&2, Docs.Doc>,
   uri: String,
   +line: U32,
-  +col: U32,
-  id: J.Json
-) -> IO(Out):
-  do IO<Out>:
+  +col: U32
+) -> IO(Work):
+  do IO<Work>:
     items : List<&2, Outline.Item> <- Nav.candidates(~fs, docs, uri, prefix, line)
-    return Out{reply(id, Proto.completions(items, line, (col - U32.from_nat(String.length(prefix)) : U32), col)),
-      False{}, docs}
+    return answered(Proto.completions(items, line, (col - U32.from_nat(String.length(prefix)) : U32), col), docs)
 
 # the candidates for the name being typed at a position
-def complete(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, +line: U32, +col: U32, id: J.Json) -> IO(Out):
-  do IO<Out>:
+def complete(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, +line: U32, +col: U32) -> IO(Work):
+  do IO<Work>:
     text : String <- Nav.text_of(~fs, docs, uri)
-    complete.with(~fs, Word.before(text, line, col), docs, uri, line, col, id)
+    complete.with(~fs, Word.before(text, line, col), docs, uri, line, col)
 
 def references.of(ss: Nav.Sites, uri: String, name: String) -> J.Json:
   Nav.Sites{mine, at} = ss
   Proto.locations(uri, name, at)
 
 # only a name bound in the document renames; the editor shows the refusal
-def rename.of(ss: Nav.Sites, id: J.Json, uri: String, name: String, new: String) -> List<&2, String>:
+def rename.of(ss: Nav.Sites, uri: String, name: String, new: String) -> Answer:
   Nav.Sites{mine, at} = ss
   match mine:
     case True{}:
-      reply(id, Proto.rename(uri, name, new, at))
+      Answer{Proto.rename(uri, name, new, at)}
     case False{}:
-      [Print.print(Proto.failure(id, "-32803", "only a name bound in this file can be renamed"))]
+      Refusal{"-32803", "only a name bound in this file can be renamed"}
 
 # every position of the name at a position
-def references(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, +line: U32, +col: U32, id: J.Json) -> IO(Out):
-  do IO<Out>:
+def references(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, +line: U32, +col: U32) -> IO(Work):
+  do IO<Work>:
     text : String <- Nav.text_of(~fs, docs, uri)
     s : Nav.Sites <- Nav.sites(~fs, docs, uri, line, col)
-    return Out{reply(id, references.of(s, uri, Word.at(text, line, col))), False{}, docs}
+    return answered(references.of(s, uri, Word.at(text, line, col)), docs)
 
 # the edit renaming the name at a position, or a refusal
 def renamed(
@@ -175,35 +291,35 @@ def renamed(
   +uri: String,
   +line: U32,
   +col: U32,
-  id: J.Json,
   new: String
-) -> IO(Out):
-  do IO<Out>:
+) -> IO(Work):
+  do IO<Work>:
     text : String <- Nav.text_of(~fs, docs, uri)
     s : Nav.Sites <- Nav.sites(~fs, docs, uri, line, col)
-    return Out{rename.of(s, id, uri, Word.at(text, line, col), new), False{}, docs}
+    return Work{[], rename.of(s, uri, Word.at(text, line, col), new), docs}
 
 # the document's semantic tokens
-def semantic(~fs: F.Files, +docs: List<&2, Docs.Doc>, uri: String, id: J.Json) -> IO(Out):
-  do IO<Out>:
+def semantic(~fs: F.Files, +docs: List<&2, Docs.Doc>, uri: String) -> IO(Work):
+  do IO<Work>:
     text : String <- Nav.text_of(~fs, docs, uri)
-    return Out{reply(id, Proto.semantic(Semantic.data(text))), False{}, docs}
+    return answered(Proto.semantic(Semantic.data(text)), docs)
 
-def handle.go(
+# the work behind a method: what the checker, the files and the documents
+# give it. It does not see the message's id: step alone puts that on a reply
+def work(
   ~ck: C.Checker,
   ~fs: F.Files,
   mm: Method,
-  id: J.Json,
   +params: J.Json,
   +docs: List<&2, Docs.Doc>
-) -> IO(Out):
+) -> IO(Work):
   match mm:
     case MInitialize{}:
-      IO.pure(Out, Out{reply(id, Proto.capabilities()), False{}, docs})
+      IO.pure(Work, answered(Proto.capabilities(), docs))
     case MShutdown{}:
-      IO.pure(Out, Out{reply(id, J.JNull{}), False{}, docs})
+      IO.pure(Work, answered(J.JNull{}, docs))
     case MExit{}:
-      IO.pure(Out, Out{[], True{}, docs})
+      IO.pure(Work, noted([], docs))
     case MOpen{}:
       checked(~fs, uri_of(params), ck,
         Docs.set(docs, uri_of(params), J.str_or(J.get(J.get(params, "textDocument"), "text"), "")))
@@ -213,46 +329,49 @@ def handle.go(
     case MSave{}:
       checked(~fs, uri_of(params), ck, docs)
     case MClose{}:
-      IO.pure(Out, Out{[Print.print(Proto.publish(uri_of(params), [], []))], False{}, Docs.del(docs, uri_of(params))})
+      IO.pure(Work, noted([Print.print(Proto.publish(uri_of(params), [], []))], Docs.del(docs, uri_of(params))))
     case MHover{}:
-      do IO<Out>:
+      do IO<Work>:
         f : Maybe<&2, Nav.Found> <- Nav.hover(~fs, docs, uri_of(params), line_of(params), col_of(params))
-        return Out{reply(id, hover.of(f)), False{}, docs}
+        return answered(hover.of(f), docs)
     case MDefinition{}:
-      do IO<Out>:
+      do IO<Work>:
         f : Maybe<&2, Nav.Found> <- Nav.at(~fs, docs, uri_of(params), line_of(params), col_of(params))
-        return Out{reply(id, definition.of(f)), False{}, docs}
+        return answered(definition.of(f), docs)
     case MSymbols{}:
-      do IO<Out>:
+      do IO<Work>:
         items : List<&2, Outline.Item> <- Nav.outline(~fs, docs, uri_of(params))
-        return Out{reply(id, Proto.symbols(items)), False{}, docs}
+        return answered(Proto.symbols(items), docs)
     case MCompletion{}:
-      complete(~fs, docs, uri_of(params), line_of(params), col_of(params), id)
+      complete(~fs, docs, uri_of(params), line_of(params), col_of(params))
     case MReferences{}:
-      references(~fs, docs, uri_of(params), line_of(params), col_of(params), id)
+      references(~fs, docs, uri_of(params), line_of(params), col_of(params))
     case MRename{}:
-      renamed(~fs, docs, uri_of(params), line_of(params), col_of(params), id, J.str_or(J.get(params, "newName"), ""))
+      renamed(~fs, docs, uri_of(params), line_of(params), col_of(params), J.str_or(J.get(params, "newName"), ""))
     case MSemantic{}:
-      semantic(~fs, docs, uri_of(params), id)
+      semantic(~fs, docs, uri_of(params))
     case MOther{}:
-      IO.pure(Out, Out{unknown(id), False{}, docs})
+      IO.pure(Work, noted([], docs))
 
-# one message: its method, id and params to handle.go
+# one message: its method's work, then step's decision on it
 def handle(~ck: C.Checker, ~fs: F.Files, +msg: J.Json, docs: List<&2, Docs.Doc>) -> IO(Out):
-  handle.go(~ck, ~fs, method(J.str_or(J.get(msg, "method"), "")), J.get(msg, "id"), J.get(msg, "params"), docs)
+  +mm = method(name_of(msg))
+  do IO<Out>:
+    w : Work <- work(~ck, ~fs, mm, J.get(msg, "params"), docs)
+    return step(mm, id_of(msg), w)
 
 # a parsed message, or null when it did not parse
 def decoded(mm: Maybe<&2, J.Json>) -> J.Json:
   Maybe.default(&2, J.Json, mm, J.JNull{})
 
 # every reply sent, in order
-def send_all(~H: Type, ~tr: T.Transport<H>, replies: List<&2, String>, h3: H) -> IO(H):
+def send_all(~H: Type, ~tr: T.Transport<H>, replies: List<&2, Reply>, h3: H) -> IO(H):
   match replies:
     case Nil{}:
       IO.pure(H, h3)
     case Con{body, t}:
       do IO<H>:
-        h2 : H <- T.send(H, tr, h3, body)
+        h2 : H <- T.send(H, tr, h3, text(body))
         send_all(~H, ~tr, t, h2)
 
 # the loop goes on with the documents, unless the message said to quit

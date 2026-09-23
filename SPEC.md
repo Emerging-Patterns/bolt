@@ -98,14 +98,14 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-CLI-1 | bolt accepts `bolt [lint] [files]`, `bolt check files`, `bolt lsp`, `bolt help [cmd]` and `--`; an argv parse error exits 1, and `help` and `--version` exit 0. | Proved | pending |  |
-| BOLT-CLI-2 | `--version` prints the release and, when the build has one, the short commit in parentheses. | Proved | pending |  |
+| BOLT-CLI-1 | bolt accepts `bolt [lint] [files]`, `bolt check files`, `bolt lsp`, `bolt help [cmd]` and `--`; an argv parse error exits 1, and `help` and `--version` exit 0. | Proved | proved | bolt/LAWS.bend cli_bare; bolt/LAWS.bend cli_bare_raw; bolt/LAWS.bend cli_lint; bolt/LAWS.bend cli_lint_raw; bolt/LAWS.bend cli_check; bolt/LAWS.bend cli_check_raw; bolt/LAWS.bend cli_lsp; bolt/LAWS.bend cli_help; bolt/LAWS.bend cli_version; bolt/LAWS.bend cli_error_exits; bolt/LAWS.bend cli_help_exits; bolt/LAWS.bend cli_version_exits; bolt/LAWS.bend cli_runs |
+| BOLT-CLI-2 | `--version` prints the release and, when the build has one, the short commit in parentheses. | Proved | proved | bolt/LAWS.bend cli_version; bolt/LAWS.bend cli_version_exits; bolt/LAWS.bend version_release; bolt/LAWS.bend version_commit |
 
 ### Checker (BOLT-CHK)
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-CHK-1 | `bolt check` prints one `path:line:1: error:` line per error bend reports, on the line bend marks, then a count; it exits 1 when there is any, and treats a failure to run bend as an error. | Proved | pending |  |
+| BOLT-CHK-1 | `bolt check` prints one `path:line:1: error:` line per error bend reports, on the line bend marks, then a count; it exits 1 when there is any, and treats a failure to run bend as an error. | Proved | pending | bolt/LAWS.bend check_lines; bolt/LAWS.bend check_one_each; bolt/LAWS.bend check_clean; bolt/LAWS.bend check_one; bolt/LAWS.bend check_many |
 
 ### Parser (BOLT-SYN)
 
@@ -124,7 +124,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | :---- | :---- | :---- | :---- | :---- |
 | BOLT-LSP-1 | `Content-Length` counts UTF-8 bytes; a partial header or body waits; `cut` of `wrap(s)` gives `s`. | Proved | proved | bolt/lsp/LAWS.bend frame_counts; bolt/lsp/LAWS.bend frame_round; bolt/lsp/LAWS.bend frame_waits |
 | BOLT-LSP-2 | Diagnostics for an open document equal the CLI's per-file findings for that file and text under the same bolt.bend. | Proved | pending |  |
-| BOLT-LSP-3 | Each request gets exactly one response with the same id, in order; an unknown request gets -32601; an unknown notification gets nothing. | Proved | pending |  |
+| BOLT-LSP-3 | Each request gets exactly one response with the same id, in order; an unknown request gets -32601; an unknown notification gets nothing. | Proved | proved | bolt/lsp/LAWS.bend replies_pair; bolt/lsp/LAWS.bend unknown_refused |
 | BOLT-LSP-4 | Open and save publish checker plus lint; change publishes lint plus the last checker result; close publishes an empty list; an open bolt.bend gets no lint. | Proved | pending |  |
 | BOLT-LSP-5 | The checker never runs `main`. | Proved | pending |  |
 | BOLT-LSP-6 | Hover, definition, references and completion answer from the binder (BOLT-SYN-5) over the open text and its relative imports. | Proved | pending |  |
