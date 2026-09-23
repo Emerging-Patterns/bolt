@@ -3875,3 +3875,222 @@ law coverage_binder:
         coverage.said(coverage.uses(Bind.of_tree(Tree.parse(text), String.lines(text))), Tree.parse(text),
           Outline.of_tokens(text, Lex.tokens(text)), Imports.norm(path)), [])}
     : CoverageView}
+
+# Inert text (BOLT-RULE-INERT). A comment or a string literal says what it
+# likes: changing what it says leaves every rule whose pattern is code with
+# the same findings. A source is read here with each such token cut to its
+# first char (`#` or `"`), everything else left as it is; two sources that
+# read the same that way differ at most in what their comments and strings
+# say, token for token, kinds and positions kept. The lexer starts a token
+# with `"` or `#` exactly when it is a string or a comment (inert.ok): what
+# a rule compares a string's text with, a name or a keyword, never starts
+# that way.
+
+# a comment or a string literal: a token whose text is not code
+def inert.blanks(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TStr{}:
+      True{}
+    case Lex.TComment{}:
+      True{}
+    case other:
+      False{}
+
+# a text cut to its first char
+def inert.cut(tt: String) -> String:
+  match tt:
+    case SNil{}:
+      SNil{}
+    case SCon{h, _t}:
+      SCon{h, SNil{}}
+
+# the text, cut when it is not code
+def inert.keep(bb: Bool, tt: String) -> String:
+  match bb:
+    case True{}:
+      inert.cut(tt)
+    case False{}:
+      tt
+
+# a token with what it says cut when it is a comment or a string
+def inert.tok(tk: Lex.Tok) -> Lex.Tok:
+  match tk:
+    case Lex.Tok{+k, t, l, c}:
+      Lex.Tok{k, inert.keep(inert.blanks(k), t), l, c}
+
+# the tokens, each read that way
+def inert.toks(ts: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
+  match ts:
+    case Nil{}:
+      Nil{}
+    case Con{h, t}:
+      inert.tok(h) <> inert.toks(t)
+
+# a tree with each leaf read that way; brackets and statement kinds as they are
+def inert.node(nn: Tree.Node) -> Tree.Node:
+  match nn:
+    case Tree.Leaf{tok}:
+      Tree.Leaf{inert.tok(tok)}
+    case Tree.Group{open, kids, close}:
+      Tree.Group{open, inert.node(kids), close}
+    case Tree.Stmt{kind, kids, body}:
+      Tree.Stmt{kind, inert.node(kids), inert.node(body)}
+    case Tree.NNil{}:
+      Tree.NNil{}
+    case Tree.NCons{h, t}:
+      Tree.NCons{inert.node(h), inert.node(t)}
+
+# `"` or `#`: the first char of a string or a comment
+def inert.mark(cc: Char) -> Bool:
+  match cc:
+    case Chr{+x}:
+      Bool.or(U32.is_eq(x, 34), U32.is_eq(x, 35))
+
+# does the text start with `"` or `#`?
+def inert.marked(tt: String) -> Bool:
+  match tt:
+    case SNil{}:
+      False{}
+    case SCon{h, _t}:
+      inert.mark(h)
+
+# a text starts with `"` or `#` exactly when bb says it is not code
+def inert.fits.go(bb: Bool, tt: String) -> Bool:
+  match bb:
+    case True{}:
+      inert.marked(tt)
+    case False{}:
+      Bool.not(inert.marked(tt))
+
+# a token as the lexer makes it: marked exactly when it is a comment or a string
+def inert.fits(tk: Lex.Tok) -> Bool:
+  match tk:
+    case Lex.Tok{+k, t, _l, _c}:
+      inert.fits.go(inert.blanks(k), t)
+
+# every token as the lexer makes it
+def inert.oks(ts: List<&2, Lex.Tok>) -> Bool:
+  match ts:
+    case Nil{}:
+      True{}
+    case Con{h, t}:
+      Bool.and(inert.fits(h), inert.oks(t))
+
+# every leaf as the lexer makes it
+def inert.ok(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.Leaf{tok}:
+      inert.fits(tok)
+    case Tree.Group{_open, kids, _close}:
+      inert.ok(kids)
+    case Tree.Stmt{_kind, kids, body}:
+      Bool.and(inert.ok(kids), inert.ok(body))
+    case Tree.NNil{}:
+      True{}
+    case Tree.NCons{h, t}:
+      Bool.and(inert.ok(h), inert.ok(t))
+
+# LAW: hole reads what no comment or string says: two sources whose tokens
+# read the same with comments and strings cut have the same findings
+# BOLT-RULE-INERT
+law inert_hole:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for toks2: List<&2, Lex.Tok>
+  for tree2: Tree.Node
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for e: {inert.toks(toks) == inert.toks(toks2) : List<&2, Lex.Tok>}
+  {Hole.check(Src.Src{path, text, toks, tree, bound, items})
+    == Hole.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: put reads what no comment or string says: two sources as the lexer
+# makes them whose tokens read the same with comments and strings cut have
+# the same findings
+# BOLT-RULE-INERT
+law inert_put:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for toks2: List<&2, Lex.Tok>
+  for tree2: Tree.Node
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for ok: {inert.oks(toks) == True{} : Bool}
+  for ok2: {inert.oks(toks2) == True{} : Bool}
+  for e: {inert.toks(toks) == inert.toks(toks2) : List<&2, Lex.Tok>}
+  {Put.check(Src.Src{path, text, toks, tree, bound, items})
+    == Put.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: tail reads what no string says: two sources as the lexer makes them
+# whose trees read the same with strings cut have the same findings (a
+# string's text is only ever compared with the def's name or `Bool.pick`)
+# BOLT-RULE-INERT
+law inert_tail:
+  for +path: String
+  for text: String
+  for +tree: Tree.Node
+  for toks: List<&2, Lex.Tok>
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for +tree2: Tree.Node
+  for toks2: List<&2, Lex.Tok>
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for +ok: {inert.ok(tree) == True{} : Bool}
+  for +ok2: {inert.ok(tree2) == True{} : Bool}
+  for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  {Tail.check(Src.Src{path, text, toks, tree, bound, items})
+    == Tail.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: pick reads what no string says: two sources as the lexer makes them
+# whose trees read the same with strings cut have the same findings
+# BOLT-RULE-INERT
+law inert_pick:
+  for +path: String
+  for text: String
+  for +tree: Tree.Node
+  for toks: List<&2, Lex.Tok>
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for +tree2: Tree.Node
+  for toks2: List<&2, Lex.Tok>
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for +ok: {inert.ok(tree) == True{} : Bool}
+  for +ok2: {inert.ok(tree2) == True{} : Bool}
+  for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  {Pick.check(Src.Src{path, text, toks, tree, bound, items})
+    == Pick.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: strict reads what no string says: two sources as the lexer makes them
+# whose trees read the same with strings cut have the same findings
+# BOLT-RULE-INERT
+law inert_strict:
+  for +path: String
+  for text: String
+  for +tree: Tree.Node
+  for toks: List<&2, Lex.Tok>
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for +tree2: Tree.Node
+  for toks2: List<&2, Lex.Tok>
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for +ok: {inert.ok(tree) == True{} : Bool}
+  for +ok2: {inert.ok(tree2) == True{} : Bool}
+  for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  {Strict.check(Src.Src{path, text, toks, tree, bound, items})
+    == Strict.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
