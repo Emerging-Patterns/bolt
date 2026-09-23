@@ -6,6 +6,7 @@ import ../finding.bend as F
 import ./suspicious/nat.bend as NatRule
 import ./correctness/escape.bend as Esc
 import ./correctness/put.bend as Put
+import ./correctness/hole.bend as Hole
 import ./style/param.bend as Param
 import ../../syntax/bind.bend as Bind
 import ../paths.bend as Paths
@@ -174,6 +175,40 @@ law put_counts:
   {List.length(&2, F.Finding, Put.check.on(toks, path))
     == Bool.pick(Nat, put_defined(toks), 0n, put_count(toks)) : Nat}
 
+# True when the first token past spaces, newlines and comments is `TODO`
+def todo_next(toks: List<&2, Lex.Tok>) -> Bool:
+  match toks:
+    case Con{Lex.Tok{Lex.TSpace{}, t, l, c}, rest}:
+      todo_next(rest)
+    case Con{Lex.Tok{Lex.TNewline{}, t, l, c}, rest}:
+      todo_next(rest)
+    case Con{Lex.Tok{Lex.TComment{}, t, l, c}, rest}:
+      todo_next(rest)
+    case Con{Lex.Tok{Lex.TUpper{}, +t, l, c}, rest}:
+      String.eq(t, "TODO")
+    case other:
+      False{}
+
+# how many `?` tokens have `TODO` next past spaces, newlines and comments
+def hole_count(toks: List<&2, Lex.Tok>) -> Nat:
+  match toks:
+    case Nil{}:
+      0n
+    case Con{Lex.Tok{Lex.TOp{}, +q, l, c}, +rest}:
+      +m = hole_count(rest)
+      Bool.pick(Nat, Bool.and(String.eq(q, "?"), todo_next(rest)), 1n+m, m)
+    case Con{h, rest}:
+      hole_count(rest)
+
+# LAW: hole reports one finding for each `?` token with `TODO` next past
+# spaces, newlines and comments, none for any other token, and none at all in
+# a LAWS.bend
+# BOLT-RULE-C002
+law hole_counts:
+  for toks: List<&2, Lex.Tok>
+  for +path: String
+  {List.length(&2, F.Finding, Hole.check.on(toks, path))
+    == Bool.pick(Nat, Paths.is_laws(path), 0n, hole_count(toks)) : Nat}
 # LAW: trace takes a pending row that names laws as it takes a proved row
 # that names the same laws: each entry is checked (the law exists, has a
 # binder, carries the row's tag), and the Law cell adds no finding of its own
