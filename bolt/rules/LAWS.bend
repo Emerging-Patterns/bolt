@@ -675,11 +675,14 @@ law pick_counts:
   {List.length(&2, F.Finding, Pick.check(Src.Src{path, text, toks, tree, bound, items}))
     == pick.defs(Calls.defs(tree), path) : Nat}
 
-# does the chain, up to its first top-level comma, hold a `&&` or `||`
-# operator (a comma-separated stretch that is an operand of one)?
+# does the chain, up to its first top-level comma or `=>`, hold a `&&` or
+# `||` operator (a stretch that is an operand of one)? A `=>` ends the
+# stretch on its left, so a lambda body's operators never reach back past it
 def strict.ops(nn: Tree.Node) -> Bool:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}, rest}:
+      False{}
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}}, rest}:
       False{}
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +t, l, c}}, rest}:
       Bool.or(Bool.or(String.eq(t, "&&"), String.eq(t, "||")), strict.ops(rest))
@@ -689,10 +692,11 @@ def strict.ops(nn: Tree.Node) -> Bool:
       False{}
 
 # how many self-calls in the chain, at any depth, sit in an eager operand:
-# inside the `(..)` of `Bool.and` or `Bool.or`, or in a comma-separated
-# stretch holding `&&` or `||`. outer: the enclosing group is an operand; hot:
-# the current stretch is. A `=>` starts a lambda body, an operand only by its
-# own `&&` or `||`; a statement's own tokens start cold, its body colder.
+# inside the `(..)` of `Bool.and` or `Bool.or`, or in a stretch (ended by a
+# comma or a `=>`) holding `&&` or `||`. outer: the enclosing group is an
+# operand; hot: the current stretch is. A `=>` starts a lambda body, an
+# operand only by its own `&&` or `||`; a statement's own tokens start cold,
+# its body colder.
 def strict.count(nn: Tree.Node, +name: String, +outer: Bool, +hot: Bool) -> Nat:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}, +rest}:

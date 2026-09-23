@@ -1952,7 +1952,7 @@ def strict.segk(k, t, _l, _c, rest, ih):
     case Lex.TArrow{}:
       ih
     case Lex.TLam{}:
-      ih
+      {==}
     case Lex.TAll{}:
       ih
     case Lex.TAmp{}:
