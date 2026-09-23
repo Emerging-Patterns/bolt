@@ -15,7 +15,6 @@ import ./rules/digest.bend as Digest
 import ./config.bend as Config
 import ./rules/style/doc.bend as Doc
 import ./rules/suspicious/unused.bend as Unused
-import ./rules/correctness/shadow.bend as Shadow
 import ./rules/correctness/hole.bend as Hole
 import ./rules/style/space.bend as Space
 import ./rules/style/wrap.bend as Wrap
@@ -50,7 +49,6 @@ def on(+ss: Src.Src) -> List<&2, F.Finding>:
   List.concat(&2, F.Finding, [
     Doc.check(ss),
     Unused.check(ss),
-    Shadow.check(ss),
     Hole.check(ss),
     Space.check(ss),
     Wrap.check(ss),

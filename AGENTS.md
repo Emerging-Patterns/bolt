@@ -126,7 +126,7 @@ Design specs and plans are not kept in this repo; they live under
   older build answers `clean` to nearly everything.
   Every top-level def, type and law gets a comment right above it (helpers
   named `x.go` ride on x's); a parameter that is there to be ignored starts
-  with `_`; no let or pattern binder may share a name with a def above it;
+  with `_`;
   a project with a LAWS.bend has every def named by a quantified law, IO included.
   Helpers (dotted names), tests, and the law files themselves are out of
   scope.
@@ -148,8 +148,6 @@ Design specs and plans are not kept in this repo; they live under
 
 - A template cannot destructure its own `~` argument ("an undestructed
   scrutinee"): pass it to a plain accessor def that destructures it.
-- A pattern binder may not share a name with a top-level def of the module:
-  in a module that defines `now`, write `Clock{f} = c`, not `Clock{now} = c`.
 - Argument quantities are part of a function type: a field typed
   `@+i:U32 -> U32` only takes defs declared `(+i: U32)`.
 - A template is not checked until something instantiates it: every template
@@ -193,11 +191,6 @@ Design specs and plans are not kept in this repo; they live under
 - Only a do-block has typed lets (`x : T = v`); elsewhere annotate with
   braces, `{v : T}`. A typed do-bind may be reusable: `+n : U32 <- m`.
 - `Kind` is a keyword: no type of that name.
-- Binders and defs share a namespace per *imported* module: a let or a pattern
-  binder named like a def defined above it in the file parses as a reference
-  to the def once the file is imported ("a pattern (a binder or a
-  constructor)"), though the same file runs fine as a main. Parameters and
-  `for` names are safe. `bolt`'s `shadow` rule catches it.
 - `bend x.bend` runs main after checking. To check only, `bend <file.bend> --check-only` (or `bend x.bend -o t.js`).
 - A foreign effect `def a.b(..) -> IO(T)` with `import "./x.c"` and
   `import "./x.js"` bodies is `a_b_run` + `io_eff(CID_A_B, ..)` in C and
