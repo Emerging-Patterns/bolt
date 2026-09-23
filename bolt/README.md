@@ -141,9 +141,12 @@ beside the groups.
   (`+more = go(rest)`) and pick between `x <> more` and `more`, or hand a
   helper that matches on the Bool.
 - `strict` — a self-call inside `Bool.and`/`Bool.or`, or either side of
-  `&&`/`||`. They are functions too: both sides always run, so there is no
+  `&&`/`||`, matched by exactly those texts (a qualified `Base.Bool.or` is not
+  seen). They are functions too: both sides always run, so there is no
   short-circuit (a game's overlap test went 31 -> 55 fps once the call moved
-  out). Bind the call above, or match on the first Bool.
+  out). Bind the call above, or match on the first Bool. A self-call in a
+  lambda body (`_u => go(rest)`, a `Lazy` thunk) is not counted: the thunk
+  does not run eagerly, unless its own body holds `&&`/`||`.
 - `eager` — a branch of a `Bool.pick` holds a call to another def of the
   same file. Bool.pick is a def too, so the branch runs whatever the
   condition says (a game's overlap test in a branch went 31 -> 55 fps once

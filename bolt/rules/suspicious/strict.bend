@@ -1,11 +1,14 @@
 # rule strict: a def calls itself inside an operand of `Bool.and(..)` or
-# `Bool.or(..)`, or on either side of `&&` or `||`. They are functions, not
+# `Bool.or(..)`, or on either side of `&&` or `||`, matched by that exact text
+# (a qualified `Base.Bool.or` is not seen). They are functions, not
 # short-circuits: both sides always run (timed: `False{} && f(x)` costs all of
 # f), so `ok(h) && go(rest)` walks the whole input after the answer is known,
 # and the pending operator keeps a frame per step (the JS lane overflowed at
 # ~64K this way). Match on the Bool in a helper, or carry it as an argument:
 # `go(rest, ok(h))`. A self-call bound by a let above is not flagged: binding
-# it says both run.
+# it says both run. Nor is one in a lambda body (`_u => go(rest)`, as
+# `Lazy.or_else` takes): a thunk does not run eagerly, unless the body itself
+# holds `&&` or `||`.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
@@ -32,11 +35,14 @@ def seg_op(nn: Tree.Node) -> Bool:
       False{}
 
 # the self-calls in operands: outer is whether the enclosing group is an
-# operand, hot whether the current comma segment is
+# operand, hot whether the current comma segment is; a `=>` starts a lambda
+# body, hot only by its own `&&`/`||`
 def walk(nn: Tree.Node, +name: String, +path: String, +outer: Bool, +hot: Bool) -> List<&2, F.Finding>:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}, +rest}:
       walk(rest, name, path, outer, Bool.or(outer, seg_op(rest)))
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}}, +rest}:
+      walk(rest, name, path, outer, seg_op(rest))
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +call = String.eq(o, "(")
       +me = Bool.and(Bool.and(call, String.eq(t, name)), hot)
