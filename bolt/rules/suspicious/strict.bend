@@ -38,25 +38,63 @@ def seg_op(nn: Tree.Node) -> Bool:
     case other:
       False{}
 
+# is the group after a name an operand: the stretch is hot, or it is the `(`
+# of `Bool.and` or `Bool.or`
+def inner(+hot: Bool, +oo: String, +tt: String) -> Bool:
+  Bool.or(hot, Bool.and(String.eq(oo, "("), Bool.or(String.eq(tt, "Bool.and"), String.eq(tt, "Bool.or"))))
+
+# a name, then a group: a finding when the name is the def, the group a `(`
+# call and the stretch hot, then what the group and the rest report
+def call(
+  +tt: String,
+  +ll: U32,
+  +cc: U32,
+  +oo: String,
+  +name: String,
+  +path: String,
+  +hot: Bool,
+  kids: List<&2, F.Finding>,
+  rest: List<&2, F.Finding>
+) -> List<&2, F.Finding>:
+  +more = List.concat(&2, F.Finding, [kids, rest])
+  Bool.pick(List<&2, F.Finding>, Bool.and(Bool.and(String.eq(oo, "("), String.eq(tt, name)), hot),
+    F.Finding{path, ll, cc, U32.from_nat(String.length(name)), "strict",
+      name ++ " recurses inside Bool.and or Bool.or, so both sides always run and there is no short-circuit; bind the call above."} <> more,
+    more)
+
+# a leaf read by its kind: past a comma, past a `=>`, or past any other
+# token; only the branch taken runs
+def leaf(
+  kk: Lex.TokKind,
+  comma: Unit -> List<&2, F.Finding>,
+  lam: Unit -> List<&2, F.Finding>,
+  plain: Unit -> List<&2, F.Finding>
+) -> List<&2, F.Finding>:
+  match kk:
+    case Lex.TComma{}:
+      comma(Unit{})
+    case Lex.TLam{}:
+      lam(Unit{})
+    case _k:
+      plain(Unit{})
+
 # the self-calls in operands: outer is whether the enclosing group is an
 # operand, hot whether the current comma segment is; a `=>` starts a lambda
-# body, hot only by its own `&&`/`||`
+# body, hot only by its own `&&`/`||`. A leaf is read by its kind in `leaf`,
+# once the cell after it is known
 def walk(nn: Tree.Node, +name: String, +path: String, +outer: Bool, +hot: Bool) -> List<&2, F.Finding>:
   match nn:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}, +rest}:
-      walk(rest, name, path, outer, Bool.or(outer, seg_op(rest)))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}}, +rest}:
-      walk(rest, name, path, outer, seg_op(rest))
-    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
-      +call = String.eq(o, "(")
-      +me = Bool.and(Bool.and(call, String.eq(t, name)), hot)
-      +inner = Bool.or(hot, Bool.and(call, Bool.or(String.eq(t, "Bool.and"), String.eq(t, "Bool.or"))))
-      +more = List.concat(&2, F.Finding, [walk(kids, name, path, inner, Bool.or(inner, seg_op(kids))),
-        walk(rest, name, path, outer, hot)])
-      Bool.pick(List<&2, F.Finding>, me,
-        F.Finding{path, l, c, U32.from_nat(String.length(name)), "strict",
-          name ++ " recurses inside Bool.and or Bool.or, so both sides always run and there is no short-circuit; bind the call above."} <> more,
-        more)
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, +rest}:
+      match rest:
+        case Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, r2}:
+          leaf(k, _u => walk(rest, name, path, outer, Bool.or(outer, seg_op(rest))),
+            _v => walk(rest, name, path, outer, seg_op(rest)),
+            _w => call(t, l, c, o, name, path, hot,
+              walk(kids, name, path, inner(hot, o, t), Bool.or(inner(hot, o, t), seg_op(kids))),
+              walk(r2, name, path, outer, hot)))
+        case _r:
+          leaf(k, _u => walk(rest, name, path, outer, Bool.or(outer, seg_op(rest))),
+            _v => walk(rest, name, path, outer, seg_op(rest)), _w => walk(rest, name, path, outer, hot))
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
       List.concat(&2, F.Finding, [walk(kids, name, path, hot, Bool.or(hot, seg_op(kids))),
         walk(rest, name, path, outer, hot)])

@@ -8,6 +8,7 @@ import ../../src.bend as Src
 import ../../finding.bend as F
 import ../../../syntax/bind.bend as Bind
 import ../../../lazy/lazy.bend as Lazy
+import ../tokens.bend as T
 
 # one character, and a capital: a type parameter
 def check.letter(cs: List<&2, Char>) -> Bool:
@@ -21,9 +22,12 @@ def check.letter(cs: List<&2, Char>) -> Bool:
 def check.upper(+nm: String) -> Bool:
   check.letter(String.to_list(nm))
 
-# no type, or `: Quant`: a quantity parameter (`a` in `List<a, A>`)
+# no type, or `: Quant`: a quantity parameter (`a` in `List<a, A>`). The
+# note is read with its string literals cut to their quote: a `:` inside a
+# string is no type
 def check.quant(+note: String) -> Bool:
-  Bool.or(Bool.not(String.contains(note, ":")), String.ends_with(note, ": Quant"))
+  +cn = T.code(note)
+  Bool.or(Bool.not(String.contains(cn, ":")), String.ends_with(cn, ": Quant"))
 
 # shorter than 2
 def check.short(+nm: String) -> Bool:
