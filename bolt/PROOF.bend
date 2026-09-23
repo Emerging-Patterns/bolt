@@ -7,6 +7,8 @@ import ./rules.bend as Rules
 import ./src.bend as Src
 import ./lint/world.bend as W
 import ./lint/plan.bend as Plan
+import ./rules/digest.bend as Digest
+import ./rules/laws/law.bend as Law
 import ./LAWS.bend as Laws
 
 def Laws.set_level_none(_name):
@@ -129,7 +131,7 @@ def Laws.opt_in_off(sets, group, rule, h_opt, h_rule):
     == Config.Off{} : Config.Level}
   {==}
 
-# one arm per row of the code table (30), each checked by evaluation, and one
+# one arm per row of the code table (29), each checked by evaluation, and one
 # past its end, where both sides are none: a new rule is a new arm here
 def Laws.slug_finds_row(n):
   match n:
@@ -191,9 +193,7 @@ def Laws.slug_finds_row(n):
       {==}
     case 28n:
       {==}
-    case 29n:
-      {==}
-    case 30n+_p:
+    case 29n+_p:
       {==}
 
 # the same arms, looked up by code
@@ -257,9 +257,7 @@ def Laws.code_finds_row(n):
       {==}
     case 28n:
       {==}
-    case 29n:
-      {==}
-    case 30n+_p:
+    case 29n+_p:
       {==}
 
 def Laws.shown(_path, _line, _col, _len, _rule, _msg, _level):
@@ -763,3 +761,212 @@ def Laws.unread_one_finding(world, path, ps, h):
 
 def Laws.read_is_correctness(cfg, path, line, col, len, msg):
   grade.step(Config.level(cfg, "correctness", "read"), F.Finding{path, line, col, len, "read", msg}, [], [], {==})
+
+# The walk (BOLT-SCOPE-1). The planner's walk threads the files it has found
+# so far through its loop; the search reads its directories first. A lemma
+# over every fuel, queue and accumulator ties the two: whatever the walk
+# carries in comes out after the search's files, and each step's listing is
+# read the same way.
+
+# appending regroups
+law scope1.assoc:
+  for xs: List<&2, String>
+  for +ys: List<&2, String>
+  for +zs: List<&2, String>
+  {List.append(&2, String, List.append(&2, String, xs, ys), zs)
+    == List.append(&2, String, xs, List.append(&2, String, ys, zs)) : List<&2, String>}
+
+def scope1.assoc(xs, ys, zs):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{hd, +tl}:
+      Equal.cong(List<&2, String>, List<&2, String>, rr => hd <> rr,
+        List.append(&2, String, List.append(&2, String, tl, ys), zs),
+        List.append(&2, String, tl, List.append(&2, String, ys, zs)), scope1.assoc(tl, ys, zs))
+
+# the walk descends into the directories the search does
+law scope1.dirs:
+  for es: List<&2, String>
+  for +dir: String
+  {Plan.walk.dirs(es, dir) == Laws.subdirs(es, dir) : List<&2, String>}
+
+def scope1.dirs(es, dir):
+  match es:
+    case Nil{}:
+      {==}
+    case Con{+ee, +tl}:
+      Equal.cong(List<&2, String>, List<&2, String>,
+        mm => Bool.pick(List<&2, String>, Laws.descends(ee), (dir ++ "/" ++ Laws.entry_name(ee)) <> mm, mm),
+        Plan.walk.dirs(tl, dir), Laws.subdirs(tl, dir), scope1.dirs(tl, dir))
+
+# the walk finds the `.bend` files the search does
+law scope1.bends:
+  for es: List<&2, String>
+  for +dir: String
+  {Plan.walk.bends(es, dir) == Laws.bends_in(es, dir) : List<&2, String>}
+
+def scope1.bends(es, dir):
+  match es:
+    case Nil{}:
+      {==}
+    case Con{+ee, +tl}:
+      Equal.cong(List<&2, String>, List<&2, String>,
+        mm => Bool.pick(List<&2, String>, String.ends_with(ee, ".bend"), (dir ++ "/" ++ ee) <> mm, mm),
+        Plan.walk.bends(tl, dir), Laws.bends_in(tl, dir), scope1.bends(tl, dir))
+
+# one directory read: what the rest of the walk finds, onto its files and
+# what came before, regrouped as the search's files then what came before
+law scope1.walk.step:
+  for +xs: List<&2, String>
+  for +bs: List<&2, String>
+  for +acc: List<&2, String>
+  for -found: List<&2, String>
+  for ih: {found == List.append(&2, String, xs, List.append(&2, String, bs, acc)) : List<&2, String>}
+  {found == List.append(&2, String, List.append(&2, String, xs, bs), acc) : List<&2, String>}
+
+def scope1.walk.step(xs, bs, acc, found, ih):
+  Equal.trans(List<&2, String>, found, List.append(&2, String, xs, List.append(&2, String, bs, acc)),
+    List.append(&2, String, List.append(&2, String, xs, bs), acc), ih,
+    Equal.sym(List<&2, String>, List.append(&2, String, List.append(&2, String, xs, bs), acc),
+      List.append(&2, String, xs, List.append(&2, String, bs, acc)), scope1.assoc(xs, bs, acc)))
+
+# the walk from any queue, with any fuel, finds the search's files, then
+# what it carried in
+law scope1.walk:
+  for +fuel: Nat
+  for +world: W.World
+  for +queue: List<&2, String>
+  for +acc: List<&2, String>
+  for seen: List<&2, String>
+  {Plan.walk.found(Plan.walk(fuel, world, queue, acc, seen))
+    == List.append(&2, String, Laws.found_in(Laws.bfs(fuel, world, queue), world), acc) : List<&2, String>}
+
+def scope1.walk(fuel, world, queue, acc, seen):
+  match fuel:
+    case 0n:
+      {==}
+    case 1n+ff:
+      match queue:
+        case Nil{}:
+          {==}
+        case Con{+dd, +rest}:
+          d = scope1.dirs(W.listing(world, dd), dd)
+          %d : {Plan.walk.found(Plan.walk(ff, world,
+              List.append(&2, String, rest, Plan.walk.dirs(W.listing(world, dd), dd)),
+              List.append(&2, String, Plan.walk.bends(W.listing(world, dd), dd), acc), dd <> seen))
+            == List.append(&2, String, List.append(&2, String,
+              Laws.found_in(Laws.bfs(ff, world, List.append(&2, String, rest, _)), world),
+              Laws.bends_in(W.listing(world, dd), dd)), acc) : List<&2, String>}
+          b = scope1.bends(W.listing(world, dd), dd)
+          %b : {Plan.walk.found(Plan.walk(ff, world,
+              List.append(&2, String, rest, Plan.walk.dirs(W.listing(world, dd), dd)),
+              List.append(&2, String, Plan.walk.bends(W.listing(world, dd), dd), acc), dd <> seen))
+            == List.append(&2, String, List.append(&2, String,
+              Laws.found_in(Laws.bfs(ff, world,
+                List.append(&2, String, rest, Plan.walk.dirs(W.listing(world, dd), dd))), world),
+              _), acc) : List<&2, String>}
+          scope1.walk.step(
+            Laws.found_in(Laws.bfs(ff, world,
+              List.append(&2, String, rest, Plan.walk.dirs(W.listing(world, dd), dd))), world),
+            Plan.walk.bends(W.listing(world, dd), dd), acc,
+            Plan.walk.found(Plan.walk(ff, world,
+              List.append(&2, String, rest, Plan.walk.dirs(W.listing(world, dd), dd)),
+              List.append(&2, String, Plan.walk.bends(W.listing(world, dd), dd), acc), dd <> seen)),
+            scope1.walk(ff, world, List.append(&2, String, rest, Plan.walk.dirs(W.listing(world, dd), dd)),
+              List.append(&2, String, Plan.walk.bends(W.listing(world, dd), dd), acc), dd <> seen))
+
+def Laws.walk_bfs(reads, world):
+  Equal.trans(List<&2, String>, Plan.walk.found(Plan.walk(reads, world, ["."], [], [])),
+    List.append(&2, String, Laws.found_in(Laws.bfs(reads, world, ["."]), world), []),
+    Laws.found_in(Laws.bfs(reads, world, ["."]), world),
+    scope1.walk(reads, world, ["."], [], []),
+    lint.app_nil(String, Laws.found_in(Laws.bfs(reads, world, ["."]), world)))
+
+def Laws.walk_files(world, h):
+  e = Equal.sym(List<&2, String>, W.paths.of(world), [], h)
+  %e : {Plan.files.named(_, world)
+    == List.sort(~String, ~String.is_le, Laws.found_in(Laws.bfs(100000n, world, ["."]), world))
+    : List<&2, String>}
+  Equal.cong(List<&2, String>, List<&2, String>, xs => List.sort(~String, ~String.is_le, xs),
+    Plan.walk.found(Plan.tree(world)), Laws.found_in(Laws.bfs(100000n, world, ["."]), world),
+    Laws.walk_bfs(100000n, world))
+
+# Under law (BOLT-SCOPE-3). The coverage rule turns on at the first LAWS.bend
+# directory it finds and then walks every file; the laws say which files it
+# grades. One lemma for the walk over the files, one for the switch.
+
+# one file onto the rule's walk: skipped when exempt, graded otherwise
+law scope3.go.step:
+  for exempt: Bool
+  for +tops: List<&2, Digest.Top>
+  for +ms: List<&2, Digest.Mention>
+  for +norm: String
+  for +path: String
+  for -more: List<&2, F.Finding>
+  for -spec: List<&2, F.Finding>
+  for ih: {more == spec : List<&2, F.Finding>}
+  {Lazy.stop(List<&2, F.Finding>, exempt, more,
+      _u => List.append(&2, F.Finding, Law.gaps(tops, ms, norm, path), more))
+    == List.append(&2, F.Finding, Laws.graded_file(exempt, tops, ms, norm, path), spec) : List<&2, F.Finding>}
+
+def scope3.go.step(exempt, tops, ms, norm, path, more, spec, ih):
+  match exempt:
+    case True{}:
+      ih
+    case False{}:
+      Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
+        rr => List.append(&2, F.Finding, Law.gaps(tops, ms, norm, path), rr),
+        more, spec, ih)
+
+# the rule's walk over the files grades every file under law
+law scope3.go:
+  for ds: List<&2, Digest.Digest>
+  for +ms: List<&2, Digest.Mention>
+  {Law.check.go(ds, ms) == Laws.under_law(ds, ms) : List<&2, F.Finding>}
+
+def scope3.go(ds, ms):
+  match ds:
+    case Nil{}:
+      {==}
+    case Con{Digest.Digest{+path, +norm, _dir, _is_laws, _is_law_file, exempt, +tops, _says, _deps, _unsafes, _laws},
+      +rest}:
+      scope3.go.step(exempt, tops, ms, norm, path, Law.check.go(rest, ms), Laws.under_law(rest, ms),
+        scope3.go(rest, ms))
+
+# one file onto the law directories: the rule is on exactly when some file
+# so far is a LAWS.bend
+law scope3.first.step:
+  for is_laws: Bool
+  for +ds: List<&2, Digest.Digest>
+  for +dir: String
+  for +dirs: List<&2, String>
+  for -on: Bool
+  for ih: {Law.check.first(ds, dirs) == Laws.coverage_of(on, ds, Law.named(ds)) : List<&2, F.Finding>}
+  {Law.check.first(ds, Bool.pick(List<&2, String>, is_laws, dir <> dirs, dirs))
+    == Laws.coverage_of(Bool.or(is_laws, on), ds, Law.named(ds)) : List<&2, F.Finding>}
+
+def scope3.first.step(is_laws, ds, _dir, _dirs, _on, ih):
+  match is_laws:
+    case True{}:
+      scope3.go(ds, Law.named(ds))
+    case False{}:
+      ih
+
+# the rule is on over the files exactly when one of them is a LAWS.bend
+law scope3.first:
+  for ds: List<&2, Digest.Digest>
+  for +all: List<&2, Digest.Digest>
+  {Law.check.first(all, Law.law_dirs(ds)) == Laws.coverage_of(Laws.has_laws(ds), all, Law.named(all))
+    : List<&2, F.Finding>}
+
+def scope3.first(ds, all):
+  match ds:
+    case Nil{}:
+      {==}
+    case Con{Digest.Digest{_path, _norm, +dir, is_laws, _is_law_file, _exempt, _tops, _says, _deps, _unsafes, _laws},
+      +rest}:
+      scope3.first.step(is_laws, all, dir, Law.law_dirs(rest), Laws.has_laws(rest), scope3.first(rest, all))
+
+def Laws.under_law_all(world):
+  scope3.first(Laws.handed(world), Laws.handed(world))

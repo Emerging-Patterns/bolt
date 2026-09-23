@@ -165,8 +165,11 @@ Design specs and plans are not kept in this repo; they live under
   continuation closure `rest` (Base's App.loop).
 - A self-call must shrink one argument, the same one every time: a rose tree
   over `List<T>` does not pass. Keep the cells inside the type (json/value.bend).
-- A big `Nat` literal expands in unary and overflows the stack: write
-  `U32.to_nat(100000)`.
+- A big `Nat` literal is fine: `100000n` checks, compiles and runs on both
+  lanes (bend 2.0.25; the compiler emits `U32.to_nat` for one past `256n`).
+  What overflows is the checker comparing a closed `U32.to_nat(100000)` in a
+  law or proof: it expands the call in unary. Where a law must name a big
+  Nat, write the literal (see `limit` in bolt/lint/plan.bend).
 - The argument that shrinks must be the first live (non-template) one:
   `send_all(replies, h)` passes, `send_all(h, replies)` does not.
 - `Bool.pick`, `Bool.and`, `Bool.or`, `&&` and `||` are defs, so every

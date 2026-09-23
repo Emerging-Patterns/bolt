@@ -37,7 +37,6 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | BOLT-RULE-U002 | `strict` reports exactly a self-call inside `Bool.and` or `Bool.or`, or in a comma-separated stretch holding `&&` or `\|\|` (matched by that exact text), where a `=>` ends the stretch on its left and a lambda body counts only by its own `&&` or `\|\|`. | Proved | proved | bolt/rules/LAWS.bend strict_walk_counts; bolt/rules/LAWS.bend strict_counts |
 | BOLT-RULE-U003 | `eager` reports exactly a looping def of the file called in a `Bool.pick` branch. | Proved | proved | bolt/rules/LAWS.bend eager_counts; bolt/rules/LAWS.bend eager_lambda; bolt/rules/LAWS.bend eager_comma; bolt/rules/LAWS.bend eager_plain |
 | BOLT-RULE-U004 | `concat` reports exactly a self-call argument that appends onto the parameter in its own position. | Proved | proved | bolt/rules/LAWS.bend concat_counts |
-| BOLT-RULE-U005 | `nat` reports exactly one finding for each token the lexer reads as a Nat literal of 1000 or more (digits then `n`, four or more digits once leading zeros are dropped), and none for any other token. | Proved | proved | bolt/rules/LAWS.bend nat_counts |
 | BOLT-RULE-U006 | `fuel` reports exactly an argument that is one Nat literal token alone, in a call (not a self-call) to a def of the file, at a parameter named `fuel`, `gas`, `steps` or `budget` or starting with `fuel`. | Proved | proved | bolt/rules/LAWS.bend fuel_slots; bolt/rules/LAWS.bend fuel_walk_counts; bolt/rules/LAWS.bend fuel_counts |
 | BOLT-RULE-U007 | `index` reports exactly a `List.get` or `String.get` at a non-literal index anywhere in a recursive def, except a `List.get` on a fixed table that `table` reports. | Proved | proved | bolt/rules/LAWS.bend index_counts |
 | BOLT-RULE-U008 | `table` reports exactly, in a def that calls itself, a `List.get` or `List.set` call whose index is not one number token and whose list is a fixed table: a list literal, a number-sized array, or `List.replicate` / `Array.new` / `List.range` with a number count, written inline, as a table def of the file, or held by the let of that name in scope. | Proved | proved | bolt/rules/LAWS.bend table_walk_counts; bolt/rules/LAWS.bend table_counts |
@@ -51,7 +50,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | BOLT-RULE-S004 | `param` reports exactly one finding for each parameter binder whose name is shorter than two characters, unless the name is one capital letter (a type parameter) or the parameter is bare or typed `: Quant` (a quantity), none for any other binder, and none at all in a PROOF.bend. | Proved | proved | bolt/rules/LAWS.bend param_counts |
 | BOLT-RULE-P001 | `tail` reports exactly a non-tail self-call outside any `Bool.pick(..)` in a def whose first live parameter's type is a List or String, whether or not the call shrinks it. | Proved | proved | bolt/rules/LAWS.bend tail_walk_counts; bolt/rules/LAWS.bend tail_counts |
 | BOLT-RULE-EXEMPT | For every text, a per-file rule's check on a path its header exempts returns no findings. | Proved | proved | bolt/rules/LAWS.bend hole_exempt; bolt/rules/LAWS.bend doc_exempt; bolt/rules/LAWS.bend param_exempt; bolt/rules/LAWS.bend pick_exempt; bolt/rules/LAWS.bend tail_exempt; bolt/rules/LAWS.bend concat_exempt; bolt/rules/LAWS.bend eager_exempt; bolt/rules/LAWS.bend rewalk_exempt; bolt/rules/LAWS.bend strict_exempt; bolt/rules/LAWS.bend hoist_exempt; bolt/rules/LAWS.bend index_exempt; bolt/rules/LAWS.bend ring_exempt; bolt/rules/LAWS.bend table_exempt; bolt/rules/LAWS.bend unit_exempt |
-| BOLT-RULE-INERT | For every rule whose pattern is code (all but `escape`, `strings`, `chars`, `space`, `twice` and `nat`), changing the contents of a comment or string literal does not change the findings. | Proved | pending |  |
+| BOLT-RULE-INERT | For every rule whose pattern is code (all but `escape`, `strings`, `chars`, `space` and `twice`), changing the contents of a comment or string literal does not change the findings. | Proved | pending |  |
 
 ### Laws rules (BOLT-LAW)
 
@@ -78,9 +77,9 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-SCOPE-1 | With no files named, bolt lints every `.bend` file under `.` found within the first 100000 directories the walk reads, not descending into hidden directories or `node_modules`, sorted by code point; past that bound the walk stops silently. | Proved | pending |  |
+| BOLT-SCOPE-1 | With no files named, bolt lints every `.bend` file under `.` found within the first 100000 directories the walk reads, not descending into hidden directories or `node_modules`, sorted by code point; past that bound the walk stops silently. | Proved | proved | bolt/LAWS.bend walk_files |
 | BOLT-SCOPE-2 | A per-file rule sees one file's `Src`; a project rule sees the digests of every file in the run, and nothing else. | Proved | proved | bolt/LAWS.bend scope_findings |
-| BOLT-SCOPE-3 | When the files in the run include a LAWS.bend, every file in the run that is not exempt is under law; otherwise none is. | Proved | pending |  |
+| BOLT-SCOPE-3 | When the files in the run include a LAWS.bend, every file in the run that is not exempt is under law; otherwise none is. | Proved | proved | bolt/LAWS.bend under_law_all |
 | BOLT-SCOPE-4 | Exemptions are decided by the path alone, never by content. | Proved | pending |  |
 | BOLT-SCOPE-5 | A bolt.bend is read, never linted, even when named. | Proved | proved | bolt/LAWS.bend no_config_linted |
 

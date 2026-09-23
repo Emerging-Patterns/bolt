@@ -3,7 +3,6 @@
 import Base
 import ../../syntax/lex.bend as Lex
 import ../finding.bend as F
-import ./suspicious/nat.bend as NatRule
 import ./correctness/escape.bend as Esc
 import ./correctness/put.bend as Put
 import ./correctness/hole.bend as Hole
@@ -43,25 +42,6 @@ import ../../lazy/lazy.bend as Lazy
 import ./laws/law.bend as Coverage
 import ./laws/unsafe.bend as Unsafe
 import ./imports.bend as Imports
-
-# how many tokens are Nat literals of 1000 or more
-def big_count(toks: List<&2, Lex.Tok>) -> Nat:
-  match toks:
-    case Nil{}:
-      0n
-    case Con{Lex.Tok{Lex.TNum{}, +t, l, c}, rest}:
-      +m = big_count(rest)
-      Bool.pick(Nat, NatRule.big(t), 1n+m, m)
-    case Con{h, rest}:
-      big_count(rest)
-
-# LAW: nat reports one finding for each Nat literal of 1000 or more, and none
-# for any other token: a comment, a string, a U32 or a small Nat
-# BOLT-RULE-U005
-law nat_counts:
-  for toks: List<&2, Lex.Tok>
-  for +path: String
-  {List.length(&2, F.Finding, NatRule.check.go(toks, path)) == big_count(toks) : Nat}
 
 # 1 when the Syms open with a digit (`0` included), else 0
 def nul_lead(ss: List<&2, Esc.Sym>) -> Nat:
