@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/Emerging-Patterns/bolt/compare/v1.4.0...v1.4.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* **rules:** doc and param ignore string contents; prove 7 rules inert (BOLT-RULE-INERT, partial) ([#161](https://github.com/Emerging-Patterns/bolt/issues/161)) ([370167d](https://github.com/Emerging-Patterns/bolt/commit/370167d6ff3899112b1062bad9c1855e27e54f74))
+
 ## [1.4.0](https://github.com/Emerging-Patterns/bolt/compare/v1.3.4...v1.4.0) (2026-09-23)
 
 
