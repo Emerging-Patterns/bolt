@@ -1,7 +1,7 @@
 [lock]
 version = "2"
 hub = "https://hub.bend-lang.com"
-bend = "2.0.25"
+bend = "2.0.26"
 
 [packages."0x29fbb19f01e963cc6271864b7e442159".source]
 kind = "git"

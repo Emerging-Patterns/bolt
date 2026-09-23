@@ -20,13 +20,14 @@ import ../paths.bend as Paths
 # what a file holds
 # -----------------
 
-# a law names an item of a module (a type is covered by any mention of its module)
+# a law names an item of a module: its path and its name
 type Mention is Data:
   Mention{path: String, name: String}
 
-# a top-level def or type, by kind, name and the line it starts on
+# a top-level def or type, by kind, name and the line it starts on, with a
+# type's constructors by name (none for a def)
 type Top is Data:
-  Top{kind: Outline.ItemKind, name: String, line: U32}
+  Top{kind: Outline.ItemKind, name: String, line: U32, ctors: List<&2, String>}
 
 # an `@unsafe def` and where its `@` is
 type Unsafe is Data:
@@ -108,15 +109,24 @@ def law_mentions(root: Tree.Node, +as: List<&2, Alias>, +file: String) -> List<&
 # what the file holds besides
 # ---------------------------
 
+# the names of the constructors the items open with: a type's, since the
+# outline lists them right after it
+def ctors(items: List<&2, Outline.Item>) -> List<&2, String>:
+  match items:
+    case Con{Outline.Item{Outline.ICtor{}, name, line, sig, doc, path}, rest}:
+      name <> ctors(rest)
+    case other:
+      Nil{}
+
 # the top-level defs and types, by name and line: what the coverage rule grades
 def top_items(items: List<&2, Outline.Item>) -> List<&2, Top>:
   match items:
     case Nil{}:
       Nil{}
     case Con{Outline.Item{Outline.IDef{}, name, line, sig, doc, path}, rest}:
-      Top{Outline.IDef{}, name, line} <> top_items(rest)
-    case Con{Outline.Item{Outline.IType{}, name, line, sig, doc, path}, rest}:
-      Top{Outline.IType{}, name, line} <> top_items(rest)
+      Top{Outline.IDef{}, name, line, []} <> top_items(rest)
+    case Con{Outline.Item{Outline.IType{}, name, line, sig, doc, path}, +rest}:
+      Top{Outline.IType{}, name, line, ctors(rest)} <> top_items(rest)
     case Con{other, rest}:
       top_items(rest)
 

@@ -134,8 +134,12 @@ beside the groups.
   breaks puts `(` at the end of the first line and one parameter on each
   following line, then `)` and the return type on a line of their own after
   the last parameter. Several parameters on a line, a parameter left on the
-  `def` line, a parameter split across lines, or a `)` on the last
-  parameter's line (`bb: U32) -> U32:`), is a finding.
+  `(` line, a parameter split across lines, a `)` on the last parameter's
+  line (`bb: U32) -> U32:`), a `)` with no `->` right after it on its line
+  (the return type on a line of its own; a def that fills a law has no
+  return type, so `):` ends it), or a parameter list across lines with no
+  parameter in it (`def none(` then `) -> U32:`: join it onto one line), is
+  a finding.
 - `param` — a parameter name shorter than 2 characters. A single uppercase
   letter is a type parameter (`A`, `T`), and a bare parameter or one typed
   `Quant` is a quantity. Locals, patterns and a law's `for` names are not
@@ -291,7 +295,7 @@ beside the groups.
   counted marks: "with N unsafe annotations.") and exits 0, so a gate that
   reads the exit status goes green on an unproven claim.
 - `coverage` (project) — in a project that states laws (a LAWS.bend among the
-  files bolt read), a def that no law names. It is `coverage`, not `law`,
+  files bolt read), a def or a type that no law names. It is `coverage`, not `law`,
   because `law` is a Bend keyword: `def law()` is no def, so a bolt.bend
   could never set it by name. IO is no exemption: a def that
   returns `IO(..)` is graded like any other (a law can state an IO equality
@@ -304,9 +308,9 @@ beside the groups.
   names `join` of `core/monoid/service.bend`) or in the law's own file. A
   closed law, a law's own name, and a law outside a LAWS.bend (PROOF.bend's
   lemmas included) name nothing. A type is covered when such a law names it
-  or a def of its module: a law about an instance names the accessors, never
-  the service type. Out of scope: helpers (dotted names), tests, and the law
-  files. `main` is a def: a law that names it covers it. A project without
+  or one of its constructors (`M.Sq{nn}` covers `type Shape` with `Sq{..}`);
+  naming another def of its module does not cover it. Out of scope: helper
+  defs (dotted names), tests, and the law files; a dotted type is graded. `main` is a def: a law that names it covers it. A project without
   a LAWS.bend is not under law.
 
 ## One binary

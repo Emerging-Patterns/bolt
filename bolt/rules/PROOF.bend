@@ -37,8 +37,11 @@ import ./correctness/twice.bend as Twice
 import ./laws/closed.bend as Closed
 import ./suspicious/unused.bend as Unused
 import ./suspicious/fuel.bend as FuelRule
-import ./digest.bend as Digest
+import ./style/wrap.bend as Wrap
+import ./laws/law.bend as Coverage
+import ./laws/unsafe.bend as Unsafe
 import ./imports.bend as Imports
+import ./digest.bend as Digest
 import ./LAWS.bend as Laws
 
 # a finding in front when b holds adds one to the count
@@ -9729,6 +9732,3663 @@ def unit.go(ds, path, acc):
 
 def Laws.unit_counts(path, _text, _toks, tree, _bound, _items):
   unit.go(Calls.defs(tree), path, Nil{})
+
+# The header rule wrap (BOLT-RULE-S003). The width walk agrees with the
+# spec's width from any state; the shape walk, read through wrap.of, takes
+# each token the way the spec's read does, so the two agree on the whole
+# header; the verdicts agree on what they read.
+
+# a colon or not, and a colon or not later on: the walk from here is the spec's
+law wrap.width_step:
+  for c: Bool
+  for h: Bool
+  for +next: U32
+  for +upto: U32
+  for +seen: Bool
+  for -uu: U32
+  for -tt: U32
+  for -x: U32
+  for ih: {x == Bool.pick(U32, h, uu, Bool.pick(U32, Bool.or(c, seen), Bool.pick(U32, c, next, upto), tt)) : U32}
+  {x == Bool.pick(U32, Bool.or(c, h), Bool.pick(U32, h, uu, next), Bool.pick(U32, seen, upto, tt)) : U32}
+
+def wrap.width_step(c, h, _next, _upto, _seen, _uu, _tt, _x, ih):
+  match c:
+    case True{}:
+      ih
+    case False{}:
+      match h:
+        case True{}:
+          ih
+        case False{}:
+          ih
+
+# the width walk from any state: through the last `:` when the rest has one,
+# else the `:` already seen, else the whole width
+law wrap.width_go:
+  for +toks: List<&2, Lex.Tok>
+  for +acc: U32
+  for +upto: U32
+  for +seen: Bool
+  {Wrap.check.width.go(toks, acc, upto, seen)
+    == Bool.pick(U32, Laws.wrap.colons(toks), Laws.wrap.upto(toks, acc),
+      Bool.pick(U32, seen, upto, Laws.wrap.total(toks, acc))) : U32}
+
+def wrap.width_go(toks, acc, upto, seen):
+  match toks:
+    case Nil{}:
+      {==}
+    case Con{Lex.Tok{+kk, +tx, _ln, _cl}, +rest}:
+      +next = (acc + Space.width_of(kk, tx) : U32)
+      +colon = Wrap.check.is_colon(kk)
+      wrap.width_step(colon, Laws.wrap.colons(rest), next, upto, seen, Laws.wrap.upto(rest, next),
+        Laws.wrap.total(rest, next),
+        Wrap.check.width.go(rest, next, Bool.pick(U32, colon, next, upto), Bool.or(colon, seen)),
+        wrap.width_go(rest, next, Bool.pick(U32, colon, next, upto), Bool.or(colon, seen)))
+
+def Laws.wrap_width(toks):
+  wrap.width_go(toks, 0, 0, False{})
+
+# the `)`'s line
+def wrap.line_of(sp: Wrap.Span) -> U32:
+  Wrap.Span{line, _end, _col} = sp
+  line
+
+# the parameter being read, when one is
+def wrap.cur_of(on: Bool, +pline: U32, +pend: U32, +pcol: U32) -> Maybe<&2, Wrap.Span>:
+  Bool.pick(Maybe<&2, Wrap.Span>, on, Some{Wrap.Span{pline, pend, pcol}}, None{})
+
+# the rule's walk as the spec's read
+def wrap.of(wk: Wrap.Walk) -> Laws.wrap.Read:
+  Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans} = wk
+  Laws.wrap.Read{mode, paren, bracket, brace, angle, open, wrap.line_of(shut), wrap.cur_of(on, pline, pend, pcol),
+    spans}
+
+# before the list: the rule's seek is the spec's
+law wrap.seek_open:
+  for a: Bool
+  for z: Bool
+  for +r: Wrap.Act
+  {Bool.pick(Wrap.Act, Bool.and(a, z), Wrap.AOpen{}, r) == Wrap.check.seek_open(a, z, r) : Wrap.Act}
+
+def wrap.seek_open(a, z, _r):
+  match a:
+    case True{}:
+      match z:
+        case True{}:
+          {==}
+        case False{}:
+          {==}
+    case False{}:
+      {==}
+
+# inside the list: the rule's edges are the spec's
+law wrap.args_end:
+  for c: Bool
+  for +t: Bool
+  for m: Bool
+  for +r: Wrap.Act
+  {Bool.pick(Wrap.Act, t, Bool.pick(Wrap.Act, c, Wrap.AEnd{}, Bool.pick(Wrap.Act, m, Wrap.AComma{}, r)), r)
+    == Wrap.check.args_end(c, t, Wrap.check.args_comma(m, t, r)) : Wrap.Act}
+
+def wrap.args_end(c, t, m, _r):
+  match c:
+    case True{}:
+      match t:
+        case True{}:
+          {==}
+        case False{}:
+          match m:
+            case True{}:
+              {==}
+            case False{}:
+              {==}
+    case False{}:
+      match t:
+        case True{}:
+          match m:
+            case True{}:
+              {==}
+            case False{}:
+              {==}
+        case False{}:
+          match m:
+            case True{}:
+              {==}
+            case False{}:
+              {==}
+
+# the spec's motion of a token is the rule's
+law wrap.motion:
+  for at: Wrap.Phase
+  for +kk: Lex.TokKind
+  for +tx: String
+  for +glued: Bool
+  for +paren: U32
+  for +bracket: U32
+  for +brace: U32
+  for +angle: U32
+  {Laws.wrap.motion(at, kk, tx, glued, paren, bracket, brace, angle)
+    == Wrap.check.act(at, kk, tx, glued, paren, angle, brace, bracket) : Wrap.Act}
+
+def wrap.motion(at, kk, tx, glued, paren, bracket, brace, angle):
+  match at:
+    case Wrap.Seek{}:
+      wrap.seek_open(Wrap.check.is_oparen(kk, tx), Wrap.check.zero(paren, angle, brace, bracket),
+        Wrap.check.brackets(kk, tx, glued))
+    case Wrap.Args{}:
+      wrap.args_end(Wrap.check.is_cparen(kk, tx), Wrap.check.top(paren, angle, brace, bracket), Lex.is_comma(kk),
+        Wrap.check.brackets(kk, tx, glued))
+    case Wrap.Past{}:
+      {==}
+    case Wrap.Shut{}:
+      {==}
+    case Wrap.Loose{}:
+      {==}
+
+# a pick and an early exit that agree on both branches agree
+law wrap.stop_pick:
+  for c: Bool
+  for +a: U32
+  for -x: U32
+  for -y: U32
+  for e: {x == y : U32}
+  {Bool.pick(U32, c, a, x) == Lazy.stop(U32, c, a, _u => y) : U32}
+
+def wrap.stop_pick(c, _a, _x, _y, e):
+  match c:
+    case True{}:
+      {==}
+    case False{}:
+      e
+
+# the spec closes angles as the rule does
+law wrap.lower:
+  for n: Nat
+  for +angle: U32
+  {Laws.wrap.lower(n, angle) == Wrap.check.sub(n, angle) : U32}
+
+def wrap.lower(n, angle):
+  match n:
+    case Zero{}:
+      {==}
+    case Succ{p}:
+      wrap.stop_pick(U32.is_eq(angle, 0), angle, Laws.wrap.lower(p, (angle - 1 : U32)),
+        Wrap.check.sub(p, (angle - 1 : U32)), wrap.lower(p, (angle - 1 : U32)))
+
+# a token that moves only the depths: inside the list it joins the parameter
+law wrap.joined:
+  for mode: Wrap.Phase
+  for on: Bool
+  for +paren: U32
+  for +bracket: U32
+  for +brace: U32
+  for +angle: U32
+  for +shut: Wrap.Span
+  for +open: U32
+  for +pline: U32
+  for +pend: U32
+  for +pcol: U32
+  for +spans: List<&2, Wrap.Span>
+  for +kk: Lex.TokKind
+  for +tx: String
+  for +ln: U32
+  for +cl: U32
+  {wrap.of(Wrap.check.note_args(Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans},
+    Lex.Tok{kk, tx, ln, cl}))
+    == Laws.wrap.join(mode, paren, bracket, brace, angle, open, wrap.line_of(shut), wrap.cur_of(on, pline, pend, pcol),
+      spans, ln, cl) : Laws.wrap.Read}
+
+def wrap.joined(
+  mode,
+  on,
+  _paren,
+  _bracket,
+  _brace,
+  _angle,
+  _shut,
+  _open,
+  _pline,
+  _pend,
+  _pcol,
+  _spans,
+  _kk,
+  _tx,
+  _ln,
+  _cl
+):
+  match mode:
+    case Wrap.Args{}:
+      match on:
+        case True{}:
+          {==}
+        case False{}:
+          {==}
+    case Wrap.Seek{}:
+      {==}
+    case Wrap.Past{}:
+      {==}
+    case Wrap.Shut{}:
+      {==}
+    case Wrap.Loose{}:
+      {==}
+
+# a `->` right after the `)`: past it, on the `)` line or not, nothing joins
+law wrap.arrowed:
+  for b: Bool
+  for on: Bool
+  for +paren: U32
+  for +bracket: U32
+  for +brace: U32
+  for +angle: U32
+  for +shut: Wrap.Span
+  for +open: U32
+  for +pline: U32
+  for +pend: U32
+  for +pcol: U32
+  for +spans: List<&2, Wrap.Span>
+  for +tok: Lex.Tok
+  {wrap.of(Wrap.check.note_args(Wrap.Walk{Bool.pick(Wrap.Phase, b, Wrap.Past{}, Wrap.Loose{}), paren, bracket, brace,
+    angle, shut, open, on, pline, pend, pcol, spans}, tok))
+    == Laws.wrap.Read{Bool.pick(Wrap.Phase, b, Wrap.Past{}, Wrap.Loose{}), paren, bracket, brace, angle, open,
+      wrap.line_of(shut), wrap.cur_of(on, pline, pend, pcol), spans} : Laws.wrap.Read}
+
+def wrap.arrowed(b, _on, _paren, _bracket, _brace, _angle, _shut, _open, _pline, _pend, _pcol, _spans, _tok):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# any motion: the rule's walk after it is the spec's read after it
+law wrap.moved:
+  for m: Wrap.Act
+  for mode: Wrap.Phase
+  for on: Bool
+  for +paren: U32
+  for +bracket: U32
+  for +brace: U32
+  for +angle: U32
+  for +shut: Wrap.Span
+  for +open: U32
+  for +pline: U32
+  for +pend: U32
+  for +pcol: U32
+  for +spans: List<&2, Wrap.Span>
+  for +kk: Lex.TokKind
+  for +tx: String
+  for +ln: U32
+  for +cl: U32
+  for +ticks: Nat
+  {wrap.of(Wrap.check.maybe_note(Wrap.check.is_sep(m),
+    Wrap.check.apply(m, Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans}, ln, cl,
+      ticks), Lex.Tok{kk, tx, ln, cl}))
+    == Laws.wrap.move(m, mode, paren, bracket, brace, angle, open, wrap.line_of(shut),
+      wrap.cur_of(on, pline, pend, pcol), spans, ln, cl, ticks) : Laws.wrap.Read}
+
+def wrap.moved(m, mode, on, paren, bracket, brace, angle, shut, open, pline, pend, pcol, spans, kk, tx, ln, cl, ticks):
+  match m:
+    case Wrap.AOpen{}:
+      {==}
+    case Wrap.AEnd{}:
+      match on:
+        case True{}:
+          {==}
+        case False{}:
+          {==}
+    case Wrap.AComma{}:
+      match on:
+        case True{}:
+          {==}
+        case False{}:
+          {==}
+    case Wrap.AArrow{}:
+      match shut:
+        case Wrap.Span{+line, +end, +col}:
+          wrap.arrowed(U32.is_eq(ln, line), on, paren, bracket, brace, angle, Wrap.Span{line, end, col}, open, pline,
+            pend, pcol, spans, Lex.Tok{kk, tx, ln, cl})
+    case Wrap.AStray{}:
+      {==}
+    case Wrap.AParen{}:
+      wrap.joined(mode, on, (paren + 1 : U32), bracket, brace, angle, shut,
+        open, pline, pend, pcol, spans, kk, tx, ln, cl)
+    case Wrap.AUnparen{}:
+      wrap.joined(mode, on, Wrap.check.dec_u(paren), bracket, brace, angle, shut,
+        open, pline, pend, pcol, spans, kk, tx, ln, cl)
+    case Wrap.ABrack{}:
+      wrap.joined(mode, on, paren, (bracket + 1 : U32), brace, angle, shut,
+        open, pline, pend, pcol, spans, kk, tx, ln, cl)
+    case Wrap.AUnbrack{}:
+      wrap.joined(mode, on, paren, Wrap.check.dec_u(bracket), brace, angle, shut,
+        open, pline, pend, pcol, spans, kk, tx, ln, cl)
+    case Wrap.ABrace{}:
+      wrap.joined(mode, on, paren, bracket, (brace + 1 : U32), angle, shut,
+        open, pline, pend, pcol, spans, kk, tx, ln, cl)
+    case Wrap.AUnbrace{}:
+      wrap.joined(mode, on, paren, bracket, Wrap.check.dec_u(brace), angle, shut,
+        open, pline, pend, pcol, spans, kk, tx, ln, cl)
+    case Wrap.AAngle{}:
+      wrap.joined(mode, on, paren, bracket, brace, (angle + 1 : U32), shut,
+        open, pline, pend, pcol, spans, kk, tx, ln, cl)
+    case Wrap.AUnangle{}:
+      %wrap.lower(ticks, angle) : {wrap.of(Wrap.check.note_args(Wrap.Walk{mode, paren, bracket, brace, _, shut, open,
+        on, pline, pend, pcol, spans}, Lex.Tok{kk, tx, ln, cl})) == Laws.wrap.join(mode, paren, bracket, brace,
+        Laws.wrap.lower(ticks, angle), open, wrap.line_of(shut), wrap.cur_of(on, pline, pend, pcol), spans, ln, cl)
+        : Laws.wrap.Read}
+      wrap.joined(mode, on, paren, bracket, brace, Laws.wrap.lower(ticks, angle), shut,
+        open, pline, pend, pcol, spans, kk, tx, ln, cl)
+    case Wrap.ANone{}:
+      wrap.joined(mode, on, paren, bracket, brace, angle, shut,
+        open, pline, pend, pcol, spans, kk, tx, ln, cl)
+
+# a significant token or not: the rule's step and the spec's agree when they
+# agree on a significant one
+law wrap.on_sig:
+  for s: Bool
+  for +tok: Lex.Tok
+  for +wk: Wrap.Walk
+  for +glued: Bool
+  for -y: Laws.wrap.Read
+  for e: {wrap.of(Wrap.check.step_hit(wk, tok, glued)) == y : Laws.wrap.Read}
+  {wrap.of(Wrap.check.step_on(s, tok, wk, glued)) == Bool.pick(Laws.wrap.Read, s, y, wrap.of(wk)) : Laws.wrap.Read}
+
+def wrap.on_sig(s, _tok, _wk, _glued, _y, e):
+  match s:
+    case True{}:
+      e
+    case False{}:
+      {==}
+
+# one token: the rule's walk after it is the spec's read after it
+law wrap.stepped:
+  for +tok: Lex.Tok
+  for +wk: Wrap.Walk
+  for +glued: Bool
+  {wrap.of(Wrap.check.step(tok, wk, glued)) == Laws.wrap.step(tok, wrap.of(wk), glued) : Laws.wrap.Read}
+
+def wrap.stepped(tok, wk, glued):
+  match tok:
+    case Lex.Tok{+kk, +tx, +ln, +cl}:
+      match wk:
+        case Wrap.Walk{+mode, +paren, +bracket, +brace, +angle, +shut, +open, +on, +pline, +pend, +pcol, +spans}:
+          +ticks = Wrap.check.ticks_of(tx)
+          +act = Wrap.check.act(mode, kk, tx, glued, paren, angle, brace, bracket)
+          +spec = Laws.wrap.motion(mode, kk, tx, glued, paren, bracket, brace, angle)
+          wrap.on_sig(Lex.significant(kk), Lex.Tok{kk, tx, ln, cl},
+            Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans}, glued,
+            Laws.wrap.move(spec, mode, paren, bracket, brace, angle, open, wrap.line_of(shut),
+              wrap.cur_of(on, pline, pend, pcol), spans, ln, cl, ticks),
+            Equal.trans(Laws.wrap.Read,
+              wrap.of(Wrap.check.maybe_note(Wrap.check.is_sep(act),
+                Wrap.check.apply(act, Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol,
+                  spans}, ln, cl, ticks), Lex.Tok{kk, tx, ln, cl})),
+              Laws.wrap.move(act, mode, paren, bracket, brace, angle, open, wrap.line_of(shut),
+                wrap.cur_of(on, pline, pend, pcol), spans, ln, cl, ticks),
+              Laws.wrap.move(spec, mode, paren, bracket, brace, angle, open, wrap.line_of(shut),
+                wrap.cur_of(on, pline, pend, pcol), spans, ln, cl, ticks),
+              wrap.moved(act, mode, on, paren, bracket, brace, angle, shut, open, pline, pend, pcol, spans, kk, tx, ln,
+                cl, ticks),
+              Equal.cong(Wrap.Act, Laws.wrap.Read,
+                aa => Laws.wrap.move(aa, mode, paren, bracket, brace, angle, open, wrap.line_of(shut),
+                  wrap.cur_of(on, pline, pend, pcol), spans, ln, cl, ticks),
+                act, spec,
+                Equal.sym(Wrap.Act, spec, act, wrap.motion(mode, kk, tx, glued, paren, bracket, brace, angle)))))
+
+# the end of the header: the parameter still open is done
+law wrap.sealed:
+  for +wk: Wrap.Walk
+  for +glued: Bool
+  {wrap.of(Wrap.check.seal(wk)) == Laws.wrap.run([], wrap.of(wk), glued) : Laws.wrap.Read}
+
+def wrap.sealed(wk, _glued):
+  match wk:
+    case Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans}:
+      match on:
+        case True{}:
+          {==}
+        case False{}:
+          {==}
+
+# the whole header: the rule's walk is the spec's read, from any state
+law wrap.walked:
+  for toks: List<&2, Lex.Tok>
+  for +wk: Wrap.Walk
+  for +glued: Bool
+  {wrap.of(Wrap.check.walk(toks, wk, glued)) == Laws.wrap.run(toks, wrap.of(wk), glued) : Laws.wrap.Read}
+
+def wrap.walked(toks, wk, glued):
+  match toks:
+    case Nil{}:
+      wrap.sealed(wk, glued)
+    case Con{Lex.Tok{+kk, +tx, +ln, +cl}, +rest}:
+      +tok = {Lex.Tok{kk, tx, ln, cl} : Lex.Tok}
+      Equal.trans(Laws.wrap.Read,
+        wrap.of(Wrap.check.walk(rest, Wrap.check.step(tok, wk, glued), Lex.is_name(kk))),
+        Laws.wrap.run(rest, wrap.of(Wrap.check.step(tok, wk, glued)), Lex.is_name(kk)),
+        Laws.wrap.run(rest, Laws.wrap.step(tok, wrap.of(wk), glued), Lex.is_name(kk)),
+        wrap.walked(rest, Wrap.check.step(tok, wk, glued), Lex.is_name(kk)),
+        Equal.cong(Laws.wrap.Read, Laws.wrap.Read, rd => Laws.wrap.run(rest, rd, Lex.is_name(kk)),
+          wrap.of(Wrap.check.step(tok, wk, glued)), Laws.wrap.step(tok, wrap.of(wk), glued),
+          wrap.stepped(tok, wk, glued)))
+
+# a Maybe that holds a value
+def wrap.found(mm: Maybe<&2, Wrap.Span>) -> Bool:
+  match mm:
+    case None{}:
+      False{}
+    case Some{_sp}:
+      True{}
+
+# the rule's line test is the spec's
+law wrap.shares:
+  for ps: List<&2, Wrap.Span>
+  for +ln: U32
+  {Wrap.check.shares(ps, ln) == Laws.wrap.starts_on(ps, ln) : Bool}
+
+def wrap.shares(ps, ln):
+  match ps:
+    case Nil{}:
+      {==}
+    case Con{Wrap.Span{+line, _end, _col}, +rest}:
+      put.or(U32.is_eq(line, ln), Wrap.check.shares(rest, ln), Laws.wrap.starts_on(rest, ln), wrap.shares(rest, ln))
+
+# the rule's misplaced parameter is the spec's
+law wrap.bad:
+  for +line: U32
+  for +end: U32
+  for +col: U32
+  for +open: U32
+  for +rest: List<&2, Wrap.Span>
+  {Wrap.check.bad(Wrap.Span{line, end, col}, open, rest)
+    == Bool.or(Bool.not(U32.is_eq(line, end)), Bool.or(U32.is_eq(line, open), Laws.wrap.starts_on(rest, line))) : Bool}
+
+def wrap.bad(line, end, _col, open, rest):
+  put.or(Bool.not(U32.is_eq(line, end)), Lazy.or_else(U32.is_eq(line, open), _u2 => Wrap.check.shares(rest, line)),
+    Bool.or(U32.is_eq(line, open), Laws.wrap.starts_on(rest, line)),
+    put.or(U32.is_eq(line, open), Wrap.check.shares(rest, line), Laws.wrap.starts_on(rest, line),
+      wrap.shares(rest, line)))
+
+# an early exit to a found value is found when it exits, else when the rest is
+law wrap.stop_found:
+  for b: Bool
+  for -sp: Wrap.Span
+  for -x: Maybe<&2, Wrap.Span>
+  for -y: Bool
+  for e: {wrap.found(x) == y : Bool}
+  {wrap.found(Lazy.stop(Maybe<&2, Wrap.Span>, b, Some{sp}, _u => x)) == Bool.or(b, y) : Bool}
+
+def wrap.stop_found(b, _sp, _x, _y, e):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      e
+
+# equal disjuncts give equal ors
+law wrap.or2:
+  for -a: Bool
+  for -b: Bool
+  for -c: Bool
+  for -d: Bool
+  for e1: {a == c : Bool}
+  for e2: {b == d : Bool}
+  {Bool.or(a, b) == Bool.or(c, d) : Bool}
+
+def wrap.or2(a, b, _c, d, e1, e2):
+  %e1 : {Bool.or(a, b) == Bool.or(_, d) : Bool}
+  %e2 : {Bool.or(a, b) == Bool.or(a, _) : Bool}
+  {==}
+
+# the rule finds a misplaced parameter exactly when the spec does
+law wrap.judged:
+  for ps: List<&2, Wrap.Span>
+  for +open: U32
+  {wrap.found(Wrap.check.judge(ps, open)) == Laws.wrap.misplaced(ps, open) : Bool}
+
+def wrap.judged(ps, open):
+  match ps:
+    case Nil{}:
+      {==}
+    case Con{Wrap.Span{+line, +end, +col}, +rest}:
+      Equal.trans(Bool,
+        wrap.found(Lazy.stop(Maybe<&2, Wrap.Span>, Wrap.check.bad(Wrap.Span{line, end, col}, open, rest),
+          Some{Wrap.Span{line, end, col}}, _u => Wrap.check.judge(rest, open))),
+        Bool.or(Wrap.check.bad(Wrap.Span{line, end, col}, open, rest), Laws.wrap.misplaced(rest, open)),
+        Laws.wrap.misplaced(Wrap.Span{line, end, col} <> rest, open),
+        wrap.stop_found(Wrap.check.bad(Wrap.Span{line, end, col}, open, rest), Wrap.Span{line, end, col},
+          Wrap.check.judge(rest, open), Laws.wrap.misplaced(rest, open), wrap.judged(rest, open)),
+        wrap.or2(Wrap.check.bad(Wrap.Span{line, end, col}, open, rest), Laws.wrap.misplaced(rest, open),
+          Bool.or(Bool.not(U32.is_eq(line, end)), Bool.or(U32.is_eq(line, open), Laws.wrap.starts_on(rest, line))),
+          Laws.wrap.misplaced(rest, open), wrap.bad(line, end, col, open, rest), {==}))
+
+# a pick between a found value and none is found when it picks the first
+law wrap.pick_found:
+  for t: Bool
+  for -sp: Wrap.Span
+  {wrap.found(Bool.pick(Maybe<&2, Wrap.Span>, t, Some{sp}, None{})) == t : Bool}
+
+def wrap.pick_found(t, _sp):
+  match t:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# the rule's last-line test is the spec's
+law wrap.tight:
+  for ps: List<&2, Wrap.Span>
+  for +shut: U32
+  {Wrap.check.tight(ps, shut) == Laws.wrap.tight(ps, shut) : Bool}
+
+def wrap.tight(ps, _shut):
+  match ps:
+    case Nil{}:
+      {==}
+    case Con{Wrap.Span{line, end, col}, rest}:
+      {==}
+
+# a `)` on the line given is found cramped exactly when the spec's test says so
+law wrap.tight_found:
+  for +line: U32
+  for +end: U32
+  for +col: U32
+  for +spans: List<&2, Wrap.Span>
+  {wrap.found(Wrap.check.shut_at(Wrap.Span{line, end, col}, spans)) == Laws.wrap.tight(spans, line) : Bool}
+
+def wrap.tight_found(line, end, col, spans):
+  Equal.trans(Bool,
+    wrap.found(Bool.pick(Maybe<&2, Wrap.Span>, Wrap.check.tight(spans, line), Some{Wrap.Span{line, end, col}},
+      None{})),
+    Wrap.check.tight(spans, line),
+    Laws.wrap.tight(spans, line),
+    wrap.pick_found(Wrap.check.tight(spans, line), Wrap.Span{line, end, col}),
+    wrap.tight(spans, line))
+
+# no parameter: found at the `(` line exactly when the spec says none
+law wrap.none:
+  for spans: List<&2, Wrap.Span>
+  for +open: U32
+  {wrap.found(Wrap.check.none_at(spans, open)) == Laws.wrap.none(spans) : Bool}
+
+def wrap.none(spans, _open):
+  match spans:
+    case Nil{}:
+      {==}
+    case Con{sp, rest}:
+      {==}
+
+# the rule finds a cramped `)` exactly when the spec does
+law wrap.shut:
+  for mode: Wrap.Phase
+  for +shut: Wrap.Span
+  for +spans: List<&2, Wrap.Span>
+  for -paren: U32
+  for -bracket: U32
+  for -brace: U32
+  for -angle: U32
+  for -open: U32
+  for -on: Bool
+  for -pline: U32
+  for -pend: U32
+  for -pcol: U32
+  {wrap.found(Wrap.check.shut_span(Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol,
+    spans}))
+    == Laws.wrap.cramped(mode, wrap.line_of(shut), spans) : Bool}
+
+def wrap.shut(mode, shut, spans, _paren, _bracket, _brace, _angle, _open, _on, _pline, _pend, _pcol):
+  match mode:
+    case Wrap.Past{}:
+      match shut:
+        case Wrap.Span{+line, +end, +col}:
+          wrap.tight_found(line, end, col, spans)
+    case Wrap.Shut{}:
+      match shut:
+        case Wrap.Span{+line, +end, +col}:
+          wrap.tight_found(line, end, col, spans)
+    case Wrap.Loose{}:
+      match shut:
+        case Wrap.Span{+line, +end, +col}:
+          wrap.tight_found(line, end, col, spans)
+    case Wrap.Seek{}:
+      {==}
+    case Wrap.Args{}:
+      {==}
+
+# the rule finds an empty list exactly when the spec does
+law wrap.empty:
+  for mode: Wrap.Phase
+  for +spans: List<&2, Wrap.Span>
+  for +open: U32
+  for -paren: U32
+  for -bracket: U32
+  for -brace: U32
+  for -angle: U32
+  for -shut: Wrap.Span
+  for -on: Bool
+  for -pline: U32
+  for -pend: U32
+  for -pcol: U32
+  {wrap.found(Wrap.check.empty_span(Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol,
+    spans})) == Laws.wrap.empty(mode, spans) : Bool}
+
+def wrap.empty(mode, spans, open, _paren, _bracket, _brace, _angle, _shut, _on, _pline, _pend, _pcol):
+  match mode:
+    case Wrap.Seek{}:
+      {==}
+    case Wrap.Args{}:
+      wrap.none(spans, open)
+    case Wrap.Past{}:
+      wrap.none(spans, open)
+    case Wrap.Shut{}:
+      wrap.none(spans, open)
+    case Wrap.Loose{}:
+      wrap.none(spans, open)
+
+# the rule finds a `)` with no `->` after it exactly when the spec does
+law wrap.loose:
+  for mode: Wrap.Phase
+  for -spans: List<&2, Wrap.Span>
+  for -open: U32
+  for -paren: U32
+  for -bracket: U32
+  for -brace: U32
+  for -angle: U32
+  for -shut: Wrap.Span
+  for -on: Bool
+  for -pline: U32
+  for -pend: U32
+  for -pcol: U32
+  {wrap.found(Wrap.check.loose_span(Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol,
+    spans})) == Laws.wrap.loose(mode) : Bool}
+
+def wrap.loose(mode, _spans, _open, _paren, _bracket, _brace, _angle, _shut, _on, _pline, _pend, _pcol):
+  match mode:
+    case Wrap.Seek{}:
+      {==}
+    case Wrap.Args{}:
+      {==}
+    case Wrap.Past{}:
+      {==}
+    case Wrap.Shut{}:
+      {==}
+    case Wrap.Loose{}:
+      {==}
+
+# the rule's four findings for a header read are the spec's verdict on it
+law wrap.verdict:
+  for +wk: Wrap.Walk
+  {Bool.or(wrap.found(Wrap.check.jam_span(wk)), Bool.or(wrap.found(Wrap.check.empty_span(wk)),
+    Bool.or(wrap.found(Wrap.check.shut_span(wk)), wrap.found(Wrap.check.loose_span(wk)))))
+    == Laws.wrap.bad_shape(wrap.of(wk)) : Bool}
+
+def wrap.verdict(wk):
+  match wk:
+    case Wrap.Walk{+mode, +paren, +bracket, +brace, +angle, +shut, +open, +on, +pline, +pend, +pcol, +spans}:
+      +w = {Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans} : Wrap.Walk}
+      wrap.or2(wrap.found(Wrap.check.judge(List.reverse(&2, Wrap.Span, spans), open)),
+        Bool.or(wrap.found(Wrap.check.empty_span(w)),
+          Bool.or(wrap.found(Wrap.check.shut_span(w)), wrap.found(Wrap.check.loose_span(w)))),
+        Laws.wrap.misplaced(List.reverse(&2, Wrap.Span, spans), open),
+        Bool.or(Laws.wrap.empty(mode, spans),
+          Bool.or(Laws.wrap.cramped(mode, wrap.line_of(shut), spans), Laws.wrap.loose(mode))),
+        wrap.judged(List.reverse(&2, Wrap.Span, spans), open),
+        wrap.or2(wrap.found(Wrap.check.empty_span(w)),
+          Bool.or(wrap.found(Wrap.check.shut_span(w)), wrap.found(Wrap.check.loose_span(w))),
+          Laws.wrap.empty(mode, spans),
+          Bool.or(Laws.wrap.cramped(mode, wrap.line_of(shut), spans), Laws.wrap.loose(mode)),
+          wrap.empty(mode, spans, open, paren, bracket, brace, angle, shut, on, pline, pend, pcol),
+          wrap.or2(wrap.found(Wrap.check.shut_span(w)), wrap.found(Wrap.check.loose_span(w)),
+            Laws.wrap.cramped(mode, wrap.line_of(shut), spans), Laws.wrap.loose(mode),
+            wrap.shut(mode, shut, spans, paren, bracket, brace, angle, open, on, pline, pend, pcol),
+            wrap.loose(mode, spans, open, paren, bracket, brace, angle, shut, on, pline, pend, pcol))))
+
+# the rule's four findings, first found first: one onto the rest when any
+# is found, else the rest
+law wrap.placed:
+  for mm: Maybe<&2, Wrap.Span>
+  for em: Maybe<&2, Wrap.Span>
+  for sh: Maybe<&2, Wrap.Span>
+  for lo: Maybe<&2, Wrap.Span>
+  for +base: U32
+  for +path: String
+  for +more: List<&2, F.Finding>
+  {List.length(&2, F.Finding, Wrap.check.place(mm, em, sh, lo, base, path, more))
+    == Bool.pick(Nat, Bool.or(wrap.found(mm), Bool.or(wrap.found(em), Bool.or(wrap.found(sh), wrap.found(lo)))),
+      1n+List.length(&2, F.Finding, more), List.length(&2, F.Finding, more)) : Nat}
+
+def wrap.placed(mm, em, sh, lo, _base, _path, _more):
+  match mm:
+    case Some{Wrap.Span{line, end, col}}:
+      {==}
+    case None{}:
+      match em:
+        case Some{Wrap.Span{line, end, col}}:
+          {==}
+        case None{}:
+          match sh:
+            case Some{Wrap.Span{line, end, col}}:
+              {==}
+            case None{}:
+              match lo:
+                case Some{Wrap.Span{line, end, col}}:
+                  {==}
+                case None{}:
+                  {==}
+
+# a broken header: one finding onto the rest exactly when its shape is bad
+law wrap.jammed:
+  for +toks: List<&2, Lex.Tok>
+  for +line: U32
+  for +path: String
+  for +more: List<&2, F.Finding>
+  {List.length(&2, F.Finding, Wrap.check.jam(line, toks, path, more))
+    == Bool.pick(Nat, Laws.wrap.shape(toks), 1n+List.length(&2, F.Finding, more), List.length(&2, F.Finding, more))
+    : Nat}
+
+def wrap.jammed(toks, line, path, more):
+  +wk = Wrap.check.walk(toks, Wrap.check.start(), False{})
+  +len = List.length(&2, F.Finding, more)
+  +any = Bool.or(wrap.found(Wrap.check.jam_span(wk)), Bool.or(wrap.found(Wrap.check.empty_span(wk)),
+    Bool.or(wrap.found(Wrap.check.shut_span(wk)), wrap.found(Wrap.check.loose_span(wk)))))
+  Equal.trans(Nat,
+    List.length(&2, F.Finding, Wrap.check.place(Wrap.check.jam_span(wk), Wrap.check.empty_span(wk),
+      Wrap.check.shut_span(wk), Wrap.check.loose_span(wk), line, path, more)),
+    Bool.pick(Nat, any, 1n+len, len),
+    Bool.pick(Nat, Laws.wrap.shape(toks), 1n+len, len),
+    wrap.placed(Wrap.check.jam_span(wk), Wrap.check.empty_span(wk), Wrap.check.shut_span(wk), Wrap.check.loose_span(wk),
+      line, path, more),
+    Equal.cong(Bool, Nat, bb => Bool.pick(Nat, bb, 1n+len, len), any, Laws.wrap.shape(toks),
+      Equal.trans(Bool, any, Laws.wrap.bad_shape(wrap.of(wk)), Laws.wrap.shape(toks), wrap.verdict(wk),
+        Equal.cong(Laws.wrap.Read, Bool, rd => Laws.wrap.bad_shape(rd), wrap.of(wk),
+          Laws.wrap.run(toks, Laws.wrap.start(), False{}), wrap.walked(toks, Wrap.check.start(), False{})))))
+
+def Laws.wrap_shape_counts(toks, line, path):
+  wrap.jammed(toks, line, path, [])
+
+# an early exit to one finding onto the rest, else the rest
+law wrap.stop_len:
+  for b: Bool
+  for -x: F.Finding
+  for +more: List<&2, F.Finding>
+  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, b, x <> more, _u => more))
+    == Bool.pick(Nat, b, 1n+List.length(&2, F.Finding, more), List.length(&2, F.Finding, more)) : Nat}
+
+def wrap.stop_len(b, _x, _more):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# a one-line header: one finding onto the rest exactly when it is too wide
+law wrap.wide:
+  for +line: U32
+  for +sig: String
+  for +path: String
+  for +more: List<&2, F.Finding>
+  {List.length(&2, F.Finding, Wrap.check.wide(line, sig, path, more))
+    == Bool.pick(Nat, U32.is_gt(Laws.wrap.width(Lex.tokens(sig)), 120), 1n+List.length(&2, F.Finding, more),
+      List.length(&2, F.Finding, more)) : Nat}
+
+def wrap.wide(line, sig, path, more):
+  +len = List.length(&2, F.Finding, more)
+  Equal.trans(Nat,
+    List.length(&2, F.Finding, Wrap.check.wide(line, sig, path, more)),
+    Bool.pick(Nat, U32.is_gt(Wrap.check.width(sig), 120), 1n+len, len),
+    Bool.pick(Nat, U32.is_gt(Laws.wrap.width(Lex.tokens(sig)), 120), 1n+len, len),
+    wrap.stop_len(U32.is_gt(Wrap.check.width(sig), 120),
+      F.Finding{path, line, 120, 0, "wrap", "Def header exceeds the 120-character limit; wrap with one parameter per line."},
+      more),
+    Equal.cong(U32, Nat, ww => Bool.pick(Nat, U32.is_gt(ww, 120), 1n+len, len), Wrap.check.width(sig),
+      Laws.wrap.width(Lex.tokens(sig)), Laws.wrap_width(Lex.tokens(sig))))
+
+# a header, broken or not: one finding onto the rest exactly when it is bad
+law wrap.headed:
+  for multi: Bool
+  for +line: U32
+  for +sig: String
+  for +path: String
+  for +more: List<&2, F.Finding>
+  {List.length(&2, F.Finding, Wrap.check.header(multi, line, sig, path, more))
+    == Bool.pick(Nat, Bool.pick(Bool, multi, Laws.wrap.shape(Lex.tokens(sig)),
+      U32.is_gt(Laws.wrap.width(Lex.tokens(sig)), 120)), 1n+List.length(&2, F.Finding, more),
+      List.length(&2, F.Finding, more)) : Nat}
+
+def wrap.headed(multi, line, sig, path, more):
+  match multi:
+    case True{}:
+      wrap.jammed(Lex.tokens(sig), line, path, more)
+    case False{}:
+      wrap.wide(line, sig, path, more)
+
+# an item: one finding onto the rest exactly when it is a bad def header
+law wrap.one:
+  for kk: Outline.ItemKind
+  for +line: U32
+  for +sig: String
+  for +path: String
+  for +more: List<&2, F.Finding>
+  {List.length(&2, F.Finding, Wrap.check.one(kk, line, sig, path, more))
+    == Bool.pick(Nat, Bool.and(Outline.is_def(kk), Laws.wrap.bad(sig)), 1n+List.length(&2, F.Finding, more),
+      List.length(&2, F.Finding, more)) : Nat}
+
+def wrap.one(kk, line, sig, path, more):
+  match kk:
+    case Outline.IImport{}:
+      {==}
+    case Outline.IDef{}:
+      wrap.headed(String.contains(sig, "\n"), line, sig, path, more)
+    case Outline.ILaw{}:
+      {==}
+    case Outline.IType{}:
+      {==}
+    case Outline.ICtor{}:
+      {==}
+    case Outline.ILocal{}:
+      {==}
+
+# the rule's walk over the items counts the bad def headers
+law wrap.went:
+  for items: List<&2, Outline.Item>
+  for +path: String
+  {List.length(&2, F.Finding, Wrap.check.go(items, path)) == Laws.wrap.count(items) : Nat}
+
+def wrap.went(items, path):
+  match items:
+    case Nil{}:
+      {==}
+    case Con{Outline.Item{+kk, _name, +line, +sig, _doc, _pp}, +rest}:
+      +more = Wrap.check.go(rest, path)
+      +hit = Bool.and(Outline.is_def(kk), Laws.wrap.bad(sig))
+      Equal.trans(Nat,
+        List.length(&2, F.Finding, Wrap.check.one(kk, line, sig, path, more)),
+        Bool.pick(Nat, hit, 1n+List.length(&2, F.Finding, more), List.length(&2, F.Finding, more)),
+        Bool.pick(Nat, hit, 1n+Laws.wrap.count(rest), Laws.wrap.count(rest)),
+        wrap.one(kk, line, sig, path, more),
+        Equal.cong(Nat, Nat, nn => Bool.pick(Nat, hit, 1n+nn, nn), List.length(&2, F.Finding, more),
+          Laws.wrap.count(rest), wrap.went(rest, path)))
+
+def Laws.wrap_counts(path, _text, _toks, _tree, _bound, items):
+  wrap.went(items, path)
+
+# coverage (BOLT-LAW-1)
+
+# an early-exit or is Bool.or
+law coverage.or_else:
+  for c: Bool
+  for -x: Bool
+  {Lazy.or_else(c, _u => x) == Bool.or(c, x) : Bool}
+
+def coverage.or_else(c, _x):
+  match c:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# or is associative
+law coverage.or_assoc:
+  for a: Bool
+  for -b: Bool
+  for -c: Bool
+  {Bool.or(Bool.or(a, b), c) == Bool.or(a, Bool.or(b, c)) : Bool}
+
+def coverage.or_assoc(a, _b, _c):
+  match a:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# the rule's search of the uses is coverage.names
+law coverage.has:
+  for ms: List<&2, Digest.Mention>
+  for +pp: String
+  for +name: String
+  {Coverage.has_item(ms, pp, name) == Laws.coverage.names(ms, pp, name) : Bool}
+
+def coverage.has(ms, pp, name):
+  match ms:
+    case Nil{}:
+      {==}
+    case Con{Digest.Mention{+mp, +mn}, rest}:
+      %coverage.has(rest, pp, name) :
+        {Lazy.or_else(Bool.and(String.eq(mp, pp), String.eq(mn, name)), _u => Coverage.has_item(rest, pp, name))
+          == Bool.or(Bool.and(String.eq(mp, pp), String.eq(mn, name)), _) : Bool}
+      coverage.or_else(Bool.and(String.eq(mp, pp), String.eq(mn, name)), Coverage.has_item(rest, pp, name))
+
+# two lists of uses name an item when either does
+law coverage.app:
+  for as: List<&2, Digest.Mention>
+  for -bs: List<&2, Digest.Mention>
+  for +pp: String
+  for +name: String
+  {Laws.coverage.names(List.append(&2, Digest.Mention, as, bs), pp, name)
+    == Bool.or(Laws.coverage.names(as, pp, name), Laws.coverage.names(bs, pp, name)) : Bool}
+
+def coverage.app(as, bs, pp, name):
+  match as:
+    case Nil{}:
+      {==}
+    case Con{Digest.Mention{+mp, +mn}, rest}:
+      %Equal.sym(Bool, Bool.or(Bool.or(Bool.and(String.eq(mp, pp), String.eq(mn, name)),
+          Laws.coverage.names(rest, pp, name)), Laws.coverage.names(bs, pp, name)),
+        Bool.or(Bool.and(String.eq(mp, pp), String.eq(mn, name)),
+          Bool.or(Laws.coverage.names(rest, pp, name), Laws.coverage.names(bs, pp, name))),
+        coverage.or_assoc(Bool.and(String.eq(mp, pp), String.eq(mn, name)), Laws.coverage.names(rest, pp, name),
+          Laws.coverage.names(bs, pp, name))) :
+        {Bool.or(Bool.and(String.eq(mp, pp), String.eq(mn, name)),
+          Laws.coverage.names(List.append(&2, Digest.Mention, rest, bs), pp, name)) == _ : Bool}
+      Equal.cong(Bool, Bool, b => Bool.or(Bool.and(String.eq(mp, pp), String.eq(mn, name)), b),
+        Laws.coverage.names(List.append(&2, Digest.Mention, rest, bs), pp, name),
+        Bool.or(Laws.coverage.names(rest, pp, name), Laws.coverage.names(bs, pp, name)),
+        coverage.app(rest, bs, pp, name))
+
+# what the rule gathers names an item exactly when some LAWS.bend uses it
+law coverage.named:
+  for ds: List<&2, Digest.Digest>
+  for +pp: String
+  for +name: String
+  {Laws.coverage.names(Coverage.named(ds), pp, name) == Laws.coverage.used(ds, pp, name) : Bool}
+
+def coverage.named(ds, pp, name):
+  match ds:
+    case Nil{}:
+      {==}
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, +says, deps, unsafes, laws}, rest}:
+      match is_laws:
+        case True{}:
+          %coverage.named(rest, pp, name) :
+            {Laws.coverage.names(List.append(&2, Digest.Mention, says, Coverage.named(rest)), pp, name)
+              == Bool.or(Laws.coverage.names(says, pp, name), _) : Bool}
+          coverage.app(says, Coverage.named(rest), pp, name)
+        case False{}:
+          coverage.named(rest, pp, name)
+
+# the rule's lookup is coverage.used
+law coverage.item:
+  for +ds: List<&2, Digest.Digest>
+  for +pp: String
+  for +name: String
+  {Coverage.has_item(Coverage.named(ds), pp, name) == Laws.coverage.used(ds, pp, name) : Bool}
+
+def coverage.item(ds, pp, name):
+  Equal.trans(Bool, Coverage.has_item(Coverage.named(ds), pp, name), Laws.coverage.names(Coverage.named(ds), pp, name),
+    Laws.coverage.used(ds, pp, name), coverage.has(Coverage.named(ds), pp, name), coverage.named(ds, pp, name))
+
+# the rule's search of a type's constructors is coverage.any
+law coverage.any:
+  for ns: List<&2, String>
+  for +all: List<&2, Digest.Digest>
+  for +pp: String
+  {Coverage.any_item(ns, Coverage.named(all), pp) == Laws.coverage.any(ns, all, pp) : Bool}
+
+def coverage.any(ns, all, pp):
+  match ns:
+    case Nil{}:
+      {==}
+    case Con{+name, rest}:
+      %coverage.item(all, pp, name) :
+        {Lazy.or_else(Coverage.has_item(Coverage.named(all), pp, name),
+          _u => Coverage.any_item(rest, Coverage.named(all), pp))
+          == Bool.or(_, Laws.coverage.any(rest, all, pp)) : Bool}
+      %coverage.any(rest, all, pp) :
+        {Lazy.or_else(Coverage.has_item(Coverage.named(all), pp, name),
+          _u => Coverage.any_item(rest, Coverage.named(all), pp))
+          == Bool.or(Coverage.has_item(Coverage.named(all), pp, name), _) : Bool}
+      coverage.or_else(Coverage.has_item(Coverage.named(all), pp, name),
+        Coverage.any_item(rest, Coverage.named(all), pp))
+
+# the rule's gaps are coverage.gaps
+law coverage.gaps:
+  for ts: List<&2, Digest.Top>
+  for +all: List<&2, Digest.Digest>
+  for +pp: String
+  for +path: String
+  {Coverage.gaps(ts, Coverage.named(all), pp, path) == Laws.coverage.gaps(ts, all, pp, path) : List<&2, F.Finding>}
+
+def coverage.gaps(ts, all, pp, path):
+  match ts:
+    case Nil{}:
+      {==}
+    case Con{Digest.Top{Outline.IDef{}, +name, +line, cs}, rest}:
+      %coverage.item(all, pp, name) :
+        {Coverage.gaps(Digest.Top{Outline.IDef{}, name, line, cs} <> rest, Coverage.named(all), pp, path)
+          == Bool.pick(List<&2, F.Finding>, Bool.or(String.contains(name, "."), _),
+            Laws.coverage.gaps(rest, all, pp, path), F.Finding{path, line, 0, 0, "coverage", "Def " ++ name ++ " is named by no law."}
+              <> Laws.coverage.gaps(rest, all, pp, path)) : List<&2, F.Finding>}
+      %coverage.gaps(rest, all, pp, path) :
+        {Coverage.gaps(Digest.Top{Outline.IDef{}, name, line, cs} <> rest, Coverage.named(all), pp, path)
+          == Bool.pick(List<&2, F.Finding>,
+            Bool.or(String.contains(name, "."), Coverage.has_item(Coverage.named(all), pp, name)), _,
+            F.Finding{path, line, 0, 0, "coverage", "Def " ++ name ++ " is named by no law."} <> _) : List<&2, F.Finding>}
+      {==}
+    case Con{Digest.Top{Outline.IType{}, +name, +line, +cs}, rest}:
+      %coverage.item(all, pp, name) :
+        {Coverage.gaps(Digest.Top{Outline.IType{}, name, line, cs} <> rest, Coverage.named(all), pp, path)
+          == Bool.pick(List<&2, F.Finding>, Bool.or(_, Laws.coverage.any(cs, all, pp)),
+            Laws.coverage.gaps(rest, all, pp, path), F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ " is named by no law, nor are its constructors."}
+              <> Laws.coverage.gaps(rest, all, pp, path)) : List<&2, F.Finding>}
+      %coverage.any(cs, all, pp) :
+        {Coverage.gaps(Digest.Top{Outline.IType{}, name, line, cs} <> rest, Coverage.named(all), pp, path)
+          == Bool.pick(List<&2, F.Finding>, Bool.or(Coverage.has_item(Coverage.named(all), pp, name), _),
+            Laws.coverage.gaps(rest, all, pp, path), F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ " is named by no law, nor are its constructors."}
+              <> Laws.coverage.gaps(rest, all, pp, path)) : List<&2, F.Finding>}
+      %coverage.gaps(rest, all, pp, path) :
+        {Coverage.gaps(Digest.Top{Outline.IType{}, name, line, cs} <> rest, Coverage.named(all), pp, path)
+          == Bool.pick(List<&2, F.Finding>,
+            Bool.or(Coverage.has_item(Coverage.named(all), pp, name),
+              Coverage.any_item(cs, Coverage.named(all), pp)), _,
+            F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ " is named by no law, nor are its constructors."}
+              <> _) : List<&2, F.Finding>}
+      Equal.cong(Bool, List<&2, F.Finding>,
+        bb => Bool.pick(List<&2, F.Finding>, bb, Coverage.gaps(rest, Coverage.named(all), pp, path),
+          F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ " is named by no law, nor are its constructors."}
+            <> Coverage.gaps(rest, Coverage.named(all), pp, path)),
+        Lazy.or_else(Coverage.has_item(Coverage.named(all), pp, name),
+          _u => Coverage.any_item(cs, Coverage.named(all), pp)),
+        Bool.or(Coverage.has_item(Coverage.named(all), pp, name), Coverage.any_item(cs, Coverage.named(all), pp)),
+        coverage.or_else(Coverage.has_item(Coverage.named(all), pp, name),
+          Coverage.any_item(cs, Coverage.named(all), pp)))
+    case Con{Digest.Top{Outline.IImport{}, name, line, cs}, rest}:
+      coverage.gaps(rest, all, pp, path)
+    case Con{Digest.Top{Outline.ILaw{}, name, line, cs}, rest}:
+      coverage.gaps(rest, all, pp, path)
+    case Con{Digest.Top{Outline.ICtor{}, name, line, cs}, rest}:
+      coverage.gaps(rest, all, pp, path)
+    case Con{Digest.Top{Outline.ILocal{}, name, line, cs}, rest}:
+      coverage.gaps(rest, all, pp, path)
+
+# the rule's walk over the files is coverage.files
+law coverage.go:
+  for fs: List<&2, Digest.Digest>
+  for +all: List<&2, Digest.Digest>
+  {Coverage.check.go(fs, Coverage.named(all)) == Laws.coverage.files(fs, all) : List<&2, F.Finding>}
+
+def coverage.go(fs, all):
+  match fs:
+    case Nil{}:
+      {==}
+    case Con{Digest.Digest{+path, +norm, dir, is_laws, is_law_file, exempt, +tops, says, deps, unsafes, laws}, rest}:
+      match exempt:
+        case True{}:
+          coverage.go(rest, all)
+        case False{}:
+          %coverage.go(rest, all) :
+            {Coverage.check.go(Digest.Digest{path, norm, dir, is_laws, is_law_file, False{}, tops, says, deps, unsafes,
+              laws} <> rest, Coverage.named(all))
+              == List.append(&2, F.Finding, Laws.coverage.gaps(tops, all, norm, path), _) : List<&2, F.Finding>}
+          %coverage.gaps(tops, all, norm, path) :
+            {Coverage.check.go(Digest.Digest{path, norm, dir, is_laws, is_law_file, False{}, tops, says, deps, unsafes,
+              laws} <> rest, Coverage.named(all))
+              == List.append(&2, F.Finding, _, Coverage.check.go(rest, Coverage.named(all))) : List<&2, F.Finding>}
+          {==}
+
+# the rule runs the walk exactly when some digest is a LAWS.bend
+law coverage.first:
+  for +fs: List<&2, Digest.Digest>
+  for ds: List<&2, Digest.Digest>
+  {Coverage.check.first(fs, Coverage.law_dirs(ds))
+    == Bool.pick(List<&2, F.Finding>, Laws.coverage.lawful(ds), Coverage.check.go(fs, Coverage.named(fs)), [])
+    : List<&2, F.Finding>}
+
+def coverage.first(fs, ds):
+  match ds:
+    case Nil{}:
+      {==}
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+      match is_laws:
+        case True{}:
+          {==}
+        case False{}:
+          coverage.first(fs, rest)
+
+def Laws.coverage_reports(ds):
+  %coverage.go(ds, ds) :
+    {Coverage.check(ds) == Bool.pick(List<&2, F.Finding>, Laws.coverage.lawful(ds), _, []) : List<&2, F.Finding>}
+  coverage.first(ds, ds)
+
+# unsafe (BOLT-LAW-3)
+
+# the rule's search of the law files' closures is unsafe.origin
+law unsafe.reacher:
+  for ls: List<&2, Digest.Digest>
+  for +all: List<&2, Digest.Digest>
+  for +pp: String
+  {Unsafe.reacher(Unsafe.reaches(ls, Digest.edges(all), Imports.paths(Digest.edges(all)),
+    List.length(&2, Digest.Digest, all)), pp) == Laws.unsafe.origin(ls, all, pp) : Maybe<&2, String>}
+
+def unsafe.reacher(ls, all, pp):
+  match ls:
+    case Nil{}:
+      {==}
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+      match is_law_file:
+        case True{}:
+          %unsafe.reacher(rest, all, pp) :
+            {Unsafe.reacher(Unsafe.Reach{path, Laws.unsafe.closure(all, norm)}
+              <> Unsafe.reaches(rest, Digest.edges(all), Imports.paths(Digest.edges(all)),
+                List.length(&2, Digest.Digest, all)), pp)
+              == Bool.pick(Maybe<&2, String>, Imports.has(Laws.unsafe.closure(all, norm), pp), Some{path}, _)
+              : Maybe<&2, String>}
+          {==}
+        case False{}:
+          unsafe.reacher(rest, all, pp)
+
+# the rule's report is unsafe.each
+law unsafe.report:
+  for us: List<&2, Digest.Unsafe>
+  for +origin: String
+  for +path: String
+  {Unsafe.report(us, origin, path) == Laws.unsafe.each(us, origin, path) : List<&2, F.Finding>}
+
+def unsafe.report(us, origin, path):
+  match us:
+    case Nil{}:
+      {==}
+    case Con{Digest.Unsafe{+n, +l, +c}, rest}:
+      Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
+        t => F.Finding{path, l, c, 7, "unsafe", "@unsafe def " ++ n ++ " is reached from " ++ origin
+          ++ "; the checker only warns there and exits 0. Recurse on a shrinking argument or fuel."} <> t,
+        Unsafe.report(rest, origin, path), Laws.unsafe.each(rest, origin, path), unsafe.report(rest, origin, path))
+
+# the rule's found is unsafe.at
+law unsafe.found:
+  for mm: Maybe<&2, String>
+  for us: List<&2, Digest.Unsafe>
+  for +path: String
+  {Unsafe.found(mm, us, path) == Laws.unsafe.at(mm, us, path) : List<&2, F.Finding>}
+
+def unsafe.found(mm, us, path):
+  match mm:
+    case None{}:
+      {==}
+    case Some{origin}:
+      unsafe.report(us, origin, path)
+
+# the rule's walk over the files is unsafe.files
+law unsafe.go:
+  for fs: List<&2, Digest.Digest>
+  for +all: List<&2, Digest.Digest>
+  {Unsafe.check.go(fs, Unsafe.reaches(all, Digest.edges(all), Imports.paths(Digest.edges(all)),
+    List.length(&2, Digest.Digest, all))) == Laws.unsafe.files(fs, all) : List<&2, F.Finding>}
+
+def unsafe.go(fs, all):
+  match fs:
+    case Nil{}:
+      {==}
+    case Con{Digest.Digest{+path, +norm, dir, is_laws, is_law_file, exempt, tops, says, deps, +unsafes, laws}, rest}:
+      %unsafe.go(rest, all) :
+        {Unsafe.check.go(Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}
+          <> rest, Unsafe.reaches(all, Digest.edges(all), Imports.paths(Digest.edges(all)),
+            List.length(&2, Digest.Digest, all)))
+          == List.append(&2, F.Finding, Laws.unsafe.at(Laws.unsafe.origin(all, all, norm), unsafes, path), _)
+          : List<&2, F.Finding>}
+      %unsafe.found(Laws.unsafe.origin(all, all, norm), unsafes, path) :
+        {Unsafe.check.go(Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}
+          <> rest, Unsafe.reaches(all, Digest.edges(all), Imports.paths(Digest.edges(all)),
+            List.length(&2, Digest.Digest, all)))
+          == List.append(&2, F.Finding, _, Unsafe.check.go(rest, Unsafe.reaches(all, Digest.edges(all),
+            Imports.paths(Digest.edges(all)), List.length(&2, Digest.Digest, all)))) : List<&2, F.Finding>}
+      %unsafe.reacher(all, all, norm) :
+        {Unsafe.check.go(Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}
+          <> rest, Unsafe.reaches(all, Digest.edges(all), Imports.paths(Digest.edges(all)),
+            List.length(&2, Digest.Digest, all)))
+          == List.append(&2, F.Finding, Unsafe.found(_, unsafes, path), Unsafe.check.go(rest, Unsafe.reaches(all,
+            Digest.edges(all), Imports.paths(Digest.edges(all)), List.length(&2, Digest.Digest, all))))
+          : List<&2, F.Finding>}
+      {==}
+
+def Laws.unsafe_reports(ds):
+  unsafe.go(ds, ds)
+
+# The recursion rule, hoist: each call adds the one the law's call test
+# counts, each plain let the one its let test counts, the heat follows the
+# same lambdas and case arms, and the def walk joins the per-def lists into
+# their sum.
+
+# a table found or not: one finding or none
+law hoist.yes:
+  for b: Bool
+  for -aa: Tree.Node
+  for -path: String
+  {List.length(&2, F.Finding, Hoist.one_yes(b, aa, path)) == Bool.pick(Nat, b, 1n, 0n) : Nat}
+
+def hoist.yes(b, _aa, _path):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# a get or set's collection: one finding when the law's slot test holds
+law hoist.slot:
+  for ss: Hoist.Slot
+  for +as: List<&2, Tree.Node>
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  {List.length(&2, F.Finding, Hoist.arg_table(ss, as, self, wides, carried, path))
+    == Bool.pick(Nat, Laws.hoist.slot(ss, as, self, wides, carried), 1n, 0n) : Nat}
+
+def hoist.slot(ss, as, self, wides, carried, path):
+  match ss:
+    case Hoist.Slot{on, at}:
+      match on:
+        case False{}:
+          {==}
+        case True{}:
+          hoist.yes(Hoist.is_table(Calls.arg(as, at), self, wides, carried), Calls.arg(as, at), path)
+
+# a call site: one finding when the law's call test holds
+law hoist.call:
+  for hot: Bool
+  for open: Bool
+  for +tt: String
+  for +kids: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  {List.length(&2, F.Finding, Hoist.call_table(hot, open, tt, kids, self, wides, carried, path))
+    == Bool.pick(Nat, Laws.hoist.call(hot, open, tt, kids, self, wides, carried), 1n, 0n) : Nat}
+
+def hoist.call(hot, open, tt, kids, self, wides, carried, path):
+  match hot:
+    case False{}:
+      {==}
+    case True{}:
+      match open:
+        case False{}:
+          {==}
+        case True{}:
+          hoist.slot(Hoist.slot_of(tt), Calls.args(kids), self, wides, carried, path)
+
+# a let's table and use: one finding when both hold
+law hoist.use:
+  for a: Bool
+  for b: Bool
+  for -expr: Tree.Node
+  for -path: String
+  {List.length(&2, F.Finding, Hoist.let_use(a, b, expr, path)) == Bool.pick(Nat, Bool.and(a, b), 1n, 0n) : Nat}
+
+def hoist.use(a, b, _expr, _path):
+  match a:
+    case False{}:
+      {==}
+    case True{}:
+      match b:
+        case True{}:
+          {==}
+        case False{}:
+          {==}
+
+# a let's left side read: one finding when the law's got test holds
+law hoist.got:
+  for mm: Maybe<&2, Hoist.Got>
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  {List.length(&2, F.Finding, Hoist.let_of(mm, body, rest, self, wides, carried, path))
+    == Bool.pick(Nat, Laws.hoist.got(mm, body, rest, self, wides, carried), 1n, 0n) : Nat}
+
+def hoist.got(mm, body, rest, self, wides, carried, path):
+  match mm:
+    case None{}:
+      {==}
+    case Some{Hoist.Got{+nm, +expr}}:
+      hoist.use(Hoist.is_table(expr, self, wides, carried), Hoist.uses_or(body, rest, nm), expr, path)
+
+# a statement: one finding when the law's let test holds
+law hoist.let:
+  for hot: Bool
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  {List.length(&2, F.Finding, Hoist.let_hit(hot, kids, body, rest, self, wides, carried, path))
+    == Bool.pick(Nat, Laws.hoist.let(hot, kids, body, rest, self, wides, carried), 1n, 0n) : Nat}
+
+def hoist.let(hot, kids, body, rest, self, wides, carried, path):
+  match hot:
+    case False{}:
+      {==}
+    case True{}:
+      hoist.got(Hoist.eat(kids, False{}, False{}, ""), body, rest, self, wides, carried, path)
+
+# a list joined before another counts as its own count plus the other's
+law hoist.front:
+  for +a: List<&2, F.Finding>
+  for +b: List<&2, F.Finding>
+  for -x: Nat
+  for -y: Nat
+  for e1: {List.length(&2, F.Finding, a) == x : Nat}
+  for e2: {List.length(&2, F.Finding, b) == y : Nat}
+  {List.length(&2, F.Finding, List.append(&2, F.Finding, a, b)) == Nat.add(x, y) : Nat}
+
+def hoist.front(a, b, x, y, e1, e2):
+  Equal.trans(Nat, List.length(&2, F.Finding, List.append(&2, F.Finding, a, b)),
+    Nat.add(List.length(&2, F.Finding, a), List.length(&2, F.Finding, b)), Nat.add(x, y),
+    esc.app(a, b), esc.add(List.length(&2, F.Finding, a), x, List.length(&2, F.Finding, b), y, e1, e2))
+
+# a name token, then a group: its own finding, then its group's and the
+# rest's, all at the heat the token leaves
+law hoist.site:
+  for +k: Lex.TokKind
+  for +t: String
+  for +o: String
+  for +kids: Tree.Node
+  for +rr: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  for +hot: Bool
+  for ih1: {List.length(&2, F.Finding, Hoist.walk(kids, self, wides, carried, path, Hoist.warm(hot, k)))
+    == Laws.hoist.count(kids, self, wides, carried, Hoist.warm(hot, k)) : Nat}
+  for ih2: {List.length(&2, F.Finding, Hoist.walk(rr, self, wides, carried, path, Hoist.warm(hot, k)))
+    == Laws.hoist.count(rr, self, wides, carried, Hoist.warm(hot, k)) : Nat}
+  {List.length(&2, F.Finding, List.concat(&2, F.Finding,
+      [Hoist.call_table(Hoist.warm(hot, k), String.eq(o, "("), t, kids, self, wides, carried, path),
+        Hoist.walk(kids, self, wides, carried, path, Hoist.warm(hot, k)),
+        Hoist.walk(rr, self, wides, carried, path, Hoist.warm(hot, k))]))
+    == Nat.add(Bool.pick(Nat, Laws.hoist.call(Hoist.warm(hot, k), String.eq(o, "("), t, kids, self, wides, carried),
+      1n, 0n), Nat.add(Laws.hoist.count(kids, self, wides, carried, Hoist.warm(hot, k)),
+        Laws.hoist.count(rr, self, wides, carried, Hoist.warm(hot, k)))) : Nat}
+
+def hoist.site(k, t, o, kids, rr, self, wides, carried, path, hot, ih1, ih2):
+  +heat = Hoist.warm(hot, k)
+  chars.sum(Hoist.call_table(heat, String.eq(o, "("), t, kids, self, wides, carried, path),
+    Hoist.walk(kids, self, wides, carried, path, heat), Hoist.walk(rr, self, wides, carried, path, heat),
+    Bool.pick(Nat, Laws.hoist.call(heat, String.eq(o, "("), t, kids, self, wides, carried), 1n, 0n),
+    Laws.hoist.count(kids, self, wides, carried, heat), Laws.hoist.count(rr, self, wides, carried, heat),
+    hoist.call(heat, String.eq(o, "("), t, kids, self, wides, carried, path), ih1, ih2)
+
+# a case: its pattern cold, its arm hot when it calls the def, then the rest
+law hoist.arm:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  for +hot: Bool
+  for ih1: {List.length(&2, F.Finding, Hoist.walk(kids, self, wides, carried, path, False{}))
+    == Laws.hoist.count(kids, self, wides, carried, False{}) : Nat}
+  for ih2: {List.length(&2, F.Finding,
+      Hoist.walk(body, self, wides, carried, path, Bool.and(hot, Calls.calls(body, self))))
+    == Laws.hoist.count(body, self, wides, carried, Bool.and(hot, Calls.calls(body, self))) : Nat}
+  for ih3: {List.length(&2, F.Finding, Hoist.walk(rest, self, wides, carried, path, hot))
+    == Laws.hoist.count(rest, self, wides, carried, hot) : Nat}
+  {List.length(&2, F.Finding, Hoist.walk(Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, body}, rest},
+      self, wides, carried, path, hot))
+    == Laws.hoist.count(Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, body}, rest}, self, wides, carried, hot) : Nat}
+
+def hoist.arm(kids, body, rest, self, wides, carried, path, hot, ih1, ih2, ih3):
+  +arm = Bool.and(hot, Calls.calls(body, self))
+  chars.sum(Hoist.walk(kids, self, wides, carried, path, False{}), Hoist.walk(body, self, wides, carried, path, arm),
+    Hoist.walk(rest, self, wides, carried, path, hot),
+    Laws.hoist.count(kids, self, wides, carried, False{}), Laws.hoist.count(body, self, wides, carried, arm),
+    Laws.hoist.count(rest, self, wides, carried, hot), ih1, ih2, ih3)
+
+# any other statement: its own let finding, then its tokens', its block's
+# and the rest's
+law hoist.plain:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  for +hot: Bool
+  for ih1: {List.length(&2, F.Finding, Hoist.walk(kids, self, wides, carried, path, hot))
+    == Laws.hoist.count(kids, self, wides, carried, hot) : Nat}
+  for ih2: {List.length(&2, F.Finding, Hoist.walk(body, self, wides, carried, path, hot))
+    == Laws.hoist.count(body, self, wides, carried, hot) : Nat}
+  for ih3: {List.length(&2, F.Finding, Hoist.walk(rest, self, wides, carried, path, hot))
+    == Laws.hoist.count(rest, self, wides, carried, hot) : Nat}
+  {List.length(&2, F.Finding, List.concat(&2, F.Finding,
+      [Hoist.let_hit(hot, kids, body, rest, self, wides, carried, path),
+        Hoist.walk(kids, self, wides, carried, path, hot), Hoist.walk(body, self, wides, carried, path, hot),
+        Hoist.walk(rest, self, wides, carried, path, hot)]))
+    == Nat.add(Bool.pick(Nat, Laws.hoist.let(hot, kids, body, rest, self, wides, carried), 1n, 0n),
+      Nat.add(Laws.hoist.count(kids, self, wides, carried, hot),
+        Nat.add(Laws.hoist.count(body, self, wides, carried, hot), Laws.hoist.count(rest, self, wides, carried, hot))))
+    : Nat}
+
+def hoist.plain(kids, body, rest, self, wides, carried, path, hot, ih1, ih2, ih3):
+  +own = Hoist.let_hit(hot, kids, body, rest, self, wides, carried, path)
+  +wk = Hoist.walk(kids, self, wides, carried, path, hot)
+  +wb = Hoist.walk(body, self, wides, carried, path, hot)
+  +wr = Hoist.walk(rest, self, wides, carried, path, hot)
+  +ck = Laws.hoist.count(kids, self, wides, carried, hot)
+  +cb = Laws.hoist.count(body, self, wides, carried, hot)
+  +cr = Laws.hoist.count(rest, self, wides, carried, hot)
+  hoist.front(own, List.concat(&2, F.Finding, [wk, wb, wr]),
+    Bool.pick(Nat, Laws.hoist.let(hot, kids, body, rest, self, wides, carried), 1n, 0n),
+    Nat.add(ck, Nat.add(cb, cr)),
+    hoist.let(hot, kids, body, rest, self, wides, carried, path),
+    chars.sum(wk, wb, wr, ck, cb, cr, ih1, ih2, ih3))
+
+# hoist's walk counts the calls and lets the law counts, at every heat
+law hoist.walk:
+  for nn: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  for +hot: Bool
+  {List.length(&2, F.Finding, Hoist.walk(nn, self, wides, carried, path, hot))
+    == Laws.hoist.count(nn, self, wides, carried, hot) : Nat}
+
+def hoist.walk(nn, self, wides, carried, path, hot):
+  match nn:
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{o, gk, cl}:
+      {==}
+    case Tree.Stmt{kind, sk, sb}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{Lex.Tok{+k, +t, l, c}}:
+          match rest:
+            case Tree.Leaf{tok}:
+              {==}
+            case Tree.Group{o, gk, cl}:
+              {==}
+            case Tree.Stmt{kind, sk, sb}:
+              {==}
+            case Tree.NNil{}:
+              {==}
+            case Tree.NCons{rh, +rr}:
+              match rh:
+                case Tree.Group{Lex.Tok{gk, +o, gl, gc}, +kids, cl}:
+                  hoist.site(k, t, o, kids, rr, self, wides, carried, path, hot,
+                    hoist.walk(kids, self, wides, carried, path, Hoist.warm(hot, k)),
+                    hoist.walk(rr, self, wides, carried, path, Hoist.warm(hot, k)))
+                case Tree.Leaf{tok}:
+                  hoist.walk(rest, self, wides, carried, path, Hoist.warm(hot, k))
+                case Tree.Stmt{kind, sk, sb}:
+                  hoist.walk(rest, self, wides, carried, path, Hoist.warm(hot, k))
+                case Tree.NNil{}:
+                  hoist.walk(rest, self, wides, carried, path, Hoist.warm(hot, k))
+                case Tree.NCons{nh, nt}:
+                  hoist.walk(rest, self, wides, carried, path, Hoist.warm(hot, k))
+        case Tree.Group{o, +kids, cl}:
+          index.two(Hoist.walk(kids, self, wides, carried, path, hot),
+            Hoist.walk(rest, self, wides, carried, path, hot),
+            Laws.hoist.count(kids, self, wides, carried, hot), Laws.hoist.count(rest, self, wides, carried, hot),
+            hoist.walk(kids, self, wides, carried, path, hot), hoist.walk(rest, self, wides, carried, path, hot))
+        case Tree.Stmt{kind, +kids, +body}:
+          match kind:
+            case Tree.SCase{}:
+              hoist.arm(kids, body, rest, self, wides, carried, path, hot,
+                hoist.walk(kids, self, wides, carried, path, False{}),
+                hoist.walk(body, self, wides, carried, path, Bool.and(hot, Calls.calls(body, self))),
+                hoist.walk(rest, self, wides, carried, path, hot))
+            case Tree.SDef{}:
+              hoist.plain(kids, body, rest, self, wides, carried, path, hot,
+                hoist.walk(kids, self, wides, carried, path, hot),
+                hoist.walk(body, self, wides, carried, path, hot), hoist.walk(rest, self, wides, carried, path, hot))
+            case Tree.SType{}:
+              hoist.plain(kids, body, rest, self, wides, carried, path, hot,
+                hoist.walk(kids, self, wides, carried, path, hot),
+                hoist.walk(body, self, wides, carried, path, hot), hoist.walk(rest, self, wides, carried, path, hot))
+            case Tree.SLaw{}:
+              hoist.plain(kids, body, rest, self, wides, carried, path, hot,
+                hoist.walk(kids, self, wides, carried, path, hot),
+                hoist.walk(body, self, wides, carried, path, hot), hoist.walk(rest, self, wides, carried, path, hot))
+            case Tree.SImport{}:
+              hoist.plain(kids, body, rest, self, wides, carried, path, hot,
+                hoist.walk(kids, self, wides, carried, path, hot),
+                hoist.walk(body, self, wides, carried, path, hot), hoist.walk(rest, self, wides, carried, path, hot))
+            case Tree.SFor{}:
+              hoist.plain(kids, body, rest, self, wides, carried, path, hot,
+                hoist.walk(kids, self, wides, carried, path, hot),
+                hoist.walk(body, self, wides, carried, path, hot), hoist.walk(rest, self, wides, carried, path, hot))
+            case Tree.SLet{}:
+              hoist.plain(kids, body, rest, self, wides, carried, path, hot,
+                hoist.walk(kids, self, wides, carried, path, hot),
+                hoist.walk(body, self, wides, carried, path, hot), hoist.walk(rest, self, wides, carried, path, hot))
+            case Tree.STerm{}:
+              hoist.plain(kids, body, rest, self, wides, carried, path, hot,
+                hoist.walk(kids, self, wides, carried, path, hot),
+                hoist.walk(body, self, wides, carried, path, hot), hoist.walk(rest, self, wides, carried, path, hot))
+        case Tree.NNil{}:
+          hoist.walk(rest, self, wides, carried, path, hot)
+        case Tree.NCons{nh, nt}:
+          hoist.walk(rest, self, wides, carried, path, hot)
+
+# a def that calls itself and is not exempt gathers its walk, entered hot,
+# any other nothing
+law hoist.def:
+  for g: Bool
+  for +body: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  {List.length(&2, F.Finding,
+      Lazy.stop(List<&2, F.Finding>, Bool.not(g), [], _u => Hoist.walk(body, self, wides, carried, path, True{})))
+    == Bool.pick(Nat, g, Laws.hoist.count(body, self, wides, carried, True{}), 0n) : Nat}
+
+def hoist.def(g, body, self, wides, carried, path):
+  match g:
+    case True{}:
+      hoist.walk(body, self, wides, carried, path, True{})
+    case False{}:
+      {==}
+
+# over the defs, the rule's join counts what it gathered and what the law
+# counts
+law hoist.go:
+  for ds: List<&2, Calls.Def>
+  for +wides: List<&2, String>
+  for +path: String
+  for +acc: List<&2, List<&2, F.Finding>>
+  {List.length(&2, F.Finding, Hoist.check.go(ds, wides, path, acc))
+    == Nat.add(index.sum(acc), Laws.hoist.total(ds, wides, path)) : Nat}
+
+def hoist.go(ds, wides, path, acc):
+  match ds:
+    case Nil{}:
+      index.flat(acc, Nil{})
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +g = Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))
+      +carried = Hoist.carried(sig, body, name)
+      +x = Lazy.stop(List<&2, F.Finding>, Bool.not(g), [], _u => Hoist.walk(body, name, wides, carried, path, True{}))
+      +n = Bool.pick(Nat, g, Laws.hoist.count(body, name, wides, carried, True{}), 0n)
+      +tot = Laws.hoist.total(rest, wides, path)
+      Equal.trans(Nat,
+        List.length(&2, F.Finding, Hoist.check.go(rest, wides, path, x <> acc)),
+        Nat.add(Nat.add(index.sum(acc), List.length(&2, F.Finding, x)), tot),
+        Nat.add(index.sum(acc), Nat.add(n, tot)),
+        hoist.go(rest, wides, path, x <> acc),
+        Equal.trans(Nat,
+          Nat.add(Nat.add(index.sum(acc), List.length(&2, F.Finding, x)), tot),
+          Nat.add(index.sum(acc), Nat.add(List.length(&2, F.Finding, x), tot)),
+          Nat.add(index.sum(acc), Nat.add(n, tot)),
+          index.assoc(index.sum(acc), List.length(&2, F.Finding, x), tot),
+          Equal.cong(Nat, Nat, z => Nat.add(index.sum(acc), Nat.add(z, tot)), List.length(&2, F.Finding, x), n,
+            hoist.def(g, body, name, wides, carried, path))))
+
+def Laws.hoist_counts(path, _text, _toks, tree, _bound, _items):
+  +ds = Calls.defs(tree)
+  hoist.go(ds, Hoist.wide_defs(ds, Nil{}), path, Nil{})
+
+# the rule's names are the law's
+law rewalk.names_eq:
+  for nn: Tree.Node
+  for +acc: List<&2, String>
+  {Rewalk.names(nn, acc) == Laws.rewalk.names(nn, acc) : List<&2, String>}
+
+def rewalk.names_eq(nn, acc):
+  match nn:
+    case Tree.Leaf{tok}:
+      match tok:
+        case Lex.Tok{k, t, l, c}:
+          match k:
+            case Lex.TName{}:
+              {==}
+            case Lex.TUpper{}:
+              {==}
+            case Lex.TDotted{}:
+              {==}
+            case Lex.TWild{}:
+              {==}
+            case Lex.TKey{}:
+              {==}
+            case Lex.TNum{}:
+              {==}
+            case Lex.TStr{}:
+              {==}
+            case Lex.TChar{}:
+              {==}
+            case Lex.TComment{}:
+              {==}
+            case Lex.TSpace{}:
+              {==}
+            case Lex.TNewline{}:
+              {==}
+            case Lex.TOp{}:
+              {==}
+            case Lex.TColon{}:
+              {==}
+            case Lex.TEq{}:
+              {==}
+            case Lex.TBind{}:
+              {==}
+            case Lex.TArrow{}:
+              {==}
+            case Lex.TLam{}:
+              {==}
+            case Lex.TAll{}:
+              {==}
+            case Lex.TAmp{}:
+              {==}
+            case Lex.TOpen{}:
+              {==}
+            case Lex.TClose{}:
+              {==}
+            case Lex.TComma{}:
+              {==}
+    case Tree.Group{open, kids, close}:
+      rewalk.names_eq(kids, acc)
+    case Tree.Stmt{kind, +kids, body}:
+      %rewalk.names_eq(kids, acc) : {Rewalk.names(body, Rewalk.names(kids, acc)) == Laws.rewalk.names(body, _)
+        : List<&2, String>}
+      rewalk.names_eq(body, Rewalk.names(kids, acc))
+    case Tree.NCons{+h, rest}:
+      %rewalk.names_eq(h, acc) : {Rewalk.names(rest, Rewalk.names(h, acc)) == Laws.rewalk.names(rest, _)
+        : List<&2, String>}
+      rewalk.names_eq(rest, Rewalk.names(h, acc))
+    case Tree.NNil{}:
+      {==}
+
+# the rule's let names are the law's
+law rewalk.lhs_eq:
+  for nn: Tree.Node
+  for +acc: List<&2, String>
+  {Rewalk.lhs_names(nn, acc) == Laws.rewalk.lhs(nn, acc) : List<&2, String>}
+
+def rewalk.lhs_eq(nn, acc):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, t, l, c}:
+              match k:
+                case Lex.TName{}:
+                  rewalk.lhs_eq(rest, t <> acc)
+                case Lex.TUpper{}:
+                  rewalk.lhs_eq(rest, acc)
+                case Lex.TDotted{}:
+                  rewalk.lhs_eq(rest, acc)
+                case Lex.TWild{}:
+                  rewalk.lhs_eq(rest, acc)
+                case Lex.TKey{}:
+                  rewalk.lhs_eq(rest, acc)
+                case Lex.TNum{}:
+                  rewalk.lhs_eq(rest, acc)
+                case Lex.TStr{}:
+                  rewalk.lhs_eq(rest, acc)
+                case Lex.TChar{}:
+                  rewalk.lhs_eq(rest, acc)
+                case Lex.TComment{}:
+                  rewalk.lhs_eq(rest, acc)
+                case Lex.TSpace{}:
+                  rewalk.lhs_eq(rest, acc)
+                case Lex.TNewline{}:
+                  rewalk.lhs_eq(rest, acc)
+                case Lex.TOp{}:
+                  rewalk.lhs_eq(rest, acc)
+                case Lex.TColon{}:
+                  rewalk.lhs_eq(rest, acc)
+                case Lex.TEq{}:
+                  {==}
+                case Lex.TBind{}:
+                  {==}
+                case Lex.TArrow{}:
+                  rewalk.lhs_eq(rest, acc)
+                case Lex.TLam{}:
+                  rewalk.lhs_eq(rest, acc)
+                case Lex.TAll{}:
+                  rewalk.lhs_eq(rest, acc)
+                case Lex.TAmp{}:
+                  rewalk.lhs_eq(rest, acc)
+                case Lex.TOpen{}:
+                  rewalk.lhs_eq(rest, acc)
+                case Lex.TClose{}:
+                  rewalk.lhs_eq(rest, acc)
+                case Lex.TComma{}:
+                  rewalk.lhs_eq(rest, acc)
+        case Tree.Group{open, +kids, close}:
+          %rewalk.names_eq(kids, acc) : {Rewalk.lhs_names(rest, Rewalk.names(kids, acc))
+            == Laws.rewalk.lhs(rest, _) : List<&2, String>}
+          rewalk.lhs_eq(rest, Rewalk.names(kids, acc))
+        case Tree.Stmt{kind, kids, body}:
+          rewalk.lhs_eq(rest, acc)
+        case Tree.NNil{}:
+          rewalk.lhs_eq(rest, acc)
+        case Tree.NCons{x, y}:
+          rewalk.lhs_eq(rest, acc)
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{open, kids, close}:
+      {==}
+    case Tree.Stmt{kind, kids, body}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# the rule's lets of a piece are the law's
+law rewalk.binds_eq:
+  for nn: Tree.Node
+  for +acc: List<&2, Rewalk.Bind>
+  {Rewalk.binds(nn, acc) == Laws.rewalk.binds(nn, acc) : List<&2, Rewalk.Bind>}
+
+def rewalk.binds_eq(nn, acc):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Stmt{kind, +kids, +body}:
+          match kind:
+            case Tree.SDef{}:
+              %rewalk.binds_eq(body, acc) : {Rewalk.binds(rest, Rewalk.binds(body, acc)) == Laws.rewalk.binds(rest,
+                _) : List<&2, Rewalk.Bind>}
+              rewalk.binds_eq(rest, Rewalk.binds(body, acc))
+            case Tree.SType{}:
+              %rewalk.binds_eq(body, acc) : {Rewalk.binds(rest, Rewalk.binds(body, acc)) == Laws.rewalk.binds(rest,
+                _) : List<&2, Rewalk.Bind>}
+              rewalk.binds_eq(rest, Rewalk.binds(body, acc))
+            case Tree.SLaw{}:
+              %rewalk.binds_eq(body, acc) : {Rewalk.binds(rest, Rewalk.binds(body, acc)) == Laws.rewalk.binds(rest,
+                _) : List<&2, Rewalk.Bind>}
+              rewalk.binds_eq(rest, Rewalk.binds(body, acc))
+            case Tree.SImport{}:
+              %rewalk.binds_eq(body, acc) : {Rewalk.binds(rest, Rewalk.binds(body, acc)) == Laws.rewalk.binds(rest,
+                _) : List<&2, Rewalk.Bind>}
+              rewalk.binds_eq(rest, Rewalk.binds(body, acc))
+            case Tree.SCase{}:
+              rewalk.binds_eq(rest, acc)
+            case Tree.SFor{}:
+              %rewalk.binds_eq(body, acc) : {Rewalk.binds(rest, Rewalk.binds(body, acc)) == Laws.rewalk.binds(rest,
+                _) : List<&2, Rewalk.Bind>}
+              rewalk.binds_eq(rest, Rewalk.binds(body, acc))
+            case Tree.SLet{}:
+              +pp = Rewalk.last_pos(Tree.leaves.go(body, Tree.leaves.go(kids, [])))
+              %rewalk.lhs_eq(kids, []) : {Rewalk.binds(rest, Rewalk.binds(body, Rewalk.bind_at(Rewalk.lhs_names(kids,
+                []), pp, acc))) == Laws.rewalk.binds(rest, Laws.rewalk.binds(body, Rewalk.bind_at(_, pp,
+                  acc))) : List<&2, Rewalk.Bind>}
+              +x = Rewalk.bind_at(Rewalk.lhs_names(kids, []), pp, acc)
+              %rewalk.binds_eq(body, x) : {Rewalk.binds(rest, Rewalk.binds(body, x)) == Laws.rewalk.binds(rest,
+                _) : List<&2, Rewalk.Bind>}
+              rewalk.binds_eq(rest, Rewalk.binds(body, x))
+            case Tree.STerm{}:
+              %rewalk.binds_eq(body, acc) : {Rewalk.binds(rest, Rewalk.binds(body, acc)) == Laws.rewalk.binds(rest,
+                _) : List<&2, Rewalk.Bind>}
+              rewalk.binds_eq(rest, Rewalk.binds(body, acc))
+        case Tree.Leaf{tok}:
+          rewalk.binds_eq(rest, acc)
+        case Tree.Group{open, kids, close}:
+          rewalk.binds_eq(rest, acc)
+        case Tree.NNil{}:
+          rewalk.binds_eq(rest, acc)
+        case Tree.NCons{x, y}:
+          rewalk.binds_eq(rest, acc)
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{open, kids, close}:
+      {==}
+    case Tree.Stmt{kind, kids, body}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# the rule's let count is the law's
+law rewalk.lets_eq:
+  for bs: List<&2, Rewalk.Bind>
+  for +name: String
+  for +line: U32
+  for +col: U32
+  {Rewalk.count(bs, name, line, col) == Laws.rewalk.lets(bs, name, line, col) : U32}
+
+def rewalk.lets_eq(bs, name, line, col):
+  match bs:
+    case Nil{}:
+      {==}
+    case Con{b, rest}:
+      match b:
+        case Rewalk.Bind{+nm, +l, +c}:
+          Equal.cong(U32, U32, m => Bool.pick(U32, Bool.and(String.eq(nm, name), Rewalk.before(l, c, line, col)),
+            (m + 1 : U32), m), Rewalk.count(rest, name, line, col), Laws.rewalk.lets(rest, name, line, col),
+            rewalk.lets_eq(rest, name, line, col))
+
+# the rule's stamp is the law's
+law rewalk.stamp_eq:
+  for ns: List<&2, String>
+  for +bs: List<&2, Rewalk.Bind>
+  for +line: U32
+  for +col: U32
+  {Rewalk.stamp(ns, bs, line, col) == Laws.rewalk.stamp(ns, bs, line, col) : String}
+
+def rewalk.stamp_eq(ns, bs, line, col):
+  match ns:
+    case Nil{}:
+      {==}
+    case Con{+nm, rest}:
+      %rewalk.lets_eq(bs, nm, line, col) : {Rewalk.stamp(nm <> rest, bs, line, col)
+        == "|" ++ nm ++ "=" ++ U32.show(_) ++ Laws.rewalk.stamp(rest, bs, line, col) : String}
+      %rewalk.stamp_eq(rest, bs, line, col) : {Rewalk.stamp(nm <> rest, bs, line, col)
+        == "|" ++ nm ++ "=" ++ U32.show(Rewalk.count(bs, nm, line, col)) ++ _ : String}
+      {==}
+
+# two lists joined, each equal to its counterpart
+law rewalk.cat2:
+  for -A: Data
+  for -a1: List<&2, A>
+  for -a2: List<&2, A>
+  for -b1: List<&2, A>
+  for -b2: List<&2, A>
+  for ea: {a1 == a2 : List<&2, A>}
+  for eb: {b1 == b2 : List<&2, A>}
+  {List.concat(&2, A, [a1, b1]) == List.concat(&2, A, [a2, b2]) : List<&2, A>}
+
+def rewalk.cat2(A, a1, _a2, b1, b2, ea, eb):
+  %ea : {List.concat(&2, A, [a1, b1]) == List.concat(&2, A, [_, b2]) : List<&2, A>}
+  %eb : {List.concat(&2, A, [a1, b1]) == List.concat(&2, A, [a1, _]) : List<&2, A>}
+  {==}
+
+# three lists joined, each equal to its counterpart
+law rewalk.cat3:
+  for -A: Data
+  for -a1: List<&2, A>
+  for -a2: List<&2, A>
+  for -b1: List<&2, A>
+  for -b2: List<&2, A>
+  for -c1: List<&2, A>
+  for -c2: List<&2, A>
+  for ea: {a1 == a2 : List<&2, A>}
+  for eb: {b1 == b2 : List<&2, A>}
+  for ec: {c1 == c2 : List<&2, A>}
+  {List.concat(&2, A, [a1, b1, c1]) == List.concat(&2, A, [a2, b2, c2]) : List<&2, A>}
+
+def rewalk.cat3(A, a1, _a2, b1, b2, c1, c2, ea, eb, ec):
+  %ea : {List.concat(&2, A, [a1, b1, c1]) == List.concat(&2, A, [_, b2, c2]) : List<&2, A>}
+  %eb : {List.concat(&2, A, [a1, b1, c1]) == List.concat(&2, A, [a1, _, c2]) : List<&2, A>}
+  %ec : {List.concat(&2, A, [a1, b1, c1]) == List.concat(&2, A, [a1, b1, _]) : List<&2, A>}
+  {==}
+
+# a call's argument key, to the rule and to the law
+law rewalk.args_eq:
+  for +kids: Tree.Node
+  for +bs: List<&2, Rewalk.Bind>
+  for +l: U32
+  for +c: U32
+  {Tree.show(kids) ++ Rewalk.stamp(Rewalk.names(kids, []), bs, l, c)
+    == Tree.show(kids) ++ Laws.rewalk.stamp(Laws.rewalk.names(kids, []), bs, l, c) : String}
+
+def rewalk.args_eq(kids, bs, l, c):
+  %rewalk.names_eq(kids, []) : {Tree.show(kids) ++ Rewalk.stamp(Rewalk.names(kids, []), bs, l, c)
+    == Tree.show(kids) ++ Laws.rewalk.stamp(_, bs, l, c) : String}
+  %rewalk.stamp_eq(Rewalk.names(kids, []), bs, l, c) : {Tree.show(kids) ++ Rewalk.stamp(Rewalk.names(kids, []), bs, l,
+    c) == Tree.show(kids) ++ _ : String}
+  {==}
+
+# the rule's sites are the law's
+law rewalk.gather_eq:
+  for nn: Tree.Node
+  for +self: String
+  for +lp: List<&2, String>
+  for +bs: List<&2, Rewalk.Bind>
+  {Rewalk.gather(nn, self, lp, bs) == Laws.rewalk.gather(nn, self, lp, bs) : List<&2, Rewalk.Site>}
+
+# a call's own site, to the rule and to the law
+law rewalk.here_eq:
+  for +o: String
+  for +r2: Tree.Node
+  for +t: String
+  for +kids: Tree.Node
+  for +bs: List<&2, Rewalk.Bind>
+  for +l: U32
+  for +c: U32
+  for +self: String
+  for +lp: List<&2, String>
+  {Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t, Tree.show(kids) ++ Rewalk.stamp(Rewalk.names(kids, []),
+    bs, l, c), l, c, U32.from_nat(String.length(t)), self, lp)
+    == Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t, Tree.show(kids)
+      ++ Laws.rewalk.stamp(Laws.rewalk.names(kids, []), bs, l, c), l, c, U32.from_nat(String.length(t)), self, lp)
+    : List<&2, Rewalk.Site>}
+
+def rewalk.here_eq(o, r2, t, kids, bs, l, c, self, lp):
+  Equal.cong(String, List<&2, Rewalk.Site>, a => Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t, a, l, c,
+    U32.from_nat(String.length(t)), self, lp), Tree.show(kids) ++ Rewalk.stamp(Rewalk.names(kids, []), bs, l, c),
+    Tree.show(kids) ++ Laws.rewalk.stamp(Laws.rewalk.names(kids, []), bs, l, c), rewalk.args_eq(kids, bs, l, c))
+
+# a statement's sites: its own tokens, its body, then what follows
+law rewalk.gather_stmt:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +self: String
+  for +lp: List<&2, String>
+  for +bs: List<&2, Rewalk.Bind>
+  for ek: {Rewalk.gather(kids, self, lp, bs) == Laws.rewalk.gather(kids, self, lp, bs) : List<&2, Rewalk.Site>}
+  for eb: {Rewalk.gather(body, self, lp, bs) == Laws.rewalk.gather(body, self, lp, bs) : List<&2, Rewalk.Site>}
+  for er: {Rewalk.gather(rest, self, lp, bs) == Laws.rewalk.gather(rest, self, lp, bs) : List<&2, Rewalk.Site>}
+  {List.concat(&2, Rewalk.Site, [Rewalk.gather(kids, self, lp, bs), Rewalk.gather(body, self, lp, bs),
+    Rewalk.gather(rest, self, lp, bs)]) == List.concat(&2, Rewalk.Site, [Laws.rewalk.gather(kids, self, lp, bs),
+    Laws.rewalk.gather(body, self, lp, bs), Laws.rewalk.gather(rest, self, lp, bs)]) : List<&2, Rewalk.Site>}
+
+def rewalk.gather_stmt(kids, body, rest, self, lp, bs, ek, eb, er):
+  rewalk.cat3(Rewalk.Site, Rewalk.gather(kids, self, lp, bs), Laws.rewalk.gather(kids, self, lp, bs),
+    Rewalk.gather(body, self, lp, bs), Laws.rewalk.gather(body, self, lp, bs), Rewalk.gather(rest, self, lp, bs),
+    Laws.rewalk.gather(rest, self, lp, bs), ek, eb, er)
+
+def rewalk.gather_eq(nn, self, lp, bs):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, +t, +l, +c}:
+              match rest:
+                case Tree.NCons{h2, +r2}:
+                  match h2:
+                    case Tree.Group{open, +kids, close}:
+                      match open:
+                        case Lex.Tok{ok, +o, ol, oc}:
+                          rewalk.cat3(Rewalk.Site,
+                            Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t, Tree.show(kids)
+                              ++ Rewalk.stamp(Rewalk.names(kids, []), bs, l, c), l, c, U32.from_nat(String.length(t)),
+                              self, lp),
+                            Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t, Tree.show(kids)
+                              ++ Laws.rewalk.stamp(Laws.rewalk.names(kids, []), bs, l, c), l, c,
+                              U32.from_nat(String.length(t)), self, lp),
+                            Rewalk.gather(kids, self, lp, bs), Laws.rewalk.gather(kids, self, lp, bs),
+                            Rewalk.gather(r2, self, lp, bs), Laws.rewalk.gather(r2, self, lp, bs),
+                            rewalk.here_eq(o, r2, t, kids, bs, l, c, self, lp),
+                            rewalk.gather_eq(kids, self, lp, bs), rewalk.gather_eq(r2, self, lp, bs))
+                    case Tree.Leaf{x}:
+                      rewalk.gather_eq(rest, self, lp, bs)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.gather_eq(rest, self, lp, bs)
+                    case Tree.NNil{}:
+                      rewalk.gather_eq(rest, self, lp, bs)
+                    case Tree.NCons{x, y}:
+                      rewalk.gather_eq(rest, self, lp, bs)
+                case Tree.Leaf{x}:
+                  rewalk.gather_eq(rest, self, lp, bs)
+                case Tree.Group{open, kids, close}:
+                  rewalk.gather_eq(rest, self, lp, bs)
+                case Tree.Stmt{kind, kids, body}:
+                  rewalk.gather_eq(rest, self, lp, bs)
+                case Tree.NNil{}:
+                  rewalk.gather_eq(rest, self, lp, bs)
+        case Tree.Group{open, +kids, close}:
+          rewalk.cat2(Rewalk.Site, Rewalk.gather(kids, self, lp, bs), Laws.rewalk.gather(kids, self, lp, bs),
+            Rewalk.gather(rest, self, lp, bs), Laws.rewalk.gather(rest, self, lp, bs),
+            rewalk.gather_eq(kids, self, lp, bs), rewalk.gather_eq(rest, self, lp, bs))
+        case Tree.Stmt{kind, +kids, +body}:
+          match kind:
+            case Tree.SDef{}:
+              rewalk.gather_stmt(kids, body, rest, self, lp, bs, rewalk.gather_eq(kids, self, lp, bs),
+                rewalk.gather_eq(body, self, lp, bs), rewalk.gather_eq(rest, self, lp, bs))
+            case Tree.SType{}:
+              rewalk.gather_stmt(kids, body, rest, self, lp, bs, rewalk.gather_eq(kids, self, lp, bs),
+                rewalk.gather_eq(body, self, lp, bs), rewalk.gather_eq(rest, self, lp, bs))
+            case Tree.SLaw{}:
+              rewalk.gather_stmt(kids, body, rest, self, lp, bs, rewalk.gather_eq(kids, self, lp, bs),
+                rewalk.gather_eq(body, self, lp, bs), rewalk.gather_eq(rest, self, lp, bs))
+            case Tree.SImport{}:
+              rewalk.gather_stmt(kids, body, rest, self, lp, bs, rewalk.gather_eq(kids, self, lp, bs),
+                rewalk.gather_eq(body, self, lp, bs), rewalk.gather_eq(rest, self, lp, bs))
+            case Tree.SCase{}:
+              rewalk.cat2(Rewalk.Site, Rewalk.gather(kids, self, lp, bs), Laws.rewalk.gather(kids, self, lp, bs),
+                Rewalk.gather(rest, self, lp, bs), Laws.rewalk.gather(rest, self, lp, bs), rewalk.gather_eq(kids,
+                  self, lp, bs), rewalk.gather_eq(rest, self, lp, bs))
+            case Tree.SFor{}:
+              rewalk.gather_stmt(kids, body, rest, self, lp, bs, rewalk.gather_eq(kids, self, lp, bs),
+                rewalk.gather_eq(body, self, lp, bs), rewalk.gather_eq(rest, self, lp, bs))
+            case Tree.SLet{}:
+              rewalk.gather_stmt(kids, body, rest, self, lp, bs, rewalk.gather_eq(kids, self, lp, bs),
+                rewalk.gather_eq(body, self, lp, bs), rewalk.gather_eq(rest, self, lp, bs))
+            case Tree.STerm{}:
+              rewalk.gather_stmt(kids, body, rest, self, lp, bs, rewalk.gather_eq(kids, self, lp, bs),
+                rewalk.gather_eq(body, self, lp, bs), rewalk.gather_eq(rest, self, lp, bs))
+        case Tree.NNil{}:
+          rewalk.gather_eq(rest, self, lp, bs)
+        case Tree.NCons{x, y}:
+          rewalk.gather_eq(rest, self, lp, bs)
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{open, kids, close}:
+      {==}
+    case Tree.Stmt{kind, kids, body}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# two steps, each the rule's and the law's alike, from equal starts
+law rewalk.then:
+  for -A: Type
+  for -f1: A -> A
+  for -g1: A -> A
+  for -f2: A -> A
+  for -g2: A -> A
+  for -x: A
+  for -y: A
+  for e0: {x == y : A}
+  for e1: {f1(x) == g1(x) : A}
+  for e2: {f2(f1(x)) == g2(f1(x)) : A}
+  {f2(f1(x)) == g2(g1(y)) : A}
+
+def rewalk.then(A, f1, g1, f2, g2, x, _y, e0, e1, e2):
+  %e0 : {f2(f1(x)) == g2(g1(_)) : A}
+  %e1 : {f2(f1(x)) == g2(_) : A}
+  e2
+
+# the rule's retag is the law's
+law rewalk.retag_eq:
+  for sites: List<&2, Rewalk.Site>
+  for +note: Rewalk.Note
+  {Rewalk.retag(sites, note) == Laws.rewalk.retag(sites, note) : List<&2, Rewalk.Site>}
+
+def rewalk.retag_eq(sites, note):
+  match sites:
+    case Nil{}:
+      {==}
+    case Con{s, rest}:
+      match s:
+        case Rewalk.Site{+name, +args, +line, +col, +len, how}:
+          +hd = Rewalk.retag_one(Bool.and(U32.is_eq(line, Rewalk.note_line(note)), U32.is_eq(col,
+            Rewalk.note_col(note))), how, Rewalk.note_how_of(note), name, args, line, col, len)
+          Equal.cong(List<&2, Rewalk.Site>, List<&2, Rewalk.Site>, tl => hd <> tl, Rewalk.retag(rest, note),
+            Laws.rewalk.retag(rest, note), rewalk.retag_eq(rest, note))
+
+# a let's note retags alike
+law rewalk.relet_eq:
+  for mm: Maybe<&2, Rewalk.Note>
+  for sites: List<&2, Rewalk.Site>
+  {Rewalk.retag_may(mm, sites) == Laws.rewalk.relet(mm, sites) : List<&2, Rewalk.Site>}
+
+def rewalk.relet_eq(mm, sites):
+  match mm:
+    case None{}:
+      {==}
+    case Some{note}:
+      rewalk.retag_eq(sites, note)
+
+# the rule's apply is the law's
+law rewalk.apply_eq:
+  for nn: Tree.Node
+  for +sites: List<&2, Rewalk.Site>
+  {Rewalk.apply(nn, sites) == Laws.rewalk.apply(nn, sites) : List<&2, Rewalk.Site>}
+
+# a statement retags its own call, then its body's, then what follows
+law rewalk.apply_stmt:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +sites: List<&2, Rewalk.Site>
+  for eb: {Rewalk.apply(body, Rewalk.retag_may(Rewalk.note_st(kids), sites))
+    == Laws.rewalk.apply(body, Rewalk.retag_may(Rewalk.note_st(kids), sites)) : List<&2, Rewalk.Site>}
+  for er: {Rewalk.apply(rest, Rewalk.apply(body, Rewalk.retag_may(Rewalk.note_st(kids), sites)))
+    == Laws.rewalk.apply(rest, Rewalk.apply(body, Rewalk.retag_may(Rewalk.note_st(kids), sites)))
+    : List<&2, Rewalk.Site>}
+  {Rewalk.apply(rest, Rewalk.apply(body, Rewalk.retag_may(Rewalk.note_st(kids), sites)))
+    == Laws.rewalk.apply(rest, Laws.rewalk.apply(body, Laws.rewalk.relet(Rewalk.note_st(kids), sites)))
+    : List<&2, Rewalk.Site>}
+
+def rewalk.apply_stmt(kids, body, rest, sites, eb, er):
+  rewalk.then(List<&2, Rewalk.Site>, ss => Rewalk.apply(body, ss), ss => Laws.rewalk.apply(body, ss),
+    ss => Rewalk.apply(rest, ss), ss => Laws.rewalk.apply(rest, ss), Rewalk.retag_may(Rewalk.note_st(kids), sites),
+    Laws.rewalk.relet(Rewalk.note_st(kids), sites), rewalk.relet_eq(Rewalk.note_st(kids), sites), eb, er)
+
+def rewalk.apply_eq(nn, sites):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Stmt{kind, +kids, +body}:
+          match kind:
+            case Tree.SDef{}:
+              rewalk.apply_stmt(kids, body, rest, sites, rewalk.apply_eq(body, Rewalk.retag_may(Rewalk.note_st(kids),
+                sites)), rewalk.apply_eq(rest, Rewalk.apply(body, Rewalk.retag_may(Rewalk.note_st(kids), sites))))
+            case Tree.SType{}:
+              rewalk.apply_stmt(kids, body, rest, sites, rewalk.apply_eq(body, Rewalk.retag_may(Rewalk.note_st(kids),
+                sites)), rewalk.apply_eq(rest, Rewalk.apply(body, Rewalk.retag_may(Rewalk.note_st(kids), sites))))
+            case Tree.SLaw{}:
+              rewalk.apply_stmt(kids, body, rest, sites, rewalk.apply_eq(body, Rewalk.retag_may(Rewalk.note_st(kids),
+                sites)), rewalk.apply_eq(rest, Rewalk.apply(body, Rewalk.retag_may(Rewalk.note_st(kids), sites))))
+            case Tree.SImport{}:
+              rewalk.apply_stmt(kids, body, rest, sites, rewalk.apply_eq(body, Rewalk.retag_may(Rewalk.note_st(kids),
+                sites)), rewalk.apply_eq(rest, Rewalk.apply(body, Rewalk.retag_may(Rewalk.note_st(kids), sites))))
+            case Tree.SCase{}:
+              rewalk.apply_eq(rest, sites)
+            case Tree.SFor{}:
+              rewalk.apply_stmt(kids, body, rest, sites, rewalk.apply_eq(body, Rewalk.retag_may(Rewalk.note_st(kids),
+                sites)), rewalk.apply_eq(rest, Rewalk.apply(body, Rewalk.retag_may(Rewalk.note_st(kids), sites))))
+            case Tree.SLet{}:
+              rewalk.apply_stmt(kids, body, rest, sites, rewalk.apply_eq(body, Rewalk.retag_may(Rewalk.note_st(kids),
+                sites)), rewalk.apply_eq(rest, Rewalk.apply(body, Rewalk.retag_may(Rewalk.note_st(kids), sites))))
+            case Tree.STerm{}:
+              rewalk.apply_stmt(kids, body, rest, sites, rewalk.apply_eq(body, Rewalk.retag_may(Rewalk.note_st(kids),
+                sites)), rewalk.apply_eq(rest, Rewalk.apply(body, Rewalk.retag_may(Rewalk.note_st(kids), sites))))
+        case Tree.Group{open, +kids, close}:
+          rewalk.then(List<&2, Rewalk.Site>, ss => Rewalk.apply(kids, ss), ss => Laws.rewalk.apply(kids, ss),
+            ss => Rewalk.apply(rest, ss), ss => Laws.rewalk.apply(rest, ss), sites, sites, {==},
+            rewalk.apply_eq(kids, sites), rewalk.apply_eq(rest, Rewalk.apply(kids, sites)))
+        case Tree.Leaf{tok}:
+          rewalk.apply_eq(rest, sites)
+        case Tree.NNil{}:
+          rewalk.apply_eq(rest, sites)
+        case Tree.NCons{x, y}:
+          rewalk.apply_eq(rest, sites)
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{open, kids, close}:
+      {==}
+    case Tree.Stmt{kind, kids, body}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# an accessor's mark, taken lazily by the rule and outright by the law
+law rewalk.mark_here:
+  for b: Bool
+  for +t: String
+  for +kids: Tree.Node
+  {Lazy.stop(List<&2, Rewalk.Pos>, Bool.not(b), [], _u => Rewalk.mark_slot(Rewalk.slot_of(t), Calls.args(kids)))
+    == Bool.pick(List<&2, Rewalk.Pos>, b, Rewalk.mark_slot(Rewalk.slot_of(t), Calls.args(kids)), [])
+    : List<&2, Rewalk.Pos>}
+
+def rewalk.mark_here(b, _t, _kids):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# the rule's marks are the law's
+law rewalk.marks_eq:
+  for nn: Tree.Node
+  {Rewalk.mark(nn) == Laws.rewalk.marks(nn) : List<&2, Rewalk.Pos>}
+
+# a statement's marks: its own tokens, its body, then what follows
+law rewalk.marks_stmt:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for ek: {Rewalk.mark(kids) == Laws.rewalk.marks(kids) : List<&2, Rewalk.Pos>}
+  for eb: {Rewalk.mark(body) == Laws.rewalk.marks(body) : List<&2, Rewalk.Pos>}
+  for er: {Rewalk.mark(rest) == Laws.rewalk.marks(rest) : List<&2, Rewalk.Pos>}
+  {List.concat(&2, Rewalk.Pos, [Rewalk.mark(kids), Rewalk.mark(body), Rewalk.mark(rest)])
+    == List.concat(&2, Rewalk.Pos, [Laws.rewalk.marks(kids), Laws.rewalk.marks(body), Laws.rewalk.marks(rest)])
+    : List<&2, Rewalk.Pos>}
+
+def rewalk.marks_stmt(kids, body, rest, ek, eb, er):
+  rewalk.cat3(Rewalk.Pos, Rewalk.mark(kids), Laws.rewalk.marks(kids), Rewalk.mark(body), Laws.rewalk.marks(body),
+    Rewalk.mark(rest), Laws.rewalk.marks(rest), ek, eb, er)
+
+# two chains' marks, joined
+law rewalk.marks_two:
+  for +kids: Tree.Node
+  for +rest: Tree.Node
+  for ek: {Rewalk.mark(kids) == Laws.rewalk.marks(kids) : List<&2, Rewalk.Pos>}
+  for er: {Rewalk.mark(rest) == Laws.rewalk.marks(rest) : List<&2, Rewalk.Pos>}
+  {List.concat(&2, Rewalk.Pos, [Rewalk.mark(kids), Rewalk.mark(rest)])
+    == List.concat(&2, Rewalk.Pos, [Laws.rewalk.marks(kids), Laws.rewalk.marks(rest)]) : List<&2, Rewalk.Pos>}
+
+def rewalk.marks_two(kids, rest, ek, er):
+  rewalk.cat2(Rewalk.Pos, Rewalk.mark(kids), Laws.rewalk.marks(kids), Rewalk.mark(rest), Laws.rewalk.marks(rest), ek,
+    er)
+
+def rewalk.marks_eq(nn):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, +t, l, c}:
+              match rest:
+                case Tree.NCons{h2, +r2}:
+                  match h2:
+                    case Tree.Group{open, +kids, close}:
+                      match open:
+                        case Lex.Tok{ok, +o, ol, oc}:
+                          rewalk.cat3(Rewalk.Pos,
+                            Lazy.stop(List<&2, Rewalk.Pos>, Bool.not(String.eq(o, "(")), [],
+                              _u => Rewalk.mark_slot(Rewalk.slot_of(t), Calls.args(kids))),
+                            Bool.pick(List<&2, Rewalk.Pos>, String.eq(o, "("),
+                              Rewalk.mark_slot(Rewalk.slot_of(t), Calls.args(kids)), []),
+                            Rewalk.mark(kids), Laws.rewalk.marks(kids), Rewalk.mark(r2), Laws.rewalk.marks(r2),
+                            rewalk.mark_here(String.eq(o, "("), t, kids), rewalk.marks_eq(kids), rewalk.marks_eq(r2))
+                    case Tree.Leaf{x}:
+                      rewalk.marks_eq(rest)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.marks_eq(rest)
+                    case Tree.NNil{}:
+                      rewalk.marks_eq(rest)
+                    case Tree.NCons{x, y}:
+                      rewalk.marks_eq(rest)
+                case Tree.Leaf{x}:
+                  rewalk.marks_eq(rest)
+                case Tree.Group{open, kids, close}:
+                  rewalk.marks_eq(rest)
+                case Tree.Stmt{kind, kids, body}:
+                  rewalk.marks_eq(rest)
+                case Tree.NNil{}:
+                  rewalk.marks_eq(rest)
+        case Tree.Group{open, +kids, close}:
+          rewalk.marks_two(kids, rest, rewalk.marks_eq(kids), rewalk.marks_eq(rest))
+        case Tree.Stmt{kind, +kids, +body}:
+          match kind:
+            case Tree.SDef{}:
+              rewalk.marks_stmt(kids, body, rest, rewalk.marks_eq(kids), rewalk.marks_eq(body), rewalk.marks_eq(rest))
+            case Tree.SType{}:
+              rewalk.marks_stmt(kids, body, rest, rewalk.marks_eq(kids), rewalk.marks_eq(body), rewalk.marks_eq(rest))
+            case Tree.SLaw{}:
+              rewalk.marks_stmt(kids, body, rest, rewalk.marks_eq(kids), rewalk.marks_eq(body), rewalk.marks_eq(rest))
+            case Tree.SImport{}:
+              rewalk.marks_stmt(kids, body, rest, rewalk.marks_eq(kids), rewalk.marks_eq(body), rewalk.marks_eq(rest))
+            case Tree.SCase{}:
+              rewalk.marks_two(kids, rest, rewalk.marks_eq(kids), rewalk.marks_eq(rest))
+            case Tree.SFor{}:
+              rewalk.marks_stmt(kids, body, rest, rewalk.marks_eq(kids), rewalk.marks_eq(body), rewalk.marks_eq(rest))
+            case Tree.SLet{}:
+              rewalk.marks_stmt(kids, body, rest, rewalk.marks_eq(kids), rewalk.marks_eq(body), rewalk.marks_eq(rest))
+            case Tree.STerm{}:
+              rewalk.marks_stmt(kids, body, rest, rewalk.marks_eq(kids), rewalk.marks_eq(body), rewalk.marks_eq(rest))
+        case Tree.NNil{}:
+          rewalk.marks_eq(rest)
+        case Tree.NCons{x, y}:
+          rewalk.marks_eq(rest)
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{open, kids, close}:
+      {==}
+    case Tree.Stmt{kind, kids, body}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# the rule's pinned is the law's
+law rewalk.pinned_eq:
+  for +line: U32
+  for +col: U32
+  for ps: List<&2, Rewalk.Pos>
+  {Rewalk.pinned(line, col, ps) == Laws.rewalk.pinned(line, col, ps) : Bool}
+
+def rewalk.pinned_eq(line, col, ps):
+  match ps:
+    case Nil{}:
+      {==}
+    case Con{p, rest}:
+      match p:
+        case Rewalk.Pos{+l, +c}:
+          Equal.cong(Bool, Bool, m => Bool.or(Bool.and(U32.is_eq(l, line), U32.is_eq(c, col)), m),
+            Rewalk.pinned(line, col, rest), Laws.rewalk.pinned(line, col, rest), rewalk.pinned_eq(line, col, rest))
+
+# the rule's pin is the law's
+law rewalk.pin_eq:
+  for +ps: List<&2, Rewalk.Pos>
+  for sites: List<&2, Rewalk.Site>
+  {Rewalk.pin(ps, sites) == Laws.rewalk.pin(ps, sites) : List<&2, Rewalk.Site>}
+
+def rewalk.pin_eq(ps, sites):
+  match sites:
+    case Nil{}:
+      {==}
+    case Con{s, rest}:
+      match s:
+        case Rewalk.Site{+name, +args, +line, +col, +len, +how}:
+          %rewalk.pinned_eq(line, col, ps) : {Rewalk.pin(ps, Rewalk.Site{name, args, line, col, len, how} <> rest)
+            == Rewalk.pin_how(_, how, name, args, line, col, len) <> Laws.rewalk.pin(ps, rest)
+            : List<&2, Rewalk.Site>}
+          %rewalk.pin_eq(ps, rest) : {Rewalk.pin(ps, Rewalk.Site{name, args, line, col, len, how} <> rest)
+            == Rewalk.pin_how(Rewalk.pinned(line, col, ps), how, name, args, line, col, len) <> _
+            : List<&2, Rewalk.Site>}
+          {==}
+
+# two joined reads, each the rule's and the law's alike
+law rewalk.either2:
+  for -a1: Rewalk.Hit
+  for -a2: Rewalk.Hit
+  for -b1: Rewalk.Hit
+  for -b2: Rewalk.Hit
+  for ea: {a1 == a2 : Rewalk.Hit}
+  for eb: {b1 == b2 : Rewalk.Hit}
+  {Rewalk.either(a1, b1) == Rewalk.either(a2, b2) : Rewalk.Hit}
+
+def rewalk.either2(a1, _a2, b1, b2, ea, eb):
+  %ea : {Rewalk.either(a1, b1) == Rewalk.either(_, b2) : Rewalk.Hit}
+  %eb : {Rewalk.either(a1, b1) == Rewalk.either(a1, _) : Rewalk.Hit}
+  {==}
+
+# the rule's reads are the law's
+law rewalk.reads_eq:
+  for nn: Tree.Node
+  for +name: String
+  for +hot: Bool
+  for +left: Nat
+  for +live: Bool
+  for +skip: Bool
+  {Rewalk.hits(nn, name, hot, left, live, skip) == Laws.rewalk.reads(nn, name, hot, left, live, skip) : Rewalk.Hit}
+
+# a mention of a name, then the rest of the chain
+law rewalk.reads_name:
+  for +t: String
+  for +rest: Tree.Node
+  for +name: String
+  for +hot: Bool
+  for +left: Nat
+  for +live: Bool
+  for +skip: Bool
+  for ih: {Rewalk.hits(rest, name, hot, left, live, skip) == Laws.rewalk.reads(rest, name, hot, left, live, skip)
+    : Rewalk.Hit}
+  {Rewalk.either(Rewalk.hit_keep(skip, Rewalk.name_hit(String.eq(t, name), hot)),
+    Rewalk.hits(rest, name, hot, left, live, skip))
+    == Rewalk.either(Rewalk.hit_keep(skip, Rewalk.name_hit(String.eq(t, name), hot)),
+      Laws.rewalk.reads(rest, name, hot, left, live, skip)) : Rewalk.Hit}
+
+def rewalk.reads_name(t, rest, name, hot, left, live, skip, ih):
+  +h = Rewalk.hit_keep(skip, Rewalk.name_hit(String.eq(t, name), hot))
+  rewalk.either2(h, h, Rewalk.hits(rest, name, hot, left, live, skip),
+    Laws.rewalk.reads(rest, name, hot, left, live, skip), {==}, ih)
+
+# a callee or an indexed name, its group, then the rest of the chain
+law rewalk.reads_call:
+  for +o: String
+  for +t: String
+  for +kids: Tree.Node
+  for +r2: Tree.Node
+  for +name: String
+  for +hot: Bool
+  for +left: Nat
+  for +live: Bool
+  for +skip: Bool
+  for ik: {Rewalk.hits(kids, name, Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot),
+    Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t),
+    Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t), skip)
+    == Laws.rewalk.reads(kids, name, Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot),
+    Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t),
+    Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t), skip) : Rewalk.Hit}
+  for ir: {Rewalk.hits(r2, name, hot, left, live, skip) == Laws.rewalk.reads(r2, name, hot, left, live, skip)
+    : Rewalk.Hit}
+  {Rewalk.either(Rewalk.hit_keep(skip, Rewalk.here_hit(String.eq(o, "["), String.eq(o, "("), t, name, hot)),
+    Rewalk.either(Rewalk.hits(kids, name, Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot),
+      Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t),
+      Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t), skip),
+      Rewalk.hits(r2, name, hot, left, live, skip)))
+    == Rewalk.either(Rewalk.hit_keep(skip, Rewalk.here_hit(String.eq(o, "["), String.eq(o, "("), t, name, hot)),
+      Rewalk.either(Laws.rewalk.reads(kids, name, Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot),
+        Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t),
+        Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t), skip),
+        Laws.rewalk.reads(r2, name, hot, left, live, skip))) : Rewalk.Hit}
+
+def rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, ik, ir):
+  +h = Rewalk.hit_keep(skip, Rewalk.here_hit(String.eq(o, "["), String.eq(o, "("), t, name, hot))
+  +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+  +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+  +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+  rewalk.either2(h, h, Rewalk.either(Rewalk.hits(kids, name, hk, lk, vk, skip), Rewalk.hits(r2, name, hot, left, live,
+    skip)), Rewalk.either(Laws.rewalk.reads(kids, name, hk, lk, vk, skip), Laws.rewalk.reads(r2, name, hot, left, live,
+    skip)), {==}, rewalk.either2(Rewalk.hits(kids, name, hk, lk, vk, skip), Laws.rewalk.reads(kids, name, hk, lk, vk,
+    skip), Rewalk.hits(r2, name, hot, left, live, skip), Laws.rewalk.reads(r2, name, hot, left, live, skip), ik, ir))
+
+# a bare group, then the rest of the chain
+law rewalk.reads_group:
+  for +kids: Tree.Node
+  for +rest: Tree.Node
+  for +name: String
+  for +hot: Bool
+  for +left: Nat
+  for +live: Bool
+  for +skip: Bool
+  for ik: {Rewalk.hits(kids, name, hot, 0n, False{}, skip) == Laws.rewalk.reads(kids, name, hot, 0n, False{}, skip)
+    : Rewalk.Hit}
+  for ir: {Rewalk.hits(rest, name, hot, left, live, skip) == Laws.rewalk.reads(rest, name, hot, left, live, skip)
+    : Rewalk.Hit}
+  {Rewalk.either(Rewalk.hits(kids, name, hot, 0n, False{}, skip), Rewalk.hits(rest, name, hot, left, live, skip))
+    == Rewalk.either(Laws.rewalk.reads(kids, name, hot, 0n, False{}, skip),
+      Laws.rewalk.reads(rest, name, hot, left, live, skip)) : Rewalk.Hit}
+
+def rewalk.reads_group(kids, rest, name, hot, left, live, skip, ik, ir):
+  rewalk.either2(Rewalk.hits(kids, name, hot, 0n, False{}, skip), Laws.rewalk.reads(kids, name, hot, 0n, False{}, skip),
+    Rewalk.hits(rest, name, hot, left, live, skip), Laws.rewalk.reads(rest, name, hot, left, live, skip), ik, ir)
+
+# a statement: its own tokens (the left of a let skipped), its body, then the
+# rest of the chain
+law rewalk.reads_stmt:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +name: String
+  for +hot: Bool
+  for +left: Nat
+  for +live: Bool
+  for +skip: Bool
+  for ik: {Rewalk.hits(kids, name, False{}, 0n, False{}, Rewalk.has_eq(kids))
+    == Laws.rewalk.reads(kids, name, False{}, 0n, False{}, Rewalk.has_eq(kids)) : Rewalk.Hit}
+  for ib: {Rewalk.hits(body, name, False{}, 0n, False{}, False{})
+    == Laws.rewalk.reads(body, name, False{}, 0n, False{}, False{}) : Rewalk.Hit}
+  for ir: {Rewalk.hits(rest, name, hot, left, live, skip) == Laws.rewalk.reads(rest, name, hot, left, live, skip)
+    : Rewalk.Hit}
+  {Rewalk.either(Rewalk.hits(kids, name, False{}, 0n, False{}, Rewalk.has_eq(kids)),
+    Rewalk.either(Rewalk.hits(body, name, False{}, 0n, False{}, False{}), Rewalk.hits(rest, name, hot, left, live,
+      skip)))
+    == Rewalk.either(Laws.rewalk.reads(kids, name, False{}, 0n, False{}, Rewalk.has_eq(kids)),
+      Rewalk.either(Laws.rewalk.reads(body, name, False{}, 0n, False{}, False{}),
+        Laws.rewalk.reads(rest, name, hot, left, live, skip))) : Rewalk.Hit}
+
+def rewalk.reads_stmt(kids, body, rest, name, hot, left, live, skip, ik, ib, ir):
+  +k1 = Rewalk.hits(kids, name, False{}, 0n, False{}, Rewalk.has_eq(kids))
+  +k2 = Laws.rewalk.reads(kids, name, False{}, 0n, False{}, Rewalk.has_eq(kids))
+  +b1 = Rewalk.hits(body, name, False{}, 0n, False{}, False{})
+  +b2 = Laws.rewalk.reads(body, name, False{}, 0n, False{}, False{})
+  +r1 = Rewalk.hits(rest, name, hot, left, live, skip)
+  +r2 = Laws.rewalk.reads(rest, name, hot, left, live, skip)
+  rewalk.either2(k1, k2, Rewalk.either(b1, r1), Rewalk.either(b2, r2), ik, rewalk.either2(b1, b2, r1, r2, ib, ir))
+
+def rewalk.reads_eq(nn, name, hot, left, live, skip):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, +t, l, c}:
+              match k:
+                case Lex.TName{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_name(t, rest, name, hot, left, live, skip, rewalk.reads_eq(rest, name, hot,
+                            left, live, skip))
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_name(t, rest, name, hot, left, live, skip, rewalk.reads_eq(rest, name, hot,
+                            left, live, skip))
+                        case Tree.NNil{}:
+                          rewalk.reads_name(t, rest, name, hot, left, live, skip, rewalk.reads_eq(rest, name, hot,
+                            left, live, skip))
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_name(t, rest, name, hot, left, live, skip, rewalk.reads_eq(rest, name, hot,
+                            left, live, skip))
+                    case Tree.Leaf{x}:
+                      rewalk.reads_name(t, rest, name, hot, left, live, skip, rewalk.reads_eq(rest, name, hot, left,
+                        live, skip))
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_name(t, rest, name, hot, left, live, skip, rewalk.reads_eq(rest, name, hot, left,
+                        live, skip))
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_name(t, rest, name, hot, left, live, skip, rewalk.reads_eq(rest, name, hot, left,
+                        live, skip))
+                    case Tree.NNil{}:
+                      rewalk.reads_name(t, rest, name, hot, left, live, skip, rewalk.reads_eq(rest, name, hot, left,
+                        live, skip))
+                case Lex.TUpper{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TDotted{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TWild{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TKey{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TNum{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TStr{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TChar{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TComment{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TSpace{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TNewline{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TOp{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TColon{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TEq{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              rewalk.reads_eq(rest, name, hot, left, live, False{})
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, False{})
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, False{})
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, False{})
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, False{})
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, False{})
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, False{})
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, False{})
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, False{})
+                case Lex.TBind{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TArrow{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TLam{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TAll{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TAmp{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TOpen{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TClose{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              +hk = Rewalk.pick_hot(skip, String.eq(o, "["), String.eq(o, "("), hot)
+                              +lk = Rewalk.pick_left(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              +vk = Rewalk.pick_live(skip, String.eq(o, "["), String.eq(o, "("), t)
+                              rewalk.reads_call(o, t, kids, r2, name, hot, left, live, skip, rewalk.reads_eq(kids,
+                                name, hk, lk, vk, skip),
+                                rewalk.reads_eq(r2, name, hot, left, live, skip))
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, hot, left, live, skip)
+                case Lex.TComma{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{open, +kids, close}:
+                          match open:
+                            case Lex.Tok{ok, +o, ol, oc}:
+                              rewalk.reads_eq(rest, name, Rewalk.step_hot(hot, left, live), Rewalk.step_left(left,
+                                live), live, skip)
+                        case Tree.Leaf{x}:
+                          rewalk.reads_eq(rest, name, Rewalk.step_hot(hot, left, live), Rewalk.step_left(left, live),
+                            live, skip)
+                        case Tree.Stmt{kind, kids, body}:
+                          rewalk.reads_eq(rest, name, Rewalk.step_hot(hot, left, live), Rewalk.step_left(left, live),
+                            live, skip)
+                        case Tree.NNil{}:
+                          rewalk.reads_eq(rest, name, Rewalk.step_hot(hot, left, live), Rewalk.step_left(left, live),
+                            live, skip)
+                        case Tree.NCons{x, y}:
+                          rewalk.reads_eq(rest, name, Rewalk.step_hot(hot, left, live), Rewalk.step_left(left, live),
+                            live, skip)
+                    case Tree.Leaf{x}:
+                      rewalk.reads_eq(rest, name, Rewalk.step_hot(hot, left, live), Rewalk.step_left(left, live),
+                        live, skip)
+                    case Tree.Group{open, kids, close}:
+                      rewalk.reads_eq(rest, name, Rewalk.step_hot(hot, left, live), Rewalk.step_left(left, live),
+                        live, skip)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.reads_eq(rest, name, Rewalk.step_hot(hot, left, live), Rewalk.step_left(left, live),
+                        live, skip)
+                    case Tree.NNil{}:
+                      rewalk.reads_eq(rest, name, Rewalk.step_hot(hot, left, live), Rewalk.step_left(left, live),
+                        live, skip)
+        case Tree.Group{open, +kids, close}:
+          rewalk.reads_group(kids, rest, name, hot, left, live, skip, rewalk.reads_eq(kids, name, hot, 0n, False{},
+            skip),
+            rewalk.reads_eq(rest, name, hot, left, live, skip))
+        case Tree.Stmt{kind, +kids, +body}:
+          rewalk.reads_stmt(kids, body, rest, name, hot, left, live, skip,
+            rewalk.reads_eq(kids, name, False{}, 0n, False{}, Rewalk.has_eq(kids)),
+            rewalk.reads_eq(body, name, False{}, 0n, False{}, False{}), rewalk.reads_eq(rest, name, hot, left, live,
+              skip))
+        case Tree.NNil{}:
+          rewalk.reads_eq(rest, name, hot, left, live, skip)
+        case Tree.NCons{x, y}:
+          rewalk.reads_eq(rest, name, hot, left, live, skip)
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{open, kids, close}:
+      {==}
+    case Tree.Stmt{kind, kids, body}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# the rule's narrow is the law's single
+law rewalk.single_eq:
+  for hh: Rewalk.How
+  for +piece: Tree.Node
+  {Rewalk.narrow(hh, piece) == Laws.rewalk.single(hh, piece) : Bool}
+
+def rewalk.single_eq(hh, piece):
+  match hh:
+    case Rewalk.HWide{}:
+      {==}
+    case Rewalk.HSlot{}:
+      {==}
+    case Rewalk.HField{}:
+      {==}
+    case Rewalk.HLet{+binder}:
+      Equal.cong(Rewalk.Hit, Bool, x => Rewalk.narrow_let(x), Rewalk.hits(piece, binder, False{}, 0n, False{}, False{}),
+        Laws.rewalk.reads(piece, binder, False{}, 0n, False{}, False{}),
+        rewalk.reads_eq(piece, binder, False{}, 0n, False{}, False{}))
+
+# a twin keeps its whole result, to the rule and to the law
+law rewalk.full_eq:
+  for b: Bool
+  for +hh: Rewalk.How
+  for +piece: Tree.Node
+  {Rewalk.other_full(b, hh, piece) == Bool.and(b, Bool.not(Laws.rewalk.single(hh, piece))) : Bool}
+
+def rewalk.full_eq(b, hh, piece):
+  match b:
+    case False{}:
+      {==}
+    case True{}:
+      Equal.cong(Bool, Bool, x => Bool.not(x), Rewalk.narrow(hh, piece), Laws.rewalk.single(hh, piece),
+        rewalk.single_eq(hh, piece))
+
+# a twin is read for a single value, to the rule and to the law
+law rewalk.nar_eq:
+  for b: Bool
+  for +hh: Rewalk.How
+  for +piece: Tree.Node
+  {Rewalk.earlier_nar(b, hh, piece) == Bool.and(b, Laws.rewalk.single(hh, piece)) : Bool}
+
+def rewalk.nar_eq(b, hh, piece):
+  match b:
+    case False{}:
+      {==}
+    case True{}:
+      rewalk.single_eq(hh, piece)
+
+# the rule's other_go is the law's whole
+law rewalk.whole_eq:
+  for sites: List<&2, Rewalk.Site>
+  for +name: String
+  for +args: String
+  for +line: U32
+  for +col: U32
+  for +piece: Tree.Node
+  {Rewalk.other_go(sites, name, args, line, col, piece) == Laws.rewalk.whole(sites, name, args, line, col, piece)
+    : Bool}
+
+def rewalk.whole_eq(sites, name, args, line, col, piece):
+  match sites:
+    case Nil{}:
+      {==}
+    case Con{s, rest}:
+      match s:
+        case Rewalk.Site{+nm, +as, +l, +c, len, +how}:
+          +tw = Laws.rewalk.twin(nm, as, l, c, name, args, line, col)
+          %rewalk.full_eq(tw, how, piece) : {Rewalk.other_go(Rewalk.Site{nm, as, l, c, len, how} <> rest, name, args,
+            line, col, piece) == Bool.or(_, Laws.rewalk.whole(rest, name, args, line, col, piece)) : Bool}
+          %rewalk.whole_eq(rest, name, args, line, col, piece) : {Rewalk.other_go(Rewalk.Site{nm, as, l, c, len, how}
+            <> rest, name, args, line, col, piece) == Bool.or(Rewalk.other_full(tw, how, piece), _) : Bool}
+          {==}
+
+# the rule's earlier is the law's prior
+law rewalk.prior_eq:
+  for seen: List<&2, Rewalk.Site>
+  for +name: String
+  for +args: String
+  for +line: U32
+  for +col: U32
+  for +piece: Tree.Node
+  {Rewalk.earlier(seen, name, args, line, col, piece) == Laws.rewalk.prior(seen, name, args, line, col, piece) : Bool}
+
+def rewalk.prior_eq(seen, name, args, line, col, piece):
+  match seen:
+    case Nil{}:
+      {==}
+    case Con{s, rest}:
+      match s:
+        case Rewalk.Site{+nm, +as, +l, +c, len, +how}:
+          +tw = Laws.rewalk.twin(nm, as, l, c, name, args, line, col)
+          %rewalk.nar_eq(tw, how, piece) : {Rewalk.earlier(Rewalk.Site{nm, as, l, c, len, how} <> rest, name, args,
+            line, col, piece) == Bool.or(_, Laws.rewalk.prior(rest, name, args, line, col, piece)) : Bool}
+          %rewalk.prior_eq(rest, name, args, line, col, piece) : {Rewalk.earlier(Rewalk.Site{nm, as, l, c, len, how}
+            <> rest, name, args, line, col, piece) == Bool.or(Rewalk.earlier_nar(tw, how, piece), _) : Bool}
+          {==}
+
+# a narrow site with no narrow twin before it: one finding
+law rewalk.nar_len:
+  for n: Bool
+  for p: Bool
+  for +name: String
+  for +line: U32
+  for +col: U32
+  for +len: U32
+  for +path: String
+  {List.length(&2, F.Finding, Rewalk.report_nar(n, p, name, line, col, len, path))
+    == Bool.pick(Nat, Bool.and(n, Bool.not(p)), 1n, 0n) : Nat}
+
+def rewalk.nar_len(n, p, _name, _line, _col, _len, _path):
+  match n p:
+    case False{} p:
+      {==}
+    case True{} True{}:
+      {==}
+    case True{} False{}:
+      {==}
+
+# a site with a whole twin, read narrow, and no narrow twin before it: one
+# finding
+law rewalk.dup_len:
+  for d: Bool
+  for +how: Rewalk.How
+  for +name: String
+  for +args: String
+  for +line: U32
+  for +col: U32
+  for +len: U32
+  for +body: Tree.Node
+  for +path: String
+  for +seen: List<&2, Rewalk.Site>
+  {List.length(&2, F.Finding, Rewalk.report_dup(d, how, name, args, line, col, len, body, path, seen))
+    == Bool.pick(Nat, Bool.and(d, Bool.and(Rewalk.narrow(how, body), Bool.not(Rewalk.earlier(seen, name, args, line,
+      col, body)))), 1n, 0n) : Nat}
+
+def rewalk.dup_len(d, how, name, args, line, col, len, body, path, seen):
+  match d:
+    case False{}:
+      {==}
+    case True{}:
+      rewalk.nar_len(Rewalk.narrow(how, body), Rewalk.earlier(seen, name, args, line, col, body), name, line, col, len,
+        path)
+
+# one site: one finding when the law flags it, none otherwise
+law rewalk.one_len:
+  for s: Rewalk.Site
+  for +all: List<&2, Rewalk.Site>
+  for +body: Tree.Node
+  for +path: String
+  for +seen: List<&2, Rewalk.Site>
+  {List.length(&2, F.Finding, Rewalk.report_one(s, all, body, path, seen))
+    == Bool.pick(Nat, Laws.rewalk.flag(s, all, body, seen), 1n, 0n) : Nat}
+
+def rewalk.one_len(s, all, body, path, seen):
+  match s:
+    case Rewalk.Site{+name, +args, +line, +col, +len, +how}:
+      +lhs = List.length(&2, F.Finding, Rewalk.report_one(Rewalk.Site{name, args, line, col, len, how}, all, body, path,
+        seen))
+      %rewalk.whole_eq(all, name, args, line, col, body) : {lhs == Bool.pick(Nat, Bool.and(_,
+        Bool.and(Laws.rewalk.single(how, body), Bool.not(Laws.rewalk.prior(seen, name, args, line, col, body)))), 1n,
+          0n)
+        : Nat}
+      %rewalk.single_eq(how, body) : {lhs == Bool.pick(Nat, Bool.and(Rewalk.other_go(all, name, args, line, col, body),
+        Bool.and(_, Bool.not(Laws.rewalk.prior(seen, name, args, line, col, body)))), 1n, 0n) : Nat}
+      %rewalk.prior_eq(seen, name, args, line, col, body) : {lhs == Bool.pick(Nat, Bool.and(Rewalk.other_go(all, name,
+        args, line, col, body), Bool.and(Rewalk.narrow(how, body), Bool.not(_))), 1n, 0n) : Nat}
+      rewalk.dup_len(Rewalk.other_go(all, name, args, line, col, body), how, name, args, line, col, len, body, path,
+        seen)
+
+# a flag's one or none, onto the rest's count
+law rewalk.add_pick:
+  for f: Bool
+  for m: Nat
+  {Nat.add(Bool.pick(Nat, f, 1n, 0n), m) == Bool.pick(Nat, f, 1n+m, m) : Nat}
+
+def rewalk.add_pick(f, _m):
+  match f:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# the rule's report counts what the law counts
+law rewalk.report_len:
+  for sites: List<&2, Rewalk.Site>
+  for +all: List<&2, Rewalk.Site>
+  for +body: Tree.Node
+  for +path: String
+  for +seen: List<&2, Rewalk.Site>
+  {List.length(&2, F.Finding, Rewalk.report(sites, all, body, path, seen))
+    == Laws.rewalk.count(sites, all, body, seen) : Nat}
+
+def rewalk.report_len(sites, all, body, path, seen):
+  match sites:
+    case Nil{}:
+      {==}
+    case Con{+s, +rest}:
+      +one = Rewalk.report_one(s, all, body, path, seen)
+      +tl = Rewalk.report(rest, all, body, path, s <> seen)
+      +f = Laws.rewalk.flag(s, all, body, seen)
+      +m = Laws.rewalk.count(rest, all, body, s <> seen)
+      Equal.trans(Nat, List.length(&2, F.Finding, List.append(&2, F.Finding, one, tl)),
+        Nat.add(List.length(&2, F.Finding, one), List.length(&2, F.Finding, tl)), Bool.pick(Nat, f, 1n+m, m),
+        esc.app(one, tl),
+        Equal.trans(Nat, Nat.add(List.length(&2, F.Finding, one), List.length(&2, F.Finding, tl)),
+          Nat.add(Bool.pick(Nat, f, 1n, 0n), m), Bool.pick(Nat, f, 1n+m, m),
+          esc.add(List.length(&2, F.Finding, one), Bool.pick(Nat, f, 1n, 0n), List.length(&2, F.Finding, tl), m,
+            rewalk.one_len(s, all, body, path, seen), rewalk.report_len(rest, all, body, path, s <> seen)),
+          rewalk.add_pick(f, m)))
+
+# the rule's sites of a piece are the law's
+law rewalk.sites_eq:
+  for +nn: Tree.Node
+  for +self: String
+  for +lp: List<&2, String>
+  {Rewalk.pin(Rewalk.mark(nn), Rewalk.apply(nn, Rewalk.gather(nn, self, lp, Rewalk.binds(nn, []))))
+    == Laws.rewalk.sites(nn, self, lp) : List<&2, Rewalk.Site>}
+
+def rewalk.sites_eq(nn, self, lp):
+  +lhs = Rewalk.pin(Rewalk.mark(nn), Rewalk.apply(nn, Rewalk.gather(nn, self, lp, Rewalk.binds(nn, []))))
+  %rewalk.binds_eq(nn, []) : {lhs == Laws.rewalk.pin(Laws.rewalk.marks(nn), Laws.rewalk.apply(nn,
+    Laws.rewalk.gather(nn, self, lp, _))) : List<&2, Rewalk.Site>}
+  %rewalk.gather_eq(nn, self, lp, Rewalk.binds(nn, [])) : {lhs == Laws.rewalk.pin(Laws.rewalk.marks(nn),
+    Laws.rewalk.apply(nn, _)) : List<&2, Rewalk.Site>}
+  %rewalk.apply_eq(nn, Rewalk.gather(nn, self, lp, Rewalk.binds(nn, []))) : {lhs
+    == Laws.rewalk.pin(Laws.rewalk.marks(nn), _) : List<&2, Rewalk.Site>}
+  %rewalk.marks_eq(nn) : {lhs == Laws.rewalk.pin(_, Rewalk.apply(nn, Rewalk.gather(nn, self, lp, Rewalk.binds(nn,
+    [])))) : List<&2, Rewalk.Site>}
+  rewalk.pin_eq(Rewalk.mark(nn), Rewalk.apply(nn, Rewalk.gather(nn, self, lp, Rewalk.binds(nn, []))))
+
+def Laws.rewalk_local_counts(nn, self, lp, path):
+  +ss = Rewalk.pin(Rewalk.mark(nn), Rewalk.apply(nn, Rewalk.gather(nn, self, lp, Rewalk.binds(nn, []))))
+  %rewalk.sites_eq(nn, self, lp) : {List.length(&2, F.Finding, Rewalk.report(ss, ss, nn, path, []))
+    == Laws.rewalk.count(_, _, nn, []) : Nat}
+  rewalk.report_len(ss, ss, nn, path, [])
+
+# two finding lists joined: the counts added
+law rewalk.two_len:
+  for a: List<&2, F.Finding>
+  for +b: List<&2, F.Finding>
+  for -ma: Nat
+  for -mb: Nat
+  for ea: {List.length(&2, F.Finding, a) == ma : Nat}
+  for eb: {List.length(&2, F.Finding, b) == mb : Nat}
+  {List.length(&2, F.Finding, List.concat(&2, F.Finding, [a, b])) == Nat.add(ma, mb) : Nat}
+
+def rewalk.two_len(a, b, ma, mb, ea, eb):
+  pick.join(a, List.append(&2, F.Finding, b, Nil{}), ma, mb, ea, pick.last(b, mb, eb))
+
+# three finding lists joined: the counts added
+law rewalk.three_len:
+  for a: List<&2, F.Finding>
+  for +b: List<&2, F.Finding>
+  for +c: List<&2, F.Finding>
+  for -ma: Nat
+  for -mb: Nat
+  for -mc: Nat
+  for ea: {List.length(&2, F.Finding, a) == ma : Nat}
+  for eb: {List.length(&2, F.Finding, b) == mb : Nat}
+  for ec: {List.length(&2, F.Finding, c) == mc : Nat}
+  {List.length(&2, F.Finding, List.concat(&2, F.Finding, [a, b, c])) == Nat.add(ma, Nat.add(mb, mc)) : Nat}
+
+def rewalk.three_len(a, b, c, ma, mb, mc, ea, eb, ec):
+  pick.join(a, List.append(&2, F.Finding, b, List.append(&2, F.Finding, c, Nil{})), ma, Nat.add(mb, mc), ea,
+    pick.join(b, List.append(&2, F.Finding, c, Nil{}), mb, mc, eb, pick.last(c, mc, ec)))
+
+# a statement's case-arm findings: its own tokens, its body, then what follows
+law rewalk.visit_stmt:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +self: String
+  for +lp: List<&2, String>
+  for +path: String
+  for ek: {List.length(&2, F.Finding, Rewalk.visit(kids, self, lp, path)) == Laws.rewalk.arms(kids, self, lp) : Nat}
+  for eb: {List.length(&2, F.Finding, Rewalk.visit(body, self, lp, path)) == Laws.rewalk.arms(body, self, lp) : Nat}
+  for er: {List.length(&2, F.Finding, Rewalk.visit(rest, self, lp, path)) == Laws.rewalk.arms(rest, self, lp) : Nat}
+  {List.length(&2, F.Finding, List.concat(&2, F.Finding, [Rewalk.visit(kids, self, lp, path),
+    Rewalk.visit(body, self, lp, path), Rewalk.visit(rest, self, lp, path)]))
+    == Nat.add(Laws.rewalk.arms(kids, self, lp), Nat.add(Laws.rewalk.arms(body, self, lp),
+      Laws.rewalk.arms(rest, self, lp))) : Nat}
+
+def rewalk.visit_stmt(kids, body, rest, self, lp, path, ek, eb, er):
+  rewalk.three_len(Rewalk.visit(kids, self, lp, path), Rewalk.visit(body, self, lp, path), Rewalk.visit(rest, self, lp,
+    path), Laws.rewalk.arms(kids, self, lp), Laws.rewalk.arms(body, self, lp), Laws.rewalk.arms(rest, self, lp), ek,
+    eb, er)
+
+# a case arm: its own piece, the arms in it, then what follows
+law rewalk.visit_case:
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +self: String
+  for +lp: List<&2, String>
+  for +path: String
+  for eb: {List.length(&2, F.Finding, Rewalk.visit(body, self, lp, path)) == Laws.rewalk.arms(body, self, lp) : Nat}
+  for er: {List.length(&2, F.Finding, Rewalk.visit(rest, self, lp, path)) == Laws.rewalk.arms(rest, self, lp) : Nat}
+  {List.length(&2, F.Finding, List.concat(&2, F.Finding, [Rewalk.local(body, self, lp, path),
+    Rewalk.visit(body, self, lp, path), Rewalk.visit(rest, self, lp, path)]))
+    == Nat.add(Laws.rewalk.piece(body, self, lp), Nat.add(Laws.rewalk.arms(body, self, lp),
+      Laws.rewalk.arms(rest, self, lp))) : Nat}
+
+def rewalk.visit_case(body, rest, self, lp, path, eb, er):
+  rewalk.three_len(Rewalk.local(body, self, lp, path), Rewalk.visit(body, self, lp, path), Rewalk.visit(rest, self, lp,
+    path), Laws.rewalk.piece(body, self, lp), Laws.rewalk.arms(body, self, lp), Laws.rewalk.arms(rest, self, lp),
+    Laws.rewalk_local_counts(body, self, lp, path), eb, er)
+
+def Laws.rewalk_visit_counts(nn, self, lp, path):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Stmt{kind, +kids, +body}:
+          match kind:
+            case Tree.SDef{}:
+              rewalk.visit_stmt(kids, body, rest, self, lp, path, Laws.rewalk_visit_counts(kids, self, lp, path),
+                Laws.rewalk_visit_counts(body, self, lp, path), Laws.rewalk_visit_counts(rest, self, lp, path))
+            case Tree.SType{}:
+              rewalk.visit_stmt(kids, body, rest, self, lp, path, Laws.rewalk_visit_counts(kids, self, lp, path),
+                Laws.rewalk_visit_counts(body, self, lp, path), Laws.rewalk_visit_counts(rest, self, lp, path))
+            case Tree.SLaw{}:
+              rewalk.visit_stmt(kids, body, rest, self, lp, path, Laws.rewalk_visit_counts(kids, self, lp, path),
+                Laws.rewalk_visit_counts(body, self, lp, path), Laws.rewalk_visit_counts(rest, self, lp, path))
+            case Tree.SImport{}:
+              rewalk.visit_stmt(kids, body, rest, self, lp, path, Laws.rewalk_visit_counts(kids, self, lp, path),
+                Laws.rewalk_visit_counts(body, self, lp, path), Laws.rewalk_visit_counts(rest, self, lp, path))
+            case Tree.SCase{}:
+              rewalk.visit_case(body, rest, self, lp, path, Laws.rewalk_visit_counts(body, self, lp, path),
+                Laws.rewalk_visit_counts(rest, self, lp, path))
+            case Tree.SFor{}:
+              rewalk.visit_stmt(kids, body, rest, self, lp, path, Laws.rewalk_visit_counts(kids, self, lp, path),
+                Laws.rewalk_visit_counts(body, self, lp, path), Laws.rewalk_visit_counts(rest, self, lp, path))
+            case Tree.SLet{}:
+              rewalk.visit_stmt(kids, body, rest, self, lp, path, Laws.rewalk_visit_counts(kids, self, lp, path),
+                Laws.rewalk_visit_counts(body, self, lp, path), Laws.rewalk_visit_counts(rest, self, lp, path))
+            case Tree.STerm{}:
+              rewalk.visit_stmt(kids, body, rest, self, lp, path, Laws.rewalk_visit_counts(kids, self, lp, path),
+                Laws.rewalk_visit_counts(body, self, lp, path), Laws.rewalk_visit_counts(rest, self, lp, path))
+        case Tree.Group{open, +kids, close}:
+          rewalk.two_len(Rewalk.visit(kids, self, lp, path), Rewalk.visit(rest, self, lp, path),
+            Laws.rewalk.arms(kids, self, lp), Laws.rewalk.arms(rest, self, lp),
+            Laws.rewalk_visit_counts(kids, self, lp, path), Laws.rewalk_visit_counts(rest, self, lp, path))
+        case Tree.Leaf{tok}:
+          Laws.rewalk_visit_counts(rest, self, lp, path)
+        case Tree.NNil{}:
+          Laws.rewalk_visit_counts(rest, self, lp, path)
+        case Tree.NCons{x, y}:
+          Laws.rewalk_visit_counts(rest, self, lp, path)
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{open, kids, close}:
+      {==}
+    case Tree.Stmt{kind, kids, body}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# the rule's called names are the law's
+law rewalk.called_eq:
+  for nn: Tree.Node
+  {Rewalk.called(nn) == Laws.rewalk.called(nn) : List<&2, String>}
+
+# a callee, then what its group and the rest call
+law rewalk.called_call:
+  for +o: String
+  for +t: String
+  for +kids: Tree.Node
+  for +r2: Tree.Node
+  for ek: {Rewalk.called(kids) == Laws.rewalk.called(kids) : List<&2, String>}
+  for er: {Rewalk.called(r2) == Laws.rewalk.called(r2) : List<&2, String>}
+  {Bool.pick(List<&2, String>, String.eq(o, "("), t <> List.concat(&2, String, [Rewalk.called(kids),
+    Rewalk.called(r2)]), List.concat(&2, String, [Rewalk.called(kids), Rewalk.called(r2)]))
+    == Bool.pick(List<&2, String>, String.eq(o, "("), t <> List.concat(&2, String, [Laws.rewalk.called(kids),
+      Laws.rewalk.called(r2)]), List.concat(&2, String, [Laws.rewalk.called(kids), Laws.rewalk.called(r2)]))
+    : List<&2, String>}
+
+def rewalk.called_call(o, t, kids, r2, ek, er):
+  Equal.cong(List<&2, String>, List<&2, String>, m => Bool.pick(List<&2, String>, String.eq(o, "("), t <> m, m),
+    List.concat(&2, String, [Rewalk.called(kids), Rewalk.called(r2)]),
+    List.concat(&2, String, [Laws.rewalk.called(kids), Laws.rewalk.called(r2)]),
+    rewalk.cat2(String, Rewalk.called(kids), Laws.rewalk.called(kids), Rewalk.called(r2), Laws.rewalk.called(r2), ek,
+      er))
+
+def rewalk.called_eq(nn):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, +t, l, c}:
+              match rest:
+                case Tree.NCons{h2, +r2}:
+                  match h2:
+                    case Tree.Group{open, +kids, close}:
+                      match open:
+                        case Lex.Tok{ok, +o, ol, oc}:
+                          rewalk.called_call(o, t, kids, r2, rewalk.called_eq(kids), rewalk.called_eq(r2))
+                    case Tree.Leaf{x}:
+                      rewalk.called_eq(rest)
+                    case Tree.Stmt{kind, kids, body}:
+                      rewalk.called_eq(rest)
+                    case Tree.NNil{}:
+                      rewalk.called_eq(rest)
+                    case Tree.NCons{x, y}:
+                      rewalk.called_eq(rest)
+                case Tree.Leaf{x}:
+                  rewalk.called_eq(rest)
+                case Tree.Group{open, kids, close}:
+                  rewalk.called_eq(rest)
+                case Tree.Stmt{kind, kids, body}:
+                  rewalk.called_eq(rest)
+                case Tree.NNil{}:
+                  rewalk.called_eq(rest)
+        case Tree.Group{open, +kids, close}:
+          rewalk.cat2(String, Rewalk.called(kids), Laws.rewalk.called(kids), Rewalk.called(rest),
+            Laws.rewalk.called(rest), rewalk.called_eq(kids), rewalk.called_eq(rest))
+        case Tree.Stmt{kind, +kids, +body}:
+          rewalk.cat3(String, Rewalk.called(kids), Laws.rewalk.called(kids), Rewalk.called(body),
+            Laws.rewalk.called(body), Rewalk.called(rest), Laws.rewalk.called(rest), rewalk.called_eq(kids),
+            rewalk.called_eq(body), rewalk.called_eq(rest))
+        case Tree.NNil{}:
+          rewalk.called_eq(rest)
+        case Tree.NCons{x, y}:
+          rewalk.called_eq(rest)
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{open, kids, close}:
+      {==}
+    case Tree.Stmt{kind, kids, body}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# a lazy or is the plain or
+law rewalk.or_else:
+  for b: Bool
+  for t: List<&2, String>
+  for +set: List<&2, String>
+  for ih: {Rewalk.any_of(t, set) == Laws.rewalk.any(t, set) : Bool}
+  {Lazy.or_else(b, _u => Rewalk.any_of(t, set)) == Bool.or(b, Laws.rewalk.any(t, set)) : Bool}
+
+def rewalk.or_else(b, _t, _set, ih):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      ih
+
+# the rule's any_of is the law's any
+law rewalk.any_eq:
+  for cs: List<&2, String>
+  for +set: List<&2, String>
+  {Rewalk.any_of(cs, set) == Laws.rewalk.any(cs, set) : Bool}
+
+def rewalk.any_eq(cs, set):
+  match cs:
+    case Nil{}:
+      {==}
+    case Con{+c, +t}:
+      rewalk.or_else(List.contains(~String, ~String.eq, set, c), t, set, rewalk.any_eq(t, set))
+
+# the rule's looping defs are the law's
+law rewalk.loops_eq:
+  for ds: List<&2, Calls.Def>
+  for +acc: List<&2, String>
+  {Rewalk.loops.go(ds, acc) == Laws.rewalk.loops(ds, acc) : List<&2, String>}
+
+def rewalk.loops_eq(ds, acc):
+  match ds:
+    case Nil{}:
+      {==}
+    case Con{d, +rest}:
+      match d:
+        case Calls.Def{+name, sig, +body}:
+          +lhs = Rewalk.loops.go(Calls.Def{name, sig, body} <> rest, acc)
+          %rewalk.called_eq(body) : {lhs == Laws.rewalk.loops(rest, Bool.pick(List<&2, String>,
+            Bool.or(List.contains(~String, ~String.eq, _, name), Laws.rewalk.any(_, acc)), name <> acc, acc))
+            : List<&2, String>}
+          %rewalk.any_eq(Rewalk.called(body), acc) : {lhs == Laws.rewalk.loops(rest, Bool.pick(List<&2, String>,
+            Bool.or(List.contains(~String, ~String.eq, Rewalk.called(body), name), _), name <> acc, acc))
+            : List<&2, String>}
+          rewalk.loops_eq(rest, Bool.pick(List<&2, String>, Bool.or(List.contains(~String, ~String.eq,
+            Rewalk.called(body), name), Rewalk.any_of(Rewalk.called(body), acc)), name <> acc, acc))
+
+# one def's findings, exempt or its piece and its arms
+law rewalk.stop:
+  for b: Bool
+  for +body: Tree.Node
+  for +name: String
+  for +lp: List<&2, String>
+  for +path: String
+  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, b, [], _u => List.concat(&2, F.Finding,
+    [Rewalk.local(body, name, lp, path), Rewalk.visit(body, name, lp, path)])))
+    == Bool.pick(Nat, b, 0n, Nat.add(Laws.rewalk.piece(body, name, lp), Laws.rewalk.arms(body, name, lp))) : Nat}
+
+def rewalk.stop(b, body, name, lp, path):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      rewalk.two_len(Rewalk.local(body, name, lp, path), Rewalk.visit(body, name, lp, path),
+        Laws.rewalk.piece(body, name, lp), Laws.rewalk.arms(body, name, lp),
+        Laws.rewalk_local_counts(body, name, lp, path), Laws.rewalk_visit_counts(body, name, lp, path))
+
+# rewalk's def walk: the findings gathered so far, then each def's
+law rewalk.go:
+  for ds: List<&2, Calls.Def>
+  for +lp: List<&2, String>
+  for +path: String
+  for +acc: List<&2, List<&2, F.Finding>>
+  {List.length(&2, F.Finding, Rewalk.check.go(ds, lp, path, acc)) == pick.sum(acc, Laws.rewalk.total(ds, lp, path))
+    : Nat}
+
+def rewalk.go(ds, lp, path, acc):
+  match ds:
+    case Nil{}:
+      pick.rev(acc, Nil{})
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +x = Lazy.stop(List<&2, F.Finding>, Calls.exempt(path, sig), [], _u => List.concat(&2, F.Finding,
+        [Rewalk.local(body, name, lp, path), Rewalk.visit(body, name, lp, path)]))
+      +n = Bool.pick(Nat, Calls.exempt(path, sig), 0n, Nat.add(Laws.rewalk.piece(body, name, lp),
+        Laws.rewalk.arms(body, name, lp)))
+      Equal.trans(Nat, List.length(&2, F.Finding, Rewalk.check.go(rest, lp, path, x <> acc)),
+        pick.sum(acc, Nat.add(List.length(&2, F.Finding, x), Laws.rewalk.total(rest, lp, path))),
+        pick.sum(acc, Nat.add(n, Laws.rewalk.total(rest, lp, path))),
+        rewalk.go(rest, lp, path, x <> acc),
+        Equal.cong(Nat, Nat, m => pick.sum(acc, Nat.add(m, Laws.rewalk.total(rest, lp, path))),
+          List.length(&2, F.Finding, x), n, rewalk.stop(Calls.exempt(path, sig), body, name, lp, path)))
+
+def Laws.rewalk_counts(path, _text, _toks, tree, _bound, _items):
+  +ds = Calls.defs(tree)
+  %rewalk.loops_eq(ds, []) : {List.length(&2, F.Finding, Rewalk.check.go(ds, Rewalk.loops.go(ds, []), path, []))
+    == Laws.rewalk.total(ds, _, path) : Nat}
+  rewalk.go(ds, Rewalk.loops.go(ds, []), path, [])
 
 # trace
 # -----
