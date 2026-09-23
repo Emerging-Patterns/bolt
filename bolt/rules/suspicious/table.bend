@@ -1,11 +1,14 @@
 # rule table: `List.get` or `List.set` at a computed index inside a def that
 # calls itself, when the list is a fixed table: a literal, an array, or
-# `List.replicate` / `Array.new` / `List.range` with a constant count, bound
-# once or defined beside the loop. The index walks that table on every step.
-# Keep it in an Array. A literal index (a fixed slot, including 0 and 1), a
-# growing or data-dependent list, a one-shot outside the recursion, and
-# `List.head` / `List.tail` do not run. `index` leaves a table this rule
-# owns, so one call is one finding. Laws and proofs do not run.
+# `List.replicate` / `Array.new` / `List.range` with a constant count, written
+# inline, defined beside the loop, or held by the let of that name in scope.
+# The index walks that table on every step. Keep it in an Array. A let reaches
+# the statements after it and the blocks under them, not a sibling case arm,
+# and a later let of the name to anything else ends it. A literal index (a
+# fixed slot, including 0 and 1), a growing or data-dependent list, a one-shot
+# outside the recursion, and `List.head` / `List.tail` do not run. `index`
+# leaves a table this rule owns, so one call is one finding. Laws and proofs
+# do not run.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
@@ -102,35 +105,50 @@ def lone_name(nn: Tree.Node) -> String:
     case other:
       ""
 
-# the list argument is a fixed table: inline, a local name, or `name()`
+# one use of a name, told apart from its other uses by where it stands
+def key(+tt: String, +line: U32, +col: U32) -> String:
+  tt ++ "@" ++ U32.show(line) ++ ":" ++ U32.show(col)
+
+# the chain is exactly one lowercase name: that use's key
+def lone_key(nn: Tree.Node) -> String:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, +t, +l, +c}}, Tree.NNil{}}:
+      key(t, l, c)
+    case other:
+      ""
+
+# the list argument is a fixed table: inline, a use of a let that holds one,
+# or `name()` / `name` for a table def of the file
 def owns(+nn: Tree.Node, +fixed: List<&2, String>) -> Bool:
   +called = call_name(nn)
   +named = lone_name(nn)
+  +used = lone_key(nn)
   Bool.or(built(nn), Bool.or(
-    Bool.and(Bool.not(String.is_empty(named)), List.contains(~String, ~String.eq, fixed, named)),
+    Bool.and(Bool.not(String.is_empty(named)),
+      Bool.or(List.contains(~String, ~String.eq, fixed, named), List.contains(~String, ~String.eq, fixed, used))),
     Bool.and(Bool.not(String.is_empty(called)), List.contains(~String, ~String.eq, fixed, called))))
 
-# one plain name before `=`, when the right-hand side is a fixed table
-def bind_bad(+bad: Bool, +nm: String, expr: Tree.Node) -> String:
+# one plain name before `=`, when the pattern is not a destructure
+def bind_bad(+bad: Bool, +nm: String) -> String:
   match bad:
     case True{}:
       ""
     case False{}:
-      Bool.pick(String, built(expr), nm, "")
+      nm
 
 # one plain name before `=`, when there is one
-def bind_at(+seen: Bool, +bad: Bool, +nm: String, expr: Tree.Node) -> String:
+def bind_at(+seen: Bool, +bad: Bool, +nm: String) -> String:
   match seen:
     case False{}:
       ""
     case True{}:
-      bind_bad(bad, nm, expr)
+      bind_bad(bad, nm)
 
-# the name a statement binds to a fixed table, or empty
+# the one plain name a statement binds, or empty
 def bind_name(nn: Tree.Node, +seen: Bool, +bad: Bool, +nm: String) -> String:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}}, rest}:
-      bind_at(seen, bad, nm, rest)
+      bind_at(seen, bad, nm)
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, +t, l, c}}, rest}:
       bind_name(rest, True{}, Bool.or(bad, seen), t)
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}}, rest}:
@@ -142,20 +160,49 @@ def bind_name(nn: Tree.Node, +seen: Bool, +bad: Bool, +nm: String) -> String:
     case other:
       ""
 
-# a name, when it is not empty
-def keep_name(+nm: String, +acc: List<&2, String>) -> List<&2, String>:
-  Bool.pick(List<&2, String>, String.is_empty(nm), acc, nm <> acc)
+# the right-hand side: the chain after a statement's top-level `=`
+def bind_rhs(nn: Tree.Node) -> Tree.Node:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}}, rest}:
+      rest
+    case Tree.NCons{h, rest}:
+      bind_rhs(rest)
+    case other:
+      Tree.NNil{}
 
-# names bound to a fixed table under the node
-def lets(nn: Tree.Node, acc: List<&2, String>) -> List<&2, String>:
+# the names in scope without this one
+def drop(live: List<&2, String>, +nm: String) -> List<&2, String>:
+  match live:
+    case Nil{}:
+      []
+    case Con{+h, rest}:
+      +more = drop(rest, nm)
+      Bool.pick(List<&2, String>, String.eq(h, nm), more, h <> more)
+
+# after a let of `nm`: it holds a table only when this binding is one
+def rebind(+nm: String, +tab: Bool, +live: List<&2, String>) -> List<&2, String>:
+  +out = drop(live, nm)
+  Bool.pick(List<&2, String>, String.is_empty(nm), live,
+    Bool.pick(List<&2, String>, tab, nm <> out, out))
+
+# a name use joins the keys when the let in scope for it holds a table
+def use_at(+tt: String, +line: U32, +col: U32, +live: List<&2, String>, +acc: List<&2, String>) -> List<&2, String>:
+  Bool.pick(List<&2, String>, List.contains(~String, ~String.eq, live, tt), key(tt, line, col) <> acc, acc)
+
+# the keys of every name use under the node whose binding in scope is a
+# table: a let reaches the statements after it and their bodies, not an
+# enclosing block or a sibling arm, and a later let of the name replaces it
+def lets(nn: Tree.Node, +live: List<&2, String>, acc: List<&2, String>) -> List<&2, String>:
   match nn:
     case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
-      +here = keep_name(bind_name(kids, False{}, False{}, ""), acc)
-      lets(rest, lets(body, lets(kids, here)))
+      +next = rebind(bind_name(kids, False{}, False{}, ""), built(bind_rhs(kids)), live)
+      lets(rest, next, lets(body, live, lets(kids, live, acc)))
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
-      lets(rest, lets(kids, acc))
+      lets(rest, live, lets(kids, live, acc))
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, +t, +l, +c}}, rest}:
+      lets(rest, live, use_at(t, l, c, live, acc))
     case Tree.NCons{h, rest}:
-      lets(rest, acc)
+      lets(rest, live, acc)
     case other:
       acc
 
@@ -175,9 +222,10 @@ def modules(ds: List<&2, Calls.Def>, acc: List<&2, String>) -> List<&2, String>:
     case Con{Calls.Def{+name, sig, +body}, rest}:
       modules(rest, mod_one(body, name, acc))
 
-# fixed tables visible in this def: its lets, and the file's table defs
+# fixed tables visible in this def: the file's table defs by name, and each
+# use of a let whose binding in scope is a table, by its key
 def scope(body: Tree.Node, +mods: List<&2, String>) -> List<&2, String>:
-  lets(body, mods)
+  lets(body, [], mods)
 
 # the finding for a get or a set
 def cite(+get: Bool, +path: String, +line: U32, +col: U32, +len: U32) -> F.Finding:
