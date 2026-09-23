@@ -2,7 +2,7 @@
 
 ## Draft Status
 
-State: Draft, for the maintainer's review. Nothing here changes `bolt` yet; the work packages below do.
+State: Accepted. Nothing here changes `bolt` yet; the work packages below do.
 
 This is the design for the fourth phase of [bolt-spec.md](bolt-spec.md): converting `bolt` (the lint command) to a pure planner and a thin interpreter, then proving the requirements that need the file system: BOLT-SCOPE-1 to SCOPE-5, BOLT-OUT-3 to OUT-5, and BOLT-CFG-4. It follows ez's planner for `ez lock` ([ez-lock-planner.md](https://github.com/Emerging-Patterns/ez/blob/main/docs/rfc/ez-lock-planner.md)) wherever the two problems are the same, so the two repositories keep one shape. `bolt check` (BOLT-CHK-1), the command line (BOLT-CLI) and the language server (BOLT-LSP) are later phases with their own designs. `SPEC.md` does not change until a requirement's law lands.
 
@@ -15,12 +15,12 @@ Decided with the maintainer before drafting:
 - [x] <!-- REVIEW (resolved): The two known bugs, relative-path config lookup (BOLT-CFG-4, bolt-spec.md REVIEW-5) and a directory named on the command line reading as empty text (BOLT-OUT-5), are fixed in separate `fix:` PRs after the planner lands, each with its law. -->
 - [x] <!-- REVIEW (resolved): One trust row for every interpreter, in ez's words (EZ-TRUST-2), added by the first planner PR and cited by the later ones. This replaces bolt-spec.md REVIEW-14's three rows. -->
 
-Open:
+The maintainer accepted each recommendation below:
 
-- [ ] <!-- REVIEW-P1: Config candidates are asked up front, for the directory chain of every linted path and of SPEC.md, instead of once per finding as today. Every finding's path is one of those, so the grading is the same; bolt reads each bolt.bend once per directory instead of once per finding. A law ties it: the planner never grades with a candidate it did not ask for. -->
-- [ ] <!-- REVIEW-P2: A directory listing that fails is read as empty, as `bolt/walk/dir.c` answers today. Making it a finding is a behavior change, left for a later `fix:` PR if wanted. -->
-- [ ] <!-- REVIEW-P3: BOLT-OUT-3's wording says the output ends with `coverage` and `unsafe`, but `Rules.project` also runs `trace` after them. We propose the row reads "then `coverage`, `unsafe` and `trace`" when OUT-3's law lands. -->
-- [ ] <!-- REVIEW-P4: The rows BOLT-LAW-1, LAW-2 and LAW-3 do not need the planner: `closed` is a per-file rule and `coverage` and `unsafe` are pure functions of the digests. They move to the rule-row queue and are proved over digests; only "the files in the run" (SCOPE-2, SCOPE-3) is the planner's. -->
+- [x] <!-- REVIEW-P1 (resolved): Config candidates are asked up front, for the directory chain of every linted path and of SPEC.md, instead of once per finding as today. Every finding's path is one of those, so the grading is the same; bolt reads each bolt.bend once per directory instead of once per finding. A law ties it: the planner never grades with a candidate it did not ask for. -->
+- [x] <!-- REVIEW-P2 (resolved): A directory listing that fails is read as empty, as `bolt/walk/dir.c` answers today. Making it a finding is a behavior change, left for a later `fix:` PR if wanted. -->
+- [x] <!-- REVIEW-P3 (resolved): BOLT-OUT-3's wording says the output ends with `coverage` and `unsafe`, but `Rules.project` also runs `trace` after them. We propose the row reads "then `coverage`, `unsafe` and `trace`" when OUT-3's law lands. -->
+- [x] <!-- REVIEW-P4 (resolved): The rows BOLT-LAW-1, LAW-2 and LAW-3 do not need the planner: `closed` is a per-file rule and `coverage` and `unsafe` are pure functions of the digests. They move to the rule-row queue and are proved over digests; only "the files in the run" (SCOPE-2, SCOPE-3) is the planner's. -->
 
 ---
 
