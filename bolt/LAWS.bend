@@ -21,7 +21,7 @@ import ./check.bend as Check
 import ./lsp/checker/service.bend as Checker
 import ./lsp/checker/bend.bend as BendChecker
 import ./lsp/report.bend as Rep
-import 0x65bf91e14c96bf0c25491d716ec9f68c/main.bend as Shake
+import 0xba6940aab8a335b70bf79944bd9b53c4/main.bend as Shake
 
 # LAW: nothing is set in an empty config
 # BOLT-CFG-1

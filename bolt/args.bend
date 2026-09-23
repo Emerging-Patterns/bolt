@@ -8,7 +8,7 @@
 # `out` is every decision the line makes, as data: what to print, where, and
 # the exit code, or the subcommand to run and its files. main only does it.
 import Base
-import 0x65bf91e14c96bf0c25491d716ec9f68c/main.bend as Shake
+import 0xba6940aab8a335b70bf79944bd9b53c4/main.bend as Shake
 import ./version.bend as Ver
 import ./build_rev.bend as Rev
 
