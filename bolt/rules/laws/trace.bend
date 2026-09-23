@@ -112,7 +112,7 @@ def add_req(+line: String, +nn: U32, st: Spec) -> Spec:
   Spec{+mode, +reqs, +trust, +bad} = st
   +cs = cells(line)
   Lazy.stop(Spec, Bool.not(Nat.is_eq(List.length(&2, String, cs), 5n)),
-    Spec{mode, reqs, trust, Mark{"a requirement row has five cells", nn} <> bad},
+    Spec{mode, reqs, trust, Mark{"a requirement row must have five cells", nn} <> bad},
     _u => Spec{mode, Row{cell(cs, 0n), cell(cs, 2n), cell(cs, 3n), entries(cell(cs, 4n)), nn} <> reqs, trust, bad})
 
 # a trust row onto the spec, or a malformed one
@@ -121,7 +121,7 @@ def add_trust(+line: String, +nn: U32, st: Spec) -> Spec:
   +cs = cells(line)
   Bool.pick(Spec, Nat.is_eq(List.length(&2, String, cs), 3n),
     Spec{mode, reqs, Mark{cell(cs, 0n), nn} <> trust, bad},
-    Spec{mode, reqs, trust, Mark{"a trust row has three cells", nn} <> bad})
+    Spec{mode, reqs, trust, Mark{"a trust row must have three cells", nn} <> bad})
 
 # the spec in another mode
 def moved(st: Spec, mm: Mode) -> Spec:
@@ -259,12 +259,12 @@ def tagged(doc: List<&2, String>, +id: String) -> Bool:
 def judge_law(mm: Maybe<&2, Digest.Law>, +id: String, +entry: String, +nn: U32) -> List<&2, F.Finding>:
   match mm:
     case None{}:
-      [at(nn, id ++ " names " ++ entry ++ ", which is not a law of a LAWS.bend bolt read.")]
+      [at(nn, id ++ " names " ++ entry ++ ", which is not a law in any LAWS.bend that bolt read.")]
     case Some{Digest.Law{n, l, +b, +d}}:
       List.append(&2, F.Finding,
-        Bool.pick(List<&2, F.Finding>, b, [], [at(nn, id ++ " names " ++ entry ++ ", which has no for or exs.")]),
+        Bool.pick(List<&2, F.Finding>, b, [], [at(nn, id ++ " names " ++ entry ++ ", a law with no `for` or `exs` binder.")]),
         Bool.pick(List<&2, F.Finding>, tagged(d, id), [],
-          [at(nn, id ++ " names " ++ entry ++ ", which is not tagged # " ++ id ++ ".")]))
+          [at(nn, id ++ " names " ++ entry ++ ", but that law is not tagged # " ++ id ++ ".")]))
 
 # the law file of an entry, then the law in it
 def judge_file(
@@ -276,7 +276,7 @@ def judge_file(
 ) -> List<&2, F.Finding>:
   match mm:
     case None{}:
-      [at(nn, id ++ " names " ++ entry ++ ", whose file is not a LAWS.bend bolt read.")]
+      [at(nn, id ++ " names " ++ entry ++ ", but its file is not a LAWS.bend that bolt read.")]
     case Some{ls}:
       judge_law(law_named(ls, name), id, entry, nn)
 
@@ -285,7 +285,7 @@ def judge_entry(+ds: List<&2, Digest.Digest>, +id: String, +entry: String, +nn: 
   +words = String.split(entry, ' ')
   +path = Imports.norm(cell(words, 0n))
   Lazy.stop(List<&2, F.Finding>, Bool.not(Nat.is_eq(List.length(&2, String, words), 2n)),
-    [at(nn, id ++ ": a Law entry is <path> <law>, not " ++ entry ++ ".")],
+    [at(nn, id ++ ": a Law entry must be <path> <law>, not " ++ entry ++ ".")],
     _u => judge_file(laws_file(ds, path), cell(words, 1n), id, entry, nn))
 
 # every Law entry of a Proved row
@@ -306,9 +306,9 @@ def shape(+lv: String, +st: String, +ls: List<&2, String>) -> String:
   +trusted = Bool.and(String.eq(lv, "Trusted"), String.is_empty(st))
   +none = List.is_empty(&2, String, ls)
   Bool.pick(String, Bool.not(Bool.or(claims(lv, st), trusted)),
-    "the level is Proved or Trusted, the status proved or pending for Proved and empty for Trusted",
-    Bool.pick(String, Bool.and(proved, none), "a proved row names its law",
-      Bool.pick(String, Bool.and(trusted, Bool.not(none)), "a Trusted row names no law", "")))
+    "the level must be Proved or Trusted, and the status proved or pending for Proved, empty for Trusted",
+    Bool.pick(String, Bool.and(proved, none), "a proved row must name its law",
+      Bool.pick(String, Bool.and(trusted, Bool.not(none)), "a Trusted row must not name a law", "")))
 
 # every finding of one requirement row
 def judge_row(rr: Row, +sp: Spec, +ds: List<&2, Digest.Digest>) -> List<&2, F.Finding>:
@@ -316,11 +316,11 @@ def judge_row(rr: Row, +sp: Spec, +ds: List<&2, Digest.Digest>) -> List<&2, F.Fi
   Spec{mode, reqs, trust, bad} = sp
   +why = shape(lv, st, ls)
   List.concat(&2, F.Finding, [
-    Bool.pick(List<&2, F.Finding>, is_id(id), [], [at(nn, id ++ " is not an ID: [A-Z][A-Z0-9]*(-[A-Z0-9]+)+.")]),
+    Bool.pick(List<&2, F.Finding>, is_id(id), [], [at(nn, id ++ " is not a valid ID; an ID matches [A-Z][A-Z0-9]*(-[A-Z0-9]+)+.")]),
     Bool.pick(List<&2, F.Finding>, Nat.is_gt(rows_with(reqs, id), 1n), [at(nn, id ++ " is listed twice.")], []),
     Bool.pick(List<&2, F.Finding>, String.is_empty(why), [], [at(nn, id ++ ": " ++ why ++ ".")]),
     Bool.pick(List<&2, F.Finding>, Bool.and(String.eq(lv, "Trusted"), Nat.is_eq(marks_with(trust, id), 0n)),
-      [at(nn, id ++ " is Trusted and has no row in the trust boundary table.")], []),
+      [at(nn, id ++ " is Trusted but has no row in the trust boundary table.")], []),
     Lazy.stop(List<&2, F.Finding>, Bool.not(claims(lv, st)), [], _u => judge_entries(ls, ds, id, nn))])
 
 # every finding of every requirement row
@@ -355,7 +355,7 @@ def stray(
       +more = stray(rest, rs, path, name, ll)
       Lazy.stop(List<&2, F.Finding>, Lazy.or_else(Bool.not(is_id(tt)), _u => claimed(rs, tt)), more,
         _u => F.Finding{path, ll, 0, 0, "trace",
-          "Law " ++ name ++ " is tagged " ++ tt ++ ", which SPEC.md does not list as Proved, proved or pending."} <> more)
+          "Law " ++ name ++ " is tagged " ++ tt ++ ", which is not a Proved row in SPEC.md with status proved or pending."} <> more)
 
 def strays.laws(ls: List<&2, Digest.Law>, +rs: List<&2, Row>, +path: String) -> List<&2, F.Finding>:
   match ls:
@@ -378,7 +378,7 @@ def malformed(ms: List<&2, Mark>) -> List<&2, F.Finding>:
     case Nil{}:
       Nil{}
     case Con{Mark{why, nn}, rest}:
-      at(nn, "Not a well-formed row: " ++ why ++ ".") <> malformed(rest)
+      at(nn, "Malformed row: " ++ why ++ ".") <> malformed(rest)
 
 # every trust row whose ID is not an ID, or is listed twice
 def twins(ms: List<&2, Mark>, +all: List<&2, Mark>) -> List<&2, F.Finding>:
@@ -389,7 +389,7 @@ def twins(ms: List<&2, Mark>, +all: List<&2, Mark>) -> List<&2, F.Finding>:
       +more = twins(rest, all)
       +twice = Bool.pick(List<&2, F.Finding>, Nat.is_gt(marks_with(all, id), 1n), at(nn, id ++ " is listed twice.") <> more,
         more)
-      Bool.pick(List<&2, F.Finding>, is_id(id), twice, at(nn, id ++ " is not an ID: [A-Z][A-Z0-9]*(-[A-Z0-9]+)+.") <> twice)
+      Bool.pick(List<&2, F.Finding>, is_id(id), twice, at(nn, id ++ " is not a valid ID; an ID matches [A-Z][A-Z0-9]*(-[A-Z0-9]+)+.") <> twice)
 
 # the rule over a SPEC.md that was read
 def check.spec(+sp: Spec, +ds: List<&2, Digest.Digest>) -> List<&2, F.Finding>:

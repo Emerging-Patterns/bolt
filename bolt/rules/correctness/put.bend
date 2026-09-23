@@ -55,7 +55,7 @@ def calls.one(
   +more: List<&2, F.Finding>
 ) -> List<&2, F.Finding>:
   Bool.pick(List<&2, F.Finding>, Bool.and(String.eq(tt, "Map.put"), String.eq(oo, "(")),
-    F.Finding{path, ll, cc, 7, "put", "Map.put never compares keys, so a new key overwrites another entry; use Map.set."}
+    F.Finding{path, ll, cc, 7, "put", "Map.put does not compare keys, so a new key can overwrite an existing entry; use Map.set."}
       <> more,
     more)
 

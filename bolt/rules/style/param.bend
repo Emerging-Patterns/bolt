@@ -54,7 +54,7 @@ def check.go(binds: List<&2, Bind.Bind>, +path: String) -> List<&2, F.Finding>:
       +hit = Bool.and(check.is_param(kind), Bool.and(check.short(nm), Bool.not(check.allowed(nm, note))))
       Bool.pick(List<&2, F.Finding>, hit,
         F.Finding{path, line, col, U32.from_nat(String.length(nm)), "param",
-          "Parameter " ++ nm ++ " is shorter than 2 characters."} <> more, more)
+          "Parameter " ++ nm ++ " is too short; use at least 2 characters."} <> more, more)
 
 def check.on(binds: List<&2, Bind.Bind>, +path: String) -> List<&2, F.Finding>:
   Lazy.stop(List<&2, F.Finding>, Paths.is_proof(path), [], _u => check.go(binds, path))

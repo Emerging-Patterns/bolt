@@ -52,7 +52,7 @@ def hit(
     case Some{Lex.Tok{k, +t, l, c}}:
       Bool.pick(List<&2, F.Finding>, String.eq(t, slot),
         F.Finding{path, l, c, U32.from_nat(String.length(t)), "concat",
-          t ++ " grows by appending on each step, which is quadratic; prepend and reverse once, or build with <>."} <> acc,
+          t ++ " is appended to on every step, which copies it each time and makes the loop quadratic; prepend and reverse once at the end, or build with <>."} <> acc,
         acc)
 
 # the findings on a self-call's arguments, each against the parameter in its

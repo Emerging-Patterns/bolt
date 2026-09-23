@@ -247,14 +247,14 @@ law trace_pending_shape:
 law trace_proved_shape:
   for +ls: List<&2, String>
   {Trace.shape("Proved", "proved", ls)
-    == Bool.pick(String, List.is_empty(&2, String, ls), "a proved row names its law", "") : String}
+    == Bool.pick(String, List.is_empty(&2, String, ls), "a proved row must name its law", "") : String}
 
 # LAW: a Trusted row is well formed exactly when its Law cell is empty
 # BOLT-LAW-5
 law trace_trusted_shape:
   for +ls: List<&2, String>
   {Trace.shape("Trusted", "", ls)
-    == Bool.pick(String, List.is_empty(&2, String, ls), "", "a Trusted row names no law") : String}
+    == Bool.pick(String, List.is_empty(&2, String, ls), "", "a Trusted row must not name a law") : String}
 
 # LAW: a tag naming a pending row is claimed exactly as one naming a proved
 # row is, so neither is a stray
@@ -2545,11 +2545,11 @@ def coverage.gaps(
     case Con{Digest.Top{Outline.IDef{}, +name, +line, cs}, rest}:
       +more = coverage.gaps(rest, ds, pp, path)
       Bool.pick(List<&2, F.Finding>, Bool.or(String.contains(name, "."), coverage.used(ds, pp, name)), more,
-        F.Finding{path, line, 0, 0, "coverage", "Def " ++ name ++ " is named by no law."} <> more)
+        F.Finding{path, line, 0, 0, "coverage", "No quantified law names def " ++ name ++ "."} <> more)
     case Con{Digest.Top{Outline.IType{}, +name, +line, cs}, rest}:
       +more = coverage.gaps(rest, ds, pp, path)
       Bool.pick(List<&2, F.Finding>, Bool.or(coverage.used(ds, pp, name), coverage.any(cs, ds, pp)), more,
-        F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ " is named by no law, nor are its constructors."}
+        F.Finding{path, line, 0, 0, "coverage", "No quantified law names type " ++ name ++ " or any of its constructors."}
           <> more)
     case Con{other, rest}:
       coverage.gaps(rest, ds, pp, path)
@@ -2612,8 +2612,8 @@ def unsafe.each(us: List<&2, Digest.Unsafe>, +origin: String, +path: String) -> 
     case Nil{}:
       Nil{}
     case Con{Digest.Unsafe{n, l, c}, rest}:
-      F.Finding{path, l, c, 7, "unsafe", "@unsafe def " ++ n ++ " is reached from " ++ origin
-        ++ "; the checker only warns there and exits 0. Recurse on a shrinking argument or fuel."}
+      F.Finding{path, l, c, 7, "unsafe", "@unsafe def " ++ n ++ " is reachable from " ++ origin
+        ++ ", where the checker skips its termination check and still exits 0; recurse on a shrinking argument or on fuel, and drop @unsafe."}
         <> unsafe.each(rest, origin, path)
 
 # a file's unsafe defs when a law file reaches it, else nothing

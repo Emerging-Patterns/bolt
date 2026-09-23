@@ -45,7 +45,7 @@ def width_of(kk: Lex.TokKind, +tt: String) -> U32:
 # a finding when the width is over 120
 def too_wide(+width: U32, +path: String, +nn: U32, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
   Bool.pick(List<&2, F.Finding>, U32.is_gt(width, 120),
-    F.Finding{path, nn, 120, 0, "space", "Line exceeds the 120-character limit."} <> more, more)
+    F.Finding{path, nn, 120, 0, "space", "Line is longer than 120 characters."} <> more, more)
 
 # one pass over the tokens: a newline closes a line's width
 def widths(toks: List<&2, Lex.Tok>, +path: String, +nn: U32, +acc: U32) -> List<&2, F.Finding>:

@@ -67,7 +67,7 @@ def call(
   +more = List.concat(&2, F.Finding, [kids, rest])
   Bool.pick(List<&2, F.Finding>, Bool.and(Bool.and(String.eq(oo, "("), String.eq(tt, name)), hot),
     F.Finding{path, ll, cc, U32.from_nat(String.length(name)), "strict",
-      name ++ " recurses inside Bool.and or Bool.or, so both sides always run and there is no short-circuit; bind the call above."} <> more,
+      name ++ " calls itself inside Bool.and or Bool.or, which evaluate both sides, so there is no short-circuit; match on the Bool in a helper."} <> more,
     more)
 
 # a leaf read by its kind: past a comma, past a `=>`, or past any other

@@ -68,11 +68,11 @@ def walk(nn: Tree.Node, +name: String, +path: String, +quiet: Bool, +hush: Bool,
         walk(rest, name, path, quiet, hush, at)])
       Bool.pick(List<&2, F.Finding>, two,
         F.Finding{path, l, c, 9, "pick",
-          name ++ " recurses in both branches of Bool.pick, so both calls run; bind the recursive call once above the pick."}
+          name ++ " calls itself in both branches of Bool.pick, which evaluates both, so both calls run; bind the call once above the pick."}
           <> more,
         Bool.pick(List<&2, F.Finding>, one,
           F.Finding{path, l, c, 9, "pick",
-            name ++ " recurses in one branch of Bool.pick, so the call runs whatever the condition and there is no early exit; bind it above the pick."}
+            name ++ " calls itself in one branch of Bool.pick, which evaluates both, so the call always runs and never exits early; use Lazy.stop."}
             <> more,
           more))
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, rest}:

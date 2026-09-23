@@ -831,7 +831,7 @@ def check.place_loose(
       more
     case Some{Span{+line, _end, +col}}:
       F.Finding{path, (base + line : U32), col, 0, "wrap",
-        "Def header's return type is not on the `)` line; put `) -> ` and the return type together on one line."}
+        "The return type is not on the `)` line; write `) -> T` on one line."}
         <> more
 
 # the `)` on the last parameter's line, as a finding, else the return type
@@ -848,7 +848,7 @@ def check.place_shut(
       check.place_loose(loose, base, path, more)
     case Some{Span{+line, _end, +col}}:
       F.Finding{path, (base + line : U32), col, 0, "wrap",
-        "Def header does not close on its own line; put `)` and the return type on the line after the last parameter."}
+        "The `)` shares a line with the last parameter; put `)` and the return type on a line of their own."}
         <> more
 
 # an empty parameter list across lines, as a finding, else a misplaced `)`
@@ -865,7 +865,7 @@ def check.place_empty(
       check.place_shut(shut, loose, base, path, more)
     case Some{Span{+line, _end, +col}}:
       F.Finding{path, (base + line : U32), col, 0, "wrap",
-        "Def header has no parameters but breaks across lines; join it onto one line."}
+        "This def header has no parameters but spans several lines; put it on one line."}
         <> more
 
 # the parameter that breaks the shape, else an empty list, a misplaced `)` or
@@ -884,7 +884,7 @@ def check.place(
       check.place_empty(empty, shut, loose, base, path, more)
     case Some{Span{+line, _end, +col}}:
       F.Finding{path, (base + line : U32), col, 0, "wrap",
-        "Def header is not one parameter per line; put one parameter on each line within the 120-character limit."}
+        "This wrapped def header does not have one parameter per line; put each parameter on its own line."}
         <> more
 
 # a multi-line header that is not one parameter per line, holds no parameter,
@@ -897,7 +897,7 @@ def check.jam(+line: U32, toks: List<&2, Lex.Tok>, +path: String, +more: List<&2
 def check.wide(+line: U32, +sig: String, +path: String, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
   Lazy.stop(List<&2, F.Finding>, U32.is_gt(check.width(sig), 120),
     F.Finding{path, line, 120, 0, "wrap",
-      "Def header exceeds the 120-character limit; wrap with one parameter per line."} <> more, _u => more)
+      "This def header is longer than 120 characters; wrap it with one parameter per line."} <> more, _u => more)
 
 # a broken header is judged by its shape; a one-line header by its width
 def check.header(

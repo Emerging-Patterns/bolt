@@ -37,7 +37,7 @@ def check.go(root: Tree.Node, +path: String) -> List<&2, F.Finding>:
       Lazy.stop(List<&2, F.Finding>, binds(body), more,
         _u => F.Finding{path, Tree.line(kids), Tree.col(kids), 0, "closed",
           "Law " ++ name.of(Bind.declared(kids))
-            ++ " has no for or exs, so it checks one case; quantify it, or delete it."} <> more)
+            ++ " has no `for` or `exs` binder, so it checks a single case; quantify it or delete it."} <> more)
     case Tree.NCons{h, rest}:
       check.go(rest, path)
     case other:
