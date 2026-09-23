@@ -24,7 +24,7 @@ A Trusted requirement's ID appears once in a requirement table and once in the t
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-RULE-C002 | `hole` reports exactly a TODO hole bend counts, a `?` then `TODO` with only spaces, newlines or comments between, outside a LAWS.bend, and nothing else. | Proved | pending |  |
+| BOLT-RULE-C002 | `hole` reports exactly a TODO hole bend counts, a `?` then `TODO` with only spaces, newlines or comments between, outside a LAWS.bend, and nothing else. | Proved | proved | bolt/rules/LAWS.bend hole_counts |
 | BOLT-RULE-C003 | `pick` reports exactly a self-call in one or both branches of `Bool.pick`, and does not report again a nested pick in a branch it reported. | Proved | pending |  |
 | BOLT-RULE-C004 | `put` reports exactly one finding for each `Map.put` token with a `(` token right after it among the significant tokens, and none in a file where a `def` keyword has a `Map.put` token right after it. | Proved | proved | bolt/rules/LAWS.bend put_counts |
 | BOLT-RULE-C005 | `arms` reports exactly, in a single-scrutinee match, a Nat arm already covered by an earlier `kn+p`, `Succ{p}` or `Succ{_}` arm. | Proved | pending |  |
