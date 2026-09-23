@@ -271,19 +271,15 @@ def flush(kind: TokKind, sl: U32, sc: U32, +buf: List<&2, Char>, +toks: List<&2,
   +t = word(buf)
   Bool.pick(List<&2, Tok>, List.is_empty(&2, Char, buf), toks, Tok{refine(kind, t), t, sl, sc} <> toks)
 
-# is the class a newline's?
-def is_newline(cls: Class) -> Bool:
-  match cls:
-    case CNewline{}:
-      True{}
-    case other:
-      False{}
+# is the char a line break, '\n'? The one char whose class is CNewline
+def is_newline(cc: Char) -> Bool:
+  U32.is_eq(Char.to_u32(cc), 10)
 
 # one char: it continues the current token, or starts a new one
 def step(+cc: Char, st: St) -> St:
   St{+mode, +kind, +line, +col, +sl, +sc, +buf, +toks} = st
   +cls = classify(cc)
-  +nl = is_newline(cls)
+  +nl = is_newline(cc)
   +line2 = Bool.pick(U32, nl, (line + 1 : U32), line)
   +col2 = Bool.pick(U32, nl, 0, (col + 1 : U32))
   Bool.pick(St, continues(mode, cls),

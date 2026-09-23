@@ -10,8 +10,10 @@ What an editor needs to know about a Bend source without checking it.
   A line that starts inside a string literal is text, never an item.
 - `word.bend`: the name under a (line, col), and the name being typed there.
 - `lex.bend`: a lossless lexer with positions (the texts spell the source
-  back, whatever it is). A string runs across newlines to its closing quote,
-  as bend reads it; an unclosed one runs to the end of the file.
+  back, whatever it is, and each token sits at its first char's line and
+  column, 0-based, counting code points). A string runs across newlines to
+  its closing quote, as bend reads it; an unclosed one runs to the end of the
+  file.
   Token kinds tell apart what binds from what does not (keywords, dotted and
   capitalized names, `_`, and the operators `:` `=` `<-` `->` `=>` `@` `&`),
   so a walk can branch by constructor.
