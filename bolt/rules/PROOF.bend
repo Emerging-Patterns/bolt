@@ -1129,7 +1129,7 @@ law ex.calls:
 
 def ex.calls(path, sig, e):
   s = Equal.sym(Bool, Paths.is_law_file(path), True{}, e)
-  %s : {Bool.or(_, Calls.returns_proof(sig)) == True{} : Bool}
+  %s : {Bool.or(_, Calls.proof(sig)) == True{} : Bool}
   {==}
 
 # not (x and not True) holds whatever x is
@@ -1421,6 +1421,28 @@ def ex.unit(ds, path, n, e):
 
 def Laws.unit_exempt(path, _text, _toks, tree, _bound, _items, e):
   ex.unit(Calls.defs(tree), path, 0n, e)
+
+# an or whose second side ends in a true or holds whatever the rest is
+law ex.or_true:
+  for a: Bool
+  for b: Bool
+  {Bool.or(a, Bool.or(b, True{})) == True{} : Bool}
+
+def ex.or_true(a, b):
+  match a b:
+    case True{} True{}:
+      {==}
+    case True{} False{}:
+      {==}
+    case False{} True{}:
+      {==}
+    case False{} False{}:
+      {==}
+
+def Laws.untyped_exempt(path, sig, e):
+  %Equal.sym(Bool, Calls.typed(sig), False{}, e) :
+    {Bool.or(Paths.is_law_file(path), Bool.or(Calls.returns_proof(sig), Bool.not(_))) == True{} : Bool}
+  ex.or_true(Paths.is_law_file(path), Calls.returns_proof(sig))
 
 # The match rules, chars and strings: a statement's walk joins three lists,
 # its own finding, its body's and the rest's, so the count is their sum.
@@ -19054,6 +19076,43 @@ def inert.returns_proof(sig):
     case Tree.Stmt{sk, sks, sb}: {==}
     case Tree.NNil{}: {==}
 
+# a chain read that way has a top-level arrow as it had
+law inert.has_arrow:
+  for pp: Tree.Node
+  {Calls.has_arrow(Laws.inert.node(pp)) == Calls.has_arrow(pp) : Bool}
+
+def inert.has_arrow(pp):
+  match pp:
+    case Tree.NCons{+h, +rest}:
+      inert.or_else(Calls.kind.leaf(~Calls.kind.arrow, Laws.inert.node(h)), Calls.kind.leaf(~Calls.kind.arrow, h),
+        Calls.has_arrow(Laws.inert.node(rest)), Calls.has_arrow(rest), inert.arrow(h), inert.has_arrow(rest))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a signature read that way writes a type as it did
+law inert.typed:
+  for +sig: Tree.Node
+  {Calls.typed(Laws.inert.node(sig)) == Calls.typed(sig) : Bool}
+
+def inert.typed(sig):
+  +ps = Calls.params.of(sig)
+  %Equal.sym(Tree.Node, Calls.params.of(Laws.inert.node(sig)), Laws.inert.node(ps), inert.params.of(sig)) :
+    {Lazy.or_else(Calls.has_colon(_), _u => Calls.has_arrow(Laws.inert.node(sig))) == Calls.typed(sig) : Bool}
+  inert.or_else(Calls.has_colon(Laws.inert.node(ps)), Calls.has_colon(ps), Calls.has_arrow(Laws.inert.node(sig)),
+    Calls.has_arrow(sig), inert.has_colon(ps), inert.has_arrow(sig))
+
+# a signature read that way is a proof as it was
+law inert.proof:
+  for +sig: Tree.Node
+  {Calls.proof(Laws.inert.node(sig)) == Calls.proof(sig) : Bool}
+
+def inert.proof(sig):
+  inert.or2(Calls.returns_proof(Laws.inert.node(sig)), Calls.returns_proof(sig),
+    Bool.not(Calls.typed(Laws.inert.node(sig))), Bool.not(Calls.typed(sig)), inert.returns_proof(sig),
+    Equal.cong(Bool, Bool, z => Bool.not(z), Calls.typed(Laws.inert.node(sig)), Calls.typed(sig), inert.typed(sig)))
+
 # a signature read that way is exempt as it was
 law inert.exempt:
   for +path: String
@@ -19061,8 +19120,8 @@ law inert.exempt:
   {Calls.exempt(path, Laws.inert.node(sig)) == Calls.exempt(path, sig) : Bool}
 
 def inert.exempt(path, sig):
-  Equal.cong(Bool, Bool, z => Bool.or(Paths.is_law_file(path), z), Calls.returns_proof(Laws.inert.node(sig)),
-    Calls.returns_proof(sig), inert.returns_proof(sig))
+  Equal.cong(Bool, Bool, z => Bool.or(Paths.is_law_file(path), z), Calls.proof(Laws.inert.node(sig)),
+    Calls.proof(sig), inert.proof(sig))
 
 # the walks: two or three finding lists that read as they did join the same
 law inert.cat2:

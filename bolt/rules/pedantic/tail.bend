@@ -9,7 +9,8 @@
 # make the self-call the whole statement (reverse once at the end if order
 # matters). Idiomatic code does this on purpose, so the rule is noisy: off
 # unless asked. Everything inside a `Bool.pick(..)` is skipped, whether or
-# not `pick` reports it; laws and proofs are exempt.
+# not `pick` reports it; laws and proofs are exempt, and a def with no type
+# at all fills a law, so it is a proof.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F

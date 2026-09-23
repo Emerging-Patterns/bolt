@@ -7,8 +7,9 @@
 # a build. A table of eight cells or fewer is left alone, and so is a build
 # whose arguments depend on the step. A name that is not a carried parameter
 # (a pattern binder, a value computed on the step) keeps the build; a case arm
-# that does not recurse is cold; laws and proofs do not run. `List.get` itself
-# stays with `index`.
+# that does not recurse is cold; laws and proofs do not run (a def with no
+# type at all fills a law: it is a proof). `List.get` itself stays with
+# `index`.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
