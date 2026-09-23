@@ -234,10 +234,12 @@ beside the groups.
   also does IO, or that says "IO" in a comment. What is out of scope is
   decided by the def's name and the file's path, never by the file's text.
   A law names a def when
-  its statement mentions it, through the law file's import alias (`M.join`
-  in `core/LAWS.bend` names `join` of `core/monoid/service.bend`); laws in
-  any file count, PROOF.bend's lemmas included. A type is covered once any
-  law reaches its module: a law about an instance names the accessors, never
+  it is a quantified law in a LAWS.bend and its binders or statement use the
+  def, through the law file's import alias (`M.join` in `core/LAWS.bend`
+  names `join` of `core/monoid/service.bend`) or in the law's own file. A
+  closed law, a law's own name, and a law outside a LAWS.bend (PROOF.bend's
+  lemmas included) name nothing. A type is covered when such a law names it
+  or a def of its module: a law about an instance names the accessors, never
   the service type. Out of scope: helpers (dotted names), tests, and the law
   files. `main` is a def: a law that names it covers it. A project without
   a LAWS.bend is not under law.
