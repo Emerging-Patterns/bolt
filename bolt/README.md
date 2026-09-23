@@ -134,8 +134,12 @@ beside the groups.
   breaks puts `(` at the end of the first line and one parameter on each
   following line, then `)` and the return type on a line of their own after
   the last parameter. Several parameters on a line, a parameter left on the
-  `def` line, a parameter split across lines, or a `)` on the last
-  parameter's line (`bb: U32) -> U32:`), is a finding.
+  `(` line, a parameter split across lines, a `)` on the last parameter's
+  line (`bb: U32) -> U32:`), a `)` with no `->` right after it on its line
+  (the return type on a line of its own; a def that fills a law has no
+  return type, so `):` ends it), or a parameter list across lines with no
+  parameter in it (`def none(` then `) -> U32:`: join it onto one line), is
+  a finding.
 - `param` — a parameter name shorter than 2 characters. A single uppercase
   letter is a type parameter (`A`, `T`), and a bare parameter or one typed
   `Quant` is a quantity. Locals, patterns and a law's `for` names are not

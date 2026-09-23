@@ -5,9 +5,13 @@
 # puts `(` at the end of the first line and one parameter on each following
 # line, then `)` and the return type on a line of their own after the last
 # parameter. Several parameters on a line, a parameter left on the `(`
-# line, a parameter split across lines, or a `)` on the last parameter's line
-# (`bb: U32) -> U32:`), is a finding. A comment after the header's `:` is not
-# part of the header: `def u(aa: U32) -> U32: # note` is a one-line header.
+# line, a parameter split across lines, a `)` on the last parameter's line
+# (`bb: U32) -> U32:`), a `)` with no `->` right after it on its line (the
+# return type on a line of its own, `)` then `-> U32:`; a def that fills a
+# law has no return type, and `):` is its end), or a parameter list
+# with no parameter in it (`def none(` then `) -> U32:`, which fits on one
+# line), is a finding. A comment after the header's `:` is not part of the
+# header: `def u(aa: U32) -> U32: # note` is a one-line header.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
@@ -20,11 +24,14 @@ import ./space.bend as Space
 type Span is Data:
   Span{line: U32, end: U32, col: U32}
 
-# seeking the parameter list, inside it, or past its `)`
+# seeking the parameter list, inside it, just past its `)`, past a `->`
+# right after it on its line, or past anything else after it
 type Phase is Data:
   Seek{}
   Args{}
   Past{}
+  Shut{}
+  Loose{}
 
 # what a token does to the bracket depths
 type Act is Data:
@@ -39,6 +46,8 @@ type Act is Data:
   AAngle{}
   AUnangle{}
   AComma{}
+  AArrow{}
+  AStray{}
   ANone{}
 
 # the walk: depths, where the list's `)` sat, the `(` line, and the parameter
@@ -319,6 +328,27 @@ def check.act_done(
 ) -> Act:
   ANone{}
 
+# `->`
+def check.is_arrow(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TArrow{}:
+      True{}
+    case other:
+      False{}
+
+# right after the list's `)`, a `->`, or the `:` of a header with no return
+# type (a def that fills a law), or anything else
+def check.act_shut(
+  +kk: Lex.TokKind,
+  _tx: String,
+  _glued: Bool,
+  _paren: U32,
+  _angle: U32,
+  _brace: U32,
+  _bracket: U32
+) -> Act:
+  Bool.pick(Act, Bool.or(check.is_arrow(kk), check.is_colon(kk)), AArrow{}, AStray{})
+
 # the motion of one token
 def check.act(
   ph: Phase,
@@ -332,6 +362,10 @@ def check.act(
 ) -> Act:
   match ph:
     case Past{}:
+      check.act_done(kk, tx, glued, paren, angle, brace, bracket)
+    case Shut{}:
+      check.act_shut(kk, tx, glued, paren, angle, brace, bracket)
+    case Loose{}:
       check.act_done(kk, tx, glued, paren, angle, brace, bracket)
     case Seek{}:
       check.act_seek(kk, tx, glued, paren, angle, brace, bracket)
@@ -429,7 +463,7 @@ def check.ended(
   +ln: U32,
   cl: U32
 ) -> Walk:
-  check.rebuild(ticks, Past{}, check.dec_u(paren), bracket, brace, angle, Span{ln, ln, cl}, open, False{},
+  check.rebuild(ticks, Shut{}, check.dec_u(paren), bracket, brace, angle, Span{ln, ln, cl}, open, False{},
     0, 0, 0, check.cons(on, pline, pend, pcol, spans))
 
 # a comma closes the parameter that was open
@@ -469,6 +503,11 @@ def check.unangled(
 ) -> Walk:
   check.rebuild(0n, mode, paren, bracket, brace, check.sub(ticks, angle), shut, open, on, pline, pend, pcol, spans)
 
+# a `->` on the `)` line puts the return type there; on a later line it does not
+def check.turn(+ln: U32, shut: Span) -> Phase:
+  Span{+line, _end, _col} = shut
+  Bool.pick(Phase, U32.is_eq(ln, line), Past{}, Loose{})
+
 # the token's motion applied to fields already taken off the walk
 def check.apply_on(
   motion: Act,
@@ -477,7 +516,7 @@ def check.apply_on(
   bracket: U32,
   brace: U32,
   angle: U32,
-  shut: Span,
+  +shut: Span,
   open: U32,
   on: Bool,
   pline: U32,
@@ -511,6 +550,10 @@ def check.apply_on(
       check.unangled(ticks, mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans)
     case AComma{}:
       check.commaed(ticks, mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans)
+    case AArrow{}:
+      check.rebuild(ticks, check.turn(ln, shut), paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans)
+    case AStray{}:
+      check.rebuild(ticks, Loose{}, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans)
     case ANone{}:
       check.rebuild(ticks, mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans)
 
@@ -741,13 +784,43 @@ def check.shut_at(shut: Span, spans: List<&2, Span>) -> Maybe<&2, Span>:
 def check.shut_span(wk: Walk) -> Maybe<&2, Span>:
   Walk{mode, _paren, _bracket, _brace, _angle, shut, _open, _on, _pline, _pend, _pcol, spans} = wk
   match mode:
-    case Past{}:
+    case Seek{}:
+      None{}
+    case Args{}:
+      None{}
+    case other:
       check.shut_at(shut, spans)
+
+# the `)` with no `->` right after it on its line
+def check.loose_span(wk: Walk) -> Maybe<&2, Span>:
+  Walk{mode, _paren, _bracket, _brace, _angle, shut, _open, _on, _pline, _pend, _pcol, _spans} = wk
+  match mode:
+    case Shut{}:
+      Some{shut}
+    case Loose{}:
+      Some{shut}
     case other:
       None{}
 
-# the `)` on the last parameter's line, as a finding
-def check.place_shut(
+# the `(` line, when the list holds no parameter
+def check.none_at(spans: List<&2, Span>, +open: U32) -> Maybe<&2, Span>:
+  match spans:
+    case Nil{}:
+      Some{Span{open, open, 0}}
+    case Con{_sp, _rest}:
+      None{}
+
+# a parameter list that opened and holds no parameter
+def check.empty_span(wk: Walk) -> Maybe<&2, Span>:
+  Walk{mode, _paren, _bracket, _brace, _angle, _shut, +open, _on, _pline, _pend, _pcol, spans} = wk
+  match mode:
+    case Seek{}:
+      None{}
+    case other:
+      check.none_at(spans, open)
+
+# the return type off the `)` line, as a finding
+def check.place_loose(
   mm: Maybe<&2, Span>,
   +base: U32,
   +path: String,
@@ -758,31 +831,67 @@ def check.place_shut(
       more
     case Some{Span{+line, _end, +col}}:
       F.Finding{path, (base + line : U32), col, 0, "wrap",
-        "Def header does not close on its own line; put `)` and the return type on the line after the last parameter."}
+        "Def header's return type is not on the `)` line; put `) -> ` and the return type together on one line."}
         <> more
 
-# the parameter that breaks the shape, else a misplaced `)`, as a finding on
-# the header's lines
-def check.place(
+# the `)` on the last parameter's line, as a finding, else the return type
+# off the `)` line
+def check.place_shut(
   mm: Maybe<&2, Span>,
-  shut: Maybe<&2, Span>,
+  loose: Maybe<&2, Span>,
   +base: U32,
   +path: String,
   +more: List<&2, F.Finding>
 ) -> List<&2, F.Finding>:
   match mm:
     case None{}:
-      check.place_shut(shut, base, path, more)
+      check.place_loose(loose, base, path, more)
+    case Some{Span{+line, _end, +col}}:
+      F.Finding{path, (base + line : U32), col, 0, "wrap",
+        "Def header does not close on its own line; put `)` and the return type on the line after the last parameter."}
+        <> more
+
+# an empty parameter list across lines, as a finding, else a misplaced `)`
+def check.place_empty(
+  mm: Maybe<&2, Span>,
+  shut: Maybe<&2, Span>,
+  loose: Maybe<&2, Span>,
+  +base: U32,
+  +path: String,
+  +more: List<&2, F.Finding>
+) -> List<&2, F.Finding>:
+  match mm:
+    case None{}:
+      check.place_shut(shut, loose, base, path, more)
+    case Some{Span{+line, _end, +col}}:
+      F.Finding{path, (base + line : U32), col, 0, "wrap",
+        "Def header has no parameters but breaks across lines; join it onto one line."}
+        <> more
+
+# the parameter that breaks the shape, else an empty list, a misplaced `)` or
+# a return type off its line, as a finding on the header's lines
+def check.place(
+  mm: Maybe<&2, Span>,
+  empty: Maybe<&2, Span>,
+  shut: Maybe<&2, Span>,
+  loose: Maybe<&2, Span>,
+  +base: U32,
+  +path: String,
+  +more: List<&2, F.Finding>
+) -> List<&2, F.Finding>:
+  match mm:
+    case None{}:
+      check.place_empty(empty, shut, loose, base, path, more)
     case Some{Span{+line, _end, +col}}:
       F.Finding{path, (base + line : U32), col, 0, "wrap",
         "Def header is not one parameter per line; put one parameter on each line within the 120-character limit."}
         <> more
 
-# a multi-line header that is not one parameter per line, or whose `)` shares
-# the last parameter's line
+# a multi-line header that is not one parameter per line, holds no parameter,
+# or whose `)` shares the last parameter's line or has no `->` after it
 def check.jam(+line: U32, toks: List<&2, Lex.Tok>, +path: String, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
   +wk = check.walk(toks, check.start(), False{})
-  check.place(check.jam_span(wk), check.shut_span(wk), line, path, more)
+  check.place(check.jam_span(wk), check.empty_span(wk), check.shut_span(wk), check.loose_span(wk), line, path, more)
 
 # a one-line header past 120
 def check.wide(+line: U32, +sig: String, +path: String, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
