@@ -4,7 +4,9 @@
 # does). Only the opening pair was seen to hang: `10 <> 11 <> 10`,
 # `_ <> 10 <> 10` and `10 <> 11 <> 11` check at once, and so does the same
 # pattern in a def that does not recurse. Match one element per step, with a
-# state.
+# state. A def recurses when its body calls it, `name(..)`: a parameter or a
+# value named like the def is not a call. Only a case's first match column is
+# read: a list pattern in a later column of `match a b:` is not.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
@@ -13,6 +15,7 @@ import ../../../syntax/tree.bend as Tree
 import ../../../syntax/bind.bend as Bind
 import ../../../lazy/lazy.bend as Lazy
 import ../tokens.bend as T
+import ../calls.bend as Calls
 
 # the literal a list pattern opens with: `x <> ..` or `Con{x, ..}`
 def head(pat: Tree.Node) -> Maybe<&2, Lex.Tok>:
@@ -69,7 +72,7 @@ def check.def(mm: Maybe<&2, String>, +body: Tree.Node, path: String) -> List<&2,
     case None{}:
       Nil{}
     case Some{+name}:
-      Lazy.stop(List<&2, F.Finding>, Bool.not(T.mentions(body, name)), [], _u => walk(body, path))
+      Lazy.stop(List<&2, F.Finding>, Bool.not(Calls.calls(body, name)), [], _u => walk(body, path))
 
 def check.go(root: Tree.Node, +path: String) -> List<&2, F.Finding>:
   match root:
