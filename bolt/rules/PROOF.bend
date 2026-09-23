@@ -1476,3 +1476,421 @@ def ex.unit(ds, path, n, e):
 
 def Laws.unit_exempt(path, _text, _toks, tree, _bound, _items, e):
   ex.unit(Calls.defs(tree), path, 0n, e)
+
+# concat (BOLT-RULE-U004). The walk joins each self-call's hits, its group's
+# and what follows, so the count adds them; the hits and the def walk build
+# their lists on an accumulator reversed at the end, so the count carries the
+# accumulator's length (or the sum of its lists' lengths) along.
+
+# a plus (1 plus b) is 1 plus (a plus b)
+law concat.succ:
+  for a: Nat
+  for -b: Nat
+  {Nat.add(a, 1n+b) == 1n+Nat.add(a, b) : Nat}
+
+def concat.succ(a, b):
+  match a:
+    case 0n:
+      {==}
+    case 1n+p:
+      Equal.cong(Nat, Nat, n => 1n+n, Nat.add(p, 1n+b), 1n+Nat.add(p, b), concat.succ(p, b))
+
+# a plus 0 is a
+law concat.zero:
+  for a: Nat
+  {Nat.add(a, 0n) == a : Nat}
+
+def concat.zero(a):
+  match a:
+    case 0n:
+      {==}
+    case 1n+p:
+      Equal.cong(Nat, Nat, n => 1n+n, Nat.add(p, 0n), p, concat.zero(p))
+
+# addition regroups
+law concat.assoc:
+  for a: Nat
+  for -b: Nat
+  for -c: Nat
+  {Nat.add(Nat.add(a, b), c) == Nat.add(a, Nat.add(b, c)) : Nat}
+
+def concat.assoc(a, b, c):
+  match a:
+    case 0n:
+      {==}
+    case 1n+p:
+      Equal.cong(Nat, Nat, n => 1n+n, Nat.add(Nat.add(p, b), c), Nat.add(p, Nat.add(b, c)), concat.assoc(p, b, c))
+
+# the first two of three summands swap
+law concat.swap:
+  for a: Nat
+  for +b: Nat
+  for -c: Nat
+  {Nat.add(a, Nat.add(b, c)) == Nat.add(b, Nat.add(a, c)) : Nat}
+
+def concat.swap(a, b, c):
+  match a:
+    case 0n:
+      {==}
+    case 1n+p:
+      Equal.trans(Nat, 1n+Nat.add(p, Nat.add(b, c)), 1n+Nat.add(b, Nat.add(p, c)), Nat.add(b, 1n+Nat.add(p, c)),
+        Equal.cong(Nat, Nat, n => 1n+n, Nat.add(p, Nat.add(b, c)), Nat.add(b, Nat.add(p, c)), concat.swap(p, b, c)),
+        Equal.sym(Nat, Nat.add(b, 1n+Nat.add(p, c)), 1n+Nat.add(b, Nat.add(p, c)), concat.succ(b, Nat.add(p, c))))
+
+# a list reversed onto another is as long as both
+law concat.rev:
+  for xs: List<&2, F.Finding>
+  for ys: List<&2, F.Finding>
+  {List.length(&2, F.Finding, List.reverse.go(&2, F.Finding, xs, ys))
+    == Nat.add(List.length(&2, F.Finding, xs), List.length(&2, F.Finding, ys)) : Nat}
+
+def concat.rev(xs, ys):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{+h, +t}:
+      Equal.trans(Nat, List.length(&2, F.Finding, List.reverse.go(&2, F.Finding, t, h <> ys)),
+        Nat.add(List.length(&2, F.Finding, t), 1n+List.length(&2, F.Finding, ys)),
+        1n+Nat.add(List.length(&2, F.Finding, t), List.length(&2, F.Finding, ys)),
+        concat.rev(t, h <> ys), concat.succ(List.length(&2, F.Finding, t), List.length(&2, F.Finding, ys)))
+
+# the lengths of a list of finding lists, summed
+def concat.sum(xss: List<&2, List<&2, F.Finding>>) -> Nat:
+  match xss:
+    case Nil{}:
+      0n
+    case Con{+h, +t}:
+      Nat.add(List.length(&2, F.Finding, h), concat.sum(t))
+
+# a join is as long as its lists together
+law concat.flat:
+  for xss: List<&2, List<&2, F.Finding>>
+  {List.length(&2, F.Finding, List.concat(&2, F.Finding, xss)) == concat.sum(xss) : Nat}
+
+def concat.flat(xss):
+  match xss:
+    case Nil{}:
+      {==}
+    case Con{+h, +t}:
+      Equal.trans(Nat, List.length(&2, F.Finding, List.append(&2, F.Finding, h, List.concat(&2, F.Finding, t))),
+        Nat.add(List.length(&2, F.Finding, h), List.length(&2, F.Finding, List.concat(&2, F.Finding, t))),
+        Nat.add(List.length(&2, F.Finding, h), concat.sum(t)),
+        esc.app(h, List.concat(&2, F.Finding, t)),
+        Equal.cong(Nat, Nat, n => Nat.add(List.length(&2, F.Finding, h), n),
+          List.length(&2, F.Finding, List.concat(&2, F.Finding, t)), concat.sum(t), concat.flat(t)))
+
+# lists reversed onto others sum to both sums
+law concat.rsum:
+  for xss: List<&2, List<&2, F.Finding>>
+  for yss: List<&2, List<&2, F.Finding>>
+  {concat.sum(List.reverse.go(&2, List<&2, F.Finding>, xss, yss)) == Nat.add(concat.sum(xss), concat.sum(yss)) : Nat}
+
+def concat.rsum(xss, yss):
+  match xss:
+    case Nil{}:
+      {==}
+    case Con{+h, +t}:
+      Equal.trans(Nat, concat.sum(List.reverse.go(&2, List<&2, F.Finding>, t, h <> yss)),
+        Nat.add(concat.sum(t), Nat.add(List.length(&2, F.Finding, h), concat.sum(yss))),
+        Nat.add(Nat.add(List.length(&2, F.Finding, h), concat.sum(t)), concat.sum(yss)),
+        concat.rsum(t, h <> yss),
+        Equal.trans(Nat, Nat.add(concat.sum(t), Nat.add(List.length(&2, F.Finding, h), concat.sum(yss))),
+          Nat.add(List.length(&2, F.Finding, h), Nat.add(concat.sum(t), concat.sum(yss))),
+          Nat.add(Nat.add(List.length(&2, F.Finding, h), concat.sum(t)), concat.sum(yss)),
+          concat.swap(concat.sum(t), List.length(&2, F.Finding, h), concat.sum(yss)),
+          Equal.sym(Nat, Nat.add(Nat.add(List.length(&2, F.Finding, h), concat.sum(t)), concat.sum(yss)),
+            Nat.add(List.length(&2, F.Finding, h), Nat.add(concat.sum(t), concat.sum(yss))),
+            concat.assoc(List.length(&2, F.Finding, h), concat.sum(t), concat.sum(yss)))))
+
+# two lists joined count what each counts
+law concat.two:
+  for a: List<&2, F.Finding>
+  for +b: List<&2, F.Finding>
+  for -x: Nat
+  for -y: Nat
+  for ea: {List.length(&2, F.Finding, a) == x : Nat}
+  for eb: {List.length(&2, F.Finding, b) == y : Nat}
+  {List.length(&2, F.Finding, List.concat(&2, F.Finding, [a, b])) == Nat.add(x, y) : Nat}
+
+def concat.two(a, b, x, y, ea, eb):
+  Equal.trans(Nat, List.length(&2, F.Finding, List.concat(&2, F.Finding, [a, b])),
+    Nat.add(List.length(&2, F.Finding, a), Nat.add(List.length(&2, F.Finding, b), 0n)), Nat.add(x, y),
+    concat.flat([a, b]),
+    esc.add(List.length(&2, F.Finding, a), x, Nat.add(List.length(&2, F.Finding, b), 0n), y, ea,
+      Equal.trans(Nat, Nat.add(List.length(&2, F.Finding, b), 0n), List.length(&2, F.Finding, b), y,
+        concat.zero(List.length(&2, F.Finding, b)), eb)))
+
+# three lists joined count what each counts
+law concat.three:
+  for a: List<&2, F.Finding>
+  for b: List<&2, F.Finding>
+  for +c: List<&2, F.Finding>
+  for -x: Nat
+  for -y: Nat
+  for -z: Nat
+  for ea: {List.length(&2, F.Finding, a) == x : Nat}
+  for eb: {List.length(&2, F.Finding, b) == y : Nat}
+  for ec: {List.length(&2, F.Finding, c) == z : Nat}
+  {List.length(&2, F.Finding, List.concat(&2, F.Finding, [a, b, c])) == Nat.add(x, Nat.add(y, z)) : Nat}
+
+def concat.three(a, b, c, x, y, z, ea, eb, ec):
+  Equal.trans(Nat, List.length(&2, F.Finding, List.concat(&2, F.Finding, [a, b, c])),
+    Nat.add(List.length(&2, F.Finding, a),
+      Nat.add(List.length(&2, F.Finding, b), Nat.add(List.length(&2, F.Finding, c), 0n))),
+    Nat.add(x, Nat.add(y, z)),
+    concat.flat([a, b, c]),
+    esc.add(List.length(&2, F.Finding, a), x,
+      Nat.add(List.length(&2, F.Finding, b), Nat.add(List.length(&2, F.Finding, c), 0n)), Nat.add(y, z), ea,
+      esc.add(List.length(&2, F.Finding, b), y, Nat.add(List.length(&2, F.Finding, c), 0n), z, eb,
+        Equal.trans(Nat, Nat.add(List.length(&2, F.Finding, c), 0n), List.length(&2, F.Finding, c), z,
+          concat.zero(List.length(&2, F.Finding, c)), ec))))
+
+# a stop on `not b` runs its thunk exactly when b holds
+law concat.stop:
+  for b: Bool
+  for -more: List<&2, F.Finding>
+  for -m: Nat
+  for ih: {List.length(&2, F.Finding, more) == m : Nat}
+  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Bool.not(b), [], _u => more))
+    == Bool.pick(Nat, b, m, 0n) : Nat}
+
+def concat.stop(b, _more, _m, ih):
+  match b:
+    case True{}:
+      ih
+    case False{}:
+      {==}
+
+# a finding in front when the flag holds, counted on either side of a sum
+law concat.bump:
+  for b: Bool
+  for +l: Nat
+  for +m: Nat
+  {Nat.add(Bool.pick(Nat, b, 1n+l, l), m) == Nat.add(l, Bool.pick(Nat, b, 1n+m, m)) : Nat}
+
+def concat.bump(b, l, m):
+  match b:
+    case True{}:
+      Equal.sym(Nat, Nat.add(l, 1n+m), 1n+Nat.add(l, m), concat.succ(l, m))
+    case False{}:
+      {==}
+
+# hit adds one finding exactly when the argument appends onto its slot
+law concat.hit:
+  for mm: Maybe<&2, Lex.Tok>
+  for +slot: String
+  for +path: String
+  for +acc: List<&2, F.Finding>
+  {List.length(&2, F.Finding, Concat.hit(mm, slot, path, acc))
+    == Bool.pick(Nat, Laws.concat.is(mm, slot), 1n+List.length(&2, F.Finding, acc), List.length(&2, F.Finding, acc))
+    : Nat}
+
+def concat.hit(mm, slot, path, acc):
+  match mm:
+    case None{}:
+      {==}
+    case Some{Lex.Tok{k, +t, l, c}}:
+      nat.pick(String.eq(t, slot), F.Finding{path, l, c, U32.from_nat(String.length(t)), "concat",
+        t ++ " grows by appending on each step, which is quadratic; prepend and reverse once, or build with <>."},
+        acc, List.length(&2, F.Finding, acc), {==})
+
+# one argument's hit and the rest's, against its slot
+law concat.arg:
+  for +a: Tree.Node
+  for +rest: List<&2, Tree.Node>
+  for +slot: String
+  for +ps: List<&2, String>
+  for +path: String
+  for +acc: List<&2, F.Finding>
+  for ih: {List.length(&2, F.Finding, Concat.hits(rest, ps, path, Concat.hit(Concat.onto(a), slot, path, acc)))
+    == Nat.add(List.length(&2, F.Finding, Concat.hit(Concat.onto(a), slot, path, acc)), Laws.concat.slots(rest, ps))
+    : Nat}
+  {List.length(&2, F.Finding, Concat.hits(rest, ps, path, Concat.hit(Concat.onto(a), slot, path, acc)))
+    == Nat.add(List.length(&2, F.Finding, acc),
+      Bool.pick(Nat, Laws.concat.is(Concat.onto(a), slot), 1n+Laws.concat.slots(rest, ps), Laws.concat.slots(rest, ps)))
+    : Nat}
+
+def concat.arg(a, rest, slot, ps, path, acc, ih):
+  Equal.trans(Nat, List.length(&2, F.Finding, Concat.hits(rest, ps, path, Concat.hit(Concat.onto(a), slot, path, acc))),
+    Nat.add(List.length(&2, F.Finding, Concat.hit(Concat.onto(a), slot, path, acc)), Laws.concat.slots(rest, ps)),
+    Nat.add(List.length(&2, F.Finding, acc),
+      Bool.pick(Nat, Laws.concat.is(Concat.onto(a), slot), 1n+Laws.concat.slots(rest, ps),
+        Laws.concat.slots(rest, ps))),
+    ih,
+    Equal.trans(Nat,
+      Nat.add(List.length(&2, F.Finding, Concat.hit(Concat.onto(a), slot, path, acc)), Laws.concat.slots(rest, ps)),
+      Nat.add(Bool.pick(Nat, Laws.concat.is(Concat.onto(a), slot), 1n+List.length(&2, F.Finding, acc),
+        List.length(&2, F.Finding, acc)), Laws.concat.slots(rest, ps)),
+      Nat.add(List.length(&2, F.Finding, acc),
+        Bool.pick(Nat, Laws.concat.is(Concat.onto(a), slot), 1n+Laws.concat.slots(rest, ps),
+          Laws.concat.slots(rest, ps))),
+      Equal.cong(Nat, Nat, n => Nat.add(n, Laws.concat.slots(rest, ps)),
+        List.length(&2, F.Finding, Concat.hit(Concat.onto(a), slot, path, acc)),
+        Bool.pick(Nat, Laws.concat.is(Concat.onto(a), slot), 1n+List.length(&2, F.Finding, acc),
+          List.length(&2, F.Finding, acc)),
+        concat.hit(Concat.onto(a), slot, path, acc)),
+      concat.bump(Laws.concat.is(Concat.onto(a), slot), List.length(&2, F.Finding, acc), Laws.concat.slots(rest, ps))))
+
+# hits adds to its accumulator one finding for each argument that appends
+# onto its own slot
+law concat.hits:
+  for as: List<&2, Tree.Node>
+  for +params: List<&2, String>
+  for +path: String
+  for +acc: List<&2, F.Finding>
+  {List.length(&2, F.Finding, Concat.hits(as, params, path, acc))
+    == Nat.add(List.length(&2, F.Finding, acc), Laws.concat.slots(as, params)) : Nat}
+
+def concat.hits(as, params, path, acc):
+  match as:
+    case Nil{}:
+      concat.rev(acc, Nil{})
+    case Con{+a, +rest}:
+      match params:
+        case Nil{}:
+          concat.arg(a, rest, "", Nil{}, path, acc,
+            concat.hits(rest, Nil{}, path, Concat.hit(Concat.onto(a), "", path, acc)))
+        case Con{+p, +ps}:
+          concat.arg(a, rest, p, ps, path, acc,
+            concat.hits(rest, ps, path, Concat.hit(Concat.onto(a), p, path, acc)))
+
+# a def's count moves from the front of the sum past the accumulator's
+law concat.move:
+  for +x: Nat
+  for -y: Nat
+  for +s: Nat
+  for +f: Nat
+  for e: {x == y : Nat}
+  {Nat.add(Nat.add(x, s), f) == Nat.add(s, Nat.add(y, f)) : Nat}
+
+def concat.move(x, y, s, f, e):
+  Equal.trans(Nat, Nat.add(Nat.add(x, s), f), Nat.add(s, Nat.add(x, f)), Nat.add(s, Nat.add(y, f)),
+    Equal.trans(Nat, Nat.add(Nat.add(x, s), f), Nat.add(x, Nat.add(s, f)), Nat.add(s, Nat.add(x, f)),
+      concat.assoc(x, s, f), concat.swap(x, s, f)),
+    Equal.cong(Nat, Nat, n => Nat.add(s, Nat.add(n, f)), x, y, e))
+
+# a leaf and a group: the self-call's hits, then the group's and the rest's
+# counts, given the walk's law on the group's kids and on the rest
+law concat.call:
+  for tok: Lex.Tok
+  for open: Lex.Tok
+  for +kids: Tree.Node
+  for cl: Maybe<&2, Lex.Tok>
+  for +rest: Tree.Node
+  for +name: String
+  for +params: List<&2, String>
+  for +path: String
+  for ik: {List.length(&2, F.Finding, Concat.walk(kids, name, params, path))
+    == Laws.concat.count(kids, name, params) : Nat}
+  for ir: {List.length(&2, F.Finding, Concat.walk(rest, name, params, path))
+    == Laws.concat.count(rest, name, params) : Nat}
+  {List.length(&2, F.Finding,
+    Concat.walk(Tree.NCons{Tree.Leaf{tok}, Tree.NCons{Tree.Group{open, kids, cl}, rest}}, name, params, path))
+    == Laws.concat.count(Tree.NCons{Tree.Leaf{tok}, Tree.NCons{Tree.Group{open, kids, cl}, rest}}, name, params)
+    : Nat}
+
+def concat.call(tok, open, kids, _cl, rest, name, params, path, ik, ir):
+  match tok open:
+    case Lex.Tok{k, +t, l, c} Lex.Tok{ok, +o, ol, oc}:
+      concat.three(
+        Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(String.eq(o, "("), String.eq(t, name))), [],
+          _u => Concat.hits(Calls.args(kids), params, path, [])),
+        Concat.walk(kids, name, params, path), Concat.walk(rest, name, params, path),
+        Bool.pick(Nat, Bool.and(String.eq(o, "("), String.eq(t, name)),
+          Laws.concat.slots(Calls.args(kids), params), 0n),
+        Laws.concat.count(kids, name, params), Laws.concat.count(rest, name, params),
+        concat.stop(Bool.and(String.eq(o, "("), String.eq(t, name)),
+          Concat.hits(Calls.args(kids), params, path, []),
+          Laws.concat.slots(Calls.args(kids), params), concat.hits(Calls.args(kids), params, path, [])),
+        ik, ir)
+
+# walk finds what the law's count counts, node by node
+law concat.walk:
+  for nn: Tree.Node
+  for +name: String
+  for +params: List<&2, String>
+  for +path: String
+  {List.length(&2, F.Finding, Concat.walk(nn, name, params, path)) == Laws.concat.count(nn, name, params) : Nat}
+
+def concat.walk(nn, name, params, path):
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{ok, o, ol, oc}, +kids, cl}, +rest}}:
+      concat.call(Lex.Tok{k, t, l, c}, Lex.Tok{ok, o, ol, oc}, kids, cl, rest, name, params, path,
+        concat.walk(kids, name, params, path), concat.walk(rest, name, params, path))
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, Tree.NCons{Tree.Leaf{x}, rest}}:
+      concat.walk(Tree.NCons{Tree.Leaf{x}, rest}, name, params, path)
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, Tree.NCons{Tree.Stmt{kind, kids, body}, rest}}:
+      concat.walk(Tree.NCons{Tree.Stmt{kind, kids, body}, rest}, name, params, path)
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, Tree.NCons{Tree.NNil{}, rest}}:
+      concat.walk(Tree.NCons{Tree.NNil{}, rest}, name, params, path)
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, Tree.NCons{Tree.NCons{a, b}, rest}}:
+      concat.walk(Tree.NCons{Tree.NCons{a, b}, rest}, name, params, path)
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, Tree.Leaf{x}}:
+      {==}
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, Tree.Group{open, kids, close}}:
+      {==}
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, Tree.Stmt{kind, kids, body}}:
+      {==}
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, Tree.NNil{}}:
+      {==}
+    case Tree.NCons{Tree.Group{open, +kids, close}, +rest}:
+      concat.two(Concat.walk(kids, name, params, path), Concat.walk(rest, name, params, path),
+        Laws.concat.count(kids, name, params), Laws.concat.count(rest, name, params),
+        concat.walk(kids, name, params, path), concat.walk(rest, name, params, path))
+    case Tree.NCons{Tree.Stmt{kind, +kids, +body}, +rest}:
+      concat.three(Concat.walk(kids, name, params, path), Concat.walk(body, name, params, path),
+        Concat.walk(rest, name, params, path),
+        Laws.concat.count(kids, name, params), Laws.concat.count(body, name, params),
+        Laws.concat.count(rest, name, params),
+        concat.walk(kids, name, params, path), concat.walk(body, name, params, path),
+        concat.walk(rest, name, params, path))
+    case Tree.NCons{Tree.NNil{}, rest}:
+      concat.walk(rest, name, params, path)
+    case Tree.NCons{Tree.NCons{a, b}, rest}:
+      concat.walk(rest, name, params, path)
+    case Tree.Leaf{x}:
+      {==}
+    case Tree.Group{open, kids, close}:
+      {==}
+    case Tree.Stmt{kind, kids, body}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# the def walk adds each def's count, none for an exempt def, to what its
+# accumulator already holds
+law concat.go:
+  for ds: List<&2, Calls.Def>
+  for +path: String
+  for +acc: List<&2, List<&2, F.Finding>>
+  {List.length(&2, F.Finding, Concat.check.go(ds, path, acc))
+    == Nat.add(concat.sum(acc), Laws.concat.file(ds, path)) : Nat}
+
+def concat.go(ds, path, acc):
+  match ds:
+    case Nil{}:
+      Equal.trans(Nat,
+        List.length(&2, F.Finding, List.concat(&2, F.Finding, List.reverse(&2, List<&2, F.Finding>, acc))),
+        concat.sum(List.reverse.go(&2, List<&2, F.Finding>, acc, Nil{})), Nat.add(concat.sum(acc), 0n),
+        concat.flat(List.reverse(&2, List<&2, F.Finding>, acc)), concat.rsum(acc, Nil{}))
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      Equal.trans(Nat,
+        List.length(&2, F.Finding, Concat.check.go(rest, path,
+          Lazy.stop(List<&2, F.Finding>, Calls.exempt(path, sig), [],
+            _u => Concat.walk(body, name, Calls.names(sig), path)) <> acc)),
+        Nat.add(Nat.add(List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Calls.exempt(path, sig), [],
+          _u => Concat.walk(body, name, Calls.names(sig), path))), concat.sum(acc)), Laws.concat.file(rest, path)),
+        Nat.add(concat.sum(acc),
+          Nat.add(Bool.pick(Nat, Calls.exempt(path, sig), 0n, Laws.concat.count(body, name, Calls.names(sig))),
+            Laws.concat.file(rest, path))),
+        concat.go(rest, path, Lazy.stop(List<&2, F.Finding>, Calls.exempt(path, sig), [],
+          _u => Concat.walk(body, name, Calls.names(sig), path)) <> acc),
+        concat.move(List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Calls.exempt(path, sig), [],
+            _u => Concat.walk(body, name, Calls.names(sig), path))),
+          Bool.pick(Nat, Calls.exempt(path, sig), 0n, Laws.concat.count(body, name, Calls.names(sig))),
+          concat.sum(acc), Laws.concat.file(rest, path),
+          param.stop(Calls.exempt(path, sig), Concat.walk(body, name, Calls.names(sig), path),
+            Laws.concat.count(body, name, Calls.names(sig)), concat.walk(body, name, Calls.names(sig), path))))
+
+def Laws.concat_counts(path, _text, _toks, tree, _bound, _items):
+  concat.go(Calls.defs(tree), path, [])

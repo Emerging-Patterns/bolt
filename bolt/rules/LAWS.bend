@@ -28,6 +28,7 @@ import ./suspicious/index.bend as Index
 import ./suspicious/ring.bend as Ring
 import ./suspicious/table.bend as Table
 import ./suspicious/unit.bend as UnitRule
+import ./calls.bend as Calls
 
 # how many tokens are Nat literals of 1000 or more
 def big_count(toks: List<&2, Lex.Tok>) -> Nat:
@@ -550,3 +551,74 @@ law unit_exempt:
   for items: List<&2, Outline.Item>
   for e: {Paths.is_law_file(path) == True{} : Bool}
   {UnitRule.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# concat (BOLT-RULE-U004). concat walks each def's body tree: a self-call is
+# a leaf whose text is the def's name followed by a `(` group, its arguments
+# are the group's kids split at top-level commas (Calls.args), and the
+# parameter in an argument's position is the def's parameter at the same
+# index ("" past the last, the same as an unnamed type parameter). The name
+# an argument appends onto is Concat.onto's: `p ++ ..`, `List.append(.., p,
+# ..)` or `String.append(p, ..)`, written as the argument itself.
+
+# True when the argument appends onto a name and that name is the slot's
+def concat.is(mm: Maybe<&2, Lex.Tok>, +slot: String) -> Bool:
+  match mm:
+    case None{}:
+      False{}
+    case Some{Lex.Tok{k, +t, l, c}}:
+      String.eq(t, slot)
+
+# how many arguments append onto the parameter in their own position
+def concat.slots(as: List<&2, Tree.Node>, +params: List<&2, String>) -> Nat:
+  match as params:
+    case Nil{} ps:
+      0n
+    case Con{a, rest} Nil{}:
+      +m = concat.slots(rest, Nil{})
+      Bool.pick(Nat, concat.is(Concat.onto(a), ""), 1n+m, m)
+    case Con{a, rest} Con{p, ps}:
+      +m = concat.slots(rest, ps)
+      Bool.pick(Nat, concat.is(Concat.onto(a), p), 1n+m, m)
+
+# how many arguments of self-calls under the node append onto the parameter
+# in their own position: a self-call's own arguments, then what its group and
+# what follows it hold
+def concat.count(nn: Tree.Node, +name: String, +params: List<&2, String>) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
+      +here = Bool.pick(Nat, Bool.and(String.eq(o, "("), String.eq(t, name)),
+        concat.slots(Calls.args(kids), params), 0n)
+      Nat.add(here, Nat.add(concat.count(kids, name, params), concat.count(rest, name, params)))
+    case Tree.NCons{Tree.Group{open, kids, close}, rest}:
+      Nat.add(concat.count(kids, name, params), concat.count(rest, name, params))
+    case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
+      Nat.add(concat.count(kids, name, params),
+        Nat.add(concat.count(body, name, params), concat.count(rest, name, params)))
+    case Tree.NCons{h, rest}:
+      concat.count(rest, name, params)
+    case other:
+      0n
+
+# the count over a file's defs, none in a def that is exempt (a law file, a
+# proof file, a def that returns a proof)
+def concat.file(ds: List<&2, Calls.Def>, +path: String) -> Nat:
+  match ds:
+    case Nil{}:
+      0n
+    case Con{Calls.Def{+name, +sig, body}, rest}:
+      Nat.add(Bool.pick(Nat, Calls.exempt(path, sig), 0n, concat.count(body, name, Calls.names(sig))),
+        concat.file(rest, path))
+
+# LAW: concat reports one finding for each self-call argument that appends
+# onto the parameter in its own position, in every def its header does not
+# exempt, and none for anything else
+# BOLT-RULE-U004
+law concat_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Concat.check(Src.Src{path, text, toks, tree, bound, items}))
+    == concat.file(Calls.defs(tree), path) : Nat}
