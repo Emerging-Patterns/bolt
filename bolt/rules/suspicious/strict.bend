@@ -1,5 +1,6 @@
 # rule strict: a def calls itself inside an operand of `Bool.and(..)` or
-# `Bool.or(..)`, or on either side of `&&` or `||`, matched by that exact text
+# `Bool.or(..)`, or in a comma-separated stretch holding `&&` or `||` (either
+# side of the operator), matched by that exact text
 # (a qualified `Base.Bool.or` is not seen). They are functions, not
 # short-circuits: both sides always run (timed: `False{} && f(x)` costs all of
 # f), so `ok(h) && go(rest)` walks the whole input after the answer is known,
@@ -8,7 +9,8 @@
 # `go(rest, ok(h))`. A self-call bound by a let above is not flagged: binding
 # it says both run. Nor is one in a lambda body (`_u => go(rest)`, as
 # `Lazy.or_else` takes): a thunk does not run eagerly, unless the body itself
-# holds `&&` or `||`.
+# holds `&&` or `||`. A `=>` ends the stretch on its left, so a body's `&&` or
+# `||` never reaches back past it: `go(x) <> _u => a && b` is not flagged.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
@@ -21,10 +23,12 @@ import ../../../lazy/lazy.bend as Lazy
 def logic(+tt: String) -> Bool:
   Bool.or(String.eq(tt, "&&"), String.eq(tt, "||"))
 
-# does the chain, up to its first top-level comma, hold `&&` or `||`?
+# does the chain, up to its first top-level comma or `=>`, hold `&&` or `||`?
 def seg_op(nn: Tree.Node) -> Bool:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}, rest}:
+      False{}
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}}, rest}:
       False{}
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +t, l, c}}, rest}:
       +more = seg_op(rest)
