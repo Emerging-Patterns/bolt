@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.4](https://github.com/Emerging-Patterns/bolt/compare/v1.2.3...v1.2.4) (2026-09-23)
+
+
+### Bug Fixes
+
+* **coverage:** a type is covered only when a law names it or a constructor, and prove coverage and unsafe over digests (BOLT-LAW-1, LAW-3 part) ([#130](https://github.com/Emerging-Patterns/bolt/issues/130)) ([0f76ed0](https://github.com/Emerging-Patterns/bolt/commit/0f76ed0ab627468af1f2d729b45bf84f8802a1ea))
+
 ## [1.2.3](https://github.com/Emerging-Patterns/bolt/compare/v1.2.2...v1.2.3) (2026-09-23)
 
 
