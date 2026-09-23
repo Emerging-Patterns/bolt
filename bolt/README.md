@@ -148,13 +148,16 @@ beside the groups.
   lambda body (`_u => go(rest)`, a `Lazy` thunk) is not counted: the thunk
   does not run eagerly, unless its own body holds `&&`/`||`.
 - `eager` — a branch of a `Bool.pick` holds a call to another def of the
-  same file. Bool.pick is a def too, so the branch runs whatever the
-  condition says (a game's overlap test in a branch went 31 -> 55 fps once
-  it moved out; one `gaps(..)` in a branch here cost 88 s of a 100 s run).
-  `pick` sees only the self-call and `strict` only Bool.and/or, so the call
-  to a neighbour is this rule's. Bind it above the pick, or take the branch
-  through `Lazy.stop`/`Lazy.or_else`. A call into Base is not counted: a def
-  of the file is the cheap proxy for work the file itself wrote.
+  same file that loops (it calls itself, or reaches a def that does).
+  Bool.pick is a def too, so the branch runs whatever the condition says (a
+  game's overlap test in a branch went 31 -> 55 fps once it moved out; one
+  `gaps(..)` in a branch here cost 88 s of a 100 s run). `pick` sees only the
+  self-call and `strict` only Bool.and/or, so the call to a neighbour is this
+  rule's. Bind it above the pick, or take the branch through
+  `Lazy.stop`/`Lazy.or_else`. A call into Base is not counted: a def of the
+  file is the cheap proxy for work the file itself wrote. Nor is a call in a
+  lambda's body (from `=>` to the next comma of its group), which the pick
+  does not run; an argument after that comma counts again.
 - `concat` — a self-call whose argument grows a carried parameter by
   appending (`acc ++ x`, `List.append(&2, T, acc, ..)`): each step copies the
   accumulator, so the walk is quadratic. Prepend with `<>` and reverse once.

@@ -13,7 +13,8 @@
 # something that does), since a Base call and a one-line accessor are
 # everywhere and cost nothing; only the branch arguments count, not the type
 # and the condition, which run whatever is written; and what sits after a
-# `=>` is a lambda's body, which the call does not run.
+# `=>` is a lambda's body, which the call does not run. The body ends at the
+# next comma of its group, so an argument after it counts again.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
@@ -63,42 +64,47 @@ def loops(ds: List<&2, Calls.Def>) -> List<&2, String>:
 # the work under a def's body: hot says the node sits in a branch argument of
 # a `Bool.pick` (so it runs whatever the condition), seg counts the arguments
 # of the pick whose group this chain is (0 the type, 1 the condition, 2 and 3
-# the branches; 9 for a chain that is not a pick's)
+# the branches; 9 for a chain that is not a pick's), and keep is what hot
+# returns to at the next comma of a chain that is not a pick's, so a `=>`
+# clears hot for the lambda's own body and not for the arguments after it
 def work(
   nn: Tree.Node,
   +ns: List<&2, String>,
   +self: String,
   +path: String,
   +hot: Bool,
-  +seg: U32
+  +seg: U32,
+  +keep: Bool
 ) -> List<&2, F.Finding>:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}}, +rest}:
-      work(rest, ns, self, path, False{}, seg)
+      work(rest, ns, self, path, False{}, seg, keep)
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}, +rest}:
       +in_pick = U32.is_lt(seg, 9)
       +next = Bool.pick(U32, in_pick, (seg + 1 : U32), seg)
-      work(rest, ns, self, path, Bool.pick(Bool, in_pick, Bool.not(U32.is_lt(next, 2)), hot), next)
+      work(rest, ns, self, path, Bool.pick(Bool, in_pick, Bool.not(U32.is_lt(next, 2)), keep), next, keep)
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +call = String.eq(o, "(")
       +is_pick = Bool.and(call, String.eq(t, "Bool.pick"))
       +mine = Bool.and(Bool.not(String.eq(t, self)), List.contains(~String, ~String.eq, ns, t))
       +report = Bool.and(hot, Bool.and(call, mine))
+      +inner = Bool.and(hot, Bool.not(is_pick))
       +more = List.concat(&2, F.Finding,
-        [work(kids, ns, self, path, Bool.and(hot, Bool.not(is_pick)), Bool.pick(U32, is_pick, 0, 9)),
-          work(rest, ns, self, path, hot, seg)])
+        [work(kids, ns, self, path, inner, Bool.pick(U32, is_pick, 0, 9), inner),
+          work(rest, ns, self, path, hot, seg, keep)])
       Bool.pick(List<&2, F.Finding>, report,
         F.Finding{path, l, c, U32.from_nat(String.length(t)), "eager",
           t ++ " runs in both branches of Bool.pick, so it runs whatever the condition; bind it above, or use Lazy.stop."}
           <> more,
         more)
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
-      List.concat(&2, F.Finding, [work(kids, ns, self, path, hot, 9), work(rest, ns, self, path, hot, seg)])
+      List.concat(&2, F.Finding, [work(kids, ns, self, path, hot, 9, hot), work(rest, ns, self, path, hot, seg, keep)])
     case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
-      List.concat(&2, F.Finding, [work(kids, ns, self, path, False{}, 9), work(body, ns, self, path, False{}, 9),
-        work(rest, ns, self, path, hot, seg)])
+      List.concat(&2, F.Finding, [work(kids, ns, self, path, False{}, 9, False{}),
+        work(body, ns, self, path, False{}, 9, False{}),
+        work(rest, ns, self, path, hot, seg, keep)])
     case Tree.NCons{h, rest}:
-      work(rest, ns, self, path, hot, seg)
+      work(rest, ns, self, path, hot, seg, keep)
     case other:
       Nil{}
 
@@ -114,7 +120,7 @@ def check.go(
     case Con{Calls.Def{+name, +sig, body}, rest}:
       check.go(rest, ns, path,
         Lazy.stop(List<&2, F.Finding>, Calls.exempt(path, sig), [],
-          _u => work(body, ns, name, path, False{}, 9)) <> acc)
+          _u => work(body, ns, name, path, False{}, 9, False{})) <> acc)
 
 # the rule
 def check(ss: Src.Src) -> List<&2, F.Finding>:
