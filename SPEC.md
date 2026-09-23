@@ -92,7 +92,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | BOLT-OUT-2 | A finding prints as `path:line:col: level: CODE: message`, 1-based. | Proved | proved | bolt/LAWS.bend shown |
 | BOLT-OUT-3 | Output order is read failures, then per-file findings in file-list order and `Rules.on` order, then `coverage`, `unsafe` and `trace`. | Proved | proved | bolt/LAWS.bend lines_in_order |
 | BOLT-OUT-4 | The last line is `clean` or `N errors, M warnings`, and the exit status is 1 exactly when some graded finding is an error. | Proved | proved | bolt/LAWS.bend last_line_summary; bolt/LAWS.bend exit_on_error |
-| BOLT-OUT-5 | A path that cannot be read is a `read` finding graded with correctness. | Proved | pending | bolt/LAWS.bend unread_one_finding; bolt/LAWS.bend read_is_correctness |
+| BOLT-OUT-5 | A path that cannot be read is a `read` finding graded with correctness. | Proved | proved | bolt/LAWS.bend unread_one_finding; bolt/LAWS.bend directory_one_finding; bolt/LAWS.bend read_is_correctness |
 
 ### Command line (BOLT-CLI)
 
@@ -105,7 +105,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-CHK-1 | `bolt check` prints one `path:line:1: error:` line per error bend reports, on the line bend marks, then a count; it exits 1 when there is any, and treats a failure to run bend as an error. | Proved | pending | bolt/LAWS.bend check_lines; bolt/LAWS.bend check_one_each; bolt/LAWS.bend check_clean; bolt/LAWS.bend check_one; bolt/LAWS.bend check_many |
+| BOLT-CHK-1 | `bolt check` prints one `path:line:1: error:` line per error bend reports, on the line bend marks, then a count; it exits 1 when there is any, and treats a failure to run bend as an error. | Proved | pending | bolt/LAWS.bend check_lines; bolt/LAWS.bend check_one_each; bolt/LAWS.bend check_clean; bolt/LAWS.bend check_one; bolt/LAWS.bend check_many; bolt/LAWS.bend check_unrun_error; bolt/LAWS.bend check_run_of; bolt/LAWS.bend check_run_unrun; bolt/LAWS.bend check_exec_ran; bolt/LAWS.bend check_exec_unrun; bolt/LAWS.bend check_exec_died; bolt/LAWS.bend check_exec_died_reported; bolt/LAWS.bend check_exec_untagged; bolt/LAWS.bend check_proof_unrun |
 
 ### Parser (BOLT-SYN)
 
@@ -145,7 +145,7 @@ These assumptions sit outside the proofs. They are the complete list of Trusted 
 | :---- | :---- | :---- |
 | BOLT-TRUST-1 | The Bend checker is sound. | It cannot be checked from inside Bend; this is EZ-TRUST-1. bolt pins bend through the flake. |
 | BOLT-TRUST-2 | bolt's lexer, tree and outline read a file as the program bend reads, for the constructs the rules depend on. | bolt cannot call bend's parser from Bend. Checked against bend 2.0.25: a string literal runs across newlines to its closing quote, and the outline reads no line that starts inside one; a `>` inside `(..)`, `[..]` or `{..}` within `<..>` is an operator and does not close the angle group; names are ASCII in both, since bend rejects a non-ASCII letter in a def name, a parameter or a let binder. One divergence remains: bend accepts a char literal holding a raw newline, which bolt's lexer ends at the end of its line. One is a decided difference: a line indented deeper, outside brackets, is a child statement in bolt's tree (`"a"` then `    ++ "b"` is `["a" {[++ "b"]}]`), where bend reads one expression. The rules that read statements from the tree could be affected (`tail`, `unused`, `table`, `rewalk`, `wrap`); run on a continued `++`, `<>` or boolean or, a continued let value, a lambda body and a call argument, `tail`, `strict`, `concat`, `unused` and `param` report what they report on one line, and `wrap` reports a header whose `-> T:` sits on the next line, which its requirement makes a finding. |
-| BOLT-TRUST-3 | The directory listing effect (`bolt/walk/dir.c`, `dir.js`) returns a directory's entries, marking directories with `/`, and the file read effect returns a file's text. | The walk and the reads are foreign code; the planner takes their answers as given. |
+| BOLT-TRUST-3 | The directory listing effect (`bolt/walk/dir.c`, `dir.js`) returns a directory's entries, marking directories with `/`, the OS tells the truth when the directory probe (`bolt/walk/disk.bend` `is_dir`) asks whether a path is a folder, and the file read effect returns a file's text. | The walk and the reads are foreign code; the planner takes their answers as given. |
 | BOLT-TRUST-4 | The LSP transport (`bolt/lsp/transport/fd.c`, `fd.js`) delivers stdin bytes in order and writes stdout bytes whole. | Foreign code over descriptors 0 and 1. |
 | BOLT-TRUST-5 | `bend <file> --check-only` never runs `main`, and prints its report in the shape `bolt/lsp/report.bend` parses. | bend is a separate program, and the report format has already drifted once (`report_import`). |
 | BOLT-TRUST-6 | The proof gate runner runs bend on every PROOF.bend and accepts only an exact `All terms check.` first line. | It is ez code run by `mkProofs` (`ez test --unit-only` today, `ez prove` when ez ships it). CI builds from a clean tree. |

@@ -19,7 +19,9 @@ Each finding is one line, `path:line:col: level: CODE: message`, with line
 and column 1-based so a terminal can jump to it; then `clean` or the counts.
 `CODE` is the rule's stable id (`S003` is `wrap`). In an editor the same
 finding is source `bolt(style:wrap)` and code `S003`.
-The exit code is 1 when anything was an error. `nix profile install
+A path that cannot be read, a missing file or a directory named on the
+command line, is a `read` finding (`Cannot read this file.`), graded with
+correctness. The exit code is 1 when anything was an error. `nix profile install
 github:Emerging-Patterns/bolt` is what puts it on the PATH as `bolt`.
 
 ## bolt.bend
@@ -315,7 +317,9 @@ beside the groups.
 ## One binary
 
 `bolt` is also `bolt check file..` (the checker, `bend`, on each file, its
-errors in the same shape, `path:line:1: error: message`) and `bolt lsp`
+errors in the same shape, `path:line:1: error: message`; a file bend could
+not be run on is `path:1:1: error: could not run bend`, an error like any
+other, never `clean`) and `bolt lsp`
 (the [language server](lsp/), over stdio). `main.bend` parses the command
 line with [shake](https://github.com/Emerging-Patterns/shake)
 (`import 0x65bf91e14c96bf0c25491d716ec9f68c/main.bend`) and dispatches on

@@ -269,16 +269,16 @@ def pub.configs(~fs: F.Files, +uri: String) -> IO(List<&2, Maybe<&2, String>>):
 # open, on the checker's run on the file on disk
 def pub.opened(~ck: C.Checker, ~fs: F.Files, +uri: String, text: String, docs: List<&2, Docs.Doc>) -> IO(Work):
   do IO<Work>:
-    ds : List<&2, Rep.Diag> <- C.check(ck, Proto.path(uri))
+    aa : C.Answer <- C.check(ck, Proto.path(uri))
     rs : List<&2, Maybe<&2, String>> <- pub.configs(~fs, uri)
-    return pub.open(uri, text, ds, rs, docs)
+    return pub.open(uri, text, C.errors(aa), rs, docs)
 
 # save, on the checker's run on the file on disk
 def pub.saved(~ck: C.Checker, ~fs: F.Files, +uri: String, docs: List<&2, Docs.Doc>) -> IO(Work):
   do IO<Work>:
-    ds : List<&2, Rep.Diag> <- C.check(ck, Proto.path(uri))
+    aa : C.Answer <- C.check(ck, Proto.path(uri))
     rs : List<&2, Maybe<&2, String>> <- pub.configs(~fs, uri)
-    return pub.save(uri, ds, rs, docs)
+    return pub.save(uri, C.errors(aa), rs, docs)
 
 # change: the linter only
 def pub.changed(~fs: F.Files, +uri: String, text: String, docs: List<&2, Docs.Doc>) -> IO(Work):

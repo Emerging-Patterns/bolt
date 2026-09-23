@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/Emerging-Patterns/bolt/compare/v1.3.2...v1.3.3) (2026-09-23)
+
+
+### Bug Fixes
+
+* **lint:** a directory named on the command line is a read finding (BOLT-OUT-5) ([#147](https://github.com/Emerging-Patterns/bolt/issues/147)) ([02e623f](https://github.com/Emerging-Patterns/bolt/commit/02e623f7d440e6393c8600f0e50f1b0f4c70ac78))
+
 ## [1.3.2](https://github.com/Emerging-Patterns/bolt/compare/v1.3.1...v1.3.2) (2026-09-23)
 
 
