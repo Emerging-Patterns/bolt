@@ -34,6 +34,7 @@ import ./correctness/strings.bend as Strings
 import ./correctness/foreign.bend as Foreign
 import ./correctness/arms.bend as Arms
 import ./correctness/twice.bend as Twice
+import ./laws/closed.bend as Closed
 import ./LAWS.bend as Laws
 
 # a finding in front when b holds adds one to the count
@@ -5411,3 +5412,269 @@ def twice.go(root, path):
 
 def Laws.twice_counts(path, _text, _toks, tree, _bound, _items):
   twice.go(tree, path)
+
+# closed (BOLT-LAW-2): the rule's binder test is the law's, and a law
+# statement adds a finding exactly when it binds nothing.
+
+# a law's binder test, to the rule and to the law
+law closed.binds:
+  for body: Tree.Node
+  {Closed.binds(body) == Laws.closed.bound(body) : Bool}
+
+def closed.binds(body):
+  match body:
+    case Tree.NCons{h, rest}:
+      match h:
+        case Tree.Stmt{kind, _kids, _b}:
+          match kind:
+            case Tree.SFor{}:
+              {==}
+            case Tree.SDef{}:
+              closed.binds(rest)
+            case Tree.SType{}:
+              closed.binds(rest)
+            case Tree.SLaw{}:
+              closed.binds(rest)
+            case Tree.SImport{}:
+              closed.binds(rest)
+            case Tree.SCase{}:
+              closed.binds(rest)
+            case Tree.SLet{}:
+              closed.binds(rest)
+            case Tree.STerm{}:
+              closed.binds(rest)
+        case Tree.Leaf{_x}:
+          closed.binds(rest)
+        case Tree.Group{_a, _b, _d}:
+          closed.binds(rest)
+        case Tree.NNil{}:
+          closed.binds(rest)
+        case Tree.NCons{_a, _b}:
+          closed.binds(rest)
+    case Tree.Leaf{_x}:
+      {==}
+    case Tree.Group{_a, _b, _d}:
+      {==}
+    case Tree.Stmt{_a, _b, _d}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# a finding in front unless b holds adds one to the count
+law closed.stop:
+  for b: Bool
+  for -x: F.Finding
+  for -more: List<&2, F.Finding>
+  for -m: Nat
+  for ih: {List.length(&2, F.Finding, more) == m : Nat}
+  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, b, more, _u => x <> more))
+    == Bool.pick(Nat, b, m, 1n+m) : Nat}
+
+def closed.stop(b, _x, more, m, ih):
+  match b:
+    case True{}:
+      ih
+    case False{}:
+      Equal.cong(Nat, Nat, n => 1n+n, List.length(&2, F.Finding, more), m, ih)
+
+# a top-level law onto a rest the law holds for
+law closed.law:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +path: String
+  for ih: {List.length(&2, F.Finding, Closed.check.go(rest, path)) == Laws.closed.count(rest) : Nat}
+  {List.length(&2, F.Finding, Closed.check.go(Tree.NCons{Tree.Stmt{Tree.SLaw{}, kids, body}, rest}, path))
+    == Laws.closed.count(Tree.NCons{Tree.Stmt{Tree.SLaw{}, kids, body}, rest}) : Nat}
+
+def closed.law(kids, body, rest, path, ih):
+  +more = Closed.check.go(rest, path)
+  +m = Laws.closed.count(rest)
+  +x = {F.Finding{path, Tree.line(kids), Tree.col(kids), 0, "closed",
+    "Law " ++ Closed.name.of(Bind.declared(kids))
+      ++ " has no for or exs, so it checks one case; quantify it, or delete it."} : F.Finding}
+  Equal.trans(Nat,
+    List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Closed.binds(body), more, _u => x <> more)),
+    List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Laws.closed.bound(body), more, _u => x <> more)),
+    Bool.pick(Nat, Laws.closed.bound(body), m, 1n+m),
+    Equal.cong(Bool, Nat, z => List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, z, more, _u => x <> more)),
+      Closed.binds(body), Laws.closed.bound(body), closed.binds(body)),
+    closed.stop(Laws.closed.bound(body), x, more, m, ih))
+
+def Laws.closed_walk_counts(root, path):
+  match root:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Stmt{kind, +kids, +body}:
+          match kind:
+            case Tree.SLaw{}:
+              closed.law(kids, body, rest, path, Laws.closed_walk_counts(rest, path))
+            case Tree.SDef{}:
+              Laws.closed_walk_counts(rest, path)
+            case Tree.SType{}:
+              Laws.closed_walk_counts(rest, path)
+            case Tree.SImport{}:
+              Laws.closed_walk_counts(rest, path)
+            case Tree.SCase{}:
+              Laws.closed_walk_counts(rest, path)
+            case Tree.SFor{}:
+              Laws.closed_walk_counts(rest, path)
+            case Tree.SLet{}:
+              Laws.closed_walk_counts(rest, path)
+            case Tree.STerm{}:
+              Laws.closed_walk_counts(rest, path)
+        case Tree.Leaf{_x}:
+          Laws.closed_walk_counts(rest, path)
+        case Tree.Group{_a, _b, _d}:
+          Laws.closed_walk_counts(rest, path)
+        case Tree.NNil{}:
+          Laws.closed_walk_counts(rest, path)
+        case Tree.NCons{_a, _b}:
+          Laws.closed_walk_counts(rest, path)
+    case Tree.Leaf{_x}:
+      {==}
+    case Tree.Group{_a, _b, _d}:
+      {==}
+    case Tree.Stmt{_a, _b, _d}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+def Laws.closed_counts(path, _text, _toks, tree, _bound, _items):
+  Equal.trans(Nat,
+    List.length(&2, F.Finding,
+      Lazy.stop(List<&2, F.Finding>, Bool.not(Paths.is_laws(path)), [], _u => Closed.check.go(tree, path))),
+    Bool.pick(Nat, Bool.not(Paths.is_laws(path)), 0n, Laws.closed.count(tree)),
+    Bool.pick(Nat, Paths.is_laws(path), Laws.closed.count(tree), 0n),
+    param.stop(Bool.not(Paths.is_laws(path)), Closed.check.go(tree, path), Laws.closed.count(tree),
+      Laws.closed_walk_counts(tree, path)),
+    arms.flip(Paths.is_laws(path), Laws.closed.count(tree)))
+
+# doc (BOLT-RULE-S001): the rule's early exits are the law's plain picks and
+# ands, so an item adds a finding exactly when the law calls it bare.
+
+# the early exit of a Bool search is the plain pick
+law doc.pick:
+  for c: Bool
+  for -a: Bool
+  for -x: Bool
+  for -y: Bool
+  for ih: {x == y : Bool}
+  {Lazy.stop(Bool, c, a, _u => x) == Bool.pick(Bool, c, a, y) : Bool}
+
+def doc.pick(c, _a, _x, _y, ih):
+  match c:
+    case True{}:
+      {==}
+    case False{}:
+      ih
+
+# the `#` test on line nn, to the rule and to the law
+law doc.hash:
+  for lines: List<&2, String>
+  for +nn: U32
+  {Doc.check.hash(lines, nn) == Laws.doc.hash(lines, nn) : Bool}
+
+def doc.hash(lines, nn):
+  match lines:
+    case Nil{}:
+      {==}
+    case Con{hh, tt}:
+      doc.pick(U32.is_eq(nn, 0), String.starts_with(hh, "#"), Doc.check.hash(tt, U32.sub(nn, 1)),
+        Laws.doc.hash(tt, U32.sub(nn, 1)), doc.hash(tt, U32.sub(nn, 1)))
+
+# the `#` line right above line nn, to the rule and to the law
+law doc.above:
+  for +lines: List<&2, String>
+  for +nn: U32
+  {Doc.check.above(lines, nn) == Bool.and(Bool.not(U32.is_eq(nn, 0)), Laws.doc.hash(lines, U32.sub(nn, 1))) : Bool}
+
+def doc.above(lines, nn):
+  hole.and(Bool.not(U32.is_eq(nn, 0)), Doc.check.hash(lines, U32.sub(nn, 1)), Laws.doc.hash(lines, U32.sub(nn, 1)),
+    doc.hash(lines, U32.sub(nn, 1)))
+
+# the kind, name and doc test, to the rule and to the law
+law doc.needs:
+  for kk: Outline.ItemKind
+  for +name: String
+  for +doc: String
+  {Bool.and(Bool.and(Doc.needs(kk), Bool.not(Doc.exempt(name))), String.is_empty(doc))
+    == Bool.and(Bool.and(Laws.doc.kind(kk), Bool.not(Laws.doc.free(name))), String.is_empty(doc)) : Bool}
+
+def doc.needs(kk, _name, _doc):
+  match kk:
+    case Outline.IImport{}:
+      {==}
+    case Outline.IDef{}:
+      {==}
+    case Outline.ILaw{}:
+      {==}
+    case Outline.IType{}:
+      {==}
+    case Outline.ICtor{}:
+      {==}
+    case Outline.ILocal{}:
+      {==}
+
+# an item's hit, to the rule and to the law
+law doc.hit:
+  for +kk: Outline.ItemKind
+  for +name: String
+  for +line: U32
+  for +doc: String
+  for +lines: List<&2, String>
+  {Lazy.and_then(Bool.and(Bool.and(Doc.needs(kk), Bool.not(Doc.exempt(name))), String.is_empty(doc)),
+    _u => Bool.not(Doc.check.above(lines, line))) == Laws.doc.bare(kk, name, line, doc, lines) : Bool}
+
+def doc.hit(kk, name, line, doc, lines):
+  +ar = Bool.and(Bool.and(Doc.needs(kk), Bool.not(Doc.exempt(name))), String.is_empty(doc))
+  +as = Bool.and(Bool.and(Laws.doc.kind(kk), Bool.not(Laws.doc.free(name))), String.is_empty(doc))
+  +ns = Bool.not(Bool.and(Bool.not(U32.is_eq(line, 0)), Laws.doc.hash(lines, U32.sub(line, 1))))
+  Equal.trans(Bool, Lazy.and_then(ar, _u => Bool.not(Doc.check.above(lines, line))), Bool.and(ar, ns),
+    Bool.and(as, ns),
+    hole.and(ar, Bool.not(Doc.check.above(lines, line)), ns,
+      Equal.cong(Bool, Bool, z => Bool.not(z), Doc.check.above(lines, line),
+        Bool.and(Bool.not(U32.is_eq(line, 0)), Laws.doc.hash(lines, U32.sub(line, 1))), doc.above(lines, line))),
+    Equal.cong(Bool, Bool, z => Bool.and(z, ns), ar, as, doc.needs(kk, name, doc)))
+
+# an item onto a rest the law holds for
+law doc.item:
+  for +kk: Outline.ItemKind
+  for +name: String
+  for +line: U32
+  for sig: String
+  for +doc: String
+  for pp: String
+  for +rest: List<&2, Outline.Item>
+  for +path: String
+  for +lines: List<&2, String>
+  for ih: {List.length(&2, F.Finding, Doc.check.go(rest, path, lines)) == Laws.doc.count(rest, lines) : Nat}
+  {List.length(&2, F.Finding, Doc.check.go(Outline.Item{kk, name, line, sig, doc, pp} <> rest, path, lines))
+    == Laws.doc.count(Outline.Item{kk, name, line, sig, doc, pp} <> rest, lines) : Nat}
+
+def doc.item(kk, name, line, _sig, doc, _pp, rest, path, lines, ih):
+  +more = Doc.check.go(rest, path, lines)
+  +m = Laws.doc.count(rest, lines)
+  +x = {F.Finding{path, line, 0, 0, "doc", Doc.what(kk) ++ " " ++ name ++ " has no comment above it."} : F.Finding}
+  +hr = Lazy.and_then(Bool.and(Bool.and(Doc.needs(kk), Bool.not(Doc.exempt(name))), String.is_empty(doc)),
+    _u => Bool.not(Doc.check.above(lines, line)))
+  +hs = Laws.doc.bare(kk, name, line, doc, lines)
+  Equal.trans(Nat, List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, hr, x <> more, more)),
+    List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, hs, x <> more, more)),
+    Bool.pick(Nat, hs, 1n+m, m),
+    Equal.cong(Bool, Nat, z => List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, z, x <> more, more)), hr, hs,
+      doc.hit(kk, name, line, doc, lines)),
+    nat.pick(hs, x, more, m, ih))
+
+def Laws.doc_walk_counts(items, path, lines):
+  match items:
+    case Nil{}:
+      {==}
+    case Con{it, +rest}:
+      match it:
+        case Outline.Item{kk, name, line, sig, doc, pp}:
+          doc.item(kk, name, line, sig, doc, pp, rest, path, lines, Laws.doc_walk_counts(rest, path, lines))
+
+def Laws.doc_counts(path, text, _toks, _tree, _bound, items):
+  param.stop(Bool.or(Paths.is_proof(path), Paths.is_test(path)), Doc.check.go(items, path, String.lines(text)),
+    Laws.doc.count(items, String.lines(text)), Laws.doc_walk_counts(items, path, String.lines(text)))

@@ -45,7 +45,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | BOLT-RULE-U010 | `ring` reports exactly a fixed window dropped and appended per step and passed back in its own parameter position. | Proved | pending |  |
 | BOLT-RULE-U011 | `rewalk` reports exactly the same walk twice on the same argument, one result read for a single value. | Proved | pending |  |
 | BOLT-RULE-U012 | `unit` reports exactly a multiply or divide by one on a recursive step. | Proved | pending |  |
-| BOLT-RULE-S001 | `doc` reports exactly a top-level def, type or law with no comment block right above it, with the header's exemptions. | Proved | pending |  |
+| BOLT-RULE-S001 | `doc` reports exactly a top-level def, type or law with no comment block right above it, with the header's exemptions. | Proved | proved | bolt/rules/LAWS.bend doc_walk_counts; bolt/rules/LAWS.bend doc_counts |
 | BOLT-RULE-S002 | `space` reports exactly trailing whitespace or a tab on any line, string literals and `#\|` lines included, or a line over 120 columns with string literals counted as two, comments at full width, and `#\|` lines not counted. | Proved | proved | bolt/rules/LAWS.bend space_counts; bolt/rules/LAWS.bend space_line_counts; bolt/rules/LAWS.bend space_width_counts |
 | BOLT-RULE-S003 | `wrap` reports exactly a def header whose shape breaks the header's rules. | Proved | pending |  |
 | BOLT-RULE-S004 | `param` reports exactly one finding for each parameter binder whose name is shorter than two characters, unless the name is one capital letter (a type parameter) or the parameter is bare or typed `: Quant` (a quantity), none for any other binder, and none at all in a PROOF.bend. | Proved | proved | bolt/rules/LAWS.bend param_counts |
@@ -58,7 +58,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
 | BOLT-LAW-1 | In every file under a law directory, except helpers, law files and tests, every def and type is referenced by a quantified law in a LAWS.bend: a use in the law's statement that the binder (BOLT-SYN-5) resolves to that def, through an import alias or in the same file. | Proved | pending |  |
-| BOLT-LAW-2 | `closed` reports any law in a LAWS.bend with no binder. | Proved | pending |  |
+| BOLT-LAW-2 | `closed` reports any law in a LAWS.bend with no binder. | Proved | proved | bolt/rules/LAWS.bend closed_walk_counts; bolt/rules/LAWS.bend closed_counts |
 | BOLT-LAW-3 | An `@unsafe def` reachable by relative imports from a law file in the run is a finding. | Proved | pending |  |
 | BOLT-LAW-5 | The traceability rule reports exactly the findings listed under "Tagging and traceability" for the SPEC.md format stated there, where a pending row may name laws that prove part of it and a tag may name a pending row. | Proved | pending | bolt/rules/LAWS.bend trace_pending_judged; bolt/rules/LAWS.bend trace_pending_shape; bolt/rules/LAWS.bend trace_proved_shape; bolt/rules/LAWS.bend trace_trusted_shape; bolt/rules/LAWS.bend trace_pending_claimed; bolt/rules/LAWS.bend trace_trusted_unclaimed; bolt/rules/LAWS.bend trace_unlisted_unclaimed |
 

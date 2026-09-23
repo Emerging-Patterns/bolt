@@ -35,6 +35,7 @@ import ./correctness/foreign.bend as Foreign
 import ./tokens.bend as T
 import ./correctness/arms.bend as Arms
 import ./correctness/twice.bend as Twice
+import ./laws/closed.bend as Closed
 
 # how many tokens are Nat literals of 1000 or more
 def big_count(toks: List<&2, Lex.Tok>) -> Nat:
@@ -1038,3 +1039,120 @@ law twice_counts:
   for bound: Bind.Bound
   for items: List<&2, Outline.Item>
   {List.length(&2, F.Finding, Twice.check(Src.Src{path, text, toks, tree, bound, items})) == twice_count(tree) : Nat}
+
+# closed (BOLT-LAW-2). Over the file's top-level statements the rule reports
+# each law whose body holds no `for` or `exs` line (the tree's SFor
+# statement), and it reads only a LAWS.bend.
+
+# some statement of a law's body is a `for` or `exs` binder
+def closed.bound(body: Tree.Node) -> Bool:
+  match body:
+    case Tree.NCons{Tree.Stmt{Tree.SFor{}, kids, b}, rest}:
+      True{}
+    case Tree.NCons{h, rest}:
+      closed.bound(rest)
+    case other:
+      False{}
+
+# how many of the top-level laws bind nothing
+def closed.count(root: Tree.Node) -> Nat:
+  match root:
+    case Tree.NCons{Tree.Stmt{Tree.SLaw{}, kids, +body}, rest}:
+      +m = closed.count(rest)
+      Bool.pick(Nat, closed.bound(body), m, 1n+m)
+    case Tree.NCons{h, rest}:
+      closed.count(rest)
+    case other:
+      0n
+
+# LAW: over the file's top-level statements, closed reports one finding for
+# each law with no `for` or `exs` binder, equality or not, and none for any
+# other statement
+# BOLT-LAW-2
+law closed_walk_counts:
+  for root: Tree.Node
+  for +path: String
+  {List.length(&2, F.Finding, Closed.check.go(root, path)) == closed.count(root) : Nat}
+
+# LAW: closed reports exactly those laws of a LAWS.bend, and nothing in any
+# other file, whatever the source holds
+# BOLT-LAW-2
+law closed_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Closed.check(Src.Src{path, text, toks, tree, bound, items}))
+    == Bool.pick(Nat, Paths.is_laws(path), closed.count(tree), 0n) : Nat}
+
+# doc (BOLT-RULE-S001). Over the outline's items the rule reports each def,
+# type and law with no comment block right above it: its outline doc text is
+# empty and the line right above it does not start with `#` (a block of bare
+# `#` lines has an empty text). The header's exemptions: a name that is
+# `main` or holds a dot (a helper), and a PROOF.bend or a file under a
+# `tests` directory.
+
+# a def, a type or a law: the kinds that need a comment
+def doc.kind(kk: Outline.ItemKind) -> Bool:
+  match kk:
+    case Outline.IDef{}:
+      True{}
+    case Outline.IType{}:
+      True{}
+    case Outline.ILaw{}:
+      True{}
+    case other:
+      False{}
+
+# `main`, or a helper: a name holding a dot
+def doc.free(+name: String) -> Bool:
+  Bool.or(String.eq(name, "main"), String.contains(name, "."))
+
+# line nn of the lines (0-based) starts with `#`
+def doc.hash(lines: List<&2, String>, +nn: U32) -> Bool:
+  match lines:
+    case Nil{}:
+      False{}
+    case Con{hh, tt}:
+      Bool.pick(Bool, U32.is_eq(nn, 0), String.starts_with(hh, "#"), doc.hash(tt, U32.sub(nn, 1)))
+
+# an item that needs a comment and has none: an unexempt def, type or law
+# whose doc text is empty and whose line has no `#` line right above it
+def doc.bare(kk: Outline.ItemKind, +name: String, +line: U32, +doc: String, +lines: List<&2, String>) -> Bool:
+  Bool.and(Bool.and(Bool.and(doc.kind(kk), Bool.not(doc.free(name))), String.is_empty(doc)),
+    Bool.not(Bool.and(Bool.not(U32.is_eq(line, 0)), doc.hash(lines, U32.sub(line, 1)))))
+
+# how many items need a comment and have none
+def doc.count(items: List<&2, Outline.Item>, +lines: List<&2, String>) -> Nat:
+  match items:
+    case Nil{}:
+      0n
+    case Con{Outline.Item{kk, +name, +line, sig, +doc, pp}, rest}:
+      +m = doc.count(rest, lines)
+      Bool.pick(Nat, doc.bare(kk, name, line, doc, lines), 1n+m, m)
+
+# LAW: over the outline's items, doc reports one finding for each def, type
+# or law not named `main` and holding no dot whose doc text is empty and
+# whose line has no `#` line right above it, and none for any other item
+# BOLT-RULE-S001
+law doc_walk_counts:
+  for items: List<&2, Outline.Item>
+  for +path: String
+  for +lines: List<&2, String>
+  {List.length(&2, F.Finding, Doc.check.go(items, path, lines)) == doc.count(items, lines) : Nat}
+
+# LAW: doc reports exactly those items of the file, read against its lines,
+# and nothing in a PROOF.bend or a file under a `tests` directory
+# BOLT-RULE-S001
+law doc_counts:
+  for +path: String
+  for +text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Doc.check(Src.Src{path, text, toks, tree, bound, items}))
+    == Bool.pick(Nat, Bool.or(Paths.is_proof(path), Paths.is_test(path)), 0n, doc.count(items, String.lines(text)))
+    : Nat}
