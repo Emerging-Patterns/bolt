@@ -213,9 +213,13 @@ beside the groups.
 - `foreign` — a foreign def with a `.c` body and no `.js` body, or the
   reverse: the missing lane cannot run it. A file headed `# lanes: native`
   needs no `.js`.
-- `fuel` — a `Nat` literal passed to a def's `fuel`/`gas`/`steps`/`budget`
-  parameter. Input past it is cut short with no error: derive the fuel from
-  the input.
+- `fuel` — a `Nat` literal passed to a fuel parameter of a def of the same
+  file. A fuel parameter is known by its name alone: `fuel`, `gas`, `steps`
+  or `budget`, or any name starting with `fuel`. Input past it is cut short
+  with no error: derive the fuel from the input. A literal of any size counts,
+  `3n` included. Only an argument that is one literal token alone counts, so
+  `U32.to_nat(1000)`, a let-bound literal and `(7n)` are not seen. A def's
+  own calls are exempt.
 - `tail` (pedantic) — a self-call that is not a tail call, in a def whose
   first live parameter is a `List` or a `String`. On a long one the JS lane
   overflows its stack (a 48 KB header crashed a server; ~4,900 entries and

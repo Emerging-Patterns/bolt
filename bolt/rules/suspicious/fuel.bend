@@ -1,11 +1,14 @@
 # rule fuel: a call to a def of the same file passes a Nat literal (`1000n`)
-# where that def takes its fuel (a parameter named `fuel`, `gas`, `steps` or
-# `budget`, or starting with `fuel`). The fuel-0 arm returns what it has, so
-# input past the literal comes out cut short, with no error (a JSON printer
-# that stopped at 1000 tasks). Inside a law, the checker unrolls the fixed
-# fuel and hangs. Derive the fuel from the input's size (`Nat.mul(size, 4n)`)
-# or take it as a parameter. A def's own calls are exempt: its step passes
-# `fuel - 1`, not a literal.
+# where that def takes its fuel. A fuel parameter is known by its name alone:
+# `fuel`, `gas`, `steps` or `budget`, or any name starting with `fuel`. The
+# fuel-0 arm returns what it has, so input past the literal comes out cut
+# short, with no error (a JSON printer that stopped at 1000 tasks). Inside a
+# law, the checker unrolls the fixed fuel and hangs. Derive the fuel from the
+# input's size (`Nat.mul(size, 4n)`) or take it as a parameter. A literal of
+# any size counts, an exact repeat count such as `3n` included. Only an
+# argument that is one literal token alone counts: `U32.to_nat(1000)`, a
+# let-bound literal and a parenthesized `(7n)` are not seen. A def's own
+# calls are exempt: its step passes `fuel - 1`, not a literal.
 import Base
 import ../../src.bend as Src
 import ../../../lazy/lazy.bend as Lazy
