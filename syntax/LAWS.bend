@@ -4,6 +4,7 @@ import ./lex.bend as Lex
 import ./tree.bend as Tree
 import ./outline.bend as Outline
 import ../lazy/lazy.bend as Lazy
+import ./bind.bend as Bind
 
 # LAW: the tokens' texts spell the source back, whatever the source is
 # BOLT-SYN-1
@@ -244,3 +245,163 @@ law outline:
   for +toks: List<&2, Lex.Tok>
   {top.keys(Outline.of_tokens(text, toks))
     == top.spec(String.lines(text), False{} <> top.strung(toks), 0) : List<&2, Outline.Item>}
+
+# the binder's resolution (BOLT-SYN-5), written apart from bind.bend. The
+# environment lists the binders in scope innermost first. A use of a name
+# refers to the first binder of that name there; with none, to an item of
+# the file of that name; with none, when the name has a dot and its part
+# before the first dot is an import alias, to the rest after that dot behind
+# the alias; else to nothing the file knows.
+
+# the binders of a name, in the environment's order
+def res.all(env: List<&2, Bind.Bind>, +name: String) -> List<&2, Bind.Bind>:
+  match env:
+    case Nil{}:
+      []
+    case Con{Bind.Bind{+n, l, c, k, note}, t}:
+      +more = res.all(t, name)
+      Bool.pick(List<&2, Bind.Bind>, String.eq(n, name), Bind.Bind{n, l, c, k, note} <> more, more)
+
+# a name's part before its first dot: all of it when it has none
+def res.before(ss: String) -> String:
+  match ss:
+    case SNil{}:
+      SNil{}
+    case SCon{+h, t}:
+      +more = res.before(t)
+      Bool.pick(String, Char.is_eq(h, '.'), SNil{}, SCon{h, more})
+
+# a name's part after its first dot, when it has one
+def res.after(ss: String) -> Maybe<&2, String>:
+  match ss:
+    case SNil{}:
+      None{}
+    case SCon{+h, +t}:
+      +more = res.after(t)
+      Bool.pick(Maybe<&2, String>, Char.is_eq(h, '.'), Some{t}, more)
+
+# a name no binder holds and no item has: behind an alias when it has a dot
+# and the part before is one of the aliases, else free
+def res.qual(after: Maybe<&2, String>, +before: String, als: List<&2, String>) -> Bind.Target:
+  match after:
+    case None{}:
+      Bind.TFree{}
+    case Some{rest}:
+      Bool.pick(Bind.Target, List.contains(~String, ~String.eq, als, before), Bind.TQual{before, rest}, Bind.TFree{})
+
+# what a name refers to once the innermost binder of it, if any, is found
+def res.found(mm: Maybe<&2, Bind.Bind>, +name: String, its: List<&2, String>, als: List<&2, String>) -> Bind.Target:
+  match mm:
+    case Some{Bind.Bind{_n, l, c, _k, _note}}:
+      Bind.TLocal{l, c}
+    case None{}:
+      Bool.pick(Bind.Target, List.contains(~String, ~String.eq, its, name), Bind.TItem{name},
+        res.qual(res.after(name), res.before(name), als))
+
+# what a name refers to, against the binders in scope and the file's items
+# and aliases
+def res.spec(env: List<&2, Bind.Bind>, +name: String, its: List<&2, String>, als: List<&2, String>) -> Bind.Target:
+  res.found(List.head(&2, Bind.Bind, res.all(env, name)), name, its, als)
+
+# LAW: the binder resolves a name to the innermost binder of it, else an
+# item of the file, else an alias qualifier, else free: whatever the
+# environment, the name, the items and the aliases
+# BOLT-SYN-5
+law resolves:
+  for +env: List<&2, Bind.Bind>
+  for +name: String
+  for +its: List<&2, String>
+  for +als: List<&2, String>
+  {Bind.resolve(env, name, Bind.Names{its, als}) == res.spec(env, name, its, als) : Bind.Target}
+
+# LAW: the walk records each use it reads with that target, and changes
+# neither the environment nor anything else it has gathered
+# BOLT-SYN-5
+law uses:
+  for +name: String
+  for +line: U32
+  for +col: U32
+  for +env: List<&2, Bind.Bind>
+  for +its: List<&2, String>
+  for +als: List<&2, String>
+  for +binds: List<&2, Bind.Bind>
+  for +us: List<&2, Bind.Use>
+  for +scopes: List<&2, Bind.Scope>
+  {Bind.use(name, line, col, env, Bind.Names{its, als}, Bind.Out{binds, us, scopes})
+    == Bind.W{env, Bind.Out{binds, Bind.Use{name, line, col, res.spec(env, name, its, als)} <> us, scopes}} : Bind.W}
+
+# the environment the walk threads (BOLT-SYN-5): what makes the first binder
+# of a name in it the innermost one in scope. A binder goes on the front, and
+# a scope, once left, gives back the environment it was entered with: a
+# statement other than a let or a `for` is such a scope for the statements
+# after it, and a group for the terms after it. Still to prove: that the walk
+# only ever puts binders in front of the environment it was given.
+
+# LAW: a binder the walk introduces goes on the front of the environment
+# BOLT-SYN-5
+law fronts:
+  for +name: String
+  for +line: U32
+  for +col: U32
+  for +kind: Bind.BindKind
+  for +env: List<&2, Bind.Bind>
+  for +out: Bind.Out
+  {Bind.env_of(Bind.bind(name, line, col, kind, env, out)) == Bind.Bind{name, line, col, kind, ""} <> env
+    : List<&2, Bind.Bind>}
+
+# LAW: so does a binder of a telescope, whatever its note says
+# BOLT-SYN-5
+law fronts_decl:
+  for +name: String
+  for +line: U32
+  for +col: U32
+  for +kind: Bind.BindKind
+  for +quantity: String
+  for +rest: Tree.Node
+  for +env: List<&2, Bind.Bind>
+  for +out: Bind.Out
+  exs note: String
+  {Bind.env_of(Bind.bind_decl(name, line, col, kind, quantity, rest, env, out))
+    == Bind.Bind{name, line, col, kind, note} <> env : List<&2, Bind.Bind>}
+
+# does a statement of this kind close its scope for the statements after it?
+# All but a let and a `for` do
+def scoped(kk: Tree.StmtKind) -> Bool:
+  match kk:
+    case Tree.SLet{}:
+      False{}
+    case Tree.SFor{}:
+      False{}
+    case _other:
+      True{}
+
+# LAW: the statements after a def, law, type, import, case or term statement
+# are read with the environment it was entered with
+# BOLT-SYN-5
+law restores:
+  for +kk: Tree.StmtKind
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +env: List<&2, Bind.Bind>
+  for +ns: Bind.Names
+  for +out: Bind.Out
+  for e: {scoped(kk) == True{} : Bool}
+  exs o: Bind.Out
+  {Bind.walk(Tree.NCons{Tree.Stmt{kk, kids, body}, rest}, Bind.MBlock{}, env, ns, out)
+    == Bind.walk(rest, Bind.MBlock{}, env, ns, o) : Bind.W}
+
+# LAW: the terms after a group are read with the environment it was entered
+# with: a lambda inside it binds only inside it
+# BOLT-SYN-5
+law groups:
+  for +open: Lex.Tok
+  for +gkids: Tree.Node
+  for +close: Maybe<&2, Lex.Tok>
+  for +rest: Tree.Node
+  for +env: List<&2, Bind.Bind>
+  for +ns: Bind.Names
+  for +out: Bind.Out
+  exs o: Bind.Out
+  {Bind.walk(Tree.NCons{Tree.Group{open, gkids, close}, rest}, Bind.MTerm{}, env, ns, out)
+    == Bind.walk(rest, Bind.MTerm{}, env, ns, o) : Bind.W}

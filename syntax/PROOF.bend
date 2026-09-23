@@ -4,6 +4,7 @@ import ./lex.bend as Lex
 import ./tree.bend as Tree
 import ./outline.bend as Outline
 import ../lazy/lazy.bend as Lazy
+import ./bind.bend as Bind
 import ./LAWS.bend as Laws
 
 # a string onto nothing is itself
@@ -3311,3 +3312,302 @@ def Laws.outline(text, toks):
     ol.run(String.lines(text), Outline.St{Outline.Top{}, 0, [], []}, Outline.inside(toks)),
     Equal.cong(List<&2, Bool>, List<&2, Outline.Item>, x => Laws.top.spec(String.lines(text), x, 0),
       Outline.inside(toks), False{} <> Laws.top.strung(toks), ol.flags(toks)))
+
+# the binder's resolution (BOLT-SYN-5)
+# ------------------------------------
+
+# the innermost binder, one binder further out: the one here when it has the
+# name, else the one the rest has
+law rs.find.arm:
+  for +b: Bool
+  for +bb: Bind.Bind
+  for -found: Maybe<&2, Bind.Bind>
+  for -all: List<&2, Bind.Bind>
+  for ih: {found == List.head(&2, Bind.Bind, all) : Maybe<&2, Bind.Bind>}
+  {Bool.pick(Maybe<&2, Bind.Bind>, b, Some{bb}, found)
+    == List.head(&2, Bind.Bind, Bool.pick(List<&2, Bind.Bind>, b, bb <> all, all)) : Maybe<&2, Bind.Bind>}
+
+def rs.find.arm(b, _bb, _found, _all, ih):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      ih
+
+# the binder's search finds the first binder of the name
+law rs.find:
+  for +env: List<&2, Bind.Bind>
+  for +name: String
+  {Bind.find(env, name) == List.head(&2, Bind.Bind, Laws.res.all(env, name)) : Maybe<&2, Bind.Bind>}
+
+def rs.find(env, name):
+  match env:
+    case Nil{}:
+      {==}
+    case Con{Bind.Bind{+n, +l, +c, +k, +note}, +t}:
+      rs.find.arm(String.eq(n, name), Bind.Bind{n, l, c, k, note}, Bind.find(t, name), Laws.res.all(t, name),
+        rs.find(t, name))
+
+# is there a part after a dot?
+def rs.ok(mm: Maybe<&2, String>) -> Bool:
+  match mm:
+    case None{}:
+      False{}
+    case Some{_r}:
+      True{}
+
+# the part after a dot, "" when there is none
+def rs.dflt(mm: Maybe<&2, String>) -> String:
+  match mm:
+    case None{}:
+      ""
+    case Some{r}:
+      r
+
+# any text starts with the empty text
+law rs.starts:
+  for +t: String
+  {String.starts_with(t, SNil{}) == True{} : Bool}
+
+def rs.starts(t):
+  match t:
+    case SNil{}:
+      {==}
+    case SCon{_h, _r}:
+      {==}
+
+# a dot, one char further in: here, or wherever the rest has one
+law rs.dot.arm:
+  for +b: Bool
+  for +t: String
+  for ih: {String.contains(t, ".") == rs.ok(Laws.res.after(t)) : Bool}
+  {String.contains.if(t, ".", String.starts_with.if(t, SNil{}, b))
+    == rs.ok(Bool.pick(Maybe<&2, String>, b, Some{t}, Laws.res.after(t))) : Bool}
+
+def rs.dot.arm(b, t, ih):
+  match b:
+    case True{}:
+      %Equal.sym(Bool, String.starts_with(t, SNil{}), True{}, rs.starts(t))
+        : {String.contains.if(t, ".", _) == True{} : Bool}
+      {==}
+    case False{}:
+      ih
+
+# a name holds a dot exactly when it has a part after one
+law rs.dot:
+  for +s: String
+  {String.contains(s, ".") == rs.ok(Laws.res.after(s)) : Bool}
+
+def rs.dot(s):
+  match s:
+    case SNil{}:
+      {==}
+    case SCon{+h, +t}:
+      rs.dot.arm(Char.is_eq(h, '.'), t, rs.dot(t))
+
+# the part before a dot, one char further in
+law rs.head.arm:
+  for +b: Bool
+  for +h: Char
+  for +t: String
+  for ih: {Bind.head_of(String.to_list(t)) == Laws.res.before(t) : String}
+  {String.from_list(Lazy.stop(List<&2, Char>, b, Nil{}, _u => h <> Bind.head_of.go(String.to_list(t))))
+    == Bool.pick(String, b, SNil{}, SCon{h, Laws.res.before(t)}) : String}
+
+def rs.head.arm(b, h, t, ih):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      Equal.cong(String, String, x => SCon{h, x}, Bind.head_of(String.to_list(t)), Laws.res.before(t), ih)
+
+# the binder's qualifier is the part before the first dot
+law rs.head:
+  for +s: String
+  {Bind.head_of(String.to_list(s)) == Laws.res.before(s) : String}
+
+def rs.head(s):
+  match s:
+    case SNil{}:
+      {==}
+    case SCon{+h, +t}:
+      rs.head.arm(Char.is_eq(h, '.'), h, t, rs.head(t))
+
+# the part after a dot, one char further in
+law rs.rest.arm:
+  for +b: Bool
+  for +t: String
+  for ih: {Bind.rest_of(String.to_list(t)) == rs.dflt(Laws.res.after(t)) : String}
+  {Lazy.stop(String, b, String.from_list(String.to_list(t)), _u => Bind.rest_of(String.to_list(t)))
+    == rs.dflt(Bool.pick(Maybe<&2, String>, b, Some{t}, Laws.res.after(t))) : String}
+
+def rs.rest.arm(b, t, ih):
+  match b:
+    case True{}:
+      chars(t)
+    case False{}:
+      ih
+
+# the binder's qualified name is the part after the first dot
+law rs.rest:
+  for +s: String
+  {Bind.rest_of(String.to_list(s)) == rs.dflt(Laws.res.after(s)) : String}
+
+def rs.rest(s):
+  match s:
+    case SNil{}:
+      {==}
+    case SCon{+h, +t}:
+      rs.rest.arm(Char.is_eq(h, '.'), t, rs.rest(t))
+
+# an alias qualifier, once the name is known to have a dot
+law rs.alias:
+  for +c: Bool
+  for +q: String
+  for +r: String
+  {Lazy.stop(Bind.Target, Bool.not(c), Bind.TFree{}, _u => Bind.TQual{q, r})
+    == Bool.pick(Bind.Target, c, Bind.TQual{q, r}, Bind.TFree{}) : Bind.Target}
+
+def rs.alias(c, _q, _r):
+  match c:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# the binder's alias test, by whether the name has a part after a dot
+law rs.qual:
+  for +mm: Maybe<&2, String>
+  for +q: String
+  for +als: List<&2, String>
+  {Lazy.stop(Bind.Target, Bool.not(Bool.and(rs.ok(mm), Bind.has(als, q))), Bind.TFree{},
+      _u => Bind.TQual{q, rs.dflt(mm)})
+    == Laws.res.qual(mm, q, als) : Bind.Target}
+
+def rs.qual(mm, q, als):
+  match mm:
+    case None{}:
+      {==}
+    case Some{+r}:
+      rs.alias(Bind.has(als, q), q, r)
+
+# the binder's alias test, from what it computes of a name: whether it has a
+# dot (c) and its part after one (r)
+law rs.qual.at:
+  for +c: Bool
+  for +q: String
+  for +r: String
+  for +mm: Maybe<&2, String>
+  for +als: List<&2, String>
+  for e1: {c == rs.ok(mm) : Bool}
+  for e2: {r == rs.dflt(mm) : String}
+  {Lazy.stop(Bind.Target, Bool.not(Bool.and(c, Bind.has(als, q))), Bind.TFree{}, _u => Bind.TQual{q, r})
+    == Laws.res.qual(mm, q, als) : Bind.Target}
+
+def rs.qual.at(c, q, r, mm, als, e1, e2):
+  %Equal.sym(Bool, c, rs.ok(mm), e1) : {Lazy.stop(Bind.Target, Bool.not(Bool.and(_, Bind.has(als, q))), Bind.TFree{},
+      _u => Bind.TQual{q, r}) == Laws.res.qual(mm, q, als) : Bind.Target}
+  %Equal.sym(String, r, rs.dflt(mm), e2) : {Lazy.stop(Bind.Target, Bool.not(Bool.and(rs.ok(mm), Bind.has(als, q))),
+      Bind.TFree{}, _u => Bind.TQual{q, _}) == Laws.res.qual(mm, q, als) : Bind.Target}
+  rs.qual(mm, q, als)
+
+# what the binder makes of a name no binder holds and no item has
+def rs.code(+name: String, als: List<&2, String>) -> Bind.Target:
+  +cs = String.to_list(name)
+  +head = Bind.head_of(cs)
+  Lazy.stop(Bind.Target, Bool.not(Bool.and(String.contains(name, "."), Bind.has(als, head))), Bind.TFree{},
+    _u => Bind.TQual{head, Bind.rest_of(cs)})
+
+# a name no binder holds: an item, else what its dot and alias make of it
+law rs.none:
+  for +name: String
+  for +its: List<&2, String>
+  for +als: List<&2, String>
+  {Bind.resolve.local(None{}, name, Bind.Names{its, als}) == Laws.res.found(None{}, name, its, als) : Bind.Target}
+
+def rs.none(name, its, als):
+  Equal.cong(Bind.Target, Bind.Target, x => Bool.pick(Bind.Target, Bind.has(its, name), Bind.TItem{name}, x),
+    rs.code(name, als),
+    Laws.res.qual(Laws.res.after(name), Laws.res.before(name), als),
+    Equal.trans(Bind.Target,
+      rs.code(name, als),
+      Laws.res.qual(Laws.res.after(name), Bind.head_of(String.to_list(name)), als),
+      Laws.res.qual(Laws.res.after(name), Laws.res.before(name), als),
+      rs.qual.at(String.contains(name, "."), Bind.head_of(String.to_list(name)), Bind.rest_of(String.to_list(name)),
+        Laws.res.after(name), als, rs.dot(name), rs.rest(name)),
+      Equal.cong(String, Bind.Target, y => Laws.res.qual(Laws.res.after(name), y, als),
+        Bind.head_of(String.to_list(name)), Laws.res.before(name), rs.head(name))))
+
+# whatever the search found, the binder and the spec make the same of it
+law rs.local:
+  for +mm: Maybe<&2, Bind.Bind>
+  for +name: String
+  for +its: List<&2, String>
+  for +als: List<&2, String>
+  {Bind.resolve.local(mm, name, Bind.Names{its, als}) == Laws.res.found(mm, name, its, als) : Bind.Target}
+
+def rs.local(mm, name, its, als):
+  match mm:
+    case Some{Bind.Bind{_n, _l, _c, _k, _note}}:
+      {==}
+    case None{}:
+      rs.none(name, its, als)
+
+def Laws.resolves(env, name, its, als):
+  %Equal.sym(Maybe<&2, Bind.Bind>, Bind.find(env, name), List.head(&2, Bind.Bind, Laws.res.all(env, name)),
+      rs.find(env, name))
+    : {Bind.resolve.local(_, name, Bind.Names{its, als}) == Laws.res.spec(env, name, its, als) : Bind.Target}
+  rs.local(List.head(&2, Bind.Bind, Laws.res.all(env, name)), name, its, als)
+
+def Laws.uses(name, line, col, env, its, als, binds, us, scopes):
+  Equal.cong(Bind.Target, Bind.W,
+    x => Bind.W{env, Bind.Out{binds, Bind.Use{name, line, col, x} <> us, scopes}},
+    Bind.resolve(env, name, Bind.Names{its, als}), Laws.res.spec(env, name, its, als),
+    Laws.resolves(env, name, its, als))
+
+# the environment the walk threads (BOLT-SYN-5)
+# ---------------------------------------------
+
+def Laws.fronts(_name, _line, _col, _kind, _env, out):
+  match out:
+    case Bind.Out{_b, _u, _s}:
+      {==}
+
+def Laws.fronts_decl(name, _line, _col, _kind, quantity, rest, _env, out):
+  match out:
+    case Bind.Out{_b, _u, _s}:
+      (quantity ++ name ++ Bind.render(rest), {==})
+
+def Laws.restores(kk, kids, body, rest, env, ns, out, e):
+  match kk:
+    case Tree.SDef{}:
+      +h = Bind.walk(kids, Bind.MHead{}, env, ns, out)
+      (Bind.out_of(Bind.walk(body, Bind.MBlock{}, Bind.env_of(h), ns,
+        Bind.mark(Tree.line(kids), Bind.env_of(h), Bind.out_of(h)))), {==})
+    case Tree.SType{}:
+      +h = Bind.walk(kids, Bind.MHead{}, env, ns, out)
+      (Bind.out_of(Bind.walk(body, Bind.MCtors{}, Bind.env_of(h), ns, Bind.out_of(h))), {==})
+    case Tree.SLaw{}:
+      +h = Bind.walk(kids, Bind.MHead{}, env, ns, out)
+      (Bind.out_of(Bind.walk(body, Bind.MBlock{}, Bind.env_of(h), ns, Bind.out_of(h))), {==})
+    case Tree.SImport{}:
+      (out, {==})
+    case Tree.SCase{}:
+      +p = Bind.walk(kids, Bind.MLhs{env, Bind.KPat{}}, env, ns, Bind.mark(Tree.line(kids), env, out))
+      (Bind.out_of(Bind.walk(body, Bind.MBlock{}, Bind.env_of(p), ns, Bind.out_of(p))), {==})
+    case Tree.SFor{}:
+      Empty.absurd(&o: Bind.Out
+        -> {Bind.walk(Tree.NCons{Tree.Stmt{Tree.SFor{}, kids, body}, rest}, Bind.MBlock{}, env, ns, out)
+          == Bind.walk(rest, Bind.MBlock{}, env, ns, o) : Bind.W}, false_true(e))
+    case Tree.SLet{}:
+      Empty.absurd(&o: Bind.Out
+        -> {Bind.walk(Tree.NCons{Tree.Stmt{Tree.SLet{}, kids, body}, rest}, Bind.MBlock{}, env, ns, out)
+          == Bind.walk(rest, Bind.MBlock{}, env, ns, o) : Bind.W}, false_true(e))
+    case Tree.STerm{}:
+      +t = Bind.walk(kids, Bind.MTerm{}, env, ns, Bind.mark(Tree.line(kids), env, out))
+      (Bind.out_of(Bind.walk(body, Bind.MBlock{}, Bind.env_of(t), ns, Bind.out_of(t))), {==})
+
+def Laws.groups(open, gkids, _close, _rest, env, ns, out):
+  match open:
+    case Lex.Tok{_k, _t, _l, _c}:
+      (Bind.out_of(Bind.walk(gkids, Bind.MTerm{}, env, ns, out)), {==})
