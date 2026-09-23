@@ -159,9 +159,12 @@ beside the groups.
   (one sort phase went 39 s -> 0.9 s).
 - `table` — `List.get` or `List.set` at a computed index inside a def that
   calls itself, when the list is a fixed table (a literal, a sized array, or
-  `List.replicate` / `Array.new` / `List.range` with a constant count). Keep
-  it in an `Array`. A literal index, a growing list, and a data-dependent
-  length stay with `index` or stay quiet, so one call is one finding.
+  `List.replicate` / `Array.new` / `List.range` with a constant count),
+  inline, as a table def of the file, or held by the let of that name in
+  scope. A let reaches the statements after it, not a sibling case arm, and a
+  later let of the name to anything else ends it. Keep it in an `Array`. A
+  literal index, a growing list, and a data-dependent length stay with
+  `index` or stay quiet, so one call is one finding.
 - `hoist` — a list or array of more than eight constants, or a call that
   builds one from inputs that do not change, sits inside a def that calls
   itself and is then indexed. The build runs again on every step. Build it
