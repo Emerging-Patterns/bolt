@@ -186,8 +186,12 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   appending (`acc ++ x`, `List.append(&2, T, acc, ..)`) in that parameter's
   own position: each step copies the accumulator, so the walk is quadratic.
   Prepend with `<>` and reverse once. A parameter appended into another slot
-  is not counted, and neither is a parenthesized `(acc ++ x)` or an append
-  bound by a let first.
+  is not counted. The append may sit inside parentheses (`(acc ++ x)`), or
+  be bound by a let first (`+q = acc ++ x`, then `go(t, q)`): a lone name
+  reads the nearest `q = ..` / `+q = ..` before the call in its block or an
+  enclosing one, so a later let of the name shadows it and a let in another
+  case arm is not seen. Typed and destructuring lets, do-binds and pattern
+  binders are not followed.
 - `index` — `List.get`/`String.get` at a computed index inside a def that
   calls itself: the list is walked again each step. Walk the cells instead
   (one sort phase went 39 s -> 0.9 s). A get anywhere in the def is
