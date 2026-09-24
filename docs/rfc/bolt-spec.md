@@ -308,7 +308,7 @@ LSP-2 is the requirement editors care about, and it fails today for one reason: 
 
 We state LSP-2 over per-file findings because README already says `law` runs in bolt alone, and project rules over one open document would be wrong more often than right. Once REVIEW-5 resolves every path against the working directory, the CLI's path and the URI's path name the same file, and the grading difference goes away without an LSP-specific fix.
 
-LSP-5 is Proved over bolt's side (the arguments it passes) and leans on BOLT-TRUST-5 for bend's side (that `--check-only` means what it says). Several behaviors are accidental and are not made requirements: malformed JSON is ignored rather than answered with -32700, requests after `shutdown` are still answered, the exit code is 0 on EOF without `shutdown`, a surrogate-pair `\u` escape comes back as invalid UTF-8 (that bug is in ezjson, under BOLT-TRUST-8), and the checker has no timeout, so a hung bend blocks the loop. Any of them can be fixed without touching the spec.
+LSP-5 is Proved over bolt's side (the arguments it passes) and leans on BOLT-TRUST-5 for bend's side (that `--check-only` means what it says). Several behaviors are accidental and are not made requirements: malformed JSON is ignored rather than answered with -32700, requests after `shutdown` are still answered, the exit code is 0 on EOF without `shutdown`, and the checker has no timeout, so a hung bend blocks the loop. Any of them can be fixed without touching the spec.
 
 #### Library (BOLT-LIB)
 
@@ -476,7 +476,7 @@ These assumptions sit outside the proofs. They are the complete list of Trusted 
 | BOLT-TRUST-5 | `bend <file> --check-only` never runs `main`, and prints its report in the shape `bolt/lsp/report.bend` parses. | bend is a separate program, and the report format has already drifted once (`report_import`). |
 | BOLT-TRUST-6 | The proof gate runner runs bend on every PROOF.bend and accepts only an exact `All terms check.` first line. | It is ez code run by `mkProofs` (`ez test --unit-only` today, `ez prove` when ez ships it). CI builds from a clean tree. |
 | BOLT-TRUST-7 | Every commit on `main` passed `ci.yml`. | Holds only once the ruleset in REVIEW-8 exists. Today it does not hold. |
-| BOLT-TRUST-8 | shake v0.1.1 parses argv as its spec says, and ezjson v0.4.2 parses and prints JSON correctly. | Pinned dependencies, by ez.toml hash; bolt's gate does not re-check them. The surrogate-pair bug sits here. |
+| BOLT-TRUST-8 | shake v0.1.1 parses argv as its spec says, and ezjson v0.4.2 parses and prints JSON correctly. | Pinned dependencies, by ez.toml hash; bolt's gate does not re-check them. |
 | BOLT-OUT-6 | A released code is never renumbered or reused. | A property across versions, enforced by review of the SPEC row that lists the table. |
 | BOLT-SYN-6 | Every function in `syntax/` terminates on every input without fuel. | Termination is what the Bend checker's structural-recursion check establishes, so this rests on BOLT-TRUST-1 and needs no law of its own. |
 
