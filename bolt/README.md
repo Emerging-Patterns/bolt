@@ -105,7 +105,12 @@ only what those rules ask: the paths, the top-level defs and types, what the
 laws name, the imports and the `@unsafe` defs.
 What the rules share, `rules/calls.bend` (the recursion rules),
 `rules/tokens.bend`, `rules/imports.bend` and `rules/digest.bend`, sits
-beside the groups.
+beside the groups. The cost rules built on `rules/calls.bend` (`pick`,
+`strict`, `eager`, `tail`, `concat`, `index`, `table`, `hoist`, `ring`,
+`rewalk`, `unit`) skip what never runs: a law file, a proof file, and a def
+that is a proof wherever it is, one that returns a proof (`-> {a == b : T}`)
+or one written with no type at all (`def f(x, y):`, no `:` among its
+parameters and no `->`), which is how Bend fills the law named `f`.
 
 - `doc` — every top-level def, type and law has a comment block right above
   it: column-0 `#` lines with no blank line before the item. A block of bare
@@ -157,7 +162,8 @@ beside the groups.
   helper that matches on the Bool. A self-call is the def's name followed by
   `(..)`, so a parameter named like the def is not one. A pick nested in a
   branch of one already reported is not reported again. Law files, proof
-  files and defs that return a proof are exempt.
+  files and defs that are proofs (they return a proof, or have no type) are
+  exempt.
 - `strict` — a self-call inside `Bool.and`/`Bool.or`, or either side of
   `&&`/`||`, matched by exactly those texts (a qualified `Base.Bool.or` is not
   seen). They are functions too: both sides always run, so there is no

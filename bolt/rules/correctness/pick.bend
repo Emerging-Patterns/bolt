@@ -10,8 +10,9 @@
 # followed by `(..)`: a parameter or a value named like the def is not one. A
 # pick nested in a branch of one already reported is not reported again; one
 # nested in its condition is. A
-# law file, a proof file and a def that returns a proof never run, so they
-# are exempt.
+# law file, a proof file and a def that is a proof never run, so they are
+# exempt: a def that returns a proof, or one written with no type at all
+# (`def f(x, y):`), which fills the law named f.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
