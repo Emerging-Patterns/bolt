@@ -5,9 +5,10 @@ Bend 2 in VS Code: syntax highlighting for `.bend`, and through `bolt lsp`
 findings as you type at the levels the project's `bolt.bend` sets, hover,
 definition, completion, references, rename and semantic tokens.
 
-Install `bolt` first -- `nix profile install github:Emerging-Patterns/bolt`,
-or `bend bolt/main.bend -o bin/bolt.bin` at the repo root -- then the
-extension from a VSIX:
+Install `bolt` first. Use `nix profile install github:Emerging-Patterns/bolt`,
+or, with any installed Bend 2 (no nix or ez needed), run
+`bend bolt/main.bend -o bin/bolt.bin` at the repo root (see the root
+README's Install). Then install the extension from a VSIX:
 
 ```
 cd editors/vscode && npm install && npx --yes @vscode/vsce package
