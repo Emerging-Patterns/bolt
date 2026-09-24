@@ -43,7 +43,7 @@ def slurp.next(
   slurp.more(r, file, acc, rest)
 
 # the whole file, read in chunks until one is empty, or the fuel is
-def slurp(fuel: Nat, file: File, acc: List<&2, U32>) -> IO(Maybe<&2, String>):
+def slurp(fuel: Nat, file: File, acc: List<&2, U32>) -> IO(Maybe<&2, String>):  # noqa: L001 disk effect
   match fuel:
     case 0n:
       slurp.end(file, acc)
@@ -60,7 +60,7 @@ def read.opened(rr: Result<&1, &1, U32 & String, File>) -> IO(Maybe<&2, String>)
       slurp(U32.to_nat(100000), file, [])
 
 # a file's text, or None when it cannot be opened
-def read(path: String) -> IO(Maybe<&2, String>):
+def read(path: String) -> IO(Maybe<&2, String>):  # noqa: L001 disk effect
   do IO<Maybe<&2, String>>:
     r : Result<&1, &1, U32 & String, File> <- File.open(path, "r")
     read.opened(r)
@@ -73,15 +73,15 @@ def base_path.of(rr: Result<&1, &1, U32 & String, String>) -> IO(String):
       IO.pure(String, home ++ "/.bend/current/bend2/base.bend")
 
 # Base, where bend's installer puts it
-def base_path(_u: Unit) -> IO(String):
+def base_path(_u: Unit) -> IO(String):  # noqa: L001 disk effect
   do IO<String>:
     r : Result<&1, &1, U32 & String, String> <- IO.get_env("HOME")
     base_path.of(r)
 
 # the working directory, as the lint's walk names it
-def cwd(_u: Unit) -> IO(String):
+def cwd(_u: Unit) -> IO(String):  # noqa: L001 disk effect
   WalkDisk.cwd()
 
 # the real file system
-def new() -> S.Files:
+def new() -> S.Files:  # noqa: L001 effect record
   S.Files{read, base_path, cwd}

@@ -6,7 +6,7 @@ import ./service.bend as S
 import ../frame.bend as Frame
 
 # the process's stdin and stdout, and the bytes read but not yet framed
-type Stdio is Type:
+type Stdio is Type:  # noqa: L001 transport effect
   Stdio{inp: File, out: File, buf: List<&2, U32>}
 
 # no bytes means the peer closed the pipe
@@ -70,7 +70,7 @@ def recv.loop(fuel: Nat, h2: Stdio) -> IO(Stdio & Maybe<&2, String>):
       recv.on(Frame.cut(buf), inp, out, buf, hh => recv.loop(f, hh))
 
 # the fuel bounds the reads one message may take
-def recv(h2: Stdio) -> IO(Stdio & Maybe<&2, String>):
+def recv(h2: Stdio) -> IO(Stdio & Maybe<&2, String>):  # noqa: L001 transport effect
   recv.loop(U32.to_nat(1000000), h2)
 
 def send.done(ww: File & Result<&1, &1, U32 & String, Unit>, inp: File, buf: List<&2, U32>) -> IO(Stdio):
@@ -78,7 +78,7 @@ def send.done(ww: File & Result<&1, &1, U32 & String, Unit>, inp: File, buf: Lis
   IO.pure(Stdio, Stdio{inp, out, buf})
 
 # a body, framed and written
-def send(h2: Stdio, body: String) -> IO(Stdio):
+def send(h2: Stdio, body: String) -> IO(Stdio):  # noqa: L001 transport effect
   Stdio{inp, out, buf} = h2
   do IO<Stdio>:
     w : File & Result<&1, &1, U32 & String, Unit> <- File.write(out, Frame.wrap(body))
@@ -91,12 +91,12 @@ def stdio.fd(nn: U32) -> IO(File):
   import "./fd.js"
 
 # the process's descriptors 0 and 1, wrapped
-def open() -> IO(Stdio):
+def open() -> IO(Stdio):  # noqa: L001 transport effect
   do IO<Stdio>:
     inp : File <- stdio.fd(0)
     out : File <- stdio.fd(1)
     return Stdio{inp, out, []}
 
 # the transport over stdio
-def new() -> S.Transport<Stdio>:
+def new() -> S.Transport<Stdio>:  # noqa: L001 effect record
   S.Transport{recv, send}
