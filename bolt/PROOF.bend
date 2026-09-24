@@ -2155,18 +2155,19 @@ def Laws.check_run_of(_path, _ds):
 def Laws.check_run_unrun(_path):
   {==}
 
-def Laws.check_exec_ran(_text):
+def Laws.check_exec_ran(_names, _text):
   {==}
 
-def Laws.check_exec_unrun(_text):
+def Laws.check_exec_unrun(_names, _text):
   {==}
 
-def Laws.check_exec_died(text, h):
-  %Equal.sym(List<&2, Rep.Diag>, Rep.parse(text), [], h) : {BendChecker.died(_) == Checker.Unrun{} : Checker.Answer}
+def Laws.check_exec_died(names, text, h):
+  %Equal.sym(List<&2, Rep.Diag>, Rep.parse_in(names, text), [], h) : {BendChecker.died(_)
+    == Checker.Unrun{} : Checker.Answer}
   {==}
 
-def Laws.check_exec_died_reported(text, dd, ds, h):
-  %Equal.sym(List<&2, Rep.Diag>, Rep.parse(text), dd <> ds, h) : {BendChecker.died(_)
+def Laws.check_exec_died_reported(names, text, dd, ds, h):
+  %Equal.sym(List<&2, Rep.Diag>, Rep.parse_in(names, text), dd <> ds, h) : {BendChecker.died(_)
     == Checker.Checked{dd <> ds} : Checker.Answer}
   {==}
 
@@ -2174,23 +2175,24 @@ def Laws.check_exec_died_reported(text, dd, ds, h):
 law chk.untagged:
   for ran: Bool
   for killed: Bool
+  for -names: Maybe<&2, List<&2, String>>
   for text: String
   for h: {Bool.or(ran, killed) == False{} : Bool}
-  {BendChecker.answer.tag(ran, killed, text) == Checker.Unrun{} : Checker.Answer}
+  {BendChecker.answer.tag(ran, killed, names, text) == Checker.Unrun{} : Checker.Answer}
 
-def chk.untagged(ran, killed, text, h):
+def chk.untagged(ran, killed, names, text, h):
   match ran killed:
     case True{} _k:
-      Empty.absurd({BendChecker.answer.tag(True{}, _k, text) == Checker.Unrun{} : Checker.Answer},
+      Empty.absurd({BendChecker.answer.tag(True{}, _k, names, text) == Checker.Unrun{} : Checker.Answer},
         cli.true_false(h))
     case False{} True{}:
-      Empty.absurd({BendChecker.answer.tag(False{}, True{}, text) == Checker.Unrun{} : Checker.Answer},
+      Empty.absurd({BendChecker.answer.tag(False{}, True{}, names, text) == Checker.Unrun{} : Checker.Answer},
         cli.true_false(h))
     case False{} False{}:
       {==}
 
-def Laws.check_exec_untagged(cc, text, h):
-  chk.untagged(Char.is_eq(cc, 'r'), Char.is_eq(cc, 's'), text, h)
+def Laws.check_exec_untagged(names, cc, text, h):
+  chk.untagged(Char.is_eq(cc, 'r'), Char.is_eq(cc, 's'), names, text, h)
 
 def Laws.check_proof_unrun(_ds):
   {==}
@@ -2312,14 +2314,14 @@ def mk.blank(st):
 
 # what a state flushes: its diagnostics so far, reversed, the pending one on
 # top
-def mk.pend(st: Rep.St) -> List<&2, Rep.Diag>:
+def mk.pend(st: Rep.St) -> List<&2, Rep.Raw>:
   Rep.St{seen, _located, msg, line, place, out} = st
   Rep.flush(seen, msg, line, place, out)
 
 # the parser's answer is what its last state flushes, in order
 law mk.finish:
   for st: Rep.St
-  {Rep.finish(st) == List.reverse(&2, Rep.Diag, mk.pend(st)) : List<&2, Rep.Diag>}
+  {Rep.finish(st) == List.reverse(&2, Rep.Raw, mk.pend(st)) : List<&2, Rep.Raw>}
 
 def mk.finish(st):
   match st:
@@ -2615,7 +2617,7 @@ law mk.context:
   for +msg: List<&2, String>
   for +line: U32
   for +place: String
-  for +out: List<&2, Rep.Diag>
+  for +out: List<&2, Rep.Raw>
   {Rep.run(Laws.chk.context(mm), Rep.St{True{}, True{}, msg, line, place, out})
     == Rep.St{True{}, True{}, msg, line, place, out} : Rep.St}
 
@@ -2650,7 +2652,7 @@ law mk.mark_step:
   for +msg: List<&2, String>
   for +line: U32
   for +place: String
-  for +out: List<&2, Rep.Diag>
+  for +out: List<&2, Rep.Raw>
   {Rep.step(Laws.chk.src(Laws.ChkSrc{pad, first, rest, code}, ">| "), Rep.St{True{}, True{}, msg, line,
     place, out})
     == Rep.St{True{}, True{}, msg, Maybe.default(&2, U32, U32.read(Laws.chk.num(first <> rest)), line),
@@ -2681,7 +2683,7 @@ law mk.span:
   for mm: Maybe<&2, Laws.chk.Span>
   for +msg: List<&2, String>
   for +place: String
-  for +out: List<&2, Rep.Diag>
+  for +out: List<&2, Rep.Raw>
   {Rep.run(Laws.chk.span(mm), Rep.St{True{}, True{}, msg, 0, place, out})
     == Rep.St{True{}, True{}, msg, Laws.chk.marks(mm), place, out} : Rep.St}
 
@@ -2738,7 +2740,7 @@ law mk.note_loc:
   for +msg: List<&2, String>
   for +line: U32
   for +place: String
-  for +out: List<&2, Rep.Diag>
+  for +out: List<&2, Rep.Raw>
   {Rep.run(Laws.chk.note(nb), Rep.St{True{}, True{}, msg, line, place, out})
     == Rep.St{True{}, True{}, msg, line, place, out} : Rep.St}
 
@@ -2755,7 +2757,7 @@ law mk.note_unloc:
   for +msg: List<&2, String>
   for +line: U32
   for +place: String
-  for +out: List<&2, Rep.Diag>
+  for +out: List<&2, Rep.Raw>
   {Rep.run(Laws.chk.note(nb), Rep.St{True{}, False{}, msg, line, place, out})
     == Rep.St{True{}, False{}, List.reverse.go(&2, String, Laws.chk.note(nb), msg), line, place,
       out} : Rep.St}
@@ -2817,7 +2819,7 @@ law mk.parts:
   for +msg: List<&2, String>
   for +line: U32
   for +place: String
-  for +out: List<&2, Rep.Diag>
+  for +out: List<&2, Rep.Raw>
   for ok: Laws.chk.parts_ok(ps)
   {Rep.run(Laws.chk.parts(ps), Rep.St{True{}, False{}, msg, line, place, out})
     == Rep.St{True{}, False{}, List.reverse.go(&2, String, Laws.chk.texts(ps), msg), line, place,
@@ -2859,7 +2861,7 @@ def mk.located(at: Maybe<&2, Laws.chk.Where>) -> Bool:
 law mk.where:
   for at: Maybe<&2, Laws.chk.Where>
   for +msg: List<&2, String>
-  for +out: List<&2, Rep.Diag>
+  for +out: List<&2, Rep.Raw>
   for ok: Laws.chk.name_ok(at)
   {Rep.run(Laws.chk.where(at), Rep.St{True{}, False{}, msg, 0, "", out})
     == Rep.St{True{}, mk.located(at), msg, Laws.chk.marked(at), Laws.chk.place(at), out} : Rep.St}
@@ -2882,7 +2884,7 @@ def mk.where(at, msg, out, ok):
 
 # the state after an error's lines: the error pending, what came before it
 # flushed to out
-def mk.after(ee: Laws.chk.Err, out: List<&2, Rep.Diag>) -> Rep.St:
+def mk.after(ee: Laws.chk.Err, out: List<&2, Rep.Raw>) -> Rep.St:
   Laws.ChkErr{parts, +at, note} = ee
   Rep.St{True{}, mk.located(at),
     List.reverse.go(&2, String, Laws.chk.said(at, Laws.chk.texts(parts), Laws.chk.note(note)), []),
@@ -2893,7 +2895,7 @@ law mk.block.note:
   for at: Maybe<&2, Laws.chk.Where>
   for +ts: List<&2, String>
   for +nb: Bool
-  for +out: List<&2, Rep.Diag>
+  for +out: List<&2, Rep.Raw>
   {Rep.run(Laws.chk.note(nb),
       Rep.St{True{}, mk.located(at), List.reverse.go(&2, String, ts, []), Laws.chk.marked(at),
         Laws.chk.place(at), out})
@@ -2971,73 +2973,79 @@ def mk.block(ee, st, okp, okn):
                 mk.where(at, said, flushed, okn)),
               mk.block.note(at, Laws.chk.texts(parts), note, flushed)))))
 
-# the parser's message for an error is the message it said
-law mk.message:
-  for +place: String
-  for +ts: List<&2, String>
-  {Rep.message(place, List.reverse.go(&2, String, ts, [])) == Laws.chk.message(place, ts) : String}
+# an error as the parser holds it before placing it: its place, the number
+# it marks, and its message lines as one text
+def mk.raw(+ee: Laws.chk.Err) -> Rep.Raw:
+  +at = Laws.chk.err_at(ee)
+  Rep.Raw{Laws.chk.place(at), Laws.chk.marked(at), Laws.chk.body(ee)}
 
-def mk.message(place, ts):
-  Equal.cong(List<&2, String>, String, xs => Laws.chk.message(place, xs),
-    List.reverse(&2, String, List.reverse(&2, String, ts)), ts, mk.rev_rev(String, ts))
+# the errors as the parser holds them, in order
+def mk.raws(es: List<&2, Laws.chk.Err>) -> List<&2, Rep.Raw>:
+  match es:
+    case Nil{}:
+      []
+    case Con{+ee, rest}:
+      mk.raw(ee) <> mk.raws(rest)
 
-# a message that is not "no main to run" is flushed as a diagnostic
+# a message that is not "no main to run" is flushed
 law mk.flush.pick:
   for bb: Bool
   for eb: {bb == False{} : Bool}
-  for -yes: List<&2, Rep.Diag>
-  for -no: List<&2, Rep.Diag>
-  {Bool.pick(List<&2, Rep.Diag>, Bool.and(True{}, Bool.not(bb)), yes, no) == yes : List<&2, Rep.Diag>}
+  for -yes: List<&2, Rep.Raw>
+  for -no: List<&2, Rep.Raw>
+  {Bool.pick(List<&2, Rep.Raw>, Bool.and(True{}, Bool.not(bb)), yes, no) == yes : List<&2, Rep.Raw>}
 
 def mk.flush.pick(bb, eb, yes, no):
   match bb:
     case False{}:
       {==}
     case True{}:
-      Empty.absurd({Bool.pick(List<&2, Rep.Diag>, False{}, yes, no) == yes : List<&2, Rep.Diag>},
+      Empty.absurd({Bool.pick(List<&2, Rep.Raw>, False{}, yes, no) == yes : List<&2, Rep.Raw>},
         cli.true_false(eb))
 
-# the parser's message, equal to the one said, flushed as a diagnostic
+# the parser's message text, equal to the one said, flushed
 law mk.flush.at:
   for +text: String
   for +spec: String
   for et: {text == spec : String}
   for hmain: {String.eq(spec, "no main to run") == False{} : Bool}
+  for +place: String
   for +line: U32
-  for +out: List<&2, Rep.Diag>
-  {Bool.pick(List<&2, Rep.Diag>, Bool.and(True{}, Bool.not(String.eq(text, "no main to run"))),
-      Rep.Diag{line, text} <> out, out) == Rep.Diag{line, spec} <> out : List<&2, Rep.Diag>}
+  for +out: List<&2, Rep.Raw>
+  {Bool.pick(List<&2, Rep.Raw>, Bool.and(True{}, Bool.not(String.eq(text, "no main to run"))),
+      Rep.Raw{place, line, text} <> out, out) == Rep.Raw{place, line, spec} <> out : List<&2, Rep.Raw>}
 
-def mk.flush.at(text, spec, et, hmain, line, out):
-  %Equal.sym(String, text, spec, et) : {Bool.pick(List<&2, Rep.Diag>, Bool.and(True{}, Bool.not(String.eq(_,
-    "no main to run"))),
-      Rep.Diag{line, _} <> out, out) == Rep.Diag{line, spec} <> out : List<&2, Rep.Diag>}
-  mk.flush.pick(String.eq(spec, "no main to run"), hmain, Rep.Diag{line, spec} <> out, out)
+def mk.flush.at(text, spec, et, hmain, place, line, out):
+  %Equal.sym(String, text, spec, et) : {Bool.pick(List<&2, Rep.Raw>,
+      Bool.and(True{}, Bool.not(String.eq(_, "no main to run"))),
+      Rep.Raw{place, line, _} <> out, out) == Rep.Raw{place, line, spec} <> out : List<&2, Rep.Raw>}
+  mk.flush.pick(String.eq(spec, "no main to run"), hmain, Rep.Raw{place, line, spec} <> out, out)
 
-# the error the parser holds after its lines flushes as its diagnostic
+# the error the parser holds after its lines is flushed as it was said
 law mk.flush:
-  for ee: Laws.chk.Err
-  for +out: List<&2, Rep.Diag>
-  for hmain: {String.eq(Laws.chk.msg(ee), "no main to run") == False{} : Bool}
-  {mk.pend(mk.after(ee, out)) == Laws.chk.diag(ee) <> out : List<&2, Rep.Diag>}
+  for +ee: Laws.chk.Err
+  for +out: List<&2, Rep.Raw>
+  for hmain: {String.eq(Laws.chk.body(ee), "no main to run") == False{} : Bool}
+  {mk.pend(mk.after(ee, out)) == mk.raw(ee) <> out : List<&2, Rep.Raw>}
 
 def mk.flush(ee, out, hmain):
   match ee:
     case Laws.ChkErr{+parts, +at, +note}:
+      +said = Laws.chk.said(at, Laws.chk.texts(parts), Laws.chk.note(note))
       mk.flush.at(
-        Rep.message(Laws.chk.place(at),
-          List.reverse.go(&2, String, Laws.chk.said(at, Laws.chk.texts(parts), Laws.chk.note(note)), [])),
-        Laws.chk.msg(Laws.ChkErr{parts, at, note}),
-        mk.message(Laws.chk.place(at), Laws.chk.said(at, Laws.chk.texts(parts), Laws.chk.note(note))),
-        hmain, Rep.line_of(Laws.chk.place(at), Laws.chk.marked(at)), out)
+        String.join(List.reverse(&2, String, List.reverse(&2, String, said)), "\n"),
+        String.join(said, "\n"),
+        Equal.cong(List<&2, String>, String, xs => String.join(xs, "\n"),
+          List.reverse(&2, String, List.reverse(&2, String, said)), said, mk.rev_rev(String, said)),
+        hmain, Laws.chk.place(at), Laws.chk.marked(at), out)
 
-# every error's lines, one after another: each flushes as its diagnostic
+# every error's lines, one after another: each is flushed as it was said
 law mk.all:
   for es: List<&2, Laws.chk.Err>
   for +st: Rep.St
   for fits: Laws.chk.fits(es)
   {mk.pend(Rep.run(Laws.chk.all(es), st))
-    == List.reverse.go(&2, Rep.Diag, Laws.chk.diags(es), mk.pend(st)) : List<&2, Rep.Diag>}
+    == List.reverse.go(&2, Rep.Raw, mk.raws(es), mk.pend(st)) : List<&2, Rep.Raw>}
 
 def mk.all(es, st, fits):
   match es:
@@ -3045,65 +3053,184 @@ def mk.all(es, st, fits):
       {==}
     case Con{+ee, +rest}:
       (((okp, okn), hmain), okr) = fits
-      Equal.trans(List<&2, Rep.Diag>,
+      Equal.trans(List<&2, Rep.Raw>,
         mk.pend(Rep.run(List.append(&2, String, Laws.chk.lines(ee), Laws.chk.all(rest)), st)),
         mk.pend(Rep.run(Laws.chk.all(rest), Rep.run(Laws.chk.lines(ee), st))),
-        List.reverse.go(&2, Rep.Diag, Laws.chk.diags(rest), Laws.chk.diag(ee) <> mk.pend(st)),
-        Equal.cong(Rep.St, List<&2, Rep.Diag>, ss => mk.pend(ss),
+        List.reverse.go(&2, Rep.Raw, mk.raws(rest), mk.raw(ee) <> mk.pend(st)),
+        Equal.cong(Rep.St, List<&2, Rep.Raw>, ss => mk.pend(ss),
           Rep.run(List.append(&2, String, Laws.chk.lines(ee), Laws.chk.all(rest)), st),
           Rep.run(Laws.chk.all(rest), Rep.run(Laws.chk.lines(ee), st)),
           mk.run_app(Laws.chk.lines(ee), Laws.chk.all(rest), st)),
-        Equal.trans(List<&2, Rep.Diag>,
+        Equal.trans(List<&2, Rep.Raw>,
           mk.pend(Rep.run(Laws.chk.all(rest), Rep.run(Laws.chk.lines(ee), st))),
           mk.pend(Rep.run(Laws.chk.all(rest), mk.after(ee, mk.pend(st)))),
-          List.reverse.go(&2, Rep.Diag, Laws.chk.diags(rest), Laws.chk.diag(ee) <> mk.pend(st)),
-          Equal.cong(Rep.St, List<&2, Rep.Diag>, ss => mk.pend(Rep.run(Laws.chk.all(rest), ss)),
+          List.reverse.go(&2, Rep.Raw, mk.raws(rest), mk.raw(ee) <> mk.pend(st)),
+          Equal.cong(Rep.St, List<&2, Rep.Raw>, ss => mk.pend(Rep.run(Laws.chk.all(rest), ss)),
             Rep.run(Laws.chk.lines(ee), st), mk.after(ee, mk.pend(st)), mk.block(ee, st, okp, okn)),
-          Equal.trans(List<&2, Rep.Diag>,
+          Equal.trans(List<&2, Rep.Raw>,
             mk.pend(Rep.run(Laws.chk.all(rest), mk.after(ee, mk.pend(st)))),
-            List.reverse.go(&2, Rep.Diag, Laws.chk.diags(rest), mk.pend(mk.after(ee, mk.pend(st)))),
-            List.reverse.go(&2, Rep.Diag, Laws.chk.diags(rest), Laws.chk.diag(ee) <> mk.pend(st)),
+            List.reverse.go(&2, Rep.Raw, mk.raws(rest), mk.pend(mk.after(ee, mk.pend(st)))),
+            List.reverse.go(&2, Rep.Raw, mk.raws(rest), mk.raw(ee) <> mk.pend(st)),
             mk.all(rest, mk.after(ee, mk.pend(st)), okr),
-            Equal.cong(List<&2, Rep.Diag>, List<&2, Rep.Diag>, ds => List.reverse.go(&2, Rep.Diag,
-              Laws.chk.diags(rest), ds),
-              mk.pend(mk.after(ee, mk.pend(st))), Laws.chk.diag(ee) <> mk.pend(st), mk.flush(ee,
-                mk.pend(st), hmain)))))
+            Equal.cong(List<&2, Rep.Raw>, List<&2, Rep.Raw>, ds => List.reverse.go(&2, Rep.Raw,
+              mk.raws(rest), ds),
+              mk.pend(mk.after(ee, mk.pend(st))), mk.raw(ee) <> mk.pend(st), mk.flush(ee, mk.pend(st),
+                hmain)))))
 
-def Laws.check_marked(es, flat, fits):
+# one character looked at: the parser's stem is the spec's
+law mk.stem.at:
+  for bb: Bool
+  for +hh: Char
+  for -xx: String
+  for -yy: String
+  for ih: {xx == yy : String}
+  {Lazy.stop(String, bb, SNil{}, _u => SCon{hh, xx}) == Bool.pick(String, bb, SNil{}, SCon{hh, yy}) : String}
+
+def mk.stem.at(bb, hh, xx, yy, ih):
+  match bb:
+    case True{}:
+      {==}
+    case False{}:
+      Equal.cong(String, String, zz => SCon{hh, zz}, xx, yy, ih)
+
+# the parser's stem is the spec's
+law mk.stem:
+  for ss: String
+  {Rep.stem(ss) == Laws.chk.stem(ss) : String}
+
+def mk.stem(ss):
+  match ss:
+    case SNil{}:
+      {==}
+    case SCon{+hh, +tt}:
+      mk.stem.at(Char.is_eq(hh, '~'), hh, Rep.stem(tt), Laws.chk.stem(tt), mk.stem(tt))
+
+# one name looked at: the parser's search is the spec's
+law mk.owns.at:
+  for bb: Bool
+  for -rest: Bool
+  for -more: Bool
+  for ih: {rest == more : Bool}
+  {Lazy.or_else(bb, _u => rest) == Bool.or(bb, more) : Bool}
+
+def mk.owns.at(bb, _rest, _more, ih):
+  match bb:
+    case True{}:
+      {==}
+    case False{}:
+      ih
+
+# the parser's search for a name is the spec's
+law mk.owns:
+  for ks: List<&2, String>
+  for +name: String
+  {Rep.owns(ks, name) == Laws.chk.among(ks, name) : Bool}
+
+def mk.owns(ks, name):
+  match ks:
+    case Nil{}:
+      {==}
+    case Con{+kk, +rest}:
+      mk.owns.at(String.eq(kk, name), Rep.owns(rest, name), Laws.chk.among(rest, name), mk.owns(rest, name))
+
+# the parser says an error is the file's exactly when the spec does
+law mk.mine:
+  for names: Maybe<&2, List<&2, String>>
+  for +place: String
+  {Rep.mine(names, place) == Laws.chk.own(names, place) : Bool}
+
+def mk.mine(names, place):
+  match names:
+    case None{}:
+      {==}
+    case Some{+ks}:
+      Equal.trans(Bool,
+        Bool.or(String.is_empty(place), Rep.owns(ks, Rep.stem(place))),
+        Bool.or(String.is_empty(place), Rep.owns(ks, Laws.chk.stem(place))),
+        Bool.or(String.is_empty(place), Laws.chk.among(ks, Laws.chk.stem(place))),
+        Equal.cong(String, Bool, xx => Bool.or(String.is_empty(place), Rep.owns(ks, xx)),
+          Rep.stem(place), Laws.chk.stem(place), mk.stem(place)),
+        Equal.cong(Bool, Bool, xx => Bool.or(String.is_empty(place), xx),
+          Rep.owns(ks, Laws.chk.stem(place)), Laws.chk.among(ks, Laws.chk.stem(place)),
+          mk.owns(ks, Laws.chk.stem(place))))
+
+# an error placed by the parser is placed as the spec says
+law mk.diag:
+  for +names: Maybe<&2, List<&2, String>>
+  for +ee: Laws.chk.Err
+  {Rep.diag(names, mk.raw(ee)) == Laws.chk.diag(names, ee) : Rep.Diag}
+
+def mk.diag(names, ee):
+  +place = Laws.chk.place(Laws.chk.err_at(ee))
+  +line = Laws.chk.marked(Laws.chk.err_at(ee))
+  +body = Laws.chk.body(ee)
+  Equal.cong(Bool, Rep.Diag, bb => Rep.diag.at(bb, place, line, body),
+    Rep.mine(names, place), Laws.chk.own(names, place), mk.mine(names, place))
+
+# every error placed by the parser is placed as the spec says
+law mk.diags:
+  for es: List<&2, Laws.chk.Err>
+  for +names: Maybe<&2, List<&2, String>>
+  {Rep.diags(mk.raws(es), names) == Laws.chk.diags(es, names) : List<&2, Rep.Diag>}
+
+def mk.diags(es, names):
+  match es:
+    case Nil{}:
+      {==}
+    case Con{+ee, +rest}:
+      Equal.trans(List<&2, Rep.Diag>,
+        Rep.diag(names, mk.raw(ee)) <> Rep.diags(mk.raws(rest), names),
+        Laws.chk.diag(names, ee) <> Rep.diags(mk.raws(rest), names),
+        Laws.chk.diag(names, ee) <> Laws.chk.diags(rest, names),
+        Equal.cong(Rep.Diag, List<&2, Rep.Diag>, dd => dd <> Rep.diags(mk.raws(rest), names),
+          Rep.diag(names, mk.raw(ee)), Laws.chk.diag(names, ee), mk.diag(names, ee)),
+        Equal.cong(List<&2, Rep.Diag>, List<&2, Rep.Diag>, ds => Laws.chk.diag(names, ee) <> ds,
+          Rep.diags(mk.raws(rest), names), Laws.chk.diags(rest, names), mk.diags(rest, names)))
+
+def Laws.check_marked(names, es, flat, fits):
   +init = {Rep.St{False{}, False{}, [], 0, "", []} : Rep.St}
   +ls = Laws.chk.all(es)
   Equal.trans(List<&2, Rep.Diag>,
-    Rep.finish(Rep.run(String.split(Laws.chk.text(ls), '\n'), init)),
-    Rep.finish(Rep.run(List.append(&2, String, ls, [""]), init)),
-    Laws.chk.diags(es),
-    Equal.cong(List<&2, String>, List<&2, Rep.Diag>, xs => Rep.finish(Rep.run(xs, init)),
+    Rep.diags(Rep.finish(Rep.run(String.split(Laws.chk.text(ls), '\n'), init)), names),
+    Rep.diags(Rep.finish(Rep.run(List.append(&2, String, ls, [""]), init)), names),
+    Laws.chk.diags(es, names),
+    Equal.cong(List<&2, String>, List<&2, Rep.Diag>, xs => Rep.diags(Rep.finish(Rep.run(xs, init)), names),
       String.split(Laws.chk.text(ls), '\n'), List.append(&2, String, ls, [""]), mk.lines(ls, flat)),
     Equal.trans(List<&2, Rep.Diag>,
-      Rep.finish(Rep.run(List.append(&2, String, ls, [""]), init)),
-      Rep.finish(Rep.run([""], Rep.run(ls, init))),
-      Laws.chk.diags(es),
-      Equal.cong(Rep.St, List<&2, Rep.Diag>, ss => Rep.finish(ss),
+      Rep.diags(Rep.finish(Rep.run(List.append(&2, String, ls, [""]), init)), names),
+      Rep.diags(Rep.finish(Rep.step("", Rep.run(ls, init))), names),
+      Laws.chk.diags(es, names),
+      Equal.cong(Rep.St, List<&2, Rep.Diag>, ss => Rep.diags(Rep.finish(ss), names),
         Rep.run(List.append(&2, String, ls, [""]), init), Rep.run([""], Rep.run(ls, init)),
         mk.run_app(ls, [""], init)),
       Equal.trans(List<&2, Rep.Diag>,
-        Rep.finish(Rep.step("", Rep.run(ls, init))),
-        Rep.finish(Rep.run(ls, init)),
-        Laws.chk.diags(es),
-        Equal.cong(Rep.St, List<&2, Rep.Diag>, ss => Rep.finish(ss),
-          Rep.step("", Rep.run(ls, init)), Rep.run(ls, init), mk.blank(Rep.run(ls, init))),
+        Rep.diags(Rep.finish(Rep.step("", Rep.run(ls, init))), names),
+        Rep.diags(List.reverse(&2, Rep.Raw, mk.pend(Rep.run(ls, init))), names),
+        Laws.chk.diags(es, names),
         Equal.trans(List<&2, Rep.Diag>,
-          Rep.finish(Rep.run(ls, init)),
-          List.reverse(&2, Rep.Diag, mk.pend(Rep.run(ls, init))),
-          Laws.chk.diags(es),
-          mk.finish(Rep.run(ls, init)),
-          Equal.trans(List<&2, Rep.Diag>,
-            List.reverse(&2, Rep.Diag, mk.pend(Rep.run(ls, init))),
-            List.reverse(&2, Rep.Diag, List.reverse(&2, Rep.Diag, Laws.chk.diags(es))),
-            Laws.chk.diags(es),
-            Equal.cong(List<&2, Rep.Diag>, List<&2, Rep.Diag>, ds => List.reverse(&2, Rep.Diag, ds),
-              mk.pend(Rep.run(ls, init)), List.reverse(&2, Rep.Diag, Laws.chk.diags(es)),
-              mk.all(es, init, fits)),
-            mk.rev_rev(Rep.Diag, Laws.chk.diags(es)))))))
+          Rep.diags(Rep.finish(Rep.step("", Rep.run(ls, init))), names),
+          Rep.diags(Rep.finish(Rep.run(ls, init)), names),
+          Rep.diags(List.reverse(&2, Rep.Raw, mk.pend(Rep.run(ls, init))), names),
+          Equal.cong(Rep.St, List<&2, Rep.Diag>, ss => Rep.diags(Rep.finish(ss), names),
+            Rep.step("", Rep.run(ls, init)), Rep.run(ls, init), mk.blank(Rep.run(ls, init))),
+          Equal.cong(List<&2, Rep.Raw>, List<&2, Rep.Diag>, rs => Rep.diags(rs, names),
+            Rep.finish(Rep.run(ls, init)), List.reverse(&2, Rep.Raw, mk.pend(Rep.run(ls, init))),
+            mk.finish(Rep.run(ls, init)))),
+        Equal.trans(List<&2, Rep.Diag>,
+          Rep.diags(List.reverse(&2, Rep.Raw, mk.pend(Rep.run(ls, init))), names),
+          Rep.diags(mk.raws(es), names),
+          Laws.chk.diags(es, names),
+          Equal.cong(List<&2, Rep.Raw>, List<&2, Rep.Diag>, rs => Rep.diags(rs, names),
+            List.reverse(&2, Rep.Raw, mk.pend(Rep.run(ls, init))), mk.raws(es),
+            Equal.trans(List<&2, Rep.Raw>,
+              List.reverse(&2, Rep.Raw, mk.pend(Rep.run(ls, init))),
+              List.reverse(&2, Rep.Raw, List.reverse(&2, Rep.Raw, mk.raws(es))),
+              mk.raws(es),
+              Equal.cong(List<&2, Rep.Raw>, List<&2, Rep.Raw>, ds => List.reverse(&2, Rep.Raw, ds),
+                mk.pend(Rep.run(ls, init)), List.reverse(&2, Rep.Raw, mk.raws(es)),
+                mk.all(es, init, fits)),
+              mk.rev_rev(Rep.Raw, mk.raws(es)))),
+          mk.diags(es, names)))))
 
 # a bit the same on both sides, the rest equal
 law mk.wsub.arm:
@@ -3189,78 +3316,125 @@ def mk.shown(bb, vv):
 law mk.show_all:
   for es: List<&2, Laws.chk.Err>
   for +path: String
-  {Check.show_all(Laws.chk.diags(es), path) == Laws.chk.printed(es, path) : List<&2, String>}
+  for +names: Maybe<&2, List<&2, String>>
+  {Check.show_all(Laws.chk.diags(es, names), path) == Laws.chk.printed(es, path, names) : List<&2, String>}
 
-def mk.show_all(es, path):
+def mk.show_all(es, path, names):
   match es:
     case Nil{}:
       {==}
     case Con{+ee, +rest}:
-      +place = Laws.chk.place(Laws.chk.err_at(ee))
+      +own = Laws.chk.own(names, Laws.chk.place(Laws.chk.err_at(ee)))
       +vv = Laws.chk.marked(Laws.chk.err_at(ee))
-      +msg = Laws.chk.msg(ee)
+      +msg = Laws.chk.msg(names, ee)
       Equal.trans(List<&2, String>,
-        (path ++ ":" ++ U32.show((Laws.chk.row(place, vv) + 1 : U32)) ++ ":1: error: " ++ Check.message(msg))
-          <> Check.show_all(Laws.chk.diags(rest), path),
-        (path ++ ":" ++ U32.show(Laws.chk.shown(place, vv)) ++ ":1: error: " ++ Check.message(msg))
-          <> Check.show_all(Laws.chk.diags(rest), path),
-        Laws.chk.printed(Con{ee, rest}, path),
+        (path ++ ":" ++ U32.show((Laws.chk.row(own, vv) + 1 : U32)) ++ ":1: error: " ++ Check.message(msg))
+          <> Check.show_all(Laws.chk.diags(rest, names), path),
+        (path ++ ":" ++ U32.show(Laws.chk.shown(own, vv)) ++ ":1: error: " ++ Check.message(msg))
+          <> Check.show_all(Laws.chk.diags(rest, names), path),
+        Laws.chk.printed(Con{ee, rest}, path, names),
         Equal.cong(U32, List<&2, String>,
           xx => (path ++ ":" ++ U32.show(xx) ++ ":1: error: " ++ Check.message(msg))
-            <> Check.show_all(Laws.chk.diags(rest), path),
-          (Laws.chk.row(place, vv) + 1 : U32), Laws.chk.shown(place, vv),
-          mk.shown(Bool.or(String.contains(place, "/"), U32.is_eq(vv, 0)), vv)),
+            <> Check.show_all(Laws.chk.diags(rest, names), path),
+          (Laws.chk.row(own, vv) + 1 : U32), Laws.chk.shown(own, vv),
+          mk.shown(Bool.or(Bool.not(own), U32.is_eq(vv, 0)), vv)),
         Equal.cong(List<&2, String>, List<&2, String>,
-          xs => (path ++ ":" ++ U32.show(Laws.chk.shown(place,
+          xs => (path ++ ":" ++ U32.show(Laws.chk.shown(own,
             vv)) ++ ":1: error: " ++ Check.message(msg)) <> xs,
-          Check.show_all(Laws.chk.diags(rest), path), Laws.chk.printed(rest, path), mk.show_all(rest, path)))
+          Check.show_all(Laws.chk.diags(rest, names), path), Laws.chk.printed(rest, path, names),
+          mk.show_all(rest, path, names)))
 
-def Laws.check_marked_line(path, es, flat, fits):
+def Laws.check_marked_line(names, path, es, flat, fits):
   Equal.trans(List<&2, String>,
-    List.append(&2, String, Check.show_all(Rep.parse(Laws.chk.report(es)), path), []),
-    List.append(&2, String, Check.show_all(Laws.chk.diags(es), path), []),
-    Laws.chk.printed(es, path),
+    List.append(&2, String, Check.show_all(Rep.parse_in(names, Laws.chk.report(es)), path), []),
+    List.append(&2, String, Check.show_all(Laws.chk.diags(es, names), path), []),
+    Laws.chk.printed(es, path, names),
     Equal.cong(List<&2, Rep.Diag>, List<&2, String>, ds => List.append(&2, String, Check.show_all(ds, path),
       []),
-      Rep.parse(Laws.chk.report(es)), Laws.chk.diags(es), Laws.check_marked(es, flat, fits)),
+      Rep.parse_in(names, Laws.chk.report(es)), Laws.chk.diags(es, names), Laws.check_marked(names, es,
+        flat, fits)),
     Equal.trans(List<&2, String>,
-      List.append(&2, String, Check.show_all(Laws.chk.diags(es), path), []),
-      Check.show_all(Laws.chk.diags(es), path),
-      Laws.chk.printed(es, path),
-      lint.app_nil(String, Check.show_all(Laws.chk.diags(es), path)),
-      mk.show_all(es, path)))
+      List.append(&2, String, Check.show_all(Laws.chk.diags(es, names), path), []),
+      Check.show_all(Laws.chk.diags(es, names), path),
+      Laws.chk.printed(es, path, names),
+      lint.app_nil(String, Check.show_all(Laws.chk.diags(es, names), path)),
+      mk.show_all(es, path, names)))
 
-# an error in a file named by a path prints on line 1, headed by that file
+# an error in another file prints on line 1, headed by where it is
 law mk.import.at:
   for bb: Bool
-  for eb: {bb == True{} : Bool}
+  for eb: {bb == False{} : Bool}
   for +path: String
   for +name: String
   for +vv: U32
   for +body: String
-  {[path ++ ":" ++ U32.show(Bool.pick(U32, Bool.or(bb, U32.is_eq(vv, 0)), 1, vv)) ++ ":1: error: "
-      ++ Check.message(Bool.pick(String, bb, "in " ++ name ++ ":\n" ++ body, body))]
+  {[path ++ ":" ++ U32.show(Bool.pick(U32, Bool.or(Bool.not(bb), U32.is_eq(vv, 0)), 1, vv)) ++ ":1: error: "
+      ++ Check.message(Bool.pick(String, bb, body, "in " ++ name ++ ":\n" ++ body))]
     == [path ++ ":1:1: error: " ++ Check.message("in " ++ name ++ ":\n" ++ body)] : List<&2, String>}
 
 def mk.import.at(bb, eb, path, name, vv, body):
   match bb:
-    case True{}:
-      {==}
     case False{}:
+      {==}
+    case True{}:
       Empty.absurd({[path ++ ":" ++ U32.show(Bool.pick(U32, Bool.or(False{}, U32.is_eq(vv, 0)), 1,
         vv)) ++ ":1: error: "
-          ++ Check.message(Bool.pick(String, False{}, "in " ++ name ++ ":\n" ++ body, body))]
+          ++ Check.message(Bool.pick(String, True{}, body, "in " ++ name ++ ":\n" ++ body))]
         == [path ++ ":1:1: error: " ++ Check.message("in " ++ name ++ ":\n" ++ body)] : List<&2, String>},
-        cli.false_true(eb))
+        cli.true_false(eb))
 
-def Laws.check_import_first(path, parts, name, span, note, slash, flat, fits):
+def Laws.check_import_first(names, path, parts, name, span, note, other, flat, fits):
   Equal.trans(List<&2, String>,
-    Check.lines_of([Check.Run{path, Rep.parse(Laws.chk.report([Laws.ChkErr{parts,
-      Some{Laws.ChkWhere{Some{name}, span}}, note}]))}]),
-    Laws.chk.printed([Laws.ChkErr{parts, Some{Laws.ChkWhere{Some{name}, span}}, note}], path),
+    Check.lines_of([Check.Run{path,
+      Rep.parse_in(names, Laws.chk.report([Laws.ChkErr{parts, Some{Laws.ChkWhere{Some{name}, span}},
+        note}]))}]),
+    Laws.chk.printed([Laws.ChkErr{parts, Some{Laws.ChkWhere{Some{name}, span}}, note}], path, names),
     [path ++ ":1:1: error: " ++ Check.message("in " ++ name ++ ":\n" ++ String.join(Laws.chk.texts(parts),
       "\n"))],
-    Laws.check_marked_line(path, [Laws.ChkErr{parts, Some{Laws.ChkWhere{Some{name}, span}}, note}], flat,
-      fits),
-    mk.import.at(String.contains(name, "/"), slash, path, name, Laws.chk.marks(span),
+    Laws.check_marked_line(names, path, [Laws.ChkErr{parts, Some{Laws.ChkWhere{Some{name}, span}}, note}],
+      flat, fits),
+    mk.import.at(Laws.chk.own(names, name), other, path, name, Laws.chk.marks(span),
       String.join(Laws.chk.texts(parts), "\n")))
+
+# an error the file owns, with a marked line, prints on that line
+law mk.own.at:
+  for bb: Bool
+  for eb: {bb == True{} : Bool}
+  for cc: Bool
+  for ec: {cc == False{} : Bool}
+  for +path: String
+  for +name: String
+  for +vv: U32
+  for +body: String
+  {[path ++ ":" ++ U32.show(Bool.pick(U32, Bool.or(Bool.not(bb), cc), 1, vv)) ++ ":1: error: "
+      ++ Check.message(Bool.pick(String, bb, body, "in " ++ name ++ ":\n" ++ body))]
+    == [path ++ ":" ++ U32.show(vv) ++ ":1: error: " ++ Check.message(body)] : List<&2, String>}
+
+def mk.own.at(bb, eb, cc, ec, path, name, vv, body):
+  match bb cc:
+    case True{} False{}:
+      {==}
+    case True{} True{}:
+      Empty.absurd({[path ++ ":" ++ U32.show(Bool.pick(U32, Bool.or(False{}, True{}), 1, vv)) ++ ":1: error: "
+          ++ Check.message(Bool.pick(String, True{}, body, "in " ++ name ++ ":\n" ++ body))]
+        == [path ++ ":" ++ U32.show(vv) ++ ":1: error: " ++ Check.message(body)] : List<&2, String>},
+        cli.true_false(ec))
+    case False{} _cc:
+      Empty.absurd({[path ++ ":" ++ U32.show(Bool.pick(U32, Bool.or(True{}, _cc), 1, vv)) ++ ":1: error: "
+          ++ Check.message(Bool.pick(String, False{}, body, "in " ++ name ++ ":\n" ++ body))]
+        == [path ++ ":" ++ U32.show(vv) ++ ":1: error: " ++ Check.message(body)] : List<&2, String>},
+        cli.false_true(eb))
+
+def Laws.check_own_marked(names, path, parts, name, span, note, own, some, flat, fits):
+  Equal.trans(List<&2, String>,
+    Check.lines_of([Check.Run{path,
+      Rep.parse_in(names, Laws.chk.report([Laws.ChkErr{parts, Some{Laws.ChkWhere{Some{name}, Some{span}}},
+        note}]))}]),
+    Laws.chk.printed([Laws.ChkErr{parts, Some{Laws.ChkWhere{Some{name}, Some{span}}}, note}], path, names),
+    [path ++ ":" ++ U32.show(Laws.chk.marks(Some{span})) ++ ":1: error: "
+      ++ Check.message(String.join(Laws.chk.texts(parts), "\n"))],
+    Laws.check_marked_line(names, path, [Laws.ChkErr{parts, Some{Laws.ChkWhere{Some{name}, Some{span}}},
+      note}],
+      flat, fits),
+    mk.own.at(Laws.chk.own(names, name), own, U32.is_eq(Laws.chk.marks(Some{span}), 0), some, path, name,
+      Laws.chk.marks(Some{span}), String.join(Laws.chk.texts(parts), "\n")))
