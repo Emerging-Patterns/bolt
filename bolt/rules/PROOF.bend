@@ -5674,7 +5674,7 @@ def Laws.pick_walk_counts(nn, name, path, quiet, hush, nth):
                         F.Finding{path, l, c, 9, "pick",
                           name ++ " calls itself in both branches of Bool.pick, which evaluates both, so both calls run; bind the call once above the pick."},
                         F.Finding{path, l, c, 9, "pick",
-                          name ++ " calls itself in one branch of Bool.pick, which evaluates both, so the call always runs and never exits early; use Lazy.stop."},
+                          name ++ " calls itself in one branch of Bool.pick, which evaluates both, so the call always runs and never exits early; branch with `match` on the condition instead."},
                         List.concat(&2, F.Finding, [fk, fr]), Nat.add(ck, cr),
                         pick.join(fk, List.append(&2, F.Finding, fr, Nil{}), ck, cr,
                           pick.move(kids, name, path, q, q, Bool.or(two, one), hit, 0n, 0n, {==}, pick.either(p, q, a,
@@ -8234,7 +8234,7 @@ def eager.work(nn, ns, self, path, hot, seg, keep):
       +inner = Bool.and(now, Bool.not(is_pick))
       nat.pick(Bool.and(now, Bool.and(call, mine)),
         F.Finding{path, l, c, U32.from_nat(String.length(t)), "eager",
-          t ++ " is called in a branch of Bool.pick, which evaluates both branches, so it runs whatever the condition; bind it above the pick, or use Lazy.stop."},
+          t ++ " is called in a branch of Bool.pick, which evaluates both branches, so it runs whatever the condition; bind it above the pick, or branch with `match` on the condition."},
         List.concat(&2, F.Finding,
           [Eager.work(kids, ns, self, path, inner, Bool.pick(U32, is_pick, 0, 9), inner),
             Eager.work(rest, ns, self, path, now, Eager.work.seg(k, seg), keep)]),
@@ -19408,7 +19408,7 @@ def inert.pick.body(
       <> more,
     Bool.pick(List<&2, F.Finding>, one,
       F.Finding{path, l, c, 9, "pick",
-        name ++ " calls itself in one branch of Bool.pick, which evaluates both, so the call always runs and never exits early; use Lazy.stop."}
+        name ++ " calls itself in one branch of Bool.pick, which evaluates both, so the call always runs and never exits early; branch with `match` on the condition instead."}
         <> more,
       more))
 
@@ -23422,7 +23422,7 @@ def inert.eager.at(
   +more = List.concat(&2, F.Finding, [wk, wr])
   Bool.pick(List<&2, F.Finding>, Bool.and(now, Bool.and(call, mine)),
     F.Finding{path, l, c, U32.from_nat(String.length(tt)), "eager",
-      tt ++ " is called in a branch of Bool.pick, which evaluates both branches, so it runs whatever the condition; bind it above the pick, or use Lazy.stop."}
+      tt ++ " is called in a branch of Bool.pick, which evaluates both branches, so it runs whatever the condition; bind it above the pick, or branch with `match` on the condition."}
       <> more,
     more)
 
@@ -23455,10 +23455,10 @@ def inert.eager.fin(now, call, b, t, l, c, wk, wr, ns, self, path, ef, ep):
       inert.pick_off(Bool.and(now, Bool.and(call, Bool.and(Bool.not(String.eq(ct, self)), List.contains(~String,
         ~String.eq, ns, ct)))),
         F.Finding{path, l, c, U32.from_nat(String.length(ct)), "eager",
-          ct ++ " is called in a branch of Bool.pick, which evaluates both branches, so it runs whatever the condition; bind it above the pick, or use Lazy.stop."}
+          ct ++ " is called in a branch of Bool.pick, which evaluates both branches, so it runs whatever the condition; bind it above the pick, or branch with `match` on the condition."}
           <> more,
         F.Finding{path, l, c, U32.from_nat(String.length(t)), "eager",
-          t ++ " is called in a branch of Bool.pick, which evaluates both branches, so it runs whatever the condition; bind it above the pick, or use Lazy.stop."}
+          t ++ " is called in a branch of Bool.pick, which evaluates both branches, so it runs whatever the condition; bind it above the pick, or branch with `match` on the condition."}
           <> more, more,
         inert.and3_false(now, call, Bool.not(String.eq(ct, self)), List.contains(~String, ~String.eq, ns, ct),
           inert.contains_marked(ns, ct, ep, inert.cut_marked(t, ef))))
