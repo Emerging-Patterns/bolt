@@ -1,7 +1,8 @@
 # bolt/rules/calls: what the recursion rules (pick, strict, tail, concat,
 # index) share. A file's defs, each with its name, its signature and its body;
 # a call's arguments; whether a def calls itself; its parameters, and the type
-# of the one it walks; and whether it is exempt (a law or a proof never runs).
+# of the one it walks; and whether it is exempt (a law or a proof never runs,
+# and a def with no type fills a law: it is a proof).
 import Base
 import ../paths.bend as Paths
 import ../../syntax/lex.bend as Lex
@@ -262,7 +263,25 @@ def returns_proof(sig: Tree.Node) -> Bool:
     case other:
       False{}
 
-# a law file, a proof file, or a def that returns a proof: none of it runs,
-# so its cost does not matter
+# does a chain hold a top-level `->`?
+def has_arrow(pp: Tree.Node) -> Bool:
+  match pp:
+    case Tree.NCons{h, rest}:
+      Lazy.or_else(kind.leaf(~kind.arrow, h), _u => has_arrow(rest))
+    case other:
+      False{}
+
+# does the signature write a type: a `:` among its parameters, or a `->`?
+def typed(+sig: Tree.Node) -> Bool:
+  Lazy.or_else(has_colon(params.of(sig)), _u => has_arrow(sig))
+
+# is the def a proof? One that returns a proof (`-> {a == b : T}`), or one
+# written with no type at all (`def f(x, y):`), which is how Bend fills the
+# law named f
+def proof(+sig: Tree.Node) -> Bool:
+  Bool.or(returns_proof(sig), Bool.not(typed(sig)))
+
+# a law file, a proof file, or a def that is a proof: none of it runs, so its
+# cost does not matter
 def exempt(+path: String, sig: Tree.Node) -> Bool:
-  Bool.or(Paths.is_law_file(path), returns_proof(sig))
+  Bool.or(Paths.is_law_file(path), proof(sig))

@@ -5,7 +5,8 @@
 # (as any scrutinee of a match) is variable-length input, a window dropped
 # into another parameter's slot is not carried, and a one-shot trim is not a
 # loop: all stay quiet. Growing an accumulator by append, with no drop of
-# that same value, is `concat`. Laws and proofs do not run.
+# that same value, is `concat`. Laws and proofs do not run (a def with no
+# type at all fills a law: it is a proof).
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
