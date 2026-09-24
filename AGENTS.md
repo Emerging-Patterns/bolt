@@ -13,8 +13,8 @@ it, and it does not go in at all (SPEC.md, docs/rfc/bolt-spec.md).
 
 `tests/*.bend` and `#|` exist only for claims Bend cannot prove:
 host/integration (bend, nix, node, disk, process). The stay list is
-`tests/bare.bend` and `bolt/lsp/tests/checker.bend`, plus companions
-(`bolt/lsp/tests/spawn.js`, `tests/locate.js`). A test
+`tests/bare.bend` and `src/lsp/tests/checker.bend`, plus companions
+(`src/lsp/tests/spawn.js`, `tests/locate.js`). A test
 is never evidence for a SPEC.md requirement: what one cannot prove is a
 Trusted row, not a test (the lazy branches skipping their thunk is
 BOLT-LIB-2).
@@ -22,46 +22,24 @@ BOLT-LIB-2).
 A `#|` equality for a proveable claim is a bug. A directory with
 `LAWS.bend` and `PROOF.bend` is complete. Do not add `tests/`.
 
-## Layout
+## Repo rules
 
-    ez.toml            the ledger: bolt's name, its entry `bolt/main.bend`, and
-                       shake v0.1.1 (`0xba6940aab8a335b70bf79944bd9b53c4`),
-                       ezjson v0.4.2 (`0xd9c8d4d2899ddda845dfa7525a3568ea`)
-                       and snap v0.1.0 (`0x9bfd9d57916f3439316c2775fd1f10b4`)
-                       as git-backed deps
-    ez.lock.toml       the resolved pin: rev, narHash, and file digests
-    flake.nix          bolt via ez's nix lib (bend follows bendlang/bend; bend-cc,
-                       BEND_LIB from ez.lock.toml, and the package build come from ez);
-                       `nix flake check` builds the bolt package and runs
-                       checks.test (`ez test --unit-only` through mkProofs)
-                       and checks.lint (that bolt over this tree, mkLint)
-                       (nix sees tracked files only: git add first)
-    tests/*.bend       stay-list host/integration only (bare).
-                       `ez test` runs each on its own, and caches none of them
-    .github/workflows/ ci: `nix flake check`, on a pull request and on a push to main.
-                       release-please: on push to main, conventional commits open a
-                       release PR; merging it tags `vX.Y.Z` and opens the GitHub Release.
-                       Squash-merge release-please PRs like any other (merge commits
-                       are off): release-please finds its merged PR by label and cuts
-                       the tag/GitHub Release from the squash commit.
-                       tag: workflow_dispatch escape hatch (rewrites the version
-                       files, then tags).
-                       publish: `ez publish`, the hub upload, workflow_dispatch
-                       only, on an existing tag -- a person running it is the ask.
-                       do not also run github-release for release-please tags.
-    editors/vscode/    the VS Code extension (not Bend; never publish it to the marketplace unasked)
-    <project>/         one dir per project
-      LAWS.bend        the claims: human-owned, do not edit to make a proof pass.
-                       Every law quantified; `closed` reports one that is not.
-      PROOF.bend       the proofs; `bend PROOF.bend` prints "All terms check."
-                       (every one in the tree is gated, so a fixture holding a
-                       proof that is meant to fail cannot live here)
-                       no `tests/` unless the claim is on the stay list
-      README.md
-
-Anything under a `tests/` directory is a test. Fixtures a test reads are not
-tests, so they live beside the project rather than under it --
-`bolt/lsp/fixtures/`, not `bolt/lsp/tests/fixtures/`.
+- A `LAWS.bend` is human-owned: do not edit it to make a proof pass. Every
+  law is quantified; `closed` reports one that is not.
+- Every `PROOF.bend` in the tree is gated (`bend PROOF.bend` prints "All
+  terms check."), so a fixture holding a proof meant to fail cannot live here.
+- Anything under a `tests/` directory is a test, and only the stay list may
+  have one; `ez test` runs each on its own and caches none. Fixtures a test
+  reads are not tests, so they live beside it -- `src/lsp/fixtures/`, not
+  `src/lsp/tests/fixtures/`.
+- nix sees tracked files only: `git add` before `nix flake check`.
+- Releases: conventional commits on main open a release-please PR; squash-merge
+  it like any other (merge commits are off) and release-please tags `vX.Y.Z`
+  and opens the GitHub Release from the squash commit. Do not also run
+  github-release for those tags. `tag.yml` is the workflow_dispatch escape
+  hatch (rewrites the version files, then tags); `publish.yml` is the hub
+  upload (see Conventions).
+- Never publish the VS Code extension to the marketplace unasked.
 
 ## The gate
 
@@ -102,7 +80,7 @@ fails on an error, not a warning. `main` requires the `check / check` job
 merges them through the ruleset's pull-request bypass.
 
 **ez is not a prerequisite for bolt.**
-`bend bolt/main.bend -o bin/bolt.bin` is the entire build: no ez, no nix.
+`bend main.bend -o bin/bolt.bin` is the entire build: no ez, no nix.
 shake, ezjson and snap are git-backed ledger deps; `BEND_LIB` must hold
 those packages (the flake and `ez fetch` both do). `tests/bare.bend` still
 builds with bare `bend` and no ez, laying each out from its pinned rev.
@@ -117,7 +95,7 @@ Design specs and plans are not kept in this repo; they live under
 - `SPEC.md` lists every guaranteed behavior by ID. A quantified law that
   proves one carries `# <ID>` on its own line directly above its `law` line,
   and the row moves from `pending` to `proved` in the same change.
-- `bolt` (bolt/README.md) runs at the end of the gate, every rule an error
+- `bolt` (src/README.md) runs at the end of the gate, every rule an error
   by the root bolt.bend: keep it clean. The binary the gate lints with is the
   one `tests/bare.bend` has just built from this tree, never whatever `bolt`
   happens to be on the PATH: a bolt from an older release answers `clean` to
@@ -152,10 +130,10 @@ Design specs and plans are not kept in this repo; they live under
 - User code may not call a law before its def is filled, so Base's mutually
   recursive arm/go lemma shape does not work here. Give the arm the induction
   hypothesis as a parameter, and erase its other arguments (`for -at`) so the
-  caller can still recurse on them (see syntax/PROOF.bend, ol.weq.arm).
+  caller can still recurse on them (see src/syntax/PROOF.bend, ol.weq.arm).
 - `match` takes parameters and pattern-bound variables only, in binder order;
   to branch on a computed value, pass it to a helper (see `answer.tag` in
-  bolt/lsp/checker/bend.bend).
+  src/lsp/checker/bend.bend).
 - No mutual recursion, and a def must be defined above its use. A loop that
   branches on a computed value either folds the branch into a non-recursive
   helper that returns the next state (json/lex.bend), or hands the helper a
@@ -166,7 +144,7 @@ Design specs and plans are not kept in this repo; they live under
   lanes (bend 2.0.25; the compiler emits `U32.to_nat` for one past `256n`).
   What overflows is the checker comparing a closed `U32.to_nat(100000)` in a
   law or proof: it expands the call in unary. Where a law must name a big
-  Nat, write the literal (see `limit` in bolt/lint/plan.bend).
+  Nat, write the literal (see `limit` in src/lint/plan.bend).
 - The argument that shrinks must be the first live (non-template) one:
   `send_all(replies, h)` passes, `send_all(h, replies)` does not.
 - `Bool.pick`, `Bool.and`, `Bool.or`, `&&` and `||` are defs, so every
@@ -176,7 +154,7 @@ Design specs and plans are not kept in this repo; they live under
   condition says, so the search never exits early (native, 100 searches over
   100k cells: 0.10 s for a hit at the head, 0.11 s at the end). Bind the one
   recursive call with `+rest = ..` and pick between values built from it, or
-  take the early exit from `lazy/lazy.bend` (`Lazy.stop`, `Lazy.or_else`,
+  take the early exit from `src/lazy/lazy.bend` (`Lazy.stop`, `Lazy.or_else`,
   `Lazy.and_then`: the last argument is a `Unit -> T` thunk, applied only on
   the branch that needs it; the same search costs 0.00 s). The same goes for
   any expensive expression in a branch: a scan of the whole token list inside
@@ -194,11 +172,11 @@ Design specs and plans are not kept in this repo; they live under
 - `bend x.bend` runs main after checking. To check only, `bend <file.bend> --check-only` (or `bend x.bend -o t.js`).
 - A foreign effect `def a.b(..) -> IO(T)` with `import "./x.c"` and
   `import "./x.js"` bodies is `a_b_run` + `io_eff(CID_A_B, ..)` in C and
-  `function a_b(..)` in JS (bolt/lsp/checker/exec.*).
+  `function a_b(..)` in JS (src/lsp/checker/exec.*).
 - A server's stdin and stdout may be sockets (node spawns children that way),
-  and no path opens a socket: wrap descriptors 0 and 1 (bolt/lsp/transport/fd.c),
+  and no path opens a socket: wrap descriptors 0 and 1 (src/lsp/transport/fd.c),
   never `File.open("/dev/stdin")`. Test a server spawned from node
-  (bolt/lsp/tests/spawn.js), not only through pipes.
+  (src/lsp/tests/spawn.js), not only through pipes.
 - A *compiled* Bend binary passes its whole command line to `IO.args()`,
   flags included (2.0.16; 2.0.5 did not, which is where "a Bend binary takes
   no arguments" came from). The runtime keeps only its own — `--threads`,
@@ -216,7 +194,7 @@ Design specs and plans are not kept in this repo; they live under
 - The GPU is on by default in a native binary: the CPU lane is `--gpu off`.
   `bolt lsp` with no `--gpu` starts again as `--gpu off` before the runtime
   chooses a device; `--gpu on` or `--gpu 4GB` is left as written. Launchers
-  may still pass `--gpu off` (tests/bare.bend, bolt/lsp/tests/spawn.js, the
+  may still pass `--gpu off` (tests/bare.bend, src/lsp/tests/spawn.js, the
   VS Code extension, the nix wrapper).
 - Link native binaries with `bend-cc` only. The wrapped nix clang links nix's
   glibc and nvrtc then fails to load `libnvrtc-builtins`.

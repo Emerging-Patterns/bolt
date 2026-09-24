@@ -17,17 +17,32 @@ written in Bend, with a VS Code extension.
 
 ## Install
 
-You need [Bend](https://github.com/bendlang/bend), built from source, and
-clang 14+, since bolt is one native binary:
+bolt needs a Bend 2, and any Bend 2 will do: the one
+`curl -fsSL https://bend-lang.com/install.sh | sh` installs, one from nix, or
+one built from source. You do not need ez or nix. Building bolt needs clang
+14+ as well, since bolt is one native binary.
+
+**Bend version.** bolt is built and tested with Bend 2.0.27, the version
+`flake.lock` pins. `bolt check` and `bolt lsp` run the `bend` on your PATH,
+so that `bend` is the one to keep at the tested version.
+
+With an installed `bend`:
 
 ```
 git clone https://github.com/Emerging-Patterns/bolt
 cd bolt
-bend bolt/main.bend -o bin/bolt.bin      # the whole build
+bend main.bend -o bin/bolt.bin           # the whole build
 bin/bolt.bin                             # lints every .bend under the current directory
 ```
 
-Run and install with [ez](https://github.com/Emerging-Patterns/ez):
+bolt imports three small libraries by hub hash (shake, ezjson and snap, see
+`ez.toml`). On its first build `bend` downloads them from the Bend hub into
+`~/.bend/lib`, checks their hashes, and then builds bolt. If you have no
+network access to the hub, clone the pinned tags instead and point `BEND_LIB`
+at them. `tests/bare.bend` does exactly that in CI.
+Copy the `bin/bolt.bin` file anywhere on your PATH and name it `bolt`.
+
+With [ez](https://github.com/Emerging-Patterns/ez), to run bolt or install it:
 
 ```
 ezx Emerging-Patterns/bolt
@@ -74,6 +89,35 @@ bolt help              usage
 Each finding is one line, `path:line:col: level: CODE: message`, then
 `clean` or the counts; the exit code is 1 when anything was an error.
 
+### In a project that does not use ez
+
+bolt reads `.bend` files and nothing else. It does not need your project to
+have an `ez.toml`, a flake or a `LAWS.bend`, and it does not change how you
+build. A project built with a Makefile, a shell script or bare `bend` can use
+it as it is:
+
+```
+cd your-project
+bolt                   # every .bend under here; exit 1 on an error
+bolt src/main.bend     # or just the files you name
+```
+
+To run it from a Makefile:
+
+```make
+lint:
+	bolt
+check:
+	bolt check src/main.bend
+```
+
+A project with no `bolt.bend` gets the default levels, which make only the
+`correctness` rules errors. To start with no errors at all, put a
+`bolt.bend` at the root that sets every group to `"warn"` (see below), then
+make each group an error once it is clean. The `laws` rules only report
+anything once a project has a `LAWS.bend`. For an editor, point the VS Code
+extension (or any LSP client, such as zed-bend) at `bolt lsp`.
+
 A project sets its rules in a `bolt.bend` at its root, plain Bend a def a
 setting; the nearest one above a file wins:
 
@@ -91,7 +135,7 @@ def space() -> String:
 The groups are `correctness` (`hole`, `pick`, `put`; error by default),
 `suspicious` (`unused`), `style` (`doc`, `space`, `wrap`, `param`) and `laws` (`coverage`), the
 rest warn by default. Every rule, and the config in full, is in
-[bolt/README.md](bolt/README.md).
+[src/README.md](src/README.md).
 
 ## Develop
 

@@ -1,6 +1,6 @@
 # bolt.bend: how bolt lints this repo. Every rule is an error except `coverage`,
 # which warns until the laws exist: the gate must see no errors. See
-# bolt/config.bend for the groups and levels.
+# src/config.bend for the groups and levels.
 import Base
 
 # what will fail or blow up

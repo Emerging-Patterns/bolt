@@ -1,5 +1,5 @@
 // The VS Code client for Bend: starts bolt's language server (`bolt lsp`) on
-// stdio for .bend files. All the language work is in the server (../../bolt/lsp),
+// stdio for .bend files. All the language work is in the server (../../src/lsp),
 // and finding the binary is in locate.js, which knows nothing of vscode so a
 // test can drive it (tests/locate.js).
 const os = require("os");
@@ -11,7 +11,7 @@ let client;
 
 async function start() {
   // `bolt lsp --gpu off`: the server stays on the cores, where this work is
-  // 2-5x faster than on the GPU (bolt/lsp/bench); bend's runtime takes
+  // 2-5x faster than on the GPU (src/lsp/bench); bend's runtime takes
   // `--gpu off` out of the line before the program reads it. No `transport`:
   // stdio is the default for a command, and naming it would only make the
   // client append a `--stdio` the server has no use for.
