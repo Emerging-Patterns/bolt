@@ -105,7 +105,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-CHK-1 | `bolt check` prints one `path:line:1: error:` line per error bend reports, on the line bend marks, then a count; it exits 1 when there is any, and treats a failure to run bend as an error. | Proved | pending | bolt/LAWS.bend check_lines; bolt/LAWS.bend check_one_each; bolt/LAWS.bend check_clean; bolt/LAWS.bend check_one; bolt/LAWS.bend check_many; bolt/LAWS.bend check_unrun_error; bolt/LAWS.bend check_run_of; bolt/LAWS.bend check_run_unrun; bolt/LAWS.bend check_exec_ran; bolt/LAWS.bend check_exec_unrun; bolt/LAWS.bend check_exec_died; bolt/LAWS.bend check_exec_died_reported; bolt/LAWS.bend check_exec_untagged; bolt/LAWS.bend check_proof_unrun |
+| BOLT-CHK-1 | `bolt check` prints one `path:line:1: error:` line per error bend reports, on the line bend marks, then a count; it exits 1 when there is any, and treats a failure to run bend as an error. | Proved | pending | bolt/LAWS.bend check_lines; bolt/LAWS.bend check_one_each; bolt/LAWS.bend check_clean; bolt/LAWS.bend check_one; bolt/LAWS.bend check_many; bolt/LAWS.bend check_unrun_error; bolt/LAWS.bend check_run_of; bolt/LAWS.bend check_run_unrun; bolt/LAWS.bend check_exec_ran; bolt/LAWS.bend check_exec_unrun; bolt/LAWS.bend check_exec_died; bolt/LAWS.bend check_exec_died_reported; bolt/LAWS.bend check_exec_untagged; bolt/LAWS.bend check_proof_unrun; bolt/LAWS.bend check_marked; bolt/LAWS.bend check_marked_line; bolt/LAWS.bend check_import_first |
 
 ### Parser (BOLT-SYN)
 
