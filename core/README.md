@@ -11,6 +11,8 @@ and its contract can be a proven law.
 
 A service is a folder: `service.bend` holds the record type and its accessors,
 and each implementation is a file beside it that exports `new()`.
+The example below is an illustration: `clock/` and `log/` are not folders in
+this repo.
 
 ```python
 # clock/service.bend -- 1. a service: a record of functions, reached through
@@ -60,16 +62,13 @@ leaves with an injected monoid and an injected leaf, on the device. An
 |--------|------|---------|-----------------|
 | `monoid/` | pure | `Monoid{unit, join}` over U32 | `sum`, `xor` |
 | `leaf/` | pure | `Leaf{at}`: the value at an index | `one`, `index` |
-| `clock/` | effect | `Clock{now}` | `real`, `fake` (always 42) |
-| `log/` | effect | `Log{say}` | `real`, `quiet` |
-| `check/` | effect | `Reporter{pass, fail}` | `print`, `quiet` |
+| `check/` | effect | `Reporter{pass, fail}` | `print` |
 
 Consumers: `par/fold.bend` (`fold(~m, ~leaf, n, i)`, a parallel fold) and
-`check/kit.bend` (`eq_u32`, `eq_str`, the test kit).
+`check/kit.bend` (`eq_str`, the test kit).
 
-`check` is core used on itself: the kit's reporter is an injected service, and
-the kit's own equalities are laws. Other projects that still print a check
-do it with `../core/check/kit.bend` and `../core/check/print.bend`.
+`check` is core used on itself: the kit's reporter is an injected service.
+Other projects that still print a check do it with `../core/check/kit.bend` and `../core/check/print.bend`.
 
 ## Laws
 

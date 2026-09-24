@@ -92,17 +92,3 @@ def pattern(kids: Tree.Node) -> Tree.Node:
       rest
     case other:
       other
-
-# does the name appear anywhere under the node?
-def mentions(nn: Tree.Node, +name: String) -> Bool:
-  match nn:
-    case Tree.Leaf{Lex.Tok{k, +t, l, c}}:
-      String.eq(t, name)
-    case Tree.Group{open, kids, close}:
-      mentions(kids, name)
-    case Tree.Stmt{kind, kids, body}:
-      Lazy.or_else(mentions(kids, name), _u => mentions(body, name))
-    case Tree.NNil{}:
-      False{}
-    case Tree.NCons{h, t}:
-      Lazy.or_else(mentions(h, name), _u => mentions(t, name))

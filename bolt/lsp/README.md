@@ -26,7 +26,7 @@ message. Idle it costs no CPU.
 |---------|------|------|
 | `transport/` — one message body in, one out | `stdio`: Content-Length framing over bytes | `script`: a list of bodies in; every body sent is printed |
 | `files/` — a file's text by path; where Base lives; the working directory | `disk` | any `Files` record |
-| `checker/` — a path's diagnostics | `bend`: a foreign effect (`exec.c`, `exec.js`) running `bend <path> --check-only` | `fake`: canned |
+| `checker/` — a path's diagnostics | `bend`: a foreign effect (`exec.c`, `exec.js`) running `bend <path> --check-only` | any `Checker` record |
 
 The pure parts: `frame.bend` (framing, UTF-8 both ways — Content-Length counts
 bytes and a read may end inside a char, so the transport reads bytes and
