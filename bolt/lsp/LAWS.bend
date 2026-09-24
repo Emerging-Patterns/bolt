@@ -6,6 +6,7 @@
 # server.bend's pub.* decision, pure over what the IO gave it, so those laws
 # quantify over every text, every checker result and every file system.
 import Base
+import 0xd9c8d4d2899ddda845dfa7525a3568ea/main.bend as Ezjson
 import 0xd9c8d4d2899ddda845dfa7525a3568ea/value.bend as J
 import ./frame.bend as Frame
 import ./server.bend as Server
@@ -800,7 +801,7 @@ law nav_completion_import:
 
 # the initialize params of a client that lists these position encodings
 def nav.offered(xs: List<&2, String>) -> J.Json:
-  J.obj([("capabilities", J.obj([("general", J.obj([("positionEncodings", J.arr(Proto.strings(xs)))]))]))])
+  Ezjson.obj([("capabilities", Ezjson.obj([("general", Ezjson.obj([("positionEncodings", Ezjson.arr(Proto.strings(xs)))]))]))])
 
 # LAW: initialize settles on utf-32 exactly when the client offers it, and
 # on UTF-16 otherwise
@@ -813,7 +814,7 @@ law enc_negotiated:
 # BOLT-LSP-7
 law enc_advertised:
   for +params: J.Json
-  {J.get(J.get(Proto.capabilities(Server.encoding(Server.MInitialize{}, params, Enc.Utf16{})), "capabilities"),
+  {Ezjson.get(Ezjson.get(Proto.capabilities(Server.encoding(Server.MInitialize{}, params, Enc.Utf16{})), "capabilities"),
     "positionEncoding") == J.JStr{Enc.name(Enc.negotiate(params))} : J.Json}
 
 # is this method initialize?
