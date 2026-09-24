@@ -124,7 +124,7 @@ def work(
           work(rest, ns, self, path, now, work.seg(k, seg), keep)])
       Bool.pick(List<&2, F.Finding>, report,
         F.Finding{path, l, c, U32.from_nat(String.length(t)), "eager",
-          t ++ " is called in a branch of Bool.pick, which evaluates both branches, so it runs whatever the condition; bind it above the pick, or use Lazy.stop."}
+          t ++ " is called in a branch of Bool.pick, which evaluates both branches, so it runs whatever the condition; bind it above the pick, or branch with `match` on the condition."}
           <> more,
         more)
     case Tree.NCons{Tree.Leaf{Lex.Tok{+k, t, l, c}}, rest}:

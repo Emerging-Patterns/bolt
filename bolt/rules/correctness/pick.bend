@@ -73,7 +73,7 @@ def walk(nn: Tree.Node, +name: String, +path: String, +quiet: Bool, +hush: Bool,
           <> more,
         Bool.pick(List<&2, F.Finding>, one,
           F.Finding{path, l, c, 9, "pick",
-            name ++ " calls itself in one branch of Bool.pick, which evaluates both, so the call always runs and never exits early; use Lazy.stop."}
+            name ++ " calls itself in one branch of Bool.pick, which evaluates both, so the call always runs and never exits early; branch with `match` on the condition instead."}
             <> more,
           more))
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, rest}:

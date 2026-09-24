@@ -205,7 +205,7 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   seen). They are functions too: both sides always run, so there is no
   short-circuit (a game's overlap test went 31 -> 55 fps once the call moved
   out). Bind the call above, or match on the first Bool. A self-call in a
-  lambda body (`_u => go(rest)`, a `Lazy` thunk) is not counted: the thunk
+  lambda body (`_u => go(rest)`, a `Unit -> T` thunk) is not counted: the thunk
   does not run eagerly, unless its own body holds `&&`/`||`.
 - `eager` — a branch of a `Bool.pick` holds a call to another def of the
   same file that loops (it calls itself, or reaches a def that does).
@@ -213,11 +213,13 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   game's overlap test in a branch went 31 -> 55 fps once it moved out; one
   `gaps(..)` in a branch here cost 88 s of a 100 s run). `pick` sees only the
   self-call and `strict` only Bool.and/or, so the call to a neighbour is this
-  rule's. Bind it above the pick, or take the branch through
-  `Lazy.stop`/`Lazy.or_else`. A call into Base is not counted: a def of the
-  file is the cheap proxy for work the file itself wrote. Nor is a call in a
-  lambda's body (from `=>` to the next comma of its group), which the pick
-  does not run; an argument after that comma counts again.
+  rule's. Bind it above the pick, or branch with `match` on the condition
+  (bolt's own code uses `lazy/lazy.bend`, which matches on the Bool and
+  applies a `Unit -> T` thunk in one branch). A call into Base is not
+  counted: a def of the file is the cheap proxy for work the file itself
+  wrote. Nor is a call in a lambda's body (from `=>` to the next comma of
+  its group), which the pick does not run; an argument after that comma
+  counts again.
 - `concat` — a self-call whose argument grows a carried parameter by
   appending (`acc ++ x`, `List.append(&2, T, acc, ..)`) in that parameter's
   own position: each step copies the accumulator, so the walk is quadratic.

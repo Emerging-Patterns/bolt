@@ -11,7 +11,7 @@ extension from a VSIX:
 
 ```
 cd editors/vscode && npm install && npx --yes @vscode/vsce package
-code --install-extension bolt-1.6.1.vsix       # x-release-please-version or: Extensions > ... > Install from VSIX
+code --install-extension bolt-1.6.2.vsix       # x-release-please-version or: Extensions > ... > Install from VSIX
 ```
 
 Over Remote-SSH, install the VSIX from the remote window, so it lands on the
