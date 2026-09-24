@@ -14,7 +14,7 @@ import ./check.bend as Check
 import ./lsp/run.bend as Lsp
 
 # what a subcommand runs, over the files after it
-def dispatch(cmd: Args.Cmd, paths: List<&2, String>) -> IO(Unit):
+def dispatch(cmd: Args.Cmd, paths: List<&2, String>) -> IO(Unit):  # noqa: L001 IO driver
   match cmd:
     case Args.CLint{}:
       Lint.run(paths)
@@ -24,7 +24,7 @@ def dispatch(cmd: Args.Cmd, paths: List<&2, String>) -> IO(Unit):
       Lsp.run()
 
 # a text on its stream
-def say(to: Args.Stream, text: String) -> IO(Unit):
+def say(to: Args.Stream, text: String) -> IO(Unit):  # noqa: L001 IO driver
   match to:
     case Args.Line{}:
       IO.print(text)
@@ -41,11 +41,11 @@ def leave.at(zero: Bool, code: U32) -> IO(Unit):
       IO.die(Unit, code, "")
 
 # exit with a code: 0 falls through, any other ends the run with it
-def leave(+code: U32) -> IO(Unit):
+def leave(+code: U32) -> IO(Unit):  # noqa: L001 IO driver
   leave.at(U32.is_eq(code, 0), code)
 
 # what a parsed line does, done
-def perform(oo: Args.Out) -> IO(Unit):
+def perform(oo: Args.Out) -> IO(Unit):  # noqa: L001 IO driver
   match oo:
     case Args.Stop{to, text, code}:
       do IO<Unit>:
@@ -54,7 +54,7 @@ def perform(oo: Args.Out) -> IO(Unit):
     case Args.Go{cmd, paths}:
       dispatch(cmd, paths)
 
-def main() -> IO(Unit):
+def main() -> IO(Unit):  # noqa: L001 IO entry point
   do IO<Unit>:
     +av : List<&2, String> <- Args.argv()
     perform(Args.out(Args.parse(av)))

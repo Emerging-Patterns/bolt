@@ -339,14 +339,26 @@ def col_in(cc: Enc.Cols, +params: J.Json) -> U32:
   Enc.into(cc, line_of(params), col_of(params))
 
 # hover at a request's position
-def hovered(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String, +params: J.Json) -> IO(Work):
+def hovered(  # noqa: L001 LSP IO glue
+  ~fs: F.Files,
+  ee: Enc.Enc,
+  +docs: List<&2, Docs.Doc>,
+  +uri: String,
+  +params: J.Json
+) -> IO(Work):
   do IO<Work>:
     text : String <- Nav.text_of(~fs, docs, uri)
     f : Maybe<&2, Nav.Found> <- Nav.hover(~fs, docs, uri, line_of(params), col_in(Enc.cols(ee, text), params))
     return answered(hover.of(f), docs)
 
 # definition at a request's position
-def defined(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String, +params: J.Json) -> IO(Work):
+def defined(  # noqa: L001 LSP IO glue
+  ~fs: F.Files,
+  ee: Enc.Enc,
+  +docs: List<&2, Docs.Doc>,
+  +uri: String,
+  +params: J.Json
+) -> IO(Work):
   do IO<Work>:
     +text : String <- Nav.text_of(~fs, docs, uri)
     +cc : Enc.Cols = Enc.cols(ee, text)
@@ -367,7 +379,13 @@ def complete.with(
     return answered(Proto.completions(cc, items, line, (col - U32.from_nat(String.length(prefix)) : U32), col), docs)
 
 # the candidates for the name being typed at a position
-def complete(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String, +params: J.Json) -> IO(Work):
+def complete(  # noqa: L001 LSP IO glue
+  ~fs: F.Files,
+  ee: Enc.Enc,
+  +docs: List<&2, Docs.Doc>,
+  +uri: String,
+  +params: J.Json
+) -> IO(Work):
   do IO<Work>:
     +text : String <- Nav.text_of(~fs, docs, uri)
     +cc : Enc.Cols = Enc.cols(ee, text)
@@ -389,7 +407,13 @@ def rename.of(cc: Enc.Cols, ss: Nav.Sites, uri: String, name: String, new: Strin
       Refusal{"-32803", "only a name bound in this file can be renamed"}
 
 # every position of the name at a position
-def references(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String, +params: J.Json) -> IO(Work):
+def references(  # noqa: L001 LSP IO glue
+  ~fs: F.Files,
+  ee: Enc.Enc,
+  +docs: List<&2, Docs.Doc>,
+  +uri: String,
+  +params: J.Json
+) -> IO(Work):
   do IO<Work>:
     +text : String <- Nav.text_of(~fs, docs, uri)
     +cc : Enc.Cols = Enc.cols(ee, text)
@@ -399,7 +423,13 @@ def references(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: Strin
     return answered(references.of(cc, s, uri, Word.at(text, line, col)), docs)
 
 # the edit renaming the name at a position, or a refusal
-def renamed(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String, +params: J.Json) -> IO(Work):
+def renamed(  # noqa: L001 LSP IO glue
+  ~fs: F.Files,
+  ee: Enc.Enc,
+  +docs: List<&2, Docs.Doc>,
+  +uri: String,
+  +params: J.Json
+) -> IO(Work):
   do IO<Work>:
     +text : String <- Nav.text_of(~fs, docs, uri)
     +cc : Enc.Cols = Enc.cols(ee, text)
@@ -412,13 +442,13 @@ def renamed(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String, 
       docs}
 
 # the document's semantic tokens
-def semantic(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, uri: String) -> IO(Work):
+def semantic(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, uri: String) -> IO(Work):  # noqa: L001 LSP IO glue
   do IO<Work>:
     text : String <- Nav.text_of(~fs, docs, uri)
     return answered(Proto.semantic(Semantic.data(ee, text)), docs)
 
 # the document's symbols
-def symbols(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String) -> IO(Work):
+def symbols(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String) -> IO(Work):  # noqa: L001 LSP IO glue
   do IO<Work>:
     text : String <- Nav.text_of(~fs, docs, uri)
     items : List<&2, Outline.Item> <- Nav.outline(~fs, docs, uri)
@@ -426,7 +456,7 @@ def symbols(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String) 
 
 # the work behind a method: what the checker, the files and the documents
 # give it. It does not see the message's id: step alone puts that on a reply
-def work(
+def work(  # noqa: L001 LSP IO glue
   ~fs: F.Files,
   ee: Enc.Enc,
   mm: Method,
@@ -477,7 +507,7 @@ def encoding(mm: Method, params: J.Json, ee: Enc.Enc) -> Enc.Enc:
       ee
 
 # one message: its method's work, then step's decision on it
-def handle(~fs: F.Files, ee: Enc.Enc, +msg: J.Json, docs: List<&2, Docs.Doc>) -> IO(Out):
+def handle(~fs: F.Files, ee: Enc.Enc, +msg: J.Json, docs: List<&2, Docs.Doc>) -> IO(Out):  # noqa: L001 LSP IO glue
   +mm = method(name_of(msg))
   do IO<Out>:
     w : Work <- work(~fs, ee, mm, Ezjson.get(msg, "params"), docs)
@@ -488,7 +518,7 @@ def decoded(mm: Maybe<&2, J.Json>) -> J.Json:
   Maybe.default(&2, J.Json, mm, J.JNull{})
 
 # every reply sent, in order
-def send_all(~H: Type, ~tr: T.Transport<H>, replies: List<&2, Reply>, h3: H) -> IO(H):
+def send_all(~H: Type, ~tr: T.Transport<H>, replies: List<&2, Reply>, h3: H) -> IO(H):  # noqa: L001 serve loop IO
   match replies:
     case Nil{}:
       IO.pure(H, h3)
@@ -498,7 +528,7 @@ def send_all(~H: Type, ~tr: T.Transport<H>, replies: List<&2, Reply>, h3: H) -> 
         send_all(~H, ~tr, t, h2)
 
 # the loop goes on with the documents, unless the message said to quit
-def next(
+def next(  # noqa: L001 serve loop IO
   -H: Type,
   quit: Bool,
   h3: H,
@@ -513,7 +543,7 @@ def next(
       rest(h3, ee, docs)
 
 # the replies sent, then the loop goes on
-def answer(
+def answer(  # noqa: L001 serve loop IO
   ~H: Type,
   ~tr: T.Transport<H>,
   out: Out,
@@ -543,7 +573,7 @@ def turn.msg(
     answer(~H, ~tr, out, h3, e2, rest)
 
 # one message body handled and answered; none means the peer is gone
-def turn(
+def turn(  # noqa: L001 serve loop IO
   ~H: Type,
   ~tr: T.Transport<H>,
   ~fs: F.Files,
@@ -560,7 +590,7 @@ def turn(
       turn.msg(~H, ~tr, ~fs, decoded(Ezjson.parse(body)), h3, ee, docs, rest)
 
 # what recv gave: the handle and maybe a body
-def got(
+def got(  # noqa: L001 serve loop IO
   ~H: Type,
   ~tr: T.Transport<H>,
   ~fs: F.Files,
@@ -591,7 +621,7 @@ def serve.go(
 
 # serves until exit, the peer's end, or the fuel's (a message each), in
 # UTF-16 until initialize negotiates
-def serve(
+def serve(  # noqa: L001 serve loop IO
   ~H: Type,
   ~tr: T.Transport<H>,
   ~fs: F.Files,

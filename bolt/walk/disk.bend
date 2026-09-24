@@ -26,7 +26,7 @@ def named(ls: List<&2, String>) -> List<&2, String>:
       Bool.pick(List<&2, String>, String.is_empty(l), more, l <> more)
 
 # a directory's entries, a directory marked by a `/`
-def entries(dir: String) -> IO(List<&2, String>):
+def entries(dir: String) -> IO(List<&2, String>):  # noqa: L001 disk effect
   do IO<List<&2, String>>:
     text : String <- walkdir.entries(dir)
     return named(String.lines(text))
@@ -61,7 +61,7 @@ def is_dir.opened(rr: Result<&1, &1, U32 & String, File>) -> IO(Bool):
 # whether a path is a directory: it opens, and reading it fails as a
 # directory's read does. Base's File has no stat, and a directory opens for
 # reading on both lanes.
-def is_dir(path: String) -> IO(Bool):
+def is_dir(path: String) -> IO(Bool):  # noqa: L001 disk effect
   do IO<Bool>:
     r : Result<&1, &1, U32 & String, File> <- File.open(path, "r")
     is_dir.opened(r)
@@ -72,5 +72,5 @@ def walkdir.cwd() -> IO(String):
   import "./cwd.js"
 
 # the working directory, from the root ("" when it cannot be named)
-def cwd() -> IO(String):
+def cwd() -> IO(String):  # noqa: L001 disk effect
   walkdir.cwd()

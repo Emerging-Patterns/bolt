@@ -76,7 +76,7 @@ def out(runs: List<&2, Run>) -> Out:
   out.at(ls, List.length(&2, String, ls))
 
 # each line printed
-def print_all(lines: List<&2, String>) -> IO(Unit):
+def print_all(lines: List<&2, String>) -> IO(Unit):  # noqa: L001 IO driver
   match lines:
     case Nil{}:
       IO.pure(Unit, Unit{})
@@ -94,7 +94,7 @@ def run_of(path: String, aa: Checker.Answer) -> Run:
       Failed{path}
 
 # every file checked, in order: what bend reported for each
-def check_all(paths: List<&2, String>) -> IO(List<&2, Run>):
+def check_all(paths: List<&2, String>) -> IO(List<&2, Run>):  # noqa: L001 IO driver
   match paths:
     case Nil{}:
       IO.pure(List<&2, Run>, [])
@@ -105,14 +105,14 @@ def check_all(paths: List<&2, String>) -> IO(List<&2, Run>):
         return run_of(path, aa) <> more
 
 # what out decided, done (BOLT-TRUST-9): its lines printed, then its code
-def perform(oo: Out) -> IO(Unit):
+def perform(oo: Out) -> IO(Unit):  # noqa: L001 IO driver
   Out{lines, code} = oo
   do IO<Unit>:
     print_all(lines)
     Status.stop(U32.is_gt(code, 0))
 
 # the checker over the files given, exiting 1 when any of them had an error
-def run(paths: List<&2, String>) -> IO(Unit):
+def run(paths: List<&2, String>) -> IO(Unit):  # noqa: L001 IO driver
   do IO<Unit>:
     runs : List<&2, Run> <- check_all(paths)
     perform(out(runs))

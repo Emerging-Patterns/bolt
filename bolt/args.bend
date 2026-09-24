@@ -22,7 +22,7 @@ def widen(ss: List<&1, String>) -> List<&2, String>:
       s <> widen(t)
 
 # bolt's command line
-def argv() -> IO(List<&2, String>):
+def argv() -> IO(List<&2, String>):  # noqa: L001 IO: reads argv
   do IO<List<&2, String>>:
     ss : List<&1, String> <- IO.args()
     return widen(ss)

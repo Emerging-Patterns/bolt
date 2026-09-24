@@ -6,7 +6,7 @@
 import Base
 
 # exit 1 when the run found errors, else fall through (exit 0)
-def stop(bad: Bool) -> IO(Unit):
+def stop(bad: Bool) -> IO(Unit):  # noqa: L001 IO: exit status
   match bad:
     case True{}:
       IO.die(Unit, 1, "")

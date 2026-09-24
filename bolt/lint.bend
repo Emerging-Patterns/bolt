@@ -36,7 +36,7 @@ def text.answer(dir: Bool, path: String) -> IO(W.Answer):
         return read.answer(mm)
 
 # one question, answered
-def answer(ask: W.Ask) -> IO(W.Answer):
+def answer(ask: W.Ask) -> IO(W.Answer):  # noqa: L001 IO driver
   match ask:
     case W.Entries{dir}:
       do IO<W.Answer>:
@@ -64,7 +64,7 @@ def more(world: W.World, rs: List<&2, W.Reply>) -> W.World:
   W.World{paths, cwd, List.append(&2, W.Reply, replies, rs)}
 
 # each line printed
-def print_all(lines: List<&2, String>) -> IO(Unit):
+def print_all(lines: List<&2, String>) -> IO(Unit):  # noqa: L001 IO driver
   match lines:
     case Nil{}:
       IO.pure(Unit, Unit{})
@@ -74,7 +74,7 @@ def print_all(lines: List<&2, String>) -> IO(Unit):
         print_all(t)
 
 # a plan, carried out: its lines printed, then its exit status
-def exec(pl: Plan.Plan) -> IO(Unit):
+def exec(pl: Plan.Plan) -> IO(Unit):  # noqa: L001 IO driver
   Plan.Plan{lines, exit} = pl
   do IO<Unit>:
     print_all(lines)
@@ -94,7 +94,7 @@ def loop.step(asks: List<&2, W.Ask>, +world: W.World, go: W.World -> IO(Unit)) -
 # the loop, under fuel: the walk's bound, plus a round for the texts and one
 # to plan. Every round adds at least one answer, since the planner never asks
 # what the World answers already.
-def loop(fuel: Nat, +world: W.World) -> IO(Unit):
+def loop(fuel: Nat, +world: W.World) -> IO(Unit):  # noqa: L001 IO driver
   match fuel:
     case 0n:
       IO.die(Unit, 1, "bolt: the lint kept asking")
@@ -108,7 +108,7 @@ def run.from(paths: List<&2, String>, +cwd: String) -> IO(Unit):
     _u => loop(Nat.add(Plan.limit(), 2n), W.World{paths, cwd, []}))
 
 # the linter, over the files given, or the tree below
-def run(paths: List<&2, String>) -> IO(Unit):
+def run(paths: List<&2, String>) -> IO(Unit):  # noqa: L001 IO driver
   do IO<Unit>:
     cwd : String <- WalkDisk.cwd()
     run.from(paths, cwd)

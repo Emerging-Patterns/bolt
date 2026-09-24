@@ -20,7 +20,7 @@ def bendcheck.exec(path: String, flag: String) -> IO(String):
 
 # what a run of bend answered, tag first; every run is argv.bend's, so it
 # checks and never runs main
-def launch(rr: Argv.Run) -> IO(String):
+def launch(rr: Argv.Run) -> IO(String):  # noqa: L001 checker effect
   Argv.Run{path, flag} = rr
   bendcheck.exec(path, flag)
 
@@ -65,7 +65,7 @@ def proved(aa: S.Answer, ds: List<&2, Rep.Diag>) -> S.Answer:
 
 # the first report, settled by the run that follows it (a LAWS.bend's
 # PROOF.bend), when argv.bend gives one
-def settle(mr: Maybe<&2, Argv.Run>, +ds: List<&2, Rep.Diag>) -> IO(S.Answer):
+def settle(mr: Maybe<&2, Argv.Run>, +ds: List<&2, Rep.Diag>) -> IO(S.Answer):  # noqa: L001 checker effect
   match mr:
     case None{}:
       IO.pure(S.Answer, S.Checked{ds})
@@ -75,11 +75,11 @@ def settle(mr: Maybe<&2, Argv.Run>, +ds: List<&2, Rep.Diag>) -> IO(S.Answer):
         return proved(answer(None{}, text), ds)
 
 # the diagnostics of a run, settled by the run that follows it
-def checked(+ds: List<&2, Rep.Diag>, +path: String) -> IO(S.Answer):
+def checked(+ds: List<&2, Rep.Diag>, +path: String) -> IO(S.Answer):  # noqa: L001 checker effect
   settle(Argv.followup(ds, path), ds)
 
 # a run's answer: its diagnostics settled when bend ran, else no check
-def settled(aa: S.Answer, +path: String) -> IO(S.Answer):
+def settled(aa: S.Answer, +path: String) -> IO(S.Answer):  # noqa: L001 checker effect
   match aa:
     case S.Checked{ds}:
       checked(ds, path)
@@ -88,7 +88,7 @@ def settled(aa: S.Answer, +path: String) -> IO(S.Answer):
 
 # bend's report on the file, its errors placed by the names of the file's
 # items (read from the file bend read; unknown when it cannot be read)
-def check(+path: String) -> IO(S.Answer):
+def check(+path: String) -> IO(S.Answer):  # noqa: L001 checker effect
   do IO<S.Answer>:
     text : String <- launch(Argv.run_of(path))
     src : Maybe<&2, String> <- Disk.read(path)

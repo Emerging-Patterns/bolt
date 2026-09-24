@@ -56,7 +56,7 @@ def depth(rr: Result<&1, &1, U32 & String, String>) -> U32:
     case Done{s}:
       Maybe.default(&2, U32, U32.read(s), 0)
 
-def main() -> IO(Unit):
+def main() -> IO(Unit):  # noqa: L001 IO entry point
   do IO<Unit>:
     r : Result<&1, &1, U32 & String, String> <- IO.get_env("DEPTH")
     t0 : Nat <- IO.now()
