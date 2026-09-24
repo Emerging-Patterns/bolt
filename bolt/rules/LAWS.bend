@@ -377,7 +377,8 @@ law space_counts:
 # The header exemptions. A per-file rule whose header exempts a path (a law
 # file, a proof, a test) returns no findings on it, for every source: any
 # text, token list, tree, binding structure and outline. bolt/paths.bend
-# decides the path by its segments.
+# decides the path by its segments. The cost rules also skip a def that is a
+# proof wherever it is: one that returns a proof, or one with no type at all.
 
 # LAW: hole reports nothing in a LAWS.bend, whose laws are open claims, whatever the source holds
 # BOLT-RULE-EXEMPT
@@ -546,6 +547,15 @@ law unit_exempt:
   for items: List<&2, Outline.Item>
   for e: {Paths.is_law_file(path) == True{} : Bool}
   {UnitRule.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: a def written with no type (no `:` among its parameters, no `->`) fills the law of its name, so it is a
+# proof: every cost rule that reads Calls.exempt skips it wherever it is, as it skips one that returns a proof
+# BOLT-RULE-EXEMPT
+law untyped_exempt:
+  for +path: String
+  for +sig: Tree.Node
+  for e: {Calls.typed(sig) == False{} : Bool}
+  {Calls.exempt(path, sig) == True{} : Bool}
 
 # The match rules, chars and strings. Each walks every statement of the tree
 # at any depth; a match is read by the case statements of its body, and a

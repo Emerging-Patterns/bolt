@@ -8,7 +8,7 @@
 # fixed slot, including 0 and 1), a growing or data-dependent list, a one-shot
 # outside the recursion, and `List.head` / `List.tail` do not run. `index`
 # leaves a table this rule owns, so one call is one finding. Laws and proofs
-# do not run.
+# do not run (a def with no type at all fills a law: it is a proof).
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
