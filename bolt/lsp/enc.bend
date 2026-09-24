@@ -6,6 +6,7 @@
 # server reads goes through `into`, and every one it sends through `out`
 # (proto.bend's position, semantic.bend's tokens).
 import Base
+import 0xd9c8d4d2899ddda845dfa7525a3568ea/main.bend as Ezjson
 import 0xd9c8d4d2899ddda845dfa7525a3568ea/value.bend as J
 
 # the encodings the server speaks
@@ -27,7 +28,7 @@ def offers(cells: J.Json) -> Bool:
   match cells:
     case J.JCons{h, t}:
       +more = offers(t)
-      Bool.or(String.eq(Maybe.default(&2, String, J.as_str(h), ""), "utf-32"), more)
+      Bool.or(String.eq(Maybe.default(&2, String, Ezjson.as_str(h), ""), "utf-32"), more)
     case _other:
       False{}
 
@@ -50,7 +51,7 @@ def chosen(yes: Bool) -> Enc:
 # the encoding initialize settles on: utf-32 when the client's
 # general.positionEncodings offers it, else UTF-16, LSP's default
 def negotiate(params: J.Json) -> Enc:
-  chosen(offers(cells(J.get(J.get(J.get(params, "capabilities"), "general"), "positionEncodings"))))
+  chosen(offers(cells(Ezjson.get(Ezjson.get(Ezjson.get(params, "capabilities"), "general"), "positionEncodings"))))
 
 # counting
 # --------

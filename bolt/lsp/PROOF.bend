@@ -1,5 +1,6 @@
 # bolt/lsp: the proofs. `bend PROOF.bend` is the gate.
 import Base
+import 0xd9c8d4d2899ddda845dfa7525a3568ea/main.bend as Ezjson
 import 0xd9c8d4d2899ddda845dfa7525a3568ea/value.bend as J
 import ./frame.bend as Frame
 import ./server.bend as Server
@@ -2301,18 +2302,18 @@ def Laws.nav_hover_own(fs, docs, uri, text, h, line, col, name, bl, bc, note, hs
 # the cells of the encodings offered say utf-32 exactly when the list has it
 law nav.offers_contains:
   for xs: List<&2, String>
-  {Enc.offers(J.arr.go(Proto.strings(xs))) == List.contains(~String, ~String.eq, xs, "utf-32") : Bool}
+  {Enc.offers(Enc.cells(Ezjson.arr(Proto.strings(xs)))) == List.contains(~String, ~String.eq, xs, "utf-32") : Bool}
 
 def nav.offers_contains(xs):
   match xs:
     case Nil{}:
       {==}
     case Con{x, t}:
-      Equal.cong(Bool, Bool, r => Bool.or(String.eq(x, "utf-32"), r), Enc.offers(J.arr.go(Proto.strings(t))),
+      Equal.cong(Bool, Bool, r => Bool.or(String.eq(x, "utf-32"), r), Enc.offers(Enc.cells(Ezjson.arr(Proto.strings(t)))),
         List.contains(~String, ~String.eq, t, "utf-32"), nav.offers_contains(t))
 
 def Laws.enc_negotiated(xs):
-  Equal.cong(Bool, Enc.Enc, Enc.chosen, Enc.offers(J.arr.go(Proto.strings(xs))),
+  Equal.cong(Bool, Enc.Enc, Enc.chosen, Enc.offers(Enc.cells(Ezjson.arr(Proto.strings(xs)))),
     List.contains(~String, ~String.eq, xs, "utf-32"), nav.offers_contains(xs))
 
 def Laws.enc_advertised(_params):

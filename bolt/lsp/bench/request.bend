@@ -7,7 +7,7 @@
 import Base
 import ../../../syntax/outline.bend as Outline
 import ../../../syntax/word.bend as Word
-import 0xd9c8d4d2899ddda845dfa7525a3568ea/parse.bend as Parse
+import 0xd9c8d4d2899ddda845dfa7525a3568ea/main.bend as Ezjson
 import 0xd9c8d4d2899ddda845dfa7525a3568ea/value.bend as J
 
 # the document a hover is answered against
@@ -32,12 +32,12 @@ def parsed(mm: Maybe<&2, J.Json>) -> J.Json:
 
 # one request: the line of the item under the message's position, plus its id
 def leaf(+ii: U32) -> U32:
-  +msg = parsed(Parse.parse(message()))
-  +pos = J.get(J.get(msg, "params"), "position")
+  +msg = parsed(Ezjson.parse(message()))
+  +pos = Ezjson.get(Ezjson.get(msg, "params"), "position")
   (line_of(Outline.find(Outline.items(source()),
-    Word.at(source(), Maybe.default(&2, U32, J.as_u32(J.get(pos, "line")), 0),
-      Maybe.default(&2, U32, J.as_u32(J.get(pos, "character")), 0))))
-    + Maybe.default(&2, U32, J.as_u32(J.get(msg, "id")), 0) + (ii .&. 0) : U32)
+    Word.at(source(), Maybe.default(&2, U32, Ezjson.as_u32(Ezjson.get(pos, "line")), 0),
+      Maybe.default(&2, U32, Ezjson.as_u32(Ezjson.get(pos, "character")), 0))))
+    + Maybe.default(&2, U32, Ezjson.as_u32(Ezjson.get(msg, "id")), 0) + (ii .&. 0) : U32)
 
 # the requests of a 2^n batch, answered and summed
 def fold(+nn: Nat, +ii: U32) -> U32:
