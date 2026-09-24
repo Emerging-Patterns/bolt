@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.1](https://github.com/Emerging-Patterns/bolt/compare/v1.6.0...v1.6.1) (2026-09-24)
+
+
+### Bug Fixes
+
+* **wrap:** a comment has no width and a string's line break is not a header break; prove wrap inert (BOLT-RULE-INERT, BOLT-RULE-S003) ([#184](https://github.com/Emerging-Patterns/bolt/issues/184)) ([3136736](https://github.com/Emerging-Patterns/bolt/commit/313673655d41a85348f1404a0dca7646c409fe33))
+* **wrap:** comments have no width and only a newline token breaks a header; prove wrap inert (BOLT-RULE-INERT) ([3136736](https://github.com/Emerging-Patterns/bolt/commit/313673655d41a85348f1404a0dca7646c409fe33))
+
 ## [1.6.0](https://github.com/Emerging-Patterns/bolt/compare/v1.5.0...v1.6.0) (2026-09-24)
 
 
