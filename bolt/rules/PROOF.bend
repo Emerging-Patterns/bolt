@@ -3070,28 +3070,10 @@ law arms.plus_up:
     == Bool.pick(Maybe<&2, U32>, Bool.and(x, Laws.arms.binder(b)), Some{k}, None{}) : Maybe<&2, U32>}
 
 def arms.plus_up(x, b, k, t, l, c, n):
-  %arms.binder(b) : {arms.up(Bool.pick(Arms.Arm, Bool.and(x, _), Arms.APlus{k, t, l, c, n}, Arms.AOther{}))
+  %Equal.sym(Bool, Arms.binder(b), Laws.arms.binder(b), arms.binder(b)) :
+    {arms.up(Bool.pick(Arms.Arm, Bool.and(x, _), Arms.APlus{k, t, l, c, n}, Arms.AOther{}))
     == Bool.pick(Maybe<&2, U32>, Bool.and(x, Laws.arms.binder(b)), Some{k}, None{}) : Maybe<&2, U32>}
   arms.pick_up(Bool.and(x, Laws.arms.binder(b)), k, t, l, c, n)
-
-# the same, read from below
-law arms.plus_lo:
-  for x: Bool
-  for +b: Lex.TokKind
-  for +k: U32
-  for +t: String
-  for +l: U32
-  for +c: U32
-  for +n: U32
-  {arms.lo(Bool.pick(Arms.Arm, Bool.and(x, Arms.binder(b)), Arms.APlus{k, t, l, c, n}, Arms.AOther{}))
-    == Bool.pick(Maybe<&2, U32>, Bool.or(Bool.and(x, Laws.arms.binder(b)), False{}), Some{k}, None{})
-    : Maybe<&2, U32>}
-
-def arms.plus_lo(x, b, k, t, l, c, n):
-  %arms.binder(b) : {arms.lo(Bool.pick(Arms.Arm, Bool.and(x, _), Arms.APlus{k, t, l, c, n}, Arms.AOther{}))
-    == Bool.pick(Maybe<&2, U32>, Bool.or(Bool.and(x, Laws.arms.binder(b)), False{}), Some{k}, None{})
-    : Maybe<&2, U32>}
-  arms.pick_lo(Bool.and(x, Laws.arms.binder(b)), k, t, l, c, n)
 
 # a picked from-k-up arm, read from below, when `or`ed with no `:`
 law arms.pick_lo:
@@ -3110,6 +3092,26 @@ def arms.pick_lo(b, _k, _t, _l, _c, _n):
       {==}
     case False{}:
       {==}
+
+# the same, read from below
+law arms.plus_lo:
+  for x: Bool
+  for +b: Lex.TokKind
+  for +k: U32
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for +n: U32
+  {arms.lo(Bool.pick(Arms.Arm, Bool.and(x, Arms.binder(b)), Arms.APlus{k, t, l, c, n}, Arms.AOther{}))
+    == Bool.pick(Maybe<&2, U32>, Bool.or(Bool.and(x, Laws.arms.binder(b)), False{}), Some{k}, None{})
+    : Maybe<&2, U32>}
+
+def arms.plus_lo(x, b, k, t, l, c, n):
+  %Equal.sym(Bool, Arms.binder(b), Laws.arms.binder(b), arms.binder(b)) :
+    {arms.lo(Bool.pick(Arms.Arm, Bool.and(x, _), Arms.APlus{k, t, l, c, n}, Arms.AOther{}))
+    == Bool.pick(Maybe<&2, U32>, Bool.or(Bool.and(x, Laws.arms.binder(b)), False{}), Some{k}, None{})
+    : Maybe<&2, U32>}
+  arms.pick_lo(Bool.and(x, Laws.arms.binder(b)), k, t, l, c, n)
 
 # a picked from-k-up arm, read from below
 law arms.pick_lo1:
