@@ -126,13 +126,11 @@ Design specs and plans are not kept in this repo; they live under
   Every top-level def, type and law gets a comment right above it (helpers
   named `x.go` ride on x's); a parameter that is there to be ignored starts
   with `_`;
-  a project with a LAWS.bend has every def named by a quantified law, IO included.
+  a project with a LAWS.bend has every def named by a quantified law or
+  reached from one through calls (BOLT-LAW-1), IO included.
   Helpers (dotted names), tests, and the law files themselves are out of
   scope.
-- Dependencies are injected the `core` way (see core/README.md): a service is
-  a folder, `x/service.bend` plus one file per implementation exporting
-  `new()`.
-- A service file's header says whether it is pure (GPU-safe) or an effect
+- A module's header says whether it is pure (GPU-safe) or an effect
   (CPU event loop only). Only pure code may sit under a `!` call.
 - Never `bend --publish`, and never `ez publish`: both upload to the public
   hub, and an upload is public and cannot be taken back. An agent does not
