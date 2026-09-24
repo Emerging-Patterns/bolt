@@ -5,7 +5,10 @@
 #   4>|   x           the source excerpt; `>|` marks the line, 1-based
 # There are no columns, so a diagnostic covers its whole line. An error in an
 # import cannot be placed in this file: it lands on line 0, naming its home.
+# bend names a def of an import beside this file without a path (`m.g`), as
+# it names a def `m.g` of this file, so such an error reads as this file's.
 import Base
+import ../../lazy/lazy.bend as Lazy
 
 # line is 0-based, as LSP counts
 type Diag is Data:
@@ -26,38 +29,23 @@ def classify(+ss: String) -> Line:
   Bool.pick(Line, String.starts_with(ss, "Error:"), KError{String.drop(ss, 6n)},
     Bool.pick(Line, String.starts_with(ss, "Location:"), KLocation{String.drop(ss, 9n)}, KOther{ss}))
 
-# not whitespace?
-def not_space(cc: Char) -> Bool:
-  Bool.not(Char.is_space(cc))
-
-# every whitespace char dropped
-def strip(ss: String) -> String:
-  String.from_list(List.filter(~Char, ~not_space, String.to_list(ss)))
-
-# drops leading spaces
-def lstrip.go(cs: List<&2, Char>) -> List<&2, Char>:
-  match cs:
-    case Con{' ', t}:
-      lstrip.go(t)
-    case other:
-      other
-
-# leading whitespace dropped
-def lstrip(ss: String) -> String:
-  String.from_list(lstrip.go(String.to_list(ss)))
-
-# `12>|  code` marks line 12: the text before the first '>' is the number, and
-# the text after it starts with '|' (a '>' later in the code changes nothing)
-def marker.of(parts: List<&2, String>) -> Maybe<&2, U32>:
-  match parts:
-    case Con{a, Con{b, rest}}:
-      Bool.pick(Maybe<&2, U32>, String.starts_with(b, "|"), U32.read(strip(a)), None{})
-    case other:
+# reading a marker past its padding: `count` digits of `whole` so far, and at
+# the first other character, the number they make when `>|` follows them
+def marker.go(ss: String, +whole: String, +count: Nat) -> Maybe<&2, U32>:
+  match ss:
+    case SNil{}:
       None{}
+    case SCon{+hh, +tt}:
+      Lazy.stop(Maybe<&2, U32>, Bool.not(Char.is_digit(hh)),
+        Bool.pick(Maybe<&2, U32>, String.starts_with(SCon{hh, tt}, ">|"), U32.read(String.take(whole, count)), None{}),
+        _u => marker.go(tt, whole, 1n+count))
 
-# the line number a source line of the report carries (`9>|`), when it does
+# the line number a source line of the report carries, when it does: `12>|
+# code` marks line 12, padding before the digits aside; a line of context
+# (`11 | code`) marks none, whatever its code holds
 def marker(ss: String) -> Maybe<&2, U32>:
-  marker.of(String.split(ss, '>'))
+  +tt = String.trim_start(ss)
+  marker.go(tt, tt, 0n)
 
 # a message line, without its `- `
 def clean(+ss: String) -> String:
@@ -98,9 +86,9 @@ def step.go(
 ) -> St:
   match kk located seen:
     case KError{rest} l s:
-      St{True{}, False{}, push(lstrip(rest), []), 0, "", flush(s, msg, line, place, out)}
+      St{True{}, False{}, push(String.trim_start(rest), []), 0, "", flush(s, msg, line, place, out)}
     case KLocation{p} l s:
-      St{s, True{}, msg, line, lstrip(p), out}
+      St{s, True{}, msg, line, String.trim_start(p), out}
     case KOther{text} False{} True{}:
       St{True{}, False{}, push(clean(text), msg), line, place, out}
     case KOther{text} True{} True{}:
