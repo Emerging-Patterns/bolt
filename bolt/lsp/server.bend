@@ -4,9 +4,8 @@
 # loop's state. The checker runs on open and save, against the file on disk;
 # the linter on every open, change and save, on the text the editor shows.
 import Base
+import 0xd9c8d4d2899ddda845dfa7525a3568ea/main.bend as Ezjson
 import 0xd9c8d4d2899ddda845dfa7525a3568ea/value.bend as J
-import 0xd9c8d4d2899ddda845dfa7525a3568ea/parse.bend as Parse
-import 0xd9c8d4d2899ddda845dfa7525a3568ea/print.bend as Print
 import ./proto.bend as Proto
 import ./docs.bend as Docs
 import ./nav.bend as Nav
@@ -124,23 +123,23 @@ def role(mm: Method) -> Role:
 
 # a message's method name, empty when it has none
 def name_of(msg: J.Json) -> String:
-  Maybe.default(&2, String, J.as_str(J.get(msg, "method")), "")
+  Maybe.default(&2, String, Ezjson.as_str(Ezjson.get(msg, "method")), "")
 
 # a message's id: null for a notification
 def id_of(msg: J.Json) -> J.Json:
-  J.get(msg, "id")
+  Ezjson.get(msg, "id")
 
 # the document a request is about
 def uri_of(params: J.Json) -> String:
-  Maybe.default(&2, String, J.as_str(J.get(J.get(params, "textDocument"), "uri")), "")
+  Maybe.default(&2, String, Ezjson.as_str(Ezjson.get(Ezjson.get(params, "textDocument"), "uri")), "")
 
 # the line of a request's position
 def line_of(params: J.Json) -> U32:
-  Maybe.default(&2, U32, J.as_u32(J.get(J.get(params, "position"), "line")), 0)
+  Maybe.default(&2, U32, Ezjson.as_u32(Ezjson.get(Ezjson.get(params, "position"), "line")), 0)
 
 # the character of a request's position
 def col_of(params: J.Json) -> U32:
-  Maybe.default(&2, U32, J.as_u32(J.get(J.get(params, "position"), "character")), 0)
+  Maybe.default(&2, U32, Ezjson.as_u32(Ezjson.get(Ezjson.get(params, "position"), "character")), 0)
 
 # a reply as the text sent
 def text(rr: Reply) -> String:
@@ -148,9 +147,9 @@ def text(rr: Reply) -> String:
     case RNote{body}:
       body
     case RResult{id, result}:
-      Print.print(Proto.response(id, result))
+      Ezjson.print(Proto.response(id, result))
     case RError{id, code, message}:
-      Print.print(Proto.failure(id, code, message))
+      Ezjson.print(Proto.failure(id, code, message))
 
 # notifications as replies
 def notices(ns: List<&2, String>) -> List<&2, Reply>:
@@ -214,7 +213,7 @@ def step(mm: Method, id: J.Json, ww: Work) -> Out:
 # a document's diagnostics, as the notification sent: the checker's errors,
 # then the linter's findings
 def pub.note(cc: Enc.Cols, uri: String, ds: List<&2, Rep.Diag>, gs: List<&2, Finding.Graded>) -> String:
-  Print.print(Proto.publish(cc, uri, ds, gs))
+  Ezjson.print(Proto.publish(cc, uri, ds, gs))
 
 # the bolt.bend candidates of a document's path, nearest first: the ones the
 # CLI reads for a file at that path, run from the same directory
@@ -401,7 +400,8 @@ def renamed(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String, 
     +col : U32 = col_in(cc, params)
     s : Nav.Sites <- Nav.sites(~fs, docs, uri, line, col)
     return Work{[],
-      rename.of(cc, s, uri, Word.at(text, line, col), Maybe.default(&2, String, J.as_str(J.get(params, "newName")), "")),
+      rename.of(cc, s, uri, Word.at(text, line, col),
+        Maybe.default(&2, String, Ezjson.as_str(Ezjson.get(params, "newName")), "")),
       docs}
 
 # the document's semantic tokens
@@ -436,10 +436,10 @@ def work(
       IO.pure(Work, noted([], docs))
     case MOpen{}:
       pub.opened(~ck, ~fs, ee, uri_of(params),
-        Maybe.default(&2, String, J.as_str(J.get(J.get(params, "textDocument"), "text")), ""), docs)
+        Maybe.default(&2, String, Ezjson.as_str(Ezjson.get(Ezjson.get(params, "textDocument"), "text")), ""), docs)
     case MChange{}:
       pub.changed(~fs, ee, uri_of(params),
-        Maybe.default(&2, String, J.as_str(J.get(J.at(J.get(params, "contentChanges"), 0), "text")), ""), docs)
+        Maybe.default(&2, String, Ezjson.as_str(Ezjson.get(Ezjson.at(Ezjson.get(params, "contentChanges"), 0), "text")), ""), docs)
     case MSave{}:
       pub.saved(~ck, ~fs, ee, uri_of(params), docs)
     case MClose{}:
@@ -474,7 +474,7 @@ def encoding(mm: Method, params: J.Json, ee: Enc.Enc) -> Enc.Enc:
 def handle(~ck: C.Checker, ~fs: F.Files, ee: Enc.Enc, +msg: J.Json, docs: List<&2, Docs.Doc>) -> IO(Out):
   +mm = method(name_of(msg))
   do IO<Out>:
-    w : Work <- work(~ck, ~fs, ee, mm, J.get(msg, "params"), docs)
+    w : Work <- work(~ck, ~fs, ee, mm, Ezjson.get(msg, "params"), docs)
     return step(mm, id_of(msg), w)
 
 # a parsed message, or null when it did not parse
@@ -532,7 +532,7 @@ def turn.msg(
   docs: List<&2, Docs.Doc>,
   rest: H -> Enc.Enc -> List<&2, Docs.Doc> -> IO(Unit)
 ) -> IO(Unit):
-  +e2 = encoding(method(name_of(msg)), J.get(msg, "params"), ee)
+  +e2 = encoding(method(name_of(msg)), Ezjson.get(msg, "params"), ee)
   do IO<Unit>:
     out : Out <- handle(~ck, ~fs, e2, msg, docs)
     answer(~H, ~tr, out, h3, e2, rest)
@@ -553,7 +553,7 @@ def turn(
     case None{}:
       IO.pure(Unit, Unit{})
     case Some{body}:
-      turn.msg(~H, ~tr, ~ck, ~fs, decoded(Parse.parse(body)), h3, ee, docs, rest)
+      turn.msg(~H, ~tr, ~ck, ~fs, decoded(Ezjson.parse(body)), h3, ee, docs, rest)
 
 # what recv gave: the handle and maybe a body
 def got(
