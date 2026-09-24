@@ -9,7 +9,7 @@
 # the recursive step, and so is a lambda body inside it (a `Lazy.stop`
 # thunk or a `List.map` callback runs on the step). One finding per
 # operation, on the literal: `Nat.mul(1n, 1n)` is one. Laws and proofs do not
-# run.
+# run (a def with no type at all fills a law: it is a proof).
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
