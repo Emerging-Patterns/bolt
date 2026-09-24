@@ -17,12 +17,12 @@ def base_path(ff: Files) -> IO(String):
   b(Unit{})
 
 # the working directory, from the root; "" when it cannot be named
-def cwd(ff: Files) -> IO(String):
+def cwd(ff: Files) -> IO(String):  # noqa: L001 effect accessor
   Files{_r, _b, c} = ff
   c(Unit{})
 
 # every path read, in order (a missing file is a None)
-def read_all(~ff: Files, paths: List<&2, String>) -> IO(List<&2, Maybe<&2, String>>):
+def read_all(~ff: Files, paths: List<&2, String>) -> IO(List<&2, Maybe<&2, String>>):  # noqa: L001 effect accessor
   match paths:
     case Nil{}:
       IO.pure(List<&2, Maybe<&2, String>>, [])

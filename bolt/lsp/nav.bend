@@ -341,7 +341,11 @@ def sites(~fs: F.Files, docs: List<&2, Docs.Doc>, +uri: String, line: U32, col: 
     return sites.in(text, line, col)
 
 # the items of a document
-def outline(~fs: F.Files, docs: List<&2, Docs.Doc>, +uri: String) -> IO(List<&2, Outline.Item>):
+def outline(  # noqa: L001 IO: reads files
+  ~fs: F.Files,
+  docs: List<&2, Docs.Doc>,
+  +uri: String
+) -> IO(List<&2, Outline.Item>):
   do IO<List<&2, Outline.Item>>:
     text : String <- load(~fs, docs, uri, Proto.path(uri))
     return Outline.items(text)

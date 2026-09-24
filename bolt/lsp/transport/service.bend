@@ -4,15 +4,15 @@ import Base
 
 # effect service over a handle H: receive a body, send a body, each handing the
 # handle back
-type Transport<-H: Type> is Type:
+type Transport<-H: Type> is Type:  # noqa: L001 effect record
   Transport{recv: H -> IO(H & Maybe<&2, String>), send: H -> String -> IO(H)}
 
 # the next message's body; None when the peer is gone
-def recv(-H: Type, tt: Transport<H>, hh: H) -> IO(H & Maybe<&2, String>):
+def recv(-H: Type, tt: Transport<H>, hh: H) -> IO(H & Maybe<&2, String>):  # noqa: L001 effect accessor
   Transport{r, s} = tt
   r(hh)
 
 # a body, through a transport
-def send(-H: Type, tt: Transport<H>, hh: H, body: String) -> IO(H):
+def send(-H: Type, tt: Transport<H>, hh: H, body: String) -> IO(H):  # noqa: L001 effect accessor
   Transport{r, s} = tt
   s(hh, body)
