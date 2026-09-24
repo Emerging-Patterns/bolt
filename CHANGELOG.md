@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.6.0](https://github.com/Emerging-Patterns/bolt/compare/v1.5.0...v1.6.0) (2026-09-24)
+
+
+### Features
+
+* **coverage:** a def is covered when a law reaches it through calls (BOLT-LAW-1) ([#175](https://github.com/Emerging-Patterns/bolt/issues/175)) ([354bc01](https://github.com/Emerging-Patterns/bolt/commit/354bc01b8bb23aa971d3957aeb78f6c9c70926ef))
+* **coverage:** count coverage by reach through calls (BOLT-LAW-1) ([354bc01](https://github.com/Emerging-Patterns/bolt/commit/354bc01b8bb23aa971d3957aeb78f6c9c70926ef))
+
+
+### Bug Fixes
+
+* **arms:** read kn+p as a from-k-up arm only for a binder; prove arms, unused and hoist inert (BOLT-RULE-INERT, partial) ([#179](https://github.com/Emerging-Patterns/bolt/issues/179)) ([829071b](https://github.com/Emerging-Patterns/bolt/commit/829071b0387f29ab78f44fac055304e148942ca5))
+
 ## [1.5.0](https://github.com/Emerging-Patterns/bolt/compare/v1.4.2...v1.5.0) (2026-09-24)
 
 
