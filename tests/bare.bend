@@ -19,8 +19,10 @@
 # bolt.
 import Base
 import 0x9bfd9d57916f3439316c2775fd1f10b4/main.bend as Snap
-import ../core/check/kit.bend as Check
-import ../core/check/print.bend as Report
+
+# `ok name` when the two strings are equal, `FAIL name` when they are not
+def eq_str(name: String, got: String, want: String) -> IO(Unit):
+  IO.print(Bool.pick(String, String.eq(got, want), "ok ", "FAIL ") ++ name)
 
 # the 0x name ez computed for shake v0.1.1
 def shake.hash() -> String:
@@ -67,24 +69,24 @@ def main() -> IO(Unit):
       ".scratch/snap/snap/par.js", ".scratch/lib/" ++ snap.hash() ++ "/"])
     _bin : String <- Snap.exec(["mkdir", "-p", "bin"])
     built : String <- Snap.exec(bare())
-    Check.eq_str(~Report.new(), "bolt builds with bare bend and no ez",
+    eq_str("bolt builds with bare bend and no ez",
       Snap.code(built), "0")
     spawned : String <- Snap.exec(["node", "bolt/lsp/tests/spawn.js", "bin/bolt.bin"])
-    Check.eq_str(~Report.new(), "the server answers node, spawned over sockets",
+    eq_str("the server answers node, spawned over sockets",
       Snap.text(spawned), "ok\n")
     located : String <- Snap.exec(["node", "tests/locate.js", "bin/bolt.bin"])
-    Check.eq_str(~Report.new(), "the extension finds bolt with no symlink to help it",
+    eq_str("the extension finds bolt with no symlink to help it",
       Snap.text(located), "ok\n")
     helped : String <- Snap.exec(["bin/bolt.bin", "--gpu", "off", "help"])
-    Check.eq_str(~Report.new(), "bolt help prints usage", Snap.code(helped), "0")
+    eq_str("bolt help prints usage", Snap.code(helped), "0")
     many : String <- Snap.exec(["bin/bolt.bin", "--gpu", "off",
       "bolt/lsp/fixtures/proven/LAWS.bend",
       "bolt/lsp/fixtures/proven/PROOF.bend"])
-    Check.eq_str(~Report.new(), "bolt lints the files it is given", Snap.text(many), "clean\n")
+    eq_str("bolt lints the files it is given", Snap.text(many), "clean\n")
     checked : String <- Snap.exec(["bin/bolt.bin", "--gpu", "off", "check",
       "bolt/lsp/fixtures/proven/LAWS.bend",
       "bolt/lsp/fixtures/proven/PROOF.bend"])
-    Check.eq_str(~Report.new(), "bolt check takes every leftover file", Snap.text(checked), "clean\n")
+    eq_str("bolt check takes every leftover file", Snap.text(checked), "clean\n")
 
 #|ok bolt builds with bare bend and no ez
 #|ok the server answers node, spawned over sockets

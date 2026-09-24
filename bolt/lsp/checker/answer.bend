@@ -1,4 +1,4 @@
-# checker: an effect service: the diagnostics of the file at a path.
+# checker/answer: pure: what a run of the checker (bend.bend) gave for a file.
 import Base
 import ../report.bend as Rep
 
@@ -7,15 +7,6 @@ import ../report.bend as Rep
 type Answer is Data:
   Checked{ds: List<&2, Rep.Diag>}
   Unrun{}
-
-# effect service: a file's diagnostics
-type Checker is Type:
-  Checker{check: String -> IO(Answer)}
-
-# a file's diagnostics, from a checker
-def check(cc: Checker, path: String) -> IO(Answer):
-  Checker{f} = cc
-  f(path)
 
 # an answer's diagnostics: none when bend could not be run
 def errors(aa: Answer) -> List<&2, Rep.Diag>:

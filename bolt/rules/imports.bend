@@ -42,7 +42,7 @@ def init(segs: List<&2, String>) -> List<&2, String>:
     case Con{h, t}:
       h <> init(t)
 
-# a path's directory, with its slash (`core/monoid/`; `` at the root)
+# a path's directory, with its slash (`bolt/lsp/`; `` at the root)
 def dir_of(path: String) -> String:
   +segs = init(String.split(norm(path), '/'))
   Bool.pick(String, Nat.is_eq(List.length(&2, String, segs), 0n), "", String.join(segs, "/") ++ "/")

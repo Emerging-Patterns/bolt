@@ -8,7 +8,7 @@
 import Base
 import ./status.bend as Status
 import ./lsp/report.bend as Rep
-import ./lsp/checker/service.bend as Checker
+import ./lsp/checker/answer.bend as Checker
 import ./lsp/checker/bend.bend as BendChecker
 
 # a message's lines after the first, indented
@@ -94,14 +94,14 @@ def run_of(path: String, aa: Checker.Answer) -> Run:
       Failed{path}
 
 # every file checked, in order: what bend reported for each
-def check_all(~ck: Checker.Checker, paths: List<&2, String>) -> IO(List<&2, Run>):
+def check_all(paths: List<&2, String>) -> IO(List<&2, Run>):
   match paths:
     case Nil{}:
       IO.pure(List<&2, Run>, [])
     case Con{+path, rest}:
       do IO<List<&2, Run>>:
-        aa : Checker.Answer <- Checker.check(ck, path)
-        more : List<&2, Run> <- check_all(~ck, rest)
+        aa : Checker.Answer <- BendChecker.check(path)
+        more : List<&2, Run> <- check_all(rest)
         return run_of(path, aa) <> more
 
 # what out decided, done (BOLT-TRUST-9): its lines printed, then its code
@@ -114,5 +114,5 @@ def perform(oo: Out) -> IO(Unit):
 # the checker over the files given, exiting 1 when any of them had an error
 def run(paths: List<&2, String>) -> IO(Unit):
   do IO<Unit>:
-    runs : List<&2, Run> <- check_all(~BendChecker.new(), paths)
+    runs : List<&2, Run> <- check_all(paths)
     perform(out(runs))

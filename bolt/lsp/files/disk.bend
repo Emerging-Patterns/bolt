@@ -80,7 +80,7 @@ def base_path(_u: Unit) -> IO(String):
 
 # the working directory, as the lint's walk names it
 def cwd(_u: Unit) -> IO(String):
-  WalkDisk.cwd(Unit{})
+  WalkDisk.cwd()
 
 # the real file system
 def new() -> S.Files:

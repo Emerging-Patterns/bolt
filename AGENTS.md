@@ -152,10 +152,10 @@ Design specs and plans are not kept in this repo; they live under
 - User code may not call a law before its def is filled, so Base's mutually
   recursive arm/go lemma shape does not work here. Give the arm the induction
   hypothesis as a parameter, and erase its other arguments (`for -at`) so the
-  caller can still recurse on them (see core/PROOF.bend, Word.xor_assoc).
+  caller can still recurse on them (see syntax/PROOF.bend, ol.weq.arm).
 - `match` takes parameters and pattern-bound variables only, in binder order;
-  to branch on a computed value, pass it to a helper (see `report` in
-  core/check/service.bend).
+  to branch on a computed value, pass it to a helper (see `answer.tag` in
+  bolt/lsp/checker/bend.bend).
 - No mutual recursion, and a def must be defined above its use. A loop that
   branches on a computed value either folds the branch into a non-recursive
   helper that returns the next state (json/lex.bend), or hands the helper a
