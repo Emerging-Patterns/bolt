@@ -19,14 +19,19 @@ message. Idle it costs no CPU.
 
 ## How it is wired
 
-`server.bend` is the loop; everything outside the process is a
-[core](../../core/) service, so a canned session over fakes is a law:
+`server.bend` is the loop. Two of the things outside the process are
+records the loop takes as parameters: `LAWS.bend` quantifies over every
+`Files`, and `tests/checker.bend` drives the loop over the `script`
+transport:
 
-| service | real | fake |
-|---------|------|------|
+| record | real | fake |
+|--------|------|------|
 | `transport/` — one message body in, one out | `stdio`: Content-Length framing over bytes | `script`: a list of bodies in; every body sent is printed |
 | `files/` — a file's text by path; where Base lives; the working directory | `disk` | any `Files` record |
-| `checker/` — a path's diagnostics | `bend`: a foreign effect (`exec.c`, `exec.js`) running `bend <path> --check-only` | any `Checker` record |
+
+The checker, a path's diagnostics, has one implementation and the loop calls
+it directly: `checker/bend.bend`, a foreign effect (`exec.c`, `exec.js`)
+running `bend <path> --check-only`.
 
 The pure parts: `frame.bend` (framing, UTF-8 both ways — Content-Length counts
 bytes and a read may end inside a char, so the transport reads bytes and

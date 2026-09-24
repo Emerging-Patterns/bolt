@@ -315,8 +315,8 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   decided by the def's name and the file's path, never by the file's text.
   A law names a def when
   it is a quantified law in a LAWS.bend and its binders or statement use the
-  def, through the law file's import alias (`M.join` in `core/LAWS.bend`
-  names `join` of `core/monoid/service.bend`) or in the law's own file. A
+  def, through the law file's import alias (`Nav.text_of` in
+  `lsp/LAWS.bend` names `text_of` of `lsp/nav.bend`) or in the law's own file. A
   closed law, a law's own name, and a law outside a LAWS.bend (PROOF.bend's
   lemmas included) name nothing. A law reaches a def it names, and every def
   a reached def calls: a use on that def's lines, in its file or behind an
@@ -345,8 +345,8 @@ lints every `.bend` file under the current directory (the walk in
 `lint/plan.bend`, which never descends into a hidden directory or
 `node_modules`). The lint is a pure planner, `lint/plan.bend`, over a
 World of answers, `lint/world.bend`, and a thin interpreter, `lint.bend`,
-that answers the planner's questions (a directory listed through the
-`walk/` service, a foreign effect in `dir.c` and `dir.js`; a file read
+that answers the planner's questions (a directory listed through
+`walk/disk.bend`, a foreign effect in `dir.c` and `dir.js`; a file read
 through `lsp/files/`) until it asks for nothing more, then prints the
 plan's lines and exits with its status. `bolt help` prints usage. A run
 that found errors exits 1. Bend's runtime takes its own flags out of the

@@ -1,7 +1,8 @@
-# checker/bend: the real checker: runs `bend` on the file and reads its report.
-# Which runs it makes is argv.bend's, pure; this file only performs them.
+# checker/bend: an effect (CPU event loop only): the diagnostics of the file
+# at a path. It runs `bend` on the file and reads its report. Which runs it
+# makes is argv.bend's, pure; this file only performs them.
 import Base
-import ./service.bend as S
+import ./answer.bend as S
 import ./argv.bend as Argv
 import ../report.bend as Rep
 import ./names.bend as Names
@@ -87,16 +88,8 @@ def settled(aa: S.Answer, +path: String) -> IO(S.Answer):
 
 # bend's report on the file, its errors placed by the names of the file's
 # items (read from the file bend read; unknown when it cannot be read)
-def check.at(+path: String) -> IO(S.Answer):
+def check(+path: String) -> IO(S.Answer):
   do IO<S.Answer>:
     text : String <- launch(Argv.run_of(path))
     src : Maybe<&2, String> <- Disk.read(path)
     settled(answer(Names.of(src), text), path)
-
-# the service's field takes a plain path; quantities are part of its type
-def check(path: String) -> IO(S.Answer):
-  check.at(path)
-
-# the real checker
-def new() -> S.Checker:
-  S.Checker{check}

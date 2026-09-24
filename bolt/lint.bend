@@ -12,9 +12,7 @@
 import Base
 import ./lint/world.bend as W
 import ./lint/plan.bend as Plan
-import ./lsp/files/service.bend as Files
 import ./lsp/files/disk.bend as Disk
-import ./walk/service.bend as Walk
 import ./walk/disk.bend as WalkDisk
 import ./status.bend as Status
 import ../lazy/lazy.bend as Lazy
@@ -34,7 +32,7 @@ def text.answer(dir: Bool, path: String) -> IO(W.Answer):
       IO.pure(W.Answer, W.Directory{})
     case False{}:
       do IO<W.Answer>:
-        mm : Maybe<&2, String> <- Files.read(Disk.new(), path)
+        mm : Maybe<&2, String> <- Disk.read(path)
         return read.answer(mm)
 
 # one question, answered
@@ -42,11 +40,11 @@ def answer(ask: W.Ask) -> IO(W.Answer):
   match ask:
     case W.Entries{dir}:
       do IO<W.Answer>:
-        es : List<&2, String> <- Walk.entries(WalkDisk.new(), dir)
+        es : List<&2, String> <- WalkDisk.entries(dir)
         return W.Listed{es}
     case W.Text{+path}:
       do IO<W.Answer>:
-        dir : Bool <- Walk.is_dir(WalkDisk.new(), path)
+        dir : Bool <- WalkDisk.is_dir(path)
         text.answer(dir, path)
 
 # every question, answered, in order
@@ -112,5 +110,5 @@ def run.from(paths: List<&2, String>, +cwd: String) -> IO(Unit):
 # the linter, over the files given, or the tree below
 def run(paths: List<&2, String>) -> IO(Unit):
   do IO<Unit>:
-    cwd : String <- Walk.cwd(WalkDisk.new())
+    cwd : String <- WalkDisk.cwd()
     run.from(paths, cwd)

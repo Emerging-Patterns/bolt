@@ -1,9 +1,15 @@
-# walk/disk: the real file system, through a foreign effect (dir.c, dir.js)
-# that lists one directory: its names, one a line, a directory's name ending
-# in "/"; one (cwd.c, cwd.js) that names the working directory; and Base's
+# walk/disk: an effect (CPU event loop only): the names directly in a
+# directory, whether a path is a directory, and the working directory
+# relative paths are named from. A name that is itself a directory ends in
+# "/"; "." and ".." are never in the list, and a directory that cannot be
+# opened lists as empty. Order is the file system's; the lint planner
+# (bolt/lint/plan.bend) sorts what it keeps.
+#
+# It is the real file system, through a foreign effect (dir.c, dir.js) that
+# lists one directory: its names, one a line, a directory's name ending in
+# "/"; one (cwd.c, cwd.js) that names the working directory; and Base's
 # File, which tells a directory from a file.
 import Base
-import ./service.bend as S
 
 # every name directly in the directory, one a line
 def walkdir.entries(dir: String) -> IO(String):
@@ -19,7 +25,7 @@ def named(ls: List<&2, String>) -> List<&2, String>:
       +more = named(t)
       Bool.pick(List<&2, String>, String.is_empty(l), more, l <> more)
 
-# the service's field takes a plain path; quantities are part of its type
+# a directory's entries, a directory marked by a `/`
 def entries(dir: String) -> IO(List<&2, String>):
   do IO<List<&2, String>>:
     text : String <- walkdir.entries(dir)
@@ -65,10 +71,6 @@ def walkdir.cwd() -> IO(String):
   import "./cwd.c"
   import "./cwd.js"
 
-# the service's field takes a unit: the directory is asked for, not a constant
-def cwd(_u: Unit) -> IO(String):
+# the working directory, from the root ("" when it cannot be named)
+def cwd() -> IO(String):
   walkdir.cwd()
-
-# the real file system
-def new() -> S.Walk:
-  S.Walk{entries, is_dir, cwd}
