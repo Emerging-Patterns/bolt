@@ -3,10 +3,13 @@
 # once (bolt/src.bend); a project rule has `check(ds) -> List<Finding>` and
 # sees every file at once, as the digests of rules/digest.bend. The directory
 # names the group, and codes.bend says it again for the config.
-# Adding one is adding it here and a row in codes.bend. The groups are what a
-# bolt.bend switches at once: correctness (what will fail or blow up),
-# suspicious (what is probably a slip), style, laws, and pedantic (advice
-# that is noisy on idiomatic code: off unless a project asks for it).
+# Adding one is adding it here and a row in codes.bend. One rule is not
+# listed here, `noqa` (rules/style/noqa.bend): it reads the other rules'
+# graded findings, so the planner runs it after them (lint/plan.bend).
+# The groups are what a bolt.bend switches at once: correctness (what will
+# fail or blow up), suspicious (what is probably a slip), style, laws, and
+# pedantic (advice that is noisy on idiomatic code: off unless a project
+# asks for it).
 import Base
 import ./finding.bend as F
 import ./codes.bend as Codes
