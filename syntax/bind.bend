@@ -205,6 +205,28 @@ def rest_of(cs: List<&2, Char>) -> String:
 def has(names: List<&2, String>, +name: String) -> Bool:
   List.contains(~String, ~String.eq, names, name)
 
+# two names alike, char by char, stopping at the first that differs:
+# String.eq, without the pairs String.cmp builds on every step
+def same(aa: String, bb: String) -> Bool:
+  match aa bb:
+    case SNil{} SNil{}:
+      True{}
+    case SNil{} SCon{_h2, _t2}:
+      False{}
+    case SCon{_h1, _t1} SNil{}:
+      False{}
+    case SCon{h1, t1} SCon{h2, t2}:
+      Lazy.and_then(Char.is_eq(h1, h2), _u => same(t1, t2))
+
+# is the name among the file's items? `has`, stopping at the first hit, as
+# every use no binder holds asks it of every item
+def has_item(names: List<&2, String>, +name: String) -> Bool:
+  match names:
+    case Nil{}:
+      False{}
+    case Con{hh, rest}:
+      Lazy.or_else(same(hh, name), _u => has_item(rest, name))
+
 # the names an environment holds, and the file's items and aliases
 type Names is Data:
   Names{items: List<&2, String>, aliases: List<&2, String>}
@@ -217,7 +239,7 @@ def resolve.local(mm: Maybe<&2, Bind>, +name: String, ns: Names) -> Target:
       Names{its, als} = ns
       +cs = String.to_list(name)
       +head = head_of(cs)
-      Bool.pick(Target, has(its, name), TItem{name},
+      Bool.pick(Target, has_item(its, name), TItem{name},
         Lazy.stop(Target, Bool.not(Bool.and(String.contains(name, "."), has(als, head))), TFree{},
           _u => TQual{head, rest_of(cs)}))
 
