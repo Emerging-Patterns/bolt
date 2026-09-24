@@ -15,6 +15,7 @@
 # a binder), `_` (TWild), and the operators that bind: `:` `=` `<-` `->` `=>`
 # `@` `&`.
 import Base
+import ../lazy/lazy.bend as Lazy
 
 # the kinds; TName is a plain name (lowercase, undotted): what a pattern can
 # bind
@@ -275,16 +276,18 @@ def flush(kind: TokKind, sl: U32, sc: U32, +buf: List<&2, Char>, +toks: List<&2,
 def is_newline(cc: Char) -> Bool:
   U32.is_eq(Char.to_u32(cc), 10)
 
-# one char: it continues the current token, or starts a new one
+# one char: it continues the current token, or starts a new one. Only the
+# branch taken is built: the token is flushed (its text reversed, its kind
+# refined) once, where it ends, not on every char of it
 def step(+cc: Char, st: St) -> St:
   St{+mode, +kind, +line, +col, +sl, +sc, +buf, +toks} = st
   +cls = classify(cc)
   +nl = is_newline(cc)
   +line2 = Bool.pick(U32, nl, (line + 1 : U32), line)
   +col2 = Bool.pick(U32, nl, 0, (col + 1 : U32))
-  Bool.pick(St, continues(mode, cls),
-    St{after(mode, cls), kind, line2, col2, sl, sc, cc <> buf, toks},
-    St{begin.mode(cls), begin.kind(cls), line2, col2, line, col, [cc], flush(kind, sl, sc, buf, toks)})
+  Lazy.either(St, continues(mode, cls),
+    _u => St{after(mode, cls), kind, line2, col2, sl, sc, cc <> buf, toks},
+    _v => St{begin.mode(cls), begin.kind(cls), line2, col2, line, col, [cc], flush(kind, sl, sc, buf, toks)})
 
 # every char, in order
 def run(cs: List<&2, Char>, st: St) -> St:

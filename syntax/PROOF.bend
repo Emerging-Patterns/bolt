@@ -126,7 +126,7 @@ def flush(_kind, _sl, _sc, buf, toks):
       Equal.cong(String, String, x => String.append(rspell(toks), x),
         Lex.word(h <> t), rword(h <> t), rword.word(h <> t))
 
-# whichever state the step picks, it has read one char more
+# whichever state the step takes, it has read one char more
 law pick:
   for +b: Bool
   for -x: Lex.St
@@ -134,7 +134,7 @@ law pick:
   for -z: String
   for +ex: {seen(x) == z : String}
   for +ey: {seen(y) == z : String}
-  {seen(Bool.pick(Lex.St, b, x, y)) == z : String}
+  {seen(Lazy.either(Lex.St, b, _u => x, _v => y)) == z : String}
 
 def pick(b, _x, _y, _z, ex, ey):
   match b:
@@ -486,7 +486,7 @@ law pos.pick:
   for -y: Lex.St
   for +ex: {ghost(x) == x : Lex.St}
   for +ey: {ghost(y) == y : Lex.St}
-  {ghost(Bool.pick(Lex.St, b, x, y)) == Bool.pick(Lex.St, b, x, y) : Lex.St}
+  {ghost(Lazy.either(Lex.St, b, _u => x, _v => y)) == Lazy.either(Lex.St, b, _u => x, _v => y) : Lex.St}
 
 def pos.pick(b, _x, _y, ex, ey):
   match b:
