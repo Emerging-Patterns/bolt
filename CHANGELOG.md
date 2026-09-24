@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.2](https://github.com/Emerging-Patterns/bolt/compare/v1.6.1...v1.6.2) (2026-09-24)
+
+
+### Bug Fixes
+
+* **pick,eager:** advise match, not bolt's internal Lazy helpers ([#187](https://github.com/Emerging-Patterns/bolt/issues/187)) ([9f287bb](https://github.com/Emerging-Patterns/bolt/commit/9f287bb3c0528a9e88dc9ca1fcfa070ea78f3e23))
+
 ## [1.6.1](https://github.com/Emerging-Patterns/bolt/compare/v1.6.0...v1.6.1) (2026-09-24)
 
 
