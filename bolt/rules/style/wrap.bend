@@ -1,6 +1,8 @@
 # rule wrap: how a def header breaks. A one-line header wider than 120 must
 # break; the width is the header through its `:`, counted the way `space`
-# counts a line (a string literal is two characters). A one-line header that
+# counts a line (a string literal is two characters), a comment counting
+# none. A header breaks when a newline token of its own sits in it: a line
+# break inside a string literal is the string's. A one-line header that
 # fits stays one line however many parameters it has. A header that breaks
 # puts `(` at the end of the first line and one parameter on each following
 # line, then `)` and the return type on a line of their own after the last
@@ -56,13 +58,25 @@ type Walk is Data:
   Walk{mode: Phase, paren: U32, bracket: U32, brace: U32, angle: U32, shut: Span, open: U32,
     on: Bool, pline: U32, pend: U32, pcol: U32, spans: List<&2, Span>}
 
-# the header already breaks across lines
-def check.broken(+sig: String) -> Bool:
-  String.contains(sig, "\n")
+# the header already breaks across lines: some token of it is a newline
+def check.broken(toks: List<&2, Lex.Tok>) -> Bool:
+  match toks:
+    case Nil{}:
+      False{}
+    case Con{Lex.Tok{kk, _tx, _ln, _cl}, rest}:
+      Lazy.or_else(Lex.is_nl(kk), _u => check.broken(rest))
 
-# one token's share of the header's width
+# one token's share of the header's width: a comment has none
+def check.cost(kd: Lex.TokKind, +tx: String) -> U32:
+  match kd:
+    case Lex.TComment{}:
+      0
+    case other:
+      Space.width_of(other, tx)
+
+# the width so far, with one token's share added
 def check.add(+acc: U32, kd: Lex.TokKind, +tx: String) -> U32:
-  (acc + Space.width_of(kd, tx) : U32)
+  (acc + check.cost(kd, tx) : U32)
 
 # a `:` token?
 def check.is_colon(kk: Lex.TokKind) -> Bool:
@@ -73,7 +87,8 @@ def check.is_colon(kk: Lex.TokKind) -> Bool:
       False{}
 
 # the header's width through its last `:` (upto, once seen says there was
-# one), else its whole width, a string literal counting as two
+# one), else its whole width, a string literal counting as two and a
+# comment none
 def check.width.go(toks: List<&2, Lex.Tok>, +acc: U32, +upto: U32, +seen: Bool) -> U32:
   match toks:
     case Nil{}:
@@ -84,8 +99,8 @@ def check.width.go(toks: List<&2, Lex.Tok>, +acc: U32, +upto: U32, +seen: Bool) 
       check.width.go(rest, next, Bool.pick(U32, colon, next, upto), Bool.or(colon, seen))
 
 # the header's width, through its `:`: a comment after it does not count
-def check.width(+sig: String) -> U32:
-  check.width.go(Lex.tokens(sig), 0, 0, False{})
+def check.width(toks: List<&2, Lex.Tok>) -> U32:
+  check.width.go(toks, 0, 0, False{})
 
 # a fresh walk, before the parameter list
 def check.start() -> Walk:
@@ -894,8 +909,8 @@ def check.jam(+line: U32, toks: List<&2, Lex.Tok>, +path: String, +more: List<&2
   check.place(check.jam_span(wk), check.empty_span(wk), check.shut_span(wk), check.loose_span(wk), line, path, more)
 
 # a one-line header past 120
-def check.wide(+line: U32, +sig: String, +path: String, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
-  Lazy.stop(List<&2, F.Finding>, U32.is_gt(check.width(sig), 120),
+def check.wide(+line: U32, toks: List<&2, Lex.Tok>, +path: String, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
+  Lazy.stop(List<&2, F.Finding>, U32.is_gt(check.width(toks), 120),
     F.Finding{path, line, 120, 0, "wrap",
       "This def header is longer than 120 characters; wrap it with one parameter per line."} <> more, _u => more)
 
@@ -903,15 +918,19 @@ def check.wide(+line: U32, +sig: String, +path: String, +more: List<&2, F.Findin
 def check.header(
   multi: Bool,
   +line: U32,
-  +sig: String,
+  toks: List<&2, Lex.Tok>,
   +path: String,
   +more: List<&2, F.Finding>
 ) -> List<&2, F.Finding>:
   match multi:
     case True{}:
-      check.jam(line, Lex.tokens(sig), path, more)
+      check.jam(line, toks, path, more)
     case False{}:
-      check.wide(line, sig, path, more)
+      check.wide(line, toks, path, more)
+
+# a def header's tokens, judged
+def check.lexed(+line: U32, +toks: List<&2, Lex.Tok>, +path: String, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
+  check.header(check.broken(toks), line, toks, path, more)
 
 # a def header; anything else is not this rule's
 def check.one(
@@ -921,9 +940,8 @@ def check.one(
   +path: String,
   +more: List<&2, F.Finding>
 ) -> List<&2, F.Finding>:
-  +multi = check.broken(sig)
   Lazy.stop(List<&2, F.Finding>, Bool.not(Outline.is_def(kk)), more,
-    _u => check.header(multi, line, sig, path, more))
+    _u => check.lexed(line, Lex.tokens(sig), path, more))
 
 # every def header of the file
 def check.go(items: List<&2, Outline.Item>, +path: String) -> List<&2, F.Finding>:

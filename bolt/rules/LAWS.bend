@@ -2258,9 +2258,11 @@ law unit_counts:
 
 # The header rule wrap (BOLT-RULE-S003) judges each def header of the
 # outline by its sig's tokens (Lex.tokens), once: a finding or none. A
-# header on one line is too wide past 120 columns, measured through its last
-# `:` (the whole header when it has none), each token counted the way space
-# counts it (Space.width_of: a string literal two, a `#|` comment none, any
+# header is across lines when one of its tokens is a newline (Lex.is_nl), so
+# a line break inside a string literal does not count. A header on one line
+# is too wide past 120 columns, measured through its last `:` (the whole
+# header when it has none), a comment counting none and every other token
+# counted the way space counts it (Space.width_of: a string literal two, any
 # other token its length). A header across lines is judged by its parameter
 # list. The list opens at the first `(` read while no bracket is open. Inside
 # it, with only that `(` open, a `)` ends the list and a `,` ends a
@@ -2279,6 +2281,19 @@ law unit_counts:
 # opening an angle, a run of `>` closing) and Wrap.check.ticks_of (how many
 # angles that run closes).
 
+# a comment?
+def wrap.comment(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TComment{}:
+      True{}
+    case other:
+      False{}
+
+# a token's share of a one-line header's width: none for a comment, else its
+# share of a line as space counts it
+def wrap.cost(+kk: Lex.TokKind, +tx: String) -> U32:
+  Bool.pick(U32, wrap.comment(kk), 0, Space.width_of(kk, tx))
+
 # some token of the list is a `:`
 def wrap.colons(toks: List<&2, Lex.Tok>) -> Bool:
   match toks:
@@ -2293,7 +2308,7 @@ def wrap.upto(toks: List<&2, Lex.Tok>, +acc: U32) -> U32:
     case Nil{}:
       acc
     case Con{Lex.Tok{+kk, +tx, ln, cl}, +rest}:
-      +next = (acc + Space.width_of(kk, tx) : U32)
+      +next = (acc + wrap.cost(kk, tx) : U32)
       Bool.pick(U32, wrap.colons(rest), wrap.upto(rest, next), next)
 
 # the width of all the tokens, acc so far
@@ -2302,14 +2317,14 @@ def wrap.total(toks: List<&2, Lex.Tok>, +acc: U32) -> U32:
     case Nil{}:
       acc
     case Con{Lex.Tok{+kk, +tx, ln, cl}, rest}:
-      wrap.total(rest, (acc + Space.width_of(kk, tx) : U32))
+      wrap.total(rest, (acc + wrap.cost(kk, tx) : U32))
 
 # a one-line header's width: through its last `:`, else all of it
 def wrap.width(+toks: List<&2, Lex.Tok>) -> U32:
   Bool.pick(U32, wrap.colons(toks), wrap.upto(toks, 0), wrap.total(toks, 0))
 
 # LAW: wrap measures a header through its last `:`, the whole header when it
-# has none, a string literal two columns and a comment after the `:` none
+# has none, a string literal two columns and a comment none
 # BOLT-RULE-S003
 law wrap_width:
   for +toks: List<&2, Lex.Tok>
@@ -2595,10 +2610,18 @@ law wrap_shape_counts:
   for +path: String
   {List.length(&2, F.Finding, Wrap.check.jam(line, toks, path, [])) == Bool.pick(Nat, wrap.shape(toks), 1n, 0n) : Nat}
 
-# a header is misshapen: across lines by its parameter list, on one line by
-# a width over 120
+# some token of the list is a newline
+def wrap.lines(toks: List<&2, Lex.Tok>) -> Bool:
+  match toks:
+    case Nil{}:
+      False{}
+    case Con{Lex.Tok{kk, tx, ln, cl}, rest}:
+      Bool.or(Lex.is_nl(kk), wrap.lines(rest))
+
+# a header is misshapen: across lines (a newline token in it) by its
+# parameter list, on one line by a width over 120
 def wrap.bad(+sig: String) -> Bool:
-  Bool.pick(Bool, String.contains(sig, "\n"), wrap.shape(Lex.tokens(sig)), U32.is_gt(wrap.width(Lex.tokens(sig)), 120))
+  Bool.pick(Bool, wrap.lines(Lex.tokens(sig)), wrap.shape(Lex.tokens(sig)), U32.is_gt(wrap.width(Lex.tokens(sig)), 120))
 
 # how many items of the outline are def headers that are misshapen
 def wrap.count(items: List<&2, Outline.Item>) -> Nat:
@@ -4744,3 +4767,32 @@ law inert_hoist:
   for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
   {Hoist.check(Src.Src{path, text, toks, tree, bound, items})
     == Hoist.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# the tokens of each item's header, with comments and strings cut
+def inert.sigs(its: List<&2, Outline.Item>) -> List<&2, List<&2, Lex.Tok>>:
+  match its:
+    case Nil{}:
+      Nil{}
+    case Con{Outline.Item{_k, _n, _l, s, _d, _p}, t}:
+      inert.toks(Lex.tokens(s)) <> inert.sigs(t)
+
+# LAW: wrap reads no comment or string: two sources whose items have the same
+# kinds, names and lines, and whose headers' tokens read the same with
+# comments and strings cut, have the same findings
+# BOLT-RULE-INERT
+law inert_wrap:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  for text2: String
+  for toks2: List<&2, Lex.Tok>
+  for tree2: Tree.Node
+  for bound2: Bind.Bound
+  for +items2: List<&2, Outline.Item>
+  for ei: {inert.items(items) == inert.items(items2) : List<&2, Outline.Item>}
+  for es: {inert.sigs(items) == inert.sigs(items2) : List<&2, List<&2, Lex.Tok>>}
+  {Wrap.check(Src.Src{path, text, toks, tree, bound, items})
+    == Wrap.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
