@@ -6,7 +6,7 @@
 // The order is: the setting the user set, then `bolt` on the PATH, then the
 // binary of a checkout the extension is being run from. A `nix profile
 // install` lands in ~/.nix-profile/bin and is found by the second; a
-// `bend bolt/main.bend -o bin/bolt.bin` with nothing installed is found by
+// `bend main.bend -o bin/bolt.bin` with nothing installed is found by
 // the third. Neither needs a symlink, and there used to be one:
 // ~/.local/bin/bolt, hand-made, ahead of everything, and dangling on this
 // machine for long enough that the extension was documented against a path
@@ -83,7 +83,7 @@ function locate({ setting, env = process.env, home = os.homedir(), dir = __dirna
     + searchPath(env, home).join(", ") + ", and for "
     + path.resolve(dir, "..", "..", "bin", "bolt.bin")
     + ". Install it (nix profile install github:Emerging-Patterns/bolt, or "
-    + "bend bolt/main.bend -o bin/bolt.bin in a checkout), or set bend.server.path.");
+    + "bend main.bend -o bin/bolt.bin in a checkout), or set bend.server.path.");
 }
 
 module.exports = { locate, serverEnv, searchPath, expand, runnable };

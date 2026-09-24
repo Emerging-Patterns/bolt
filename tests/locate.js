@@ -60,7 +60,7 @@ const found = locate({ setting: "", env: { PATH: dir }, home: broken, dir: tmp }
 eq("bolt on the PATH", found, path.join(dir, "bolt"));
 
 // 5. a checkout with nothing installed: bin/bolt.bin, two levels above the
-//    extension, is where `bend bolt/main.bend -o bin/bolt.bin` put it
+//    extension, is where `bend main.bend -o bin/bolt.bin` put it
 eq("a checkout", locate({ setting: "", env: { PATH: bare }, home: bare, dir: path.join(repo, "editors/vscode") }),
   path.join(repo, "bin/bolt.bin"));
 
@@ -73,7 +73,7 @@ for (const want of [bare, path.join(bare, ".local/bin"), path.resolve(tmp, "../.
 
 // 7. and what resolution ended at is a server: the path from case 4, spawned
 //    by node over sockets, the way the extension host spawns it
-const ran = spawnSync("node", [path.join(repo, "bolt/lsp/tests/spawn.js"), found], { encoding: "utf8" });
+const ran = spawnSync("node", [path.join(repo, "src/lsp/tests/spawn.js"), found], { encoding: "utf8" });
 eq("a session on the resolved path", ran.stdout.trim(), "ok");
 
 fs.rmSync(tmp, { recursive: true, force: true });
