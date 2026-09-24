@@ -119,13 +119,23 @@ def declared(kids: Tree.Node) -> Maybe<&2, String>:
     case other:
       None{}
 
-# a name, when there is one, onto a list
-def push_name(mm: Maybe<&2, String>, acc: List<&2, String>) -> List<&2, String>:
+# is the name at the head of the list?
+def push_name.again(acc: List<&2, String>, +name: String) -> Bool:
+  match acc:
+    case Nil{}:
+      False{}
+    case Con{hh, _rest}:
+      String.eq(hh, name)
+
+# a name, when there is one, onto a list, unless it is the name just put
+# there: a proof file's `law x` and its `def x` are one item, and every use
+# no binder holds is looked for in this list
+def push_name(mm: Maybe<&2, String>, +acc: List<&2, String>) -> List<&2, String>:
   match mm:
     case None{}:
       acc
-    case Some{name}:
-      name <> acc
+    case Some{+name}:
+      Lazy.stop(List<&2, String>, push_name.again(acc, name), acc, _u => name <> acc)
 
 # a type's constructors: the first name of each line under it
 def ctors(body: Tree.Node, acc: List<&2, String>) -> List<&2, String>:
