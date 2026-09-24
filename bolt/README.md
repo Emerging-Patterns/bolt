@@ -136,9 +136,11 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   `#|` line is still reported. A tab is reported anywhere, inside a string
   literal too.
 - `wrap` — a def header's shape. A one-line header over 120 wide must break,
-  counted the same way as `space` (a string literal is two characters). The
-  header is the text through its `:`; a comment after it is not part of it,
-  so `def u(aa: U32) -> U32: # note` is a one-line header. A one-line header
+  counted the same way as `space` (a string literal is two characters), except
+  that a comment counts nothing. The header is the text through its `:`; a
+  comment after it is not part of it, so `def u(aa: U32) -> U32: # note` is a
+  one-line header. A header breaks when a line break of its own is in it; one
+  inside a string literal belongs to the string. A one-line header
   that fits stays one line however many parameters it has. A header that
   breaks puts `(` at the end of the first line and one parameter on each
   following line, then `)` and the return type on a line of their own after

@@ -9771,6 +9771,59 @@ def Laws.unit_counts(path, _text, _toks, tree, _bound, _items):
 # each token the way the spec's read does, so the two agree on the whole
 # header; the verdicts agree on what they read.
 
+# a token's share of the width is the spec's
+law wrap.cost:
+  for kk: Lex.TokKind
+  for +tx: String
+  {Wrap.check.cost(kk, tx) == Laws.wrap.cost(kk, tx) : U32}
+
+def wrap.cost(kk, _tx):
+  match kk:
+    case Lex.TName{}:
+      {==}
+    case Lex.TUpper{}:
+      {==}
+    case Lex.TDotted{}:
+      {==}
+    case Lex.TWild{}:
+      {==}
+    case Lex.TKey{}:
+      {==}
+    case Lex.TNum{}:
+      {==}
+    case Lex.TStr{}:
+      {==}
+    case Lex.TChar{}:
+      {==}
+    case Lex.TComment{}:
+      {==}
+    case Lex.TSpace{}:
+      {==}
+    case Lex.TNewline{}:
+      {==}
+    case Lex.TOp{}:
+      {==}
+    case Lex.TColon{}:
+      {==}
+    case Lex.TEq{}:
+      {==}
+    case Lex.TBind{}:
+      {==}
+    case Lex.TArrow{}:
+      {==}
+    case Lex.TLam{}:
+      {==}
+    case Lex.TAll{}:
+      {==}
+    case Lex.TAmp{}:
+      {==}
+    case Lex.TOpen{}:
+      {==}
+    case Lex.TClose{}:
+      {==}
+    case Lex.TComma{}:
+      {==}
+
 # a colon or not, and a colon or not later on: the walk from here is the spec's
 law wrap.width_step:
   for c: Bool
@@ -9811,9 +9864,13 @@ def wrap.width_go(toks, acc, upto, seen):
     case Nil{}:
       {==}
     case Con{Lex.Tok{+kk, +tx, _ln, _cl}, +rest}:
-      +next = (acc + Space.width_of(kk, tx) : U32)
+      +next = (acc + Wrap.check.cost(kk, tx) : U32)
       +colon = Wrap.check.is_colon(kk)
-      wrap.width_step(colon, Laws.wrap.colons(rest), next, upto, seen, Laws.wrap.upto(rest, next),
+      +h = Laws.wrap.colons(rest)
+      %wrap.cost(kk, tx) : {Wrap.check.width.go(rest, next, Bool.pick(U32, colon, next, upto), Bool.or(colon, seen))
+        == Bool.pick(U32, Bool.or(colon, h), Bool.pick(U32, h, Laws.wrap.upto(rest, (acc + _ : U32)), (acc + _ : U32)),
+          Bool.pick(U32, seen, upto, Laws.wrap.total(rest, (acc + _ : U32)))) : U32}
+      wrap.width_step(colon, h, next, upto, seen, Laws.wrap.upto(rest, next),
         Laws.wrap.total(rest, next),
         Wrap.check.width.go(rest, next, Bool.pick(U32, colon, next, upto), Bool.or(colon, seen)),
         wrap.width_go(rest, next, Bool.pick(U32, colon, next, upto), Bool.or(colon, seen)))
@@ -10555,43 +10612,55 @@ def wrap.stop_len(b, _x, _more):
 # a one-line header: one finding onto the rest exactly when it is too wide
 law wrap.wide:
   for +line: U32
-  for +sig: String
+  for +toks: List<&2, Lex.Tok>
   for +path: String
   for +more: List<&2, F.Finding>
-  {List.length(&2, F.Finding, Wrap.check.wide(line, sig, path, more))
-    == Bool.pick(Nat, U32.is_gt(Laws.wrap.width(Lex.tokens(sig)), 120), 1n+List.length(&2, F.Finding, more),
+  {List.length(&2, F.Finding, Wrap.check.wide(line, toks, path, more))
+    == Bool.pick(Nat, U32.is_gt(Laws.wrap.width(toks), 120), 1n+List.length(&2, F.Finding, more),
       List.length(&2, F.Finding, more)) : Nat}
 
-def wrap.wide(line, sig, path, more):
+def wrap.wide(line, toks, path, more):
   +len = List.length(&2, F.Finding, more)
   Equal.trans(Nat,
-    List.length(&2, F.Finding, Wrap.check.wide(line, sig, path, more)),
-    Bool.pick(Nat, U32.is_gt(Wrap.check.width(sig), 120), 1n+len, len),
-    Bool.pick(Nat, U32.is_gt(Laws.wrap.width(Lex.tokens(sig)), 120), 1n+len, len),
-    wrap.stop_len(U32.is_gt(Wrap.check.width(sig), 120),
+    List.length(&2, F.Finding, Wrap.check.wide(line, toks, path, more)),
+    Bool.pick(Nat, U32.is_gt(Wrap.check.width(toks), 120), 1n+len, len),
+    Bool.pick(Nat, U32.is_gt(Laws.wrap.width(toks), 120), 1n+len, len),
+    wrap.stop_len(U32.is_gt(Wrap.check.width(toks), 120),
       F.Finding{path, line, 120, 0, "wrap", "This def header is longer than 120 characters; wrap it with one parameter per line."},
       more),
-    Equal.cong(U32, Nat, ww => Bool.pick(Nat, U32.is_gt(ww, 120), 1n+len, len), Wrap.check.width(sig),
-      Laws.wrap.width(Lex.tokens(sig)), Laws.wrap_width(Lex.tokens(sig))))
+    Equal.cong(U32, Nat, ww => Bool.pick(Nat, U32.is_gt(ww, 120), 1n+len, len), Wrap.check.width(toks),
+      Laws.wrap.width(toks), Laws.wrap_width(toks)))
 
 # a header, broken or not: one finding onto the rest exactly when it is bad
 law wrap.headed:
   for multi: Bool
   for +line: U32
-  for +sig: String
+  for +toks: List<&2, Lex.Tok>
   for +path: String
   for +more: List<&2, F.Finding>
-  {List.length(&2, F.Finding, Wrap.check.header(multi, line, sig, path, more))
-    == Bool.pick(Nat, Bool.pick(Bool, multi, Laws.wrap.shape(Lex.tokens(sig)),
-      U32.is_gt(Laws.wrap.width(Lex.tokens(sig)), 120)), 1n+List.length(&2, F.Finding, more),
+  {List.length(&2, F.Finding, Wrap.check.header(multi, line, toks, path, more))
+    == Bool.pick(Nat, Bool.pick(Bool, multi, Laws.wrap.shape(toks),
+      U32.is_gt(Laws.wrap.width(toks), 120)), 1n+List.length(&2, F.Finding, more),
       List.length(&2, F.Finding, more)) : Nat}
 
-def wrap.headed(multi, line, sig, path, more):
+def wrap.headed(multi, line, toks, path, more):
   match multi:
     case True{}:
-      wrap.jammed(Lex.tokens(sig), line, path, more)
+      wrap.jammed(toks, line, path, more)
     case False{}:
-      wrap.wide(line, sig, path, more)
+      wrap.wide(line, toks, path, more)
+
+# the rule's line test is the spec's: some token is a newline
+law wrap.broken:
+  for toks: List<&2, Lex.Tok>
+  {Wrap.check.broken(toks) == Laws.wrap.lines(toks) : Bool}
+
+def wrap.broken(toks):
+  match toks:
+    case Nil{}:
+      {==}
+    case Con{Lex.Tok{+kk, _tx, _ln, _cl}, +rest}:
+      put.or(Lex.is_nl(kk), Wrap.check.broken(rest), Laws.wrap.lines(rest), wrap.broken(rest))
 
 # an item: one finding onto the rest exactly when it is a bad def header
 law wrap.one:
@@ -10609,7 +10678,18 @@ def wrap.one(kk, line, sig, path, more):
     case Outline.IImport{}:
       {==}
     case Outline.IDef{}:
-      wrap.headed(String.contains(sig, "\n"), line, sig, path, more)
+      +toks = Lex.tokens(sig)
+      +len = List.length(&2, F.Finding, more)
+      Equal.trans(Nat,
+        List.length(&2, F.Finding, Wrap.check.header(Wrap.check.broken(toks), line, toks, path, more)),
+        Bool.pick(Nat, Bool.pick(Bool, Wrap.check.broken(toks), Laws.wrap.shape(toks),
+          U32.is_gt(Laws.wrap.width(toks), 120)), 1n+len, len),
+        Bool.pick(Nat, Bool.pick(Bool, Laws.wrap.lines(toks), Laws.wrap.shape(toks),
+          U32.is_gt(Laws.wrap.width(toks), 120)), 1n+len, len),
+        wrap.headed(Wrap.check.broken(toks), line, toks, path, more),
+        Equal.cong(Bool, Nat, bb => Bool.pick(Nat, Bool.pick(Bool, bb, Laws.wrap.shape(toks),
+          U32.is_gt(Laws.wrap.width(toks), 120)), 1n+len, len), Wrap.check.broken(toks), Laws.wrap.lines(toks),
+          wrap.broken(toks)))
     case Outline.ILaw{}:
       {==}
     case Outline.IType{}:
@@ -30234,3 +30314,298 @@ def Laws.inert_hoist(path, _text, tree, _toks, _bound, _items, _text2, tree2, _t
     inert.lift(z => Hoist.check.go(z, Hoist.wide_defs(z, []), path, []), tree2, inert.hoist.all(Calls.defs(tree2), path,
       inert.dok.of(tree2, ok2))),
     e)
+
+# wrap
+# ----
+
+# a token's share of the width reads a string's kind only, and a comment has
+# none
+law inert.wrap.cost:
+  for k: Lex.TokKind
+  for +t: String
+  {Wrap.check.cost(k, t) == Wrap.check.cost(k, Laws.inert.keep(Laws.inert.blanks(k), t)) : U32}
+
+def inert.wrap.cost(k, _t):
+  match k:
+    case Lex.TName{}:
+      {==}
+    case Lex.TUpper{}:
+      {==}
+    case Lex.TDotted{}:
+      {==}
+    case Lex.TWild{}:
+      {==}
+    case Lex.TKey{}:
+      {==}
+    case Lex.TNum{}:
+      {==}
+    case Lex.TStr{}:
+      {==}
+    case Lex.TChar{}:
+      {==}
+    case Lex.TComment{}:
+      {==}
+    case Lex.TSpace{}:
+      {==}
+    case Lex.TNewline{}:
+      {==}
+    case Lex.TOp{}:
+      {==}
+    case Lex.TColon{}:
+      {==}
+    case Lex.TEq{}:
+      {==}
+    case Lex.TBind{}:
+      {==}
+    case Lex.TArrow{}:
+      {==}
+    case Lex.TLam{}:
+      {==}
+    case Lex.TAll{}:
+      {==}
+    case Lex.TAmp{}:
+      {==}
+    case Lex.TOpen{}:
+      {==}
+    case Lex.TClose{}:
+      {==}
+    case Lex.TComma{}:
+      {==}
+# the width walk reads no comment or string
+law inert.wrap.width:
+  for ts: List<&2, Lex.Tok>
+  for +acc: U32
+  for +upto: U32
+  for +seen: Bool
+  {Wrap.check.width.go(Laws.inert.toks(ts), acc, upto, seen) == Wrap.check.width.go(ts, acc, upto, seen) : U32}
+
+def inert.wrap.width(ts, acc, upto, seen):
+  match ts:
+    case Nil{}:
+      {==}
+    case Con{Lex.Tok{+k, +t, l, c}, +rest}:
+      +nx = Wrap.check.add(acc, k, t)
+      +co = Wrap.check.is_colon(k)
+      %inert.wrap.cost(k, t) : {Wrap.check.width.go(Laws.inert.toks(rest), (acc + _ : U32),
+        Bool.pick(U32, co, (acc + _ : U32), upto), Bool.or(co, seen))
+          == Wrap.check.width.go(rest, nx, Bool.pick(U32, co, nx, upto), Bool.or(co, seen)) : U32}
+      inert.wrap.width(rest, nx, Bool.pick(U32, co, nx, upto), Bool.or(co, seen))
+
+# the line test reads kinds only
+law inert.wrap.broken:
+  for ts: List<&2, Lex.Tok>
+  {Wrap.check.broken(Laws.inert.toks(ts)) == Wrap.check.broken(ts) : Bool}
+
+def inert.wrap.broken(ts):
+  match ts:
+    case Nil{}:
+      {==}
+    case Con{Lex.Tok{+k, t, l, c}, +rest}:
+      %inert.wrap.broken(rest) : {Lazy.or_else(Lex.is_nl(k), _u => Wrap.check.broken(Laws.inert.toks(rest)))
+        == Lazy.or_else(Lex.is_nl(k), _u => _) : Bool}
+      {==}
+
+# a string moves nothing, whatever the walk's phase: its text is read only
+# for the angles a `>` run closes, and a string is no such run
+law inert.wrap.str:
+  for +wk: Wrap.Walk
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for glued: Bool
+  {Wrap.check.step_hit(wk, Lex.Tok{Lex.TStr{}, Laws.inert.cut(t), l, c}, glued)
+    == Wrap.check.step_hit(wk, Lex.Tok{Lex.TStr{}, t, l, c}, glued) : Wrap.Walk}
+
+def inert.wrap.str(wk, _t, _l, _c, _glued):
+  match wk:
+    case Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans}:
+      match mode:
+        case Wrap.Seek{}:
+          {==}
+        case Wrap.Args{}:
+          {==}
+        case Wrap.Past{}:
+          {==}
+        case Wrap.Shut{}:
+          {==}
+        case Wrap.Loose{}:
+          {==}
+
+# one token of the header moves the walk as it did: a comment moves nothing,
+# a string as above, and any other token keeps its text
+law inert.wrap.step:
+  for k: Lex.TokKind
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for +wk: Wrap.Walk
+  for glued: Bool
+  {Wrap.check.step(Laws.inert.tok(Lex.Tok{k, t, l, c}), wk, glued) == Wrap.check.step(Lex.Tok{k, t, l, c}, wk, glued)
+    : Wrap.Walk}
+
+def inert.wrap.step(k, t, l, c, wk, glued):
+  match k:
+    case Lex.TName{}:
+      {==}
+    case Lex.TUpper{}:
+      {==}
+    case Lex.TDotted{}:
+      {==}
+    case Lex.TWild{}:
+      {==}
+    case Lex.TKey{}:
+      {==}
+    case Lex.TNum{}:
+      {==}
+    case Lex.TStr{}:
+      inert.wrap.str(wk, t, l, c, glued)
+    case Lex.TChar{}:
+      {==}
+    case Lex.TComment{}:
+      {==}
+    case Lex.TSpace{}:
+      {==}
+    case Lex.TNewline{}:
+      {==}
+    case Lex.TOp{}:
+      {==}
+    case Lex.TColon{}:
+      {==}
+    case Lex.TEq{}:
+      {==}
+    case Lex.TBind{}:
+      {==}
+    case Lex.TArrow{}:
+      {==}
+    case Lex.TLam{}:
+      {==}
+    case Lex.TAll{}:
+      {==}
+    case Lex.TAmp{}:
+      {==}
+    case Lex.TOpen{}:
+      {==}
+    case Lex.TClose{}:
+      {==}
+    case Lex.TComma{}:
+      {==}
+# the shape walk reads no comment or string
+law inert.wrap.walk:
+  for ts: List<&2, Lex.Tok>
+  for +wk: Wrap.Walk
+  for +glued: Bool
+  {Wrap.check.walk(Laws.inert.toks(ts), wk, glued) == Wrap.check.walk(ts, wk, glued) : Wrap.Walk}
+
+def inert.wrap.walk(ts, wk, glued):
+  match ts:
+    case Nil{}:
+      {==}
+    case Con{Lex.Tok{+k, +t, +l, +c}, +rest}:
+      +s1 = Wrap.check.step(Laws.inert.tok(Lex.Tok{k, t, l, c}), wk, glued)
+      +s2 = Wrap.check.step(Lex.Tok{k, t, l, c}, wk, glued)
+      Equal.trans(Wrap.Walk, Wrap.check.walk(Laws.inert.toks(rest), s1, Lex.is_name(k)),
+        Wrap.check.walk(rest, s1, Lex.is_name(k)), Wrap.check.walk(rest, s2, Lex.is_name(k)),
+        inert.wrap.walk(rest, s1, Lex.is_name(k)),
+        Equal.cong(Wrap.Walk, Wrap.Walk, w => Wrap.check.walk(rest, w, Lex.is_name(k)), s1, s2,
+          inert.wrap.step(k, t, l, c, wk, glued)))
+
+# a header, broken or not, is judged alike with its comments and strings cut
+law inert.wrap.header:
+  for b: Bool
+  for +ts: List<&2, Lex.Tok>
+  for +line: U32
+  for +path: String
+  for +more: List<&2, F.Finding>
+  {Wrap.check.header(b, line, Laws.inert.toks(ts), path, more) == Wrap.check.header(b, line, ts, path, more)
+    : List<&2, F.Finding>}
+
+def inert.wrap.header(b, ts, line, path, more):
+  match b:
+    case True{}:
+      Equal.cong(Wrap.Walk, List<&2, F.Finding>, wk => Wrap.check.place(Wrap.check.jam_span(wk),
+        Wrap.check.empty_span(wk), Wrap.check.shut_span(wk), Wrap.check.loose_span(wk), line, path, more),
+        Wrap.check.walk(Laws.inert.toks(ts), Wrap.check.start(), False{}),
+        Wrap.check.walk(ts, Wrap.check.start(), False{}), inert.wrap.walk(ts, Wrap.check.start(), False{}))
+    case False{}:
+      Equal.cong(U32, List<&2, F.Finding>, ww => Lazy.stop(List<&2, F.Finding>, U32.is_gt(ww, 120),
+        F.Finding{path, line, 120, 0, "wrap",
+          "This def header is longer than 120 characters; wrap it with one parameter per line."} <> more,
+        _u => more), Wrap.check.width.go(Laws.inert.toks(ts), 0, 0, False{}), Wrap.check.width.go(ts, 0, 0, False{}),
+        inert.wrap.width(ts, 0, 0, False{}))
+
+# a def header's tokens are judged alike with their comments and strings cut
+law inert.wrap.lexed:
+  for +ts: List<&2, Lex.Tok>
+  for +line: U32
+  for +path: String
+  for +more: List<&2, F.Finding>
+  {Wrap.check.lexed(line, Laws.inert.toks(ts), path, more) == Wrap.check.lexed(line, ts, path, more)
+    : List<&2, F.Finding>}
+
+def inert.wrap.lexed(ts, line, path, more):
+  %Equal.sym(Bool, Wrap.check.broken(Laws.inert.toks(ts)), Wrap.check.broken(ts), inert.wrap.broken(ts)) :
+    {Wrap.check.header(_, line, Laws.inert.toks(ts), path, more)
+    == Wrap.check.header(Wrap.check.broken(ts), line, ts, path, more) : List<&2, F.Finding>}
+  inert.wrap.header(Wrap.check.broken(ts), ts, line, path, more)
+
+# one item as wrap reads it: its kind and line, and its header's tokens
+def inert.wrap.head(
+  it: Outline.Item,
+  ts: List<&2, Lex.Tok>,
+  +path: String,
+  +more: List<&2, F.Finding>
+) -> List<&2, F.Finding>:
+  match it:
+    case Outline.Item{kk, _n, +line, _s, _d, _p}:
+      Lazy.stop(List<&2, F.Finding>, Bool.not(Outline.is_def(kk)), more, _u => Wrap.check.lexed(line, ts, path, more))
+
+# wrap over the items read that way: each item with its header's tokens
+def inert.wrap.go(
+  hs: List<&2, Outline.Item>,
+  ss: List<&2, List<&2, Lex.Tok>>,
+  +path: String
+) -> List<&2, F.Finding>:
+  match hs ss:
+    case Nil{} ss:
+      Nil{}
+    case Con{h, t} Nil{}:
+      Nil{}
+    case Con{h, t} Con{ts, st}:
+      inert.wrap.head(h, ts, path, inert.wrap.go(t, st, path))
+
+# wrap's walk over the items is its walk over them read that way
+law inert.wrap.items:
+  for items: List<&2, Outline.Item>
+  for +path: String
+  {Wrap.check.go(items, path) == inert.wrap.go(Laws.inert.items(items), Laws.inert.sigs(items), path)
+    : List<&2, F.Finding>}
+
+def inert.wrap.items(items, path):
+  match items:
+    case Nil{}:
+      {==}
+    case Con{Outline.Item{+kk, n, +line, +sig, d, p}, +rest}:
+      +more = Wrap.check.go(rest, path)
+      +ts = Lex.tokens(sig)
+      %inert.wrap.items(rest, path) : {Lazy.stop(List<&2, F.Finding>, Bool.not(Outline.is_def(kk)), more,
+        _u => Wrap.check.lexed(line, ts, path, more))
+          == Lazy.stop(List<&2, F.Finding>, Bool.not(Outline.is_def(kk)), _,
+            _u => Wrap.check.lexed(line, Laws.inert.toks(ts), path, _)) : List<&2, F.Finding>}
+      %Equal.sym(List<&2, F.Finding>, Wrap.check.lexed(line, Laws.inert.toks(ts), path, more),
+        Wrap.check.lexed(line, ts, path, more), inert.wrap.lexed(ts, line, path, more)) :
+        {Lazy.stop(List<&2, F.Finding>, Bool.not(Outline.is_def(kk)), more,
+          _u => Wrap.check.lexed(line, ts, path, more))
+            == Lazy.stop(List<&2, F.Finding>, Bool.not(Outline.is_def(kk)), more, _u => _) : List<&2, F.Finding>}
+      {==}
+
+def Laws.inert_wrap(path, _text, _toks, _tree, _bound, items, _text2, _toks2, _tree2, _bound2, items2, ei, es):
+  +i1 = Laws.inert.items(items)
+  +s1 = Laws.inert.sigs(items)
+  %Equal.sym(List<&2, F.Finding>, Wrap.check.go(items, path), inert.wrap.go(i1, s1, path),
+    inert.wrap.items(items, path)) : {_ == Wrap.check.go(items2, path) : List<&2, F.Finding>}
+  %Equal.sym(List<&2, F.Finding>, Wrap.check.go(items2, path),
+    inert.wrap.go(Laws.inert.items(items2), Laws.inert.sigs(items2), path), inert.wrap.items(items2, path)) :
+    {inert.wrap.go(i1, s1, path) == _ : List<&2, F.Finding>}
+  %ei : {inert.wrap.go(i1, s1, path) == inert.wrap.go(_, Laws.inert.sigs(items2), path) : List<&2, F.Finding>}
+  %es : {inert.wrap.go(i1, s1, path) == inert.wrap.go(i1, _, path) : List<&2, F.Finding>}
+  {==}
