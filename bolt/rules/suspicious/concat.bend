@@ -19,11 +19,20 @@ import ../../../syntax/tree.bend as Tree
 import ../calls.bend as Calls
 import ../../../lazy/lazy.bend as Lazy
 
+# a leaf that is a lowercase name: its token. The rule matches a leaf's kind
+# here and in bound.is_eq only; the rest reads kinds through these
+def lone.name(nn: Tree.Node) -> Maybe<&2, Lex.Tok>:
+  match nn:
+    case Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}:
+      Some{Lex.Tok{Lex.TName{}, t, l, c}}
+    case other:
+      None{}
+
 # a chain that is exactly one lowercase name: its token
 def lone(nn: Tree.Node) -> Maybe<&2, Lex.Tok>:
   match nn:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, Tree.NNil{}}:
-      Some{Lex.Tok{Lex.TName{}, t, l, c}}
+    case Tree.NCons{h, Tree.NNil{}}:
+      lone.name(h)
     case other:
       None{}
 
@@ -33,16 +42,32 @@ def appended(+tt: String, as: List<&2, Tree.Node>) -> Maybe<&2, Lex.Tok>:
   +str = String.eq(tt, "String.append")
   Bool.pick(Maybe<&2, Lex.Tok>, Bool.or(list, str), lone(Calls.arg(as, Bool.pick(Nat, list, 2n, 0n))), None{})
 
+# a leaf, then a group: the call's append
+def onto.call(hh: Tree.Node, kids: Tree.Node) -> Maybe<&2, Lex.Tok>:
+  match hh:
+    case Tree.Leaf{Lex.Tok{k, +t, l, c}}:
+      appended(t, Calls.args(kids))
+    case other:
+      None{}
+
+# a first cell, then the second: a name then `++`, or a call
+def onto.next(+hh: Tree.Node, h2: Tree.Node) -> Maybe<&2, Lex.Tok>:
+  match h2:
+    case Tree.Leaf{Lex.Tok{k, +o, _l, _c}}:
+      Bool.pick(Maybe<&2, Lex.Tok>, Bool.and(Calls.kind.oper(k), String.eq(o, "++")), lone.name(hh), None{})
+    case Tree.Group{open, kids, close}:
+      onto.call(hh, kids)
+    case other:
+      None{}
+
 # the name an argument appends onto, `p ++ ..` or an append call, inside any
 # number of parentheses
 def onto(aa: Tree.Node) -> Maybe<&2, Lex.Tok>:
   match aa:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +o, _, _}}, _}}:
-      Bool.pick(Maybe<&2, Lex.Tok>, String.eq(o, "++"), Some{Lex.Tok{Lex.TName{}, t, l, c}}, None{})
-    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{open, kids, close}, rest}}:
-      appended(t, Calls.args(kids))
     case Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, kids, _}, Tree.NNil{}}:
       Lazy.stop(Maybe<&2, Lex.Tok>, Bool.not(String.eq(o, "(")), None{}, _u => onto(kids))
+    case Tree.NCons{hh, Tree.NCons{h2, rest}}:
+      onto.next(hh, h2)
     case other:
       None{}
 
@@ -59,13 +84,17 @@ def find(lets: List<&2, Let>, +name: String) -> Maybe<&2, Lex.Tok>:
     case Con{Let{+nm, mm}, rest}:
       Lazy.stop(Maybe<&2, Lex.Tok>, String.eq(nm, name), mm, _u => find(rest, name))
 
+# what the let of a lone name appends onto
+def via.of(mm: Maybe<&2, Lex.Tok>, +lets: List<&2, Let>) -> Maybe<&2, Lex.Tok>:
+  match mm:
+    case None{}:
+      None{}
+    case Some{Lex.Tok{k, +t, l, c}}:
+      find(lets, t)
+
 # the name an argument appends onto, when it is a lone name read from a let
 def via(aa: Tree.Node, +lets: List<&2, Let>) -> Maybe<&2, Lex.Tok>:
-  match aa:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, +t, l, c}}, Tree.NNil{}}:
-      find(lets, t)
-    case other:
-      None{}
+  via.of(lone(aa), lets)
 
 # the first maybe when it holds a token, else the second
 def either(aa: Maybe<&2, Lex.Tok>, bb: Maybe<&2, Lex.Tok>) -> Maybe<&2, Lex.Tok>:
@@ -79,17 +108,42 @@ def either(aa: Maybe<&2, Lex.Tok>, bb: Maybe<&2, Lex.Tok>) -> Maybe<&2, Lex.Tok>
 def seen(+aa: Tree.Node, +lets: List<&2, Let>) -> Maybe<&2, Lex.Tok>:
   either(onto(aa), via(aa, lets))
 
+# an `=`
+def bound.eq(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TEq{}:
+      True{}
+    case other:
+      False{}
+
+# a name, then `=`, then the right side: the let
+def bound.of(mm: Maybe<&2, Lex.Tok>, +h2: Tree.Node, rhs: Tree.Node) -> Maybe<&2, Let>:
+  match mm:
+    case None{}:
+      None{}
+    case Some{Lex.Tok{k, +t, l, c}}:
+      Lazy.stop(Maybe<&2, Let>, Bool.not(Calls.kind.leaf(~bound.eq, h2)), None{}, _u => Some{Let{t, onto(rhs)}})
+
+# a plain name, then `=`, then the right side: the let
+def bound.named(+hh: Tree.Node, +h2: Tree.Node, rhs: Tree.Node) -> Maybe<&2, Let>:
+  bound.of(lone.name(hh), h2, rhs)
+
+# `+`, then a plain name, `=` and the right side: the let
+def bound.plus(+h1: Tree.Node, +h2: Tree.Node, rest: Tree.Node) -> Maybe<&2, Let>:
+  match rest:
+    case Tree.NCons{h3, rhs}:
+      Lazy.stop(Maybe<&2, Let>, Bool.not(String.eq(Calls.leaf.text(h1), "+")), None{},
+        _u => bound.named(h2, h3, rhs))
+    case other:
+      None{}
+
 # the let a statement's own tokens make, when it binds one plain name with
 # `=`, bare or `+`
 def bound(kids: Tree.Node) -> Maybe<&2, Let>:
   match kids:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +o, _, _}},
-      Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, +t, _, _}},
-        Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TEq{}, _, _, _}}, +rhs}}}:
-      Lazy.stop(Maybe<&2, Let>, Bool.not(String.eq(o, "+")), None{}, _u => Some{Let{t, onto(rhs)}})
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, +t, _, _}},
-      Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TEq{}, _, _, _}}, +rhs}}:
-      Some{Let{t, onto(rhs)}}
+    case Tree.NCons{+h1, Tree.NCons{+h2, +rest}}:
+      Lazy.either(Maybe<&2, Let>, Calls.kind.leaf(~Calls.kind.oper, h1), _u => bound.plus(h1, h2, rest),
+        _v => bound.named(h1, h2, rest))
     case other:
       None{}
 

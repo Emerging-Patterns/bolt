@@ -1033,45 +1033,51 @@ law check_run_unrun:
   {Check.run_of(path, Checker.Unrun{}) == Check.Failed{path} : Check.Run}
 
 # LAW: when bend ran and exited, however it exited, the checker's answer is
-# what it printed read as diagnostics, as it was before exec tagged its text
+# what it printed read as diagnostics, as it was before exec tagged its text,
+# placed by the checked file's names
 # BOLT-CHK-1
 law check_exec_ran:
+  for +names: Maybe<&2, List<&2, String>>
   for text: String
-  {BendChecker.answer("r" ++ text) == Checker.Checked{Rep.parse(text)} : Checker.Answer}
+  {BendChecker.answer(names, "r" ++ text) == Checker.Checked{Rep.parse_in(names, text)} : Checker.Answer}
 
 # LAW: when bend could not be run (no pipe, no fork, or exit 127), the answer
 # is Unrun, whatever was printed
 # BOLT-CHK-1
 law check_exec_unrun:
+  for -names: Maybe<&2, List<&2, String>>
   for text: String
-  {BendChecker.answer("x" ++ text) == Checker.Unrun{} : Checker.Answer}
+  {BendChecker.answer(names, "x" ++ text) == Checker.Unrun{} : Checker.Answer}
 
 # LAW: when a signal killed bend before it reported an error, the answer is
 # Unrun, not clean
 # BOLT-CHK-1
 law check_exec_died:
+  for +names: Maybe<&2, List<&2, String>>
   for +text: String
-  for h: {Rep.parse(text) == [] : List<&2, Rep.Diag>}
-  {BendChecker.answer("s" ++ text) == Checker.Unrun{} : Checker.Answer}
+  for h: {Rep.parse_in(names, text) == [] : List<&2, Rep.Diag>}
+  {BendChecker.answer(names, "s" ++ text) == Checker.Unrun{} : Checker.Answer}
 
 # LAW: when a signal killed bend after it reported errors, the answer is
 # those errors
 # BOLT-CHK-1
 law check_exec_died_reported:
+  for +names: Maybe<&2, List<&2, String>>
   for +text: String
   for dd: Rep.Diag
   for ds: List<&2, Rep.Diag>
-  for h: {Rep.parse(text) == dd <> ds : List<&2, Rep.Diag>}
-  {BendChecker.answer("s" ++ text) == Checker.Checked{dd <> ds} : Checker.Answer}
+  for h: {Rep.parse_in(names, text) == dd <> ds : List<&2, Rep.Diag>}
+  {BendChecker.answer(names, "s" ++ text) == Checker.Checked{dd <> ds} : Checker.Answer}
 
 # LAW: any other text from exec, the empty text included, is Unrun: text
 # with no tag is never read as a clean check
 # BOLT-CHK-1
 law check_exec_untagged:
+  for -names: Maybe<&2, List<&2, String>>
   for +cc: Char
   for text: String
   for h: {Bool.or(Char.is_eq(cc, 'r'), Char.is_eq(cc, 's')) == False{} : Bool}
-  {BendChecker.answer(SCon{cc, text}) == Checker.Unrun{} : Checker.Answer}
+  {BendChecker.answer(names, SCon{cc, text}) == Checker.Unrun{} : Checker.Answer}
 
 # LAW: a LAWS.bend whose PROOF.bend bend could not be run on is not settled
 # clean: its answer is Unrun
@@ -1088,17 +1094,20 @@ law check_proof_unrun:
 # marked line `n>| code` between a line of context on each side, `n | code`,
 # the numbers padded to one width), and, for a bare operator, a two-line
 # note. chk.report prints that shape for any list of errors, written apart
-# from report.bend, and the laws below read it back through Rep.parse. A
+# from report.bend, and the laws below read it back through Rep.parse_in. A
 # marked line's number is its numeral as Base's U32.read reads it (0 when
 # the numeral overflows a U32).
 #
-# An error in an imported file names it in its Location (`sub/m.g`,
-# `../m.g`): bend marks a line of that file, none of this one, and bolt
-# falls back to line 1 of the file it checked, the file named in the
-# message. That leaves the row pending: bend names a def of a file imported
-# from the same directory without a path (`m.g` for `g` in `./m.bend`),
-# which is also how it names a def `m.g` of the checked file, so the parser
-# reads it as this file's and prints the other file's line number here.
+# The Location names the def by bend's key for it: its name in the checked
+# file (`f`, `m.g` for a def `m.g`), the import's namespace and the name in
+# another file (`sub/m.g`, `../m.g`, and `m.g` for `g` in `./m.bend`). So
+# whether an error is the checked file's is read against the checked file's
+# own keys (checker/names.bend; that they are bend's keys is BOLT-TRUST-5):
+# an error the file owns lands on the line bend marks, and one in another
+# file, where bend marks no line of this one, falls back to line 1 of the
+# checked file, its message headed by the def and file it is in. Without the
+# names (the file could not be read), a place holding a path is another
+# file's. The laws below hold for every list of names.
 
 # a decimal digit
 type chk.Dig is Data:
@@ -1303,22 +1312,6 @@ def chk.marked(at: Maybe<&2, chk.Where>) -> U32:
     case Some{ChkWhere{_name, span}}:
       chk.marks(span)
 
-# a message: its lines, headed by the file the error is in when that is
-# another file (the place holds a path)
-def chk.message(+place: String, ts: List<&2, String>) -> String:
-  +body = String.join(ts, "\n")
-  Bool.pick(String, String.contains(place, "/"), "in " ++ place ++ ":\n" ++ body, body)
-
-# an error's message
-def chk.msg(ee: chk.Err) -> String:
-  ChkErr{parts, +at, note} = ee
-  chk.message(chk.place(at), chk.said(at, chk.texts(parts), chk.note(note)))
-
-# the 0-based line an error lands on: the line its excerpt marks, counted
-# from 0, or line 0 when it marks none or marks a line of another file
-def chk.row(+place: String, +vv: U32) -> U32:
-  Bool.pick(U32, Bool.or(String.contains(place, "/"), U32.is_eq(vv, 0)), 0, (vv - 1 : U32))
-
 # an error's place
 def chk.err_at(ee: chk.Err) -> Maybe<&2, chk.Where>:
   ChkErr{_parts, at, _note} = ee
@@ -1329,18 +1322,63 @@ def chk.err_parts(ee: chk.Err) -> List<&2, chk.Part>:
   ChkErr{parts, _at, _note} = ee
   parts
 
-# the diagnostic an error is
-def chk.diag(+ee: chk.Err) -> Rep.Diag:
+# a place up to its first `~`: bend names an instance of a template `f` as
+# `f~1`
+def chk.stem(ss: String) -> String:
+  match ss:
+    case SNil{}:
+      SNil{}
+    case SCon{+hh, tt}:
+      Bool.pick(String, Char.is_eq(hh, '~'), SNil{}, SCon{hh, chk.stem(tt)})
+
+# is the name one of these?
+def chk.among(ks: List<&2, String>, +name: String) -> Bool:
+  match ks:
+    case Nil{}:
+      False{}
+    case Con{kk, rest}:
+      Bool.or(String.eq(kk, name), chk.among(rest, name))
+
+# is an error at this place the checked file's? With the file's names: when
+# the place names nothing or names one of them. Without: when it holds no
+# path
+def chk.own(names: Maybe<&2, List<&2, String>>, +place: String) -> Bool:
+  match names:
+    case None{}:
+      Bool.not(String.contains(place, "/"))
+    case Some{ks}:
+      Bool.or(String.is_empty(place), chk.among(ks, chk.stem(place)))
+
+# an error's message lines, as one text
+def chk.body(ee: chk.Err) -> String:
+  ChkErr{parts, +at, note} = ee
+  String.join(chk.said(at, chk.texts(parts), chk.note(note)), "\n")
+
+# an error's message: its lines, headed by where it is when that is another
+# file
+def chk.msg(names: Maybe<&2, List<&2, String>>, +ee: chk.Err) -> String:
+  +place = chk.place(chk.err_at(ee))
+  +body = chk.body(ee)
+  Bool.pick(String, chk.own(names, place), body, "in " ++ place ++ ":\n" ++ body)
+
+# the 0-based line an error lands on: the line its excerpt marks, counted
+# from 0, in the checked file; line 0 when it marks none, or when it is in
+# another file
+def chk.row(own: Bool, +vv: U32) -> U32:
+  Bool.pick(U32, Bool.or(Bool.not(own), U32.is_eq(vv, 0)), 0, (vv - 1 : U32))
+
+# the diagnostic an error is, by the checked file's names
+def chk.diag(+names: Maybe<&2, List<&2, String>>, +ee: chk.Err) -> Rep.Diag:
   +at = chk.err_at(ee)
-  Rep.Diag{chk.row(chk.place(at), chk.marked(at)), chk.msg(ee)}
+  Rep.Diag{chk.row(chk.own(names, chk.place(at)), chk.marked(at)), chk.msg(names, ee)}
 
 # the diagnostics the errors are, in order
-def chk.diags(es: List<&2, chk.Err>) -> List<&2, Rep.Diag>:
+def chk.diags(es: List<&2, chk.Err>, +names: Maybe<&2, List<&2, String>>) -> List<&2, Rep.Diag>:
   match es:
     case Nil{}:
       []
     case Con{ee, rest}:
-      chk.diag(ee) <> chk.diags(rest)
+      chk.diag(names, ee) <> chk.diags(rest, names)
 
 # every line of a report is one line: no newline inside it
 def chk.flat(ls: List<&2, String>) -> Type:
@@ -1381,58 +1419,87 @@ def chk.fits(es: List<&2, chk.Err>) -> Type:
       Unit
     case Con{+ee, rest}:
       ((chk.parts_ok(chk.err_parts(ee)) & chk.name_ok(chk.err_at(ee)))
-        & {String.eq(chk.msg(ee), "no main to run") == False{} : Bool}) & chk.fits(rest)
+        & {String.eq(chk.body(ee), "no main to run") == False{} : Bool}) & chk.fits(rest)
 
-# LAW: for every list of errors bend could print, the parser reads back one
-# diagnostic per error, in order, with its message, on the line its excerpt
-# marks counted from 0, or on line 0 when bend marked no line or marked a
-# line of another file
+# LAW: for every list of errors bend could print and every list of the
+# checked file's names, the parser reads back one diagnostic per error, in
+# order, with its message, on the line its excerpt marks counted from 0 when
+# the error is the file's, or on line 0 when bend marked no line or the
+# error is in another file
 # BOLT-CHK-1
 law check_marked:
+  for +names: Maybe<&2, List<&2, String>>
   for +es: List<&2, chk.Err>
   for flat: chk.flat(chk.all(es))
   for fits: chk.fits(es)
-  {Rep.parse(chk.report(es)) == chk.diags(es) : List<&2, Rep.Diag>}
+  {Rep.parse_in(names, chk.report(es)) == chk.diags(es, names) : List<&2, Rep.Diag>}
 
 # the number `bolt check` prints for an error: the number bend marked, or 1
-# when bend marked no line or marked a line of another file
-def chk.shown(+place: String, +vv: U32) -> U32:
-  Bool.pick(U32, Bool.or(String.contains(place, "/"), U32.is_eq(vv, 0)), 1, vv)
+# when bend marked no line or the error is in another file
+def chk.shown(own: Bool, +vv: U32) -> U32:
+  Bool.pick(U32, Bool.or(Bool.not(own), U32.is_eq(vv, 0)), 1, vv)
 
 # the lines `bolt check` prints for the errors bend reported for a file
-def chk.printed(es: List<&2, chk.Err>, +path: String) -> List<&2, String>:
+def chk.printed(es: List<&2, chk.Err>, +path: String, +names: Maybe<&2, List<&2, String>>) -> List<&2, String>:
   match es:
     case Nil{}:
       []
     case Con{+ee, rest}:
       +at = chk.err_at(ee)
-      (path ++ ":" ++ U32.show(chk.shown(chk.place(at), chk.marked(at))) ++ ":1: error: "
-        ++ Check.message(chk.msg(ee))) <> chk.printed(rest, path)
+      (path ++ ":" ++ U32.show(chk.shown(chk.own(names, chk.place(at)), chk.marked(at))) ++ ":1: error: "
+        ++ Check.message(chk.msg(names, ee))) <> chk.printed(rest, path, names)
 
 # LAW: `bolt check` prints each error bend reported for a file on the line
-# bend marked, numbered from 1 as bend numbers it, and on line 1 when bend
-# marked no line or marked a line of another file
+# bend marked, numbered from 1 as bend numbers it, when the error is the
+# file's, and on line 1 when bend marked no line or the error is in another
+# file
 # BOLT-CHK-1
 law check_marked_line:
+  for +names: Maybe<&2, List<&2, String>>
   for +path: String
   for +es: List<&2, chk.Err>
   for flat: chk.flat(chk.all(es))
   for fits: chk.fits(es)
-  {Check.lines_of([Check.Run{path, Rep.parse(chk.report(es))}]) == chk.printed(es, path) : List<&2, String>}
+  {Check.lines_of([Check.Run{path, Rep.parse_in(names, chk.report(es))}]) == chk.printed(es, path, names)
+    : List<&2, String>}
 
-# LAW: an error bend reports in an imported file, its Location naming the
-# file by a path, is printed on line 1 of the checked file, the message
-# headed by that file: bend marks no line of the checked file
+# LAW: an error bend reports in another file, its Location naming no item
+# of the checked file (`sub/m.g`, or `m.g` for `g` in `./m.bend`), is
+# printed on line 1 of the checked file, the message headed by where it is:
+# bend marks no line of the checked file
 # BOLT-CHK-1
 law check_import_first:
+  for +names: Maybe<&2, List<&2, String>>
   for +path: String
   for +parts: List<&2, chk.Part>
   for +name: String
   for +span: Maybe<&2, chk.Span>
   for +note: Bool
-  for slash: {String.contains(name, "/") == True{} : Bool}
+  for other: {chk.own(names, name) == False{} : Bool}
   for flat: chk.flat(chk.all([ChkErr{parts, Some{ChkWhere{Some{name}, span}}, note}]))
   for fits: chk.fits([ChkErr{parts, Some{ChkWhere{Some{name}, span}}, note}])
-  {Check.lines_of([Check.Run{path, Rep.parse(chk.report([ChkErr{parts, Some{ChkWhere{Some{name}, span}}, note}]))}])
+  {Check.lines_of([Check.Run{path,
+      Rep.parse_in(names, chk.report([ChkErr{parts, Some{ChkWhere{Some{name}, span}}, note}]))}])
     == [path ++ ":1:1: error: " ++ Check.message("in " ++ name ++ ":\n" ++ String.join(chk.texts(parts), "\n"))]
+    : List<&2, String>}
+
+# LAW: an error the checked file owns, its Location naming one of the file's
+# items (a def `m.g` of the file included), is printed on the line bend
+# marked, numbered as bend numbers it
+# BOLT-CHK-1
+law check_own_marked:
+  for +names: Maybe<&2, List<&2, String>>
+  for +path: String
+  for +parts: List<&2, chk.Part>
+  for +name: String
+  for +span: chk.Span
+  for +note: Bool
+  for own: {chk.own(names, name) == True{} : Bool}
+  for some: {U32.is_eq(chk.marks(Some{span}), 0) == False{} : Bool}
+  for flat: chk.flat(chk.all([ChkErr{parts, Some{ChkWhere{Some{name}, Some{span}}}, note}]))
+  for fits: chk.fits([ChkErr{parts, Some{ChkWhere{Some{name}, Some{span}}}, note}])
+  {Check.lines_of([Check.Run{path,
+      Rep.parse_in(names, chk.report([ChkErr{parts, Some{ChkWhere{Some{name}, Some{span}}}, note}]))}])
+    == [path ++ ":" ++ U32.show(chk.marks(Some{span})) ++ ":1: error: "
+      ++ Check.message(String.join(chk.texts(parts), "\n"))]
     : List<&2, String>}

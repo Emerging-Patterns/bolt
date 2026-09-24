@@ -4,6 +4,8 @@ import Base
 import ./service.bend as S
 import ./argv.bend as Argv
 import ../report.bend as Rep
+import ./names.bend as Names
+import ../files/disk.bend as Disk
 
 # how `bend <path> <flag>` went, one tag char, then everything it printed.
 # The flag is argv.bend's, `--check-only`: it checks, and never runs main.
@@ -31,23 +33,25 @@ def died(ds: List<&2, Rep.Diag>) -> S.Answer:
       S.Checked{dd <> rest}
 
 # the answer a tag gives: bend ran (`r`), a signal killed it (`s`), or
-# neither, and it could not be run
-def answer.tag(ran: Bool, killed: Bool, text: String) -> S.Answer:
+# neither, and it could not be run; each error placed by the checked file's
+# names, when they are known
+def answer.tag(ran: Bool, killed: Bool, names: Maybe<&2, List<&2, String>>, text: String) -> S.Answer:
   match ran killed:
     case True{} _k:
-      S.Checked{Rep.parse(text)}
+      S.Checked{Rep.parse_in(names, text)}
     case False{} True{}:
-      died(Rep.parse(text))
+      died(Rep.parse_in(names, text))
     case False{} False{}:
       S.Unrun{}
 
-# exec's text read: its tag, then what bend printed, as diagnostics
-def answer(ss: String) -> S.Answer:
+# exec's text read: its tag, then what bend printed, as diagnostics placed by
+# the checked file's names
+def answer(names: Maybe<&2, List<&2, String>>, ss: String) -> S.Answer:
   match ss:
     case SNil{}:
       S.Unrun{}
     case SCon{+cc, text}:
-      answer.tag(Char.is_eq(cc, 'r'), Char.is_eq(cc, 's'), text)
+      answer.tag(Char.is_eq(cc, 'r'), Char.is_eq(cc, 's'), names, text)
 
 # a LAWS.bend's errors, settled by its PROOF.bend's answer: none when that
 # checks clean, and no check at all when bend could not be run on it
@@ -67,7 +71,7 @@ def settle(mr: Maybe<&2, Argv.Run>, +ds: List<&2, Rep.Diag>) -> IO(S.Answer):
     case Some{rr}:
       do IO<S.Answer>:
         text : String <- launch(rr)
-        return proved(answer(text), ds)
+        return proved(answer(None{}, text), ds)
 
 # the diagnostics of a run, settled by the run that follows it
 def checked(+ds: List<&2, Rep.Diag>, +path: String) -> IO(S.Answer):
@@ -81,10 +85,13 @@ def settled(aa: S.Answer, +path: String) -> IO(S.Answer):
     case S.Unrun{}:
       IO.pure(S.Answer, S.Unrun{})
 
+# bend's report on the file, its errors placed by the names of the file's
+# items (read from the file bend read; unknown when it cannot be read)
 def check.at(+path: String) -> IO(S.Answer):
   do IO<S.Answer>:
     text : String <- launch(Argv.run_of(path))
-    settled(answer(text), path)
+    src : Maybe<&2, String> <- Disk.read(path)
+    settled(answer(Names.of(src), text), path)
 
 # the service's field takes a plain path; quantities are part of its type
 def check(path: String) -> IO(S.Answer):
