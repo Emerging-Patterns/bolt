@@ -2987,6 +2987,58 @@ def arms.floor(ww: Maybe<&2, Arms.Wide>) -> Maybe<&2, U32>:
     case Some{Arms.Wide{k, text}}:
       Some{k}
 
+# a lone binder, inside `Succ{..}` or after `kn+`, to the rule and to the law
+law arms.binder:
+  for kk: Lex.TokKind
+  {Arms.binder(kk) == Laws.arms.binder(kk) : Bool}
+
+def arms.binder(kk):
+  match kk:
+    case Lex.TName{}:
+      {==}
+    case Lex.TUpper{}:
+      {==}
+    case Lex.TDotted{}:
+      {==}
+    case Lex.TWild{}:
+      {==}
+    case Lex.TKey{}:
+      {==}
+    case Lex.TNum{}:
+      {==}
+    case Lex.TStr{}:
+      {==}
+    case Lex.TChar{}:
+      {==}
+    case Lex.TComment{}:
+      {==}
+    case Lex.TSpace{}:
+      {==}
+    case Lex.TNewline{}:
+      {==}
+    case Lex.TOp{}:
+      {==}
+    case Lex.TColon{}:
+      {==}
+    case Lex.TEq{}:
+      {==}
+    case Lex.TBind{}:
+      {==}
+    case Lex.TArrow{}:
+      {==}
+    case Lex.TLam{}:
+      {==}
+    case Lex.TAll{}:
+      {==}
+    case Lex.TAmp{}:
+      {==}
+    case Lex.TOpen{}:
+      {==}
+    case Lex.TClose{}:
+      {==}
+    case Lex.TComma{}:
+      {==}
+
 # a picked from-k-up arm, read from above
 law arms.pick_up:
   for b: Bool
@@ -3005,6 +3057,24 @@ def arms.pick_up(b, _k, _t, _l, _c, _n):
     case False{}:
       {==}
 
+# a from-k-up arm after `kn+`, its binder read by the rule's test and the law's
+law arms.plus_up:
+  for x: Bool
+  for +b: Lex.TokKind
+  for +k: U32
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for +n: U32
+  {arms.up(Bool.pick(Arms.Arm, Bool.and(x, Arms.binder(b)), Arms.APlus{k, t, l, c, n}, Arms.AOther{}))
+    == Bool.pick(Maybe<&2, U32>, Bool.and(x, Laws.arms.binder(b)), Some{k}, None{}) : Maybe<&2, U32>}
+
+def arms.plus_up(x, b, k, t, l, c, n):
+  %Equal.sym(Bool, Arms.binder(b), Laws.arms.binder(b), arms.binder(b)) :
+    {arms.up(Bool.pick(Arms.Arm, Bool.and(x, _), Arms.APlus{k, t, l, c, n}, Arms.AOther{}))
+    == Bool.pick(Maybe<&2, U32>, Bool.and(x, Laws.arms.binder(b)), Some{k}, None{}) : Maybe<&2, U32>}
+  arms.pick_up(Bool.and(x, Laws.arms.binder(b)), k, t, l, c, n)
+
 # a picked from-k-up arm, read from below, when `or`ed with no `:`
 law arms.pick_lo:
   for b: Bool
@@ -3022,6 +3092,26 @@ def arms.pick_lo(b, _k, _t, _l, _c, _n):
       {==}
     case False{}:
       {==}
+
+# the same, read from below
+law arms.plus_lo:
+  for x: Bool
+  for +b: Lex.TokKind
+  for +k: U32
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for +n: U32
+  {arms.lo(Bool.pick(Arms.Arm, Bool.and(x, Arms.binder(b)), Arms.APlus{k, t, l, c, n}, Arms.AOther{}))
+    == Bool.pick(Maybe<&2, U32>, Bool.or(Bool.and(x, Laws.arms.binder(b)), False{}), Some{k}, None{})
+    : Maybe<&2, U32>}
+
+def arms.plus_lo(x, b, k, t, l, c, n):
+  %Equal.sym(Bool, Arms.binder(b), Laws.arms.binder(b), arms.binder(b)) :
+    {arms.lo(Bool.pick(Arms.Arm, Bool.and(x, _), Arms.APlus{k, t, l, c, n}, Arms.AOther{}))
+    == Bool.pick(Maybe<&2, U32>, Bool.or(Bool.and(x, Laws.arms.binder(b)), False{}), Some{k}, None{})
+    : Maybe<&2, U32>}
+  arms.pick_lo(Bool.and(x, Laws.arms.binder(b)), k, t, l, c, n)
 
 # a picked from-k-up arm, read from below
 law arms.pick_lo1:
@@ -3138,7 +3228,7 @@ def arms.shape_up(rest, k, tt, line, col):
                                 case Lex.TOp{}:
                                   {==}
                                 case Lex.TColon{}:
-                                  arms.pick_up(String.eq(x14, "+"), k, tt ++ "+" ++ x30, line, col, T.width(tt))
+                                  arms.plus_up(String.eq(x14, "+"), k29, k, tt ++ "+" ++ x30, line, col, T.width(tt))
                                 case Lex.TEq{}:
                                   {==}
                                 case Lex.TBind{}:
@@ -3299,7 +3389,7 @@ def arms.shape_lo(rest, k, tt, line, col):
                                 case Lex.TOp{}:
                                   {==}
                                 case Lex.TColon{}:
-                                  arms.pick_lo(String.eq(x86, "+"), k, tt ++ "+" ++ x102, line, col, T.width(tt))
+                                  arms.plus_lo(String.eq(x86, "+"), k101, k, tt ++ "+" ++ x102, line, col, T.width(tt))
                                 case Lex.TEq{}:
                                   {==}
                                 case Lex.TBind{}:
@@ -3395,58 +3485,6 @@ def arms.of_lo(mm, tt, rest, line, col):
       {==}
     case Some{k}:
       arms.shape_lo(rest, k, tt, line, col)
-
-# a lone binder inside `Succ{..}`, to the rule and to the law
-law arms.binder:
-  for kk: Lex.TokKind
-  {Arms.binder(kk) == Laws.arms.binder(kk) : Bool}
-
-def arms.binder(kk):
-  match kk:
-    case Lex.TName{}:
-      {==}
-    case Lex.TUpper{}:
-      {==}
-    case Lex.TDotted{}:
-      {==}
-    case Lex.TWild{}:
-      {==}
-    case Lex.TKey{}:
-      {==}
-    case Lex.TNum{}:
-      {==}
-    case Lex.TStr{}:
-      {==}
-    case Lex.TChar{}:
-      {==}
-    case Lex.TComment{}:
-      {==}
-    case Lex.TSpace{}:
-      {==}
-    case Lex.TNewline{}:
-      {==}
-    case Lex.TOp{}:
-      {==}
-    case Lex.TColon{}:
-      {==}
-    case Lex.TEq{}:
-      {==}
-    case Lex.TBind{}:
-      {==}
-    case Lex.TArrow{}:
-      {==}
-    case Lex.TLam{}:
-      {==}
-    case Lex.TAll{}:
-      {==}
-    case Lex.TAmp{}:
-      {==}
-    case Lex.TOpen{}:
-      {==}
-    case Lex.TClose{}:
-      {==}
-    case Lex.TComma{}:
-      {==}
 
 # a case pattern's arm, to the rule and to the law, from above
 law arms.up_is:
@@ -26105,3 +26143,4094 @@ def Laws.reach_digest(path, text, toks, tree, bound, items):
 def Laws.reach_binder(path, text):
   Laws.reach_digest(path, text, Lex.tokens(text), Tree.parse(text),
     Bind.of_tree(Tree.parse(text), String.lines(text)), Outline.of_tokens(text, Lex.tokens(text)))
+
+
+# Inert text, arms and on (BOLT-RULE-INERT): the tree rules not over a
+# file's defs, on the lemmas above.
+
+# arms
+# ----
+
+# a case statement's pattern read that way is the pattern it had, read that way
+law inert.pattern:
+  for kids: Tree.Node
+  {T.pattern(Laws.inert.node(kids)) == Laws.inert.node(T.pattern(kids)) : Tree.Node}
+
+def inert.pattern(kids):
+  match kids:
+    case Tree.NCons{h, rest}: {==}
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a from-k-up arm whose binder is read that way: a binder is never cut
+law inert.arms.bpick:
+  for x: Bool
+  for b: Lex.TokKind
+  for +p: String
+  for -f: String -> Arms.Arm
+  {Bool.pick(Arms.Arm, Bool.and(x, Arms.binder(b)), f(Laws.inert.keep(Laws.inert.blanks(b), p)), Arms.AOther{})
+    == Bool.pick(Arms.Arm, Bool.and(x, Arms.binder(b)), f(p), Arms.AOther{}) : Arms.Arm}
+
+def inert.arms.bpick(x, b, _p, _f):
+  match x:
+    case False{}: {==}
+    case True{}:
+      match b:
+        case Lex.TName{}: {==}
+        case Lex.TUpper{}: {==}
+        case Lex.TDotted{}: {==}
+        case Lex.TWild{}: {==}
+        case Lex.TKey{}: {==}
+        case Lex.TNum{}: {==}
+        case Lex.TStr{}: {==}
+        case Lex.TChar{}: {==}
+        case Lex.TComment{}: {==}
+        case Lex.TSpace{}: {==}
+        case Lex.TNewline{}: {==}
+        case Lex.TOp{}: {==}
+        case Lex.TColon{}: {==}
+        case Lex.TEq{}: {==}
+        case Lex.TBind{}: {==}
+        case Lex.TArrow{}: {==}
+        case Lex.TLam{}: {==}
+        case Lex.TAll{}: {==}
+        case Lex.TAmp{}: {==}
+        case Lex.TOpen{}: {==}
+        case Lex.TClose{}: {==}
+        case Lex.TComma{}: {==}
+
+# what follows a Nat literal read that way makes the arm it made
+law inert.arms.shape:
+  for rest: Tree.Node
+  for +kk: U32
+  for +tt: String
+  for +line: U32
+  for +col: U32
+  {Arms.lit.shape(Laws.inert.node(rest), kk, tt, line, col) == Arms.lit.shape(rest, kk, tt, line, col) : Arms.Arm}
+
+def inert.arms.shape(rest, kk, tt, line, col):
+  match rest:
+    case Tree.NCons{h, +r}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, +o, l, c}:
+              match k:
+                case Lex.TName{}: {==}
+                case Lex.TUpper{}: {==}
+                case Lex.TDotted{}: {==}
+                case Lex.TWild{}: {==}
+                case Lex.TKey{}: {==}
+                case Lex.TNum{}: {==}
+                case Lex.TStr{}: {==}
+                case Lex.TChar{}: {==}
+                case Lex.TComment{}: {==}
+                case Lex.TSpace{}: {==}
+                case Lex.TNewline{}: {==}
+                case Lex.TOp{}:
+                  match r:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Leaf{tok2}:
+                          match tok2:
+                            case Lex.Tok{+b, +p, l2, c2}:
+                              match r2:
+                                case Tree.NCons{h3, r3}:
+                                  match h3:
+                                    case Tree.Leaf{tok3}:
+                                      match tok3:
+                                        case Lex.Tok{k3, s, l3, c3}:
+                                          match k3:
+                                            case Lex.TName{}: {==}
+                                            case Lex.TUpper{}: {==}
+                                            case Lex.TDotted{}: {==}
+                                            case Lex.TWild{}: {==}
+                                            case Lex.TKey{}: {==}
+                                            case Lex.TNum{}: {==}
+                                            case Lex.TStr{}: {==}
+                                            case Lex.TChar{}: {==}
+                                            case Lex.TComment{}: {==}
+                                            case Lex.TSpace{}: {==}
+                                            case Lex.TNewline{}: {==}
+                                            case Lex.TOp{}: {==}
+                                            case Lex.TColon{}:
+                                              inert.arms.bpick(String.eq(o, "+"), b, p, z => Arms.APlus{kk,
+                                                tt ++ "+" ++ z, line, col, T.width(tt)})
+                                            case Lex.TEq{}: {==}
+                                            case Lex.TBind{}: {==}
+                                            case Lex.TArrow{}: {==}
+                                            case Lex.TLam{}: {==}
+                                            case Lex.TAll{}: {==}
+                                            case Lex.TAmp{}: {==}
+                                            case Lex.TOpen{}: {==}
+                                            case Lex.TClose{}: {==}
+                                            case Lex.TComma{}: {==}
+                                    case Tree.Group{x, y, z}: {==}
+                                    case Tree.Stmt{x, y, z}: {==}
+                                    case Tree.NNil{}: {==}
+                                    case Tree.NCons{x, y}: {==}
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NNil{}: {==}
+                        case Tree.Group{x, y, z}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TColon{}: {==}
+                case Lex.TEq{}: {==}
+                case Lex.TBind{}: {==}
+                case Lex.TArrow{}: {==}
+                case Lex.TLam{}: {==}
+                case Lex.TAll{}: {==}
+                case Lex.TAmp{}: {==}
+                case Lex.TOpen{}: {==}
+                case Lex.TClose{}: {==}
+                case Lex.TComma{}: {==}
+        case Tree.Group{x, y, z}: {==}
+        case Tree.Stmt{x, y, z}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# a Nat literal's arm, what follows it read that way
+law inert.arms.lit:
+  for mm: Maybe<&2, U32>
+  for +tt: String
+  for +rest: Tree.Node
+  for +line: U32
+  for +col: U32
+  {Arms.lit.of(mm, tt, Laws.inert.node(rest), line, col) == Arms.lit.of(mm, tt, rest, line, col) : Arms.Arm}
+
+def inert.arms.lit(mm, tt, rest, line, col):
+  match mm:
+    case None{}: {==}
+    case Some{+k}: inert.arms.shape(rest, k, tt, line, col)
+
+# a case pattern read that way makes the arm it made: a Nat literal, a capital
+# name and a binder are never cut
+law inert.arms.arm:
+  for pat: Tree.Node
+  {Arms.arm(Laws.inert.node(pat)) == Arms.arm(pat) : Arms.Arm}
+
+def inert.arms.arm(pat):
+  match pat:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, +t, +l, +c}:
+              match k:
+                case Lex.TName{}: {==}
+                case Lex.TUpper{}:
+                  match rest:
+                    case Tree.NCons{g, more}:
+                      match g:
+                        case Tree.Group{op, gk, cl}:
+                          match gk:
+                            case Tree.NCons{h3, +r3}:
+                              match h3:
+                                case Tree.Leaf{tok3}:
+                                  match tok3:
+                                    case Lex.Tok{+k3, +p, l2, c2}:
+                                      match r3:
+                                        case Tree.NNil{}:
+                                          inert.arms.bpick(String.eq(t, "Succ"), k3, p, z => Arms.APlus{1,
+                                            "Succ{" ++ z ++ "}", l, c, 4})
+                                        case Tree.Leaf{x}: {==}
+                                        case Tree.Group{x, y, z}: {==}
+                                        case Tree.Stmt{x, y, z}: {==}
+                                        case Tree.NCons{x, y}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NNil{}: {==}
+                                case Tree.NCons{x, y}: {==}
+                            case Tree.Leaf{x}: {==}
+                            case Tree.Group{x, y, z}: {==}
+                            case Tree.Stmt{x, y, z}: {==}
+                            case Tree.NNil{}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TDotted{}: {==}
+                case Lex.TWild{}: {==}
+                case Lex.TKey{}: {==}
+                case Lex.TNum{}: inert.arms.lit(T.nat_value(t), t, rest, l, c)
+                case Lex.TStr{}: {==}
+                case Lex.TChar{}: {==}
+                case Lex.TComment{}: {==}
+                case Lex.TSpace{}: {==}
+                case Lex.TNewline{}: {==}
+                case Lex.TOp{}: {==}
+                case Lex.TColon{}: {==}
+                case Lex.TEq{}: {==}
+                case Lex.TBind{}: {==}
+                case Lex.TArrow{}: {==}
+                case Lex.TLam{}: {==}
+                case Lex.TAll{}: {==}
+                case Lex.TAmp{}: {==}
+                case Lex.TOpen{}: {==}
+                case Lex.TClose{}: {==}
+                case Lex.TComma{}: {==}
+        case Tree.Group{x, y, z}: {==}
+        case Tree.Stmt{x, y, z}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# a match statement read that way has one scrutinee as it had: only a
+# keyword's text is read
+law inert.arms.single:
+  for kids: Tree.Node
+  {Arms.single(Laws.inert.node(kids)) == Arms.single(kids) : Bool}
+
+def inert.arms.single(kids):
+  match kids:
+    case Tree.NCons{h, +r}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, t, l, c}:
+              match k:
+                case Lex.TName{}: {==}
+                case Lex.TUpper{}: {==}
+                case Lex.TDotted{}: {==}
+                case Lex.TWild{}: {==}
+                case Lex.TKey{}:
+                  match r:
+                    case Tree.NCons{x, +r2}:
+                      match r2:
+                        case Tree.NCons{h3, +r3}:
+                          match h3:
+                            case Tree.Leaf{tok3}:
+                              match tok3:
+                                case Lex.Tok{k3, s, l3, c3}:
+                                  match k3:
+                                    case Lex.TName{}: {==}
+                                    case Lex.TUpper{}: {==}
+                                    case Lex.TDotted{}: {==}
+                                    case Lex.TWild{}: {==}
+                                    case Lex.TKey{}: {==}
+                                    case Lex.TNum{}: {==}
+                                    case Lex.TStr{}: {==}
+                                    case Lex.TChar{}: {==}
+                                    case Lex.TComment{}: {==}
+                                    case Lex.TSpace{}: {==}
+                                    case Lex.TNewline{}: {==}
+                                    case Lex.TOp{}: {==}
+                                    case Lex.TColon{}:
+                                      match r3:
+                                        case Tree.NNil{}: {==}
+                                        case Tree.Leaf{y}: {==}
+                                        case Tree.Group{y, z, w}: {==}
+                                        case Tree.Stmt{y, z, w}: {==}
+                                        case Tree.NCons{y, z}: {==}
+                                    case Lex.TEq{}: {==}
+                                    case Lex.TBind{}: {==}
+                                    case Lex.TArrow{}: {==}
+                                    case Lex.TLam{}: {==}
+                                    case Lex.TAll{}: {==}
+                                    case Lex.TAmp{}: {==}
+                                    case Lex.TOpen{}: {==}
+                                    case Lex.TClose{}: {==}
+                                    case Lex.TComma{}: {==}
+                            case Tree.Group{y, z, w}: {==}
+                            case Tree.Stmt{y, z, w}: {==}
+                            case Tree.NNil{}: {==}
+                            case Tree.NCons{y, z}: {==}
+                        case Tree.Leaf{y}: {==}
+                        case Tree.Group{y, z, w}: {==}
+                        case Tree.Stmt{y, z, w}: {==}
+                        case Tree.NNil{}: {==}
+                    case Tree.Leaf{y}: {==}
+                    case Tree.Group{y, z, w}: {==}
+                    case Tree.Stmt{y, z, w}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TNum{}: {==}
+                case Lex.TStr{}: {==}
+                case Lex.TChar{}: {==}
+                case Lex.TComment{}: {==}
+                case Lex.TSpace{}: {==}
+                case Lex.TNewline{}: {==}
+                case Lex.TOp{}: {==}
+                case Lex.TColon{}: {==}
+                case Lex.TEq{}: {==}
+                case Lex.TBind{}: {==}
+                case Lex.TArrow{}: {==}
+                case Lex.TLam{}: {==}
+                case Lex.TAll{}: {==}
+                case Lex.TAmp{}: {==}
+                case Lex.TOpen{}: {==}
+                case Lex.TClose{}: {==}
+                case Lex.TComma{}: {==}
+        case Tree.Group{x, y, z}: {==}
+        case Tree.Stmt{x, y, z}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# a case's arm, its tokens read that way
+law inert.arms.case:
+  for +kids: Tree.Node
+  {Arms.arm(T.pattern(Laws.inert.node(kids))) == Arms.arm(T.pattern(kids)) : Arms.Arm}
+
+def inert.arms.case(kids):
+  Equal.trans(Arms.Arm, Arms.arm(T.pattern(Laws.inert.node(kids))), Arms.arm(Laws.inert.node(T.pattern(kids))),
+    Arms.arm(T.pattern(kids)), Equal.cong(Tree.Node, Arms.Arm, z => Arms.arm(z), T.pattern(Laws.inert.node(kids)),
+      Laws.inert.node(T.pattern(kids)), inert.pattern(kids)), inert.arms.arm(T.pattern(kids)))
+
+# a match's arms read that way are judged as they were
+law inert.arms.arms:
+  for body: Tree.Node
+  for +wide: Maybe<&2, Arms.Wide>
+  for +path: String
+  {Arms.arms(Laws.inert.node(body), wide, path) == Arms.arms(body, wide, path) : List<&2, F.Finding>}
+
+def inert.arms.arms(body, wide, path):
+  match body:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Stmt{sk, +kids, b}:
+          match sk:
+            case Tree.SCase{}:
+              +ao = Arms.arm(T.pattern(kids))
+              +ai = Arms.arm(T.pattern(Laws.inert.node(kids)))
+              +lhs = Arms.verdict(wide, ai, path, Arms.arms(Laws.inert.node(rest), Arms.widen(wide, ai), path))
+              %inert.arms.arms(rest, Arms.widen(wide, ao), path) : {lhs == Arms.verdict(wide, ao, path, _)
+                : List<&2, F.Finding>}
+              %inert.arms.case(kids) : {lhs == Arms.verdict(wide, _, path, Arms.arms(Laws.inert.node(rest),
+                Arms.widen(wide, _), path)) : List<&2, F.Finding>}
+              {==}
+            case Tree.SDef{}: inert.arms.arms(rest, wide, path)
+            case Tree.SType{}: inert.arms.arms(rest, wide, path)
+            case Tree.SLaw{}: inert.arms.arms(rest, wide, path)
+            case Tree.SImport{}: inert.arms.arms(rest, wide, path)
+            case Tree.SFor{}: inert.arms.arms(rest, wide, path)
+            case Tree.SLet{}: inert.arms.arms(rest, wide, path)
+            case Tree.STerm{}: inert.arms.arms(rest, wide, path)
+        case Tree.Leaf{x}: inert.arms.arms(rest, wide, path)
+        case Tree.Group{x, y, z}: inert.arms.arms(rest, wide, path)
+        case Tree.NNil{}: inert.arms.arms(rest, wide, path)
+        case Tree.NCons{x, y}: inert.arms.arms(rest, wide, path)
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# arms reads no string: a Nat literal, `Succ`, `match` and `+` are read by
+# their kind, and a binder by its
+law inert.arms.walk:
+  for nn: Tree.Node
+  for +path: String
+  {Arms.walk(Laws.inert.node(nn), path) == Arms.walk(nn, path) : List<&2, F.Finding>}
+
+def inert.arms.walk(nn, path):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Stmt{sk, +kids, +body}:
+          inert.cat3(Lazy.stop(List<&2, F.Finding>, Bool.not(Arms.single(Laws.inert.node(kids))), [],
+            _u => Arms.arms(Laws.inert.node(body), None{}, path)), Lazy.stop(List<&2, F.Finding>,
+              Bool.not(Arms.single(kids)), [], _u => Arms.arms(body, None{}, path)),
+            Arms.walk(Laws.inert.node(body), path), Arms.walk(body, path), Arms.walk(Laws.inert.node(rest), path),
+            Arms.walk(rest, path),
+            inert.stop(Bool.not(Arms.single(Laws.inert.node(kids))), Bool.not(Arms.single(kids)),
+              Arms.arms(Laws.inert.node(body), None{}, path), Arms.arms(body, None{}, path),
+              Equal.cong(Bool, Bool, z => Bool.not(z), Arms.single(Laws.inert.node(kids)), Arms.single(kids),
+                inert.arms.single(kids)), inert.arms.arms(body, None{}, path)),
+            inert.arms.walk(body, path), inert.arms.walk(rest, path))
+        case Tree.Leaf{x}: inert.arms.walk(rest, path)
+        case Tree.Group{x, y, z}: inert.arms.walk(rest, path)
+        case Tree.NNil{}: inert.arms.walk(rest, path)
+        case Tree.NCons{x, y}: inert.arms.walk(rest, path)
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+def Laws.inert_arms(path, _text, tree, _toks, _bound, _items, _text2, tree2, _toks2, _bound2, _items2, _ok, _ok2, e):
+  inert.via(Tree.Node, z => Arms.walk(z, path), tree, tree2, Laws.inert.node(tree), Laws.inert.node(tree2),
+    inert.arms.walk(tree, path), inert.arms.walk(tree2, path), e)
+
+# unused
+# ------
+
+# a token by where it stands only
+def inert.canon(tok: Lex.Tok) -> Lex.Tok:
+  match tok:
+    case Lex.Tok{k, t, l, c}: Lex.Tok{Lex.TSpace{}, "", l, c}
+
+# the tokens, each by where it stands only
+def inert.canons(ts: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
+  match ts:
+    case Nil{}: Nil{}
+    case Con{h, t}: inert.canon(h) <> inert.canons(t)
+
+# a token read that way stands where it stood
+law inert.canon_tok:
+  for tok: Lex.Tok
+  {inert.canon(Laws.inert.tok(tok)) == inert.canon(tok) : Lex.Tok}
+
+def inert.canon_tok(tok):
+  match tok:
+    case Lex.Tok{k, t, l, c}: {==}
+
+# a group's close onto tokens that stand alike
+law inert.canon_close:
+  for close: Maybe<&2, Lex.Tok>
+  for -x: List<&2, Lex.Tok>
+  for -y: List<&2, Lex.Tok>
+  for e: {inert.canons(x) == inert.canons(y) : List<&2, Lex.Tok>}
+  {inert.canons(Tree.leaf_close(close, x)) == inert.canons(Tree.leaf_close(close, y)) : List<&2, Lex.Tok>}
+
+def inert.canon_close(close, x, y, e):
+  match close:
+    case None{}: e
+    case Some{+tok}:
+      Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => inert.canon(tok) <> z, inert.canons(x), inert.canons(y),
+        e)
+
+# the leaves of a node read that way stand where they stood
+law inert.canon_leaves:
+  for nn: Tree.Node
+  for -a: List<&2, Lex.Tok>
+  for -b: List<&2, Lex.Tok>
+  for e: {inert.canons(a) == inert.canons(b) : List<&2, Lex.Tok>}
+  {inert.canons(Tree.leaves.go(Laws.inert.node(nn), a)) == inert.canons(Tree.leaves.go(nn, b)) : List<&2, Lex.Tok>}
+
+def inert.canon_leaves(nn, a, b, e):
+  match nn:
+    case Tree.Leaf{+tok}:
+      %inert.canon_tok(tok) : {inert.canon(Laws.inert.tok(tok)) <> inert.canons(a) == _ <> inert.canons(b)
+        : List<&2, Lex.Tok>}
+      %e : {inert.canon(Laws.inert.tok(tok)) <> inert.canons(a) == inert.canon(Laws.inert.tok(tok)) <> _
+        : List<&2, Lex.Tok>}
+      {==}
+    case Tree.Group{+open, kids, close}:
+      inert.canon_close(close, Tree.leaves.go(Laws.inert.node(kids), open <> a), Tree.leaves.go(kids, open <> b),
+        inert.canon_leaves(kids, open <> a, open <> b, Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>,
+          z => inert.canon(open) <> z, inert.canons(a), inert.canons(b), e)))
+    case Tree.Stmt{sk, kids, body}:
+      inert.canon_leaves(body, Tree.leaves.go(Laws.inert.node(kids), a), Tree.leaves.go(kids, b),
+        inert.canon_leaves(kids, a, b, e))
+    case Tree.NNil{}: e
+    case Tree.NCons{h, t}:
+      inert.canon_leaves(t, Tree.leaves.go(Laws.inert.node(h), a), Tree.leaves.go(h, b), inert.canon_leaves(h, a, b, e))
+
+# reversing, by where they stand
+law inert.canon_rev:
+  for xs: List<&2, Lex.Tok>
+  for +acc: List<&2, Lex.Tok>
+  {inert.canons(List.reverse.go(&2, Lex.Tok, xs, acc)) == List.reverse.go(&2, Lex.Tok, inert.canons(xs),
+    inert.canons(acc)) : List<&2, Lex.Tok>}
+
+def inert.canon_rev(xs, acc):
+  match xs:
+    case Nil{}: {==}
+    case Con{+h, t}: inert.canon_rev(t, h <> acc)
+
+# the lines of tokens are the lines of where they stand
+law inert.canon_lines:
+  for ts: List<&2, Lex.Tok>
+  for +acc: List<&2, U32>
+  {Unused.lines(ts, acc) == Unused.lines(inert.canons(ts), acc) : List<&2, U32>}
+
+def inert.canon_lines(ts, acc):
+  match ts:
+    case Nil{}: {==}
+    case Con{h, +t}:
+      match h:
+        case Lex.Tok{k, x, +l, c}:
+          Equal.cong(List<&2, U32>, List<&2, U32>, z => l <> z, Unused.lines(t, acc),
+            Unused.lines(inert.canons(t), acc), inert.canon_lines(t, acc))
+
+# the lines of a node's leaves read that way are the lines they were
+law inert.unused.lines:
+  for +kids: Tree.Node
+  for +acc: List<&2, U32>
+  {Unused.lines(Tree.leaves(Laws.inert.node(kids)), acc) == Unused.lines(Tree.leaves(kids), acc) : List<&2, U32>}
+
+def inert.unused.lines(kids, acc):
+  +li = Tree.leaves.go(Laws.inert.node(kids), [])
+  +lo = Tree.leaves.go(kids, [])
+  +ec = Equal.trans(List<&2, Lex.Tok>, inert.canons(List.reverse.go(&2, Lex.Tok, li, [])), List.reverse.go(&2, Lex.Tok,
+    inert.canons(li), []), inert.canons(List.reverse.go(&2, Lex.Tok, lo, [])), inert.canon_rev(li, []),
+    Equal.trans(List<&2, Lex.Tok>, List.reverse.go(&2, Lex.Tok, inert.canons(li), []), List.reverse.go(&2, Lex.Tok,
+      inert.canons(lo), []), inert.canons(List.reverse.go(&2, Lex.Tok, lo, [])),
+      Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => List.reverse.go(&2, Lex.Tok, z, []), inert.canons(li),
+        inert.canons(lo), inert.canon_leaves(kids, [], [], {==})),
+      Equal.sym(List<&2, Lex.Tok>, inert.canons(List.reverse.go(&2, Lex.Tok, lo, [])), List.reverse.go(&2, Lex.Tok,
+        inert.canons(lo), []), inert.canon_rev(lo, []))))
+  Equal.trans(List<&2, U32>, Unused.lines(List.reverse.go(&2, Lex.Tok, li, []), acc),
+    Unused.lines(inert.canons(List.reverse.go(&2, Lex.Tok, li, [])), acc),
+    Unused.lines(List.reverse.go(&2, Lex.Tok, lo, []), acc),
+    inert.canon_lines(List.reverse.go(&2, Lex.Tok, li, []), acc),
+    Equal.trans(List<&2, U32>, Unused.lines(inert.canons(List.reverse.go(&2, Lex.Tok, li, [])), acc),
+      Unused.lines(inert.canons(List.reverse.go(&2, Lex.Tok, lo, [])), acc),
+      Unused.lines(List.reverse.go(&2, Lex.Tok, lo, []), acc),
+      Equal.cong(List<&2, Lex.Tok>, List<&2, U32>, z => Unused.lines(z, acc),
+        inert.canons(List.reverse.go(&2, Lex.Tok, li, [])), inert.canons(List.reverse.go(&2, Lex.Tok, lo, [])), ec),
+      Equal.sym(List<&2, U32>, Unused.lines(List.reverse.go(&2, Lex.Tok, lo, []), acc),
+        Unused.lines(inert.canons(List.reverse.go(&2, Lex.Tok, lo, [])), acc),
+        inert.canon_lines(List.reverse.go(&2, Lex.Tok, lo, []), acc))))
+
+# the foreign defs' header lines, the tree read that way, are the ones they were
+law inert.unused.foreign:
+  for root: Tree.Node
+  {Unused.foreign(Laws.inert.node(root)) == Unused.foreign(root) : List<&2, U32>}
+
+def inert.unused.foreign(root):
+  match root:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Stmt{sk, +kids, body}:
+          match sk:
+            case Tree.SDef{}:
+              match body:
+                case Tree.NCons{b1, more}:
+                  match b1:
+                    case Tree.Stmt{sk2, ik, ib}:
+                      match sk2:
+                        case Tree.SImport{}:
+                          %inert.unused.foreign(rest) : {Unused.lines(Tree.leaves(Laws.inert.node(kids)),
+                            Unused.foreign(Laws.inert.node(rest))) == Unused.lines(Tree.leaves(kids), _)
+                              : List<&2, U32>}
+                          inert.unused.lines(kids, Unused.foreign(Laws.inert.node(rest)))
+                        case Tree.SDef{}: inert.unused.foreign(rest)
+                        case Tree.SType{}: inert.unused.foreign(rest)
+                        case Tree.SLaw{}: inert.unused.foreign(rest)
+                        case Tree.SCase{}: inert.unused.foreign(rest)
+                        case Tree.SFor{}: inert.unused.foreign(rest)
+                        case Tree.SLet{}: inert.unused.foreign(rest)
+                        case Tree.STerm{}: inert.unused.foreign(rest)
+                    case Tree.Leaf{x}: inert.unused.foreign(rest)
+                    case Tree.Group{x, y, z}: inert.unused.foreign(rest)
+                    case Tree.NNil{}: inert.unused.foreign(rest)
+                    case Tree.NCons{x, y}: inert.unused.foreign(rest)
+                case Tree.Leaf{x}: inert.unused.foreign(rest)
+                case Tree.Group{x, y, z}: inert.unused.foreign(rest)
+                case Tree.Stmt{x, y, z}: inert.unused.foreign(rest)
+                case Tree.NNil{}: inert.unused.foreign(rest)
+            case Tree.SType{}: inert.unused.foreign(rest)
+            case Tree.SLaw{}: inert.unused.foreign(rest)
+            case Tree.SImport{}: inert.unused.foreign(rest)
+            case Tree.SCase{}: inert.unused.foreign(rest)
+            case Tree.SFor{}: inert.unused.foreign(rest)
+            case Tree.SLet{}: inert.unused.foreign(rest)
+            case Tree.STerm{}: inert.unused.foreign(rest)
+        case Tree.Leaf{x}: inert.unused.foreign(rest)
+        case Tree.Group{x, y, z}: inert.unused.foreign(rest)
+        case Tree.NNil{}: inert.unused.foreign(rest)
+        case Tree.NCons{x, y}: inert.unused.foreign(rest)
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# does a binder of this kind count, its note read as unused reads it
+def inert.unused.rep(kk: Bind.BindKind, +note: String, +line: U32, +fl: List<&2, U32>) -> Bool:
+  match kk:
+    case Bind.KLocal{}:
+      True{}
+    case Bind.KParam{}:
+      Bool.and(Bool.not(String.starts_with(note, "-")), Bool.not(List.contains(~U32, ~U32.is_eq, fl, line)))
+    case other:
+      False{}
+
+# unused over binders as it reads them
+def inert.unused.go(
+  binds: List<&2, Bind.Bind>,
+  +uses: List<&2, Bind.Use>,
+  +fl: List<&2, U32>,
+  +path: String
+) -> List<&2, F.Finding>:
+  match binds:
+    case Nil{}:
+      Nil{}
+    case Con{Bind.Bind{+name, +line, +col, +kind, +note}, rest}:
+      +more = inert.unused.go(rest, uses, fl, path)
+      +hit = Bool.and(inert.unused.rep(kind, note, line, fl), Bool.not(String.starts_with(name, "_")))
+      Bool.pick(List<&2, F.Finding>, Bool.and(hit, Bool.not(Unused.used(uses, line, col))),
+        F.Finding{path, line, col, U32.from_nat(String.length(name)), "unused",
+          Unused.what(kind) ++ " " ++ name ++ " is never used."} <> more, more)
+
+# a leading `-`, kept as unused reads a note
+law inert.unused.dash:
+  for s: Bool
+  {String.starts_with(Bool.pick(String, s, "-", ""), "-") == s : Bool}
+
+def inert.unused.dash(s):
+  match s:
+    case True{}: {==}
+    case False{}: {==}
+
+# a binder kept as unused reads it
+law inert.unused.one:
+  for kind: Bind.BindKind
+  for +note: String
+  for +line: U32
+  for +fl: List<&2, U32>
+  {Unused.reportable(kind, note, line, fl) == inert.unused.rep(kind, Bool.pick(String, String.starts_with(note, "-"),
+    "-", ""), line, fl) : Bool}
+
+def inert.unused.one(kind, note, line, fl):
+  match kind:
+    case Bind.KParam{}:
+      %Equal.sym(Bool, String.starts_with(Bool.pick(String, String.starts_with(note, "-"), "-", ""), "-"),
+        String.starts_with(note, "-"), inert.unused.dash(String.starts_with(note, "-"))) :
+        {Bool.and(Bool.not(String.starts_with(note, "-")),
+        Bool.not(List.contains(~U32, ~U32.is_eq, fl, line))) == Bool.and(Bool.not(_), Bool.not(List.contains(~U32,
+          ~U32.is_eq, fl, line))) : Bool}
+      {==}
+    case Bind.KItem{}: {==}
+    case Bind.KCtor{}: {==}
+    case Bind.KTypeParam{}: {==}
+    case Bind.KField{}: {==}
+    case Bind.KLocal{}: {==}
+    case Bind.KPat{}: {==}
+    case Bind.KFor{}: {==}
+    case Bind.KTypeVar{}: {==}
+
+# unused over binders is unused over the binders as it reads them
+law inert.unused.via:
+  for binds: List<&2, Bind.Bind>
+  for +uses: List<&2, Bind.Use>
+  for +fl: List<&2, U32>
+  for +path: String
+  {Unused.check.go(binds, uses, fl, path) == inert.unused.go(Laws.inert.ubinds(binds), uses, fl, path)
+    : List<&2, F.Finding>}
+
+def inert.unused.via(binds, uses, fl, path):
+  match binds:
+    case Nil{}: {==}
+    case Con{Bind.Bind{+name, +line, +col, +kind, +note}, +rest}:
+      +mo = Unused.check.go(rest, uses, fl, path)
+      +x = {F.Finding{path, line, col, U32.from_nat(String.length(name)), "unused",
+        Unused.what(kind) ++ " " ++ name ++ " is never used."} : F.Finding}
+      +lhs = Unused.check.go(Con{Bind.Bind{name, line, col, kind, note}, rest}, uses, fl, path)
+      %inert.unused.via(rest, uses, fl, path) : {lhs == Bool.pick(List<&2, F.Finding>, Bool.and(Bool.and(
+        inert.unused.rep(kind, Bool.pick(String, String.starts_with(note, "-"), "-", ""), line, fl),
+          Bool.not(String.starts_with(name, "_"))), Bool.not(Unused.used(uses, line, col))), x <> _, _)
+          : List<&2, F.Finding>}
+      %inert.unused.one(kind, note, line, fl) : {lhs == Bool.pick(List<&2, F.Finding>, Bool.and(Bool.and(_,
+        Bool.not(String.starts_with(name, "_"))), Bool.not(Unused.used(uses, line, col))), x <> mo, mo)
+          : List<&2, F.Finding>}
+      {==}
+
+# unused over binders and lines that read alike
+law inert.unused.cong:
+  for -x1: List<&2, Bind.Bind>
+  for -x2: List<&2, Bind.Bind>
+  for -f1: List<&2, U32>
+  for -f2: List<&2, U32>
+  for +uses: List<&2, Bind.Use>
+  for +path: String
+  for e1: {x1 == x2 : List<&2, Bind.Bind>}
+  for e2: {f1 == f2 : List<&2, U32>}
+  {inert.unused.go(x1, uses, f1, path) == inert.unused.go(x2, uses, f2, path) : List<&2, F.Finding>}
+
+def inert.unused.cong(x1, _x2, f1, f2, uses, path, e1, e2):
+  %e1 : {inert.unused.go(x1, uses, f1, path) == inert.unused.go(_, uses, f2, path) : List<&2, F.Finding>}
+  %e2 : {inert.unused.go(x1, uses, f1, path) == inert.unused.go(x1, uses, _, path) : List<&2, F.Finding>}
+  {==}
+
+def Laws.inert_unused(
+  path,
+  _text,
+  _toks,
+  tree,
+  binds,
+  uses,
+  _scopes,
+  _items,
+  _text2,
+  _toks2,
+  tree2,
+  binds2,
+  _scopes2,
+  _items2,
+  et,
+  eb
+):
+  +f1 = Unused.foreign(tree)
+  +f2 = Unused.foreign(tree2)
+  +ef = Equal.trans(List<&2, U32>, f1, Unused.foreign(Laws.inert.node(tree)), f2,
+    Equal.sym(List<&2, U32>, Unused.foreign(Laws.inert.node(tree)), f1, inert.unused.foreign(tree)),
+    Equal.trans(List<&2, U32>, Unused.foreign(Laws.inert.node(tree)), Unused.foreign(Laws.inert.node(tree2)), f2,
+      Equal.cong(Tree.Node, List<&2, U32>, z => Unused.foreign(z), Laws.inert.node(tree), Laws.inert.node(tree2), et),
+      inert.unused.foreign(tree2)))
+  Equal.trans(List<&2, F.Finding>, Unused.check.go(binds, uses, f1, path),
+    inert.unused.go(Laws.inert.ubinds(binds), uses, f1, path), Unused.check.go(binds2, uses, f2, path),
+    inert.unused.via(binds, uses, f1, path),
+    Equal.trans(List<&2, F.Finding>, inert.unused.go(Laws.inert.ubinds(binds), uses, f1, path),
+      inert.unused.go(Laws.inert.ubinds(binds2), uses, f2, path), Unused.check.go(binds2, uses, f2, path),
+      inert.unused.cong(Laws.inert.ubinds(binds), Laws.inert.ubinds(binds2), f1, f2, uses, path, eb, ef),
+      Equal.sym(List<&2, F.Finding>, Unused.check.go(binds2, uses, f2, path),
+        inert.unused.go(Laws.inert.ubinds(binds2), uses, f2, path), inert.unused.via(binds2, uses, f2, path))))
+
+
+
+# Inert text, hoist (BOLT-RULE-INERT): a def's self-calls, its carried
+# parameters, the tables it builds and the names it indexes, each read the
+# way the lemmas above read a tree.
+
+# hoist
+# -----
+
+# self-calls' argument lists, each argument read that way
+def inert.hoist.css(cs: List<&2, List<&2, Tree.Node>>) -> List<&2, List<&2, Tree.Node>>:
+  match cs:
+    case Nil{}: Nil{}
+    case Con{h, t}: inert.nodes(h) <> inert.hoist.css(t)
+
+# argument lists appended, then read that way, are each read that way, appended
+law inert.hoist.css_app:
+  for a: List<&2, List<&2, Tree.Node>>
+  for +b: List<&2, List<&2, Tree.Node>>
+  {inert.hoist.css(List.append(&2, List<&2, Tree.Node>, a, b)) == List.append(&2, List<&2, Tree.Node>,
+    inert.hoist.css(a), inert.hoist.css(b)) : List<&2, List<&2, Tree.Node>>}
+
+def inert.hoist.css_app(a, b):
+  match a:
+    case Nil{}: {==}
+    case Con{+h, +t}:
+      Equal.cong(List<&2, List<&2, Tree.Node>>, List<&2, List<&2, Tree.Node>>, z => inert.nodes(h) <> z,
+        inert.hoist.css(List.append(&2, List<&2, Tree.Node>, t, b)),
+        List.append(&2, List<&2, Tree.Node>, inert.hoist.css(t), inert.hoist.css(b)), inert.hoist.css_app(t, b))
+
+# two runs of argument lists joined, each read that way, are the join read that way
+law inert.hoist.cat2:
+  for +a: List<&2, List<&2, Tree.Node>>
+  for +b: List<&2, List<&2, Tree.Node>>
+  {List.concat(&2, List<&2, Tree.Node>, [inert.hoist.css(a), inert.hoist.css(b)]) == inert.hoist.css(List.concat(&2,
+    List<&2, Tree.Node>, [a, b]))
+    : List<&2, List<&2, Tree.Node>>}
+
+def inert.hoist.cat2(a, b):
+  +lhs = List.concat(&2, List<&2, Tree.Node>, [inert.hoist.css(a), inert.hoist.css(b)])
+  %Equal.sym(List<&2, List<&2, Tree.Node>>, inert.hoist.css(List.append(&2, List<&2, Tree.Node>, a, List.append(&2,
+    List<&2, Tree.Node>, b, []))),
+    List.append(&2, List<&2, Tree.Node>, inert.hoist.css(a), inert.hoist.css(List.append(&2, List<&2, Tree.Node>, b,
+      []))),
+    inert.hoist.css_app(a, List.append(&2, List<&2, Tree.Node>, b, []))) : {lhs == _ : List<&2, List<&2, Tree.Node>>}
+  %Equal.sym(List<&2, List<&2, Tree.Node>>, inert.hoist.css(List.append(&2, List<&2, Tree.Node>, b, [])),
+    List.append(&2, List<&2, Tree.Node>, inert.hoist.css(b),
+    inert.hoist.css([])), inert.hoist.css_app(b, [])) : {lhs == List.append(&2, List<&2, Tree.Node>,
+      inert.hoist.css(a), _) : List<&2, List<&2, Tree.Node>>}
+  {==}
+
+# three runs of argument lists joined, each read that way, are the join read that way
+law inert.hoist.cat3:
+  for +a: List<&2, List<&2, Tree.Node>>
+  for +b: List<&2, List<&2, Tree.Node>>
+  for +c: List<&2, List<&2, Tree.Node>>
+  {List.concat(&2, List<&2, Tree.Node>, [inert.hoist.css(a), inert.hoist.css(b), inert.hoist.css(c)])
+    == inert.hoist.css(List.concat(&2, List<&2, Tree.Node>, [a, b, c])) : List<&2, List<&2, Tree.Node>>}
+
+def inert.hoist.cat3(a, b, c):
+  +lhs = List.concat(&2, List<&2, Tree.Node>, [inert.hoist.css(a), inert.hoist.css(b), inert.hoist.css(c)])
+  +bc = List.append(&2, List<&2, Tree.Node>, b, List.append(&2, List<&2, Tree.Node>, c, []))
+  %Equal.sym(List<&2, List<&2, Tree.Node>>, inert.hoist.css(List.append(&2, List<&2, Tree.Node>, a, bc)),
+    List.append(&2, List<&2, Tree.Node>, inert.hoist.css(a), inert.hoist.css(bc)),
+    inert.hoist.css_app(a, bc)) : {lhs == _ : List<&2, List<&2, Tree.Node>>}
+  %Equal.sym(List<&2, List<&2, Tree.Node>>, inert.hoist.css(bc), List.append(&2, List<&2, Tree.Node>,
+    inert.hoist.css(b),
+    inert.hoist.css(List.append(&2, List<&2, Tree.Node>, c, []))), inert.hoist.css_app(b, List.append(&2, List<&2,
+      Tree.Node>, c, []))) :
+    {lhs == List.append(&2, List<&2, Tree.Node>, inert.hoist.css(a), _) : List<&2, List<&2, Tree.Node>>}
+  %Equal.sym(List<&2, List<&2, Tree.Node>>, inert.hoist.css(List.append(&2, List<&2, Tree.Node>, c, [])),
+    List.append(&2, List<&2, Tree.Node>, inert.hoist.css(c),
+    inert.hoist.css([])), inert.hoist.css_app(c, [])) :
+    {lhs == List.append(&2, List<&2, Tree.Node>, inert.hoist.css(a), List.append(&2, List<&2, Tree.Node>,
+      inert.hoist.css(b), _)) : List<&2, List<&2, Tree.Node>>}
+  {==}
+
+# a self-call picked onto the rest, each read that way
+law inert.hoist.pick:
+  for me: Bool
+  for +as: List<&2, Tree.Node>
+  for +more: List<&2, List<&2, Tree.Node>>
+  {Bool.pick(List<&2, List<&2, Tree.Node>>, me, inert.nodes(as) <> inert.hoist.css(more), inert.hoist.css(more))
+    == inert.hoist.css(Bool.pick(List<&2, List<&2, Tree.Node>>, me, as <> more, more)) : List<&2, List<&2, Tree.Node>>}
+
+def inert.hoist.pick(me, _as, _more):
+  match me:
+    case True{}: {==}
+    case False{}: {==}
+
+# two runs that read as others read that way join as their join does
+law inert.hoist.pcat2:
+  for -x1: List<&2, List<&2, Tree.Node>>
+  for +x2: List<&2, List<&2, Tree.Node>>
+  for -y1: List<&2, List<&2, Tree.Node>>
+  for +y2: List<&2, List<&2, Tree.Node>>
+  for ix: {x1 == inert.hoist.css(x2) : List<&2, List<&2, Tree.Node>>}
+  for iy: {y1 == inert.hoist.css(y2) : List<&2, List<&2, Tree.Node>>}
+  {List.concat(&2, List<&2, Tree.Node>, [x1, y1]) == inert.hoist.css(List.concat(&2, List<&2, Tree.Node>, [x2,
+    y2])) : List<&2, List<&2, Tree.Node>>}
+
+def inert.hoist.pcat2(x1, x2, y1, y2, ix, iy):
+  %Equal.sym(List<&2, List<&2, Tree.Node>>, x1, inert.hoist.css(x2), ix) :
+    {List.concat(&2, List<&2, Tree.Node>, [_, y1]) == inert.hoist.css(List.concat(&2, List<&2, Tree.Node>, [x2,
+      y2])) : List<&2, List<&2, Tree.Node>>}
+  %Equal.sym(List<&2, List<&2, Tree.Node>>, y1, inert.hoist.css(y2), iy) :
+    {List.concat(&2, List<&2, Tree.Node>, [inert.hoist.css(x2), _]) == inert.hoist.css(List.concat(&2, List<&2,
+      Tree.Node>, [x2, y2])) : List<&2, List<&2, Tree.Node>>}
+  inert.hoist.cat2(x2, y2)
+
+# three runs that read as others read that way join as their join does
+law inert.hoist.pcat3:
+  for -x1: List<&2, List<&2, Tree.Node>>
+  for +x2: List<&2, List<&2, Tree.Node>>
+  for -y1: List<&2, List<&2, Tree.Node>>
+  for +y2: List<&2, List<&2, Tree.Node>>
+  for -z1: List<&2, List<&2, Tree.Node>>
+  for +z2: List<&2, List<&2, Tree.Node>>
+  for ix: {x1 == inert.hoist.css(x2) : List<&2, List<&2, Tree.Node>>}
+  for iy: {y1 == inert.hoist.css(y2) : List<&2, List<&2, Tree.Node>>}
+  for iz: {z1 == inert.hoist.css(z2) : List<&2, List<&2, Tree.Node>>}
+  {List.concat(&2, List<&2, Tree.Node>, [x1, y1, z1]) == inert.hoist.css(List.concat(&2, List<&2, Tree.Node>, [x2, y2,
+    z2])) : List<&2, List<&2, Tree.Node>>}
+
+def inert.hoist.pcat3(x1, x2, y1, y2, z1, z2, ix, iy, iz):
+  +rhs = inert.hoist.css(List.concat(&2, List<&2, Tree.Node>, [x2, y2, z2]))
+  %Equal.sym(List<&2, List<&2, Tree.Node>>, x1, inert.hoist.css(x2), ix) : {List.concat(&2, List<&2, Tree.Node>, [_,
+    y1, z1]) == rhs : List<&2, List<&2, Tree.Node>>}
+  %Equal.sym(List<&2, List<&2, Tree.Node>>, y1, inert.hoist.css(y2), iy) : {List.concat(&2, List<&2, Tree.Node>,
+    [inert.hoist.css(x2), _, z1]) == rhs : List<&2, List<&2, Tree.Node>>}
+  %Equal.sym(List<&2, List<&2, Tree.Node>>, z1, inert.hoist.css(z2), iz) :
+    {List.concat(&2, List<&2, Tree.Node>, [inert.hoist.css(x2), inert.hoist.css(y2), _]) == rhs : List<&2, List<&2,
+      Tree.Node>>}
+  inert.hoist.cat3(x2, y2, z2)
+
+# a name then a group, both read that way: a self-call as it was, and the
+# calls under the group and after it read that way
+law inert.hoist.pushes_lg:
+  for +b: Bool
+  for +t: String
+  for +o: String
+  for +self: String
+  for +kids: Tree.Node
+  for +r2: Tree.Node
+  for +ef: {Laws.inert.fits.go(b, t) == True{} : Bool}
+  for +es: {Laws.inert.marked(self) == False{} : Bool}
+  for ik: {Hoist.pushes(Laws.inert.node(kids), self) == inert.hoist.css(Hoist.pushes(kids, self)) : List<&2, List<&2,
+    Tree.Node>>}
+  for ir: {Hoist.pushes(Laws.inert.node(r2), self) == inert.hoist.css(Hoist.pushes(r2, self)) : List<&2, List<&2,
+    Tree.Node>>}
+  {Bool.pick(List<&2, List<&2, Tree.Node>>, Bool.and(String.eq(o, "("), String.eq(Laws.inert.keep(b, t), self)),
+    Calls.args(Laws.inert.node(kids)) <> List.concat(&2, List<&2, Tree.Node>, [Hoist.pushes(Laws.inert.node(kids),
+      self), Hoist.pushes(Laws.inert.node(r2), self)]),
+    List.concat(&2, List<&2, Tree.Node>, [Hoist.pushes(Laws.inert.node(kids), self), Hoist.pushes(Laws.inert.node(r2),
+      self)]))
+    == inert.hoist.css(Bool.pick(List<&2, List<&2, Tree.Node>>, Bool.and(String.eq(o, "("), String.eq(t, self)),
+      Calls.args(kids) <> List.concat(&2, List<&2, Tree.Node>, [Hoist.pushes(kids, self), Hoist.pushes(r2, self)]),
+      List.concat(&2, List<&2, Tree.Node>, [Hoist.pushes(kids, self), Hoist.pushes(r2, self)]))) : List<&2, List<&2,
+        Tree.Node>>}
+
+def inert.hoist.pushes_lg(b, t, o, self, kids, r2, ef, es, ik, ir):
+  +m = List.concat(&2, List<&2, Tree.Node>, [Hoist.pushes(kids, self), Hoist.pushes(r2, self)])
+  +im = List.concat(&2, List<&2, Tree.Node>, [Hoist.pushes(Laws.inert.node(kids), self),
+    Hoist.pushes(Laws.inert.node(r2), self)])
+  +rhs = inert.hoist.css(Bool.pick(List<&2, List<&2, Tree.Node>>, Bool.and(String.eq(o, "("), String.eq(t, self)),
+    Calls.args(kids) <> m, m))
+  %Equal.sym(Bool, String.eq(Laws.inert.keep(b, t), self), String.eq(t, self), inert.eq_keep(b, t, self, ef, es)) :
+    {Bool.pick(List<&2, List<&2, Tree.Node>>, Bool.and(String.eq(o, "("), _), Calls.args(Laws.inert.node(kids)) <> im,
+      im) == rhs : List<&2, List<&2, Tree.Node>>}
+  %Equal.sym(List<&2, List<&2, Tree.Node>>, im, inert.hoist.css(m),
+    inert.hoist.pcat2(Hoist.pushes(Laws.inert.node(kids), self), Hoist.pushes(kids, self),
+    Hoist.pushes(Laws.inert.node(r2), self), Hoist.pushes(r2, self), ik, ir)) :
+    {Bool.pick(List<&2, List<&2, Tree.Node>>, Bool.and(String.eq(o, "("), String.eq(t, self)),
+      Calls.args(Laws.inert.node(kids)) <> _, _) == rhs : List<&2, List<&2, Tree.Node>>}
+  %Equal.sym(List<&2, Tree.Node>, Calls.args(Laws.inert.node(kids)), inert.nodes(Calls.args(kids)), inert.args(kids)) :
+    {Bool.pick(List<&2, List<&2, Tree.Node>>, Bool.and(String.eq(o, "("), String.eq(t, self)),
+      _ <> inert.hoist.css(m), inert.hoist.css(m))
+      == rhs : List<&2, List<&2, Tree.Node>>}
+  inert.hoist.pick(Bool.and(String.eq(o, "("), String.eq(t, self)), Calls.args(kids), m)
+
+# the self-calls under a node read that way are its self-calls, each argument
+# read that way: a string is never the def's name
+law inert.hoist.pushes:
+  for nn: Tree.Node
+  for +self: String
+  for +es: {Laws.inert.marked(self) == False{} : Bool}
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Hoist.pushes(Laws.inert.node(nn), self) == inert.hoist.css(Hoist.pushes(nn, self)) : List<&2, List<&2, Tree.Node>>}
+
+def inert.hoist.pushes(nn, self, es, e):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              match rest:
+                case Tree.NCons{h2, +r2}:
+                  match h2:
+                    case Tree.Group{go, +kids, +gcl}:
+                      match go:
+                        case Lex.Tok{+gk, +o, +gl, +gc}:
+                          +lf = {Tree.Leaf{Lex.Tok{k, t, l, c}} : Tree.Node}
+                          +gp = {Tree.Group{Lex.Tok{gk, o, gl, gc}, kids, gcl} : Tree.Node}
+                          +eg = inert.ok_t(lf, Tree.NCons{gp, r2}, e)
+                          inert.hoist.pushes_lg(Laws.inert.blanks(k), t, o, self, kids, r2,
+                            inert.ok_h(lf, Tree.NCons{gp, r2}, e), es,
+                            inert.hoist.pushes(kids, self, es, inert.ok_h(gp, r2, eg)),
+                            inert.hoist.pushes(r2, self, es, inert.ok_t(gp, r2, eg)))
+                    case Tree.Leaf{x}:
+                      inert.hoist.pushes(rest, self, es, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.Stmt{x, y, z}:
+                      inert.hoist.pushes(rest, self, es, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.NNil{}:
+                      inert.hoist.pushes(rest, self, es, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.NCons{x, y}:
+                      inert.hoist.pushes(rest, self, es, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.Leaf{x}:
+                  inert.hoist.pushes(rest, self, es, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.Group{x, y, z}:
+                  inert.hoist.pushes(rest, self, es, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.Stmt{x, y, z}:
+                  inert.hoist.pushes(rest, self, es, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.NNil{}:
+                  inert.hoist.pushes(rest, self, es, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+        case Tree.Group{+o, +kids, +cl}:
+          inert.hoist.pcat2(Hoist.pushes(Laws.inert.node(kids), self), Hoist.pushes(kids, self),
+            Hoist.pushes(Laws.inert.node(rest), self),
+            Hoist.pushes(rest, self), inert.hoist.pushes(kids, self, es, inert.ok_h(Tree.Group{o, kids, cl}, rest, e)),
+            inert.hoist.pushes(rest, self, es, inert.ok_t(Tree.Group{o, kids, cl}, rest, e)))
+        case Tree.Stmt{+sk, +kids, +body}:
+          +es2 = inert.ok_h(Tree.Stmt{sk, kids, body}, rest, e)
+          inert.hoist.pcat3(Hoist.pushes(Laws.inert.node(kids), self), Hoist.pushes(kids, self),
+            Hoist.pushes(Laws.inert.node(body), self),
+            Hoist.pushes(body, self), Hoist.pushes(Laws.inert.node(rest), self), Hoist.pushes(rest, self),
+            inert.hoist.pushes(kids, self, es, inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es2)),
+            inert.hoist.pushes(body, self, es, inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es2)),
+            inert.hoist.pushes(rest, self, es, inert.ok_t(Tree.Stmt{sk, kids, body}, rest, e)))
+        case Tree.NNil{}: inert.hoist.pushes(rest, self, es, e)
+        case Tree.NCons{x, y}: inert.hoist.pushes(rest, self, es, inert.ok_t(Tree.NCons{x, y}, rest, e))
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# a chain read that way is exactly the name as it was: only a name's text is read
+law inert.hoist.lone_eq:
+  for nn: Tree.Node
+  for +name: String
+  {Hoist.lone_eq(Laws.inert.node(nn), name) == Hoist.lone_eq(nn, name) : Bool}
+
+def inert.hoist.lone_eq(nn, _name):
+  match nn:
+    case Tree.NCons{h, r}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, t, l, c}:
+              match k:
+                case Lex.TName{}:
+                  match r:
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                    case Tree.NCons{x, y}: {==}
+                case Lex.TUpper{}: {==}
+                case Lex.TDotted{}: {==}
+                case Lex.TWild{}: {==}
+                case Lex.TKey{}: {==}
+                case Lex.TNum{}: {==}
+                case Lex.TStr{}: {==}
+                case Lex.TChar{}: {==}
+                case Lex.TComment{}: {==}
+                case Lex.TSpace{}: {==}
+                case Lex.TNewline{}: {==}
+                case Lex.TOp{}: {==}
+                case Lex.TColon{}: {==}
+                case Lex.TEq{}: {==}
+                case Lex.TBind{}: {==}
+                case Lex.TArrow{}: {==}
+                case Lex.TLam{}: {==}
+                case Lex.TAll{}: {==}
+                case Lex.TAmp{}: {==}
+                case Lex.TOpen{}: {==}
+                case Lex.TClose{}: {==}
+                case Lex.TComma{}: {==}
+        case Tree.Group{x, y, z}: {==}
+        case Tree.Stmt{x, y, z}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# every self-call, its arguments read that way, passes the name at the
+# argument as it did
+law inert.hoist.all_same:
+  for cs: List<&2, List<&2, Tree.Node>>
+  for +ii: Nat
+  for +name: String
+  {Hoist.all_same(inert.hoist.css(cs), ii, name) == Hoist.all_same(cs, ii, name) : Bool}
+
+def inert.hoist.all_same(cs, ii, name):
+  match cs:
+    case Nil{}: {==}
+    case Con{+as, +rest}:
+      +lhs = Hoist.all_same(inert.hoist.css(Con{as, rest}), ii, name)
+      %inert.hoist.all_same(rest, ii, name) :
+        {lhs == Bool.and(Hoist.lone_eq(Calls.arg(as, ii), name), _) : Bool}
+      %inert.hoist.lone_eq(Calls.arg(as, ii), name) :
+        {lhs == Bool.and(_, Hoist.all_same(inert.hoist.css(rest), ii, name)) : Bool}
+      %inert.arg(as, ii) :
+        {lhs == Bool.and(Hoist.lone_eq(_, name), Hoist.all_same(inert.hoist.css(rest), ii, name)) : Bool}
+      {==}
+
+# the parameters every self-call passes unchanged, parameters and calls read
+# that way
+law inert.hoist.carried.go:
+  for ps: List<&2, Tree.Node>
+  for +cs: List<&2, List<&2, Tree.Node>>
+  for +ii: Nat
+  for +acc: List<&2, String>
+  {Hoist.carried.go(inert.nodes(ps), inert.hoist.css(cs), ii, acc) == Hoist.carried.go(ps, cs, ii, acc) : List<&2,
+    String>}
+
+def inert.hoist.carried.go(ps, cs, ii, acc):
+  match ps:
+    case Nil{}: {==}
+    case Con{+p, +rest}:
+      +nm = Calls.param_name(p)
+      +lhs = Hoist.carried.go(inert.nodes(Con{p, rest}), inert.hoist.css(cs), ii, acc)
+      %inert.hoist.all_same(cs, ii, nm) :
+        {lhs == Hoist.carried.go(rest, cs, (ii + 1n : Nat), Bool.pick(List<&2, String>,
+          Bool.and(Bool.not(String.is_empty(nm)),
+          _), nm <> acc, acc)) : List<&2, String>}
+      %inert.hoist.carried.go(rest, cs, (ii + 1n : Nat),
+          Bool.pick(List<&2, String>, Bool.and(Bool.not(String.is_empty(nm)), Hoist.all_same(inert.hoist.css(cs), ii,
+            nm)),
+            nm <> acc, acc)) :
+        {lhs == _ : List<&2, String>}
+      %Equal.sym(String, Calls.param_name(Laws.inert.node(p)), nm, inert.param_name(p)) :
+        {Hoist.carried.go(inert.nodes(rest), inert.hoist.css(cs), (ii + 1n : Nat),
+          Bool.pick(List<&2, String>, Bool.and(Bool.not(String.is_empty(_)), Hoist.all_same(inert.hoist.css(cs), ii,
+            _)),
+            _ <> acc, acc))
+          == Hoist.carried.go(inert.nodes(rest), inert.hoist.css(cs), (ii + 1n : Nat),
+            Bool.pick(List<&2, String>, Bool.and(Bool.not(String.is_empty(nm)), Hoist.all_same(inert.hoist.css(cs),
+              ii, nm)),
+              nm <> acc, acc)) : List<&2, String>}
+      {==}
+
+# parameters passed through unchanged, calls and signature read that way
+law inert.hoist.carried_of:
+  for cs: List<&2, List<&2, Tree.Node>>
+  for +sig: Tree.Node
+  {Hoist.carried_of(inert.hoist.css(cs), Laws.inert.node(sig)) == Hoist.carried_of(cs, sig) : List<&2, String>}
+
+def inert.hoist.carried_of(cs, sig):
+  match cs:
+    case Nil{}: {==}
+    case Con{+h, +t}:
+      +rhs = Hoist.carried_of(Con{h, t}, sig)
+      %Equal.sym(Tree.Node, Calls.params.of(Laws.inert.node(sig)), Laws.inert.node(Calls.params.of(sig)),
+        inert.params.of(sig)) :
+        {Hoist.carried.go(Calls.args(_), inert.hoist.css(h <> t), 0n, []) == rhs : List<&2, String>}
+      %Equal.sym(List<&2, Tree.Node>, Calls.args(Laws.inert.node(Calls.params.of(sig))), inert.nodes(Calls.params(sig)),
+        inert.args(Calls.params.of(sig))) :
+        {Hoist.carried.go(_, inert.hoist.css(h <> t), 0n, []) == rhs : List<&2, String>}
+      inert.hoist.carried.go(Calls.params(sig), h <> t, 0n, [])
+
+# the parameters a def carries, its signature and body read that way
+law inert.hoist.carried:
+  for +sig: Tree.Node
+  for +body: Tree.Node
+  for +self: String
+  for +es: {Laws.inert.marked(self) == False{} : Bool}
+  for +eb: {Laws.inert.ok(body) == True{} : Bool}
+  {Hoist.carried(Laws.inert.node(sig), Laws.inert.node(body), self) == Hoist.carried(sig, body, self) : List<&2,
+    String>}
+
+def inert.hoist.carried(sig, body, self, es, eb):
+  %Equal.sym(List<&2, List<&2, Tree.Node>>, Hoist.pushes(Laws.inert.node(body), self),
+    inert.hoist.css(Hoist.pushes(body, self)),
+    inert.hoist.pushes(body, self, es, eb)) : {Hoist.carried_of(_, Laws.inert.node(sig)) == Hoist.carried(sig, body,
+      self) : List<&2, String>}
+  inert.hoist.carried_of(Hoist.pushes(body, self), sig)
+
+# two ands whose sides read alike read alike
+law inert.hoist.and2:
+  for -a1: Bool
+  for -a2: Bool
+  for -b1: Bool
+  for -b2: Bool
+  for ea: {a1 == a2 : Bool}
+  for eb: {b1 == b2 : Bool}
+  {Bool.and(a1, b1) == Bool.and(a2, b2) : Bool}
+
+def inert.hoist.and2(a1, _a2, b1, b2, ea, eb):
+  %ea : {Bool.and(a1, b1) == Bool.and(_, b2) : Bool}
+  %eb : {Bool.and(a1, b1) == Bool.and(a1, _) : Bool}
+  {==}
+
+# two ors whose sides read alike read alike
+law inert.hoist.or2:
+  for -a1: Bool
+  for -a2: Bool
+  for -b1: Bool
+  for -b2: Bool
+  for ea: {a1 == a2 : Bool}
+  for eb: {b1 == b2 : Bool}
+  {Bool.or(a1, b1) == Bool.or(a2, b2) : Bool}
+
+def inert.hoist.or2(a1, _a2, b1, b2, ea, eb):
+  %ea : {Bool.or(a1, b1) == Bool.or(_, b2) : Bool}
+  %eb : {Bool.or(a1, b1) == Bool.or(a1, _) : Bool}
+  {==}
+
+# a token read that way names a carried parameter as it did: only a name's
+# text is read
+law inert.hoist.name_ok:
+  for k: Lex.TokKind
+  for +t: String
+  for +carried: List<&2, String>
+  {Hoist.name_ok(k, Laws.inert.keep(Laws.inert.blanks(k), t), carried) == Hoist.name_ok(k, t, carried) : Bool}
+
+def inert.hoist.name_ok(k, _t, _carried):
+  match k:
+    case Lex.TName{}: {==}
+    case Lex.TUpper{}: {==}
+    case Lex.TDotted{}: {==}
+    case Lex.TWild{}: {==}
+    case Lex.TKey{}: {==}
+    case Lex.TNum{}: {==}
+    case Lex.TStr{}: {==}
+    case Lex.TChar{}: {==}
+    case Lex.TComment{}: {==}
+    case Lex.TSpace{}: {==}
+    case Lex.TNewline{}: {==}
+    case Lex.TOp{}: {==}
+    case Lex.TColon{}: {==}
+    case Lex.TEq{}: {==}
+    case Lex.TBind{}: {==}
+    case Lex.TArrow{}: {==}
+    case Lex.TLam{}: {==}
+    case Lex.TAll{}: {==}
+    case Lex.TAmp{}: {==}
+    case Lex.TOpen{}: {==}
+    case Lex.TClose{}: {==}
+    case Lex.TComma{}: {==}
+
+# a token after an operator, read that way, is closed as it was
+law inert.hoist.leaf_ok:
+  for skip: Bool
+  for tok: Lex.Tok
+  for +carried: List<&2, String>
+  {Hoist.leaf_ok(skip, Laws.inert.tok(tok), carried) == Hoist.leaf_ok(skip, tok, carried) : Bool}
+
+def inert.hoist.leaf_ok(skip, tok, carried):
+  match skip:
+    case True{}: {==}
+    case False{}:
+      match tok:
+        case Lex.Tok{k, +t, l, c}: inert.hoist.name_ok(k, t, carried)
+
+# a token before a group, read that way, is closed as it was
+law inert.hoist.value_ok:
+  for app: Bool
+  for k: Lex.TokKind
+  for +t: String
+  for +carried: List<&2, String>
+  {Hoist.value_ok(app, k, Laws.inert.keep(Laws.inert.blanks(k), t), carried) == Hoist.value_ok(app, k, t, carried)
+    : Bool}
+
+def inert.hoist.value_ok(app, k, t, carried):
+  match app:
+    case True{}: {==}
+    case False{}: inert.hoist.name_ok(k, t, carried)
+
+# a token then a group, read that way: closed as it was, the group and the
+# rest too
+law inert.hoist.closed_lg:
+  for k: Lex.TokKind
+  for +t: String
+  for +o: String
+  for +kids: Tree.Node
+  for +r2: Tree.Node
+  for +carried: List<&2, String>
+  for ik: {Hoist.closed(Laws.inert.node(kids), carried) == Hoist.closed(kids, carried) : Bool}
+  for ir: {Hoist.closed(Laws.inert.node(r2), carried) == Hoist.closed(r2, carried) : Bool}
+  {Bool.and(Hoist.value_ok(String.eq(o, "("), k, Laws.inert.keep(Laws.inert.blanks(k), t), carried),
+    Bool.and(Hoist.closed(Laws.inert.node(kids), carried), Hoist.closed(Laws.inert.node(r2), carried)))
+    == Bool.and(Hoist.value_ok(String.eq(o, "("), k, t, carried), Bool.and(Hoist.closed(kids, carried),
+      Hoist.closed(r2, carried))) : Bool}
+
+def inert.hoist.closed_lg(k, t, o, kids, r2, carried, ik, ir):
+  inert.hoist.and2(Hoist.value_ok(String.eq(o, "("), k, Laws.inert.keep(Laws.inert.blanks(k), t), carried),
+    Hoist.value_ok(String.eq(o, "("), k, t, carried), Bool.and(Hoist.closed(Laws.inert.node(kids), carried),
+      Hoist.closed(Laws.inert.node(r2), carried)), Bool.and(Hoist.closed(kids, carried), Hoist.closed(r2, carried)),
+    inert.hoist.value_ok(String.eq(o, "("), k, t, carried),
+    inert.hoist.and2(Hoist.closed(Laws.inert.node(kids), carried), Hoist.closed(kids, carried),
+      Hoist.closed(Laws.inert.node(r2), carried),
+      Hoist.closed(r2, carried), ik, ir))
+
+# a chain read that way is closed over the carried parameters as it was: a
+# string is never a value name
+law inert.hoist.closed:
+  for nn: Tree.Node
+  for +carried: List<&2, String>
+  {Hoist.closed(Laws.inert.node(nn), carried) == Hoist.closed(nn, carried) : Bool}
+
+def inert.hoist.closed(nn, carried):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, +t, l, c}:
+              match k:
+                case Lex.TName{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TName{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}:
+                          Equal.cong(Bool, Bool, z => Bool.and(List.contains(~String, ~String.eq, carried, t), z),
+                            Hoist.closed(Laws.inert.node(rest), carried), Hoist.closed(rest, carried),
+                            inert.hoist.closed(rest, carried))
+                        case Tree.Stmt{x, y, z}:
+                          Equal.cong(Bool, Bool, z => Bool.and(List.contains(~String, ~String.eq, carried, t), z),
+                            Hoist.closed(Laws.inert.node(rest), carried), Hoist.closed(rest, carried),
+                            inert.hoist.closed(rest, carried))
+                        case Tree.NNil{}:
+                          Equal.cong(Bool, Bool, z => Bool.and(List.contains(~String, ~String.eq, carried, t), z),
+                            Hoist.closed(Laws.inert.node(rest), carried), Hoist.closed(rest, carried),
+                            inert.hoist.closed(rest, carried))
+                        case Tree.NCons{x, y}:
+                          Equal.cong(Bool, Bool, z => Bool.and(List.contains(~String, ~String.eq, carried, t), z),
+                            Hoist.closed(Laws.inert.node(rest), carried), Hoist.closed(rest, carried),
+                            inert.hoist.closed(rest, carried))
+                    case Tree.Leaf{x}:
+                      Equal.cong(Bool, Bool, z => Bool.and(List.contains(~String, ~String.eq, carried, t), z),
+                        Hoist.closed(Laws.inert.node(rest), carried), Hoist.closed(rest, carried),
+                        inert.hoist.closed(rest, carried))
+                    case Tree.Group{x, y, z}:
+                      Equal.cong(Bool, Bool, z => Bool.and(List.contains(~String, ~String.eq, carried, t), z),
+                        Hoist.closed(Laws.inert.node(rest), carried), Hoist.closed(rest, carried),
+                        inert.hoist.closed(rest, carried))
+                    case Tree.Stmt{x, y, z}:
+                      Equal.cong(Bool, Bool, z => Bool.and(List.contains(~String, ~String.eq, carried, t), z),
+                        Hoist.closed(Laws.inert.node(rest), carried), Hoist.closed(rest, carried),
+                        inert.hoist.closed(rest, carried))
+                    case Tree.NNil{}:
+                      Equal.cong(Bool, Bool, z => Bool.and(List.contains(~String, ~String.eq, carried, t), z),
+                        Hoist.closed(Laws.inert.node(rest), carried), Hoist.closed(rest, carried),
+                        inert.hoist.closed(rest, carried))
+                case Lex.TUpper{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TUpper{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TDotted{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TDotted{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TWild{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TWild{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TKey{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TKey{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TNum{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TNum{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TStr{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TStr{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TChar{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TChar{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TComment{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TComment{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TSpace{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TSpace{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TNewline{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TNewline{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TOp{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}: inert.hoist.closed(rest, carried)
+                        case Tree.Leaf{+tok2}:
+                          inert.hoist.and2(Hoist.leaf_ok(String.eq(t, "~"), Laws.inert.tok(tok2), carried),
+                            Hoist.leaf_ok(String.eq(t, "~"), tok2, carried), Hoist.closed(Laws.inert.node(r2),
+                            carried), Hoist.closed(r2, carried), inert.hoist.leaf_ok(String.eq(t, "~"), tok2,
+                            carried), inert.hoist.closed(r2, carried))
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TColon{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TColon{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TEq{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TEq{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TBind{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TBind{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TArrow{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TArrow{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TLam{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TLam{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TAll{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TAll{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TAmp{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TAmp{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TOpen{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TOpen{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TClose{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TClose{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                case Lex.TComma{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{go, +kids, gcl}:
+                          match go:
+                            case Lex.Tok{gk, +o, gl, gc}:
+                              inert.hoist.closed_lg(Lex.TComma{}, t, o, kids, r2, carried, inert.hoist.closed(kids,
+                                carried), inert.hoist.closed(r2, carried))
+                        case Tree.Leaf{+tok2}: inert.hoist.closed(rest, carried)
+                        case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+                        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+                    case Tree.Leaf{x}: inert.hoist.closed(rest, carried)
+                    case Tree.Group{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.Stmt{x, y, z}: inert.hoist.closed(rest, carried)
+                    case Tree.NNil{}: inert.hoist.closed(rest, carried)
+        case Tree.Group{o, +kids, cl}:
+          inert.hoist.and2(Hoist.closed(Laws.inert.node(kids), carried), Hoist.closed(kids, carried),
+            Hoist.closed(Laws.inert.node(rest), carried),
+            Hoist.closed(rest, carried), inert.hoist.closed(kids, carried), inert.hoist.closed(rest, carried))
+        case Tree.Stmt{sk, +kids, +body}:
+          inert.hoist.and2(Hoist.closed(Laws.inert.node(kids), carried), Hoist.closed(kids, carried),
+            Bool.and(Hoist.closed(Laws.inert.node(body), carried), Hoist.closed(Laws.inert.node(rest), carried)),
+            Bool.and(Hoist.closed(body, carried), Hoist.closed(rest, carried)), inert.hoist.closed(kids, carried),
+            inert.hoist.and2(Hoist.closed(Laws.inert.node(body), carried), Hoist.closed(body, carried),
+              Hoist.closed(Laws.inert.node(rest), carried), Hoist.closed(rest, carried), inert.hoist.closed(body,
+                carried),
+              inert.hoist.closed(rest, carried)))
+        case Tree.NNil{}: inert.hoist.closed(rest, carried)
+        case Tree.NCons{x, y}: inert.hoist.closed(rest, carried)
+    case Tree.Leaf{tok}:
+      match tok:
+        case Lex.Tok{k, t, l, c}:
+          match k:
+            case Lex.TName{}: {==}
+            case Lex.TUpper{}: {==}
+            case Lex.TDotted{}: {==}
+            case Lex.TWild{}: {==}
+            case Lex.TKey{}: {==}
+            case Lex.TNum{}: {==}
+            case Lex.TStr{}: {==}
+            case Lex.TChar{}: {==}
+            case Lex.TComment{}: {==}
+            case Lex.TSpace{}: {==}
+            case Lex.TNewline{}: {==}
+            case Lex.TOp{}: {==}
+            case Lex.TColon{}: {==}
+            case Lex.TEq{}: {==}
+            case Lex.TBind{}: {==}
+            case Lex.TArrow{}: {==}
+            case Lex.TLam{}: {==}
+            case Lex.TAll{}: {==}
+            case Lex.TAmp{}: {==}
+            case Lex.TOpen{}: {==}
+            case Lex.TClose{}: {==}
+            case Lex.TComma{}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# a chain read that way holds a top-level token of an unmarked text as it did
+law inert.hoist.top_mark:
+  for nn: Tree.Node
+  for +want: String
+  for +ew: {Laws.inert.marked(want) == False{} : Bool}
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Hoist.top_mark(Laws.inert.node(nn), want) == Hoist.top_mark(nn, want) : Bool}
+
+def inert.hoist.top_mark(nn, want, ew, e):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              inert.or2(String.eq(Laws.inert.keep(Laws.inert.blanks(k), t), want), String.eq(t, want),
+                Hoist.top_mark(Laws.inert.node(rest), want), Hoist.top_mark(rest, want),
+                inert.eq_keep(Laws.inert.blanks(k), t, want, inert.ok_h(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e), ew),
+                inert.hoist.top_mark(rest, want, ew, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e)))
+        case Tree.Group{o, gk, cl}: inert.hoist.top_mark(rest, want, ew, inert.ok_t(Tree.Group{o, gk, cl}, rest, e))
+        case Tree.Stmt{sk, sks, sb}: inert.hoist.top_mark(rest, want, ew, inert.ok_t(Tree.Stmt{sk, sks, sb}, rest, e))
+        case Tree.NNil{}: inert.hoist.top_mark(rest, want, ew, e)
+        case Tree.NCons{x, y}: inert.hoist.top_mark(rest, want, ew, inert.ok_t(Tree.NCons{x, y}, rest, e))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a chain read that way holds as many top-level tokens of an unmarked text as
+# it did
+law inert.hoist.top_count:
+  for nn: Tree.Node
+  for +want: String
+  for +got: Nat
+  for +ew: {Laws.inert.marked(want) == False{} : Bool}
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Hoist.top_count(Laws.inert.node(nn), want, got) == Hoist.top_count(nn, want, got) : Nat}
+
+def inert.hoist.top_count(nn, want, got, ew, e):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              +lf = {Tree.Leaf{Lex.Tok{k, t, l, c}} : Tree.Node}
+              +lhs = Hoist.top_count(Laws.inert.node(Tree.NCons{lf, rest}), want, got)
+              %inert.hoist.top_count(rest, want, Bool.pick(Nat, String.eq(t, want), (got + 1n : Nat), got), ew,
+                inert.ok_t(lf, rest, e)) : {lhs == _ : Nat}
+              %inert.eq_keep(Laws.inert.blanks(k), t, want, inert.ok_h(lf, rest, e), ew) :
+                {lhs == Hoist.top_count(Laws.inert.node(rest), want, Bool.pick(Nat, _, (got + 1n : Nat), got)) : Nat}
+              {==}
+        case Tree.Group{o, gk, cl}:
+          inert.hoist.top_count(rest, want, got, ew, inert.ok_t(Tree.Group{o, gk, cl}, rest, e))
+        case Tree.Stmt{sk, sks, sb}:
+          inert.hoist.top_count(rest, want, got, ew, inert.ok_t(Tree.Stmt{sk, sks, sb}, rest, e))
+        case Tree.NNil{}: inert.hoist.top_count(rest, want, got, ew, e)
+        case Tree.NCons{x, y}: inert.hoist.top_count(rest, want, got, ew, inert.ok_t(Tree.NCons{x, y}, rest, e))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a bracket's kids read that way are an array as they were
+law inert.hoist.is_array:
+  for +kids: Tree.Node
+  for +e: {Laws.inert.ok(kids) == True{} : Bool}
+  {Hoist.is_array(Laws.inert.node(kids)) == Hoist.is_array(kids) : Bool}
+
+def inert.hoist.is_array(kids, e):
+  +lhs = Hoist.is_array(Laws.inert.node(kids))
+  %inert.hoist.top_mark(kids, ":", {==}, e) :
+    {lhs == Bool.and(_, Bool.or(Hoist.top_mark(kids, "*"), Hoist.top_mark(kids, "^"))) : Bool}
+  %inert.hoist.top_mark(kids, "*", {==}, e) :
+    {lhs == Bool.and(Hoist.top_mark(Laws.inert.node(kids), ":"), Bool.or(_, Hoist.top_mark(kids, "^"))) : Bool}
+  %inert.hoist.top_mark(kids, "^", {==}, e) :
+    {lhs == Bool.and(Hoist.top_mark(Laws.inert.node(kids), ":"), Bool.or(Hoist.top_mark(Laws.inert.node(kids), "*"),
+      _)) : Bool}
+  {==}
+
+# a chain read that way is sized small as it was: an operator's and a
+# number's text are read, never a string's
+law inert.hoist.small_size:
+  for nn: Tree.Node
+  {Hoist.small_size(Laws.inert.node(nn)) == Hoist.small_size(nn) : Bool}
+
+def inert.hoist.small_size(nn):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, op, l, c}:
+              match k:
+                case Lex.TName{}: inert.hoist.small_size(rest)
+                case Lex.TUpper{}: inert.hoist.small_size(rest)
+                case Lex.TDotted{}: inert.hoist.small_size(rest)
+                case Lex.TWild{}: inert.hoist.small_size(rest)
+                case Lex.TKey{}: inert.hoist.small_size(rest)
+                case Lex.TNum{}: inert.hoist.small_size(rest)
+                case Lex.TStr{}: inert.hoist.small_size(rest)
+                case Lex.TChar{}: inert.hoist.small_size(rest)
+                case Lex.TComment{}: inert.hoist.small_size(rest)
+                case Lex.TSpace{}: inert.hoist.small_size(rest)
+                case Lex.TNewline{}: inert.hoist.small_size(rest)
+                case Lex.TOp{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Leaf{tok2}:
+                          match tok2:
+                            case Lex.Tok{k2, t2, l2, c2}:
+                              match k2:
+                                case Lex.TName{}: inert.hoist.small_size(rest)
+                                case Lex.TUpper{}: inert.hoist.small_size(rest)
+                                case Lex.TDotted{}: inert.hoist.small_size(rest)
+                                case Lex.TWild{}: inert.hoist.small_size(rest)
+                                case Lex.TKey{}: inert.hoist.small_size(rest)
+                                case Lex.TNum{}:
+                                  Equal.cong(Bool, Bool, z => Bool.or(Bool.or(Bool.and(String.eq(op, "*"),
+                                    Hoist.small_num(t2)), Bool.and(String.eq(op, "^"), List.contains(~String,
+                                    ~String.eq, ["0", "1", "2", "3", "0n", "1n", "2n", "3n"], t2))), z),
+                                    Hoist.small_size(Laws.inert.node(r2)), Hoist.small_size(r2),
+                                    inert.hoist.small_size(r2))
+                                case Lex.TStr{}: inert.hoist.small_size(rest)
+                                case Lex.TChar{}: inert.hoist.small_size(rest)
+                                case Lex.TComment{}: inert.hoist.small_size(rest)
+                                case Lex.TSpace{}: inert.hoist.small_size(rest)
+                                case Lex.TNewline{}: inert.hoist.small_size(rest)
+                                case Lex.TOp{}: inert.hoist.small_size(rest)
+                                case Lex.TColon{}: inert.hoist.small_size(rest)
+                                case Lex.TEq{}: inert.hoist.small_size(rest)
+                                case Lex.TBind{}: inert.hoist.small_size(rest)
+                                case Lex.TArrow{}: inert.hoist.small_size(rest)
+                                case Lex.TLam{}: inert.hoist.small_size(rest)
+                                case Lex.TAll{}: inert.hoist.small_size(rest)
+                                case Lex.TAmp{}: inert.hoist.small_size(rest)
+                                case Lex.TOpen{}: inert.hoist.small_size(rest)
+                                case Lex.TClose{}: inert.hoist.small_size(rest)
+                                case Lex.TComma{}: inert.hoist.small_size(rest)
+                        case Tree.Group{x, y, z}: inert.hoist.small_size(rest)
+                        case Tree.Stmt{x, y, z}: inert.hoist.small_size(rest)
+                        case Tree.NNil{}: inert.hoist.small_size(rest)
+                        case Tree.NCons{x, y}: inert.hoist.small_size(rest)
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TColon{}: inert.hoist.small_size(rest)
+                case Lex.TEq{}: inert.hoist.small_size(rest)
+                case Lex.TBind{}: inert.hoist.small_size(rest)
+                case Lex.TArrow{}: inert.hoist.small_size(rest)
+                case Lex.TLam{}: inert.hoist.small_size(rest)
+                case Lex.TAll{}: inert.hoist.small_size(rest)
+                case Lex.TAmp{}: inert.hoist.small_size(rest)
+                case Lex.TOpen{}: inert.hoist.small_size(rest)
+                case Lex.TClose{}: inert.hoist.small_size(rest)
+                case Lex.TComma{}: inert.hoist.small_size(rest)
+        case Tree.Group{o, gk, cl}: inert.hoist.small_size(rest)
+        case Tree.Stmt{sk, sks, sb}: inert.hoist.small_size(rest)
+        case Tree.NNil{}: inert.hoist.small_size(rest)
+        case Tree.NCons{x, y}: inert.hoist.small_size(rest)
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a table's kids read that way are as wide as they were
+law inert.hoist.wide_shape:
+  for arr: Bool
+  for +kids: Tree.Node
+  for +e: {Laws.inert.ok(kids) == True{} : Bool}
+  {Hoist.wide_shape(arr, Laws.inert.node(kids)) == Hoist.wide_shape(arr, kids) : Bool}
+
+def inert.hoist.wide_shape(arr, kids, e):
+  match arr:
+    case True{}:
+      Equal.cong(Bool, Bool, z => Bool.not(z), Hoist.small_size(Laws.inert.node(kids)), Hoist.small_size(kids),
+        inert.hoist.small_size(kids))
+    case False{}:
+      Equal.cong(Nat, Bool, z => Nat.is_gt(z, 7n), Hoist.top_count(Laws.inert.node(kids), ",", 0n),
+        Hoist.top_count(kids, ",", 0n),
+        inert.hoist.top_count(kids, ",", 0n, {==}, e))
+
+# a chain read that way is the number it was: only a number's text is read
+law inert.hoist.num_text:
+  for nn: Tree.Node
+  {Hoist.num_text(Laws.inert.node(nn)) == Hoist.num_text(nn) : String}
+
+def inert.hoist.num_text(nn):
+  match nn:
+    case Tree.NCons{h, r}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, t, l, c}:
+              match k:
+                case Lex.TName{}: {==}
+                case Lex.TUpper{}: {==}
+                case Lex.TDotted{}: {==}
+                case Lex.TWild{}: {==}
+                case Lex.TKey{}: {==}
+                case Lex.TNum{}:
+                  match r:
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                    case Tree.NCons{x, y}: {==}
+                case Lex.TStr{}: {==}
+                case Lex.TChar{}: {==}
+                case Lex.TComment{}: {==}
+                case Lex.TSpace{}: {==}
+                case Lex.TNewline{}: {==}
+                case Lex.TOp{}: {==}
+                case Lex.TColon{}: {==}
+                case Lex.TEq{}: {==}
+                case Lex.TBind{}: {==}
+                case Lex.TArrow{}: {==}
+                case Lex.TLam{}: {==}
+                case Lex.TAll{}: {==}
+                case Lex.TAmp{}: {==}
+                case Lex.TOpen{}: {==}
+                case Lex.TClose{}: {==}
+                case Lex.TComma{}: {==}
+        case Tree.Group{x, y, z}: {==}
+        case Tree.Stmt{x, y, z}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# a count read that way is wide as it was
+law inert.hoist.count_wide:
+  for +aa: Tree.Node
+  {Hoist.count_wide(Laws.inert.node(aa)) == Hoist.count_wide(aa) : Bool}
+
+def inert.hoist.count_wide(aa):
+  Equal.cong(String, Bool, z => Bool.not(Hoist.small_num(z)), Hoist.num_text(Laws.inert.node(aa)), Hoist.num_text(aa),
+    inert.hoist.num_text(aa))
+
+# the last of the arguments read that way is the last read that way
+law inert.hoist.last_node:
+  for as: List<&2, Tree.Node>
+  {Hoist.last_node(inert.nodes(as)) == Laws.inert.node(Hoist.last_node(as)) : Tree.Node}
+
+def inert.hoist.last_node(as):
+  match as:
+    case Nil{}: {==}
+    case Con{h, +rest}:
+      match rest:
+        case Nil{}: {==}
+        case Con{x, y}: inert.hoist.last_node(rest)
+
+# a builder's count read that way is wide as it was
+law inert.hoist.call_arm:
+  for rep: Bool
+  for +as: List<&2, Tree.Node>
+  for +end: Tree.Node
+  for +range: Bool
+  {Hoist.call_arm(rep, inert.nodes(as), Laws.inert.node(end), range) == Hoist.call_arm(rep, as, end, range) : Bool}
+
+def inert.hoist.call_arm(rep, as, end, range):
+  match rep:
+    case True{}:
+      %Equal.sym(Tree.Node, Calls.arg(inert.nodes(as), 2n), Laws.inert.node(Calls.arg(as, 2n)), inert.arg(as, 2n)) :
+        {Hoist.count_wide(_) == Hoist.count_wide(Calls.arg(as, 2n)) : Bool}
+      inert.hoist.count_wide(Calls.arg(as, 2n))
+    case False{}:
+      Equal.cong(Bool, Bool, z => Bool.pick(Bool, range, z, True{}), Hoist.count_wide(Laws.inert.node(end)),
+        Hoist.count_wide(end),
+        inert.hoist.count_wide(end))
+
+# a builder call read that way is wide as it was: a string names no builder
+law inert.hoist.call_wide:
+  for +b: Bool
+  for +t: String
+  for +kids: Tree.Node
+  for +ef: {Laws.inert.fits.go(b, t) == True{} : Bool}
+  {Hoist.call_wide(Laws.inert.keep(b, t), Laws.inert.node(kids)) == Hoist.call_wide(t, kids) : Bool}
+
+def inert.hoist.call_wide(b, t, kids, ef):
+  +kt = Laws.inert.keep(b, t)
+  +lhs = Hoist.call_wide(kt, Laws.inert.node(kids))
+  +aa = Calls.args(kids)
+  +rp = Bool.or(String.eq(kt, "List.replicate"), String.eq(kt, "Array.new"))
+  +rg = String.eq(kt, "List.range")
+  %inert.eq_keep(b, t, "List.replicate", ef, {==}) :
+    {lhs == Hoist.call_arm(Bool.or(_, String.eq(t, "Array.new")), aa, Hoist.last_node(aa), String.eq(t, "List.range"))
+      : Bool}
+  %inert.eq_keep(b, t, "Array.new", ef, {==}) :
+    {lhs == Hoist.call_arm(Bool.or(String.eq(kt, "List.replicate"), _), aa, Hoist.last_node(aa),
+      String.eq(t, "List.range")) : Bool}
+  %inert.eq_keep(b, t, "List.range", ef, {==}) : {lhs == Hoist.call_arm(rp, aa, Hoist.last_node(aa), _) : Bool}
+  %inert.hoist.call_arm(rp, aa, Hoist.last_node(aa), rg) : {lhs == _ : Bool}
+  %inert.hoist.last_node(aa) : {lhs == Hoist.call_arm(rp, inert.nodes(aa), _, rg) : Bool}
+  %inert.args(kids) : {lhs == Hoist.call_arm(rp, _, Hoist.last_node(_), rg) : Bool}
+  {==}
+
+# a table's cells read that way are as wide as they were
+law inert.hoist.wide_of:
+  for nn: Tree.Node
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Hoist.wide_of(Laws.inert.node(nn)) == Hoist.wide_of(nn) : Bool}
+
+def inert.hoist.wide_of(nn, e):
+  match nn:
+    case Tree.NCons{h, +r}:
+      match h:
+        case Tree.Group{go, +kids, cl}:
+          match go:
+            case Lex.Tok{gk, +o, gl, gc}:
+              match r:
+                case Tree.NNil{}:
+                  +ek = inert.and_l(Laws.inert.ok(kids), True{}, e)
+                  +lhs = Hoist.wide_shape(Hoist.is_array(Laws.inert.node(kids)), Laws.inert.node(kids))
+                  %inert.hoist.wide_shape(Hoist.is_array(kids), kids, ek) : {lhs == _ : Bool}
+                  %inert.hoist.is_array(kids, ek) : {lhs == Hoist.wide_shape(_, Laws.inert.node(kids)) : Bool}
+                  {==}
+                case Tree.Leaf{x}: {==}
+                case Tree.Group{x, y, z}: {==}
+                case Tree.Stmt{x, y, z}: {==}
+                case Tree.NCons{x, y}: {==}
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              match r:
+                case Tree.NCons{g, +r2}:
+                  match g:
+                    case Tree.Group{go, +gkids, gcl}:
+                      match go:
+                        case Lex.Tok{gk, +o, gl, gc}:
+                          match r2:
+                            case Tree.NNil{}:
+                              inert.hoist.call_wide(Laws.inert.blanks(k), t, gkids,
+                                inert.ok_h(Tree.Leaf{Lex.Tok{k, t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc},
+                                  gkids, gcl}, Tree.NNil{}}, e))
+                            case Tree.Leaf{x}: {==}
+                            case Tree.Group{x, y, z}: {==}
+                            case Tree.Stmt{x, y, z}: {==}
+                            case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                    case Tree.NCons{x, y}: {==}
+                case Tree.Leaf{x}: {==}
+                case Tree.Group{x, y, z}: {==}
+                case Tree.Stmt{x, y, z}: {==}
+                case Tree.NNil{}: {==}
+        case Tree.Stmt{x, y, z}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# a def's body read that way is one wide table as it was
+law inert.hoist.wide_one:
+  for body: Tree.Node
+  for +name: String
+  for +acc: List<&2, String>
+  for +e: {Laws.inert.ok(body) == True{} : Bool}
+  {Hoist.wide_one(Laws.inert.node(body), name, acc) == Hoist.wide_one(body, name, acc) : List<&2, String>}
+
+def inert.hoist.wide_one(body, name, acc, e):
+  match body:
+    case Tree.NCons{h, +r}:
+      match h:
+        case Tree.Stmt{sk, +kids, +inn}:
+          match r:
+            case Tree.NNil{}:
+              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(inn), inert.and_l(Bool.and(Laws.inert.ok(kids),
+                Laws.inert.ok(inn)), True{}, e))
+              +lhs = Hoist.wide_one(Laws.inert.node(Tree.NCons{Tree.Stmt{sk, kids, inn}, Tree.NNil{}}), name, acc)
+              %inert.table.built(kids, ek) : {lhs == Bool.pick(List<&2, String>, Bool.and(_, Hoist.wide_of(kids)),
+                name <> acc, acc)
+                : List<&2, String>}
+              %inert.hoist.wide_of(kids, ek) : {lhs == Bool.pick(List<&2, String>,
+                Bool.and(Table.built(Laws.inert.node(kids)), _), name <> acc,
+                acc) : List<&2, String>}
+              {==}
+            case Tree.Leaf{x}: {==}
+            case Tree.Group{x, y, z}: {==}
+            case Tree.Stmt{x, y, z}: {==}
+            case Tree.NCons{x, y}: {==}
+        case Tree.Leaf{x}: {==}
+        case Tree.Group{x, y, z}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# the defs read that way whose body is one wide table are the ones they were
+law inert.hoist.wide_defs:
+  for ds: List<&2, Calls.Def>
+  for +acc: List<&2, String>
+  for +e: {inert.dok(ds) == True{} : Bool}
+  {Hoist.wide_defs(inert.defs(ds), acc) == Hoist.wide_defs(ds, acc) : List<&2, String>}
+
+def inert.hoist.wide_defs(ds, acc, e):
+  match ds:
+    case Nil{}: {==}
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +lhs = Hoist.wide_defs(inert.defs(Calls.Def{name, sig, body} <> rest), acc)
+      %inert.hoist.wide_defs(rest, Hoist.wide_one(body, name, acc), inert.dok.rest(name, sig, body, rest, e)) :
+        {lhs == _ : List<&2, String>}
+      %inert.hoist.wide_one(body, name, acc, inert.dok.body(name, sig, body, rest, e)) :
+        {lhs == Hoist.wide_defs(inert.defs(rest), _) : List<&2, String>}
+      {==}
+
+# a call's name read that way picks the slot it did: a string names no get or set
+law inert.hoist.slot_of:
+  for +b: Bool
+  for +t: String
+  for +ef: {Laws.inert.fits.go(b, t) == True{} : Bool}
+  {Hoist.slot_of(Laws.inert.keep(b, t)) == Hoist.slot_of(t) : Hoist.Slot}
+
+def inert.hoist.slot_of(b, t, ef):
+  +kt = Laws.inert.keep(b, t)
+  +lhs = Hoist.slot_of(kt)
+  %inert.eq_keep(b, t, "List.get", ef, {==}) : {lhs == Hoist.slot_pick(Bool.or(_, String.eq(t, "List.set")),
+    String.eq(t, "String.get"), Bool.or(String.eq(t, "Array.get"), String.eq(t, "Array.set"))) : Hoist.Slot}
+  %inert.eq_keep(b, t, "List.set", ef, {==}) : {lhs == Hoist.slot_pick(Bool.or(String.eq(kt, "List.get"), _),
+    String.eq(t, "String.get"), Bool.or(String.eq(t, "Array.get"), String.eq(t, "Array.set"))) : Hoist.Slot}
+  %inert.eq_keep(b, t, "String.get", ef, {==}) : {lhs == Hoist.slot_pick(Bool.or(String.eq(kt, "List.get"),
+    String.eq(kt, "List.set")), _, Bool.or(String.eq(t, "Array.get"), String.eq(t, "Array.set"))) : Hoist.Slot}
+  %inert.eq_keep(b, t, "Array.get", ef, {==}) : {lhs == Hoist.slot_pick(Bool.or(String.eq(kt, "List.get"),
+    String.eq(kt, "List.set")), String.eq(kt, "String.get"), Bool.or(_, String.eq(t, "Array.set"))) : Hoist.Slot}
+  %inert.eq_keep(b, t, "Array.set", ef, {==}) : {lhs == Hoist.slot_pick(Bool.or(String.eq(kt, "List.get"),
+    String.eq(kt, "List.set")), String.eq(kt, "String.get"), Bool.or(String.eq(kt, "Array.get"), _)) : Hoist.Slot}
+  {==}
+
+# a bracket group read that way is a closed wide table as it was
+law inert.hoist.table_group:
+  for brack: Bool
+  for +kids: Tree.Node
+  for +carried: List<&2, String>
+  for +e: {Laws.inert.ok(kids) == True{} : Bool}
+  {Hoist.table_group(brack, Laws.inert.node(kids), carried) == Hoist.table_group(brack, kids, carried) : Bool}
+
+def inert.hoist.table_group(brack, kids, carried, e):
+  match brack:
+    case False{}: {==}
+    case True{}:
+      +ia = Hoist.is_array(Laws.inert.node(kids))
+      +lhs = Hoist.group_yes(ia, Laws.inert.node(kids), carried)
+      %inert.hoist.is_array(kids, e) : {lhs == Hoist.group_yes(_, kids, carried) : Bool}
+      %inert.hoist.top_mark(kids, ",", {==}, e) : {lhs == Bool.and(Bool.or(_, ia), Bool.and(Hoist.closed(kids, carried),
+        Hoist.wide_shape(ia, kids))) : Bool}
+      %inert.hoist.closed(kids, carried) : {lhs == Bool.and(Bool.or(Hoist.top_mark(Laws.inert.node(kids), ","), ia),
+        Bool.and(_,
+        Hoist.wide_shape(ia, kids))) : Bool}
+      %inert.hoist.wide_shape(ia, kids, e) : {lhs == Bool.and(Bool.or(Hoist.top_mark(Laws.inert.node(kids), ","), ia),
+        Bool.and(Hoist.closed(Laws.inert.node(kids), carried), _)) : Bool}
+      {==}
+
+# a builder's closed arguments read that way are closed as they were
+law inert.hoist.tb2:
+  for o: Bool
+  for w: Bool
+  for +kids: Tree.Node
+  for +carried: List<&2, String>
+  {Hoist.table_built(o, w, Laws.inert.node(kids), carried) == Hoist.table_built(o, w, kids, carried) : Bool}
+
+def inert.hoist.tb2(o, w, kids, carried):
+  match o w:
+    case True{} True{}: inert.hoist.closed(kids, carried)
+    case True{} False{}: {==}
+    case False{} True{}: {==}
+    case False{} False{}: {==}
+
+# a builder's arguments read that way are a closed wide table as they were
+law inert.hoist.tb:
+  for +o: Bool
+  for +t: String
+  for +kids: Tree.Node
+  for +carried: List<&2, String>
+  for +ef: {Laws.inert.fits.go(False{}, t) == True{} : Bool}
+  {Hoist.table_built(o, Hoist.call_wide(t, Laws.inert.node(kids)), Laws.inert.node(kids), carried)
+    == Hoist.table_built(o, Hoist.call_wide(t, kids), kids, carried) : Bool}
+
+def inert.hoist.tb(o, t, kids, carried, ef):
+  +lhs = Hoist.table_built(o, Hoist.call_wide(t, Laws.inert.node(kids)), Laws.inert.node(kids), carried)
+  %inert.hoist.call_wide(False{}, t, kids, ef) : {lhs == Hoist.table_built(o, _, kids, carried) : Bool}
+  inert.hoist.tb2(o, Hoist.call_wide(t, Laws.inert.node(kids)), kids, carried)
+
+# a call read that way builds a table as it did: a string names no builder
+law inert.hoist.table_call:
+  for app: Bool
+  for k: Lex.TokKind
+  for +t: String
+  for +kids: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +ef: {Laws.inert.fits.go(Laws.inert.blanks(k), t) == True{} : Bool}
+  {Hoist.table_call(app, k, Laws.inert.keep(Laws.inert.blanks(k), t), Laws.inert.node(kids), self, wides, carried)
+    == Hoist.table_call(app, k, t, kids, self, wides, carried) : Bool}
+
+def inert.hoist.table_call(app, k, t, kids, self, wides, carried, ef):
+  match app:
+    case False{}: {==}
+    case True{}:
+      match k:
+        case Lex.TName{}: inert.hoist.tb(Hoist.builder(Lex.TName{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TUpper{}: inert.hoist.tb(Hoist.builder(Lex.TUpper{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TDotted{}: inert.hoist.tb(Hoist.builder(Lex.TDotted{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TWild{}: inert.hoist.tb(Hoist.builder(Lex.TWild{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TKey{}: inert.hoist.tb(Hoist.builder(Lex.TKey{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TNum{}: inert.hoist.tb(Hoist.builder(Lex.TNum{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TStr{}: {==}
+        case Lex.TChar{}: inert.hoist.tb(Hoist.builder(Lex.TChar{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TComment{}: {==}
+        case Lex.TSpace{}: inert.hoist.tb(Hoist.builder(Lex.TSpace{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TNewline{}: inert.hoist.tb(Hoist.builder(Lex.TNewline{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TOp{}: inert.hoist.tb(Hoist.builder(Lex.TOp{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TColon{}: inert.hoist.tb(Hoist.builder(Lex.TColon{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TEq{}: inert.hoist.tb(Hoist.builder(Lex.TEq{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TBind{}: inert.hoist.tb(Hoist.builder(Lex.TBind{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TArrow{}: inert.hoist.tb(Hoist.builder(Lex.TArrow{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TLam{}: inert.hoist.tb(Hoist.builder(Lex.TLam{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TAll{}: inert.hoist.tb(Hoist.builder(Lex.TAll{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TAmp{}: inert.hoist.tb(Hoist.builder(Lex.TAmp{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TOpen{}: inert.hoist.tb(Hoist.builder(Lex.TOpen{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TClose{}: inert.hoist.tb(Hoist.builder(Lex.TClose{}, t, self, wides), t, kids, carried, ef)
+        case Lex.TComma{}: inert.hoist.tb(Hoist.builder(Lex.TComma{}, t, self, wides), t, kids, carried, ef)
+
+# a call named by a string is no table, whatever it says
+law inert.hoist.tc_TStr:
+  for app: Bool
+  for -t1: String
+  for -t2: String
+  for -k1: Tree.Node
+  for -k2: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for -n1: Tree.Node
+  for -n2: Tree.Node
+  for +path: String
+  {Hoist.one_yes(Hoist.table_call(app, Lex.TStr{}, t1, k1, self, wides, carried), n1, path)
+    == Hoist.one_yes(Hoist.table_call(app, Lex.TStr{}, t2, k2, self, wides, carried), n2, path) : List<&2, F.Finding>}
+
+def inert.hoist.tc_TStr(app, _t1, _t2, _k1, _k2, _self, _wides, _carried, _n1, _n2, _path):
+  match app:
+    case True{}: {==}
+    case False{}: {==}
+
+# a call named by a comment is no table, whatever it says
+law inert.hoist.tc_TComment:
+  for app: Bool
+  for -t1: String
+  for -t2: String
+  for -k1: Tree.Node
+  for -k2: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for -n1: Tree.Node
+  for -n2: Tree.Node
+  for +path: String
+  {Hoist.one_yes(Hoist.table_call(app, Lex.TComment{}, t1, k1, self, wides, carried), n1, path)
+    == Hoist.one_yes(Hoist.table_call(app, Lex.TComment{}, t2, k2, self, wides, carried), n2, path) : List<&2,
+      F.Finding>}
+
+def inert.hoist.tc_TComment(app, _t1, _t2, _k1, _k2, _self, _wides, _carried, _n1, _n2, _path):
+  match app:
+    case True{}: {==}
+    case False{}: {==}
+
+# a finding that is there or not, on two nodes it cites alike
+law inert.hoist.one:
+  for yes: Bool
+  for -n1: Tree.Node
+  for -n2: Tree.Node
+  for +path: String
+  for ec: {Hoist.cite(n1, path) == Hoist.cite(n2, path) : List<&2, F.Finding>}
+  {Hoist.one_yes(yes, n1, path) == Hoist.one_yes(yes, n2, path) : List<&2, F.Finding>}
+
+def inert.hoist.one(yes, _n1, _n2, _path, ec):
+  match yes:
+    case True{}: ec
+    case False{}: {==}
+
+# a table read that way is the table it was, cited where it was: a table
+# starts with a bracket or a builder's name, never a string
+law inert.hoist.yes:
+  for nn: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Hoist.one_yes(Hoist.is_table(Laws.inert.node(nn), self, wides, carried), Laws.inert.node(nn), path)
+    == Hoist.one_yes(Hoist.is_table(nn, self, wides, carried), nn, path) : List<&2, F.Finding>}
+
+def inert.hoist.yes(nn, self, wides, carried, path, e):
+  match nn:
+    case Tree.NCons{h, +r}:
+      match h:
+        case Tree.Group{go, +kids, +gcl}:
+          match go:
+            case Lex.Tok{+gk, +o, +gl, +gc}:
+              match r:
+                case Tree.NNil{}:
+                  +n1 = Laws.inert.node(Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, kids, gcl}, Tree.NNil{}})
+                  +n2 = {Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, kids, gcl}, Tree.NNil{}} : Tree.Node}
+                  +tg = Hoist.table_group(String.eq(o, "["), Laws.inert.node(kids), carried)
+                  %inert.hoist.table_group(String.eq(o, "["), kids, carried, inert.and_l(Laws.inert.ok(kids), True{},
+                    e)) : {Hoist.one_yes(tg, n1, path) == Hoist.one_yes(_, n2, path) : List<&2, F.Finding>}
+                  inert.hoist.one(tg, n1, n2, path, {==})
+                case Tree.Leaf{x}: {==}
+                case Tree.Group{x, y, z}: {==}
+                case Tree.Stmt{x, y, z}: {==}
+                case Tree.NCons{x, y}: {==}
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, +t, +l, +c}:
+              match k:
+                case Lex.TName{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TName{}, t, gkids, self, wides,
+                                    carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TName{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TName{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TUpper{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TUpper{}, t, gkids, self, wides,
+                                    carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TUpper{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TUpper{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TDotted{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TDotted{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TDotted{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TDotted{}, t, gkids, self, wides,
+                                    carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TDotted{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TDotted{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TDotted{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TWild{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TWild{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TWild{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TWild{}, t, gkids, self, wides,
+                                    carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TWild{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TWild{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TWild{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TKey{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TKey{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TKey{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TKey{}, t, gkids, self, wides, carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TKey{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TKey{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TKey{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TNum{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TNum{}, t, gkids, self, wides, carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TNum{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TNum{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TNum{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TStr{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  inert.hoist.tc_TStr(String.eq(o, "("), Laws.inert.cut(t), t, Laws.inert.node(gkids),
+                                    gkids, self, wides, carried,
+                                    Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TStr{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}}),
+                                      Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TStr{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}}, path)
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TChar{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TChar{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TChar{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TChar{}, t, gkids, self, wides,
+                                    carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TChar{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TChar{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TChar{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TComment{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  inert.hoist.tc_TComment(String.eq(o, "("), Laws.inert.cut(t), t,
+                                    Laws.inert.node(gkids), gkids, self, wides, carried,
+                                    Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComment{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}}),
+                                      Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComment{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}}, path)
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TSpace{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TSpace{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TSpace{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TSpace{}, t, gkids, self, wides,
+                                    carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TSpace{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TSpace{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TSpace{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TNewline{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNewline{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNewline{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TNewline{}, t, gkids, self, wides,
+                                    carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TNewline{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TNewline{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TNewline{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TOp{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TOp{}, t, gkids, self, wides, carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TOp{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TOp{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TOp{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TColon{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TColon{}, t, gkids, self, wides,
+                                    carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TColon{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TColon{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TEq{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TEq{}, t, gkids, self, wides, carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TEq{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TEq{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TBind{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TBind{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TBind{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TBind{}, t, gkids, self, wides,
+                                    carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TBind{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TBind{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TBind{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TArrow{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TArrow{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TArrow{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TArrow{}, t, gkids, self, wides,
+                                    carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TArrow{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TArrow{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TArrow{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TLam{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TLam{}, t, gkids, self, wides, carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TLam{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TLam{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TAll{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TAll{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TAll{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TAll{}, t, gkids, self, wides, carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TAll{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TAll{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TAll{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TAmp{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TAmp{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TAmp{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TAmp{}, t, gkids, self, wides, carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TAmp{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TAmp{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TAmp{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TOpen{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOpen{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOpen{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TOpen{}, t, gkids, self, wides,
+                                    carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TOpen{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TOpen{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TOpen{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TClose{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TClose{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TClose{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TClose{}, t, gkids, self, wides,
+                                    carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TClose{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TClose{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TClose{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TComma{}:
+                  match r:
+                    case Tree.NCons{g, +r2}:
+                      match g:
+                        case Tree.Group{go, +gkids, +gcl}:
+                          match go:
+                            case Lex.Tok{+gk, +o, +gl, +gc}:
+                              match r2:
+                                case Tree.NNil{}:
+                                  +n1 = Laws.inert.node(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}})
+                                  +n2 = {Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}},
+                                    Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl},
+                                    Tree.NNil{}}} : Tree.Node}
+                                  %inert.hoist.table_call(String.eq(o, "("), Lex.TComma{}, t, gkids, self, wides,
+                                    carried,
+                                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}},
+                                      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, gkids, gcl}, Tree.NNil{}}, e)) :
+                                    {Hoist.one_yes(Hoist.table_call(String.eq(o, "("), Lex.TComma{}, t,
+                                      Laws.inert.node(gkids), self, wides, carried), n1, path) == Hoist.one_yes(_, n2,
+                                      path) : List<&2, F.Finding>}
+                                  inert.hoist.one(Hoist.table_call(String.eq(o, "("), Lex.TComma{}, t,
+                                    Laws.inert.node(gkids), self, wides, carried), n1, n2, path, {==})
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, y, z}: {==}
+                                case Tree.Stmt{x, y, z}: {==}
+                                case Tree.NCons{x, y}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, y, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, y}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+        case Tree.Stmt{x, y, z}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# a let's table cited when it is indexed: a choice on the index of the table's
+# finding
+law inert.hoist.use_pick:
+  for tab: Bool
+  for used: Bool
+  for +expr: Tree.Node
+  for +path: String
+  {Hoist.let_use(tab, used, expr, path) == Bool.pick(List<&2, F.Finding>, used, Hoist.one_yes(tab, expr, path),
+    []) : List<&2, F.Finding>}
+
+def inert.hoist.use_pick(tab, used, _expr, _path):
+  match tab used:
+    case True{} True{}: {==}
+    case True{} False{}: {==}
+    case False{} True{}: {==}
+    case False{} False{}: {==}
+
+# a let's table read that way, indexed as it was, is cited as it was
+law inert.hoist.use:
+  for +expr: Tree.Node
+  for +used: Bool
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  for +e: {Laws.inert.ok(expr) == True{} : Bool}
+  {Hoist.let_use(Hoist.is_table(Laws.inert.node(expr), self, wides, carried), used, Laws.inert.node(expr), path)
+    == Hoist.let_use(Hoist.is_table(expr, self, wides, carried), used, expr, path) : List<&2, F.Finding>}
+
+def inert.hoist.use(expr, used, self, wides, carried, path, e):
+  +t1 = Hoist.is_table(Laws.inert.node(expr), self, wides, carried)
+  +t2 = Hoist.is_table(expr, self, wides, carried)
+  Equal.trans(List<&2, F.Finding>, Hoist.let_use(t1, used, Laws.inert.node(expr), path), Bool.pick(List<&2,
+    F.Finding>, used, Hoist.one_yes(t1, Laws.inert.node(expr), path), []),
+    Hoist.let_use(t2, used, expr, path), inert.hoist.use_pick(t1, used, Laws.inert.node(expr), path),
+    Equal.trans(List<&2, F.Finding>, Bool.pick(List<&2, F.Finding>, used, Hoist.one_yes(t1, Laws.inert.node(expr),
+      path), []),
+      Bool.pick(List<&2, F.Finding>, used, Hoist.one_yes(t2, expr, path), []), Hoist.let_use(t2, used, expr, path),
+      Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>, z => Bool.pick(List<&2, F.Finding>, used, z, []),
+        Hoist.one_yes(t1, Laws.inert.node(expr), path),
+        Hoist.one_yes(t2, expr, path), inert.hoist.yes(expr, self, wides, carried, path, e)),
+      Equal.sym(List<&2, F.Finding>, Hoist.let_use(t2, used, expr, path), Bool.pick(List<&2, F.Finding>, used,
+        Hoist.one_yes(t2, expr, path), []),
+        inert.hoist.use_pick(t2, used, expr, path))))
+
+# a chain read that way is exactly the name as it was: only a name's text is read
+law inert.hoist.wrapped_inside:
+  for nn: Tree.Node
+  for +binder: String
+  {Hoist.wrapped_inside(Laws.inert.node(nn), binder) == Hoist.wrapped_inside(nn, binder) : Bool}
+
+def inert.hoist.wrapped_inside(nn, _binder):
+  match nn:
+    case Tree.NCons{h, r}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, t, l, c}:
+              match k:
+                case Lex.TName{}:
+                  match r:
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                    case Tree.NCons{x, y}: {==}
+                case Lex.TUpper{}: {==}
+                case Lex.TDotted{}: {==}
+                case Lex.TWild{}: {==}
+                case Lex.TKey{}: {==}
+                case Lex.TNum{}: {==}
+                case Lex.TStr{}: {==}
+                case Lex.TChar{}: {==}
+                case Lex.TComment{}: {==}
+                case Lex.TSpace{}: {==}
+                case Lex.TNewline{}: {==}
+                case Lex.TOp{}: {==}
+                case Lex.TColon{}: {==}
+                case Lex.TEq{}: {==}
+                case Lex.TBind{}: {==}
+                case Lex.TArrow{}: {==}
+                case Lex.TLam{}: {==}
+                case Lex.TAll{}: {==}
+                case Lex.TAmp{}: {==}
+                case Lex.TOpen{}: {==}
+                case Lex.TClose{}: {==}
+                case Lex.TComma{}: {==}
+        case Tree.Group{x, y, z}: {==}
+        case Tree.Stmt{x, y, z}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# a paren's kids read that way are the name as they were
+law inert.hoist.wrapped_open:
+  for paren: Bool
+  for +kids: Tree.Node
+  for +binder: String
+  {Hoist.wrapped_open(paren, Laws.inert.node(kids), binder) == Hoist.wrapped_open(paren, kids, binder) : Bool}
+
+def inert.hoist.wrapped_open(paren, kids, binder):
+  match paren:
+    case True{}: inert.hoist.wrapped_inside(kids, binder)
+    case False{}: {==}
+
+# a chain read that way is the name, or the name in parentheses, as it was
+law inert.hoist.wrapped:
+  for nn: Tree.Node
+  for +binder: String
+  {Hoist.wrapped(Laws.inert.node(nn), binder) == Hoist.wrapped(nn, binder) : Bool}
+
+def inert.hoist.wrapped(nn, binder):
+  match nn:
+    case Tree.NCons{h, r}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, t, l, c}:
+              match k:
+                case Lex.TName{}:
+                  match r:
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                    case Tree.NCons{x, y}: {==}
+                case Lex.TUpper{}: {==}
+                case Lex.TDotted{}: {==}
+                case Lex.TWild{}: {==}
+                case Lex.TKey{}: {==}
+                case Lex.TNum{}: {==}
+                case Lex.TStr{}: {==}
+                case Lex.TChar{}: {==}
+                case Lex.TComment{}: {==}
+                case Lex.TSpace{}: {==}
+                case Lex.TNewline{}: {==}
+                case Lex.TOp{}: {==}
+                case Lex.TColon{}: {==}
+                case Lex.TEq{}: {==}
+                case Lex.TBind{}: {==}
+                case Lex.TArrow{}: {==}
+                case Lex.TLam{}: {==}
+                case Lex.TAll{}: {==}
+                case Lex.TAmp{}: {==}
+                case Lex.TOpen{}: {==}
+                case Lex.TClose{}: {==}
+                case Lex.TComma{}: {==}
+        case Tree.Group{go, +kids, gcl}:
+          match go:
+            case Lex.Tok{gk, +o, gl, gc}:
+              match r:
+                case Tree.NNil{}: inert.hoist.wrapped_open(String.eq(o, "("), kids, binder)
+                case Tree.Leaf{x}: {==}
+                case Tree.Group{x, y, z}: {==}
+                case Tree.Stmt{x, y, z}: {==}
+                case Tree.NCons{x, y}: {==}
+        case Tree.Stmt{x, y, z}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# a get's or set's collection argument, the arguments read that way, is the
+# name as it was
+law inert.hoist.uses_arg:
+  for ss: Hoist.Slot
+  for +as: List<&2, Tree.Node>
+  for +binder: String
+  {Hoist.uses_arg(ss, inert.nodes(as), binder) == Hoist.uses_arg(ss, as, binder) : Bool}
+
+def inert.hoist.uses_arg(ss, as, binder):
+  match ss:
+    case Hoist.Slot{on, +at}:
+      match on:
+        case False{}: {==}
+        case True{}:
+          %Equal.sym(Tree.Node, Calls.arg(inert.nodes(as), at), Laws.inert.node(Calls.arg(as, at)), inert.arg(as, at)) :
+            {Hoist.wrapped(_, binder) == Hoist.wrapped(Calls.arg(as, at), binder) : Bool}
+          inert.hoist.wrapped(Calls.arg(as, at), binder)
+
+# a name then a group, read that way, indexes the name as it did: a string is
+# never the name nor a get or set
+law inert.hoist.uses_here:
+  for brack: Bool
+  for call: Bool
+  for +b: Bool
+  for +t: String
+  for +kids: Tree.Node
+  for +binder: String
+  for +ef: {Laws.inert.fits.go(b, t) == True{} : Bool}
+  for +eb: {Laws.inert.marked(binder) == False{} : Bool}
+  {Hoist.uses_here(brack, call, Laws.inert.keep(b, t), Laws.inert.node(kids), binder) == Hoist.uses_here(brack, call,
+    t, kids, binder)
+    : Bool}
+
+def inert.hoist.uses_here(brack, call, b, t, kids, binder, ef, eb):
+  match brack:
+    case True{}: inert.eq_keep(b, t, binder, ef, eb)
+    case False{}:
+      match call:
+        case False{}: {==}
+        case True{}:
+          +lhs = Hoist.uses_arg(Hoist.slot_of(Laws.inert.keep(b, t)), Calls.args(Laws.inert.node(kids)), binder)
+          %inert.hoist.uses_arg(Hoist.slot_of(t), Calls.args(kids), binder) : {lhs == _ : Bool}
+          %inert.args(kids) : {lhs == Hoist.uses_arg(Hoist.slot_of(t), _, binder) : Bool}
+          %inert.hoist.slot_of(b, t, ef) : {lhs == Hoist.uses_arg(_, Calls.args(Laws.inert.node(kids)), binder) : Bool}
+          {==}
+
+# a name then a group: the index here, under the group and after it read as
+# they were
+law inert.hoist.uses_lg:
+  for +b: Bool
+  for +t: String
+  for +o: String
+  for +kids: Tree.Node
+  for +r2: Tree.Node
+  for +binder: String
+  for +ef: {Laws.inert.fits.go(b, t) == True{} : Bool}
+  for +eb: {Laws.inert.marked(binder) == False{} : Bool}
+  for ik: {Hoist.uses_name(Laws.inert.node(kids), binder) == Hoist.uses_name(kids, binder) : Bool}
+  for ir: {Hoist.uses_name(Laws.inert.node(r2), binder) == Hoist.uses_name(r2, binder) : Bool}
+  {Bool.or(Hoist.uses_here(String.eq(o, "["), String.eq(o, "("), Laws.inert.keep(b, t), Laws.inert.node(kids), binder),
+    Bool.or(Hoist.uses_name(Laws.inert.node(kids), binder), Hoist.uses_name(Laws.inert.node(r2), binder)))
+    == Bool.or(Hoist.uses_here(String.eq(o, "["), String.eq(o, "("), t, kids, binder),
+      Bool.or(Hoist.uses_name(kids, binder), Hoist.uses_name(r2, binder))) : Bool}
+
+def inert.hoist.uses_lg(b, t, o, kids, r2, binder, ef, eb, ik, ir):
+  inert.hoist.or2(Hoist.uses_here(String.eq(o, "["), String.eq(o, "("), Laws.inert.keep(b, t), Laws.inert.node(kids),
+    binder),
+    Hoist.uses_here(String.eq(o, "["), String.eq(o, "("), t, kids, binder),
+    Bool.or(Hoist.uses_name(Laws.inert.node(kids), binder), Hoist.uses_name(Laws.inert.node(r2), binder)),
+    Bool.or(Hoist.uses_name(kids, binder), Hoist.uses_name(r2, binder)),
+    inert.hoist.uses_here(String.eq(o, "["), String.eq(o, "("), b, t, kids, binder, ef, eb),
+    inert.hoist.or2(Hoist.uses_name(Laws.inert.node(kids), binder), Hoist.uses_name(kids, binder),
+      Hoist.uses_name(Laws.inert.node(r2), binder),
+      Hoist.uses_name(r2, binder), ik, ir))
+
+# a chain read that way indexes the name as it did
+law inert.hoist.uses_name:
+  for nn: Tree.Node
+  for +binder: String
+  for +eb: {Laws.inert.marked(binder) == False{} : Bool}
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Hoist.uses_name(Laws.inert.node(nn), binder) == Hoist.uses_name(nn, binder) : Bool}
+
+def inert.hoist.uses_name(nn, binder, eb, e):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              match rest:
+                case Tree.NCons{h2, +r2}:
+                  match h2:
+                    case Tree.Group{go, +kids, +gcl}:
+                      match go:
+                        case Lex.Tok{+gk, +o, +gl, +gc}:
+                          +lf = {Tree.Leaf{Lex.Tok{k, t, l, c}} : Tree.Node}
+                          +gp = {Tree.Group{Lex.Tok{gk, o, gl, gc}, kids, gcl} : Tree.Node}
+                          +eg = inert.ok_t(lf, Tree.NCons{gp, r2}, e)
+                          inert.hoist.uses_lg(Laws.inert.blanks(k), t, o, kids, r2, binder,
+                            inert.ok_h(lf, Tree.NCons{gp, r2}, e), eb,
+                            inert.hoist.uses_name(kids, binder, eb, inert.ok_h(gp, r2, eg)),
+                            inert.hoist.uses_name(r2, binder, eb, inert.ok_t(gp, r2, eg)))
+                    case Tree.Leaf{x}:
+                      inert.hoist.uses_name(rest, binder, eb, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.Stmt{x, y, z}:
+                      inert.hoist.uses_name(rest, binder, eb, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.NNil{}:
+                      inert.hoist.uses_name(rest, binder, eb, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.NCons{x, y}:
+                      inert.hoist.uses_name(rest, binder, eb, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.Leaf{x}:
+                  inert.hoist.uses_name(rest, binder, eb, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.Group{x, y, z}:
+                  inert.hoist.uses_name(rest, binder, eb, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.Stmt{x, y, z}:
+                  inert.hoist.uses_name(rest, binder, eb, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.NNil{}:
+                  inert.hoist.uses_name(rest, binder, eb, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+        case Tree.Group{+o, +kids, +cl}:
+          inert.hoist.or2(Hoist.uses_name(Laws.inert.node(kids), binder), Hoist.uses_name(kids, binder),
+            Hoist.uses_name(Laws.inert.node(rest), binder),
+            Hoist.uses_name(rest, binder), inert.hoist.uses_name(kids, binder, eb, inert.ok_h(Tree.Group{o, kids, cl},
+              rest, e)),
+            inert.hoist.uses_name(rest, binder, eb, inert.ok_t(Tree.Group{o, kids, cl}, rest, e)))
+        case Tree.Stmt{+sk, +kids, +body}:
+          +es = inert.ok_h(Tree.Stmt{sk, kids, body}, rest, e)
+          inert.hoist.or2(Hoist.uses_name(Laws.inert.node(kids), binder), Hoist.uses_name(kids, binder),
+            Bool.or(Hoist.uses_name(Laws.inert.node(body), binder), Hoist.uses_name(Laws.inert.node(rest), binder)),
+            Bool.or(Hoist.uses_name(body, binder), Hoist.uses_name(rest, binder)),
+            inert.hoist.uses_name(kids, binder, eb, inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es)),
+            inert.hoist.or2(Hoist.uses_name(Laws.inert.node(body), binder), Hoist.uses_name(body, binder),
+              Hoist.uses_name(Laws.inert.node(rest), binder), Hoist.uses_name(rest, binder),
+              inert.hoist.uses_name(body, binder, eb, inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es)),
+              inert.hoist.uses_name(rest, binder, eb, inert.ok_t(Tree.Stmt{sk, kids, body}, rest, e))))
+        case Tree.NNil{}: inert.hoist.uses_name(rest, binder, eb, e)
+        case Tree.NCons{x, y}: inert.hoist.uses_name(rest, binder, eb, inert.ok_t(Tree.NCons{x, y}, rest, e))
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# a let's name and table, the table read that way
+def inert.hoist.got(mm: Maybe<&2, Hoist.Got>) -> Maybe<&2, Hoist.Got>:
+  match mm:
+    case None{}: None{}
+    case Some{Hoist.Got{nm, expr}}: Some{Hoist.Got{nm, Laws.inert.node(expr)}}
+
+# a let's name plain and its table's leaves fitting, or no let
+def inert.hoist.gok(mm: Maybe<&2, Hoist.Got>) -> Bool:
+  match mm:
+    case None{}: True{}
+    case Some{Hoist.Got{nm, expr}}: Bool.and(Bool.not(Laws.inert.marked(nm)), Laws.inert.ok(expr))
+
+# a Bool that is False has a negation that holds
+law inert.hoist.not_f:
+  for -x: Bool
+  for e: {x == False{} : Bool}
+  {Bool.not(x) == True{} : Bool}
+
+def inert.hoist.not_f(x, e):
+  %Equal.sym(Bool, x, False{}, e) : {Bool.not(_) == True{} : Bool}
+  {==}
+
+# the chain after `=`, read that way, is the table it was
+law inert.hoist.got_at:
+  for seen: Bool
+  for bad: Bool
+  for +nm: String
+  for +expr: Tree.Node
+  {Hoist.got_at(seen, bad, nm, Laws.inert.node(expr)) == inert.hoist.got(Hoist.got_at(seen, bad, nm,
+    expr)) : Maybe<&2, Hoist.Got>}
+
+def inert.hoist.got_at(seen, bad, _nm, _expr):
+  match seen:
+    case False{}: {==}
+    case True{}:
+      match bad:
+        case True{}: {==}
+        case False{}: {==}
+
+# the chain after `=` of a plain name fits
+law inert.hoist.got_at_ok:
+  for seen: Bool
+  for bad: Bool
+  for +nm: String
+  for +expr: Tree.Node
+  for +en: {Laws.inert.marked(nm) == False{} : Bool}
+  for +ee: {Laws.inert.ok(expr) == True{} : Bool}
+  {inert.hoist.gok(Hoist.got_at(seen, bad, nm, expr)) == True{} : Bool}
+
+def inert.hoist.got_at_ok(seen, bad, nm, expr, en, ee):
+  match seen:
+    case False{}: {==}
+    case True{}:
+      match bad:
+        case True{}: {==}
+        case False{}:
+          inert.and_both(Bool.not(Laws.inert.marked(nm)), Laws.inert.ok(expr),
+            inert.hoist.not_f(Laws.inert.marked(nm), en), ee)
+
+# a let read that way binds the name it did to its table read that way: only
+# a name's text is read
+law inert.hoist.eat:
+  for nn: Tree.Node
+  for +seen: Bool
+  for +bad: Bool
+  for +nm: String
+  {Hoist.eat(Laws.inert.node(nn), seen, bad, nm) == inert.hoist.got(Hoist.eat(nn, seen, bad, nm)) : Maybe<&2,
+    Hoist.Got>}
+
+def inert.hoist.eat(nn, seen, bad, nm):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, t, l, c}:
+              match k:
+                case Lex.TName{}: inert.hoist.eat(rest, True{}, Bool.or(bad, seen), t)
+                case Lex.TUpper{}: inert.hoist.eat(rest, seen, True{}, nm)
+                case Lex.TDotted{}: inert.hoist.eat(rest, seen, bad, nm)
+                case Lex.TWild{}: inert.hoist.eat(rest, seen, bad, nm)
+                case Lex.TKey{}: inert.hoist.eat(rest, seen, bad, nm)
+                case Lex.TNum{}: inert.hoist.eat(rest, seen, bad, nm)
+                case Lex.TStr{}: inert.hoist.eat(rest, seen, bad, nm)
+                case Lex.TChar{}: inert.hoist.eat(rest, seen, bad, nm)
+                case Lex.TComment{}: inert.hoist.eat(rest, seen, bad, nm)
+                case Lex.TSpace{}: inert.hoist.eat(rest, seen, bad, nm)
+                case Lex.TNewline{}: inert.hoist.eat(rest, seen, bad, nm)
+                case Lex.TOp{}: inert.hoist.eat(rest, seen, bad, nm)
+                case Lex.TColon{}: inert.hoist.eat(rest, seen, bad, nm)
+                case Lex.TEq{}: inert.hoist.got_at(seen, bad, nm, rest)
+                case Lex.TBind{}: inert.hoist.eat(rest, seen, bad, nm)
+                case Lex.TArrow{}: inert.hoist.eat(rest, seen, bad, nm)
+                case Lex.TLam{}: inert.hoist.eat(rest, seen, bad, nm)
+                case Lex.TAll{}: inert.hoist.eat(rest, seen, bad, nm)
+                case Lex.TAmp{}: inert.hoist.eat(rest, seen, bad, nm)
+                case Lex.TOpen{}: inert.hoist.eat(rest, seen, bad, nm)
+                case Lex.TClose{}: inert.hoist.eat(rest, seen, bad, nm)
+                case Lex.TComma{}: inert.hoist.eat(rest, seen, bad, nm)
+        case Tree.Group{o, gk, cl}: inert.hoist.eat(rest, seen, True{}, nm)
+        case Tree.Stmt{sk, sks, sb}: inert.hoist.eat(rest, seen, bad, nm)
+        case Tree.NNil{}: inert.hoist.eat(rest, seen, bad, nm)
+        case Tree.NCons{x, y}: inert.hoist.eat(rest, seen, bad, nm)
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# a let of a source as the lexer makes it binds a plain name to leaves that fit
+law inert.hoist.eat_ok:
+  for nn: Tree.Node
+  for +seen: Bool
+  for +bad: Bool
+  for +nm: String
+  for +en: {Laws.inert.marked(nm) == False{} : Bool}
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {inert.hoist.gok(Hoist.eat(nn, seen, bad, nm)) == True{} : Bool}
+
+def inert.hoist.eat_ok(nn, seen, bad, nm, en, e):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, +t, +l, +c}:
+              match k:
+                case Lex.TName{}:
+                  inert.hoist.eat_ok(rest, True{}, Bool.or(bad, seen), t, inert.not_true(Laws.inert.marked(t),
+                    inert.ok_h(Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, rest, e)),
+                    inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, rest, e))
+                case Lex.TUpper{}:
+                  inert.hoist.eat_ok(rest, seen, True{}, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}},
+                    rest, e))
+                case Lex.TDotted{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TDotted{}, t, l, c}},
+                    rest, e))
+                case Lex.TWild{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TWild{}, t, l, c}},
+                    rest, e))
+                case Lex.TKey{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TKey{}, t, l, c}},
+                    rest, e))
+                case Lex.TNum{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TNum{}, t, l, c}},
+                    rest, e))
+                case Lex.TStr{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TStr{}, t, l, c}},
+                    rest, e))
+                case Lex.TChar{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TChar{}, t, l, c}},
+                    rest, e))
+                case Lex.TComment{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TComment{}, t, l, c}},
+                    rest, e))
+                case Lex.TSpace{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TSpace{}, t, l, c}},
+                    rest, e))
+                case Lex.TNewline{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TNewline{}, t, l, c}},
+                    rest, e))
+                case Lex.TOp{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TOp{}, t, l, c}}, rest,
+                    e))
+                case Lex.TColon{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}},
+                    rest, e))
+                case Lex.TEq{}:
+                  inert.hoist.got_at_ok(seen, bad, nm, rest, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}},
+                    rest, e))
+                case Lex.TBind{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TBind{}, t, l, c}},
+                    rest, e))
+                case Lex.TArrow{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TArrow{}, t, l, c}},
+                    rest, e))
+                case Lex.TLam{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}},
+                    rest, e))
+                case Lex.TAll{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TAll{}, t, l, c}},
+                    rest, e))
+                case Lex.TAmp{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TAmp{}, t, l, c}},
+                    rest, e))
+                case Lex.TOpen{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TOpen{}, t, l, c}},
+                    rest, e))
+                case Lex.TClose{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TClose{}, t, l, c}},
+                    rest, e))
+                case Lex.TComma{}:
+                  inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}},
+                    rest, e))
+        case Tree.Group{o, gk, cl}:
+          inert.hoist.eat_ok(rest, seen, True{}, nm, en, inert.ok_t(Tree.Group{o, gk, cl}, rest, e))
+        case Tree.Stmt{sk, sks, sb}:
+          inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.Stmt{sk, sks, sb}, rest, e))
+        case Tree.NNil{}: inert.hoist.eat_ok(rest, seen, bad, nm, en, e)
+        case Tree.NCons{x, y}: inert.hoist.eat_ok(rest, seen, bad, nm, en, inert.ok_t(Tree.NCons{x, y}, rest, e))
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# the let's body and what follows, read that way, index the name as they did
+law inert.hoist.uses_or:
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +binder: String
+  for +eb: {Laws.inert.marked(binder) == False{} : Bool}
+  for +ebd: {Laws.inert.ok(body) == True{} : Bool}
+  for +er: {Laws.inert.ok(rest) == True{} : Bool}
+  {Hoist.uses_or(Laws.inert.node(body), Laws.inert.node(rest), binder) == Hoist.uses_or(body, rest, binder) : Bool}
+
+def inert.hoist.uses_or(body, rest, binder, eb, ebd, er):
+  inert.hoist.or2(Hoist.uses_name(Laws.inert.node(body), binder), Hoist.uses_name(body, binder),
+    Hoist.uses_name(Laws.inert.node(rest), binder),
+    Hoist.uses_name(rest, binder), inert.hoist.uses_name(body, binder, eb, ebd),
+    inert.hoist.uses_name(rest, binder, eb, er))
+
+# a plain let read that way is judged as it was
+law inert.hoist.let_of:
+  for mm: Maybe<&2, Hoist.Got>
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  for +eg: {inert.hoist.gok(mm) == True{} : Bool}
+  for +eb: {Laws.inert.ok(body) == True{} : Bool}
+  for +er: {Laws.inert.ok(rest) == True{} : Bool}
+  {Hoist.let_of(inert.hoist.got(mm), Laws.inert.node(body), Laws.inert.node(rest), self, wides, carried, path)
+    == Hoist.let_of(mm, body, rest, self, wides, carried, path) : List<&2, F.Finding>}
+
+def inert.hoist.let_of(mm, body, rest, self, wides, carried, path, eg, eb, er):
+  match mm:
+    case None{}: {==}
+    case Some{Hoist.Got{+nm, +expr}}:
+      +en = inert.not_true(Laws.inert.marked(nm), inert.and_l(Bool.not(Laws.inert.marked(nm)), Laws.inert.ok(expr), eg))
+      +ee = inert.and_r(Bool.not(Laws.inert.marked(nm)), Laws.inert.ok(expr), eg)
+      +lhs = Hoist.let_use(Hoist.is_table(Laws.inert.node(expr), self, wides, carried),
+        Hoist.uses_or(Laws.inert.node(body), Laws.inert.node(rest), nm), Laws.inert.node(expr),
+        path)
+      %inert.hoist.uses_or(body, rest, nm, en, eb, er) :
+        {lhs == Hoist.let_use(Hoist.is_table(expr, self, wides, carried), _, expr, path) : List<&2, F.Finding>}
+      inert.hoist.use(expr, Hoist.uses_or(Laws.inert.node(body), Laws.inert.node(rest), nm), self, wides, carried,
+        path, ee)
+
+# a hot let read that way is judged as it was
+law inert.hoist.let_hit:
+  for hot: Bool
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  for +ek: {Laws.inert.ok(kids) == True{} : Bool}
+  for +eb: {Laws.inert.ok(body) == True{} : Bool}
+  for +er: {Laws.inert.ok(rest) == True{} : Bool}
+  {Hoist.let_hit(hot, Laws.inert.node(kids), Laws.inert.node(body), Laws.inert.node(rest), self, wides, carried, path)
+    == Hoist.let_hit(hot, kids, body, rest, self, wides, carried, path) : List<&2, F.Finding>}
+
+def inert.hoist.let_hit(hot, kids, body, rest, self, wides, carried, path, ek, eb, er):
+  match hot:
+    case False{}: {==}
+    case True{}:
+      %Equal.sym(Maybe<&2, Hoist.Got>, Hoist.eat(Laws.inert.node(kids), False{}, False{}, ""),
+        inert.hoist.got(Hoist.eat(kids, False{}, False{}, "")), inert.hoist.eat(kids, False{}, False{}, "")) :
+        {Hoist.let_of(_, Laws.inert.node(body), Laws.inert.node(rest), self, wides, carried, path)
+          == Hoist.let_of(Hoist.eat(kids, False{}, False{}, ""), body, rest, self, wides, carried, path) : List<&2,
+            F.Finding>}
+      inert.hoist.let_of(Hoist.eat(kids, False{}, False{}, ""), body, rest, self, wides, carried, path,
+        inert.hoist.eat_ok(kids, False{}, False{}, "", {==}, ek), eb, er)
+
+# a get's or set's collection argument, the arguments read that way, is the
+# table it was
+law inert.hoist.arg_table:
+  for ss: Hoist.Slot
+  for +as: List<&2, Tree.Node>
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  for +ea: {inert.noks(as) == True{} : Bool}
+  {Hoist.arg_table(ss, inert.nodes(as), self, wides, carried, path)
+    == Hoist.arg_table(ss, as, self, wides, carried, path) : List<&2, F.Finding>}
+
+def inert.hoist.arg_table(ss, as, self, wides, carried, path, ea):
+  match ss:
+    case Hoist.Slot{on, +at}:
+      match on:
+        case False{}: {==}
+        case True{}:
+          %Equal.sym(Tree.Node, Calls.arg(inert.nodes(as), at), Laws.inert.node(Calls.arg(as, at)), inert.arg(as, at)) :
+            {Hoist.one_yes(Hoist.is_table(_, self, wides, carried), _, path)
+              == Hoist.one_yes(Hoist.is_table(Calls.arg(as, at), self, wides, carried), Calls.arg(as, at),
+                path) : List<&2, F.Finding>}
+          inert.hoist.yes(Calls.arg(as, at), self, wides, carried, path, inert.ok.nth(as, at, ea))
+
+# a get or set read that way, its table passed inline, is judged as it was
+law inert.hoist.call_table:
+  for hot: Bool
+  for open: Bool
+  for +b: Bool
+  for +t: String
+  for +kids: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  for +ef: {Laws.inert.fits.go(b, t) == True{} : Bool}
+  for +ek: {Laws.inert.ok(kids) == True{} : Bool}
+  {Hoist.call_table(hot, open, Laws.inert.keep(b, t), Laws.inert.node(kids), self, wides, carried, path)
+    == Hoist.call_table(hot, open, t, kids, self, wides, carried, path) : List<&2, F.Finding>}
+
+def inert.hoist.call_table(hot, open, b, t, kids, self, wides, carried, path, ef, ek):
+  match hot:
+    case False{}: {==}
+    case True{}:
+      match open:
+        case False{}: {==}
+        case True{}:
+          +lhs = Hoist.arg_table(Hoist.slot_of(Laws.inert.keep(b, t)), Calls.args(Laws.inert.node(kids)), self, wides,
+            carried, path)
+          %inert.hoist.arg_table(Hoist.slot_of(t), Calls.args(kids), self, wides, carried, path,
+            inert.ok.args.go(kids, Tree.NNil{}, [], ek, {==}, {==})) : {lhs == _ : List<&2, F.Finding>}
+          %inert.args(kids) : {lhs == Hoist.arg_table(Hoist.slot_of(t), _, self, wides, carried, path) : List<&2,
+            F.Finding>}
+          %inert.hoist.slot_of(b, t, ef) :
+            {lhs == Hoist.arg_table(_, Calls.args(Laws.inert.node(kids)), self, wides, carried, path) : List<&2,
+              F.Finding>}
+          {==}
+
+# four finding lists that read alike join alike
+law inert.hoist.cat4:
+  for -a1: List<&2, F.Finding>
+  for -a2: List<&2, F.Finding>
+  for -b1: List<&2, F.Finding>
+  for -b2: List<&2, F.Finding>
+  for -c1: List<&2, F.Finding>
+  for -c2: List<&2, F.Finding>
+  for -d1: List<&2, F.Finding>
+  for -d2: List<&2, F.Finding>
+  for ea: {a1 == a2 : List<&2, F.Finding>}
+  for eb: {b1 == b2 : List<&2, F.Finding>}
+  for ec: {c1 == c2 : List<&2, F.Finding>}
+  for ed: {d1 == d2 : List<&2, F.Finding>}
+  {List.concat(&2, F.Finding, [a1, b1, c1, d1]) == List.concat(&2, F.Finding, [a2, b2, c2, d2]) : List<&2, F.Finding>}
+
+def inert.hoist.cat4(a1, _a2, b1, b2, c1, c2, d1, d2, ea, eb, ec, ed):
+  %ea : {List.concat(&2, F.Finding, [a1, b1, c1, d1]) == List.concat(&2, F.Finding, [_, b2, c2, d2]) : List<&2,
+    F.Finding>}
+  %eb : {List.concat(&2, F.Finding, [a1, b1, c1, d1]) == List.concat(&2, F.Finding, [a1, _, c2, d2]) : List<&2,
+    F.Finding>}
+  %ec : {List.concat(&2, F.Finding, [a1, b1, c1, d1]) == List.concat(&2, F.Finding, [a1, b1, _, d2]) : List<&2,
+    F.Finding>}
+  %ed : {List.concat(&2, F.Finding, [a1, b1, c1, d1]) == List.concat(&2, F.Finding, [a1, b1, c1, _]) : List<&2,
+    F.Finding>}
+  {==}
+
+# a name then a group: its inline table, the group and the rest walked as
+# they were
+law inert.hoist.walk_lg:
+  for +k: Lex.TokKind
+  for +t: String
+  for +o: String
+  for +kids: Tree.Node
+  for +r2: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  for +hot: Bool
+  for +ef: {Laws.inert.fits.go(Laws.inert.blanks(k), t) == True{} : Bool}
+  for +ek: {Laws.inert.ok(kids) == True{} : Bool}
+  for ik: {Hoist.walk(Laws.inert.node(kids), self, wides, carried, path, Hoist.warm(hot, k))
+    == Hoist.walk(kids, self, wides, carried, path, Hoist.warm(hot, k)) : List<&2, F.Finding>}
+  for ir: {Hoist.walk(Laws.inert.node(r2), self, wides, carried, path, Hoist.warm(hot, k))
+    == Hoist.walk(r2, self, wides, carried, path, Hoist.warm(hot, k)) : List<&2, F.Finding>}
+  {List.concat(&2, F.Finding, [Hoist.call_table(Hoist.warm(hot, k), String.eq(o, "("),
+    Laws.inert.keep(Laws.inert.blanks(k), t), Laws.inert.node(kids), self, wides, carried, path),
+    Hoist.walk(Laws.inert.node(kids), self, wides, carried, path, Hoist.warm(hot, k)),
+    Hoist.walk(Laws.inert.node(r2), self, wides, carried, path, Hoist.warm(hot, k))])
+    == List.concat(&2, F.Finding, [Hoist.call_table(Hoist.warm(hot, k), String.eq(o, "("), t, kids, self, wides,
+      carried, path), Hoist.walk(kids, self, wides, carried, path, Hoist.warm(hot, k)),
+      Hoist.walk(r2, self, wides, carried, path, Hoist.warm(hot, k))]) : List<&2, F.Finding>}
+
+def inert.hoist.walk_lg(k, t, o, kids, r2, self, wides, carried, path, hot, ef, ek, ik, ir):
+  +w = Hoist.warm(hot, k)
+  inert.cat3(Hoist.call_table(w, String.eq(o, "("), Laws.inert.keep(Laws.inert.blanks(k), t), Laws.inert.node(kids),
+    self, wides,
+    carried, path), Hoist.call_table(w, String.eq(o, "("), t, kids, self, wides, carried, path),
+    Hoist.walk(Laws.inert.node(kids), self, wides, carried, path, w), Hoist.walk(kids, self, wides, carried, path, w),
+    Hoist.walk(Laws.inert.node(r2), self, wides, carried, path, w), Hoist.walk(r2, self, wides, carried, path, w),
+    inert.hoist.call_table(w, String.eq(o, "("), Laws.inert.blanks(k), t, kids, self, wides, carried, path, ef, ek),
+    ik, ir)
+
+# a case arm read that way: hot as it was, and its pattern, body and the rest
+# walked as they were
+law inert.hoist.walk_case:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  for +hot: Bool
+  for +es: {Laws.inert.marked(self) == False{} : Bool}
+  for +eb: {Laws.inert.ok(body) == True{} : Bool}
+  for ik: {Hoist.walk(Laws.inert.node(kids), self, wides, carried, path, False{})
+    == Hoist.walk(kids, self, wides, carried, path, False{}) : List<&2, F.Finding>}
+  for ib: {Hoist.walk(Laws.inert.node(body), self, wides, carried, path, Bool.and(hot,
+    Calls.calls(Laws.inert.node(body), self)))
+    == Hoist.walk(body, self, wides, carried, path, Bool.and(hot, Calls.calls(Laws.inert.node(body),
+      self))) : List<&2, F.Finding>}
+  for ir: {Hoist.walk(Laws.inert.node(rest), self, wides, carried, path, hot) == Hoist.walk(rest, self, wides,
+    carried, path, hot)
+    : List<&2, F.Finding>}
+  {List.concat(&2, F.Finding, [Hoist.walk(Laws.inert.node(kids), self, wides, carried, path, False{}),
+    Hoist.walk(Laws.inert.node(body), self, wides, carried, path, Bool.and(hot, Calls.calls(Laws.inert.node(body),
+      self))),
+    Hoist.walk(Laws.inert.node(rest), self, wides, carried, path, hot)])
+    == List.concat(&2, F.Finding, [Hoist.walk(kids, self, wides, carried, path, False{}),
+      Hoist.walk(body, self, wides, carried, path, Bool.and(hot, Calls.calls(body, self))),
+      Hoist.walk(rest, self, wides, carried, path, hot)]) : List<&2, F.Finding>}
+
+def inert.hoist.walk_case(kids, body, rest, self, wides, carried, path, hot, es, eb, ik, ib, ir):
+  +arm = Bool.and(hot, Calls.calls(Laws.inert.node(body), self))
+  +lhs = List.concat(&2, F.Finding, [Hoist.walk(Laws.inert.node(kids), self, wides, carried, path, False{}),
+    Hoist.walk(Laws.inert.node(body), self, wides, carried, path, arm), Hoist.walk(Laws.inert.node(rest), self, wides,
+      carried, path, hot)])
+  %inert.calls(body, self, es, eb) : {lhs == List.concat(&2, F.Finding, [Hoist.walk(kids, self, wides, carried, path,
+    False{}), Hoist.walk(body, self, wides, carried, path, Bool.and(hot, _)), Hoist.walk(rest, self, wides, carried,
+    path, hot)]) : List<&2, F.Finding>}
+  inert.cat3(Hoist.walk(Laws.inert.node(kids), self, wides, carried, path, False{}), Hoist.walk(kids, self, wides,
+    carried, path,
+    False{}), Hoist.walk(Laws.inert.node(body), self, wides, carried, path, arm), Hoist.walk(body, self, wides,
+      carried, path, arm),
+    Hoist.walk(Laws.inert.node(rest), self, wides, carried, path, hot), Hoist.walk(rest, self, wides, carried, path,
+      hot), ik, ib, ir)
+
+# any other statement read that way: its let, its kids, body and the rest
+# walked as they were
+law inert.hoist.walk_st:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  for +hot: Bool
+  for +ek: {Laws.inert.ok(kids) == True{} : Bool}
+  for +eb: {Laws.inert.ok(body) == True{} : Bool}
+  for +er: {Laws.inert.ok(rest) == True{} : Bool}
+  for ik: {Hoist.walk(Laws.inert.node(kids), self, wides, carried, path, hot) == Hoist.walk(kids, self, wides,
+    carried, path, hot)
+    : List<&2, F.Finding>}
+  for ib: {Hoist.walk(Laws.inert.node(body), self, wides, carried, path, hot) == Hoist.walk(body, self, wides,
+    carried, path, hot)
+    : List<&2, F.Finding>}
+  for ir: {Hoist.walk(Laws.inert.node(rest), self, wides, carried, path, hot) == Hoist.walk(rest, self, wides,
+    carried, path, hot)
+    : List<&2, F.Finding>}
+  {List.concat(&2, F.Finding, [Hoist.let_hit(hot, Laws.inert.node(kids), Laws.inert.node(body), Laws.inert.node(rest),
+    self, wides, carried, path),
+    Hoist.walk(Laws.inert.node(kids), self, wides, carried, path, hot), Hoist.walk(Laws.inert.node(body), self, wides,
+      carried, path, hot),
+    Hoist.walk(Laws.inert.node(rest), self, wides, carried, path, hot)])
+    == List.concat(&2, F.Finding, [Hoist.let_hit(hot, kids, body, rest, self, wides, carried, path),
+      Hoist.walk(kids, self, wides, carried, path, hot), Hoist.walk(body, self, wides, carried, path, hot),
+      Hoist.walk(rest, self, wides, carried, path, hot)]) : List<&2, F.Finding>}
+
+def inert.hoist.walk_st(kids, body, rest, self, wides, carried, path, hot, ek, eb, er, ik, ib, ir):
+  inert.hoist.cat4(Hoist.let_hit(hot, Laws.inert.node(kids), Laws.inert.node(body), Laws.inert.node(rest), self,
+    wides, carried, path),
+    Hoist.let_hit(hot, kids, body, rest, self, wides, carried, path),
+    Hoist.walk(Laws.inert.node(kids), self, wides, carried, path, hot), Hoist.walk(kids, self, wides, carried, path,
+      hot),
+    Hoist.walk(Laws.inert.node(body), self, wides, carried, path, hot), Hoist.walk(body, self, wides, carried, path,
+      hot),
+    Hoist.walk(Laws.inert.node(rest), self, wides, carried, path, hot), Hoist.walk(rest, self, wides, carried, path,
+      hot),
+    inert.hoist.let_hit(hot, kids, body, rest, self, wides, carried, path, ek, eb, er), ik, ib, ir)
+
+# hoist's walk reads no string: a string names no builder, no get or set, no
+# carried parameter and no let, and a table never starts with one
+law inert.hoist.walk:
+  for nn: Tree.Node
+  for +self: String
+  for +wides: List<&2, String>
+  for +carried: List<&2, String>
+  for +path: String
+  for +hot: Bool
+  for +es: {Laws.inert.marked(self) == False{} : Bool}
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Hoist.walk(Laws.inert.node(nn), self, wides, carried, path, hot) == Hoist.walk(nn, self, wides, carried, path,
+    hot) : List<&2, F.Finding>}
+
+def inert.hoist.walk(nn, self, wides, carried, path, hot, es, e):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              match rest:
+                case Tree.NCons{h2, +r2}:
+                  match h2:
+                    case Tree.Group{go, +kids, +gcl}:
+                      match go:
+                        case Lex.Tok{+gk, +o, +gl, +gc}:
+                          +lf = {Tree.Leaf{Lex.Tok{k, t, l, c}} : Tree.Node}
+                          +gp = {Tree.Group{Lex.Tok{gk, o, gl, gc}, kids, gcl} : Tree.Node}
+                          +eg = inert.ok_t(lf, Tree.NCons{gp, r2}, e)
+                          inert.hoist.walk_lg(k, t, o, kids, r2, self, wides, carried, path, hot,
+                            inert.ok_h(lf, Tree.NCons{gp, r2}, e), inert.ok_h(gp, r2, eg),
+                            inert.hoist.walk(kids, self, wides, carried, path, Hoist.warm(hot, k), es, inert.ok_h(gp,
+                              r2,
+                              eg)),
+                            inert.hoist.walk(r2, self, wides, carried, path, Hoist.warm(hot, k), es, inert.ok_t(gp, r2,
+                              eg)))
+                    case Tree.Leaf{x}:
+                      inert.hoist.walk(rest, self, wides, carried, path, Hoist.warm(hot, k), es,
+                        inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.Stmt{x, y, z}:
+                      inert.hoist.walk(rest, self, wides, carried, path, Hoist.warm(hot, k), es,
+                        inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.NNil{}:
+                      inert.hoist.walk(rest, self, wides, carried, path, Hoist.warm(hot, k), es,
+                        inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.NCons{x, y}:
+                      inert.hoist.walk(rest, self, wides, carried, path, Hoist.warm(hot, k), es,
+                        inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.Leaf{x}:
+                  inert.hoist.walk(rest, self, wides, carried, path, Hoist.warm(hot, k), es,
+                    inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.Group{x, y, z}:
+                  inert.hoist.walk(rest, self, wides, carried, path, Hoist.warm(hot, k), es,
+                    inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.Stmt{x, y, z}:
+                  inert.hoist.walk(rest, self, wides, carried, path, Hoist.warm(hot, k), es,
+                    inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.NNil{}:
+                  inert.hoist.walk(rest, self, wides, carried, path, Hoist.warm(hot, k), es,
+                    inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+        case Tree.Group{+o, +kids, +cl}:
+          inert.cat2(Hoist.walk(Laws.inert.node(kids), self, wides, carried, path, hot), Hoist.walk(kids, self, wides,
+            carried, path,
+            hot), Hoist.walk(Laws.inert.node(rest), self, wides, carried, path, hot), Hoist.walk(rest, self, wides,
+              carried, path, hot),
+            inert.hoist.walk(kids, self, wides, carried, path, hot, es, inert.ok_h(Tree.Group{o, kids, cl}, rest, e)),
+            inert.hoist.walk(rest, self, wides, carried, path, hot, es, inert.ok_t(Tree.Group{o, kids, cl}, rest, e)))
+        case Tree.Stmt{sk, +kids, +body}:
+          match sk:
+            case Tree.SDef{}:
+              +es2 = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +eb = inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +er = inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              inert.hoist.walk_st(kids, body, rest, self, wides, carried, path, hot, ek, eb, er,
+                inert.hoist.walk(kids, self, wides, carried, path, hot, es, ek),
+                inert.hoist.walk(body, self, wides, carried, path, hot, es, eb),
+                inert.hoist.walk(rest, self, wides, carried, path, hot, es, er))
+            case Tree.SType{}:
+              +es2 = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +eb = inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +er = inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              inert.hoist.walk_st(kids, body, rest, self, wides, carried, path, hot, ek, eb, er,
+                inert.hoist.walk(kids, self, wides, carried, path, hot, es, ek),
+                inert.hoist.walk(body, self, wides, carried, path, hot, es, eb),
+                inert.hoist.walk(rest, self, wides, carried, path, hot, es, er))
+            case Tree.SLaw{}:
+              +es2 = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +eb = inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +er = inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              inert.hoist.walk_st(kids, body, rest, self, wides, carried, path, hot, ek, eb, er,
+                inert.hoist.walk(kids, self, wides, carried, path, hot, es, ek),
+                inert.hoist.walk(body, self, wides, carried, path, hot, es, eb),
+                inert.hoist.walk(rest, self, wides, carried, path, hot, es, er))
+            case Tree.SImport{}:
+              +es2 = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +eb = inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +er = inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              inert.hoist.walk_st(kids, body, rest, self, wides, carried, path, hot, ek, eb, er,
+                inert.hoist.walk(kids, self, wides, carried, path, hot, es, ek),
+                inert.hoist.walk(body, self, wides, carried, path, hot, es, eb),
+                inert.hoist.walk(rest, self, wides, carried, path, hot, es, er))
+            case Tree.SCase{}:
+              +es2 = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +eb = inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +er = inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              inert.hoist.walk_case(kids, body, rest, self, wides, carried, path, hot, es, eb,
+                inert.hoist.walk(kids, self, wides, carried, path, False{}, es, ek),
+                inert.hoist.walk(body, self, wides, carried, path, Bool.and(hot, Calls.calls(Laws.inert.node(body),
+                  self)), es, eb),
+                inert.hoist.walk(rest, self, wides, carried, path, hot, es, er))
+            case Tree.SFor{}:
+              +es2 = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +eb = inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +er = inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              inert.hoist.walk_st(kids, body, rest, self, wides, carried, path, hot, ek, eb, er,
+                inert.hoist.walk(kids, self, wides, carried, path, hot, es, ek),
+                inert.hoist.walk(body, self, wides, carried, path, hot, es, eb),
+                inert.hoist.walk(rest, self, wides, carried, path, hot, es, er))
+            case Tree.SLet{}:
+              +es2 = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +eb = inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +er = inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              inert.hoist.walk_st(kids, body, rest, self, wides, carried, path, hot, ek, eb, er,
+                inert.hoist.walk(kids, self, wides, carried, path, hot, es, ek),
+                inert.hoist.walk(body, self, wides, carried, path, hot, es, eb),
+                inert.hoist.walk(rest, self, wides, carried, path, hot, es, er))
+            case Tree.STerm{}:
+              +es2 = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +eb = inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +er = inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              inert.hoist.walk_st(kids, body, rest, self, wides, carried, path, hot, ek, eb, er,
+                inert.hoist.walk(kids, self, wides, carried, path, hot, es, ek),
+                inert.hoist.walk(body, self, wides, carried, path, hot, es, eb),
+                inert.hoist.walk(rest, self, wides, carried, path, hot, es, er))
+        case Tree.NNil{}: inert.hoist.walk(rest, self, wides, carried, path, hot, es, e)
+        case Tree.NCons{x, y}:
+          inert.hoist.walk(rest, self, wides, carried, path, hot, es, inert.ok_t(Tree.NCons{x, y}, rest, e))
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# hoist over the defs read that way reports what it reports over the defs
+law inert.hoist.go:
+  for ds: List<&2, Calls.Def>
+  for +wide: List<&2, String>
+  for +path: String
+  for +acc: List<&2, List<&2, F.Finding>>
+  for +e: {inert.dok(ds) == True{} : Bool}
+  {Hoist.check.go(inert.defs(ds), wide, path, acc) == Hoist.check.go(ds, wide, path, acc) : List<&2, F.Finding>}
+
+def inert.hoist.go(ds, wide, path, acc, e):
+  match ds:
+    case Nil{}: {==}
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +en = inert.dok.head(name, sig, body, rest, e)
+      +eb = inert.dok.body(name, sig, body, rest, e)
+      +ib = Laws.inert.node(body)
+      +isg = Laws.inert.node(sig)
+      +cr = Hoist.carried(isg, ib, name)
+      +lst = Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Calls.calls(ib, name), Bool.not(Calls.exempt(path,
+        isg)))), [],
+        _u => Hoist.walk(ib, name, wide, cr, path, True{}))
+      %inert.hoist.carried(sig, body, name, en, eb) : {Hoist.check.go(inert.defs(rest), wide, path, lst <> acc)
+        == Hoist.check.go(rest, wide, path, Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Calls.calls(body, name),
+          Bool.not(Calls.exempt(path, sig)))), [], _u => Hoist.walk(body, name, wide, _, path,
+            True{})) <> acc) : List<&2, F.Finding>}
+      %inert.stop(Bool.not(Bool.and(Calls.calls(ib, name), Bool.not(Calls.exempt(path, isg)))),
+        Bool.not(Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))),
+        Hoist.walk(ib, name, wide, cr, path, True{}), Hoist.walk(body, name, wide, cr, path, True{}),
+        inert.gate(path, name, sig, body, en, eb), inert.hoist.walk(body, name, wide, cr, path, True{}, en, eb)) :
+        {Hoist.check.go(inert.defs(rest), wide, path, lst <> acc) == Hoist.check.go(rest, wide, path,
+          _ <> acc) : List<&2, F.Finding>}
+      inert.hoist.go(rest, wide, path, lst <> acc, inert.dok.rest(name, sig, body, rest, e))
+
+# hoist over the defs read that way, their wide tables read that way too
+law inert.hoist.all:
+  for +ds: List<&2, Calls.Def>
+  for +path: String
+  for +e: {inert.dok(ds) == True{} : Bool}
+  {Hoist.check.go(inert.defs(ds), Hoist.wide_defs(inert.defs(ds), []), path, [])
+    == Hoist.check.go(ds, Hoist.wide_defs(ds, []), path, []) : List<&2, F.Finding>}
+
+def inert.hoist.all(ds, path, e):
+  %inert.hoist.wide_defs(ds, [], e) : {Hoist.check.go(inert.defs(ds), Hoist.wide_defs(inert.defs(ds), []), path, [])
+    == Hoist.check.go(ds, _, path, []) : List<&2, F.Finding>}
+  inert.hoist.go(ds, Hoist.wide_defs(inert.defs(ds), []), path, [], e)
+
+def Laws.inert_hoist(path, _text, tree, _toks, _bound, _items, _text2, tree2, _toks2, _bound2, _items2, ok, ok2, e):
+  inert.via(Tree.Node, z => Hoist.check.go(Calls.defs(z), Hoist.wide_defs(Calls.defs(z), []), path, []), tree, tree2,
+    Laws.inert.node(tree), Laws.inert.node(tree2),
+    inert.lift(z => Hoist.check.go(z, Hoist.wide_defs(z, []), path, []), tree, inert.hoist.all(Calls.defs(tree), path,
+      inert.dok.of(tree, ok))),
+    inert.lift(z => Hoist.check.go(z, Hoist.wide_defs(z, []), path, []), tree2, inert.hoist.all(Calls.defs(tree2), path,
+      inert.dok.of(tree2, ok2))),
+    e)

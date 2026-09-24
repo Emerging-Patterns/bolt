@@ -829,12 +829,23 @@ law foreign_counts:
 # The match rules arms and twice read a case statement's pattern: its tokens
 # after `case` in the tree (T.pattern), the first match column first.
 
-# after a Nat literal, `+ p :`: the arm matches every Nat from the literal up
+# a name or `_`: what `Succ{..}` or `kn+` binds when the arm matches every Nat from there up
+def arms.binder(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TName{}:
+      True{}
+    case Lex.TWild{}:
+      True{}
+    case other:
+      False{}
+
+# after a Nat literal, `+ p :` with p a name or `_`: the arm matches every Nat
+# from the literal up
 def arms.plus(rest: Tree.Node) -> Bool:
   match rest:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +o, l, c}},
         Tree.NCons{Tree.Leaf{Lex.Tok{b, p, l2, c2}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, s, l3, c3}}, more}}}:
-      String.eq(o, "+")
+      Bool.and(String.eq(o, "+"), arms.binder(b))
     case other:
       False{}
 
@@ -842,16 +853,6 @@ def arms.plus(rest: Tree.Node) -> Bool:
 def arms.exact(rest: Tree.Node) -> Bool:
   match rest:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, s, l, c}}, more}:
-      True{}
-    case other:
-      False{}
-
-# a name or `_`: what `Succ{..}` binds when it matches every Nat from 1 up
-def arms.binder(kk: Lex.TokKind) -> Bool:
-  match kk:
-    case Lex.TName{}:
-      True{}
-    case Lex.TWild{}:
       True{}
     case other:
       False{}
@@ -4659,3 +4660,87 @@ law reach_binder:
         coverage.said(coverage.uses(Bind.of_tree(Tree.parse(text), String.lines(text))), Tree.parse(text),
           Outline.of_tokens(text, Lex.tokens(text)), Imports.norm(path)), [])}
     : CoverageView}
+
+
+# LAW: arms reads what no string says: two sources as the lexer makes them
+# whose trees read the same with strings cut have the same findings
+# BOLT-RULE-INERT
+law inert_arms:
+  for +path: String
+  for text: String
+  for +tree: Tree.Node
+  for toks: List<&2, Lex.Tok>
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for +tree2: Tree.Node
+  for toks2: List<&2, Lex.Tok>
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for +ok: {inert.ok(tree) == True{} : Bool}
+  for +ok2: {inert.ok(tree2) == True{} : Bool}
+  for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  {Arms.check(Src.Src{path, text, toks, tree, bound, items})
+    == Arms.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# a binder as unused reads it: its name, position and kind, and whether its
+# note opens with `-`, and nothing else the note says
+def inert.ubind(bb: Bind.Bind) -> Bind.Bind:
+  match bb:
+    case Bind.Bind{n, l, c, k, +note}:
+      Bind.Bind{n, l, c, k, Bool.pick(String, String.starts_with(note, "-"), "-", "")}
+
+# the binders, each as unused reads it
+def inert.ubinds(bs: List<&2, Bind.Bind>) -> List<&2, Bind.Bind>:
+  match bs:
+    case Nil{}:
+      Nil{}
+    case Con{h, t}:
+      inert.ubind(h) <> inert.ubinds(t)
+
+# LAW: unused reads no comment or string: two sources whose trees read the
+# same with strings cut, with the same uses, and whose binders are alike in
+# name, position, kind and a leading `-` of their notes have the same findings
+# BOLT-RULE-INERT
+law inert_unused:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +binds: List<&2, Bind.Bind>
+  for +uses: List<&2, Bind.Use>
+  for scopes: List<&2, Bind.Scope>
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for toks2: List<&2, Lex.Tok>
+  for +tree2: Tree.Node
+  for +binds2: List<&2, Bind.Bind>
+  for scopes2: List<&2, Bind.Scope>
+  for items2: List<&2, Outline.Item>
+  for et: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  for eb: {inert.ubinds(binds) == inert.ubinds(binds2) : List<&2, Bind.Bind>}
+  {Unused.check(Src.Src{path, text, toks, tree, Bind.Bound{binds, uses, scopes}, items})
+    == Unused.check(Src.Src{path, text2, toks2, tree2, Bind.Bound{binds2, uses, scopes2}, items2})
+    : List<&2, F.Finding>}
+
+# LAW: hoist reads what no string says: two sources as the lexer makes them
+# whose trees read the same with strings cut have the same findings (a
+# string's text is only ever compared with a name, a keyword or a mark)
+# BOLT-RULE-INERT
+law inert_hoist:
+  for +path: String
+  for text: String
+  for +tree: Tree.Node
+  for toks: List<&2, Lex.Tok>
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for +tree2: Tree.Node
+  for toks2: List<&2, Lex.Tok>
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for +ok: {inert.ok(tree) == True{} : Bool}
+  for +ok2: {inert.ok(tree2) == True{} : Bool}
+  for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  {Hoist.check(Src.Src{path, text, toks, tree, bound, items})
+    == Hoist.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
