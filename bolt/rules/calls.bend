@@ -116,24 +116,6 @@ def arg(as: List<&2, Tree.Node>, nn: Nat) -> Tree.Node:
     case Nil{} m:
       Tree.NNil{}
 
-# does the name appear anywhere under the node?
-def mentions(nn: Tree.Node, +name: String) -> Bool:
-  match nn:
-    case Tree.Leaf{Lex.Tok{k, +t, l, c}}:
-      String.eq(t, name)
-    case Tree.Group{open, kids, close}:
-      mentions(kids, name)
-    case Tree.Stmt{kind, kids, body}:
-      +a = mentions(kids, name)
-      +b = mentions(body, name)
-      Bool.or(a, b)
-    case Tree.NNil{}:
-      False{}
-    case Tree.NCons{h, t}:
-      +a = mentions(h, name)
-      +b = mentions(t, name)
-      Bool.or(a, b)
-
 # is there a call of the name, `name(..)`, anywhere under the node?
 def calls(nn: Tree.Node, +name: String) -> Bool:
   match nn:

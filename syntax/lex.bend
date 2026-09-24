@@ -323,14 +323,6 @@ def is_open(kk: TokKind) -> Bool:
     case other:
       False{}
 
-# a closing bracket?
-def is_close(kk: TokKind) -> Bool:
-  match kk:
-    case TClose{}:
-      True{}
-    case other:
-      False{}
-
 # a comma?
 def is_comma(kk: TokKind) -> Bool:
   match kk:
@@ -351,28 +343,6 @@ def is_name(kk: TokKind) -> Bool:
     case TWild{}:
       True{}
     case TKey{}:
-      True{}
-    case other:
-      False{}
-
-# an operator of any kind
-def is_op(kk: TokKind) -> Bool:
-  match kk:
-    case TOp{}:
-      True{}
-    case TColon{}:
-      True{}
-    case TEq{}:
-      True{}
-    case TBind{}:
-      True{}
-    case TArrow{}:
-      True{}
-    case TLam{}:
-      True{}
-    case TAll{}:
-      True{}
-    case TAmp{}:
       True{}
     case other:
       False{}

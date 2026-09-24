@@ -92,22 +92,3 @@ def source.at(mm: Maybe<&2, Entry>) -> String:
 # `bolt(group:slug)`; `bolt` when the slug is not a rule
 def source(+slug: String) -> String:
   source.at(find(table(), slug))
-
-# one rule as `slug code group`
-def listed.row(+ee: Entry) -> String:
-  Entry{+slug, +id, +grp} = ee
-  slug ++ " " ++ id ++ " " ++ grp
-
-# every rule as `slug code group`, one a line
-def listed.go(rows: List<&2, Entry>) -> String:
-  match rows:
-    case Nil{}:
-      ""
-    case Con{+ee, Nil{}}:
-      listed.row(ee)
-    case Con{+ee, rest}:
-      listed.row(ee) ++ "\n" ++ listed.go(rest)
-
-# every rule as `slug code group`, one a line
-def listed() -> String:
-  listed.go(table())

@@ -56,22 +56,10 @@ def step(+cc: Char, st: W, +col: U32) -> W:
   W{i, start, run, hit} = st
   step.on(is_name(cc), cc, i, start, run, hit, col)
 
-# every char, in order
-def scan(cs: List<&2, Char>, st: W, +col: U32) -> W:
-  match cs:
-    case Nil{}:
-      st
-    case Con{c, t}:
-      scan(t, step(c, st, col), col)
-
 # the run that held the column, else ""
 def finish(st: W, col: U32) -> String:
   W{i, start, run, hit} = st
   Maybe.default(&2, String, close(i, start, run, hit, col), "")
-
-# the name at a column of a line
-def in_line(line: String, +col: U32) -> String:
-  finish(scan(String.to_list(line), W{0, 0, [], None{}}, col), col)
 
 # lines still to skip after this char; a newline counts as one
 def at.skip.n(nl: Bool, nn: U32) -> U32:

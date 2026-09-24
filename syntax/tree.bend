@@ -50,22 +50,6 @@ def reverse(cells: Node, acc: Node) -> Node:
     case other:
       acc
 
-# a chain as a list
-def to_list(cells: Node) -> List<&2, Node>:
-  match cells:
-    case NCons{h, t}:
-      h <> to_list(t)
-    case other:
-      Nil{}
-
-# a list as a chain
-def of_list(ns: List<&2, Node>) -> Node:
-  match ns:
-    case Nil{}:
-      NNil{}
-    case Con{h, t}:
-      NCons{h, of_list(t)}
-
 # the token a leaf holds; a group's open, a statement's first token
 def first(nn: Node) -> Maybe<&2, Lex.Tok>:
   match nn:
@@ -112,22 +96,6 @@ def col.of(mm: Maybe<&2, Lex.Tok>) -> U32:
 # the column of a node's first token (0 for none)
 def col(nn: Node) -> U32:
   col.of(first(nn))
-
-# is it a single token?
-def is_leaf(nn: Node) -> Bool:
-  match nn:
-    case Leaf{tok}:
-      True{}
-    case other:
-      False{}
-
-# is it the leaf with this text?
-def is_text(nn: Node, +ss: String) -> Bool:
-  match nn:
-    case Leaf{Lex.Tok{k, t, l, c}}:
-      String.eq(t, ss)
-    case other:
-      False{}
 
 # is it a group opened by this bracket?
 def opens(nn: Node, +ss: String) -> Bool:
