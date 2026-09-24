@@ -4,7 +4,7 @@
 #
 # How to cut a release by hand
 #   1. Land the version on the default branch. These files name it and all
-#      must agree: flake.nix, bolt/version.bend, editors/vscode/package.json,
+#      must agree: flake.nix, src/version.bend, editors/vscode/package.json,
 #      its package-lock.json, and the VSIX named in README.md and in
 #      editors/vscode/README.md.
 #   2. Actions -> Tag -> Run workflow, from that branch:
@@ -65,8 +65,8 @@ jobs:
             printf 'flake.nix\t%s\n' \
               "$(grep -oE 'version = "[0-9]+\.[0-9]+\.[0-9]+"' flake.nix \
                  | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
-            printf 'bolt/version.bend\t%s\n' \
-              "$(grep -A1 'def text()' bolt/version.bend \
+            printf 'src/version.bend\t%s\n' \
+              "$(grep -A1 'def text()' src/version.bend \
                  | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
             for j in editors/vscode/package.json editors/vscode/package-lock.json; do
               printf '%s\t%s\n' "$j" "$(node -p "require('./$j').version")"
@@ -122,7 +122,7 @@ jobs:
 
           if [ "$bump_files" -eq 1 ]; then
             sed -i -E 's/version = "[0-9]+\.[0-9]+\.[0-9]+"/version = "'"$ver"'"/' flake.nix
-            sed -i -E 's/"[0-9]+\.[0-9]+\.[0-9]+"/"'"$ver"'"/' bolt/version.bend
+            sed -i -E 's/"[0-9]+\.[0-9]+\.[0-9]+"/"'"$ver"'"/' src/version.bend
             # npm owns package.json and package-lock.json together; sed on one
             # of them is how they drifted apart before
             ( cd editors/vscode && npm version "$ver" \
@@ -144,7 +144,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: Release v${{ steps.ver.outputs.version }}
-          file_pattern: flake.nix bolt/version.bend editors/vscode/package.json editors/vscode/package-lock.json README.md editors/vscode/README.md
+          file_pattern: flake.nix src/version.bend editors/vscode/package.json editors/vscode/package-lock.json README.md editors/vscode/README.md
           branch: ${{ github.ref_name }}
           disable_globbing: true
           commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>

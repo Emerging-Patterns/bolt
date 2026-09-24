@@ -33,17 +33,17 @@
           license = pkgs.lib.licenses.mit;
         };
       };
-      # short commit id, written into bolt/build_rev.bend before bend runs
+      # short commit id, written into src/build_rev.bend before bend runs
       bolt = if bakedRev == "" then boltPkg else boltPkg.overrideAttrs (old: {
         buildPhase = ''
-          chmod u+w bolt/build_rev.bend
+          chmod u+w src/build_rev.bend
           printf '%s\n%s\n\n%s\n%s\n%s\n' \
             '# the short commit id of this build. Empty when the build has none.' \
             'import Base' \
             '# the short commit id, or empty' \
             'def text() -> String:' \
             '  "${bakedRev}"' \
-            > bolt/build_rev.bend
+            > src/build_rev.bend
           ${old.buildPhase}
         '';
       });

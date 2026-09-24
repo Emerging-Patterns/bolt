@@ -12,7 +12,7 @@
         },
         {
           "type": "generic",
-          "path": "bolt/version.bend"
+          "path": "src/version.bend"
         },
         {
           "type": "json",

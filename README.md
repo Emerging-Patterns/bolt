@@ -31,7 +31,7 @@ With an installed `bend`:
 ```
 git clone https://github.com/Emerging-Patterns/bolt
 cd bolt
-bend bolt/main.bend -o bin/bolt.bin      # the whole build
+bend main.bend -o bin/bolt.bin           # the whole build
 bin/bolt.bin                             # lints every .bend under the current directory
 ```
 
@@ -135,7 +135,7 @@ def space() -> String:
 The groups are `correctness` (`hole`, `pick`, `put`; error by default),
 `suspicious` (`unused`), `style` (`doc`, `space`, `wrap`, `param`) and `laws` (`coverage`), the
 rest warn by default. Every rule, and the config in full, is in
-[bolt/README.md](bolt/README.md).
+[src/README.md](src/README.md).
 
 ## Develop
 

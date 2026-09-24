@@ -1,6 +1,6 @@
 # bolt from nothing: the binary people run, built by `bend` and nothing else.
 #
-# `bend bolt/main.bend -o bin/bolt.bin` is the entire build. shake,
+# `bend main.bend -o bin/bolt.bin` is the entire build. shake,
 # ezjson and snap are git-backed ledger deps, so this test clones those
 # pinned revs and lays them out as BEND_LIB itself -- no ez, no nix. `ez` is a
 # convenience over that one line and never a prerequisite, in either
@@ -39,7 +39,7 @@ def snap.hash() -> String:
 # the build, with ez taken out of the environment. BEND_LIB is the
 # checkouts this test laid out, not ez's.
 def bare() -> List<&2, String>:
-  ["env", "-u", "EZ_ROOT", "BEND_LIB=.scratch/lib", "bend", "bolt/main.bend",
+  ["env", "-u", "EZ_ROOT", "BEND_LIB=.scratch/lib", "bend", "main.bend",
     "-o", "bin/bolt.bin"]
 
 def main() -> IO(Unit):
@@ -71,7 +71,7 @@ def main() -> IO(Unit):
     built : String <- Snap.exec(bare())
     eq_str("bolt builds with bare bend and no ez",
       Snap.code(built), "0")
-    spawned : String <- Snap.exec(["node", "bolt/lsp/tests/spawn.js", "bin/bolt.bin"])
+    spawned : String <- Snap.exec(["node", "src/lsp/tests/spawn.js", "bin/bolt.bin"])
     eq_str("the server answers node, spawned over sockets",
       Snap.text(spawned), "ok\n")
     located : String <- Snap.exec(["node", "tests/locate.js", "bin/bolt.bin"])
@@ -80,12 +80,12 @@ def main() -> IO(Unit):
     helped : String <- Snap.exec(["bin/bolt.bin", "--gpu", "off", "help"])
     eq_str("bolt help prints usage", Snap.code(helped), "0")
     many : String <- Snap.exec(["bin/bolt.bin", "--gpu", "off",
-      "bolt/lsp/fixtures/proven/LAWS.bend",
-      "bolt/lsp/fixtures/proven/PROOF.bend"])
+      "src/lsp/fixtures/proven/LAWS.bend",
+      "src/lsp/fixtures/proven/PROOF.bend"])
     eq_str("bolt lints the files it is given", Snap.text(many), "clean\n")
     checked : String <- Snap.exec(["bin/bolt.bin", "--gpu", "off", "check",
-      "bolt/lsp/fixtures/proven/LAWS.bend",
-      "bolt/lsp/fixtures/proven/PROOF.bend"])
+      "src/lsp/fixtures/proven/LAWS.bend",
+      "src/lsp/fixtures/proven/PROOF.bend"])
     eq_str("bolt check takes every leftover file", Snap.text(checked), "clean\n")
 
 #|ok bolt builds with bare bend and no ez
