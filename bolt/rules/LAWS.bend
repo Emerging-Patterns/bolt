@@ -2621,73 +2621,10 @@ law wrap_counts:
   {List.length(&2, F.Finding, Wrap.check(Src.Src{path, text, toks, tree, bound, items})) == wrap.count(items) : Nat}
 
 # coverage (BOLT-LAW-1). The rule reads the digests of the files in the run
-# (bolt/rules/digest.bend), and so do these laws: they hold for every list of
-# digests. A digest records, for a LAWS.bend, each use its quantified laws
-# make, as the path and name the use resolves to (`Digest.Mention`); which
-# uses those are is the binder's (BOLT-SYN-5) and Digest.of's, not the
-# rule's. Under law is every file of the run when one of them is a LAWS.bend
+# (bolt/rules/digest.bend), and so do its laws, coverage_reach and the
+# others at the end of this file: they hold for every list of digests. Under
+# law is every file of the run when one of them is a LAWS.bend
 # (BOLT-SCOPE-3), else none.
-
-# the uses name the item: its path and its name
-def coverage.names(ms: List<&2, Digest.Mention>, +pp: String, +name: String) -> Bool:
-  match ms:
-    case Nil{}:
-      False{}
-    case Con{Digest.Mention{mp, mn}, rest}:
-      Bool.or(Bool.and(String.eq(mp, pp), String.eq(mn, name)), coverage.names(rest, pp, name))
-
-# some LAWS.bend among the digests uses the item
-def coverage.used(ds: List<&2, Digest.Digest>, +pp: String, +name: String) -> Bool:
-  match ds:
-    case Nil{}:
-      False{}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
-      Bool.or(Bool.and(is_laws, coverage.names(says, pp, name)), coverage.used(rest, pp, name))
-
-# some LAWS.bend uses one of the names (a type's constructors) in the file
-def coverage.any(ns: List<&2, String>, +ds: List<&2, Digest.Digest>, +pp: String) -> Bool:
-  match ns:
-    case Nil{}:
-      False{}
-    case Con{name, rest}:
-      Bool.or(coverage.used(ds, pp, name), coverage.any(rest, ds, pp))
-
-# the items no LAWS.bend uses, in order: a def whose name has no dot (a
-# helper's has), and a type when neither it nor any of its constructors is
-# used (a use of another def of its file does not count)
-def coverage.gaps(
-  ts: List<&2, Digest.Top>,
-  +ds: List<&2, Digest.Digest>,
-  +pp: String,
-  +path: String
-) -> List<&2, F.Finding>:
-  match ts:
-    case Nil{}:
-      Nil{}
-    case Con{Digest.Top{Outline.IDef{}, +name, +line, cs}, rest}:
-      +more = coverage.gaps(rest, ds, pp, path)
-      Bool.pick(List<&2, F.Finding>, Bool.or(String.contains(name, "."), coverage.used(ds, pp, name)), more,
-        F.Finding{path, line, 0, 0, "coverage", "No quantified law names def " ++ name ++ "."} <> more)
-    case Con{Digest.Top{Outline.IType{}, +name, +line, cs}, rest}:
-      +more = coverage.gaps(rest, ds, pp, path)
-      Bool.pick(List<&2, F.Finding>, Bool.or(coverage.used(ds, pp, name), coverage.any(cs, ds, pp)), more,
-        F.Finding{path, line, 0, 0, "coverage", "No quantified law names type " ++ name ++ " or any of its constructors."}
-          <> more)
-    case Con{other, rest}:
-      coverage.gaps(rest, ds, pp, path)
-
-# the gaps of every file of fs not exempt (a law file or a test), against
-# the uses the laws of all record
-def coverage.files(fs: List<&2, Digest.Digest>, +all: List<&2, Digest.Digest>) -> List<&2, F.Finding>:
-  match fs:
-    case Nil{}:
-      Nil{}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
-      match exempt:
-        case True{}:
-          coverage.files(rest, all)
-        case False{}:
-          List.append(&2, F.Finding, coverage.gaps(tops, all, norm, path), coverage.files(rest, all))
 
 # some digest is a LAWS.bend
 def coverage.lawful(ds: List<&2, Digest.Digest>) -> Bool:
@@ -2696,16 +2633,6 @@ def coverage.lawful(ds: List<&2, Digest.Digest>) -> Bool:
       False{}
     case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
       Bool.or(is_laws, coverage.lawful(rest))
-
-# LAW: over every list of digests, coverage reports exactly this: when one
-# is a LAWS.bend, in every file that is not a law file or a test, each def
-# with no dot in its name that no LAWS.bend's quantified laws use, and each
-# type they use neither by name nor by a constructor; else nothing
-# BOLT-LAW-1
-law coverage_reports:
-  for +ds: List<&2, Digest.Digest>
-  {Coverage.check(ds) == Bool.pick(List<&2, F.Finding>, coverage.lawful(ds), coverage.files(ds, ds), [])
-    : List<&2, F.Finding>}
 
 # unsafe (BOLT-LAW-3). Over every list of digests, as coverage's laws are.
 # A digest records a file's relative imports (normalized, `deps`) and its
@@ -3853,11 +3780,9 @@ law trace_named:
   for ds: List<&2, Digest.Digest>
   {Trace.check(False{}, mm, ds) == [] : List<&2, F.Finding>}
 
-# coverage's reading of a file (BOLT-LAW-1). coverage_reports above states
-# the rule over every list of digests; these state the digest of every file:
-# what the rule grades in it (its path, whether it is a LAWS.bend, whether it
-# is let off, its defs and types, and each type's constructors) and what its
-# laws name, which is the binder's (BOLT-SYN-5) resolution of each use in the
+# coverage's reading of a file (BOLT-LAW-1). reach_digest and reach_binder,
+# at the end of this file, state the digest of every file with these: what
+# its laws name is the binder's (BOLT-SYN-5) resolution of each use in the
 # statement of a quantified law of a LAWS.bend. A use the binder resolves to
 # an item of the file is a mention of that item of the law's own file; one it
 # resolves through an import alias is a mention of the item of the file that
@@ -3874,19 +3799,6 @@ def coverage.ctors_of(items: List<&2, Outline.Item>) -> List<&2, String>:
       name <> coverage.ctors_of(rest)
     case _other:
       []
-
-# the defs and types of the outline, each by name and line, a type with its
-# constructors
-def coverage.tops(items: List<&2, Outline.Item>) -> List<&2, Digest.Top>:
-  match items:
-    case Nil{}:
-      []
-    case Con{Outline.Item{Outline.IDef{}, name, line, _sig, _doc, _path}, rest}:
-      Digest.Top{Outline.IDef{}, name, line, []} <> coverage.tops(rest)
-    case Con{Outline.Item{Outline.IType{}, name, line, _sig, _doc, _path}, +rest}:
-      Digest.Top{Outline.IType{}, name, line, coverage.ctors_of(rest)} <> coverage.tops(rest)
-    case Con{_other, rest}:
-      coverage.tops(rest)
 
 # the file the first import of this alias names, resolved against the
 # importing file
@@ -3961,44 +3873,6 @@ def coverage.view(dd: Digest.Digest) -> CoverageView:
   match dd:
     case Digest.Digest{_path, norm, _dir, is_laws, _is_law_file, exempt, tops, says, _deps, _unsafes, _laws}:
       CoverageView{norm, is_laws, exempt, tops, says}
-
-# LAW: whatever a file's text, tokens, tree, binding structure and outline,
-# its digest grades it at its normalized path, is a LAWS.bend by its path, is
-# let off exactly when that path is a law file or a test, lists the outline's
-# defs and types (a type with the constructors listed right after it), and
-# names, when it is a LAWS.bend, exactly what the binder resolved each use on
-# a quantified law's statement to, through an import alias or in the file;
-# any other file names nothing
-# BOLT-LAW-1
-law coverage_digest:
-  for +path: String
-  for text: String
-  for toks: List<&2, Lex.Tok>
-  for +tree: Tree.Node
-  for bound: Bind.Bound
-  for +items: List<&2, Outline.Item>
-  {coverage.view(Digest.of(Src.Src{path, text, toks, tree, bound, items}))
-    == CoverageView{Imports.norm(path), Paths.is_laws(path),
-      Bool.or(Paths.is_law_file(Imports.norm(path)), Paths.is_test(Imports.norm(path))), coverage.tops(items),
-      Bool.pick(List<&2, Digest.Mention>, Paths.is_laws(path),
-        coverage.said(coverage.uses(bound), tree, items, Imports.norm(path)), [])}
-    : CoverageView}
-
-# LAW: read from its path and text as the linter reads every file, a file's
-# laws name exactly what the binder (Bind.of_tree, BOLT-SYN-5) resolves each
-# use on a quantified law's statement to, when the file is a LAWS.bend
-# BOLT-LAW-1
-law coverage_binder:
-  for +path: String
-  for +text: String
-  {coverage.view(Digest.of(Src.of(path, text)))
-    == CoverageView{Imports.norm(path), Paths.is_laws(path),
-      Bool.or(Paths.is_law_file(Imports.norm(path)), Paths.is_test(Imports.norm(path))),
-      coverage.tops(Outline.of_tokens(text, Lex.tokens(text))),
-      Bool.pick(List<&2, Digest.Mention>, Paths.is_laws(path),
-        coverage.said(coverage.uses(Bind.of_tree(Tree.parse(text), String.lines(text))), Tree.parse(text),
-          Outline.of_tokens(text, Lex.tokens(text)), Imports.norm(path)), [])}
-    : CoverageView}
 
 # unsafe (BOLT-LAW-3), the reach. unsafe_reports reads what a law file
 # reaches as unsafe.closure, the import walk the rule runs. These laws pin
@@ -4362,3 +4236,278 @@ law inert_param:
   for +path: String
   for e: {inert.binds(b1) == inert.binds(b2) : List<&2, Bind.Bind>}
   {Param.check.on(b1, path) == Param.check.on(b2, path) : List<&2, F.Finding>}
+
+# coverage by reach (BOLT-LAW-1). A def is covered when a quantified law of
+# a LAWS.bend names it, or when a covered def calls it: the least set of
+# items that holds what the laws name and every call of each def in it. A
+# type is covered when that set holds it or one of its constructors: a law or
+# a covered def names it, and a type calls nothing. The set is stated over a
+# graph written as digests, so the unsafe laws' spec of a closure (the least
+# list that holds its start and is shut, unsafe.shut) is the same spec here:
+# each node is a digest whose path is an item's key and whose imports are
+# what the item leads to. An item's key is its name, a space and its file's
+# path; one more node, the empty key, leads to what the laws name. A def
+# leads to what the uses on its lines name (its calls, `Digest.Top`), in its
+# file or behind an import alias; a type and a constructor lead nowhere.
+# Every file's items are nodes, law files and tests too, so a helper of a
+# LAWS.bend that a law names carries the reach to what it calls.
+
+# an item's key: its name, a space, its file's path
+def reach.key(+pp: String, name: String) -> String:
+  name ++ " " ++ pp
+
+# the keys of what the mentions name
+def reach.keys(ms: List<&2, Digest.Mention>) -> List<&2, String>:
+  match ms:
+    case Nil{}:
+      []
+    case Con{Digest.Mention{pp, name}, rest}:
+      reach.key(pp, name) <> reach.keys(rest)
+
+# a node: a digest with only a key and what it leads to
+def reach.node(+kk: String, to: List<&2, String>) -> Digest.Digest:
+  Digest.Digest{kk, kk, "", False{}, False{}, True{}, [], [], to, [], []}
+
+# each constructor as a node that leads nowhere, onto the others
+def reach.ctors(cs: List<&2, String>, +pp: String, more: List<&2, Digest.Digest>) -> List<&2, Digest.Digest>:
+  match cs:
+    case Nil{}:
+      more
+    case Con{name, rest}:
+      reach.node(reach.key(pp, name), []) <> reach.ctors(rest, pp, more)
+
+# the defs and types of a file as nodes, onto the others: a def leads to
+# what its calls name, a type (then each of its constructors) nowhere
+def reach.nodes(ts: List<&2, Digest.Top>, +pp: String, more: List<&2, Digest.Digest>) -> List<&2, Digest.Digest>:
+  match ts:
+    case Nil{}:
+      more
+    case Con{Digest.Top{Outline.IDef{}, name, _line, _cs, calls}, rest}:
+      reach.node(reach.key(pp, name), reach.keys(calls)) <> reach.nodes(rest, pp, more)
+    case Con{Digest.Top{Outline.IType{}, name, _line, cs, _calls}, rest}:
+      reach.node(reach.key(pp, name), []) <> reach.ctors(cs, pp, reach.nodes(rest, pp, more))
+    case Con{_other, rest}:
+      reach.nodes(rest, pp, more)
+
+# the items of every file as nodes
+def reach.items(ds: List<&2, Digest.Digest>) -> List<&2, Digest.Digest>:
+  match ds:
+    case Nil{}:
+      []
+    case Con{Digest.Digest{_path, norm, _dir, _is_laws, _is_law_file, _exempt, tops, _says, _deps, _unsafes, _laws},
+      rest}:
+      reach.nodes(tops, norm, reach.items(rest))
+
+# what the quantified laws of every LAWS.bend name, in order
+def reach.named(ds: List<&2, Digest.Digest>) -> List<&2, Digest.Mention>:
+  match ds:
+    case Nil{}:
+      []
+    case Con{Digest.Digest{_path, _norm, _dir, is_laws, _is_law_file, _exempt, _tops, says, _deps, _unsafes, _laws},
+      rest}:
+      +more = reach.named(rest)
+      Bool.pick(List<&2, Digest.Mention>, is_laws, List.append(&2, Digest.Mention, says, more), more)
+
+# the graph: the empty key, leading to what the laws name, then every item
+def reach.graph(+ds: List<&2, Digest.Digest>) -> List<&2, Digest.Digest>:
+  reach.node("", reach.keys(reach.named(ds))) <> reach.items(ds)
+
+# what the laws reach: the closure of the empty key over the graph
+def reach.closure(+ds: List<&2, Digest.Digest>) -> List<&2, String>:
+  unsafe.closure(reach.graph(ds), "")
+
+# is one of the names (a type's constructors) of the file reached?
+def reach.any(ns: List<&2, String>, +cl: List<&2, String>, +pp: String) -> Bool:
+  match ns:
+    case Nil{}:
+      False{}
+    case Con{name, rest}:
+      Bool.or(Imports.has(cl, reach.key(pp, name)), reach.any(rest, cl, pp))
+
+# the items of a file the closure does not hold, in order: a def whose name
+# has no dot (a helper's has), and a type when neither it nor any of its
+# constructors is held
+def reach.gaps(ts: List<&2, Digest.Top>, +cl: List<&2, String>, +pp: String, +path: String) -> List<&2, F.Finding>:
+  match ts:
+    case Nil{}:
+      []
+    case Con{Digest.Top{Outline.IDef{}, +name, +line, _cs, _calls}, rest}:
+      +more = reach.gaps(rest, cl, pp, path)
+      Bool.pick(List<&2, F.Finding>, Bool.or(String.contains(name, "."), Imports.has(cl, reach.key(pp, name))), more,
+        F.Finding{path, line, 0, 0, "coverage", "No quantified law reaches def " ++ name ++ "."} <> more)
+    case Con{Digest.Top{Outline.IType{}, +name, +line, cs, _calls}, rest}:
+      +more = reach.gaps(rest, cl, pp, path)
+      Bool.pick(List<&2, F.Finding>, Bool.or(Imports.has(cl, reach.key(pp, name)), reach.any(cs, cl, pp)), more,
+        F.Finding{path, line, 0, 0, "coverage", "No quantified law reaches type " ++ name ++ " or any of its constructors."}
+          <> more)
+    case Con{_other, rest}:
+      reach.gaps(rest, cl, pp, path)
+
+# the gaps of every file of fs that is not a law file or a test
+def reach.files(fs: List<&2, Digest.Digest>, +cl: List<&2, String>) -> List<&2, F.Finding>:
+  match fs:
+    case Nil{}:
+      []
+    case Con{Digest.Digest{path, norm, _dir, _is_laws, _is_law_file, exempt, tops, _says, _deps, _unsafes, _laws},
+      rest}:
+      match exempt:
+        case True{}:
+          reach.files(rest, cl)
+        case False{}:
+          List.append(&2, F.Finding, reach.gaps(tops, cl, norm, path), reach.files(rest, cl))
+
+# LAW: over every list of digests, coverage reports exactly this: when one
+# is a LAWS.bend, in every file that is not a law file or a test, each def
+# with no dot in its name, and each type, that the closure does not hold (a
+# type by its key or a constructor's): the defs and types in scope less what
+# the laws reach; else nothing
+# BOLT-LAW-1
+law coverage_reach:
+  for +ds: List<&2, Digest.Digest>
+  {Coverage.check(ds) == Bool.pick(List<&2, F.Finding>, coverage.lawful(ds), reach.files(ds, reach.closure(ds)), [])
+    : List<&2, F.Finding>}
+
+# LAW: over every list of digests, the closure holds the empty key it starts
+# from
+# BOLT-LAW-1
+law reach_from:
+  for +ds: List<&2, Digest.Digest>
+  {Imports.has(reach.closure(ds), "") == True{} : Bool}
+
+# LAW: over every list of digests, the closure is shut: each node of the
+# graph that a node in it leads to is in it. So it holds every item a
+# quantified law names, and every item a def in it calls
+# BOLT-LAW-1
+law reach_shut:
+  for +ds: List<&2, Digest.Digest>
+  {unsafe.shut(reach.graph(ds), reach.closure(ds), reach.closure(ds)) == True{} : Bool}
+
+# LAW: and it is the least such list: every list that holds the empty key
+# and is shut holds each key the closure holds, so the closure holds only
+# items a chain of calls from what a law names leads to
+# BOLT-LAW-1
+law reach_least:
+  for +ds: List<&2, Digest.Digest>
+  for +ss: List<&2, String>
+  for +kk: String
+  for hf: {Imports.has(ss, "") == True{} : Bool}
+  for hs: {unsafe.shut(reach.graph(ds), ss, ss) == True{} : Bool}
+  for hk: {Imports.has(reach.closure(ds), kk) == True{} : Bool}
+  {Imports.has(ss, kk) == True{} : Bool}
+
+# the uses, in order, before the first one at or past the line
+def reach.before(us: List<&2, Bind.Use>, +at: U32) -> List<&2, Bind.Use>:
+  match us:
+    case Nil{}:
+      []
+    case Con{Bind.Use{nm, +ln, cc, tt}, rest}:
+      Bool.pick(List<&2, Bind.Use>, U32.is_le(at, ln), [], Bind.Use{nm, ln, cc, tt} <> reach.before(rest, at))
+
+# the uses from the first one at or past the line on
+def reach.after(us: List<&2, Bind.Use>, +at: U32) -> List<&2, Bind.Use>:
+  match us:
+    case Nil{}:
+      []
+    case Con{Bind.Use{nm, +ln, cc, tt}, +rest}:
+      Bool.pick(List<&2, Bind.Use>, U32.is_le(at, ln), Bind.Use{nm, ln, cc, tt} <> rest, reach.after(rest, at))
+
+# the line of the next item that is not a constructor, when there is one
+def reach.next(items: List<&2, Outline.Item>) -> Maybe<&2, U32>:
+  match items:
+    case Nil{}:
+      None{}
+    case Con{Outline.Item{Outline.ICtor{}, _name, _line, _sig, _doc, _path}, rest}:
+      reach.next(rest)
+    case Con{Outline.Item{_kind, _name, line, _sig, _doc, _path}, _rest}:
+      Some{line}
+
+# the uses an item takes: those before the next item's line, or all of them
+def reach.upto(us: List<&2, Bind.Use>, mm: Maybe<&2, U32>) -> List<&2, Bind.Use>:
+  match mm:
+    case None{}:
+      us
+    case Some{at}:
+      reach.before(us, at)
+
+# the uses an item leaves to the items after it
+def reach.past(us: List<&2, Bind.Use>, mm: Maybe<&2, U32>) -> List<&2, Bind.Use>:
+  match mm:
+    case None{}:
+      []
+    case Some{at}:
+      reach.after(us, at)
+
+# what the uses name, in order, resolved against the file's outline
+def reach.calls(us: List<&2, Bind.Use>, +all: List<&2, Outline.Item>, +file: String) -> List<&2, Digest.Mention>:
+  match us:
+    case Nil{}:
+      []
+    case Con{Bind.Use{_n, _l, _c, tt}, rest}:
+      List.append(&2, Digest.Mention, coverage.target(tt, all, file), reach.calls(rest, all, file))
+
+# the defs and types of the outline, each by name and line, a type with its
+# constructors, each with what the uses on its lines name. The uses are read
+# in order: each item but a constructor takes those before the next such
+# item's line
+def reach.tops(
+  items: List<&2, Outline.Item>,
+  +all: List<&2, Outline.Item>,
+  +us: List<&2, Bind.Use>,
+  +file: String
+) -> List<&2, Digest.Top>:
+  match items:
+    case Nil{}:
+      []
+    case Con{Outline.Item{Outline.IDef{}, name, line, _sig, _doc, _path}, +rest}:
+      Digest.Top{Outline.IDef{}, name, line, [], reach.calls(reach.upto(us, reach.next(rest)), all, file)}
+        <> reach.tops(rest, all, reach.past(us, reach.next(rest)), file)
+    case Con{Outline.Item{Outline.IType{}, name, line, _sig, _doc, _path}, +rest}:
+      Digest.Top{Outline.IType{}, name, line, coverage.ctors_of(rest),
+        reach.calls(reach.upto(us, reach.next(rest)), all, file)}
+        <> reach.tops(rest, all, reach.past(us, reach.next(rest)), file)
+    case Con{Outline.Item{Outline.ICtor{}, _name, _line, _sig, _doc, _path}, rest}:
+      reach.tops(rest, all, us, file)
+    case Con{Outline.Item{_kind, _name, _line, _sig, _doc, _path}, +rest}:
+      reach.tops(rest, all, reach.past(us, reach.next(rest)), file)
+
+# LAW: whatever a file's text, tokens, tree, binding structure and outline,
+# its digest grades it at its normalized path, is a LAWS.bend by its path, is
+# let off exactly when that path is a law file or a test, lists the outline's
+# defs and types (a type with the constructors listed right after it), each
+# with what the binder resolved the uses on its lines to (reach.tops), and
+# names, when it is a LAWS.bend, exactly what the binder resolved each use on
+# a quantified law's statement to, through an import alias or in the file;
+# any other file names nothing
+# BOLT-LAW-1
+law reach_digest:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {coverage.view(Digest.of(Src.Src{path, text, toks, tree, bound, items}))
+    == CoverageView{Imports.norm(path), Paths.is_laws(path),
+      Bool.or(Paths.is_law_file(Imports.norm(path)), Paths.is_test(Imports.norm(path))),
+      reach.tops(items, items, coverage.uses(bound), Imports.norm(path)),
+      Bool.pick(List<&2, Digest.Mention>, Paths.is_laws(path),
+        coverage.said(coverage.uses(bound), tree, items, Imports.norm(path)), [])}
+    : CoverageView}
+
+# LAW: read from its path and text as the linter reads every file, a file's
+# defs call, and its laws name, exactly what the binder (Bind.of_tree,
+# BOLT-SYN-5) resolves each use to: on the def's lines, and on a quantified
+# law's statement when the file is a LAWS.bend
+# BOLT-LAW-1
+law reach_binder:
+  for +path: String
+  for +text: String
+  {coverage.view(Digest.of(Src.of(path, text)))
+    == CoverageView{Imports.norm(path), Paths.is_laws(path),
+      Bool.or(Paths.is_law_file(Imports.norm(path)), Paths.is_test(Imports.norm(path))),
+      reach.tops(Outline.of_tokens(text, Lex.tokens(text)), Outline.of_tokens(text, Lex.tokens(text)),
+        coverage.uses(Bind.of_tree(Tree.parse(text), String.lines(text))), Imports.norm(path)),
+      Bool.pick(List<&2, Digest.Mention>, Paths.is_laws(path),
+        coverage.said(coverage.uses(Bind.of_tree(Tree.parse(text), String.lines(text))), Tree.parse(text),
+          Outline.of_tokens(text, Lex.tokens(text)), Imports.norm(path)), [])}
+    : CoverageView}

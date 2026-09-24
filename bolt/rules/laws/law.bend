@@ -1,25 +1,34 @@
 # rule coverage (project-wide; its module is law.bend, since `law` is a Bend
 # keyword and no bolt.bend could name it): in a project that states laws (a
 # LAWS.bend among the files the linter read), every def and type of every
-# file is named by a quantified law in a LAWS.bend: its binders or its
-# statement use it, through an import alias or in the law's own file. A def
-# no such law names has no stated property: it is the coverage gap. A closed
-# law, a law's own name, and a law outside a LAWS.bend name nothing. A type is
-# covered when such a law names it or one of its constructors (`M.Sq{..}`
-# covers a `type Shape` with `Sq{..}`); a law that names only another def of
-# its module does not cover it. Out of scope: helper defs (dotted names; a
-# dotted type is graded), tests, and the law files themselves -- decided by
-# the name and the file's path, never by what the file's text mentions. IO is
-# no exemption: a law can quantify over an IO value or state an IO equality,
-# so a def returning `IO(..)` is graded like any other, and so is every pure
-# def beside it. `main` is a def: a law that names it covers it. The rule
-# reads each file's digest (bolt/rules/digest.bend), never the parsed source:
-# its phases use the list three times, and a `+` reuse copies it.
+# file is reached from a quantified law in a LAWS.bend. A def is reached when
+# such a law names it (its binders or its statement use it, through an import
+# alias or in the law's own file), or when a reached def calls it: a use on
+# the def's lines, in its file or behind a relative import, across the files
+# of the run. A def no law reaches has no stated property, not even through
+# its callers: it is the coverage gap. A closed law, a law's own name, and a
+# law outside a LAWS.bend name nothing. A type is reached when such a law or
+# a reached def names it or one of its constructors (`M.Sq{..}` reaches a
+# `type Shape` with `Sq{..}`); a use of another def of its module does not
+# reach it, and a type reaches nothing. Out of scope: helper defs (dotted
+# names; a dotted type is graded, and a helper still carries the reach to
+# what it calls), tests, and the law files themselves -- decided by the name
+# and the file's path, never by what the file's text mentions. IO is no
+# exemption: a law can quantify over an IO value or state an IO equality, so
+# a def returning `IO(..)` is graded like any other, and so is every pure def
+# beside it. `main` is a def: a law that names it covers it. The rule reads
+# each file's digest (bolt/rules/digest.bend), never the parsed source: its
+# phases use the list three times, and a `+` reuse copies it. The reach is
+# one walk over one graph, the walk the unsafe rule takes over imports
+# (bolt/rules/imports.bend): its nodes are the defs, types and constructors
+# of the run by key (name, a space, path), and one more node, the empty key,
+# that leads to what the laws name.
 import Base
 import ../../../lazy/lazy.bend as Lazy
 import ../../finding.bend as F
 import ../../../syntax/outline.bend as Outline
 import ../digest.bend as Digest
+import ../imports.bend as Imports
 
 # what the laws name
 # ------------------
@@ -41,21 +50,63 @@ def named(ds: List<&2, Digest.Digest>) -> List<&2, Digest.Mention>:
     case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
       named.put(is_laws, says, named(rest))
 
-# is the item named?
-def has_item(ms: List<&2, Digest.Mention>, +pp: String, +name: String) -> Bool:
+# the graph
+# ---------
+
+# an item's key: its name, a space, its file's path. A name has no space, so
+# no two items share one, and no item has the empty key
+def key(+pp: String, name: String) -> String:
+  name ++ " " ++ pp
+
+# the keys of what the mentions name
+def keys(ms: List<&2, Digest.Mention>) -> List<&2, String>:
   match ms:
     case Nil{}:
-      False{}
-    case Con{Digest.Mention{+mp, +mn}, rest}:
-      Lazy.or_else(Bool.and(String.eq(mp, pp), String.eq(mn, name)), _u => has_item(rest, pp, name))
+      Nil{}
+    case Con{Digest.Mention{p, n}, rest}:
+      key(p, n) <> keys(rest)
 
-# is one of the names (a type's constructors) named?
-def any_item(ns: List<&2, String>, +ms: List<&2, Digest.Mention>, +pp: String) -> Bool:
+# a type's constructors, each a node that leads nowhere, onto the others
+def ctor_nodes(cs: List<&2, String>, +pp: String, more: List<&2, Imports.Edge>) -> List<&2, Imports.Edge>:
+  match cs:
+    case Nil{}:
+      more
+    case Con{c, rest}:
+      Imports.Edge{key(pp, c), []} <> ctor_nodes(rest, pp, more)
+
+# the items of a file as nodes onto the others: a def leads to what it
+# calls, a type and its constructors to nothing
+def nodes(ts: List<&2, Digest.Top>, +pp: String, more: List<&2, Imports.Edge>) -> List<&2, Imports.Edge>:
+  match ts:
+    case Nil{}:
+      more
+    case Con{Digest.Top{Outline.IDef{}, name, line, cs, calls}, rest}:
+      Imports.Edge{key(pp, name), keys(calls)} <> nodes(rest, pp, more)
+    case Con{Digest.Top{Outline.IType{}, name, line, cs, calls}, rest}:
+      Imports.Edge{key(pp, name), []} <> ctor_nodes(cs, pp, nodes(rest, pp, more))
+    case Con{other, rest}:
+      nodes(rest, pp, more)
+
+# the items of every file as nodes
+def graph.items(ds: List<&2, Digest.Digest>) -> List<&2, Imports.Edge>:
+  match ds:
+    case Nil{}:
+      Nil{}
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+      nodes(tops, norm, graph.items(rest))
+
+# the graph: the empty key first, leading to what the laws name, then the
+# items
+def graph(+ds: List<&2, Digest.Digest>) -> List<&2, Imports.Edge>:
+  Imports.Edge{"", keys(named(ds))} <> graph.items(ds)
+
+# a type's constructors: is one of them reached?
+def any_item(ns: List<&2, String>, +cl: List<&2, String>, +pp: String) -> Bool:
   match ns:
     case Nil{}:
       False{}
-    case Con{+name, rest}:
-      Lazy.or_else(has_item(ms, pp, name), _u => any_item(rest, ms, pp))
+    case Con{name, rest}:
+      Lazy.or_else(Imports.has(cl, key(pp, name)), _u => any_item(rest, cl, pp))
 
 # what is in scope
 # ----------------
@@ -69,45 +120,46 @@ def law_dirs(ds: List<&2, Digest.Digest>) -> List<&2, String>:
       +more = law_dirs(rest)
       Bool.pick(List<&2, String>, is_laws, dir <> more, more)
 
-# a def, or a type, that no law names
-def gaps(ts: List<&2, Digest.Top>, +ms: List<&2, Digest.Mention>, +pp: String, +path: String) -> List<&2, F.Finding>:
+# a def, or a type, that no law reaches
+def gaps(ts: List<&2, Digest.Top>, +cl: List<&2, String>, +pp: String, +path: String) -> List<&2, F.Finding>:
   match ts:
     case Nil{}:
       Nil{}
-    case Con{Digest.Top{Outline.IDef{}, +name, +line, cs}, rest}:
-      +more = gaps(rest, ms, pp, path)
+    case Con{Digest.Top{Outline.IDef{}, +name, +line, cs, calls}, rest}:
+      +more = gaps(rest, cl, pp, path)
       Bool.pick(List<&2, F.Finding>,
-        Bool.or(String.contains(name, "."), has_item(ms, pp, name)), more,
-        F.Finding{path, line, 0, 0, "coverage", "No quantified law names def " ++ name ++ "."} <> more)
-    case Con{Digest.Top{Outline.IType{}, +name, +line, cs}, rest}:
-      +more = gaps(rest, ms, pp, path)
-      Bool.pick(List<&2, F.Finding>, Lazy.or_else(has_item(ms, pp, name), _u => any_item(cs, ms, pp)), more,
-        F.Finding{path, line, 0, 0, "coverage", "No quantified law names type " ++ name ++ " or any of its constructors."}
+        Lazy.or_else(String.contains(name, "."), _u => Imports.has(cl, key(pp, name))), more,
+        F.Finding{path, line, 0, 0, "coverage", "No quantified law reaches def " ++ name ++ "."} <> more)
+    case Con{Digest.Top{Outline.IType{}, +name, +line, cs, calls}, rest}:
+      +more = gaps(rest, cl, pp, path)
+      Bool.pick(List<&2, F.Finding>, Lazy.or_else(Imports.has(cl, key(pp, name)), _u => any_item(cs, cl, pp)), more,
+        F.Finding{path, line, 0, 0, "coverage", "No quantified law reaches type " ++ name ++ " or any of its constructors."}
           <> more)
     case Con{other, rest}:
-      gaps(rest, ms, pp, path)
+      gaps(rest, cl, pp, path)
 
-# every file not exempt, against what the laws name. A project with no laws pays
-# nothing: `gaps` scans what the laws name once for each def, and as an
-# argument of a `Bool.pick` it ran on every file the linter read, laws or no
-# laws (50 files of a project with no LAWS.bend cost 88 s that way).
-def check.go(ds: List<&2, Digest.Digest>, +ms: List<&2, Digest.Mention>) -> List<&2, F.Finding>:
+# every file not exempt, against what the laws reach
+def check.go(ds: List<&2, Digest.Digest>, +cl: List<&2, String>) -> List<&2, F.Finding>:
   match ds:
     case Nil{}:
       Nil{}
     case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
-      +more = check.go(rest, ms)
+      +more = check.go(rest, cl)
       Lazy.stop(List<&2, F.Finding>, exempt, more,
-        _u => List.append(&2, F.Finding, gaps(tops, ms, norm, path), more))
+        _u => List.append(&2, F.Finding, gaps(tops, cl, norm, path), more))
 
-# a project states no laws: nothing of it is under law, and what its laws
-# would name is never gathered
+# what the laws reach: the walk from the empty key over the graph, built once
+def reached(+es: List<&2, Imports.Edge>) -> List<&2, String>:
+  Imports.closure.go(es, Imports.paths(es), List.length(&2, Imports.Edge, es), "")
+
+# a project states no laws: nothing of it is under law, and the graph is
+# never built (a project with no LAWS.bend pays nothing)
 def check.first(+ds: List<&2, Digest.Digest>, dirs: List<&2, String>) -> List<&2, F.Finding>:
   match dirs:
     case Nil{}:
       Nil{}
     case Con{d, rest}:
-      check.go(ds, named(ds))
+      check.go(ds, reached(graph(ds)))
 
 # the rule, over every file the linter read
 def check(+ds: List<&2, Digest.Digest>) -> List<&2, F.Finding>:

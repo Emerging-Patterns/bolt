@@ -25,9 +25,11 @@ type Mention is Data:
   Mention{path: String, name: String}
 
 # a top-level def or type, by kind, name and the line it starts on, with a
-# type's constructors by name (none for a def)
+# type's constructors by name (none for a def), and what the uses on its
+# lines name (its calls, for a def): each as the binder resolved it, an item
+# of the file or one behind an import alias
 type Top is Data:
-  Top{kind: Outline.ItemKind, name: String, line: U32, ctors: List<&2, String>}
+  Top{kind: Outline.ItemKind, name: String, line: U32, ctors: List<&2, String>, calls: List<&2, Mention>}
 
 # an `@unsafe def` and where its `@` is
 type Unsafe is Data:
@@ -147,17 +149,81 @@ def ctors(items: List<&2, Outline.Item>) -> List<&2, String>:
     case other:
       Nil{}
 
-# the top-level defs and types, by name and line: what the coverage rule grades
-def top_items(items: List<&2, Outline.Item>) -> List<&2, Top>:
+# the uses, in order, before the first one at or past the line
+def before(us: List<&2, Bind.Use>, +at: U32) -> List<&2, Bind.Use>:
+  match us:
+    case Nil{}:
+      Nil{}
+    case Con{Bind.Use{nm, +l, c, tt}, rest}:
+      Lazy.stop(List<&2, Bind.Use>, U32.is_le(at, l), [], _u => Bind.Use{nm, l, c, tt} <> before(rest, at))
+
+# the uses from the first one at or past the line on
+def after(us: List<&2, Bind.Use>, +at: U32) -> List<&2, Bind.Use>:
+  match us:
+    case Nil{}:
+      Nil{}
+    case Con{Bind.Use{nm, +l, c, tt}, +rest}:
+      Lazy.stop(List<&2, Bind.Use>, U32.is_le(at, l), Bind.Use{nm, l, c, tt} <> rest, _u => after(rest, at))
+
+# the uses before the line, when there is one; else all of them
+def upto(us: List<&2, Bind.Use>, mm: Maybe<&2, U32>) -> List<&2, Bind.Use>:
+  match mm:
+    case None{}:
+      us
+    case Some{at}:
+      before(us, at)
+
+# the uses from the line on, when there is one; else none
+def past(us: List<&2, Bind.Use>, mm: Maybe<&2, U32>) -> List<&2, Bind.Use>:
+  match mm:
+    case None{}:
+      Nil{}
+    case Some{at}:
+      after(us, at)
+
+# the line of the next item that ends an item's lines: any but a constructor,
+# which the outline lists inside its type
+def next_line(items: List<&2, Outline.Item>) -> Maybe<&2, U32>:
+  match items:
+    case Nil{}:
+      None{}
+    case Con{Outline.Item{Outline.ICtor{}, name, line, sig, doc, path}, rest}:
+      next_line(rest)
+    case Con{Outline.Item{kind, name, line, sig, doc, path}, rest}:
+      Some{line}
+
+# what the uses name, in order: an item of the file, or one behind an alias
+def called(us: List<&2, Bind.Use>, +as: List<&2, Alias>, +file: String) -> List<&2, Mention>:
+  match us:
+    case Nil{}:
+      Nil{}
+    case Con{Bind.Use{n, l, c, tt}, rest}:
+      target(tt, as, file, called(rest, as, file))
+
+# the top-level defs and types, by name and line: what the coverage rule
+# grades. The uses are read in order, once: each item but a constructor
+# takes those before the next such item's line, and a def or a type keeps
+# what they name (a def's calls)
+def ranged(
+  items: List<&2, Outline.Item>,
+  +us: List<&2, Bind.Use>,
+  +as: List<&2, Alias>,
+  +file: String
+) -> List<&2, Top>:
   match items:
     case Nil{}:
       Nil{}
-    case Con{Outline.Item{Outline.IDef{}, name, line, sig, doc, path}, rest}:
-      Top{Outline.IDef{}, name, line, []} <> top_items(rest)
+    case Con{Outline.Item{Outline.ICtor{}, name, line, sig, doc, path}, rest}:
+      ranged(rest, us, as, file)
+    case Con{Outline.Item{Outline.IDef{}, name, line, sig, doc, path}, +rest}:
+      +nx = next_line(rest)
+      Top{Outline.IDef{}, name, line, [], called(upto(us, nx), as, file)} <> ranged(rest, past(us, nx), as, file)
     case Con{Outline.Item{Outline.IType{}, name, line, sig, doc, path}, +rest}:
-      Top{Outline.IType{}, name, line, ctors(rest)} <> top_items(rest)
-    case Con{other, rest}:
-      top_items(rest)
+      +nx = next_line(rest)
+      Top{Outline.IType{}, name, line, ctors(rest), called(upto(us, nx), as, file)}
+        <> ranged(rest, past(us, nx), as, file)
+    case Con{Outline.Item{kind, name, line, sig, doc, path}, +rest}:
+      ranged(rest, past(us, next_line(rest)), as, file)
 
 # a law file or a test, by its path alone: not under law. Nothing the file's
 # text mentions exempts it; IO is not an exemption, since an IO equality is a
@@ -244,10 +310,11 @@ def stated(is_laws: Bool, root: Tree.Node, bound: Bind.Bound, as: List<&2, Alias
 
 # one parsed file read down to its digest
 def of(s2: Src.Src) -> Digest:
-  Src.Src{+path, text, toks, +tree, bound, +items} = s2
+  Src.Src{+path, text, toks, +tree, +bound, +items} = s2
   +p = Imports.norm(path)
+  +as = aliases(items, p)
   Digest{path, p, Imports.dir_of(path), Paths.is_laws(path), Paths.is_law_file(path), is_exempt(p),
-    top_items(items), stated(Paths.is_laws(path), tree, bound, aliases(items, p), p), Imports.targets(items, p),
+    ranged(items, uses.of(bound), as, p), stated(Paths.is_laws(path), tree, bound, as, p), Imports.targets(items, p),
     unsafe_defs(significant(toks)), laws.in(Paths.is_laws(path), tree, items)}
 
 # every file the linter read, in one pass, in order
