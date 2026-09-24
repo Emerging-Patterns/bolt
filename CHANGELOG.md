@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.5.0](https://github.com/Emerging-Patterns/bolt/compare/v1.4.2...v1.5.0) (2026-09-24)
+
+
+### Features
+
+* **concat:** see an append through parentheses and a let (BOLT-RULE-U004) ([#168](https://github.com/Emerging-Patterns/bolt/issues/168)) ([58278e1](https://github.com/Emerging-Patterns/bolt/commit/58278e1f3e97f511cc33284b1ece626be1ecd010)), closes [#96](https://github.com/Emerging-Patterns/bolt/issues/96)
+
+
+### Bug Fixes
+
+* **check:** place an imported file's error by the checked file's own names (BOLT-CHK-1) ([#173](https://github.com/Emerging-Patterns/bolt/issues/173)) ([d6c34f2](https://github.com/Emerging-Patterns/bolt/commit/d6c34f2605235cc37d77d158e58de82f5808798f))
+* **rules:** a def with no type is a proof, exempt from the cost rules ([#169](https://github.com/Emerging-Patterns/bolt/issues/169)) ([57fe3a5](https://github.com/Emerging-Patterns/bolt/commit/57fe3a5cc59779dce6eec65bd547ba678d6592ba))
+
 ## [1.4.2](https://github.com/Emerging-Patterns/bolt/compare/v1.4.1...v1.4.2) (2026-09-23)
 
 

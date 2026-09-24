@@ -917,39 +917,39 @@ def Laws.walk_files(world, h):
 law scope3.go.step:
   for exempt: Bool
   for +tops: List<&2, Digest.Top>
-  for +ms: List<&2, Digest.Mention>
+  for +cl: List<&2, String>
   for +norm: String
   for +path: String
   for -more: List<&2, F.Finding>
   for -spec: List<&2, F.Finding>
   for ih: {more == spec : List<&2, F.Finding>}
   {Lazy.stop(List<&2, F.Finding>, exempt, more,
-      _u => List.append(&2, F.Finding, Law.gaps(tops, ms, norm, path), more))
-    == List.append(&2, F.Finding, Laws.graded_file(exempt, tops, ms, norm, path), spec) : List<&2, F.Finding>}
+      _u => List.append(&2, F.Finding, Law.gaps(tops, cl, norm, path), more))
+    == List.append(&2, F.Finding, Laws.graded_file(exempt, tops, cl, norm, path), spec) : List<&2, F.Finding>}
 
-def scope3.go.step(exempt, tops, ms, norm, path, more, spec, ih):
+def scope3.go.step(exempt, tops, cl, norm, path, more, spec, ih):
   match exempt:
     case True{}:
       ih
     case False{}:
       Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
-        rr => List.append(&2, F.Finding, Law.gaps(tops, ms, norm, path), rr),
+        rr => List.append(&2, F.Finding, Law.gaps(tops, cl, norm, path), rr),
         more, spec, ih)
 
 # the rule's walk over the files grades every file under law
 law scope3.go:
   for ds: List<&2, Digest.Digest>
-  for +ms: List<&2, Digest.Mention>
-  {Law.check.go(ds, ms) == Laws.under_law(ds, ms) : List<&2, F.Finding>}
+  for +cl: List<&2, String>
+  {Law.check.go(ds, cl) == Laws.under_law(ds, cl) : List<&2, F.Finding>}
 
-def scope3.go(ds, ms):
+def scope3.go(ds, cl):
   match ds:
     case Nil{}:
       {==}
     case Con{Digest.Digest{+path, +norm, _dir, _is_laws, _is_law_file, exempt, +tops, _says, _deps, _unsafes, _laws},
       +rest}:
-      scope3.go.step(exempt, tops, ms, norm, path, Law.check.go(rest, ms), Laws.under_law(rest, ms),
-        scope3.go(rest, ms))
+      scope3.go.step(exempt, tops, cl, norm, path, Law.check.go(rest, cl), Laws.under_law(rest, cl),
+        scope3.go(rest, cl))
 
 # one file onto the law directories: the rule is on exactly when some file
 # so far is a LAWS.bend
@@ -959,14 +959,14 @@ law scope3.first.step:
   for +dir: String
   for +dirs: List<&2, String>
   for -on: Bool
-  for ih: {Law.check.first(ds, dirs) == Laws.coverage_of(on, ds, Law.named(ds)) : List<&2, F.Finding>}
+  for ih: {Law.check.first(ds, dirs) == Laws.coverage_of(on, ds, Law.reached(Law.graph(ds))) : List<&2, F.Finding>}
   {Law.check.first(ds, Bool.pick(List<&2, String>, is_laws, dir <> dirs, dirs))
-    == Laws.coverage_of(Bool.or(is_laws, on), ds, Law.named(ds)) : List<&2, F.Finding>}
+    == Laws.coverage_of(Bool.or(is_laws, on), ds, Law.reached(Law.graph(ds))) : List<&2, F.Finding>}
 
 def scope3.first.step(is_laws, ds, _dir, _dirs, _on, ih):
   match is_laws:
     case True{}:
-      scope3.go(ds, Law.named(ds))
+      scope3.go(ds, Law.reached(Law.graph(ds)))
     case False{}:
       ih
 
@@ -974,7 +974,7 @@ def scope3.first.step(is_laws, ds, _dir, _dirs, _on, ih):
 law scope3.first:
   for ds: List<&2, Digest.Digest>
   for +all: List<&2, Digest.Digest>
-  {Law.check.first(all, Law.law_dirs(ds)) == Laws.coverage_of(Laws.has_laws(ds), all, Law.named(all))
+  {Law.check.first(all, Law.law_dirs(ds)) == Laws.coverage_of(Laws.has_laws(ds), all, Law.reached(Law.graph(all)))
     : List<&2, F.Finding>}
 
 def scope3.first(ds, all):

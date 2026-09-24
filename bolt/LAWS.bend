@@ -589,12 +589,12 @@ def has_laws(ds: List<&2, Digest.Digest>) -> Bool:
       rest}:
       Bool.or(is_laws, has_laws(rest))
 
-# a file under law, graded against what the laws name: nothing when it is
-# exempt, otherwise every def and type of it that no law names
+# a file under law, graded against what the laws reach: nothing when it is
+# exempt, otherwise every def and type of it that no law reaches
 def graded_file(
   exempt: Bool,
   +tops: List<&2, Digest.Top>,
-  +ms: List<&2, Digest.Mention>,
+  +cl: List<&2, String>,
   +norm: String,
   path: String
 ) -> List<&2, F.Finding>:
@@ -602,34 +602,35 @@ def graded_file(
     case True{}:
       []
     case False{}:
-      Law.gaps(tops, ms, norm, path)
+      Law.gaps(tops, cl, norm, path)
 
 # every file of the run put under law, each graded against what the laws
-# name, in order
-def under_law(ds: List<&2, Digest.Digest>, +ms: List<&2, Digest.Mention>) -> List<&2, F.Finding>:
+# reach, in order
+def under_law(ds: List<&2, Digest.Digest>, +cl: List<&2, String>) -> List<&2, F.Finding>:
   match ds:
     case Nil{}:
       []
     case Con{Digest.Digest{path, norm, _dir, _is_laws, _is_law_file, exempt, tops, _says, _deps, _unsafes, _laws},
       rest}:
-      List.append(&2, F.Finding, graded_file(exempt, tops, ms, norm, path), under_law(rest, ms))
+      List.append(&2, F.Finding, graded_file(exempt, tops, cl, norm, path), under_law(rest, cl))
 
 # a run's coverage findings: every file under law when the run holds a
 # LAWS.bend, none otherwise
-def coverage_of(on: Bool, ds: List<&2, Digest.Digest>, ms: List<&2, Digest.Mention>) -> List<&2, F.Finding>:
+def coverage_of(on: Bool, ds: List<&2, Digest.Digest>, cl: List<&2, String>) -> List<&2, F.Finding>:
   match on:
     case True{}:
-      under_law(ds, ms)
+      under_law(ds, cl)
     case False{}:
       []
 
 # LAW: when the files in the run include a LAWS.bend, every file in the run
 # that is not exempt is under law, graded against what every law of the run
-# names; otherwise none is
+# reaches (rules/laws/law.bend); otherwise none is
 # BOLT-SCOPE-3
 law under_law_all:
   for +world: W.World
-  {Law.check(handed(world)) == coverage_of(has_laws(handed(world)), handed(world), Law.named(handed(world)))
+  {Law.check(handed(world))
+    == coverage_of(has_laws(handed(world)), handed(world), Law.reached(Law.graph(handed(world))))
     : List<&2, F.Finding>}
 
 # Where a finding is graded (BOLT-CFG-4). The planner grades a finding by the
