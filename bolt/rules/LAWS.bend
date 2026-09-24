@@ -4722,3 +4722,25 @@ law inert_unused:
   {Unused.check(Src.Src{path, text, toks, tree, Bind.Bound{binds, uses, scopes}, items})
     == Unused.check(Src.Src{path, text2, toks2, tree2, Bind.Bound{binds2, uses, scopes2}, items2})
     : List<&2, F.Finding>}
+
+# LAW: hoist reads what no string says: two sources as the lexer makes them
+# whose trees read the same with strings cut have the same findings (a
+# string's text is only ever compared with a name, a keyword or a mark)
+# BOLT-RULE-INERT
+law inert_hoist:
+  for +path: String
+  for text: String
+  for +tree: Tree.Node
+  for toks: List<&2, Lex.Tok>
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for +tree2: Tree.Node
+  for toks2: List<&2, Lex.Tok>
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for +ok: {inert.ok(tree) == True{} : Bool}
+  for +ok2: {inert.ok(tree2) == True{} : Bool}
+  for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  {Hoist.check(Src.Src{path, text, toks, tree, bound, items})
+    == Hoist.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
