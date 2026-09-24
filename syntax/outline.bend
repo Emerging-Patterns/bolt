@@ -47,10 +47,6 @@ type Mode is Data:
 type St is Data:
   St{mode: Mode, n: U32, doc: List<&2, String>, out: List<&2, Item>}
 
-# only whitespace?
-def is_blank(ss: String) -> Bool:
-  List.all(~&2, ~Char, ~Char.is_space, String.to_list(ss))
-
 # the class when the prefix matches, else other
 def classify.kw(hit: Bool, yes: Cls) -> Cls:
   match hit:
@@ -137,17 +133,6 @@ def classify.kimp(hit: Bool, +xx: U32, tt: String) -> Cls:
 def classify.keys(+xx: U32, tt: String) -> Cls:
   classify.kimp(U32.is_eq(xx, 105), xx, tt) # 'i'
 
-def classify.space.go(space: Bool, xx: U32, tt: String) -> Cls:
-  match space:
-    case True{}:
-      classify.white.enter(tt, xx)
-    case False{}:
-      classify.keys(xx, tt)
-
-# whitespace, else a keyword
-def classify.space(+xx: U32, tt: String) -> Cls:
-  classify.space.go(Char.is_space(Char.from_u32(xx)), xx, tt)
-
 # a column-0 keyword keeps the line; the class comes from its first character
 def classify.hold.keys(+xx: U32, cc: Char, +tt: String) -> Cls & String:
   (classify.keys(xx, tt), SCon{cc, tt})
@@ -191,15 +176,6 @@ def classify.hold(ss: String) -> Cls & String:
       (LBlank{}, SNil{})
     case SCon{+c, t}:
       classify.hold.open(Char.to_u32(c), c, t)
-
-# the class, dropping a line the caller does not keep
-def classify.cls(pp: Cls & String) -> Cls:
-  (cls, _s) = pp
-  cls
-
-# a line's class, from its first character
-def classify(ss: String) -> Cls:
-  classify.cls(classify.hold(ss))
 
 # `(`, `<`, `:`, `{` or a space ends a name
 def name.stop(+hh: Char) -> Bool:

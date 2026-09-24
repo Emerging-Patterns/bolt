@@ -5,7 +5,6 @@
 # `import ../x/y.bend as Y`). Imports of files that were not read are dropped:
 # nothing is known of them.
 import Base
-import ../src.bend as Src
 import ../../syntax/outline.bend as Outline
 import ../../lazy/lazy.bend as Lazy
 
@@ -70,15 +69,6 @@ def targets(items: List<&2, Outline.Item>, +from: String) -> List<&2, String>:
     case Con{other, rest}:
       targets(rest, from)
 
-# every read file with what it imports
-def graph(files: List<&2, Src.Src>) -> List<&2, Edge>:
-  match files:
-    case Nil{}:
-      Nil{}
-    case Con{Src.Src{path, text, toks, tree, bound, items}, rest}:
-      +p = norm(path)
-      Edge{p, targets(items, p)} <> graph(rest)
-
 # is the path among them?
 def has(ps: List<&2, String>, +pp: String) -> Bool:
   List.contains(~String, ~String.eq, ps, pp)
@@ -133,11 +123,3 @@ def reach(
 # the closure of the file at from, a path normalized already, over the graph
 def closure.go(es: List<&2, Edge>, +read: List<&2, String>, +fuel: Nat, +from: String) -> List<&2, String>:
   List.reverse(&2, String, reach(fuel, [from], [from], es, read))
-
-# every read file the file at from reaches by relative imports, itself
-# first (normalized paths, in the order they are found). A caller that takes
-# more than one closure builds the graph once and calls `closure.go` with it:
-# rebuilding it per law file walked every file again.
-def closure(+files: List<&2, Src.Src>, from: String) -> List<&2, String>:
-  +es = graph(files)
-  closure.go(es, paths(es), List.length(&2, Src.Src, files), norm(from))

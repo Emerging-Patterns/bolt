@@ -163,8 +163,3 @@ def diags(rs: List<&2, Raw>, +names: Maybe<&2, List<&2, String>>) -> List<&2, Di
 # they are known
 def parse_in(+names: Maybe<&2, List<&2, String>>, text: String) -> List<&2, Diag>:
   diags(finish(run(String.lines(text), St{False{}, False{}, [], 0, "", []})), names)
-
-# the checker's text as diagnostics, an error placed in this file when its
-# place holds no path
-def parse(text: String) -> List<&2, Diag>:
-  parse_in(None{}, text)

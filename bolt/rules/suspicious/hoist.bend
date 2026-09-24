@@ -235,19 +235,6 @@ def allowed(+tt: String) -> Bool:
   List.contains(~String, ~String.eq,
     ["List.replicate", "List.range", "List.map", "Array.new", "Array.map"], tt)
 
-# one denied prefix
-def denied.go(ps: List<&2, String>, +tt: String) -> Bool:
-  match ps:
-    case Nil{}:
-      False{}
-    case Con{p, rest}:
-      +more = denied.go(rest, tt)
-      Bool.or(String.starts_with(tt, p), more)
-
-# Base walks and arithmetic: not table builders (the allow list wins)
-def denied(+tt: String) -> Bool:
-  denied.go(["List.", "String.", "Array.", "U32.", "Nat.", "F32.", "Maybe.", "Bool.", "IO.", "Char.", "Word."], tt)
-
 # a Base constructor on the allow list, or a def of this file whose body is
 # itself a wide table (`wides`); a def whose body cannot be seen is not one
 def builder(kk: Lex.TokKind, +tt: String, +self: String, +wides: List<&2, String>) -> Bool:
