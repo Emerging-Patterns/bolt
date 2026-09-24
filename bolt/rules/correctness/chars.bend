@@ -46,8 +46,8 @@ def tally(body: Tree.Node, +nn: U32) -> U32:
 # a finding when the match holds more character literals than is cheap
 def report(+nn: U32, +path: String, +ll: U32, +cc: U32) -> List<&2, F.Finding>:
   Bool.pick(List<&2, F.Finding>, U32.is_gt(nn, 8),
-    [F.Finding{path, ll, cc, 5, "chars", "A match over " ++ U32.show(nn)
-      ++ " character literals exceeds the limit of 8 and blows up compile time and memory; compare Char.to_u32(c) instead."}],
+    [F.Finding{path, ll, cc, 5, "chars", "This match has " ++ U32.show(nn)
+      ++ " character-literal cases, over the limit of 8, which blows up compile time and memory; compare Char.to_u32(c) instead."}],
     [])
 
 # a statement: a match is tallied

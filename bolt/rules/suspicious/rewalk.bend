@@ -813,7 +813,7 @@ def report_fresh(
   match prior:
     case False{}:
       [F.Finding{path, line, col, len, "rewalk",
-        name ++ " walks the same argument twice, and one result is used only for a single value; take that value from the other result."}]
+        name ++ " is called twice on the same argument, and one result is used only for a single value; take that value from the other result."}]
     case True{}:
       Nil{}
 

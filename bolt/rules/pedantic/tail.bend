@@ -38,7 +38,7 @@ def walk(nn: Tree.Node, +name: String, +path: String, skip: Bool) -> List<&2, F.
         walk(rest, name, path, False{})])
       Bool.pick(List<&2, F.Finding>, me,
         F.Finding{path, l, c, U32.from_nat(String.length(name)), "tail",
-          name ++ " is not a tail call, so a long list or string overflows the JS lane stack; carry an accumulator."}
+          "This call to " ++ name ++ " is not a tail call, so a long list or string overflows the stack on the JS lane; carry an accumulator."}
           <> more,
         more)
     case Tree.NCons{Tree.Group{open, kids, close}, rest}:

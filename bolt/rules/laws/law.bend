@@ -78,11 +78,11 @@ def gaps(ts: List<&2, Digest.Top>, +ms: List<&2, Digest.Mention>, +pp: String, +
       +more = gaps(rest, ms, pp, path)
       Bool.pick(List<&2, F.Finding>,
         Bool.or(String.contains(name, "."), has_item(ms, pp, name)), more,
-        F.Finding{path, line, 0, 0, "coverage", "Def " ++ name ++ " is named by no law."} <> more)
+        F.Finding{path, line, 0, 0, "coverage", "No quantified law names def " ++ name ++ "."} <> more)
     case Con{Digest.Top{Outline.IType{}, +name, +line, cs}, rest}:
       +more = gaps(rest, ms, pp, path)
       Bool.pick(List<&2, F.Finding>, Lazy.or_else(has_item(ms, pp, name), _u => any_item(cs, ms, pp)), more,
-        F.Finding{path, line, 0, 0, "coverage", "Type " ++ name ++ " is named by no law, nor are its constructors."}
+        F.Finding{path, line, 0, 0, "coverage", "No quantified law names type " ++ name ++ " or any of its constructors."}
           <> more)
     case Con{other, rest}:
       gaps(rest, ms, pp, path)

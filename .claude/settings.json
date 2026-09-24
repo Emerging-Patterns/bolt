@@ -1,0 +1,13 @@
+{
+  "enabledPlugins": {
+    "bend-spec@emerging-patterns": true
+  },
+  "extraKnownMarketplaces": {
+    "emerging-patterns": {
+      "source": {
+        "source": "github",
+        "repo": "Emerging-Patterns/skills"
+      }
+    }
+  }
+}
