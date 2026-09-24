@@ -7,3 +7,4 @@ iteration	timestamp	commit	metric	delta	guard	guard-metric	status	description
 4	2026-09-25T00:30	4f3cbd6	35.02	-8.25	pass	-	keep	coverage/unsafe closure: proven twin walk with early-exit seek/deps.first and fresh asking more/seen before every file; old walk kept as dotted spec for the proofs; coverage 10.2s -> 2.75s
 5	2026-09-25T00:45	7a191cc	31.32	-3.70	pass	-	keep	Src.of lexes once (tree from the same tokens) instead of twice
 6	2026-09-25T01:20	dccf984	26.64	-4.68	pass	-	keep	lexer step: Lazy.either instead of Bool.pick, so flush (reverse buffer, refine kind, keyword scan) runs once per token, not once per char; lex+tree on rules/PROOF.bend 2.44s -> 0.89s
+7	2026-09-25T01:50	fb2b23f	20.38	-6.26	pass	-	keep	binder items list drops adjacent duplicates (law x + def x in proof files), halving every miss scan; bind on rules/PROOF.bend 13s -> 7.5s
