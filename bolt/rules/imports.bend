@@ -73,22 +73,24 @@ def targets(items: List<&2, Outline.Item>, +from: String) -> List<&2, String>:
 def has(ps: List<&2, String>, +pp: String) -> Bool:
   List.contains(~String, ~String.eq, ps, pp)
 
-# what the file at p imports (nothing when it was not read)
-def deps_of(es: List<&2, Edge>, +pp: String) -> List<&2, String>:
+# what the file at p imports (nothing when it was not read): the spec
+# deps.first is proven against (bolt/rules/PROOF.bend imp.deps)
+def deps.spec(es: List<&2, Edge>, +pp: String) -> List<&2, String>:
   match es:
     case Nil{}:
       Nil{}
     case Con{Edge{+ep, ds}, rest}:
-      +more = deps_of(rest, pp)
+      +more = deps.spec(rest, pp)
       Bool.pick(List<&2, String>, String.eq(ep, pp), ds, more)
 
-# the files of ds that were read and are not yet seen, each once
-def fresh(ds: List<&2, String>, +seen: List<&2, String>, +read: List<&2, String>) -> List<&2, String>:
+# the files of ds that were read and are not yet seen, each once: the spec
+# fresh.fast is proven against (imp.fresh)
+def fresh.spec(ds: List<&2, String>, +seen: List<&2, String>, +read: List<&2, String>) -> List<&2, String>:
   match ds:
     case Nil{}:
       Nil{}
     case Con{+d, rest}:
-      +more = fresh(rest, seen, read)
+      +more = fresh.spec(rest, seen, read)
       Bool.pick(List<&2, String>, Bool.and(Bool.and(has(read, d), Bool.not(has(seen, d))), Bool.not(has(more, d))),
         d <> more, more)
 
@@ -102,8 +104,9 @@ def paths(es: List<&2, Edge>) -> List<&2, String>:
 
 # a worklist walk; each read file enters todo once, and a start that was
 # not read imports nothing, so fuel as many as the files never runs out
-# (bolt/rules/LAWS.bend unsafe_shut)
-def reach(
+# (bolt/rules/LAWS.bend unsafe_shut). The spec `walk` is proven against
+# (imp.walk), and what the laws' proofs reason over
+def walk.spec(
   fuel: Nat,
   todo: List<&2, String>,
   +seen: List<&2, String>,
@@ -116,10 +119,56 @@ def reach(
     case 1n+f Nil{}:
       seen
     case 1n+f Con{p, rest}:
-      +found = fresh(deps_of(es, p), seen, read)
-      reach(f, List.append(&2, String, found, rest), List.append(&2, String, List.reverse(&2, String, found), seen), es,
+      +found = fresh.spec(deps.spec(es, p), seen, read)
+      walk.spec(f, List.append(&2, String, found, rest), List.append(&2, String, List.reverse(&2, String, found), seen),
+        es, read)
+
+# `has`, stopping at the first hit
+def seek(ps: List<&2, String>, +pp: String) -> Bool:
+  match ps:
+    case Nil{}:
+      False{}
+    case Con{p, rest}:
+      Lazy.or_else(String.eq(p, pp), _u => seek(rest, pp))
+
+# `deps.spec`, stopping at the first file of that path
+def deps.first(es: List<&2, Edge>, +pp: String) -> List<&2, String>:
+  match es:
+    case Nil{}:
+      Nil{}
+    case Con{Edge{ep, ds}, rest}:
+      Lazy.stop(List<&2, String>, String.eq(ep, pp), ds, _u => deps.first(rest, pp))
+
+# `fresh.spec`, asking the short lists first and each only while the answer is
+# open: a target already found or seen is never looked for among every file
+def fresh.fast(ds: List<&2, String>, +seen: List<&2, String>, +read: List<&2, String>) -> List<&2, String>:
+  match ds:
+    case Nil{}:
+      Nil{}
+    case Con{+d, rest}:
+      +more = fresh.fast(rest, seen, read)
+      Bool.pick(List<&2, String>,
+        Lazy.and_then(Bool.not(seek(more, d)), _u => Lazy.and_then(Bool.not(seek(seen, d)), _v => seek(read, d))),
+        d <> more, more)
+
+# the walk: `walk.spec`, step for step, through the lookups above
+def walk(
+  fuel: Nat,
+  todo: List<&2, String>,
+  +seen: List<&2, String>,
+  +es: List<&2, Edge>,
+  +read: List<&2, String>
+) -> List<&2, String>:
+  match fuel todo:
+    case 0n t:
+      seen
+    case 1n+f Nil{}:
+      seen
+    case 1n+f Con{p, rest}:
+      +found = fresh.fast(deps.first(es, p), seen, read)
+      walk(f, List.append(&2, String, found, rest), List.append(&2, String, List.reverse(&2, String, found), seen), es,
         read)
 
 # the closure of the file at from, a path normalized already, over the graph
 def closure.go(es: List<&2, Edge>, +read: List<&2, String>, +fuel: Nat, +from: String) -> List<&2, String>:
-  List.reverse(&2, String, reach(fuel, [from], [from], es, read))
+  List.reverse(&2, String, walk(fuel, [from], [from], es, read))
