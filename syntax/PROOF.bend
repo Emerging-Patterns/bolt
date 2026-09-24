@@ -3511,6 +3511,93 @@ def rs.qual.at(c, q, r, mm, als, e1, e2):
       Bind.TFree{}, _u => Bind.TQual{q, _}) == Laws.res.qual(mm, q, als) : Bind.Target}
   rs.qual(mm, q, als)
 
+# String.eq's last step, through one more pair of heads, reads the same
+law rs.fin:
+  for +hx: Char
+  for +hy: Char
+  for rr: (String & String) & Cmp
+  {String.eq.fin(String.cmp.rec(hx, hy, rr)) == String.eq.fin(rr) : Bool}
+
+def rs.fin(_hx, _hy, rr):
+  match rr:
+    case ((a2, b2), c):
+      {==}
+
+# a step of `same` is a step of String.eq, whatever the heads compare to
+law rs.step:
+  for c: Cmp
+  for +t1: String
+  for +t2: String
+  for +hx: Char
+  for +hy: Char
+  for ih: {Bind.same(t1, t2) == String.eq(t1, t2) : Bool}
+  {Lazy.and_then(Cmp.is_eq(c), _u => Bind.same(t1, t2)) == String.eq.fin(String.cmp.fin(t1, t2, ((hx, hy), c)))
+    : Bool}
+
+def rs.step(c, t1, t2, hx, hy, ih):
+  match c:
+    case LT{}:
+      {==}
+    case EQ{}:
+      Equal.trans(Bool, Bind.same(t1, t2), String.eq(t1, t2),
+        String.eq.fin(String.cmp.rec(hx, hy, String.cmp(t1, t2))), ih,
+        Equal.sym(Bool, String.eq.fin(String.cmp.rec(hx, hy, String.cmp(t1, t2))), String.eq(t1, t2),
+          rs.fin(hx, hy, String.cmp(t1, t2))))
+    case GT{}:
+      {==}
+
+# the binder's name test is String.eq
+law rs.alike:
+  for aa: String
+  for bb: String
+  {Bind.same(aa, bb) == String.eq(aa, bb) : Bool}
+
+def rs.alike(aa, bb):
+  match aa bb:
+    case SNil{} SNil{}:
+      {==}
+    case SNil{} SCon{h2, t2}:
+      {==}
+    case SCon{h1, t1} SNil{}:
+      {==}
+    case SCon{Chr{+x}, +t1} SCon{Chr{+y}, +t2}:
+      rs.step(U32.cmp(x, y), t1, t2, Chr{x}, Chr{y}, rs.alike(t1, t2))
+
+# a stop at the first True is Bool.or
+law rs.or:
+  for a: Bool
+  for -x: Bool
+  for -y: Bool
+  for ih: {x == y : Bool}
+  {Lazy.or_else(a, _u => x) == Bool.or(a, y) : Bool}
+
+def rs.or(a, _x, _y, ih):
+  match a:
+    case True{}:
+      {==}
+    case False{}:
+      ih
+
+# the binder's item search is List.contains
+law rs.items:
+  for names: List<&2, String>
+  for +name: String
+  {Bind.has_item(names, name) == List.contains(~String, ~String.eq, names, name) : Bool}
+
+def rs.items(names, name):
+  match names:
+    case Nil{}:
+      {==}
+    case Con{+hh, +rest}:
+      Equal.trans(Bool,
+        Lazy.or_else(Bind.same(hh, name), _u => Bind.has_item(rest, name)),
+        Bool.or(Bind.same(hh, name), List.contains(~String, ~String.eq, rest, name)),
+        Bool.or(String.eq(hh, name), List.contains(~String, ~String.eq, rest, name)),
+        rs.or(Bind.same(hh, name), Bind.has_item(rest, name), List.contains(~String, ~String.eq, rest, name),
+          rs.items(rest, name)),
+        Equal.cong(Bool, Bool, z => Bool.or(z, List.contains(~String, ~String.eq, rest, name)),
+          Bind.same(hh, name), String.eq(hh, name), rs.alike(hh, name)))
+
 # what the binder makes of a name no binder holds and no item has
 def rs.code(+name: String, als: List<&2, String>) -> Bind.Target:
   +cs = String.to_list(name)
@@ -3526,7 +3613,10 @@ law rs.none:
   {Bind.resolve.local(None{}, name, Bind.Names{its, als}) == Laws.res.found(None{}, name, its, als) : Bind.Target}
 
 def rs.none(name, its, als):
-  Equal.cong(Bind.Target, Bind.Target, x => Bool.pick(Bind.Target, Bind.has(its, name), Bind.TItem{name}, x),
+  %rs.items(its, name) : {Bind.resolve.local(None{}, name, Bind.Names{its, als})
+    == Bool.pick(Bind.Target, _, Bind.TItem{name}, Laws.res.qual(Laws.res.after(name), Laws.res.before(name), als))
+    : Bind.Target}
+  Equal.cong(Bind.Target, Bind.Target, x => Bool.pick(Bind.Target, Bind.has_item(its, name), Bind.TItem{name}, x),
     rs.code(name, als),
     Laws.res.qual(Laws.res.after(name), Laws.res.before(name), als),
     Equal.trans(Bind.Target,
