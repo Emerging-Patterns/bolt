@@ -1,0 +1,19 @@
+{
+  "version": "2.1.0",
+  "source": "loop",
+  "timestamp": "2026-09-25T02:20:00Z",
+  "status": "BOUNDED",
+  "results_tsv": "autoresearch/loop-260924-2130/results.tsv",
+  "findings": [
+    "208.24s -> 20.38s (10.2x) over bolt's own tree, findings unchanged, all proofs check",
+    "binder item lookup is the largest remaining cost and is pinned to a list by syntax/LAWS.bend resolves",
+    "coverage closure is pinned step for step by reach_shut/reach_least"
+  ],
+  "config": {
+    "goal": "make bolt lint faster",
+    "scope": "bolt/**/*.bend, syntax/*.bend (implementation and PROOF.bend; LAWS.bend untouched)",
+    "metric": "seconds for bolt --gpu off over the repo tree",
+    "direction": "lower_is_better",
+    "verify": "autoresearch/verify.sh"
+  }
+}
