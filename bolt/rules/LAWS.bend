@@ -4240,3 +4240,88 @@ law inert_param:
   for +path: String
   for e: {inert.binds(b1) == inert.binds(b2) : List<&2, Bind.Bind>}
   {Param.check.on(b1, path) == Param.check.on(b2, path) : List<&2, F.Finding>}
+
+# LAW: table reads what no string says: two sources as the lexer makes them
+# whose trees read the same with strings cut have the same findings (a
+# string's text is only ever compared with a call's or a table's name)
+# BOLT-RULE-INERT
+law inert_table:
+  for +path: String
+  for text: String
+  for +tree: Tree.Node
+  for toks: List<&2, Lex.Tok>
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for +tree2: Tree.Node
+  for toks2: List<&2, Lex.Tok>
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for +ok: {inert.ok(tree) == True{} : Bool}
+  for +ok2: {inert.ok(tree2) == True{} : Bool}
+  for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  {Table.check(Src.Src{path, text, toks, tree, bound, items})
+    == Table.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: index reads what no string says: two sources as the lexer makes them
+# whose trees read the same with strings cut have the same findings
+# BOLT-RULE-INERT
+law inert_index:
+  for +path: String
+  for text: String
+  for +tree: Tree.Node
+  for toks: List<&2, Lex.Tok>
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for +tree2: Tree.Node
+  for toks2: List<&2, Lex.Tok>
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for +ok: {inert.ok(tree) == True{} : Bool}
+  for +ok2: {inert.ok(tree2) == True{} : Bool}
+  for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  {Index.check(Src.Src{path, text, toks, tree, bound, items})
+    == Index.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: concat reads what no string says: two sources as the lexer makes them
+# whose trees read the same with strings cut have the same findings
+# BOLT-RULE-INERT
+law inert_concat:
+  for +path: String
+  for text: String
+  for +tree: Tree.Node
+  for toks: List<&2, Lex.Tok>
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for +tree2: Tree.Node
+  for toks2: List<&2, Lex.Tok>
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for +ok: {inert.ok(tree) == True{} : Bool}
+  for +ok2: {inert.ok(tree2) == True{} : Bool}
+  for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  {Concat.check(Src.Src{path, text, toks, tree, bound, items})
+    == Concat.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: unit reads what no string says: two sources as the lexer makes them
+# whose trees read the same with strings cut have the same findings
+# BOLT-RULE-INERT
+law inert_unit:
+  for +path: String
+  for text: String
+  for +tree: Tree.Node
+  for toks: List<&2, Lex.Tok>
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for +tree2: Tree.Node
+  for toks2: List<&2, Lex.Tok>
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for +ok: {inert.ok(tree) == True{} : Bool}
+  for +ok2: {inert.ok(tree2) == True{} : Bool}
+  for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  {UnitRule.check(Src.Src{path, text, toks, tree, bound, items})
+    == UnitRule.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}

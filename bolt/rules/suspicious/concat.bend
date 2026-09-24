@@ -15,11 +15,20 @@ import ../../../syntax/tree.bend as Tree
 import ../calls.bend as Calls
 import ../../../lazy/lazy.bend as Lazy
 
+# a leaf that is a lowercase name: its token. Only here is a kind matched,
+# so the other tests read a leaf's kind through this one
+def lone.name(nn: Tree.Node) -> Maybe<&2, Lex.Tok>:
+  match nn:
+    case Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}:
+      Some{Lex.Tok{Lex.TName{}, t, l, c}}
+    case other:
+      None{}
+
 # a chain that is exactly one lowercase name: its token
 def lone(nn: Tree.Node) -> Maybe<&2, Lex.Tok>:
   match nn:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, Tree.NNil{}}:
-      Some{Lex.Tok{Lex.TName{}, t, l, c}}
+    case Tree.NCons{h, Tree.NNil{}}:
+      lone.name(h)
     case other:
       None{}
 
@@ -29,13 +38,29 @@ def appended(+tt: String, as: List<&2, Tree.Node>) -> Maybe<&2, Lex.Tok>:
   +str = String.eq(tt, "String.append")
   Bool.pick(Maybe<&2, Lex.Tok>, Bool.or(list, str), lone(Calls.arg(as, Bool.pick(Nat, list, 2n, 0n))), None{})
 
+# a leaf, then a group: the call's append
+def onto.call(hh: Tree.Node, kids: Tree.Node) -> Maybe<&2, Lex.Tok>:
+  match hh:
+    case Tree.Leaf{Lex.Tok{k, +t, l, c}}:
+      appended(t, Calls.args(kids))
+    case other:
+      None{}
+
+# a first cell, then the second: a name then `++`, or a call
+def onto.next(+hh: Tree.Node, h2: Tree.Node) -> Maybe<&2, Lex.Tok>:
+  match h2:
+    case Tree.Leaf{Lex.Tok{k, +o, _l, _c}}:
+      Bool.pick(Maybe<&2, Lex.Tok>, Bool.and(Calls.kind.oper(k), String.eq(o, "++")), lone.name(hh), None{})
+    case Tree.Group{open, kids, close}:
+      onto.call(hh, kids)
+    case other:
+      None{}
+
 # the name an argument appends onto, `p ++ ..` or an append call
 def onto(aa: Tree.Node) -> Maybe<&2, Lex.Tok>:
   match aa:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +o, _, _}}, _}}:
-      Bool.pick(Maybe<&2, Lex.Tok>, String.eq(o, "++"), Some{Lex.Tok{Lex.TName{}, t, l, c}}, None{})
-    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{open, kids, close}, rest}}:
-      appended(t, Calls.args(kids))
+    case Tree.NCons{h, Tree.NCons{h2, rest}}:
+      onto.next(h, h2)
     case other:
       None{}
 
