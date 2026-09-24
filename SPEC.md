@@ -100,8 +100,8 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| BOLT-CLI-1 | bolt accepts `bolt [lint] [files]`, `bolt check files`, `bolt lsp`, `bolt help [cmd]` and `--`; an argv parse error exits 1, and `help` and `--version` exit 0. | Proved | proved | LAWS.bend cli_bare; LAWS.bend cli_bare_raw; LAWS.bend cli_lint; LAWS.bend cli_lint_raw; LAWS.bend cli_check; LAWS.bend cli_check_raw; LAWS.bend cli_lsp; LAWS.bend cli_help; LAWS.bend cli_version; LAWS.bend cli_error_exits; LAWS.bend cli_help_exits; LAWS.bend cli_version_exits; LAWS.bend cli_runs |
-| BOLT-CLI-2 | `--version` prints the release and, when the build has one, the short commit in parentheses. | Proved | proved | LAWS.bend cli_version; LAWS.bend cli_version_exits; LAWS.bend version_release; LAWS.bend version_commit |
+| BOLT-CLI-1 | bolt accepts `bolt [lint] [files]`, `bolt check files`, `bolt lsp`, `bolt help [cmd]` and `--`; an argv parse error exits 1, and `help` and `--version` exit 0. | Proved | proved | src/LAWS.bend cli_bare; src/LAWS.bend cli_bare_raw; src/LAWS.bend cli_lint; src/LAWS.bend cli_lint_raw; src/LAWS.bend cli_check; src/LAWS.bend cli_check_raw; src/LAWS.bend cli_lsp; src/LAWS.bend cli_help; src/LAWS.bend cli_version; src/LAWS.bend cli_error_exits; src/LAWS.bend cli_help_exits; src/LAWS.bend cli_version_exits; src/LAWS.bend cli_runs |
+| BOLT-CLI-2 | `--version` prints the release and, when the build has one, the short commit in parentheses. | Proved | proved | src/LAWS.bend cli_version; src/LAWS.bend cli_version_exits; src/LAWS.bend version_release; src/LAWS.bend version_commit |
 
 ### Checker (BOLT-CHK)
 

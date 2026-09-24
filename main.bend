@@ -8,7 +8,8 @@
 # native (`bend main.bend -o bin/bolt.bin`). `bolt lsp` runs on the cores:
 # with no `--gpu` it is `--gpu off`, and `--gpu on` or `--gpu 4GB` asks for
 # the device. The runtime takes `--gpu` out of the line itself. What the line
-# does is Args.out's decision (LAWS.bend proves it); this file only does it.
+# does is Args.out's decision (src/LAWS.bend proves it); this file only does
+# it, and LAWS.bend states what say and leave do.
 # Everything under src/ is internal.
 import Base
 import ./src/args.bend as Args
@@ -27,7 +28,7 @@ def dispatch(cmd: Args.Cmd, paths: List<&2, String>) -> IO(Unit):  # noqa: L001 
       Lsp.run()
 
 # a text on its stream
-def say(to: Args.Stream, text: String) -> IO(Unit):  # noqa: L001 IO driver
+def say(to: Args.Stream, text: String) -> IO(Unit):
   match to:
     case Args.Line{}:
       IO.print(text)
@@ -44,7 +45,7 @@ def leave.at(zero: Bool, code: U32) -> IO(Unit):
       IO.die(Unit, code, "")
 
 # exit with a code: 0 falls through, any other ends the run with it
-def leave(+code: U32) -> IO(Unit):  # noqa: L001 IO driver
+def leave(+code: U32) -> IO(Unit):
   leave.at(U32.is_eq(code, 0), code)
 
 # what a parsed line does, done
