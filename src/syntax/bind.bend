@@ -119,13 +119,23 @@ def declared(kids: Tree.Node) -> Maybe<&2, String>:
     case other:
       None{}
 
-# a name, when there is one, onto a list
-def push_name(mm: Maybe<&2, String>, acc: List<&2, String>) -> List<&2, String>:
+# is the name at the head of the list?
+def push_name.again(acc: List<&2, String>, +name: String) -> Bool:
+  match acc:
+    case Nil{}:
+      False{}
+    case Con{hh, _rest}:
+      String.eq(hh, name)
+
+# a name, when there is one, onto a list, unless it is the name just put
+# there: a proof file's `law x` and its `def x` are one item, and every use
+# no binder holds is looked for in this list
+def push_name(mm: Maybe<&2, String>, +acc: List<&2, String>) -> List<&2, String>:
   match mm:
     case None{}:
       acc
-    case Some{name}:
-      name <> acc
+    case Some{+name}:
+      Lazy.stop(List<&2, String>, push_name.again(acc, name), acc, _u => name <> acc)
 
 # a type's constructors: the first name of each line under it
 def ctors(body: Tree.Node, acc: List<&2, String>) -> List<&2, String>:
@@ -205,6 +215,28 @@ def rest_of(cs: List<&2, Char>) -> String:
 def has(names: List<&2, String>, +name: String) -> Bool:
   List.contains(~String, ~String.eq, names, name)
 
+# two names alike, char by char, stopping at the first that differs:
+# String.eq, without the pairs String.cmp builds on every step
+def same(aa: String, bb: String) -> Bool:
+  match aa bb:
+    case SNil{} SNil{}:
+      True{}
+    case SNil{} SCon{_h2, _t2}:
+      False{}
+    case SCon{_h1, _t1} SNil{}:
+      False{}
+    case SCon{h1, t1} SCon{h2, t2}:
+      Lazy.and_then(Char.is_eq(h1, h2), _u => same(t1, t2))
+
+# is the name among the file's items? `has`, stopping at the first hit, as
+# every use no binder holds asks it of every item
+def has_item(names: List<&2, String>, +name: String) -> Bool:
+  match names:
+    case Nil{}:
+      False{}
+    case Con{hh, rest}:
+      Lazy.or_else(same(hh, name), _u => has_item(rest, name))
+
 # the names an environment holds, and the file's items and aliases
 type Names is Data:
   Names{items: List<&2, String>, aliases: List<&2, String>}
@@ -217,7 +249,7 @@ def resolve.local(mm: Maybe<&2, Bind>, +name: String, ns: Names) -> Target:
       Names{its, als} = ns
       +cs = String.to_list(name)
       +head = head_of(cs)
-      Bool.pick(Target, has(its, name), TItem{name},
+      Bool.pick(Target, has_item(its, name), TItem{name},
         Lazy.stop(Target, Bool.not(Bool.and(String.contains(name, "."), has(als, head))), TFree{},
           _u => TQual{head, rest_of(cs)}))
 
@@ -785,13 +817,13 @@ def lstrip(cs: List<&2, Char>) -> List<&2, Char>:
     case other:
       other
 
-# the n-th line of a source, without its indentation
-def line_text(lines: List<&2, String>, nn: U32) -> String:
-  String.from_list(lstrip(String.to_list(Maybe.default(&2, String, List.get(&2, String, lines, U32.to_nat(nn)), ""))))
+# a line's text without its indentation
+def stripped(+text: String) -> String:
+  String.from_list(lstrip(String.to_list(text)))
 
 # a declaration carries its own note; anything else shows the line that
-# bound it
-def note_for(kind: BindKind, +note: String, lines: List<&2, String>, line: U32) -> String:
+# bound it, which `text` gives only when it is asked for
+def note_for(kind: BindKind, +note: String, text: Unit -> String) -> String:
   match kind:
     case KParam{}:
       note
@@ -800,15 +832,39 @@ def note_for(kind: BindKind, +note: String, lines: List<&2, String>, line: U32) 
     case KTypeParam{}:
       note
     case other:
-      line_text(lines, line)
+      text(Unit{})
 
-# every binder with its note filled
-def annotate(binds: List<&2, Bind>, +lines: List<&2, String>) -> List<&2, Bind>:
+# the lines from line `line` on, given the lines from line `at` on: a step
+# forward from where the last binder was, not a walk from the first line
+def annotate.ahead(+line: U32, +at: U32, cur: List<&2, String>) -> List<&2, String>:
+  List.drop(&2, String, cur, U32.to_nat(U32.sub(line, at)))
+
+# the first line of these, or ""
+def annotate.head(+cur: List<&2, String>) -> String:
+  Maybe.default(&2, String, List.head(&2, String, cur), "")
+
+# a line read from the first, for a binder behind the last one
+def annotate.back(lines: List<&2, String>, +line: U32) -> String:
+  Maybe.default(&2, String, List.get(&2, String, lines, U32.to_nat(line)), "")
+
+# every binder with its note filled. Binders come in source order, so the
+# lines are read once, front to back, from where the last binder was (`cur`
+# holds the lines from line `at` on); a binder behind that point reads its
+# line from the start
+def annotate.go(binds: List<&2, Bind>, +lines: List<&2, String>, +at: U32, +cur: List<&2, String>) -> List<&2, Bind>:
   match binds:
     case Nil{}:
       Nil{}
     case Con{Bind{name, +line, col, +kind, note}, rest}:
-      Bind{name, line, col, kind, note_for(kind, note, lines, line)} <> annotate(rest, lines)
+      +ahead = U32.is_ge(line, at)
+      +here = Lazy.either(List<&2, String>, ahead, _u => annotate.ahead(line, at, cur), _v => cur)
+      +text = Lazy.either(String, ahead, _u => annotate.head(here), _v => annotate.back(lines, line))
+      Bind{name, line, col, kind, note_for(kind, note, _w => stripped(text))}
+        <> annotate.go(rest, lines, Bool.pick(U32, ahead, line, at), here)
+
+# every binder with its note filled
+def annotate(binds: List<&2, Bind>, +lines: List<&2, String>) -> List<&2, Bind>:
+  annotate.go(binds, lines, 0, lines)
 
 # putting it together
 # -------------------

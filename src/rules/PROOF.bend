@@ -7170,6 +7170,248 @@ def unused.kind(kk, _note, _line, _fl):
     case Bind.KTypeVar{}:
       {==}
 
+# an `or` of a Bool with itself is that Bool
+law unused.or_self:
+  for a: Bool
+  {Bool.or(a, a) == a : Bool}
+
+def unused.or_self(a):
+  match a:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# a stop at the first True, against the `or` it stops early on, adds nothing
+law unused.or_absorb:
+  for e: Bool
+  for a: Bool
+  {Bool.or(Lazy.or_else(e, _u => a), Bool.or(e, a)) == Bool.or(e, a) : Bool}
+
+def unused.or_absorb(e, a):
+  match e:
+    case True{}:
+      {==}
+    case False{}:
+      unused.or_self(a)
+
+# a hit already on the right adds nothing on the left
+law unused.or_again:
+  for g: Bool
+  for e: Bool
+  {Bool.or(g, Bool.or(e, g)) == Bool.or(e, g) : Bool}
+
+def unused.or_again(g, e):
+  match g:
+    case True{}:
+      match e:
+        case True{}:
+          {==}
+        case False{}:
+          {==}
+    case False{}:
+      {==}
+
+# nothing is found in the empty index, whatever the path
+law unused.none:
+  for qq: List<&2, Bool>
+  for +line: U32
+  for +col: U32
+  {Unused.find(qq, Unused.HNone{}, line, col) == False{} : Bool}
+
+def unused.none(qq, line, col):
+  match qq:
+    case Nil{}:
+      {==}
+    case Con{b, r}:
+      match b:
+        case True{}:
+          unused.none(r, line, col)
+        case False{}:
+          unused.none(r, line, col)
+
+# a hit in the index after a cell goes in is that cell, or a hit before it:
+# the index is sound, whatever the two paths
+law unused.put:
+  for pp: List<&2, Bool>
+  for +qq: List<&2, Bool>
+  for +hh: Unused.Hits
+  for +l1: U32
+  for +c1: U32
+  for +l2: U32
+  for +c2: U32
+  {Bool.or(Unused.find(qq, Unused.put(pp, hh, Unused.Cell{l1, c1}), l2, c2),
+      Bool.or(Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)), Unused.find(qq, hh, l2, c2)))
+    == Bool.or(Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)), Unused.find(qq, hh, l2, c2)) : Bool}
+
+def unused.put(pp, qq, hh, l1, c1, l2, c2):
+  match pp:
+    case Nil{}:
+      match qq:
+        case Nil{}:
+          unused.or_absorb(Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)),
+            Unused.hits.any(Unused.hits.cells(hh), l2, c2))
+        case Con{b2, r2}:
+          match b2:
+            case True{}:
+              %Equal.sym(Bool, Unused.find(r2, Unused.HNone{}, l2, c2), False{}, unused.none(r2, l2, c2)) :
+                {Bool.or(_, Bool.or(Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)),
+                Unused.find(r2, Unused.hits.lo(hh), l2, c2)))
+                == Bool.or(Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)),
+                  Unused.find(r2, Unused.hits.lo(hh), l2, c2)) : Bool}
+              {==}
+            case False{}:
+              %Equal.sym(Bool, Unused.find(r2, Unused.HNone{}, l2, c2), False{}, unused.none(r2, l2, c2)) :
+                {Bool.or(_, Bool.or(Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)),
+                Unused.find(r2, Unused.hits.hi(hh), l2, c2)))
+                == Bool.or(Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)),
+                  Unused.find(r2, Unused.hits.hi(hh), l2, c2)) : Bool}
+              {==}
+    case Con{b1, r1}:
+      match b1:
+        case True{}:
+          match qq:
+            case Nil{}:
+              {==}
+            case Con{b2, r2}:
+              match b2:
+                case True{}:
+                  unused.put(r1, r2, Unused.hits.lo(hh), l1, c1, l2, c2)
+                case False{}:
+                  unused.or_again(Unused.find(r2, Unused.hits.hi(hh), l2, c2),
+                    Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)))
+        case False{}:
+          match qq:
+            case Nil{}:
+              {==}
+            case Con{b2, r2}:
+              match b2:
+                case True{}:
+                  unused.or_again(Unused.find(r2, Unused.hits.lo(hh), l2, c2),
+                    Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)))
+                case False{}:
+                  unused.put(r1, r2, Unused.hits.hi(hh), l1, c1, l2, c2)
+
+# Unit for True, Empty for False
+def unused.true_ty(bb: Bool) -> Type:
+  match bb:
+    case True{}:
+      Unit
+    case False{}:
+      Empty
+
+# True is never False
+law unused.true_false:
+  for e: {True{} == False{} : Bool}
+  Empty
+
+def unused.true_false(e):
+  %e : unused.true_ty(_)
+  Unit{}
+
+# one more cell keeps an index sound: a hit after it is the new cell, or a
+# hit before it, which the uses already had
+law unused.step:
+  for e: Bool
+  for fp: Bool
+  for f: Bool
+  for s: Bool
+  for h1: {Bool.or(fp, Bool.or(e, f)) == Bool.or(e, f) : Bool}
+  for h2: {Bool.or(f, s) == s : Bool}
+  {Bool.or(fp, Bool.or(e, s)) == Bool.or(e, s) : Bool}
+
+def unused.step(e, fp, f, s, h1, h2):
+  match e:
+    case True{}:
+      match fp:
+        case True{}:
+          {==}
+        case False{}:
+          {==}
+    case False{}:
+      match fp:
+        case True{}:
+          match f:
+            case True{}:
+              h2
+            case False{}:
+              Empty.absurd({True{} == s : Bool}, unused.true_false(h1))
+        case False{}:
+          {==}
+
+# the index of the uses is sound: anything found in it, down any path, is a
+# use's target
+law unused.index:
+  for uses: List<&2, Bind.Use>
+  for +qq: List<&2, Bool>
+  for +line: U32
+  for +col: U32
+  {Bool.or(Unused.find(qq, Unused.index(uses), line, col), Laws.unused.seen(uses, line, col))
+    == Laws.unused.seen(uses, line, col) : Bool}
+
+def unused.index(uses, qq, line, col):
+  match uses:
+    case Nil{}:
+      %Equal.sym(Bool, Unused.find(qq, Unused.HNone{}, line, col), False{}, unused.none(qq, line, col)) :
+        {Bool.or(_, False{}) == False{} : Bool}
+      {==}
+    case Con{Bind.Use{n, l, c, tg}, +rest}:
+      match tg:
+        case Bind.TLocal{+tl, +tc}:
+          unused.step(Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col)),
+            Unused.find(qq, Unused.put(Unused.path(Unused.depth(), tl), Unused.index(rest), Unused.Cell{tl, tc}),
+              line, col),
+            Unused.find(qq, Unused.index(rest), line, col), Laws.unused.seen(rest, line, col),
+            unused.put(Unused.path(Unused.depth(), tl), qq, Unused.index(rest), tl, tc, line, col),
+            unused.index(rest, qq, line, col))
+        case Bind.TItem{nm}:
+          unused.index(rest, qq, line, col)
+        case Bind.TQual{a, nm}:
+          unused.index(rest, qq, line, col)
+        case Bind.TFree{}:
+          unused.index(rest, qq, line, col)
+
+# a sound hit, else the scan, is the scan
+law unused.fast:
+  for f: Bool
+  for -u: Bool
+  for -s: Bool
+  for hu: {u == s : Bool}
+  for hs: {Bool.or(f, s) == s : Bool}
+  {Lazy.or_else(f, _u => u) == s : Bool}
+
+def unused.fast(f, _u, _s, hu, hs):
+  match f:
+    case True{}:
+      hs
+    case False{}:
+      hu
+
+# the rule's use search, through the index of the uses, is the law's
+law unused.seen:
+  for +uses: List<&2, Bind.Use>
+  for +line: U32
+  for +col: U32
+  {Unused.seen(Unused.index(uses), uses, line, col) == Laws.unused.seen(uses, line, col) : Bool}
+
+def unused.seen(uses, line, col):
+  unused.fast(Unused.find(Unused.path(Unused.depth(), line), Unused.index(uses), line, col),
+    Unused.used(uses, line, col), Laws.unused.seen(uses, line, col), unused.used(uses, line, col),
+    unused.index(uses, Unused.path(Unused.depth(), line), line, col))
+
+# a stop at the first False is Bool.and
+law unused.and:
+  for a: Bool
+  for -b: Bool
+  {Lazy.and_then(a, _u => b) == Bool.and(a, b) : Bool}
+
+def unused.and(a, _b):
+  match a:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
 # the rule's finding test for a binder is the law's
 law unused.hit:
   for +kk: Bind.BindKind
@@ -7179,26 +7421,36 @@ law unused.hit:
   for +col: U32
   for +uses: List<&2, Bind.Use>
   for +fl: List<&2, U32>
-  {Bool.and(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
-      Bool.not(Unused.used(uses, line, col)))
+  {Lazy.and_then(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+      _u => Bool.not(Unused.seen(Unused.index(uses), uses, line, col)))
     == Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
       Bool.not(Laws.unused.seen(uses, line, col))) : Bool}
 
 def unused.hit(kk, name, note, line, col, uses, fl):
+  +sr = Unused.seen(Unused.index(uses), uses, line, col)
   Equal.trans(Bool,
+    Lazy.and_then(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+      _u => Bool.not(sr)),
     Bool.and(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
-      Bool.not(Unused.used(uses, line, col))),
-    Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
-      Bool.not(Unused.used(uses, line, col))),
+      Bool.not(sr)),
     Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
       Bool.not(Laws.unused.seen(uses, line, col))),
-    Equal.cong(Bool, Bool,
-      z => Bool.and(Bool.and(z, Bool.not(String.starts_with(name, "_"))), Bool.not(Unused.used(uses, line, col))),
-      Unused.reportable(kk, note, line, fl), Laws.unused.kept(kk, note, line, fl), unused.kind(kk, note, line, fl)),
-    Equal.cong(Bool, Bool,
-      z => Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
-        Bool.not(z)),
-      Unused.used(uses, line, col), Laws.unused.seen(uses, line, col), unused.used(uses, line, col)))
+    unused.and(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+      Bool.not(sr)),
+    Equal.trans(Bool,
+      Bool.and(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+        Bool.not(sr)),
+      Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+        Bool.not(sr)),
+      Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+        Bool.not(Laws.unused.seen(uses, line, col))),
+      Equal.cong(Bool, Bool,
+        z => Bool.and(Bool.and(z, Bool.not(String.starts_with(name, "_"))), Bool.not(sr)),
+        Unused.reportable(kk, note, line, fl), Laws.unused.kept(kk, note, line, fl), unused.kind(kk, note, line, fl)),
+      Equal.cong(Bool, Bool,
+        z => Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+          Bool.not(z)),
+        sr, Laws.unused.seen(uses, line, col), unused.seen(uses, line, col))))
 
 # over the binder list, the rule counts what the law counts
 law unused.go:
@@ -7206,7 +7458,8 @@ law unused.go:
   for +uses: List<&2, Bind.Use>
   for +fl: List<&2, U32>
   for +path: String
-  {List.length(&2, F.Finding, Unused.check.go(binds, uses, fl, path)) == Laws.unused.count(binds, uses, fl) : Nat}
+  {List.length(&2, F.Finding, Unused.check.go(binds, Unused.index(uses), uses, fl, path))
+    == Laws.unused.count(binds, uses, fl) : Nat}
 
 def unused.go(binds, uses, fl, path):
   match binds:
@@ -7214,15 +7467,16 @@ def unused.go(binds, uses, fl, path):
       {==}
     case Con{Bind.Bind{+name, +line, +col, +kk, +note}, +rest}:
       +m = Laws.unused.count(rest, uses, fl)
-      +b = Bool.and(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
-        Bool.not(Unused.used(uses, line, col)))
+      +b = Lazy.and_then(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+        _u => Bool.not(Unused.seen(Unused.index(uses), uses, line, col)))
       Equal.trans(Nat,
-        List.length(&2, F.Finding, Unused.check.go(Bind.Bind{name, line, col, kk, note} <> rest, uses, fl, path)),
+        List.length(&2, F.Finding,
+          Unused.check.go(Bind.Bind{name, line, col, kk, note} <> rest, Unused.index(uses), uses, fl, path)),
         Bool.pick(Nat, b, 1n+m, m),
         Laws.unused.count(Bind.Bind{name, line, col, kk, note} <> rest, uses, fl),
         nat.pick(b, F.Finding{path, line, col, U32.from_nat(String.length(name)), "unused",
             Unused.what(kk) ++ " " ++ name ++ " is never used."},
-          Unused.check.go(rest, uses, fl, path), m, unused.go(rest, uses, fl, path)),
+          Unused.check.go(rest, Unused.index(uses), uses, fl, path), m, unused.go(rest, uses, fl, path)),
         Equal.cong(Bool, Nat, z => Bool.pick(Nat, z, 1n+m, m), b,
           Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
             Bool.not(Laws.unused.seen(uses, line, col))),
@@ -7230,7 +7484,7 @@ def unused.go(binds, uses, fl, path):
 
 def Laws.unused_counts(path, _text, _toks, tree, binds, uses, _scopes, _items):
   Equal.trans(Nat,
-    List.length(&2, F.Finding, Unused.check.go(binds, uses, Unused.foreign(tree), path)),
+    List.length(&2, F.Finding, Unused.check.go(binds, Unused.index(uses), uses, Unused.foreign(tree), path)),
     Laws.unused.count(binds, uses, Unused.foreign(tree)),
     Laws.unused.count(binds, uses, Laws.unused.headers(tree)),
     unused.go(binds, uses, Unused.foreign(tree), path),
@@ -16030,14 +16284,14 @@ def unsafe.in_rev_set(ss, xs):
 law unsafe.deps_imports:
   for ds: List<&2, Digest.Digest>
   for +pp: String
-  {Imports.deps_of(Digest.edges(ds), pp) == Laws.unsafe.imports(ds, pp) : List<&2, String>}
+  {Imports.deps.spec(Digest.edges(ds), pp) == Laws.unsafe.imports(ds, pp) : List<&2, String>}
 
 def unsafe.deps_imports(ds, pp):
   match ds:
     case Nil{}:
       {==}
     case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, +deps, unsafes, laws}, +rest}:
-      %Equal.sym(List<&2, String>, Imports.deps_of(Digest.edges(rest), pp), Laws.unsafe.imports(rest, pp),
+      %Equal.sym(List<&2, String>, Imports.deps.spec(Digest.edges(rest), pp), Laws.unsafe.imports(rest, pp),
           unsafe.deps_imports(rest, pp)) :
         {Bool.pick(List<&2, String>, String.eq(norm, pp), deps, _)
           == Bool.pick(List<&2, String>, String.eq(norm, pp), deps, Laws.unsafe.imports(rest, pp)) : List<&2, String>}
@@ -16166,14 +16420,14 @@ law unsafe.fresh_in:
   for xs: List<&2, String>
   for +seen: List<&2, String>
   for +hx: {Laws.unsafe.held(ds, ss, xs) == True{} : Bool}
-  {unsafe.all_in(ss, Imports.fresh(xs, seen, Imports.paths(Digest.edges(ds)))) == True{} : Bool}
+  {unsafe.all_in(ss, Imports.fresh.spec(xs, seen, Imports.paths(Digest.edges(ds)))) == True{} : Bool}
 
 def unsafe.fresh_in(ds, ss, xs, seen, hx):
   match xs:
     case Nil{}:
       {==}
     case Con{+d, +rest}:
-      +more = Imports.fresh(rest, seen, Imports.paths(Digest.edges(ds)))
+      +more = Imports.fresh.spec(rest, seen, Imports.paths(Digest.edges(ds)))
       +hd = Bool.or(Bool.not(Laws.unsafe.read(ds, d)), Imports.has(ss, d))
       unsafe.fresh_in.at(ds, ss, seen, d, more,
         Bool.and(Bool.and(Imports.has(Imports.paths(Digest.edges(ds)), d), Bool.not(Imports.has(seen, d))),
@@ -16192,7 +16446,7 @@ law unsafe.least_walk:
   for +hs: {Laws.unsafe.shut(ds, ss, ss) == True{} : Bool}
   for +ht: {unsafe.all_in(ss, todo) == True{} : Bool}
   for hn: {unsafe.all_in(ss, seen) == True{} : Bool}
-  {unsafe.all_in(ss, Imports.reach(fuel, todo, seen, Digest.edges(ds), Imports.paths(Digest.edges(ds)))) == True{}
+  {unsafe.all_in(ss, Imports.walk.spec(fuel, todo, seen, Digest.edges(ds), Imports.paths(Digest.edges(ds)))) == True{}
     : Bool}
 
 def unsafe.least_walk(ds, fuel, todo, seen, ss, hs, ht, hn):
@@ -16202,8 +16456,8 @@ def unsafe.least_walk(ds, fuel, todo, seen, ss, hs, ht, hn):
     case 1n+f Nil{}:
       hn
     case 1n+f Con{+p, +rest}:
-      +deps = Imports.deps_of(Digest.edges(ds), p)
-      +found = Imports.fresh(deps, seen, Imports.paths(Digest.edges(ds)))
+      +deps = Imports.deps.spec(Digest.edges(ds), p)
+      +found = Imports.fresh.spec(deps, seen, Imports.paths(Digest.edges(ds)))
       hi = unsafe.shut_at(ds, ss, ss, p, hs, unsafe.and_l(Imports.has(ss, p), unsafe.all_in(ss, rest), ht))
       hd = Equal.trans(Bool, Laws.unsafe.held(ds, ss, deps), Laws.unsafe.held(ds, ss, Laws.unsafe.imports(ds, p)),
         True{}, Equal.cong(List<&2, String>, Bool, z => Laws.unsafe.held(ds, ss, z), deps, Laws.unsafe.imports(ds, p),
@@ -16222,7 +16476,8 @@ law unsafe.keep:
   for +seen: List<&2, String>
   for +x: String
   for hx: {Imports.has(seen, x) == True{} : Bool}
-  {Imports.has(Imports.reach(fuel, todo, seen, Digest.edges(ds), Imports.paths(Digest.edges(ds))), x) == True{} : Bool}
+  {Imports.has(Imports.walk.spec(fuel, todo, seen, Digest.edges(ds), Imports.paths(Digest.edges(ds))),
+    x) == True{} : Bool}
 
 def unsafe.keep(ds, fuel, todo, seen, x, hx):
   match fuel todo:
@@ -16231,24 +16486,193 @@ def unsafe.keep(ds, fuel, todo, seen, x, hx):
     case 1n+f Nil{}:
       hx
     case 1n+f Con{+p, +rest}:
-      +found = Imports.fresh(Imports.deps_of(Digest.edges(ds), p), seen, Imports.paths(Digest.edges(ds)))
+      +found = Imports.fresh.spec(Imports.deps.spec(Digest.edges(ds), p), seen, Imports.paths(Digest.edges(ds)))
       +rf = List.reverse(&2, String, found)
       unsafe.keep(ds, f, List.append(&2, String, found, rest), List.append(&2, String, rf, seen), x,
         Equal.trans(Bool, Imports.has(List.append(&2, String, rf, seen), x),
           Bool.or(Imports.has(rf, x), Imports.has(seen, x)), True{}, unsafe.has_app(rf, seen, x),
           unsafe.or_r(Imports.has(rf, x), Imports.has(seen, x), hx)))
 
+# the walk's lookups, stopping at the first hit, are the walk's own
+# --------------------------------------------------------------------
+
+# `seek` is `has`
+law imp.seek:
+  for ps: List<&2, String>
+  for +pp: String
+  {Imports.seek(ps, pp) == Imports.has(ps, pp) : Bool}
+
+def imp.seek(ps, pp):
+  match ps:
+    case Nil{}:
+      {==}
+    case Con{p, +rest}:
+      unused.or(String.eq(p, pp), Imports.seek(rest, pp), Imports.has(rest, pp), imp.seek(rest, pp))
+
+# an early exit on the first hit is the pick that computed the rest anyway
+law imp.stop:
+  for c: Bool
+  for -a: List<&2, String>
+  for -x: List<&2, String>
+  for -y: List<&2, String>
+  for ih: {x == y : List<&2, String>}
+  {Lazy.stop(List<&2, String>, c, a, _u => x) == Bool.pick(List<&2, String>, c, a, y) : List<&2, String>}
+
+def imp.stop(c, _a, _x, _y, ih):
+  match c:
+    case True{}:
+      {==}
+    case False{}:
+      ih
+
+# `deps.first` is `deps.spec`
+law imp.deps:
+  for es: List<&2, Imports.Edge>
+  for +pp: String
+  {Imports.deps.first(es, pp) == Imports.deps.spec(es, pp) : List<&2, String>}
+
+def imp.deps(es, pp):
+  match es:
+    case Nil{}:
+      {==}
+    case Con{Imports.Edge{+ep, +ds}, +rest}:
+      imp.stop(String.eq(ep, pp), ds, Imports.deps.first(rest, pp), Imports.deps.spec(rest, pp), imp.deps(rest, pp))
+
+# the three tests of `fresh`, asked short-circuit and in the other order
+law imp.cond:
+  for m: Bool
+  for s: Bool
+  for r: Bool
+  {Lazy.and_then(Bool.not(m), _u => Lazy.and_then(Bool.not(s), _v => r)) == Bool.and(Bool.and(r, Bool.not(s)),
+    Bool.not(m)) : Bool}
+
+def imp.cond(m, s, r):
+  match m:
+    case True{}:
+      match s:
+        case True{}:
+          match r:
+            case True{}:
+              {==}
+            case False{}:
+              {==}
+        case False{}:
+          match r:
+            case True{}:
+              {==}
+            case False{}:
+              {==}
+    case False{}:
+      match s:
+        case True{}:
+          match r:
+            case True{}:
+              {==}
+            case False{}:
+              {==}
+        case False{}:
+          match r:
+            case True{}:
+              {==}
+            case False{}:
+              {==}
+
+# `fresh.fast` is `fresh`
+law imp.fresh:
+  for ds: List<&2, String>
+  for +seen: List<&2, String>
+  for +read: List<&2, String>
+  {Imports.fresh.fast(ds, seen, read) == Imports.fresh.spec(ds, seen, read) : List<&2, String>}
+
+def imp.fresh(ds, seen, read):
+  match ds:
+    case Nil{}:
+      {==}
+    case Con{+d, +rest}:
+      +more = Imports.fresh.spec(rest, seen, read)
+      +c = Bool.and(Bool.and(Imports.has(read, d), Bool.not(Imports.has(seen, d))), Bool.not(Imports.has(more, d)))
+      %Equal.sym(List<&2, String>, Imports.fresh.fast(rest, seen, read), more, imp.fresh(rest, seen, read)) :
+        {Bool.pick(List<&2, String>, Lazy.and_then(Bool.not(Imports.seek(_, d)),
+          _u => Lazy.and_then(Bool.not(Imports.seek(seen, d)), _v => Imports.seek(read, d))), d <> _, _)
+          == Bool.pick(List<&2, String>, c, d <> more, more) : List<&2, String>}
+      %Equal.sym(Bool, Imports.seek(more, d), Imports.has(more, d), imp.seek(more, d)) :
+        {Bool.pick(List<&2, String>, Lazy.and_then(Bool.not(_),
+          _u => Lazy.and_then(Bool.not(Imports.seek(seen, d)), _v => Imports.seek(read, d))), d <> more, more)
+          == Bool.pick(List<&2, String>, c, d <> more, more) : List<&2, String>}
+      %Equal.sym(Bool, Imports.seek(seen, d), Imports.has(seen, d), imp.seek(seen, d)) :
+        {Bool.pick(List<&2, String>, Lazy.and_then(Bool.not(Imports.has(more, d)),
+          _u => Lazy.and_then(Bool.not(_), _v => Imports.seek(read, d))), d <> more, more)
+          == Bool.pick(List<&2, String>, c, d <> more, more) : List<&2, String>}
+      %Equal.sym(Bool, Imports.seek(read, d), Imports.has(read, d), imp.seek(read, d)) :
+        {Bool.pick(List<&2, String>, Lazy.and_then(Bool.not(Imports.has(more, d)),
+          _u => Lazy.and_then(Bool.not(Imports.has(seen, d)), _v => _)), d <> more, more)
+          == Bool.pick(List<&2, String>, c, d <> more, more) : List<&2, String>}
+      %Equal.sym(Bool, Lazy.and_then(Bool.not(Imports.has(more, d)),
+          _u => Lazy.and_then(Bool.not(Imports.has(seen, d)), _v => Imports.has(read, d))), c,
+          imp.cond(Imports.has(more, d), Imports.has(seen, d), Imports.has(read, d))) :
+        {Bool.pick(List<&2, String>, _, d <> more, more) == Bool.pick(List<&2, String>, c, d <> more, more)
+          : List<&2, String>}
+      {==}
+
+# the walk through the fast lookups is the walk
+law imp.walk:
+  for fuel: Nat
+  for todo: List<&2, String>
+  for +seen: List<&2, String>
+  for +es: List<&2, Imports.Edge>
+  for +read: List<&2, String>
+  {Imports.walk(fuel, todo, seen, es, read) == Imports.walk.spec(fuel, todo, seen, es, read) : List<&2, String>}
+
+def imp.walk(fuel, todo, seen, es, read):
+  match fuel todo:
+    case 0n _t:
+      {==}
+    case 1n+f Nil{}:
+      {==}
+    case 1n+f Con{+p, +rest}:
+      +found = Imports.fresh.spec(Imports.deps.spec(es, p), seen, read)
+      +ef = Equal.trans(List<&2, String>, Imports.fresh.fast(Imports.deps.first(es, p), seen, read),
+        Imports.fresh.spec(Imports.deps.first(es, p), seen, read), found,
+        imp.fresh(Imports.deps.first(es, p), seen, read),
+        Equal.cong(List<&2, String>, List<&2, String>, z => Imports.fresh.spec(z, seen, read),
+          Imports.deps.first(es, p), Imports.deps.spec(es, p), imp.deps(es, p)))
+      %Equal.sym(List<&2, String>, Imports.fresh.fast(Imports.deps.first(es, p), seen, read), found, ef) :
+        {Imports.walk(f, List.append(&2, String, _, rest), List.append(&2, String, List.reverse(&2, String, _), seen),
+          es, read) == Imports.walk.spec(f, List.append(&2, String, found, rest),
+          List.append(&2, String, List.reverse(&2, String, found), seen), es, read) : List<&2, String>}
+      imp.walk(f, List.append(&2, String, found, rest), List.append(&2, String, List.reverse(&2, String, found), seen),
+        es, read)
+
+# the closure, walked fast, is the walk's
+law imp.closure:
+  for +ds: List<&2, Digest.Digest>
+  for +from: String
+  {Imports.walk(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds), Imports.paths(Digest.edges(ds)))
+    == Imports.walk.spec(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds),
+      Imports.paths(Digest.edges(ds))) : List<&2, String>}
+
+def imp.closure(ds, from):
+  imp.walk(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds), Imports.paths(Digest.edges(ds)))
+
 def Laws.unsafe_from(ds, from):
-  +ww = Imports.reach(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds),
+  +ww = Imports.walk.spec(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds),
     Imports.paths(Digest.edges(ds)))
+  %Equal.sym(List<&2, String>, Imports.walk(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds),
+      Imports.paths(Digest.edges(ds))), ww, imp.closure(ds, from)) :
+    {Imports.has(List.reverse(&2, String, _), from) == True{} : Bool}
   Equal.trans(Bool, Imports.has(List.reverse(&2, String, ww), from), Imports.has(ww, from), True{},
     unsafe.has_rev(ww, from),
     unsafe.keep(ds, List.length(&2, Digest.Digest, ds), [from], [from], from,
       unsafe.or_l(String.eq(from, from), False{}, unsafe.srefl(from))))
 
-def Laws.unsafe_least(ds, from, ss, pp, hf, hs, hp):
-  +ww = Imports.reach(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds),
+def Laws.unsafe_least(ds, from, ss, pp, hf, hs, hw):
+  +ww = Imports.walk.spec(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds),
     Imports.paths(Digest.edges(ds)))
+  +wf = Imports.walk(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds),
+    Imports.paths(Digest.edges(ds)))
+  +hp = Equal.trans(Bool, Imports.has(List.reverse(&2, String, ww), pp), Imports.has(List.reverse(&2, String, wf), pp),
+    True{}, Equal.cong(List<&2, String>, Bool, z => Imports.has(List.reverse(&2, String, z), pp), ww, wf,
+      Equal.sym(List<&2, String>, wf, ww, imp.closure(ds, from))), hw)
   +h1 = unsafe.and_true(Imports.has(ss, from), True{}, hf, {==})
   unsafe.has_sub(ss, ww, pp, unsafe.least_walk(ds, List.length(&2, Digest.Digest, ds), [from], [from], ss, hs, h1, h1),
     Equal.trans(Bool, Imports.has(ww, pp), Imports.has(List.reverse(&2, String, ww), pp), True{},
@@ -16434,7 +16858,7 @@ law unsafe.fresh_held:
   for xs: List<&2, String>
   for +seen: List<&2, String>
   for +hs: {unsafe.all_in(ss, seen) == True{} : Bool}
-  for +hf: {unsafe.all_in(ss, Imports.fresh(xs, seen, Imports.paths(Digest.edges(ds)))) == True{} : Bool}
+  for +hf: {unsafe.all_in(ss, Imports.fresh.spec(xs, seen, Imports.paths(Digest.edges(ds)))) == True{} : Bool}
   {Laws.unsafe.held(ds, ss, xs) == True{} : Bool}
 
 def unsafe.fresh_held(ds, ss, xs, seen, hs, hf):
@@ -16442,7 +16866,7 @@ def unsafe.fresh_held(ds, ss, xs, seen, hs, hf):
     case Nil{}:
       {==}
     case Con{+d, +rest}:
-      +more = Imports.fresh(rest, seen, Imports.paths(Digest.edges(ds)))
+      +more = Imports.fresh.spec(rest, seen, Imports.paths(Digest.edges(ds)))
       +b1 = Imports.has(Imports.paths(Digest.edges(ds)), d)
       +b2 = Imports.has(seen, d)
       +b3 = Imports.has(more, d)
@@ -16953,8 +17377,8 @@ law unsafe.fresh_count:
   for +seen: List<&2, String>
   exs s: Nat
   {unsafe.miss(Imports.paths(Digest.edges(ds)), seen)
-    == Nat.add(List.length(&2, String, Imports.fresh(xs, seen, Imports.paths(Digest.edges(ds)))),
-      Nat.add(unsafe.miss(Imports.paths(Digest.edges(ds)), List.append(&2, String, Imports.fresh(xs, seen,
+    == Nat.add(List.length(&2, String, Imports.fresh.spec(xs, seen, Imports.paths(Digest.edges(ds)))),
+      Nat.add(unsafe.miss(Imports.paths(Digest.edges(ds)), List.append(&2, String, Imports.fresh.spec(xs, seen,
         Imports.paths(Digest.edges(ds))), seen)), s)) : Nat}
 
 def unsafe.fresh_count(ds, xs, seen):
@@ -16963,7 +17387,7 @@ def unsafe.fresh_count(ds, xs, seen):
       +mm = unsafe.miss(Imports.paths(Digest.edges(ds)), seen)
       (0n, Equal.sym(Nat, Nat.add(mm, 0n), mm, unsafe.add_zero(mm)))
     case Con{+d, +rest}:
-      +more = Imports.fresh(rest, seen, Imports.paths(Digest.edges(ds)))
+      +more = Imports.fresh.spec(rest, seen, Imports.paths(Digest.edges(ds)))
       unsafe.fresh_count.at(ds, seen, d, more, Imports.has(Imports.paths(Digest.edges(ds)), d), Imports.has(seen, d),
         Imports.has(more, d), {==}, {==}, {==}, unsafe.fresh_count(ds, rest, seen))
 
@@ -17035,8 +17459,8 @@ law unsafe.shut_walk:
   for hf: {fuel == Nat.add(List.length(&2, String, todo), Nat.add(unsafe.miss(Imports.paths(Digest.edges(ds)), seen),
     k)) : Nat}
   for hi: {unsafe.inv(ds, todo, seen, seen) == True{} : Bool}
-  {Laws.unsafe.shut(ds, Imports.reach(fuel, todo, seen, Digest.edges(ds), Imports.paths(Digest.edges(ds))),
-    Imports.reach(fuel, todo, seen, Digest.edges(ds), Imports.paths(Digest.edges(ds)))) == True{} : Bool}
+  {Laws.unsafe.shut(ds, Imports.walk.spec(fuel, todo, seen, Digest.edges(ds), Imports.paths(Digest.edges(ds))),
+    Imports.walk.spec(fuel, todo, seen, Digest.edges(ds), Imports.paths(Digest.edges(ds)))) == True{} : Bool}
 
 def unsafe.shut_walk(ds, fuel, todo, seen, k, hf, hi):
   match fuel todo:
@@ -17056,8 +17480,8 @@ def unsafe.shut_walk(ds, fuel, todo, seen, k, hf, hi):
         hi)
     case 1n+(+f) Con{+p, +rest}:
       +rr = Imports.paths(Digest.edges(ds))
-      +deps = Imports.deps_of(Digest.edges(ds), p)
-      +found = Imports.fresh(deps, seen, rr)
+      +deps = Imports.deps.spec(Digest.edges(ds), p)
+      +found = Imports.fresh.spec(deps, seen, rr)
       +rf = List.reverse(&2, String, found)
       +seen2 = List.append(&2, String, rf, seen)
       +todo2 = List.append(&2, String, found, rest)
@@ -17079,8 +17503,8 @@ def unsafe.shut_walk(ds, fuel, todo, seen, k, hf, hi):
         List.length(&2, String, todo2), unsafe.miss(rr, List.append(&2, String, found, seen)), unsafe.miss(rr, seen2),
         unsafe.succ_inj(f, Nat.add(List.length(&2, String, rest), Nat.add(mm, k)), hf),
         unsafe.fresh_count(ds, deps, seen), unsafe.len_app(found, rest), unsafe.miss_rev(rr, found, seen),
-        {Laws.unsafe.shut(ds, Imports.reach(f, todo2, seen2, Digest.edges(ds), rr),
-          Imports.reach(f, todo2, seen2, Digest.edges(ds), rr)) == True{} : Bool},
+        {Laws.unsafe.shut(ds, Imports.walk.spec(f, todo2, seen2, Digest.edges(ds), rr),
+          Imports.walk.spec(f, todo2, seen2, Digest.edges(ds), rr)) == True{} : Bool},
         k2 => h2 => unsafe.shut_walk(ds, f, todo2, seen2, k2, h2, hi2))
 
 # a list shut over ps, held in another, leaves that one shut over ps
@@ -17159,7 +17583,7 @@ law unsafe.idle:
   for +ds: List<&2, Digest.Digest>
   for fuel: Nat
   for +seen: List<&2, String>
-  {Imports.reach(fuel, [], seen, Digest.edges(ds), Imports.paths(Digest.edges(ds))) == seen : List<&2, String>}
+  {Imports.walk.spec(fuel, [], seen, Digest.edges(ds), Imports.paths(Digest.edges(ds))) == seen : List<&2, String>}
 
 def unsafe.idle(_ds, fuel, _seen):
   match fuel:
@@ -17173,8 +17597,9 @@ law unsafe.lone_w:
   for +ds: List<&2, Digest.Digest>
   for fuel: Nat
   for +from: String
-  for h: {Imports.deps_of(Digest.edges(ds), from) == [] : List<&2, String>}
-  {Imports.reach(fuel, [from], [from], Digest.edges(ds), Imports.paths(Digest.edges(ds))) == [from] : List<&2, String>}
+  for h: {Imports.deps.spec(Digest.edges(ds), from) == [] : List<&2, String>}
+  {Imports.walk.spec(fuel, [from], [from], Digest.edges(ds), Imports.paths(Digest.edges(ds)))
+    == [from] : List<&2, String>}
 
 def unsafe.lone_w(ds, fuel, from, h):
   match fuel:
@@ -17182,9 +17607,10 @@ def unsafe.lone_w(ds, fuel, from, h):
       {==}
     case 1n+f:
       +rr = Imports.paths(Digest.edges(ds))
-      %Equal.sym(List<&2, String>, Imports.deps_of(Digest.edges(ds), from), [], h) :
-        {Imports.reach(f, List.append(&2, String, Imports.fresh(_, [from], rr), []),
-          List.append(&2, String, List.reverse(&2, String, Imports.fresh(_, [from], rr)), [from]), Digest.edges(ds), rr)
+      %Equal.sym(List<&2, String>, Imports.deps.spec(Digest.edges(ds), from), [], h) :
+        {Imports.walk.spec(f, List.append(&2, String, Imports.fresh.spec(_, [from], rr), []),
+          List.append(&2, String, List.reverse(&2, String, Imports.fresh.spec(_, [from], rr)), [from]),
+          Digest.edges(ds), rr)
           == [from] : List<&2, String>}
       unsafe.idle(ds, f, [from])
 
@@ -17194,8 +17620,8 @@ law unsafe.shut_top.go:
   for +from: String
   for w: &k: Nat -> {List.length(&2, Digest.Digest, ds)
     == 1n+Nat.add(unsafe.miss(Imports.paths(Digest.edges(ds)), [from]), k) : Nat}
-  {Laws.unsafe.shut(ds, Imports.reach(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds),
-    Imports.paths(Digest.edges(ds))), Imports.reach(List.length(&2, Digest.Digest, ds), [from], [from],
+  {Laws.unsafe.shut(ds, Imports.walk.spec(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds),
+    Imports.paths(Digest.edges(ds))), Imports.walk.spec(List.length(&2, Digest.Digest, ds), [from], [from],
       Digest.edges(ds), Imports.paths(Digest.edges(ds)))) == True{} : Bool}
 
 def unsafe.shut_top.go(ds, from, w):
@@ -17213,8 +17639,8 @@ law unsafe.shut_top:
   for +from: String
   for b: Bool
   for eb: {Imports.has(Imports.paths(Digest.edges(ds)), from) == b : Bool}
-  {Laws.unsafe.shut(ds, Imports.reach(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds),
-    Imports.paths(Digest.edges(ds))), Imports.reach(List.length(&2, Digest.Digest, ds), [from], [from],
+  {Laws.unsafe.shut(ds, Imports.walk.spec(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds),
+    Imports.paths(Digest.edges(ds))), Imports.walk.spec(List.length(&2, Digest.Digest, ds), [from], [from],
       Digest.edges(ds), Imports.paths(Digest.edges(ds)))) == True{} : Bool}
 
 def unsafe.shut_top(ds, from, b, eb):
@@ -17223,21 +17649,25 @@ def unsafe.shut_top(ds, from, b, eb):
       unsafe.shut_top.go(ds, from, unsafe.miss_start(ds, from, eb))
     case False{}:
       +rr = Imports.paths(Digest.edges(ds))
-      +ww = Imports.reach(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds), rr)
+      +ww = Imports.walk.spec(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds), rr)
       er = Equal.trans(Bool, Laws.unsafe.read(ds, from), Imports.has(rr, from), False{},
         Equal.sym(Bool, Imports.has(rr, from), Laws.unsafe.read(ds, from), unsafe.read_paths(ds, from)), eb)
       +hn = unsafe.unread_imports(ds, from, er)
       hw = unsafe.lone_w(ds, List.length(&2, Digest.Digest, ds), from, Equal.trans(List<&2, String>,
-        Imports.deps_of(Digest.edges(ds), from), Laws.unsafe.imports(ds, from), [], unsafe.deps_imports(ds, from), hn))
+        Imports.deps.spec(Digest.edges(ds), from), Laws.unsafe.imports(ds, from),
+        [], unsafe.deps_imports(ds, from), hn))
       %Equal.sym(List<&2, String>, ww, [from], hw) : {Laws.unsafe.shut(ds, _, _) == True{} : Bool}
       %Equal.sym(List<&2, String>, Laws.unsafe.imports(ds, from), [], hn) :
         {Bool.and(Laws.unsafe.held(ds, [from], _), True{}) == True{} : Bool}
       {==}
 
 def Laws.unsafe_shut(ds, from):
-  +ww = Imports.reach(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds),
+  +ww = Imports.walk.spec(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds),
     Imports.paths(Digest.edges(ds)))
   +rw = List.reverse(&2, String, ww)
+  %Equal.sym(List<&2, String>, Imports.walk(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds),
+      Imports.paths(Digest.edges(ds))), ww, imp.closure(ds, from)) :
+    {Laws.unsafe.shut(ds, List.reverse(&2, String, _), List.reverse(&2, String, _)) == True{} : Bool}
   h = unsafe.shut_top(ds, from, Imports.has(Imports.paths(Digest.edges(ds)), from), {==})
   h2 = unsafe.shut_grow(ds, ww, rw, ww, h, Equal.trans(Bool, unsafe.all_in(rw, ww), unsafe.all_in(ww, ww), True{},
     unsafe.in_rev_set(ww, ww), unsafe.in_refl(ww)))
@@ -26840,6 +27270,7 @@ def inert.unused.rep(kk: Bind.BindKind, +note: String, +line: U32, +fl: List<&2,
 # unused over binders as it reads them
 def inert.unused.go(
   binds: List<&2, Bind.Bind>,
+  +hh: Unused.Hits,
   +uses: List<&2, Bind.Use>,
   +fl: List<&2, U32>,
   +path: String
@@ -26848,9 +27279,9 @@ def inert.unused.go(
     case Nil{}:
       Nil{}
     case Con{Bind.Bind{+name, +line, +col, +kind, +note}, rest}:
-      +more = inert.unused.go(rest, uses, fl, path)
+      +more = inert.unused.go(rest, hh, uses, fl, path)
       +hit = Bool.and(inert.unused.rep(kind, note, line, fl), Bool.not(String.starts_with(name, "_")))
-      Bool.pick(List<&2, F.Finding>, Bool.and(hit, Bool.not(Unused.used(uses, line, col))),
+      Bool.pick(List<&2, F.Finding>, Lazy.and_then(hit, _u => Bool.not(Unused.seen(hh, uses, line, col))),
         F.Finding{path, line, col, U32.from_nat(String.length(name)), "unused",
           Unused.what(kind) ++ " " ++ name ++ " is never used."} <> more, more)
 
@@ -26894,26 +27325,27 @@ def inert.unused.one(kind, note, line, fl):
 # unused over binders is unused over the binders as it reads them
 law inert.unused.via:
   for binds: List<&2, Bind.Bind>
+  for +hh: Unused.Hits
   for +uses: List<&2, Bind.Use>
   for +fl: List<&2, U32>
   for +path: String
-  {Unused.check.go(binds, uses, fl, path) == inert.unused.go(Laws.inert.ubinds(binds), uses, fl, path)
+  {Unused.check.go(binds, hh, uses, fl, path) == inert.unused.go(Laws.inert.ubinds(binds), hh, uses, fl, path)
     : List<&2, F.Finding>}
 
-def inert.unused.via(binds, uses, fl, path):
+def inert.unused.via(binds, hh, uses, fl, path):
   match binds:
     case Nil{}: {==}
     case Con{Bind.Bind{+name, +line, +col, +kind, +note}, +rest}:
-      +mo = Unused.check.go(rest, uses, fl, path)
+      +mo = Unused.check.go(rest, hh, uses, fl, path)
       +x = {F.Finding{path, line, col, U32.from_nat(String.length(name)), "unused",
         Unused.what(kind) ++ " " ++ name ++ " is never used."} : F.Finding}
-      +lhs = Unused.check.go(Con{Bind.Bind{name, line, col, kind, note}, rest}, uses, fl, path)
-      %inert.unused.via(rest, uses, fl, path) : {lhs == Bool.pick(List<&2, F.Finding>, Bool.and(Bool.and(
+      +lhs = Unused.check.go(Con{Bind.Bind{name, line, col, kind, note}, rest}, hh, uses, fl, path)
+      %inert.unused.via(rest, hh, uses, fl, path) : {lhs == Bool.pick(List<&2, F.Finding>, Lazy.and_then(Bool.and(
         inert.unused.rep(kind, Bool.pick(String, String.starts_with(note, "-"), "-", ""), line, fl),
-          Bool.not(String.starts_with(name, "_"))), Bool.not(Unused.used(uses, line, col))), x <> _, _)
+          Bool.not(String.starts_with(name, "_"))), _u => Bool.not(Unused.seen(hh, uses, line, col))), x <> _, _)
           : List<&2, F.Finding>}
-      %inert.unused.one(kind, note, line, fl) : {lhs == Bool.pick(List<&2, F.Finding>, Bool.and(Bool.and(_,
-        Bool.not(String.starts_with(name, "_"))), Bool.not(Unused.used(uses, line, col))), x <> mo, mo)
+      %inert.unused.one(kind, note, line, fl) : {lhs == Bool.pick(List<&2, F.Finding>, Lazy.and_then(Bool.and(_,
+        Bool.not(String.starts_with(name, "_"))), _u => Bool.not(Unused.seen(hh, uses, line, col))), x <> mo, mo)
           : List<&2, F.Finding>}
       {==}
 
@@ -26923,15 +27355,16 @@ law inert.unused.cong:
   for -x2: List<&2, Bind.Bind>
   for -f1: List<&2, U32>
   for -f2: List<&2, U32>
+  for +hh: Unused.Hits
   for +uses: List<&2, Bind.Use>
   for +path: String
   for e1: {x1 == x2 : List<&2, Bind.Bind>}
   for e2: {f1 == f2 : List<&2, U32>}
-  {inert.unused.go(x1, uses, f1, path) == inert.unused.go(x2, uses, f2, path) : List<&2, F.Finding>}
+  {inert.unused.go(x1, hh, uses, f1, path) == inert.unused.go(x2, hh, uses, f2, path) : List<&2, F.Finding>}
 
-def inert.unused.cong(x1, _x2, f1, f2, uses, path, e1, e2):
-  %e1 : {inert.unused.go(x1, uses, f1, path) == inert.unused.go(_, uses, f2, path) : List<&2, F.Finding>}
-  %e2 : {inert.unused.go(x1, uses, f1, path) == inert.unused.go(x1, uses, _, path) : List<&2, F.Finding>}
+def inert.unused.cong(x1, _x2, f1, f2, hh, uses, path, e1, e2):
+  %e1 : {inert.unused.go(x1, hh, uses, f1, path) == inert.unused.go(_, hh, uses, f2, path) : List<&2, F.Finding>}
+  %e2 : {inert.unused.go(x1, hh, uses, f1, path) == inert.unused.go(x1, hh, uses, _, path) : List<&2, F.Finding>}
   {==}
 
 def Laws.inert_unused(
@@ -26959,14 +27392,15 @@ def Laws.inert_unused(
     Equal.trans(List<&2, U32>, Unused.foreign(Laws.inert.node(tree)), Unused.foreign(Laws.inert.node(tree2)), f2,
       Equal.cong(Tree.Node, List<&2, U32>, z => Unused.foreign(z), Laws.inert.node(tree), Laws.inert.node(tree2), et),
       inert.unused.foreign(tree2)))
-  Equal.trans(List<&2, F.Finding>, Unused.check.go(binds, uses, f1, path),
-    inert.unused.go(Laws.inert.ubinds(binds), uses, f1, path), Unused.check.go(binds2, uses, f2, path),
-    inert.unused.via(binds, uses, f1, path),
-    Equal.trans(List<&2, F.Finding>, inert.unused.go(Laws.inert.ubinds(binds), uses, f1, path),
-      inert.unused.go(Laws.inert.ubinds(binds2), uses, f2, path), Unused.check.go(binds2, uses, f2, path),
-      inert.unused.cong(Laws.inert.ubinds(binds), Laws.inert.ubinds(binds2), f1, f2, uses, path, eb, ef),
-      Equal.sym(List<&2, F.Finding>, Unused.check.go(binds2, uses, f2, path),
-        inert.unused.go(Laws.inert.ubinds(binds2), uses, f2, path), inert.unused.via(binds2, uses, f2, path))))
+  +hh = Unused.index(uses)
+  Equal.trans(List<&2, F.Finding>, Unused.check.go(binds, hh, uses, f1, path),
+    inert.unused.go(Laws.inert.ubinds(binds), hh, uses, f1, path), Unused.check.go(binds2, hh, uses, f2, path),
+    inert.unused.via(binds, hh, uses, f1, path),
+    Equal.trans(List<&2, F.Finding>, inert.unused.go(Laws.inert.ubinds(binds), hh, uses, f1, path),
+      inert.unused.go(Laws.inert.ubinds(binds2), hh, uses, f2, path), Unused.check.go(binds2, hh, uses, f2, path),
+      inert.unused.cong(Laws.inert.ubinds(binds), Laws.inert.ubinds(binds2), f1, f2, hh, uses, path, eb, ef),
+      Equal.sym(List<&2, F.Finding>, Unused.check.go(binds2, hh, uses, f2, path),
+        inert.unused.go(Laws.inert.ubinds(binds2), hh, uses, f2, path), inert.unused.via(binds2, hh, uses, f2, path))))
 
 
 
