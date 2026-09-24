@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.0](https://github.com/Emerging-Patterns/bolt/compare/v1.6.2...v1.7.0) (2026-09-24)
+
+
+### Features
+
+* **noqa:** # noqa: CODE silences a finding; rule noqa (S005) reports a noqa that silences nothing (BOLT-OUT-7, BOLT-RULE-S005) ([#189](https://github.com/Emerging-Patterns/bolt/issues/189)) ([814b518](https://github.com/Emerging-Patterns/bolt/commit/814b51872d059f91482599722f9647e9572d958e))
+* **noqa:** `# noqa: CODE` silences a finding; rule noqa (S005) reports a noqa that silences nothing (BOLT-OUT-7, BOLT-RULE-S005) ([814b518](https://github.com/Emerging-Patterns/bolt/commit/814b51872d059f91482599722f9647e9572d958e))
+
 ## [1.6.2](https://github.com/Emerging-Patterns/bolt/compare/v1.6.1...v1.6.2) (2026-09-24)
 
 
