@@ -23154,3 +23154,2671 @@ def Laws.inert_unit(path, _text, tree, _toks, _bound, _items, _text2, tree2, _to
       inert.dok.of(tree2, ok2))),
     e)
 
+
+# Inert text, eager and on (BOLT-RULE-INERT): more rules over a file's defs,
+# on the lemmas above.
+
+# eager
+# -----
+
+# a text as the lexer makes it, read that way: cut when it starts with `"`
+# or `#`, what a token read that way says whatever its kind
+def inert.mk(+tt: String) -> String:
+  Laws.inert.keep(Laws.inert.marked(tt), tt)
+
+# the texts, each read that way
+def inert.mks(xs: List<&2, String>) -> List<&2, String>:
+  match xs:
+    case Nil{}: Nil{}
+    case Con{h, t}: inert.mk(h) <> inert.mks(t)
+
+# a text fits whatever says it is marked
+law inert.fits_b:
+  for b: Bool
+  for +t: String
+  for e: {Laws.inert.marked(t) == b : Bool}
+  {Laws.inert.fits.go(b, t) == True{} : Bool}
+
+def inert.fits_b(b, t, e):
+  match b:
+    case True{}: e
+    case False{}:
+      %Equal.sym(Bool, Laws.inert.marked(t), False{}, e) : {Bool.not(_) == True{} : Bool}
+      {==}
+
+# a text fits its own mark
+law inert.fits_mk:
+  for +t: String
+  {Laws.inert.fits.go(Laws.inert.marked(t), t) == True{} : Bool}
+
+def inert.fits_mk(t):
+  inert.fits_b(Laws.inert.marked(t), t, {==})
+
+# a token's text read that way is its text read that way, when it fits
+law inert.keep_mk:
+  for b: Bool
+  for +t: String
+  for ef: {Laws.inert.fits.go(b, t) == True{} : Bool}
+  {Laws.inert.keep(b, t) == inert.mk(t) : String}
+
+def inert.keep_mk(b, t, ef):
+  match b:
+    case True{}:
+      %Equal.sym(Bool, Laws.inert.marked(t), True{}, ef) : {Laws.inert.keep(True{}, t) == Laws.inert.keep(_, t)
+        : String}
+      {==}
+    case False{}:
+      %Equal.sym(Bool, Laws.inert.marked(t), False{}, inert.not_true(Laws.inert.marked(t), ef)) :
+        {Laws.inert.keep(False{}, t) == Laws.inert.keep(_, t) : String}
+      {==}
+
+# texts read that way, appended, are the append read that way
+law inert.mks_app:
+  for a: List<&2, String>
+  for +b: List<&2, String>
+  {inert.mks(List.append(&2, String, a, b)) == List.append(&2, String, inert.mks(a), inert.mks(b)) : List<&2, String>}
+
+def inert.mks_app(a, b):
+  match a:
+    case Nil{}: {==}
+    case Con{+h, +t}:
+      Equal.cong(List<&2, String>, List<&2, String>, z => inert.mk(h) <> z, inert.mks(List.append(&2, String, t, b)),
+        List.append(&2, String, inert.mks(t), inert.mks(b)), inert.mks_app(t, b))
+
+# two lists joined, read that way, are the two read that way joined
+law inert.mks_cat2:
+  for +a: List<&2, String>
+  for +b: List<&2, String>
+  {inert.mks(List.concat(&2, String, [a, b])) == List.concat(&2, String, [inert.mks(a), inert.mks(b)])
+    : List<&2, String>}
+
+def inert.mks_cat2(a, b):
+  Equal.trans(List<&2, String>, inert.mks(List.append(&2, String, a, List.append(&2, String, b, []))),
+    List.append(&2, String, inert.mks(a), inert.mks(List.append(&2, String, b, []))),
+    List.append(&2, String, inert.mks(a), List.append(&2, String, inert.mks(b), [])),
+    inert.mks_app(a, List.append(&2, String, b, [])),
+    Equal.cong(List<&2, String>, List<&2, String>, z => List.append(&2, String, inert.mks(a), z),
+      inert.mks(List.append(&2, String, b, [])), List.append(&2, String, inert.mks(b), []), inert.mks_app(b, [])))
+
+# three lists joined, read that way, are the three read that way joined
+law inert.mks_cat3:
+  for +a: List<&2, String>
+  for +b: List<&2, String>
+  for +c: List<&2, String>
+  {inert.mks(List.concat(&2, String, [a, b, c])) == List.concat(&2, String, [inert.mks(a), inert.mks(b), inert.mks(c)])
+    : List<&2, String>}
+
+def inert.mks_cat3(a, b, c):
+  Equal.trans(List<&2, String>, inert.mks(List.append(&2, String, a, List.concat(&2, String, [b, c]))),
+    List.append(&2, String, inert.mks(a), inert.mks(List.concat(&2, String, [b, c]))),
+    List.append(&2, String, inert.mks(a), List.concat(&2, String, [inert.mks(b), inert.mks(c)])),
+    inert.mks_app(a, List.concat(&2, String, [b, c])),
+    Equal.cong(List<&2, String>, List<&2, String>, z => List.append(&2, String, inert.mks(a), z),
+      inert.mks(List.concat(&2, String, [b, c])), List.concat(&2, String, [inert.mks(b), inert.mks(c)]),
+      inert.mks_cat2(b, c)))
+
+# a name kept or not, read that way
+law inert.mks_pick:
+  for c: Bool
+  for +t: String
+  for +m: List<&2, String>
+  {inert.mks(Bool.pick(List<&2, String>, c, t <> m, m)) == Bool.pick(List<&2, String>, c, inert.mk(t) <> inert.mks(m),
+    inert.mks(m)) : List<&2, String>}
+
+def inert.mks_pick(c, _t, _m):
+  match c:
+    case True{}: {==}
+    case False{}: {==}
+
+# a name then a group: the names it calls, read that way
+law inert.eager.called_lg:
+  for +b: Bool
+  for +t: String
+  for +o: String
+  for +kids: Tree.Node
+  for +r2: Tree.Node
+  for +ef: {Laws.inert.fits.go(b, t) == True{} : Bool}
+  for ik: {Eager.called(Laws.inert.node(kids)) == inert.mks(Eager.called(kids)) : List<&2, String>}
+  for ir: {Eager.called(Laws.inert.node(r2)) == inert.mks(Eager.called(r2)) : List<&2, String>}
+  {Bool.pick(List<&2, String>, String.eq(o, "("), Laws.inert.keep(b, t) <> List.concat(&2, String,
+    [Eager.called(Laws.inert.node(kids)), Eager.called(Laws.inert.node(r2))]), List.concat(&2, String,
+      [Eager.called(Laws.inert.node(kids)), Eager.called(Laws.inert.node(r2))]))
+    == inert.mks(Bool.pick(List<&2, String>, String.eq(o, "("), t <> List.concat(&2, String, [Eager.called(kids),
+      Eager.called(r2)]), List.concat(&2, String, [Eager.called(kids), Eager.called(r2)]))) : List<&2, String>}
+
+def inert.eager.called_lg(b, t, o, kids, r2, ef, ik, ir):
+  +ck = Eager.called(kids)
+  +cr = Eager.called(r2)
+  +ci = Eager.called(Laws.inert.node(kids))
+  +cj = Eager.called(Laws.inert.node(r2))
+  +lhs = Bool.pick(List<&2, String>, String.eq(o, "("), Laws.inert.keep(b, t) <> List.concat(&2, String, [ci, cj]),
+    List.concat(&2, String, [ci, cj]))
+  %Equal.sym(List<&2, String>, inert.mks(Bool.pick(List<&2, String>, String.eq(o, "("), t <> List.concat(&2, String,
+    [ck, cr]), List.concat(&2, String, [ck, cr]))), Bool.pick(List<&2, String>, String.eq(o, "("),
+      inert.mk(t) <> inert.mks(List.concat(&2, String, [ck, cr])), inert.mks(List.concat(&2, String, [ck, cr]))),
+    inert.mks_pick(String.eq(o, "("), t, List.concat(&2, String, [ck, cr]))) : {lhs == _ : List<&2, String>}
+  %Equal.sym(List<&2, String>, inert.mks(List.concat(&2, String, [ck, cr])), List.concat(&2, String,
+    [inert.mks(ck), inert.mks(cr)]), inert.mks_cat2(ck, cr)) : {lhs == Bool.pick(List<&2, String>, String.eq(o, "("),
+      inert.mk(t) <> _, _) : List<&2, String>}
+  %ik : {lhs == Bool.pick(List<&2, String>, String.eq(o, "("), inert.mk(t) <> List.concat(&2, String, [_,
+    inert.mks(cr)]), List.concat(&2, String, [_, inert.mks(cr)])) : List<&2, String>}
+  %ir : {lhs == Bool.pick(List<&2, String>, String.eq(o, "("), inert.mk(t) <> List.concat(&2, String, [ci, _]),
+    List.concat(&2, String, [ci, _])) : List<&2, String>}
+  %inert.keep_mk(b, t, ef) : {lhs == Bool.pick(List<&2, String>, String.eq(o, "("), _ <> List.concat(&2, String,
+    [ci, cj]), List.concat(&2, String, [ci, cj])) : List<&2, String>}
+  {==}
+
+# the names a chain read that way calls are the names it called, read that way
+law inert.eager.called:
+  for nn: Tree.Node
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Eager.called(Laws.inert.node(nn)) == inert.mks(Eager.called(nn)) : List<&2, String>}
+
+def inert.eager.called(nn, e):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              match rest:
+                case Tree.NCons{h2, +r2}:
+                  match h2:
+                    case Tree.Group{o, +kids, +cl}:
+                      match o:
+                        case Lex.Tok{+ok, +ot, +ol, +oc}:
+                          +lf = {Tree.Leaf{Lex.Tok{k, t, l, c}} : Tree.Node}
+                          +gp = {Tree.Group{Lex.Tok{ok, ot, ol, oc}, kids, cl} : Tree.Node}
+                          +eg = inert.ok_t(lf, Tree.NCons{gp, r2}, e)
+                          inert.eager.called_lg(Laws.inert.blanks(k), t, ot, kids, r2,
+                            inert.ok_h(lf, Tree.NCons{gp, r2}, e),
+                            inert.eager.called(kids, inert.ok_h(gp, r2, eg)),
+                            inert.eager.called(r2, inert.ok_t(gp, r2, eg)))
+                    case Tree.Leaf{x}:
+                      inert.eager.called(rest, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.Stmt{x, y, z}:
+                      inert.eager.called(rest, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.NNil{}:
+                      inert.eager.called(rest, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.NCons{x, y}:
+                      inert.eager.called(rest, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.Leaf{x}: {==}
+                case Tree.Group{x, y, z}: {==}
+                case Tree.Stmt{x, y, z}: {==}
+                case Tree.NNil{}: {==}
+        case Tree.Group{+o, +kids, +cl}:
+          +ck = Eager.called(kids)
+          +cr = Eager.called(rest)
+          %Equal.sym(List<&2, String>, inert.mks(List.concat(&2, String, [ck, cr])), List.concat(&2, String,
+            [inert.mks(ck), inert.mks(cr)]), inert.mks_cat2(ck, cr)) : {Eager.called(Laws.inert.node(Tree.NCons{
+              Tree.Group{o, kids, cl}, rest})) == _ : List<&2, String>}
+          %inert.eager.called(kids, inert.ok_h(Tree.Group{o, kids, cl}, rest, e)) : {Eager.called(Laws.inert.node(
+            Tree.NCons{Tree.Group{o, kids, cl}, rest})) == List.concat(&2, String, [_, inert.mks(cr)])
+              : List<&2, String>}
+          %inert.eager.called(rest, inert.ok_t(Tree.Group{o, kids, cl}, rest, e)) : {Eager.called(Laws.inert.node(
+            Tree.NCons{Tree.Group{o, kids, cl}, rest})) == List.concat(&2, String, [Eager.called(Laws.inert.node(
+              kids)), _]) : List<&2, String>}
+          {==}
+        case Tree.Stmt{+sk, +kids, +body}:
+          +es = inert.ok_h(Tree.Stmt{sk, kids, body}, rest, e)
+          +ck = Eager.called(kids)
+          +cb = Eager.called(body)
+          +cr = Eager.called(rest)
+          +lhs = Eager.called(Laws.inert.node(Tree.NCons{Tree.Stmt{sk, kids, body}, rest}))
+          %Equal.sym(List<&2, String>, inert.mks(List.concat(&2, String, [ck, cb, cr])), List.concat(&2, String,
+            [inert.mks(ck), inert.mks(cb), inert.mks(cr)]), inert.mks_cat3(ck, cb, cr)) : {lhs == _
+              : List<&2, String>}
+          %inert.eager.called(kids, inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es)) : {lhs
+            == List.concat(&2, String, [_, inert.mks(cb), inert.mks(cr)]) : List<&2, String>}
+          %inert.eager.called(body, inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es)) : {lhs
+            == List.concat(&2, String, [Eager.called(Laws.inert.node(kids)), _, inert.mks(cr)]) : List<&2, String>}
+          %inert.eager.called(rest, inert.ok_t(Tree.Stmt{sk, kids, body}, rest, e)) : {lhs
+            == List.concat(&2, String, [Eager.called(Laws.inert.node(kids)), Eager.called(Laws.inert.node(body)), _])
+              : List<&2, String>}
+          {==}
+        case Tree.NNil{}: inert.eager.called(rest, e)
+        case Tree.NCons{x, y}: inert.eager.called(rest, inert.ok_t(Tree.NCons{x, y}, rest, e))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# the names read that way hold an unmarked name as they did
+law inert.contains_mks:
+  for cs: List<&2, String>
+  for +x: String
+  for +ex: {Laws.inert.marked(x) == False{} : Bool}
+  {List.contains(~String, ~String.eq, inert.mks(cs), x) == List.contains(~String, ~String.eq, cs, x) : Bool}
+
+def inert.contains_mks(cs, x, ex):
+  match cs:
+    case Nil{}: {==}
+    case Con{+h, +t}:
+      inert.or2(String.eq(inert.mk(h), x), String.eq(h, x), List.contains(~String, ~String.eq, inert.mks(t), x),
+        List.contains(~String, ~String.eq, t, x), inert.eq_keep(Laws.inert.marked(h), h, x, inert.fits_mk(h), ex),
+        inert.contains_mks(t, x, ex))
+
+# a list of unmarked texts holds no marked one
+law inert.contains_marked:
+  for xs: List<&2, String>
+  for +t: String
+  for +ep: {inert.plains(xs) == True{} : Bool}
+  for +et: {Laws.inert.marked(t) == True{} : Bool}
+  {List.contains(~String, ~String.eq, xs, t) == False{} : Bool}
+
+def inert.contains_marked(xs, t, ep, et):
+  match xs:
+    case Nil{}: {==}
+    case Con{+h, +r}:
+      %Equal.sym(Bool, String.eq(h, t), False{}, inert.neq_r(h, t, inert.not_true(Laws.inert.marked(h),
+        inert.and_l(Bool.not(Laws.inert.marked(h)), inert.plains(r), ep)), et)) : {Bool.or(_,
+          List.contains(~String, ~String.eq, r, t)) == False{} : Bool}
+      inert.contains_marked(r, t, inert.and_r(Bool.not(Laws.inert.marked(h)), inert.plains(r), ep), et)
+
+# the names read that way reach the set as they did
+law inert.eager.any_of:
+  for cs: List<&2, String>
+  for +set: List<&2, String>
+  for +ep: {inert.plains(set) == True{} : Bool}
+  {Eager.any_of(inert.mks(cs), set) == Eager.any_of(cs, set) : Bool}
+
+def inert.eager.any_of(cs, set, ep):
+  match cs:
+    case Nil{}: {==}
+    case Con{+c, +t}:
+      inert.or_else(List.contains(~String, ~String.eq, set, inert.mk(c)), List.contains(~String, ~String.eq, set, c),
+        Eager.any_of(inert.mks(t), set), Eager.any_of(t, set),
+        inert.contains_keep(set, Laws.inert.marked(c), c, inert.fits_mk(c), ep), inert.eager.any_of(t, set, ep))
+
+# a name joins the unmarked ones or not
+law inert.plains_pick:
+  for deep: Bool
+  for +name: String
+  for +acc: List<&2, String>
+  for en: {Laws.inert.marked(name) == False{} : Bool}
+  for ea: {inert.plains(acc) == True{} : Bool}
+  {inert.plains(Bool.pick(List<&2, String>, deep, name <> acc, acc)) == True{} : Bool}
+
+def inert.plains_pick(deep, name, acc, en, ea):
+  match deep:
+    case False{}: ea
+    case True{}:
+      %Equal.sym(Bool, Laws.inert.marked(name), False{}, en) : {Bool.and(Bool.not(_), inert.plains(acc)) == True{}
+        : Bool}
+      ea
+
+# does a def loop, its body read that way
+law inert.eager.deep:
+  for +name: String
+  for +body: Tree.Node
+  for +acc: List<&2, String>
+  for +en: {Laws.inert.marked(name) == False{} : Bool}
+  for +eb: {Laws.inert.ok(body) == True{} : Bool}
+  for +ea: {inert.plains(acc) == True{} : Bool}
+  {Bool.or(List.contains(~String, ~String.eq, Eager.called(Laws.inert.node(body)), name),
+    Eager.any_of(Eager.called(Laws.inert.node(body)), acc))
+    == Bool.or(List.contains(~String, ~String.eq, Eager.called(body), name), Eager.any_of(Eager.called(body), acc))
+    : Bool}
+
+def inert.eager.deep(name, body, acc, en, eb, ea):
+  +cs = Eager.called(body)
+  +lhs = Bool.or(List.contains(~String, ~String.eq, Eager.called(Laws.inert.node(body)), name),
+    Eager.any_of(Eager.called(Laws.inert.node(body)), acc))
+  %inert.contains_mks(cs, name, en) : {lhs == Bool.or(_, Eager.any_of(cs, acc)) : Bool}
+  %inert.eager.any_of(cs, acc, ea) : {lhs == Bool.or(List.contains(~String, ~String.eq, inert.mks(cs), name), _)
+    : Bool}
+  %inert.eager.called(body, eb) : {lhs == Bool.or(List.contains(~String, ~String.eq, _, name), Eager.any_of(_, acc))
+    : Bool}
+  {==}
+
+# the looping defs, over defs read that way, are the ones they were
+law inert.eager.loops:
+  for ds: List<&2, Calls.Def>
+  for +acc: List<&2, String>
+  for +e: {inert.dok(ds) == True{} : Bool}
+  for +ea: {inert.plains(acc) == True{} : Bool}
+  {Eager.loops.go(inert.defs(ds), acc) == Eager.loops.go(ds, acc) : List<&2, String>}
+
+def inert.eager.loops(ds, acc, e, ea):
+  match ds:
+    case Nil{}: {==}
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +en = inert.dok.head(name, sig, body, rest, e)
+      +ib = Laws.inert.node(body)
+      +di = Bool.or(List.contains(~String, ~String.eq, Eager.called(ib), name), Eager.any_of(Eager.called(ib), acc))
+      +nx = Bool.pick(List<&2, String>, di, name <> acc, acc)
+      %inert.eager.deep(name, body, acc, en, inert.dok.body(name, sig, body, rest, e), ea) : {Eager.loops.go(
+        inert.defs(rest), nx) == Eager.loops.go(rest, Bool.pick(List<&2, String>, _, name <> acc, acc))
+          : List<&2, String>}
+      inert.eager.loops(rest, nx, inert.dok.rest(name, sig, body, rest, e), inert.plains_pick(di, name, acc, en, ea))
+
+# the looping defs are named as the lexer makes names
+law inert.eager.loops_plain:
+  for ds: List<&2, Calls.Def>
+  for +acc: List<&2, String>
+  for +e: {inert.dok(ds) == True{} : Bool}
+  for +ea: {inert.plains(acc) == True{} : Bool}
+  {inert.plains(Eager.loops.go(ds, acc)) == True{} : Bool}
+
+def inert.eager.loops_plain(ds, acc, e, ea):
+  match ds:
+    case Nil{}: ea
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +cs = Eager.called(body)
+      +di = Bool.or(List.contains(~String, ~String.eq, cs, name), Eager.any_of(cs, acc))
+      inert.eager.loops_plain(rest, Bool.pick(List<&2, String>, di, name <> acc, acc), inert.dok.rest(name, sig, body,
+        rest, e), inert.plains_pick(di, name, acc, inert.dok.head(name, sig, body, rest, e), ea))
+
+# a pick whose test is False gives what it gives otherwise, whatever it would
+# have given
+law inert.pick_off:
+  for c: Bool
+  for -x: List<&2, F.Finding>
+  for -y: List<&2, F.Finding>
+  for -m: List<&2, F.Finding>
+  for e: {c == False{} : Bool}
+  {Bool.pick(List<&2, F.Finding>, c, x, m) == Bool.pick(List<&2, F.Finding>, c, y, m) : List<&2, F.Finding>}
+
+def inert.pick_off(c, x, y, m, e):
+  %Equal.sym(Bool, c, False{}, e) : {Bool.pick(List<&2, F.Finding>, _, x, m) == Bool.pick(List<&2, F.Finding>, _, y,
+    m) : List<&2, F.Finding>}
+  {==}
+
+# three ands whose last is False
+law inert.and3_false:
+  for a: Bool
+  for b: Bool
+  for c: Bool
+  for -d: Bool
+  for e: {d == False{} : Bool}
+  {Bool.and(a, Bool.and(b, Bool.and(c, d))) == False{} : Bool}
+
+def inert.and3_false(a, b, c, _d, e):
+  match a:
+    case False{}: {==}
+    case True{}:
+      match b:
+        case False{}: {==}
+        case True{}:
+          match c:
+            case False{}: {==}
+            case True{}: e
+
+# what eager reads of a call: whether it is one of the file's looping defs,
+# its name, and what the group and the rest report
+def inert.eager.at(
+  +now: Bool,
+  +call: Bool,
+  mine: Bool,
+  +tt: String,
+  +l: U32,
+  +c: U32,
+  wk: List<&2, F.Finding>,
+  wr: List<&2, F.Finding>,
+  +path: String
+) -> List<&2, F.Finding>:
+  +more = List.concat(&2, F.Finding, [wk, wr])
+  Bool.pick(List<&2, F.Finding>, Bool.and(now, Bool.and(call, mine)),
+    F.Finding{path, l, c, U32.from_nat(String.length(tt)), "eager",
+      tt ++ " is called in a branch of Bool.pick, which evaluates both branches, so it runs whatever the condition; bind it above the pick, or use Lazy.stop."}
+      <> more,
+    more)
+
+# a call's name read that way: what it cites is what it cited
+law inert.eager.fin:
+  for +now: Bool
+  for +call: Bool
+  for b: Bool
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for +wk: List<&2, F.Finding>
+  for +wr: List<&2, F.Finding>
+  for +ns: List<&2, String>
+  for +self: String
+  for +path: String
+  for +ef: {Laws.inert.fits.go(b, t) == True{} : Bool}
+  for +ep: {inert.plains(ns) == True{} : Bool}
+  {inert.eager.at(now, call, Bool.and(Bool.not(String.eq(Laws.inert.keep(b, t), self)),
+    List.contains(~String, ~String.eq, ns, Laws.inert.keep(b, t))), Laws.inert.keep(b, t), l, c, wk, wr, path)
+    == inert.eager.at(now, call, Bool.and(Bool.not(String.eq(Laws.inert.keep(b, t), self)),
+      List.contains(~String, ~String.eq, ns, Laws.inert.keep(b, t))), t, l, c, wk, wr, path) : List<&2, F.Finding>}
+
+def inert.eager.fin(now, call, b, t, l, c, wk, wr, ns, self, path, ef, ep):
+  match b:
+    case False{}: {==}
+    case True{}:
+      +ct = Laws.inert.cut(t)
+      +more = List.concat(&2, F.Finding, [wk, wr])
+      inert.pick_off(Bool.and(now, Bool.and(call, Bool.and(Bool.not(String.eq(ct, self)), List.contains(~String,
+        ~String.eq, ns, ct)))),
+        F.Finding{path, l, c, U32.from_nat(String.length(ct)), "eager",
+          ct ++ " is called in a branch of Bool.pick, which evaluates both branches, so it runs whatever the condition; bind it above the pick, or use Lazy.stop."}
+          <> more,
+        F.Finding{path, l, c, U32.from_nat(String.length(t)), "eager",
+          t ++ " is called in a branch of Bool.pick, which evaluates both branches, so it runs whatever the condition; bind it above the pick, or use Lazy.stop."}
+          <> more, more,
+        inert.and3_false(now, call, Bool.not(String.eq(ct, self)), List.contains(~String, ~String.eq, ns, ct),
+          inert.contains_marked(ns, ct, ep, inert.cut_marked(t, ef))))
+
+# a call's name read that way is one of the file's looping defs as it was
+law inert.eager.mine:
+  for +b: Bool
+  for +t: String
+  for +ns: List<&2, String>
+  for +self: String
+  for +ef: {Laws.inert.fits.go(b, t) == True{} : Bool}
+  for +es: {Laws.inert.marked(self) == False{} : Bool}
+  for +ep: {inert.plains(ns) == True{} : Bool}
+  {Bool.and(Bool.not(String.eq(Laws.inert.keep(b, t), self)), List.contains(~String, ~String.eq, ns,
+    Laws.inert.keep(b, t)))
+    == Bool.and(Bool.not(String.eq(t, self)), List.contains(~String, ~String.eq, ns, t)) : Bool}
+
+def inert.eager.mine(b, t, ns, self, ef, es, ep):
+  +kt = Laws.inert.keep(b, t)
+  +lhs = Bool.and(Bool.not(String.eq(kt, self)), List.contains(~String, ~String.eq, ns, kt))
+  %inert.eq_keep(b, t, self, ef, es) : {lhs == Bool.and(Bool.not(_), List.contains(~String, ~String.eq, ns, t))
+    : Bool}
+  %inert.contains_keep(ns, b, t, ef, ep) : {lhs == Bool.and(Bool.not(String.eq(kt, self)), _) : Bool}
+  {==}
+
+# a name then a group, read that way: the call reported as it was, the group
+# and the rest walked as they were
+law inert.eager.lg:
+  for +now: Bool
+  for +call: Bool
+  for +b: Bool
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for +kids: Tree.Node
+  for +r2: Tree.Node
+  for +ns: List<&2, String>
+  for +self: String
+  for +path: String
+  for +sg: U32
+  for +keep: Bool
+  for +ef: {Laws.inert.fits.go(b, t) == True{} : Bool}
+  for +es: {Laws.inert.marked(self) == False{} : Bool}
+  for +ep: {inert.plains(ns) == True{} : Bool}
+  for ik: {Eager.work(Laws.inert.node(kids), ns, self, path, Bool.and(now, Bool.not(Bool.and(call, String.eq(t,
+    "Bool.pick")))), Bool.pick(U32, Bool.and(call, String.eq(t, "Bool.pick")), 0, 9), Bool.and(now,
+      Bool.not(Bool.and(call, String.eq(t, "Bool.pick")))))
+    == Eager.work(kids, ns, self, path, Bool.and(now, Bool.not(Bool.and(call, String.eq(t, "Bool.pick")))),
+      Bool.pick(U32, Bool.and(call, String.eq(t, "Bool.pick")), 0, 9), Bool.and(now, Bool.not(Bool.and(call,
+        String.eq(t, "Bool.pick"))))) : List<&2, F.Finding>}
+  for ir: {Eager.work(Laws.inert.node(r2), ns, self, path, now, sg, keep) == Eager.work(r2, ns, self, path, now, sg,
+    keep) : List<&2, F.Finding>}
+  {inert.eager.at(now, call, Bool.and(Bool.not(String.eq(Laws.inert.keep(b, t), self)), List.contains(~String,
+    ~String.eq, ns, Laws.inert.keep(b, t))), Laws.inert.keep(b, t), l, c, Eager.work(Laws.inert.node(kids), ns, self,
+      path, Bool.and(now, Bool.not(Bool.and(call, String.eq(Laws.inert.keep(b, t), "Bool.pick")))), Bool.pick(U32,
+        Bool.and(call, String.eq(Laws.inert.keep(b, t), "Bool.pick")), 0, 9), Bool.and(now, Bool.not(Bool.and(call,
+          String.eq(Laws.inert.keep(b, t), "Bool.pick"))))), Eager.work(Laws.inert.node(r2), ns, self, path, now, sg,
+            keep), path)
+    == inert.eager.at(now, call, Bool.and(Bool.not(String.eq(t, self)), List.contains(~String, ~String.eq, ns, t)), t,
+      l, c, Eager.work(kids, ns, self, path, Bool.and(now, Bool.not(Bool.and(call, String.eq(t, "Bool.pick")))),
+        Bool.pick(U32, Bool.and(call, String.eq(t, "Bool.pick")), 0, 9), Bool.and(now, Bool.not(Bool.and(call,
+          String.eq(t, "Bool.pick"))))), Eager.work(r2, ns, self, path, now, sg, keep), path) : List<&2, F.Finding>}
+
+def inert.eager.lg(now, call, b, t, l, c, kids, r2, ns, self, path, sg, keep, ef, es, ep, ik, ir):
+  +kt = Laws.inert.keep(b, t)
+  +ip = Bool.and(call, String.eq(t, "Bool.pick"))
+  +pl = Bool.and(call, String.eq(kt, "Bool.pick"))
+  +mo = Bool.and(Bool.not(String.eq(t, self)), List.contains(~String, ~String.eq, ns, t))
+  +mi = Bool.and(Bool.not(String.eq(kt, self)), List.contains(~String, ~String.eq, ns, kt))
+  +wki = Eager.work(Laws.inert.node(kids), ns, self, path, Bool.and(now, Bool.not(pl)), Bool.pick(U32, pl, 0, 9),
+    Bool.and(now, Bool.not(pl)))
+  +wri = Eager.work(Laws.inert.node(r2), ns, self, path, now, sg, keep)
+  +lhs = inert.eager.at(now, call, mi, kt, l, c, wki, wri, path)
+  %ik : {lhs == inert.eager.at(now, call, mo, t, l, c, _, Eager.work(r2, ns, self, path, now, sg, keep), path)
+    : List<&2, F.Finding>}
+  %ir : {lhs == inert.eager.at(now, call, mo, t, l, c, Eager.work(Laws.inert.node(kids), ns, self, path, Bool.and(now,
+    Bool.not(ip)), Bool.pick(U32, ip, 0, 9), Bool.and(now, Bool.not(ip))), _, path) : List<&2, F.Finding>}
+  %Equal.cong(Bool, Bool, z => Bool.and(call, z), String.eq(kt, "Bool.pick"), String.eq(t, "Bool.pick"),
+    inert.eq_keep(b, t, "Bool.pick", ef, {==})) : {lhs == inert.eager.at(now, call, mo, t, l, c,
+      Eager.work(Laws.inert.node(kids), ns, self, path, Bool.and(now, Bool.not(_)), Bool.pick(U32, _, 0, 9),
+        Bool.and(now, Bool.not(_))), wri, path) : List<&2, F.Finding>}
+  %inert.eager.mine(b, t, ns, self, ef, es, ep) : {lhs == inert.eager.at(now, call, _, t, l, c, wki, wri, path)
+    : List<&2, F.Finding>}
+  inert.eager.fin(now, call, b, t, l, c, wki, wri, ns, self, path, ef, ep)
+
+# eager's walk reads no string: a leaf's text is compared with `Bool.pick`,
+# the def's name and the file's looping defs, which no string equals
+law inert.eager.work:
+  for nn: Tree.Node
+  for +ns: List<&2, String>
+  for +self: String
+  for +path: String
+  for +hot: Bool
+  for +seg: U32
+  for +keep: Bool
+  for +es: {Laws.inert.marked(self) == False{} : Bool}
+  for +ep: {inert.plains(ns) == True{} : Bool}
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Eager.work(Laws.inert.node(nn), ns, self, path, hot, seg, keep) == Eager.work(nn, ns, self, path, hot, seg, keep)
+    : List<&2, F.Finding>}
+
+def inert.eager.work(nn, ns, self, path, hot, seg, keep, es, ep, e):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              match rest:
+                case Tree.NCons{h2, +r2}:
+                  match h2:
+                    case Tree.Group{o, +kids, +cl}:
+                      match o:
+                        case Lex.Tok{+ok, +ot, +ol, +oc}:
+                          +lf = {Tree.Leaf{Lex.Tok{k, t, l, c}} : Tree.Node}
+                          +gp = {Tree.Group{Lex.Tok{ok, ot, ol, oc}, kids, cl} : Tree.Node}
+                          +eg = inert.ok_t(lf, Tree.NCons{gp, r2}, e)
+                          +now = Eager.work.hot(k, hot, seg, keep)
+                          +call = Bool.and(Eager.work.name(k), String.eq(ot, "("))
+                          +ip = Bool.and(call, String.eq(t, "Bool.pick"))
+                          +sg = Eager.work.seg(k, seg)
+                          inert.eager.lg(now, call, Laws.inert.blanks(k), t, l, c, kids, r2, ns, self, path, sg, keep,
+                            inert.ok_h(lf, Tree.NCons{gp, r2}, e), es, ep,
+                            inert.eager.work(kids, ns, self, path, Bool.and(now, Bool.not(ip)), Bool.pick(U32, ip, 0,
+                              9), Bool.and(now, Bool.not(ip)), es, ep, inert.ok_h(gp, r2, eg)),
+                            inert.eager.work(r2, ns, self, path, now, sg, keep, es, ep, inert.ok_t(gp, r2, eg)))
+                    case Tree.Leaf{x}:
+                      inert.eager.work(rest, ns, self, path, Eager.work.hot(k, hot, seg, keep), Eager.work.seg(k, seg),
+                        keep, es, ep, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.Stmt{x, y, z}:
+                      inert.eager.work(rest, ns, self, path, Eager.work.hot(k, hot, seg, keep), Eager.work.seg(k, seg),
+                        keep, es, ep, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.NNil{}:
+                      inert.eager.work(rest, ns, self, path, Eager.work.hot(k, hot, seg, keep), Eager.work.seg(k, seg),
+                        keep, es, ep, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.NCons{x, y}:
+                      inert.eager.work(rest, ns, self, path, Eager.work.hot(k, hot, seg, keep), Eager.work.seg(k, seg),
+                        keep, es, ep, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.Leaf{x}: {==}
+                case Tree.Group{x, y, z}: {==}
+                case Tree.Stmt{x, y, z}: {==}
+                case Tree.NNil{}: {==}
+        case Tree.Group{+o, +kids, +cl}:
+          inert.cat2(Eager.work(Laws.inert.node(kids), ns, self, path, hot, 9, hot), Eager.work(kids, ns, self, path,
+            hot, 9, hot), Eager.work(Laws.inert.node(rest), ns, self, path, hot, seg, keep), Eager.work(rest, ns, self,
+              path, hot, seg, keep),
+            inert.eager.work(kids, ns, self, path, hot, 9, hot, es, ep, inert.ok_h(Tree.Group{o, kids, cl}, rest, e)),
+            inert.eager.work(rest, ns, self, path, hot, seg, keep, es, ep, inert.ok_t(Tree.Group{o, kids, cl}, rest,
+              e)))
+        case Tree.Stmt{+sk, +kids, +body}:
+          +es2 = inert.ok_h(Tree.Stmt{sk, kids, body}, rest, e)
+          inert.cat3(Eager.work(Laws.inert.node(kids), ns, self, path, False{}, 9, False{}), Eager.work(kids, ns, self,
+            path, False{}, 9, False{}), Eager.work(Laws.inert.node(body), ns, self, path, False{}, 9, False{}),
+            Eager.work(body, ns, self, path, False{}, 9, False{}), Eager.work(Laws.inert.node(rest), ns, self, path,
+              hot, seg, keep), Eager.work(rest, ns, self, path, hot, seg, keep),
+            inert.eager.work(kids, ns, self, path, False{}, 9, False{}, es, ep, inert.and_l(Laws.inert.ok(kids),
+              Laws.inert.ok(body), es2)),
+            inert.eager.work(body, ns, self, path, False{}, 9, False{}, es, ep, inert.and_r(Laws.inert.ok(kids),
+              Laws.inert.ok(body), es2)),
+            inert.eager.work(rest, ns, self, path, hot, seg, keep, es, ep, inert.ok_t(Tree.Stmt{sk, kids, body}, rest,
+              e)))
+        case Tree.NNil{}: inert.eager.work(rest, ns, self, path, hot, seg, keep, es, ep, e)
+        case Tree.NCons{x, y}:
+          inert.eager.work(rest, ns, self, path, hot, seg, keep, es, ep, inert.ok_t(Tree.NCons{x, y}, rest, e))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# eager over the defs read that way reports what it reports over the defs
+law inert.eager.go:
+  for ds: List<&2, Calls.Def>
+  for +ns: List<&2, String>
+  for +path: String
+  for +acc: List<&2, List<&2, F.Finding>>
+  for +ep: {inert.plains(ns) == True{} : Bool}
+  for +e: {inert.dok(ds) == True{} : Bool}
+  {Eager.check.go(inert.defs(ds), ns, path, acc) == Eager.check.go(ds, ns, path, acc) : List<&2, F.Finding>}
+
+def inert.eager.go(ds, ns, path, acc, ep, e):
+  match ds:
+    case Nil{}: {==}
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +ib = Laws.inert.node(body)
+      +isg = Laws.inert.node(sig)
+      +lst = Lazy.stop(List<&2, F.Finding>, Calls.exempt(path, isg), [], _u => Eager.work(ib, ns, name, path, False{},
+        9, False{}))
+      %inert.stop(Calls.exempt(path, isg), Calls.exempt(path, sig), Eager.work(ib, ns, name, path, False{}, 9, False{}),
+        Eager.work(body, ns, name, path, False{}, 9, False{}), inert.exempt(path, sig),
+        inert.eager.work(body, ns, name, path, False{}, 9, False{}, inert.dok.head(name, sig, body, rest, e), ep,
+          inert.dok.body(name, sig, body, rest, e))) :
+        {Eager.check.go(inert.defs(rest), ns, path, lst <> acc) == Eager.check.go(rest, ns, path, _ <> acc)
+          : List<&2, F.Finding>}
+      inert.eager.go(rest, ns, path, lst <> acc, ep, inert.dok.rest(name, sig, body, rest, e))
+
+# eager over the defs read that way, their looping defs read that way too
+law inert.eager.all:
+  for +ds: List<&2, Calls.Def>
+  for +path: String
+  for +e: {inert.dok(ds) == True{} : Bool}
+  {Eager.check.go(inert.defs(ds), Eager.loops(inert.defs(ds)), path, [])
+    == Eager.check.go(ds, Eager.loops(ds), path, []) : List<&2, F.Finding>}
+
+def inert.eager.all(ds, path, e):
+  %inert.eager.loops(ds, [], e, {==}) : {Eager.check.go(inert.defs(ds), Eager.loops(inert.defs(ds)), path, [])
+    == Eager.check.go(ds, _, path, []) : List<&2, F.Finding>}
+  inert.eager.go(ds, Eager.loops(inert.defs(ds)), path, [], Equal.trans(Bool,
+    inert.plains(Eager.loops.go(inert.defs(ds), [])), inert.plains(Eager.loops.go(ds, [])), True{},
+    Equal.cong(List<&2, String>, Bool, z => inert.plains(z),
+      Eager.loops.go(inert.defs(ds), []), Eager.loops.go(ds, []), inert.eager.loops(ds, [], e, {==})),
+    inert.eager.loops_plain(ds, [], e, {==})), e)
+
+def Laws.inert_eager(path, _text, tree, _toks, _bound, _items, _text2, tree2, _toks2, _bound2, _items2, ok, ok2, e):
+  inert.via(Tree.Node, z => Eager.check.go(Calls.defs(z), Eager.loops(Calls.defs(z)), path, []), tree, tree2,
+    Laws.inert.node(tree), Laws.inert.node(tree2),
+    inert.lift(z => Eager.check.go(z, Eager.loops(z), path, []), tree, inert.eager.all(Calls.defs(tree), path,
+      inert.dok.of(tree, ok))),
+    inert.lift(z => Eager.check.go(z, Eager.loops(z), path, []), tree2, inert.eager.all(Calls.defs(tree2), path,
+      inert.dok.of(tree2, ok2))),
+    e)
+
+# fuel
+# ----
+
+# a name is never cut
+law inert.fuel.name_code:
+  for k: Lex.TokKind
+  {Bool.and(Laws.inert.blanks(k), Lex.is_name(k)) == False{} : Bool}
+
+def inert.fuel.name_code(k):
+  match k:
+    case Lex.TName{}: {==}
+    case Lex.TUpper{}: {==}
+    case Lex.TDotted{}: {==}
+    case Lex.TWild{}: {==}
+    case Lex.TKey{}: {==}
+    case Lex.TNum{}: {==}
+    case Lex.TStr{}: {==}
+    case Lex.TChar{}: {==}
+    case Lex.TComment{}: {==}
+    case Lex.TSpace{}: {==}
+    case Lex.TNewline{}: {==}
+    case Lex.TOp{}: {==}
+    case Lex.TColon{}: {==}
+    case Lex.TEq{}: {==}
+    case Lex.TBind{}: {==}
+    case Lex.TArrow{}: {==}
+    case Lex.TLam{}: {==}
+    case Lex.TAll{}: {==}
+    case Lex.TAmp{}: {==}
+    case Lex.TOpen{}: {==}
+    case Lex.TClose{}: {==}
+    case Lex.TComma{}: {==}
+
+# the parameters of a signature read that way are its parameters, each read
+# that way
+law inert.params:
+  for +sig: Tree.Node
+  {Calls.params(Laws.inert.node(sig)) == inert.nodes(Calls.params(sig)) : List<&2, Tree.Node>}
+
+def inert.params(sig):
+  Equal.trans(List<&2, Tree.Node>, Calls.args(Calls.params.of(Laws.inert.node(sig))),
+    Calls.args(Laws.inert.node(Calls.params.of(sig))), inert.nodes(Calls.args(Calls.params.of(sig))),
+    Equal.cong(Tree.Node, List<&2, Tree.Node>, z => Calls.args(z), Calls.params.of(Laws.inert.node(sig)),
+      Laws.inert.node(Calls.params.of(sig)), inert.params.of(sig)),
+    inert.args(Calls.params.of(sig)))
+
+# the fuel parameters among parameters read that way are the ones they were
+law inert.fuel.params:
+  for ps: List<&2, Tree.Node>
+  for +name: String
+  for +ii: Nat
+  {FuelRule.fuels.params(inert.nodes(ps), name, ii) == FuelRule.fuels.params(ps, name, ii) : List<&2, FuelRule.Fuel>}
+
+def inert.fuel.params(ps, name, ii):
+  match ps:
+    case Nil{}: {==}
+    case Con{+p, +rest}:
+      +mi = FuelRule.fuels.params(inert.nodes(rest), name, 1n+ii)
+      +lhs = FuelRule.fuels.params(inert.nodes(Con{p, rest}), name, ii)
+      %inert.fuel.params(rest, name, 1n+ii) : {lhs == Bool.pick(List<&2, FuelRule.Fuel>,
+        FuelRule.is_fuel(Calls.param_name(p)), FuelRule.Fuel{name, ii} <> _, _) : List<&2, FuelRule.Fuel>}
+      %inert.param_name(p) : {lhs == Bool.pick(List<&2, FuelRule.Fuel>, FuelRule.is_fuel(_),
+        FuelRule.Fuel{name, ii} <> mi, mi) : List<&2, FuelRule.Fuel>}
+      {==}
+
+# the fuel parameters of defs read that way are the ones they were
+law inert.fuel.fuels:
+  for ds: List<&2, Calls.Def>
+  {FuelRule.fuels(inert.defs(ds)) == FuelRule.fuels(ds) : List<&2, FuelRule.Fuel>}
+
+def inert.fuel.fuels(ds):
+  match ds:
+    case Nil{}: {==}
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +lhs = FuelRule.fuels(inert.defs(Con{Calls.Def{name, sig, body}, rest}))
+      %inert.fuel.fuels(rest) : {lhs == List.append(&2, FuelRule.Fuel, FuelRule.fuels.params(Calls.params(sig), name,
+        0n), _) : List<&2, FuelRule.Fuel>}
+      %inert.fuel.params(Calls.params(sig), name, 0n) : {lhs == List.append(&2, FuelRule.Fuel, _,
+        FuelRule.fuels(inert.defs(rest))) : List<&2, FuelRule.Fuel>}
+      %inert.params(sig) : {lhs == List.append(&2, FuelRule.Fuel, FuelRule.fuels.params(_, name, 0n),
+        FuelRule.fuels(inert.defs(rest))) : List<&2, FuelRule.Fuel>}
+      {==}
+
+# an argument read that way is the Nat literal it was: a number is never cut
+law inert.fuel.literal:
+  for aa: Tree.Node
+  for +path: String
+  {FuelRule.literal(Laws.inert.node(aa), path) == FuelRule.literal(aa, path) : List<&2, F.Finding>}
+
+def inert.fuel.literal(aa, _path):
+  match aa:
+    case Tree.NCons{h, +r}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, t, l, c}:
+              match k:
+                case Lex.TName{}: {==}
+                case Lex.TUpper{}: {==}
+                case Lex.TDotted{}: {==}
+                case Lex.TWild{}: {==}
+                case Lex.TKey{}: {==}
+                case Lex.TNum{}:
+                  match r:
+                    case Tree.NNil{}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NCons{x, y}: {==}
+                case Lex.TStr{}: {==}
+                case Lex.TChar{}: {==}
+                case Lex.TComment{}: {==}
+                case Lex.TSpace{}: {==}
+                case Lex.TNewline{}: {==}
+                case Lex.TOp{}: {==}
+                case Lex.TColon{}: {==}
+                case Lex.TEq{}: {==}
+                case Lex.TBind{}: {==}
+                case Lex.TArrow{}: {==}
+                case Lex.TLam{}: {==}
+                case Lex.TAll{}: {==}
+                case Lex.TAmp{}: {==}
+                case Lex.TOpen{}: {==}
+                case Lex.TClose{}: {==}
+                case Lex.TComma{}: {==}
+        case Tree.Group{o, gk, cl}: {==}
+        case Tree.Stmt{sk, sks, sb}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a call's arguments read that way fix the fuel they fixed
+law inert.fuel.call:
+  for fs: List<&2, FuelRule.Fuel>
+  for +name: String
+  for +as: List<&2, Tree.Node>
+  for +path: String
+  {FuelRule.call(fs, name, inert.nodes(as), path) == FuelRule.call(fs, name, as, path) : List<&2, F.Finding>}
+
+def inert.fuel.call(fs, name, as, path):
+  match fs:
+    case Nil{}: {==}
+    case Con{FuelRule.Fuel{+fn, +at}, +rest}:
+      +mi = FuelRule.call(rest, name, inert.nodes(as), path)
+      +lhs = FuelRule.call(Con{FuelRule.Fuel{fn, at}, rest}, name, inert.nodes(as), path)
+      %inert.fuel.call(rest, name, as, path) : {lhs == Lazy.stop(List<&2, F.Finding>, Bool.not(String.eq(fn, name)), _,
+        _u => List.append(&2, F.Finding, FuelRule.literal(Calls.arg(as, at), path), _)) : List<&2, F.Finding>}
+      %inert.fuel.literal(Calls.arg(as, at), path) : {lhs == Lazy.stop(List<&2, F.Finding>, Bool.not(String.eq(fn,
+        name)), mi, _u => List.append(&2, F.Finding, _, mi)) : List<&2, F.Finding>}
+      %inert.arg(as, at) : {lhs == Lazy.stop(List<&2, F.Finding>, Bool.not(String.eq(fn, name)), mi,
+        _u => List.append(&2, F.Finding, FuelRule.literal(_, path), mi)) : List<&2, F.Finding>}
+      {==}
+
+# a name then a group, read that way: the call checked as it was
+law inert.fuel.hit:
+  for x: Bool
+  for +oo: Bool
+  for +b: Bool
+  for +t: String
+  for +self: String
+  for +fs: List<&2, FuelRule.Fuel>
+  for +kids: Tree.Node
+  for +path: String
+  for +m: List<&2, F.Finding>
+  for e: {Bool.and(b, x) == False{} : Bool}
+  {Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Bool.and(x, oo), Bool.not(String.eq(Laws.inert.keep(b, t),
+    self)))), m, _u => List.append(&2, F.Finding, FuelRule.call(fs, Laws.inert.keep(b, t),
+      Calls.args(Laws.inert.node(kids)), path), m))
+    == Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Bool.and(x, oo), Bool.not(String.eq(t, self)))), m,
+      _u => List.append(&2, F.Finding, FuelRule.call(fs, t, Calls.args(kids), path), m)) : List<&2, F.Finding>}
+
+def inert.fuel.hit(x, oo, b, t, self, fs, kids, path, m, e):
+  match b:
+    case False{}:
+      +lhs = Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Bool.and(x, oo), Bool.not(String.eq(t, self)))), m,
+        _u => List.append(&2, F.Finding, FuelRule.call(fs, t, Calls.args(Laws.inert.node(kids)), path), m))
+      %inert.fuel.call(fs, t, Calls.args(kids), path) : {lhs == Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(
+        Bool.and(x, oo), Bool.not(String.eq(t, self)))), m, _u => List.append(&2, F.Finding, _, m))
+          : List<&2, F.Finding>}
+      %inert.args(kids) : {lhs == Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Bool.and(x, oo),
+        Bool.not(String.eq(t, self)))), m, _u => List.append(&2, F.Finding, FuelRule.call(fs, t, _, path), m))
+          : List<&2, F.Finding>}
+      {==}
+    case True{}:
+      %Equal.sym(Bool, x, False{}, e) : {Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Bool.and(_, oo),
+        Bool.not(String.eq(Laws.inert.cut(t), self)))), m, _u => List.append(&2, F.Finding, FuelRule.call(fs,
+          Laws.inert.cut(t), Calls.args(Laws.inert.node(kids)), path), m))
+        == Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Bool.and(_, oo), Bool.not(String.eq(t, self)))), m,
+          _u => List.append(&2, F.Finding, FuelRule.call(fs, t, Calls.args(kids), path), m)) : List<&2, F.Finding>}
+      {==}
+
+# a name then a group, read that way: the group and the rest walked as they
+# were, the call checked as it was
+law inert.fuel.lg:
+  for +k: Lex.TokKind
+  for +t: String
+  for +oo: Bool
+  for +kids: Tree.Node
+  for +r2: Tree.Node
+  for +fs: List<&2, FuelRule.Fuel>
+  for +self: String
+  for +path: String
+  for ik: {FuelRule.calls(Laws.inert.node(kids), fs, self, path) == FuelRule.calls(kids, fs, self, path)
+    : List<&2, F.Finding>}
+  for ir: {FuelRule.calls(Laws.inert.node(r2), fs, self, path) == FuelRule.calls(r2, fs, self, path)
+    : List<&2, F.Finding>}
+  {Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Bool.and(Lex.is_name(k), oo), Bool.not(String.eq(
+    Laws.inert.keep(Laws.inert.blanks(k), t), self)))), List.concat(&2, F.Finding, [FuelRule.calls(
+      Laws.inert.node(kids), fs, self, path), FuelRule.calls(Laws.inert.node(r2), fs, self, path)]),
+    _u => List.append(&2, F.Finding, FuelRule.call(fs, Laws.inert.keep(Laws.inert.blanks(k), t),
+      Calls.args(Laws.inert.node(kids)), path), List.concat(&2, F.Finding, [FuelRule.calls(Laws.inert.node(kids), fs,
+        self, path), FuelRule.calls(Laws.inert.node(r2), fs, self, path)])))
+    == Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Bool.and(Lex.is_name(k), oo), Bool.not(String.eq(t, self)))),
+      List.concat(&2, F.Finding, [FuelRule.calls(kids, fs, self, path), FuelRule.calls(r2, fs, self, path)]),
+      _u => List.append(&2, F.Finding, FuelRule.call(fs, t, Calls.args(kids), path), List.concat(&2, F.Finding,
+        [FuelRule.calls(kids, fs, self, path), FuelRule.calls(r2, fs, self, path)]))) : List<&2, F.Finding>}
+
+def inert.fuel.lg(k, t, oo, kids, r2, fs, self, path, ik, ir):
+  +mi = List.concat(&2, F.Finding, [FuelRule.calls(Laws.inert.node(kids), fs, self, path),
+    FuelRule.calls(Laws.inert.node(r2), fs, self, path)])
+  +hn = Bool.and(Bool.and(Lex.is_name(k), oo), Bool.not(String.eq(t, self)))
+  +lhs = Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Bool.and(Lex.is_name(k), oo), Bool.not(String.eq(
+    Laws.inert.keep(Laws.inert.blanks(k), t), self)))), mi, _u => List.append(&2, F.Finding, FuelRule.call(fs,
+      Laws.inert.keep(Laws.inert.blanks(k), t), Calls.args(Laws.inert.node(kids)), path), mi))
+  %ik : {lhs == Lazy.stop(List<&2, F.Finding>, Bool.not(hn), List.concat(&2, F.Finding, [_, FuelRule.calls(r2, fs,
+    self, path)]), _u => List.append(&2, F.Finding, FuelRule.call(fs, t, Calls.args(kids), path),
+      List.concat(&2, F.Finding, [_, FuelRule.calls(r2, fs, self, path)]))) : List<&2, F.Finding>}
+  %ir : {lhs == Lazy.stop(List<&2, F.Finding>, Bool.not(hn), List.concat(&2, F.Finding, [FuelRule.calls(
+    Laws.inert.node(kids), fs, self, path), _]), _u => List.append(&2, F.Finding, FuelRule.call(fs, t,
+      Calls.args(kids), path), List.concat(&2, F.Finding, [FuelRule.calls(Laws.inert.node(kids), fs, self, path), _])))
+    : List<&2, F.Finding>}
+  inert.fuel.hit(Lex.is_name(k), oo, Laws.inert.blanks(k), t, self, fs, kids, path, mi, inert.fuel.name_code(k))
+
+# fuel's walk reads no string: a call's name is read only when it is a name
+law inert.fuel.calls:
+  for nn: Tree.Node
+  for +fs: List<&2, FuelRule.Fuel>
+  for +self: String
+  for +path: String
+  {FuelRule.calls(Laws.inert.node(nn), fs, self, path) == FuelRule.calls(nn, fs, self, path) : List<&2, F.Finding>}
+
+def inert.fuel.calls(nn, fs, self, path):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, l, c}:
+              match rest:
+                case Tree.NCons{h2, +r2}:
+                  match h2:
+                    case Tree.Group{o, +kids, cl}:
+                      match o:
+                        case Lex.Tok{ok, +ot, ol, oc}:
+                          inert.fuel.lg(k, t, String.eq(ot, "("), kids, r2, fs, self, path,
+                            inert.fuel.calls(kids, fs, self, path), inert.fuel.calls(r2, fs, self, path))
+                    case Tree.Leaf{x}: inert.fuel.calls(rest, fs, self, path)
+                    case Tree.Stmt{x, y, z}: inert.fuel.calls(rest, fs, self, path)
+                    case Tree.NNil{}: inert.fuel.calls(rest, fs, self, path)
+                    case Tree.NCons{x, y}: inert.fuel.calls(rest, fs, self, path)
+                case Tree.Leaf{x}: {==}
+                case Tree.Group{x, y, z}: {==}
+                case Tree.Stmt{x, y, z}: {==}
+                case Tree.NNil{}: {==}
+        case Tree.Group{o, +kids, cl}:
+          inert.cat2(FuelRule.calls(Laws.inert.node(kids), fs, self, path), FuelRule.calls(kids, fs, self, path),
+            FuelRule.calls(Laws.inert.node(rest), fs, self, path), FuelRule.calls(rest, fs, self, path),
+            inert.fuel.calls(kids, fs, self, path), inert.fuel.calls(rest, fs, self, path))
+        case Tree.Stmt{sk, +kids, +body}:
+          inert.cat3(FuelRule.calls(Laws.inert.node(kids), fs, self, path), FuelRule.calls(kids, fs, self, path),
+            FuelRule.calls(Laws.inert.node(body), fs, self, path), FuelRule.calls(body, fs, self, path),
+            FuelRule.calls(Laws.inert.node(rest), fs, self, path), FuelRule.calls(rest, fs, self, path),
+            inert.fuel.calls(kids, fs, self, path), inert.fuel.calls(body, fs, self, path),
+            inert.fuel.calls(rest, fs, self, path))
+        case Tree.NNil{}: inert.fuel.calls(rest, fs, self, path)
+        case Tree.NCons{x, y}: inert.fuel.calls(rest, fs, self, path)
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# fuel over each top-level statement read that way reports what it reported
+law inert.fuel.go:
+  for root: Tree.Node
+  for +fs: List<&2, FuelRule.Fuel>
+  for +path: String
+  {FuelRule.check.go(Laws.inert.node(root), fs, path) == FuelRule.check.go(root, fs, path) : List<&2, F.Finding>}
+
+def inert.fuel.go(root, fs, path):
+  match root:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Stmt{sk, +kids, +body}:
+          +si = FuelRule.own(Bind.declared(Laws.inert.node(kids)))
+          %inert.declared(kids) : {FuelRule.check.go(Laws.inert.node(Tree.NCons{Tree.Stmt{sk, kids, body}, rest}), fs,
+            path) == List.concat(&2, F.Finding, [FuelRule.calls(kids, fs, FuelRule.own(_), path), FuelRule.calls(body,
+              fs, FuelRule.own(_), path), FuelRule.check.go(rest, fs, path)]) : List<&2, F.Finding>}
+          inert.cat3(FuelRule.calls(Laws.inert.node(kids), fs, si, path), FuelRule.calls(kids, fs, si, path),
+            FuelRule.calls(Laws.inert.node(body), fs, si, path), FuelRule.calls(body, fs, si, path),
+            FuelRule.check.go(Laws.inert.node(rest), fs, path), FuelRule.check.go(rest, fs, path),
+            inert.fuel.calls(kids, fs, si, path), inert.fuel.calls(body, fs, si, path), inert.fuel.go(rest, fs, path))
+        case Tree.Leaf{tok}: inert.fuel.go(rest, fs, path)
+        case Tree.Group{o, gk, cl}: inert.fuel.go(rest, fs, path)
+        case Tree.NNil{}: inert.fuel.go(rest, fs, path)
+        case Tree.NCons{x, y}: inert.fuel.go(rest, fs, path)
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# fuel over a tree read that way, its fuel parameters read that way too
+law inert.fuel.all:
+  for +tree: Tree.Node
+  for +path: String
+  {FuelRule.check.go(Laws.inert.node(tree), FuelRule.fuels(Calls.defs(Laws.inert.node(tree))), path)
+    == FuelRule.check.go(tree, FuelRule.fuels(Calls.defs(tree)), path) : List<&2, F.Finding>}
+
+def inert.fuel.all(tree, path):
+  +ds = Calls.defs(tree)
+  %inert.fuel.fuels(ds) : {FuelRule.check.go(Laws.inert.node(tree), FuelRule.fuels(Calls.defs(Laws.inert.node(tree))),
+    path) == FuelRule.check.go(tree, _, path) : List<&2, F.Finding>}
+  %inert.defs.of(tree) : {FuelRule.check.go(Laws.inert.node(tree), FuelRule.fuels(Calls.defs(Laws.inert.node(tree))),
+    path) == FuelRule.check.go(tree, FuelRule.fuels(_), path) : List<&2, F.Finding>}
+  inert.fuel.go(tree, FuelRule.fuels(Calls.defs(Laws.inert.node(tree))), path)
+
+def Laws.inert_fuel(path, _text, tree, _toks, _bound, _items, _text2, tree2, _toks2, _bound2, _items2, _ok, _ok2, e):
+  inert.via(Tree.Node, z => FuelRule.check.go(z, FuelRule.fuels(Calls.defs(z)), path), tree, tree2,
+    Laws.inert.node(tree), Laws.inert.node(tree2), inert.fuel.all(tree, path), inert.fuel.all(tree2, path), e)
+
+# ring
+# ----
+
+# a chain read that way is one number as it was
+law inert.ring.is_num:
+  for nn: Tree.Node
+  {Ring.is_num(Laws.inert.node(nn)) == Ring.is_num(nn) : Bool}
+
+def inert.ring.is_num(nn):
+  match nn:
+    case Tree.NCons{h, +r}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, t, l, c}:
+              match k:
+                case Lex.TName{}: {==}
+                case Lex.TUpper{}: {==}
+                case Lex.TDotted{}: {==}
+                case Lex.TWild{}: {==}
+                case Lex.TKey{}: {==}
+                case Lex.TNum{}:
+                  match r:
+                    case Tree.NNil{}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NCons{x, y}: {==}
+                case Lex.TStr{}: {==}
+                case Lex.TChar{}: {==}
+                case Lex.TComment{}: {==}
+                case Lex.TSpace{}: {==}
+                case Lex.TNewline{}: {==}
+                case Lex.TOp{}: {==}
+                case Lex.TColon{}: {==}
+                case Lex.TEq{}: {==}
+                case Lex.TBind{}: {==}
+                case Lex.TArrow{}: {==}
+                case Lex.TLam{}: {==}
+                case Lex.TAll{}: {==}
+                case Lex.TAmp{}: {==}
+                case Lex.TOpen{}: {==}
+                case Lex.TClose{}: {==}
+                case Lex.TComma{}: {==}
+        case Tree.Group{o, gk, cl}: {==}
+        case Tree.Stmt{sk, sks, sb}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a chain read that way is the one name it was
+law inert.ring.name_text:
+  for nn: Tree.Node
+  {Ring.name_text(Laws.inert.node(nn)) == Ring.name_text(nn) : String}
+
+def inert.ring.name_text(nn):
+  match nn:
+    case Tree.NCons{h, +r}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, t, l, c}:
+              match k:
+                case Lex.TName{}:
+                  match r:
+                    case Tree.NNil{}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NCons{x, y}: {==}
+                case Lex.TUpper{}: {==}
+                case Lex.TDotted{}: {==}
+                case Lex.TWild{}: {==}
+                case Lex.TKey{}: {==}
+                case Lex.TNum{}: {==}
+                case Lex.TStr{}: {==}
+                case Lex.TChar{}: {==}
+                case Lex.TComment{}: {==}
+                case Lex.TSpace{}: {==}
+                case Lex.TNewline{}: {==}
+                case Lex.TOp{}: {==}
+                case Lex.TColon{}: {==}
+                case Lex.TEq{}: {==}
+                case Lex.TBind{}: {==}
+                case Lex.TArrow{}: {==}
+                case Lex.TLam{}: {==}
+                case Lex.TAll{}: {==}
+                case Lex.TAmp{}: {==}
+                case Lex.TOpen{}: {==}
+                case Lex.TClose{}: {==}
+                case Lex.TComma{}: {==}
+        case Tree.Group{o, gk, cl}: {==}
+        case Tree.Stmt{sk, sks, sb}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# arguments read that way name a window as they did
+law inert.ring.has_name:
+  for as: List<&2, Tree.Node>
+  for +wins: List<&2, String>
+  {Ring.has_name(inert.nodes(as), wins) == Ring.has_name(as, wins) : Bool}
+
+def inert.ring.has_name(as, wins):
+  match as:
+    case Nil{}: {==}
+    case Con{+h, +rest}:
+      +lhs = Ring.has_name(inert.nodes(Con{h, rest}), wins)
+      %inert.ring.has_name(rest, wins) : {lhs == Bool.or(Ring.win_name(h, wins), _) : Bool}
+      %inert.ring.name_text(h) : {lhs == Bool.or(Bool.and(Bool.not(String.is_empty(_)), List.contains(~String,
+        ~String.eq, wins, _)), Ring.has_name(inert.nodes(rest), wins)) : Bool}
+      {==}
+
+# arguments read that way end with a number as they did
+law inert.ring.last_num:
+  for as: List<&2, Tree.Node>
+  {Ring.last_num(inert.nodes(as)) == Ring.last_num(as) : Bool}
+
+def inert.ring.last_num(as):
+  match as:
+    case Nil{}: {==}
+    case Con{h, +rest}:
+      match rest:
+        case Nil{}: inert.ring.is_num(h)
+        case Con{x, y}: inert.ring.last_num(rest)
+
+# what drop_ok reads: the name among the drops and tails, the window named,
+# the name a tail, the count a number
+def inert.ring.dparts(kd: Bool, hn: Bool, +tl: Bool, ln: Bool) -> Bool:
+  Bool.and(kd, Bool.and(hn, Bool.or(tl, ln)))
+
+# the drops and tails
+def inert.ring.drops() -> List<&2, String>:
+  ["List.drop", "String.drop", "List.tail", "String.tail"]
+
+# a call's name and arguments read that way are the fixed drop they were
+law inert.ring.drop_ok:
+  for +b: Bool
+  for +t: String
+  for +as: List<&2, Tree.Node>
+  for +wins: List<&2, String>
+  for +ef: {Laws.inert.fits.go(b, t) == True{} : Bool}
+  {Ring.drop_ok(Laws.inert.keep(b, t), inert.nodes(as), wins) == Ring.drop_ok(t, as, wins) : Bool}
+
+def inert.ring.drop_ok(b, t, as, wins, ef):
+  +kt = Laws.inert.keep(b, t)
+  +lhs = Ring.drop_ok(kt, inert.nodes(as), wins)
+  %inert.contains_keep(inert.ring.drops(), b, t, ef, {==}) : {lhs == inert.ring.dparts(_, Ring.has_name(as, wins),
+    Bool.or(String.eq(t, "List.tail"), String.eq(t, "String.tail")), Ring.last_num(as)) : Bool}
+  %inert.eq_keep(b, t, "List.tail", ef, {==}) : {lhs == inert.ring.dparts(List.contains(~String, ~String.eq,
+    inert.ring.drops(), kt), Ring.has_name(as, wins), Bool.or(_, String.eq(t, "String.tail")), Ring.last_num(as))
+    : Bool}
+  %inert.eq_keep(b, t, "String.tail", ef, {==}) : {lhs == inert.ring.dparts(List.contains(~String, ~String.eq,
+    inert.ring.drops(), kt), Ring.has_name(as, wins), Bool.or(String.eq(kt, "List.tail"), _), Ring.last_num(as))
+    : Bool}
+  %inert.ring.has_name(as, wins) : {lhs == inert.ring.dparts(List.contains(~String, ~String.eq, inert.ring.drops(),
+    kt), _, Bool.or(String.eq(kt, "List.tail"), String.eq(kt, "String.tail")), Ring.last_num(as)) : Bool}
+  %inert.ring.last_num(as) : {lhs == inert.ring.dparts(List.contains(~String, ~String.eq, inert.ring.drops(), kt),
+    Ring.has_name(inert.nodes(as), wins), Bool.or(String.eq(kt, "List.tail"), String.eq(kt, "String.tail")), _)
+    : Bool}
+  {==}
+
+# a drop's token is kept only for a drop's name, which is never cut
+law inert.ring.drop_pick:
+  for b: Bool
+  for +t: String
+  for +k: Lex.TokKind
+  for +l: U32
+  for +c: U32
+  for +as: List<&2, Tree.Node>
+  for +wins: List<&2, String>
+  for +ef: {Laws.inert.fits.go(b, t) == True{} : Bool}
+  {Bool.pick(Maybe<&2, Lex.Tok>, Ring.drop_ok(t, as, wins), Some{Lex.Tok{k, Laws.inert.keep(b, t), l, c}}, None{})
+    == Bool.pick(Maybe<&2, Lex.Tok>, Ring.drop_ok(t, as, wins), Some{Lex.Tok{k, t, l, c}}, None{})
+    : Maybe<&2, Lex.Tok>}
+
+def inert.ring.drop_pick(b, t, k, l, c, as, wins, ef):
+  match b:
+    case False{}: {==}
+    case True{}:
+      +tl = Bool.or(String.eq(t, "List.tail"), String.eq(t, "String.tail"))
+      %Equal.sym(Bool, List.contains(~String, ~String.eq, inert.ring.drops(), t), False{},
+        inert.contains_marked(inert.ring.drops(), t, {==}, ef)) : {Bool.pick(Maybe<&2, Lex.Tok>,
+          inert.ring.dparts(_, Ring.has_name(as, wins), tl, Ring.last_num(as)), Some{Lex.Tok{k, Laws.inert.cut(t), l,
+            c}}, None{}) == Bool.pick(Maybe<&2, Lex.Tok>, inert.ring.dparts(_, Ring.has_name(as, wins), tl,
+              Ring.last_num(as)), Some{Lex.Tok{k, t, l, c}}, None{}) : Maybe<&2, Lex.Tok>}
+      {==}
+
+# a call read that way is the fixed drop it was
+law inert.ring.drop_tok:
+  for +k: Lex.TokKind
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for +kids: Tree.Node
+  for +wins: List<&2, String>
+  for +ef: {Laws.inert.fits.go(Laws.inert.blanks(k), t) == True{} : Bool}
+  {Ring.drop_tok(k, Laws.inert.keep(Laws.inert.blanks(k), t), l, c, Laws.inert.node(kids), wins)
+    == Ring.drop_tok(k, t, l, c, kids, wins) : Maybe<&2, Lex.Tok>}
+
+def inert.ring.drop_tok(k, t, l, c, kids, wins, ef):
+  +b = Laws.inert.blanks(k)
+  +kt = Laws.inert.keep(b, t)
+  +aa = Calls.args(kids)
+  +lhs = Ring.drop_tok(k, kt, l, c, Laws.inert.node(kids), wins)
+  %inert.ring.drop_pick(b, t, k, l, c, aa, wins, ef) : {lhs == _ : Maybe<&2, Lex.Tok>}
+  %inert.ring.drop_ok(b, t, aa, wins, ef) : {lhs == Bool.pick(Maybe<&2, Lex.Tok>, _, Some{Lex.Tok{k, kt, l, c}},
+    None{}) : Maybe<&2, Lex.Tok>}
+  %inert.args(kids) : {lhs == Bool.pick(Maybe<&2, Lex.Tok>, Ring.drop_ok(kt, _, wins), Some{Lex.Tok{k, kt, l, c}},
+    None{}) : Maybe<&2, Lex.Tok>}
+  {==}
+
+# an application read that way is the drop it was
+law inert.ring.here_of:
+  for open: Bool
+  for +k: Lex.TokKind
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for +kids: Tree.Node
+  for +wins: List<&2, String>
+  for +ef: {Laws.inert.fits.go(Laws.inert.blanks(k), t) == True{} : Bool}
+  {Ring.here_of(open, k, Laws.inert.keep(Laws.inert.blanks(k), t), l, c, Laws.inert.node(kids), wins)
+    == Ring.here_of(open, k, t, l, c, kids, wins) : Maybe<&2, Lex.Tok>}
+
+def inert.ring.here_of(open, k, t, l, c, kids, wins, ef):
+  match open:
+    case False{}: {==}
+    case True{}: inert.ring.drop_tok(k, t, l, c, kids, wins, ef)
+
+# two maybes read as they did give the first of them as it did
+law inert.ring.or2:
+  for -a1: Maybe<&2, Lex.Tok>
+  for -a2: Maybe<&2, Lex.Tok>
+  for -b1: Maybe<&2, Lex.Tok>
+  for -b2: Maybe<&2, Lex.Tok>
+  for ea: {a1 == a2 : Maybe<&2, Lex.Tok>}
+  for eb: {b1 == b2 : Maybe<&2, Lex.Tok>}
+  {Ring.or_tok(a1, b1) == Ring.or_tok(a2, b2) : Maybe<&2, Lex.Tok>}
+
+def inert.ring.or2(a1, _a2, b1, b2, ea, eb):
+  %ea : {Ring.or_tok(a1, b1) == Ring.or_tok(_, b2) : Maybe<&2, Lex.Tok>}
+  %eb : {Ring.or_tok(a1, b1) == Ring.or_tok(a1, _) : Maybe<&2, Lex.Tok>}
+  {==}
+
+# a drop anywhere under a node read that way is the drop it was
+law inert.ring.drop_in:
+  for nn: Tree.Node
+  for +wins: List<&2, String>
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Ring.drop_in(Laws.inert.node(nn), wins) == Ring.drop_in(nn, wins) : Maybe<&2, Lex.Tok>}
+
+def inert.ring.drop_in(nn, wins, e):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              match rest:
+                case Tree.NCons{h2, +r2}:
+                  match h2:
+                    case Tree.Group{o, +kids, +cl}:
+                      match o:
+                        case Lex.Tok{+ok, +ot, +ol, +oc}:
+                          +lf = {Tree.Leaf{Lex.Tok{k, t, l, c}} : Tree.Node}
+                          +gp = {Tree.Group{Lex.Tok{ok, ot, ol, oc}, kids, cl} : Tree.Node}
+                          +eg = inert.ok_t(lf, Tree.NCons{gp, r2}, e)
+                          inert.ring.or2(Ring.here_of(String.eq(ot, "("), k, Laws.inert.keep(Laws.inert.blanks(k), t), l,
+                            c, Laws.inert.node(kids), wins), Ring.here_of(String.eq(ot, "("), k, t, l, c, kids, wins),
+                            Ring.or_tok(Ring.drop_in(Laws.inert.node(kids), wins), Ring.drop_in(Laws.inert.node(r2),
+                              wins)), Ring.or_tok(Ring.drop_in(kids, wins), Ring.drop_in(r2, wins)),
+                            inert.ring.here_of(String.eq(ot, "("), k, t, l, c, kids, wins, inert.ok_h(lf,
+                              Tree.NCons{gp, r2}, e)),
+                            inert.ring.or2(Ring.drop_in(Laws.inert.node(kids), wins), Ring.drop_in(kids, wins),
+                              Ring.drop_in(Laws.inert.node(r2), wins), Ring.drop_in(r2, wins),
+                              inert.ring.drop_in(kids, wins, inert.ok_h(gp, r2, eg)),
+                              inert.ring.drop_in(r2, wins, inert.ok_t(gp, r2, eg))))
+                    case Tree.Leaf{x}:
+                      inert.ring.drop_in(rest, wins, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.Stmt{x, y, z}:
+                      inert.ring.drop_in(rest, wins, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.NNil{}:
+                      inert.ring.drop_in(rest, wins, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.NCons{x, y}:
+                      inert.ring.drop_in(rest, wins, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.Leaf{x}: {==}
+                case Tree.Group{x, y, z}: {==}
+                case Tree.Stmt{x, y, z}: {==}
+                case Tree.NNil{}: {==}
+        case Tree.Group{+o, +kids, +cl}:
+          inert.ring.or2(Ring.drop_in(Laws.inert.node(kids), wins), Ring.drop_in(kids, wins),
+            Ring.drop_in(Laws.inert.node(rest), wins), Ring.drop_in(rest, wins),
+            inert.ring.drop_in(kids, wins, inert.ok_h(Tree.Group{o, kids, cl}, rest, e)),
+            inert.ring.drop_in(rest, wins, inert.ok_t(Tree.Group{o, kids, cl}, rest, e)))
+        case Tree.Stmt{+sk, +kids, +body}:
+          +es = inert.ok_h(Tree.Stmt{sk, kids, body}, rest, e)
+          inert.ring.or2(Ring.drop_in(Laws.inert.node(kids), wins), Ring.drop_in(kids, wins),
+            Ring.or_tok(Ring.drop_in(Laws.inert.node(body), wins), Ring.drop_in(Laws.inert.node(rest), wins)),
+            Ring.or_tok(Ring.drop_in(body, wins), Ring.drop_in(rest, wins)),
+            inert.ring.drop_in(kids, wins, inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es)),
+            inert.ring.or2(Ring.drop_in(Laws.inert.node(body), wins), Ring.drop_in(body, wins),
+              Ring.drop_in(Laws.inert.node(rest), wins), Ring.drop_in(rest, wins),
+              inert.ring.drop_in(body, wins, inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es)),
+              inert.ring.drop_in(rest, wins, inert.ok_t(Tree.Stmt{sk, kids, body}, rest, e))))
+        case Tree.NNil{}: inert.ring.drop_in(rest, wins, e)
+        case Tree.NCons{x, y}: inert.ring.drop_in(rest, wins, inert.ok_t(Tree.NCons{x, y}, rest, e))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# the receiver of an append, its arguments read that way
+law inert.ring.receiver_is:
+  for list: Bool
+  for str: Bool
+  for +as: List<&2, Tree.Node>
+  for +wins: List<&2, String>
+  for +ea: {inert.noks(as) == True{} : Bool}
+  {Ring.receiver_is(list, str, inert.nodes(as), wins) == Ring.receiver_is(list, str, as, wins) : Maybe<&2, Lex.Tok>}
+
+def inert.ring.receiver_is(list, str, as, wins, ea):
+  match list str:
+    case True{} s:
+      %Equal.sym(Tree.Node, Calls.arg(inert.nodes(as), 2n), Laws.inert.node(Calls.arg(as, 2n)), inert.arg(as, 2n)) :
+        {Ring.drop_in(_, wins) == Ring.drop_in(Calls.arg(as, 2n), wins) : Maybe<&2, Lex.Tok>}
+      inert.ring.drop_in(Calls.arg(as, 2n), wins, inert.ok.nth(as, 2n, ea))
+    case False{} True{}:
+      %Equal.sym(Tree.Node, Calls.arg(inert.nodes(as), 0n), Laws.inert.node(Calls.arg(as, 0n)), inert.arg(as, 0n)) :
+        {Ring.drop_in(_, wins) == Ring.drop_in(Calls.arg(as, 0n), wins) : Maybe<&2, Lex.Tok>}
+      inert.ring.drop_in(Calls.arg(as, 0n), wins, inert.ok.nth(as, 0n, ea))
+    case False{} False{}: {==}
+
+# the receiver of an append, the call's name and arguments read that way
+law inert.ring.receiver:
+  for +b: Bool
+  for +t: String
+  for +kids: Tree.Node
+  for +wins: List<&2, String>
+  for +ef: {Laws.inert.fits.go(b, t) == True{} : Bool}
+  for +ek: {Laws.inert.ok(kids) == True{} : Bool}
+  {Ring.receiver(Laws.inert.keep(b, t), Laws.inert.node(kids), wins) == Ring.receiver(t, kids, wins)
+    : Maybe<&2, Lex.Tok>}
+
+def inert.ring.receiver(b, t, kids, wins, ef, ek):
+  +kt = Laws.inert.keep(b, t)
+  +aa = Calls.args(kids)
+  +lhs = Ring.receiver(kt, Laws.inert.node(kids), wins)
+  %inert.ring.receiver_is(String.eq(t, "List.append"), String.eq(t, "String.append"), aa, wins,
+    inert.ok.args.go(kids, Tree.NNil{}, [], ek, {==}, {==})) : {lhs == _ : Maybe<&2, Lex.Tok>}
+  %inert.eq_keep(b, t, "List.append", ef, {==}) : {lhs == Ring.receiver_is(_, String.eq(t, "String.append"),
+    inert.nodes(aa), wins) : Maybe<&2, Lex.Tok>}
+  %inert.eq_keep(b, t, "String.append", ef, {==}) : {lhs == Ring.receiver_is(String.eq(kt, "List.append"), _,
+    inert.nodes(aa), wins) : Maybe<&2, Lex.Tok>}
+  %inert.args(kids) : {lhs == Ring.receiver_is(String.eq(kt, "List.append"), String.eq(kt, "String.append"), _, wins)
+    : Maybe<&2, Lex.Tok>}
+  {==}
+
+# an application's receiver, read that way
+law inert.ring.call_recv:
+  for open: Bool
+  for +b: Bool
+  for +t: String
+  for +kids: Tree.Node
+  for +wins: List<&2, String>
+  for +ef: {Laws.inert.fits.go(b, t) == True{} : Bool}
+  for +ek: {Laws.inert.ok(kids) == True{} : Bool}
+  {Ring.call_recv(open, Laws.inert.keep(b, t), Laws.inert.node(kids), wins) == Ring.call_recv(open, t, kids, wins)
+    : Maybe<&2, Lex.Tok>}
+
+def inert.ring.call_recv(open, b, t, kids, wins, ef, ek):
+  match open:
+    case False{}: {==}
+    case True{}: inert.ring.receiver(b, t, kids, wins, ef, ek)
+
+# the drop a call or a bracket is, read that way
+law inert.ring.call_drop:
+  for open: Bool
+  for +k: Lex.TokKind
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for +kids: Tree.Node
+  for +wins: List<&2, String>
+  for +ef: {Laws.inert.fits.go(Laws.inert.blanks(k), t) == True{} : Bool}
+  for +ek: {Laws.inert.ok(kids) == True{} : Bool}
+  {Ring.call_drop(open, k, Laws.inert.keep(Laws.inert.blanks(k), t), l, c, Laws.inert.node(kids), wins)
+    == Ring.call_drop(open, k, t, l, c, kids, wins) : Maybe<&2, Lex.Tok>}
+
+def inert.ring.call_drop(open, k, t, l, c, kids, wins, ef, ek):
+  match open:
+    case False{}: inert.ring.drop_in(kids, wins, ek)
+    case True{}: inert.ring.drop_tok(k, t, l, c, kids, wins, ef)
+
+# a leaf, a group and the rest as the lexer makes them: each fits
+law inert.ok3:
+  for +a: Tree.Node
+  for +g: Tree.Node
+  for +r: Tree.Node
+  for e: {Laws.inert.ok(Tree.NCons{a, Tree.NCons{g, r}}) == True{} : Bool}
+  {Bool.and(Laws.inert.ok(a), Bool.and(Laws.inert.ok(g), Laws.inert.ok(r))) == True{} : Bool}
+
+def inert.ok3(_a, _g, _r, e):
+  e
+
+# a name then a group, read that way: the scan finds the drop it found
+law inert.ring.ps_lg:
+  for +k: Lex.TokKind
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for +o: String
+  for +kids: Tree.Node
+  for +r2: Tree.Node
+  for +seen: Maybe<&2, Lex.Tok>
+  for +wins: List<&2, String>
+  for +ef: {Laws.inert.fits.go(Laws.inert.blanks(k), t) == True{} : Bool}
+  for +ek: {Laws.inert.ok(kids) == True{} : Bool}
+  for ik: {Ring.plus_scan(Laws.inert.node(kids), None{}, wins) == Ring.plus_scan(kids, None{}, wins)
+    : Maybe<&2, Lex.Tok>}
+  for ir: {Ring.plus_scan(Laws.inert.node(r2), Ring.or_tok(seen, Ring.call_drop(String.eq(o, "("), k, t, l, c, kids,
+    wins)), wins) == Ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(o, "("), k, t, l, c, kids, wins)),
+      wins) : Maybe<&2, Lex.Tok>}
+  {Ring.or_tok(Ring.call_recv(String.eq(o, "("), Laws.inert.keep(Laws.inert.blanks(k), t), Laws.inert.node(kids),
+    wins), Ring.or_tok(Ring.plus_scan(Laws.inert.node(kids), None{}, wins), Ring.plus_scan(Laws.inert.node(r2),
+      Ring.or_tok(seen, Ring.call_drop(String.eq(o, "("), k, Laws.inert.keep(Laws.inert.blanks(k), t), l, c,
+        Laws.inert.node(kids), wins)), wins)))
+    == Ring.or_tok(Ring.call_recv(String.eq(o, "("), t, kids, wins), Ring.or_tok(Ring.plus_scan(kids, None{}, wins),
+      Ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(o, "("), k, t, l, c, kids, wins)), wins)))
+    : Maybe<&2, Lex.Tok>}
+
+def inert.ring.ps_lg(k, t, l, c, o, kids, r2, seen, wins, ef, ek, ik, ir):
+  +op = String.eq(o, "(")
+  +kt = Laws.inert.keep(Laws.inert.blanks(k), t)
+  +ki = Laws.inert.node(kids)
+  +di = Ring.call_drop(op, k, kt, l, c, ki, wins)
+  +lhs = Ring.or_tok(Ring.call_recv(op, kt, ki, wins), Ring.or_tok(Ring.plus_scan(ki, None{}, wins),
+    Ring.plus_scan(Laws.inert.node(r2), Ring.or_tok(seen, di), wins)))
+  %ir : {lhs == Ring.or_tok(Ring.call_recv(op, t, kids, wins), Ring.or_tok(Ring.plus_scan(kids, None{}, wins), _))
+    : Maybe<&2, Lex.Tok>}
+  %inert.ring.call_drop(op, k, t, l, c, kids, wins, ef, ek) : {lhs == Ring.or_tok(Ring.call_recv(op, t, kids, wins),
+    Ring.or_tok(Ring.plus_scan(kids, None{}, wins), Ring.plus_scan(Laws.inert.node(r2), Ring.or_tok(seen, _), wins)))
+    : Maybe<&2, Lex.Tok>}
+  %ik : {lhs == Ring.or_tok(Ring.call_recv(op, t, kids, wins), Ring.or_tok(_, Ring.plus_scan(Laws.inert.node(r2),
+    Ring.or_tok(seen, di), wins))) : Maybe<&2, Lex.Tok>}
+  %inert.ring.call_recv(op, Laws.inert.blanks(k), t, kids, wins, ef, ek) : {lhs == Ring.or_tok(_, Ring.or_tok(
+    Ring.plus_scan(ki, None{}, wins), Ring.plus_scan(Laws.inert.node(r2), Ring.or_tok(seen, di), wins)))
+    : Maybe<&2, Lex.Tok>}
+  {==}
+
+# an operator: the scan past it, read that way, finds what it found
+law inert.ring.ps_op:
+  for +t: String
+  for +seen: Maybe<&2, Lex.Tok>
+  for +rest: Tree.Node
+  for +wins: List<&2, String>
+  for ih: {Ring.plus_scan(Laws.inert.node(rest), Ring.pp_seen(String.eq(t, "++"), seen), wins)
+    == Ring.plus_scan(rest, Ring.pp_seen(String.eq(t, "++"), seen), wins) : Maybe<&2, Lex.Tok>}
+  {Ring.or_tok(Ring.pp_found(String.eq(t, "++"), seen), Ring.plus_scan(Laws.inert.node(rest),
+    Ring.pp_seen(String.eq(t, "++"), seen), wins))
+    == Ring.or_tok(Ring.pp_found(String.eq(t, "++"), seen), Ring.plus_scan(rest, Ring.pp_seen(String.eq(t, "++"),
+      seen), wins)) : Maybe<&2, Lex.Tok>}
+
+def inert.ring.ps_op(t, seen, rest, wins, ih):
+  Equal.cong(Maybe<&2, Lex.Tok>, Maybe<&2, Lex.Tok>, z => Ring.or_tok(Ring.pp_found(String.eq(t, "++"), seen), z),
+    Ring.plus_scan(Laws.inert.node(rest), Ring.pp_seen(String.eq(t, "++"), seen), wins),
+    Ring.plus_scan(rest, Ring.pp_seen(String.eq(t, "++"), seen), wins), ih)
+
+# ring's scan reads no string: an operator's text, a drop's or an append's
+# name against the few it knows, a window's name
+law inert.ring.plus_scan:
+  for nn: Tree.Node
+  for +seen: Maybe<&2, Lex.Tok>
+  for +wins: List<&2, String>
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Ring.plus_scan(Laws.inert.node(nn), seen, wins) == Ring.plus_scan(nn, seen, wins) : Maybe<&2, Lex.Tok>}
+
+def inert.ring.plus_scan(nn, seen, wins, e):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, +t, +l, +c}:
+              match k:
+                case Lex.TName{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TName{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TName{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TUpper{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TUpper{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TUpper{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TUpper{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TDotted{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TDotted{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TDotted{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TDotted{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TDotted{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TDotted{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TDotted{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TDotted{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TDotted{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TDotted{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TWild{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TWild{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TWild{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TWild{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TWild{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TWild{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TWild{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TWild{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TWild{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TWild{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TKey{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TKey{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TKey{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TKey{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TKey{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TKey{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TKey{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TKey{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TKey{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TKey{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TNum{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TNum{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TNum{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TNum{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TNum{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TNum{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TNum{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TNum{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TNum{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TNum{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TStr{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TStr{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TStr{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TStr{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TStr{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TStr{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TStr{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TStr{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TStr{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TStr{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TChar{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TChar{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TChar{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TChar{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TChar{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TChar{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TChar{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TChar{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TChar{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TChar{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TComment{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TComment{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TComment{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TComment{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TComment{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TComment{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TComment{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TComment{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TComment{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TComment{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TSpace{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TSpace{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TSpace{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TSpace{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TSpace{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TSpace{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TSpace{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TSpace{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TSpace{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TSpace{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TNewline{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TNewline{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TNewline{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TNewline{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TNewline{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TNewline{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TNewline{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TNewline{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TNewline{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TNewline{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TOp{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Leaf{x}:
+                          inert.ring.ps_op(t, seen, rest, wins, inert.ring.plus_scan(rest,
+                            Ring.pp_seen(String.eq(t, "++"), seen), wins,
+                            inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TOp{}, t, l, c}}, rest, e)))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.ps_op(t, seen, rest, wins, inert.ring.plus_scan(rest,
+                            Ring.pp_seen(String.eq(t, "++"), seen), wins,
+                            inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TOp{}, t, l, c}}, rest, e)))
+                        case Tree.NNil{}:
+                          inert.ring.ps_op(t, seen, rest, wins, inert.ring.plus_scan(rest,
+                            Ring.pp_seen(String.eq(t, "++"), seen), wins,
+                            inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TOp{}, t, l, c}}, rest, e)))
+                        case Tree.NCons{x, y}:
+                          inert.ring.ps_op(t, seen, rest, wins, inert.ring.plus_scan(rest,
+                            Ring.pp_seen(String.eq(t, "++"), seen), wins,
+                            inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TOp{}, t, l, c}}, rest, e)))
+                        case Tree.Group{x, y, z}:
+                          match x:
+                            case Lex.Tok{a1, a2, a3, a4}:
+                              inert.ring.ps_op(t, seen, rest, wins, inert.ring.plus_scan(rest,
+                                Ring.pp_seen(String.eq(t, "++"), seen), wins,
+                                inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TOp{}, t, l, c}}, rest, e)))
+                    case Tree.Leaf{x}:
+                      inert.ring.ps_op(t, seen, rest, wins, inert.ring.plus_scan(rest,
+                        Ring.pp_seen(String.eq(t, "++"), seen), wins,
+                        inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TOp{}, t, l, c}}, rest, e)))
+                    case Tree.Group{x, y, z}:
+                      inert.ring.ps_op(t, seen, rest, wins, inert.ring.plus_scan(rest,
+                        Ring.pp_seen(String.eq(t, "++"), seen), wins,
+                        inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TOp{}, t, l, c}}, rest, e)))
+                    case Tree.Stmt{x, y, z}:
+                      inert.ring.ps_op(t, seen, rest, wins, inert.ring.plus_scan(rest,
+                        Ring.pp_seen(String.eq(t, "++"), seen), wins,
+                        inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TOp{}, t, l, c}}, rest, e)))
+                    case Tree.NNil{}:
+                      inert.ring.ps_op(t, seen, rest, wins, inert.ring.plus_scan(rest,
+                        Ring.pp_seen(String.eq(t, "++"), seen), wins,
+                        inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TOp{}, t, l, c}}, rest, e)))
+                case Lex.TColon{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TColon{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TColon{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TEq{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TEq{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TEq{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TBind{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TBind{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TBind{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TBind{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TBind{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TBind{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TBind{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TBind{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TBind{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TBind{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TArrow{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TArrow{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TArrow{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TArrow{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TArrow{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TArrow{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TArrow{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TArrow{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TArrow{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TArrow{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TLam{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TLam{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TLam{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TAll{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TAll{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TAll{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TAll{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TAll{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TAll{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TAll{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TAll{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TAll{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TAll{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TAmp{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TAmp{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TAmp{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TAmp{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TAmp{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TAmp{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TAmp{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TAmp{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TAmp{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TAmp{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TOpen{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TOpen{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TOpen{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TOpen{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TOpen{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TOpen{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TOpen{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TOpen{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TOpen{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TOpen{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TClose{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TClose{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TClose{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TClose{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TClose{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TClose{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TClose{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TClose{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TClose{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TClose{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+                case Lex.TComma{}:
+                  match rest:
+                    case Tree.NCons{h2, +r2}:
+                      match h2:
+                        case Tree.Group{o, +kids, +cl}:
+                          match o:
+                            case Lex.Tok{+a, +ot, +b, +d}:
+                              +e3 = inert.ok3(Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}, Tree.Group{Lex.Tok{a, ot, b,
+                                d}, kids, cl}, r2, e)
+                              +ea = inert.and_l(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +eg = inert.and_r(Laws.inert.ok(Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}),
+                                Bool.and(Laws.inert.ok(kids), Laws.inert.ok(r2)), e3)
+                              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(r2), eg)
+                              inert.ring.ps_lg(Lex.TComma{}, t, l, c, ot, kids, r2, seen, wins, ea, ek,
+                                inert.ring.plus_scan(kids, None{}, wins, ek),
+                                inert.ring.plus_scan(r2, Ring.or_tok(seen, Ring.call_drop(String.eq(ot, "("),
+                                  Lex.TComma{}, t, l, c, kids, wins)), wins, inert.and_r(Laws.inert.ok(kids),
+                                    Laws.inert.ok(r2), eg)))
+                        case Tree.Leaf{x}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}},
+                            rest, e))
+                        case Tree.Stmt{x, y, z}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}},
+                            rest, e))
+                        case Tree.NNil{}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}},
+                            rest, e))
+                        case Tree.NCons{x, y}:
+                          inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}},
+                            rest, e))
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NNil{}: {==}
+        case Tree.Group{+o, +kids, +cl}:
+          inert.ring.or2(Ring.plus_scan(Laws.inert.node(kids), None{}, wins), Ring.plus_scan(kids, None{}, wins),
+            Ring.plus_scan(Laws.inert.node(rest), Ring.or_tok(seen, Ring.drop_in(Laws.inert.node(kids), wins)), wins),
+            Ring.plus_scan(rest, Ring.or_tok(seen, Ring.drop_in(kids, wins)), wins),
+            inert.ring.plus_scan(kids, None{}, wins, inert.ok_h(Tree.Group{o, kids, cl}, rest, e)),
+            Equal.trans(Maybe<&2, Lex.Tok>, Ring.plus_scan(Laws.inert.node(rest), Ring.or_tok(seen,
+              Ring.drop_in(Laws.inert.node(kids), wins)), wins), Ring.plus_scan(Laws.inert.node(rest),
+                Ring.or_tok(seen, Ring.drop_in(kids, wins)), wins), Ring.plus_scan(rest, Ring.or_tok(seen,
+                  Ring.drop_in(kids, wins)), wins),
+              Equal.cong(Maybe<&2, Lex.Tok>, Maybe<&2, Lex.Tok>, z => Ring.plus_scan(Laws.inert.node(rest),
+                Ring.or_tok(seen, z), wins), Ring.drop_in(Laws.inert.node(kids), wins), Ring.drop_in(kids, wins),
+                inert.ring.drop_in(kids, wins, inert.ok_h(Tree.Group{o, kids, cl}, rest, e))),
+              inert.ring.plus_scan(rest, Ring.or_tok(seen, Ring.drop_in(kids, wins)), wins,
+                inert.ok_t(Tree.Group{o, kids, cl}, rest, e))))
+        case Tree.Stmt{+sk, +kids, +body}:
+          +es = inert.ok_h(Tree.Stmt{sk, kids, body}, rest, e)
+          inert.ring.or2(Ring.plus_scan(Laws.inert.node(kids), None{}, wins), Ring.plus_scan(kids, None{}, wins),
+            Ring.or_tok(Ring.plus_scan(Laws.inert.node(body), None{}, wins), Ring.plus_scan(Laws.inert.node(rest),
+              seen, wins)), Ring.or_tok(Ring.plus_scan(body, None{}, wins), Ring.plus_scan(rest, seen, wins)),
+            inert.ring.plus_scan(kids, None{}, wins, inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es)),
+            inert.ring.or2(Ring.plus_scan(Laws.inert.node(body), None{}, wins), Ring.plus_scan(body, None{}, wins),
+              Ring.plus_scan(Laws.inert.node(rest), seen, wins), Ring.plus_scan(rest, seen, wins),
+              inert.ring.plus_scan(body, None{}, wins, inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es)),
+              inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.Stmt{sk, kids, body}, rest, e))))
+        case Tree.NNil{}: inert.ring.plus_scan(rest, seen, wins, e)
+        case Tree.NCons{x, y}: inert.ring.plus_scan(rest, seen, wins, inert.ok_t(Tree.NCons{x, y}, rest, e))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# every self-call argument that slides a window, the arguments read that way
+law inert.ring.slides:
+  for as: List<&2, Tree.Node>
+  for +params: List<&2, String>
+  for +path: String
+  for +wins: List<&2, String>
+  for +e: {inert.noks(as) == True{} : Bool}
+  {Ring.slides(inert.nodes(as), params, path, wins) == Ring.slides(as, params, path, wins) : List<&2, F.Finding>}
+
+def inert.ring.slides(as, params, path, wins, e):
+  match as:
+    case Nil{}: {==}
+    case Con{+h, +rest}:
+      +sw = Ring.slot_wins(Maybe.default(&2, String, List.head(&2, String, params), ""), wins)
+      +pt = List.tail(&2, String, params)
+      +lhs = Ring.slides(inert.nodes(Con{h, rest}), params, path, wins)
+      %inert.ring.slides(rest, pt, path, wins, inert.and_r(Laws.inert.ok(h), inert.noks(rest), e)) : {lhs
+        == List.append(&2, F.Finding, Ring.slide(h, path, sw), _) : List<&2, F.Finding>}
+      %inert.ring.plus_scan(h, None{}, sw, inert.and_l(Laws.inert.ok(h), inert.noks(rest), e)) : {lhs
+        == List.append(&2, F.Finding, Ring.slide_at(_, path), Ring.slides(inert.nodes(rest), pt, path, wins))
+          : List<&2, F.Finding>}
+      {==}
+
+# a name then a group: a self-call's sliding arguments, the group and the rest
+# walked as they were
+law inert.ring.lg:
+  for +b: Bool
+  for +t: String
+  for +o: String
+  for +self: String
+  for +params: List<&2, String>
+  for +path: String
+  for +wins: List<&2, String>
+  for +kids: Tree.Node
+  for +r2: Tree.Node
+  for +ef: {Laws.inert.fits.go(b, t) == True{} : Bool}
+  for +es: {Laws.inert.marked(self) == False{} : Bool}
+  for +ek: {Laws.inert.ok(kids) == True{} : Bool}
+  for ik: {Ring.walk(Laws.inert.node(kids), self, params, path, wins) == Ring.walk(kids, self, params, path, wins)
+    : List<&2, F.Finding>}
+  for ir: {Ring.walk(Laws.inert.node(r2), self, params, path, wins) == Ring.walk(r2, self, params, path, wins)
+    : List<&2, F.Finding>}
+  {List.concat(&2, F.Finding, [Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(String.eq(o, "("),
+    String.eq(Laws.inert.keep(b, t), self))), [], _u => Ring.slides(Calls.args(Laws.inert.node(kids)), params, path,
+      wins)), Ring.walk(Laws.inert.node(kids), self, params, path, wins), Ring.walk(Laws.inert.node(r2), self, params,
+        path, wins)])
+    == List.concat(&2, F.Finding, [Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(String.eq(o, "("),
+      String.eq(t, self))), [], _u => Ring.slides(Calls.args(kids), params, path, wins)), Ring.walk(kids, self, params,
+        path, wins), Ring.walk(r2, self, params, path, wins)]) : List<&2, F.Finding>}
+
+def inert.ring.lg(b, t, o, self, params, path, wins, kids, r2, ef, es, ek, ik, ir):
+  +aa = Calls.args(kids)
+  +hi = Ring.slides(Calls.args(Laws.inert.node(kids)), params, path, wins)
+  +eh = Equal.trans(List<&2, F.Finding>, hi, Ring.slides(inert.nodes(aa), params, path, wins), Ring.slides(aa, params,
+    path, wins), Equal.cong(List<&2, Tree.Node>, List<&2, F.Finding>, z => Ring.slides(z, params, path, wins),
+      Calls.args(Laws.inert.node(kids)), inert.nodes(aa), inert.args(kids)),
+    inert.ring.slides(aa, params, path, wins, inert.ok.args.go(kids, Tree.NNil{}, [], ek, {==}, {==})))
+  inert.cat3(Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(String.eq(o, "("), String.eq(Laws.inert.keep(b, t),
+    self))), [], _u => hi), Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(String.eq(o, "("), String.eq(t, self))),
+      [], _u => Ring.slides(aa, params, path, wins)),
+    Ring.walk(Laws.inert.node(kids), self, params, path, wins), Ring.walk(kids, self, params, path, wins),
+    Ring.walk(Laws.inert.node(r2), self, params, path, wins), Ring.walk(r2, self, params, path, wins),
+    inert.stop(Bool.not(Bool.and(String.eq(o, "("), String.eq(Laws.inert.keep(b, t), self))), Bool.not(Bool.and(
+      String.eq(o, "("), String.eq(t, self))), hi, Ring.slides(aa, params, path, wins),
+      Equal.cong(Bool, Bool, z => Bool.not(Bool.and(String.eq(o, "("), z)), String.eq(Laws.inert.keep(b, t), self),
+        String.eq(t, self), inert.eq_keep(b, t, self, ef, es)), eh),
+    ik, ir)
+
+# ring's walk reads no string: a leaf's text is compared with the def's name,
+# which no string equals
+law inert.ring.walk:
+  for nn: Tree.Node
+  for +self: String
+  for +params: List<&2, String>
+  for +path: String
+  for +wins: List<&2, String>
+  for +es: {Laws.inert.marked(self) == False{} : Bool}
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Ring.walk(Laws.inert.node(nn), self, params, path, wins) == Ring.walk(nn, self, params, path, wins)
+    : List<&2, F.Finding>}
+
+def inert.ring.walk(nn, self, params, path, wins, es, e):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              match rest:
+                case Tree.NCons{h2, +r2}:
+                  match h2:
+                    case Tree.Group{o, +kids, +cl}:
+                      match o:
+                        case Lex.Tok{+ok, +ot, +ol, +oc}:
+                          +lf = {Tree.Leaf{Lex.Tok{k, t, l, c}} : Tree.Node}
+                          +gp = {Tree.Group{Lex.Tok{ok, ot, ol, oc}, kids, cl} : Tree.Node}
+                          +eg = inert.ok_t(lf, Tree.NCons{gp, r2}, e)
+                          +ec = inert.ok_h(gp, r2, eg)
+                          inert.ring.lg(Laws.inert.blanks(k), t, ot, self, params, path, wins, kids, r2,
+                            inert.ok_h(lf, Tree.NCons{gp, r2}, e), es, ec,
+                            inert.ring.walk(kids, self, params, path, wins, es, ec),
+                            inert.ring.walk(r2, self, params, path, wins, es, inert.ok_t(gp, r2, eg)))
+                    case Tree.Leaf{x}:
+                      inert.ring.walk(rest, self, params, path, wins, es, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}},
+                        rest, e))
+                    case Tree.Stmt{x, y, z}:
+                      inert.ring.walk(rest, self, params, path, wins, es, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}},
+                        rest, e))
+                    case Tree.NNil{}:
+                      inert.ring.walk(rest, self, params, path, wins, es, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}},
+                        rest, e))
+                    case Tree.NCons{x, y}:
+                      inert.ring.walk(rest, self, params, path, wins, es, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}},
+                        rest, e))
+                case Tree.Leaf{x}: {==}
+                case Tree.Group{x, y, z}: {==}
+                case Tree.Stmt{x, y, z}: {==}
+                case Tree.NNil{}: {==}
+        case Tree.Group{+o, +kids, +cl}:
+          inert.cat2(Ring.walk(Laws.inert.node(kids), self, params, path, wins), Ring.walk(kids, self, params, path,
+            wins), Ring.walk(Laws.inert.node(rest), self, params, path, wins), Ring.walk(rest, self, params, path,
+              wins),
+            inert.ring.walk(kids, self, params, path, wins, es, inert.ok_h(Tree.Group{o, kids, cl}, rest, e)),
+            inert.ring.walk(rest, self, params, path, wins, es, inert.ok_t(Tree.Group{o, kids, cl}, rest, e)))
+        case Tree.Stmt{+sk, +kids, +body}:
+          +es2 = inert.ok_h(Tree.Stmt{sk, kids, body}, rest, e)
+          inert.cat3(Ring.walk(Laws.inert.node(kids), self, params, path, wins), Ring.walk(kids, self, params, path,
+            wins), Ring.walk(Laws.inert.node(body), self, params, path, wins), Ring.walk(body, self, params, path,
+              wins), Ring.walk(Laws.inert.node(rest), self, params, path, wins), Ring.walk(rest, self, params, path,
+                wins),
+            inert.ring.walk(kids, self, params, path, wins, es, inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body),
+              es2)),
+            inert.ring.walk(body, self, params, path, wins, es, inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body),
+              es2)),
+            inert.ring.walk(rest, self, params, path, wins, es, inert.ok_t(Tree.Stmt{sk, kids, body}, rest, e)))
+        case Tree.NNil{}: inert.ring.walk(rest, self, params, path, wins, es, e)
+        case Tree.NCons{x, y}:
+          inert.ring.walk(rest, self, params, path, wins, es, inert.ok_t(Tree.NCons{x, y}, rest, e))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# the top-level names of a chain read that way are the ones it had
+law inert.ring.names_in:
+  for nn: Tree.Node
+  for +acc: List<&2, String>
+  {Ring.names_in(Laws.inert.node(nn), acc) == Ring.names_in(nn, acc) : List<&2, String>}
+
+def inert.ring.names_in(nn, acc):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, +t, l, c}:
+              match k:
+                case Lex.TName{}:
+                  Equal.cong(List<&2, String>, List<&2, String>, z => t <> z, Ring.names_in(Laws.inert.node(rest),
+                    acc), Ring.names_in(rest, acc), inert.ring.names_in(rest, acc))
+                case Lex.TUpper{}: inert.ring.names_in(rest, acc)
+                case Lex.TDotted{}: inert.ring.names_in(rest, acc)
+                case Lex.TWild{}: inert.ring.names_in(rest, acc)
+                case Lex.TKey{}: inert.ring.names_in(rest, acc)
+                case Lex.TNum{}: inert.ring.names_in(rest, acc)
+                case Lex.TStr{}: inert.ring.names_in(rest, acc)
+                case Lex.TChar{}: inert.ring.names_in(rest, acc)
+                case Lex.TComment{}: inert.ring.names_in(rest, acc)
+                case Lex.TSpace{}: inert.ring.names_in(rest, acc)
+                case Lex.TNewline{}: inert.ring.names_in(rest, acc)
+                case Lex.TOp{}: inert.ring.names_in(rest, acc)
+                case Lex.TColon{}: inert.ring.names_in(rest, acc)
+                case Lex.TEq{}: inert.ring.names_in(rest, acc)
+                case Lex.TBind{}: inert.ring.names_in(rest, acc)
+                case Lex.TArrow{}: inert.ring.names_in(rest, acc)
+                case Lex.TLam{}: inert.ring.names_in(rest, acc)
+                case Lex.TAll{}: inert.ring.names_in(rest, acc)
+                case Lex.TAmp{}: inert.ring.names_in(rest, acc)
+                case Lex.TOpen{}: inert.ring.names_in(rest, acc)
+                case Lex.TClose{}: inert.ring.names_in(rest, acc)
+                case Lex.TComma{}: inert.ring.names_in(rest, acc)
+        case Tree.Group{o, gk, cl}: inert.ring.names_in(rest, acc)
+        case Tree.Stmt{sk, sks, sb}: inert.ring.names_in(rest, acc)
+        case Tree.NNil{}: inert.ring.names_in(rest, acc)
+        case Tree.NCons{x, y}: inert.ring.names_in(rest, acc)
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# the scrutinees of a statement read that way are the ones it had: only a
+# keyword's text is read
+law inert.ring.match_names:
+  for kids: Tree.Node
+  for +acc: List<&2, String>
+  {Ring.match_names(Laws.inert.node(kids), acc) == Ring.match_names(kids, acc) : List<&2, String>}
+
+def inert.ring.match_names(kids, acc):
+  match kids:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, +kw, l, c}:
+              match k:
+                case Lex.TName{}: {==}
+                case Lex.TUpper{}: {==}
+                case Lex.TDotted{}: {==}
+                case Lex.TWild{}: {==}
+                case Lex.TKey{}:
+                  Equal.cong(List<&2, String>, List<&2, String>, z => Lazy.stop(List<&2, String>,
+                    Bool.not(String.eq(kw, "match")), acc, _u => z), Ring.names_in(Laws.inert.node(rest), acc),
+                    Ring.names_in(rest, acc), inert.ring.names_in(rest, acc))
+                case Lex.TNum{}: {==}
+                case Lex.TStr{}: {==}
+                case Lex.TChar{}: {==}
+                case Lex.TComment{}: {==}
+                case Lex.TSpace{}: {==}
+                case Lex.TNewline{}: {==}
+                case Lex.TOp{}: {==}
+                case Lex.TColon{}: {==}
+                case Lex.TEq{}: {==}
+                case Lex.TBind{}: {==}
+                case Lex.TArrow{}: {==}
+                case Lex.TLam{}: {==}
+                case Lex.TAll{}: {==}
+                case Lex.TAmp{}: {==}
+                case Lex.TOpen{}: {==}
+                case Lex.TClose{}: {==}
+                case Lex.TComma{}: {==}
+        case Tree.Group{o, gk, cl}: {==}
+        case Tree.Stmt{sk, sks, sb}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# three chains matched in turn, each read as it did
+law inert.ring.m3:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +a0: List<&2, String>
+  for ik: {Ring.matched(Laws.inert.node(kids), a0) == Ring.matched(kids, a0) : List<&2, String>}
+  for ib: {Ring.matched(Laws.inert.node(body), Ring.matched(kids, a0)) == Ring.matched(body, Ring.matched(kids, a0))
+    : List<&2, String>}
+  for ir: {Ring.matched(Laws.inert.node(rest), Ring.matched(body, Ring.matched(kids, a0))) == Ring.matched(rest,
+    Ring.matched(body, Ring.matched(kids, a0))) : List<&2, String>}
+  {Ring.matched(Laws.inert.node(rest), Ring.matched(Laws.inert.node(body), Ring.matched(Laws.inert.node(kids), a0)))
+    == Ring.matched(rest, Ring.matched(body, Ring.matched(kids, a0))) : List<&2, String>}
+
+def inert.ring.m3(kids, body, rest, a0, ik, ib, ir):
+  +lhs = Ring.matched(Laws.inert.node(rest), Ring.matched(Laws.inert.node(body), Ring.matched(Laws.inert.node(kids),
+    a0)))
+  %ir : {lhs == _ : List<&2, String>}
+  %ib : {lhs == Ring.matched(Laws.inert.node(rest), _) : List<&2, String>}
+  %ik : {lhs == Ring.matched(Laws.inert.node(rest), Ring.matched(Laws.inert.node(body), _)) : List<&2, String>}
+  {==}
+
+# the names a def matches, its body read that way, are the ones it matched
+law inert.ring.matched:
+  for nn: Tree.Node
+  for +acc: List<&2, String>
+  {Ring.matched(Laws.inert.node(nn), acc) == Ring.matched(nn, acc) : List<&2, String>}
+
+def inert.ring.matched(nn, acc):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Stmt{sk, +kids, +body}:
+          match sk:
+            case Tree.STerm{}:
+              %inert.ring.match_names(kids, acc) : {Ring.matched(Laws.inert.node(Tree.NCons{Tree.Stmt{Tree.STerm{},
+                kids, body}, rest}), acc) == Ring.matched(rest, Ring.matched(body, Ring.matched(kids, _)))
+                : List<&2, String>}
+              inert.ring.m3(kids, body, rest, Ring.match_names(Laws.inert.node(kids), acc),
+                inert.ring.matched(kids, Ring.match_names(Laws.inert.node(kids), acc)),
+                inert.ring.matched(body, Ring.matched(kids, Ring.match_names(Laws.inert.node(kids), acc))),
+                inert.ring.matched(rest, Ring.matched(body, Ring.matched(kids, Ring.match_names(Laws.inert.node(kids),
+                  acc)))))
+            case Tree.SDef{}: inert.ring.m3(kids, body, rest, acc, inert.ring.matched(kids, acc),
+              inert.ring.matched(body, Ring.matched(kids, acc)), inert.ring.matched(rest, Ring.matched(body,
+                Ring.matched(kids, acc))))
+            case Tree.SType{}: inert.ring.m3(kids, body, rest, acc, inert.ring.matched(kids, acc),
+              inert.ring.matched(body, Ring.matched(kids, acc)), inert.ring.matched(rest, Ring.matched(body,
+                Ring.matched(kids, acc))))
+            case Tree.SLaw{}: inert.ring.m3(kids, body, rest, acc, inert.ring.matched(kids, acc),
+              inert.ring.matched(body, Ring.matched(kids, acc)), inert.ring.matched(rest, Ring.matched(body,
+                Ring.matched(kids, acc))))
+            case Tree.SImport{}: inert.ring.m3(kids, body, rest, acc, inert.ring.matched(kids, acc),
+              inert.ring.matched(body, Ring.matched(kids, acc)), inert.ring.matched(rest, Ring.matched(body,
+                Ring.matched(kids, acc))))
+            case Tree.SCase{}: inert.ring.m3(kids, body, rest, acc, inert.ring.matched(kids, acc),
+              inert.ring.matched(body, Ring.matched(kids, acc)), inert.ring.matched(rest, Ring.matched(body,
+                Ring.matched(kids, acc))))
+            case Tree.SFor{}: inert.ring.m3(kids, body, rest, acc, inert.ring.matched(kids, acc),
+              inert.ring.matched(body, Ring.matched(kids, acc)), inert.ring.matched(rest, Ring.matched(body,
+                Ring.matched(kids, acc))))
+            case Tree.SLet{}: inert.ring.m3(kids, body, rest, acc, inert.ring.matched(kids, acc),
+              inert.ring.matched(body, Ring.matched(kids, acc)), inert.ring.matched(rest, Ring.matched(body,
+                Ring.matched(kids, acc))))
+        case Tree.Group{o, +kids, cl}:
+          %inert.ring.matched(rest, Ring.matched(kids, acc)) : {Ring.matched(Laws.inert.node(rest),
+            Ring.matched(Laws.inert.node(kids), acc)) == _ : List<&2, String>}
+          %inert.ring.matched(kids, acc) : {Ring.matched(Laws.inert.node(rest), Ring.matched(Laws.inert.node(kids),
+            acc)) == Ring.matched(Laws.inert.node(rest), _) : List<&2, String>}
+          {==}
+        case Tree.Leaf{tok}: inert.ring.matched(rest, acc)
+        case Tree.NNil{}: inert.ring.matched(rest, acc)
+        case Tree.NCons{x, y}: inert.ring.matched(rest, acc)
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# the windows of a def read that way are the ones they were
+law inert.ring.windows:
+  for +sig: Tree.Node
+  for +body: Tree.Node
+  {Ring.windows(Laws.inert.node(sig), Laws.inert.node(body)) == Ring.windows(sig, body) : List<&2, String>}
+
+def inert.ring.windows(sig, body):
+  +lhs = Ring.windows(Laws.inert.node(sig), Laws.inert.node(body))
+  %inert.names(sig) : {lhs == Ring.windows.go(_, Ring.matched(body, []), []) : List<&2, String>}
+  %inert.ring.matched(body, []) : {lhs == Ring.windows.go(Calls.names(Laws.inert.node(sig)), _, []) : List<&2, String>}
+  {==}
+
+# ring over the defs read that way reports what it reports over the defs
+law inert.ring.go:
+  for ds: List<&2, Calls.Def>
+  for +path: String
+  for +acc: List<&2, List<&2, F.Finding>>
+  for +e: {inert.dok(ds) == True{} : Bool}
+  {Ring.check.go(inert.defs(ds), path, acc) == Ring.check.go(ds, path, acc) : List<&2, F.Finding>}
+
+def inert.ring.go(ds, path, acc, e):
+  match ds:
+    case Nil{}: {==}
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +en = inert.dok.head(name, sig, body, rest, e)
+      +eb = inert.dok.body(name, sig, body, rest, e)
+      +ib = Laws.inert.node(body)
+      +isg = Laws.inert.node(sig)
+      +wi = Ring.walk(ib, name, Calls.names(isg), path, Ring.windows(isg, ib))
+      +wo = Ring.walk(body, name, Calls.names(sig), path, Ring.windows(sig, body))
+      +lst = Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Calls.calls(ib, name), Bool.not(Calls.exempt(path,
+        isg)))), [], _u => wi)
+      +ew = Equal.trans(List<&2, F.Finding>, wi, Ring.walk(ib, name, Calls.names(sig), path, Ring.windows(sig, body)),
+        wo, Equal.trans(List<&2, F.Finding>, wi, Ring.walk(ib, name, Calls.names(sig), path, Ring.windows(isg, ib)),
+          Ring.walk(ib, name, Calls.names(sig), path, Ring.windows(sig, body)),
+          Equal.cong(List<&2, String>, List<&2, F.Finding>, z => Ring.walk(ib, name, z, path, Ring.windows(isg, ib)),
+            Calls.names(isg), Calls.names(sig), inert.names(sig)),
+          Equal.cong(List<&2, String>, List<&2, F.Finding>, z => Ring.walk(ib, name, Calls.names(sig), path, z),
+            Ring.windows(isg, ib), Ring.windows(sig, body), inert.ring.windows(sig, body))),
+        inert.ring.walk(body, name, Calls.names(sig), path, Ring.windows(sig, body), en, eb))
+      %inert.stop(Bool.not(Bool.and(Calls.calls(ib, name), Bool.not(Calls.exempt(path, isg)))),
+        Bool.not(Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))), wi, wo,
+        inert.gate(path, name, sig, body, en, eb), ew) :
+        {Ring.check.go(inert.defs(rest), path, lst <> acc) == Ring.check.go(rest, path, _ <> acc)
+          : List<&2, F.Finding>}
+      inert.ring.go(rest, path, lst <> acc, inert.dok.rest(name, sig, body, rest, e))
+
+def Laws.inert_ring(path, _text, tree, _toks, _bound, _items, _text2, tree2, _toks2, _bound2, _items2, ok, ok2, e):
+  inert.via(Tree.Node, z => Ring.check.go(Calls.defs(z), path, []), tree, tree2, Laws.inert.node(tree),
+    Laws.inert.node(tree2),
+    inert.lift(z => Ring.check.go(z, path, []), tree, inert.ring.go(Calls.defs(tree), path, [], inert.dok.of(tree,
+      ok))),
+    inert.lift(z => Ring.check.go(z, path, []), tree2, inert.ring.go(Calls.defs(tree2), path, [],
+      inert.dok.of(tree2, ok2))),
+    e)
+
