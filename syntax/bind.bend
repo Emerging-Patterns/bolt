@@ -785,13 +785,13 @@ def lstrip(cs: List<&2, Char>) -> List<&2, Char>:
     case other:
       other
 
-# the n-th line of a source, without its indentation
-def line_text(lines: List<&2, String>, nn: U32) -> String:
-  String.from_list(lstrip(String.to_list(Maybe.default(&2, String, List.get(&2, String, lines, U32.to_nat(nn)), ""))))
+# a line's text without its indentation
+def stripped(+text: String) -> String:
+  String.from_list(lstrip(String.to_list(text)))
 
 # a declaration carries its own note; anything else shows the line that
-# bound it
-def note_for(kind: BindKind, +note: String, lines: List<&2, String>, line: U32) -> String:
+# bound it, which `text` gives only when it is asked for
+def note_for(kind: BindKind, +note: String, text: Unit -> String) -> String:
   match kind:
     case KParam{}:
       note
@@ -800,15 +800,39 @@ def note_for(kind: BindKind, +note: String, lines: List<&2, String>, line: U32) 
     case KTypeParam{}:
       note
     case other:
-      line_text(lines, line)
+      text(Unit{})
 
-# every binder with its note filled
-def annotate(binds: List<&2, Bind>, +lines: List<&2, String>) -> List<&2, Bind>:
+# the lines from line `line` on, given the lines from line `at` on: a step
+# forward from where the last binder was, not a walk from the first line
+def annotate.ahead(+line: U32, +at: U32, cur: List<&2, String>) -> List<&2, String>:
+  List.drop(&2, String, cur, U32.to_nat(U32.sub(line, at)))
+
+# the first line of these, or ""
+def annotate.head(+cur: List<&2, String>) -> String:
+  Maybe.default(&2, String, List.head(&2, String, cur), "")
+
+# a line read from the first, for a binder behind the last one
+def annotate.back(lines: List<&2, String>, +line: U32) -> String:
+  Maybe.default(&2, String, List.get(&2, String, lines, U32.to_nat(line)), "")
+
+# every binder with its note filled. Binders come in source order, so the
+# lines are read once, front to back, from where the last binder was (`cur`
+# holds the lines from line `at` on); a binder behind that point reads its
+# line from the start
+def annotate.go(binds: List<&2, Bind>, +lines: List<&2, String>, +at: U32, +cur: List<&2, String>) -> List<&2, Bind>:
   match binds:
     case Nil{}:
       Nil{}
     case Con{Bind{name, +line, col, +kind, note}, rest}:
-      Bind{name, line, col, kind, note_for(kind, note, lines, line)} <> annotate(rest, lines)
+      +ahead = U32.is_ge(line, at)
+      +here = Lazy.either(List<&2, String>, ahead, _u => annotate.ahead(line, at, cur), _v => cur)
+      +text = Lazy.either(String, ahead, _u => annotate.head(here), _v => annotate.back(lines, line))
+      Bind{name, line, col, kind, note_for(kind, note, _w => stripped(text))}
+        <> annotate.go(rest, lines, Bool.pick(U32, ahead, line, at), here)
+
+# every binder with its note filled
+def annotate(binds: List<&2, Bind>, +lines: List<&2, String>) -> List<&2, Bind>:
+  annotate.go(binds, lines, 0, lines)
 
 # putting it together
 # -------------------
