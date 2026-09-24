@@ -2987,6 +2987,58 @@ def arms.floor(ww: Maybe<&2, Arms.Wide>) -> Maybe<&2, U32>:
     case Some{Arms.Wide{k, text}}:
       Some{k}
 
+# a lone binder, inside `Succ{..}` or after `kn+`, to the rule and to the law
+law arms.binder:
+  for kk: Lex.TokKind
+  {Arms.binder(kk) == Laws.arms.binder(kk) : Bool}
+
+def arms.binder(kk):
+  match kk:
+    case Lex.TName{}:
+      {==}
+    case Lex.TUpper{}:
+      {==}
+    case Lex.TDotted{}:
+      {==}
+    case Lex.TWild{}:
+      {==}
+    case Lex.TKey{}:
+      {==}
+    case Lex.TNum{}:
+      {==}
+    case Lex.TStr{}:
+      {==}
+    case Lex.TChar{}:
+      {==}
+    case Lex.TComment{}:
+      {==}
+    case Lex.TSpace{}:
+      {==}
+    case Lex.TNewline{}:
+      {==}
+    case Lex.TOp{}:
+      {==}
+    case Lex.TColon{}:
+      {==}
+    case Lex.TEq{}:
+      {==}
+    case Lex.TBind{}:
+      {==}
+    case Lex.TArrow{}:
+      {==}
+    case Lex.TLam{}:
+      {==}
+    case Lex.TAll{}:
+      {==}
+    case Lex.TAmp{}:
+      {==}
+    case Lex.TOpen{}:
+      {==}
+    case Lex.TClose{}:
+      {==}
+    case Lex.TComma{}:
+      {==}
+
 # a picked from-k-up arm, read from above
 law arms.pick_up:
   for b: Bool
@@ -3138,7 +3190,16 @@ def arms.shape_up(rest, k, tt, line, col):
                                 case Lex.TOp{}:
                                   {==}
                                 case Lex.TColon{}:
-                                  arms.pick_up(String.eq(x14, "+"), k, tt ++ "+" ++ x30, line, col, T.width(tt))
+                                  Equal.trans(Maybe<&2, U32>, arms.up(Bool.pick(Arms.Arm, Bool.and(String.eq(x14, "+"), Arms.binder(k29)),
+                                    Arms.APlus{k, tt ++ "+" ++ x30, line, col, T.width(tt)}, Arms.AOther{})),
+                                    arms.up(Bool.pick(Arms.Arm, Bool.and(String.eq(x14, "+"), Laws.arms.binder(k29)),
+                                      Arms.APlus{k, tt ++ "+" ++ x30, line, col, T.width(tt)}, Arms.AOther{})),
+                                    Bool.pick(Maybe<&2, U32>, Bool.and(String.eq(x14, "+"), Laws.arms.binder(k29)), Some{k}, None{}),
+                                    Equal.cong(Bool, Maybe<&2, U32>, z => arms.up(Bool.pick(Arms.Arm, Bool.and(String.eq(x14, "+"), z),
+                                      Arms.APlus{k, tt ++ "+" ++ x30, line, col, T.width(tt)}, Arms.AOther{})), Arms.binder(k29), Laws.arms.binder(k29),
+                                      arms.binder(k29)),
+                                    arms.pick_up(Bool.and(String.eq(x14, "+"), Laws.arms.binder(k29)), k, tt ++ "+" ++ x30, line, col,
+                                      T.width(tt)))
                                 case Lex.TEq{}:
                                   {==}
                                 case Lex.TBind{}:
@@ -3299,7 +3360,16 @@ def arms.shape_lo(rest, k, tt, line, col):
                                 case Lex.TOp{}:
                                   {==}
                                 case Lex.TColon{}:
-                                  arms.pick_lo(String.eq(x86, "+"), k, tt ++ "+" ++ x102, line, col, T.width(tt))
+                                  Equal.trans(Maybe<&2, U32>, arms.lo(Bool.pick(Arms.Arm, Bool.and(String.eq(x86, "+"), Arms.binder(k101)),
+                                    Arms.APlus{k, tt ++ "+" ++ x102, line, col, T.width(tt)}, Arms.AOther{})),
+                                    arms.lo(Bool.pick(Arms.Arm, Bool.and(String.eq(x86, "+"), Laws.arms.binder(k101)),
+                                      Arms.APlus{k, tt ++ "+" ++ x102, line, col, T.width(tt)}, Arms.AOther{})),
+                                    Bool.pick(Maybe<&2, U32>, Bool.or(Bool.and(String.eq(x86, "+"), Laws.arms.binder(k101)), False{}), Some{k}, None{}),
+                                    Equal.cong(Bool, Maybe<&2, U32>, z => arms.lo(Bool.pick(Arms.Arm, Bool.and(String.eq(x86, "+"), z),
+                                      Arms.APlus{k, tt ++ "+" ++ x102, line, col, T.width(tt)}, Arms.AOther{})), Arms.binder(k101), Laws.arms.binder(k101),
+                                      arms.binder(k101)),
+                                    arms.pick_lo(Bool.and(String.eq(x86, "+"), Laws.arms.binder(k101)), k, tt ++ "+" ++ x102, line, col,
+                                      T.width(tt)))
                                 case Lex.TEq{}:
                                   {==}
                                 case Lex.TBind{}:
@@ -3395,58 +3465,6 @@ def arms.of_lo(mm, tt, rest, line, col):
       {==}
     case Some{k}:
       arms.shape_lo(rest, k, tt, line, col)
-
-# a lone binder inside `Succ{..}`, to the rule and to the law
-law arms.binder:
-  for kk: Lex.TokKind
-  {Arms.binder(kk) == Laws.arms.binder(kk) : Bool}
-
-def arms.binder(kk):
-  match kk:
-    case Lex.TName{}:
-      {==}
-    case Lex.TUpper{}:
-      {==}
-    case Lex.TDotted{}:
-      {==}
-    case Lex.TWild{}:
-      {==}
-    case Lex.TKey{}:
-      {==}
-    case Lex.TNum{}:
-      {==}
-    case Lex.TStr{}:
-      {==}
-    case Lex.TChar{}:
-      {==}
-    case Lex.TComment{}:
-      {==}
-    case Lex.TSpace{}:
-      {==}
-    case Lex.TNewline{}:
-      {==}
-    case Lex.TOp{}:
-      {==}
-    case Lex.TColon{}:
-      {==}
-    case Lex.TEq{}:
-      {==}
-    case Lex.TBind{}:
-      {==}
-    case Lex.TArrow{}:
-      {==}
-    case Lex.TLam{}:
-      {==}
-    case Lex.TAll{}:
-      {==}
-    case Lex.TAmp{}:
-      {==}
-    case Lex.TOpen{}:
-      {==}
-    case Lex.TClose{}:
-      {==}
-    case Lex.TComma{}:
-      {==}
 
 # a case pattern's arm, to the rule and to the law, from above
 law arms.up_is:

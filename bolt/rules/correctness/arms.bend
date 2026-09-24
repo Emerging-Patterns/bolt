@@ -24,12 +24,23 @@ type Arm is Data:
 type Wide is Data:
   Wide{k: U32, text: String}
 
-# `kn+p:` or `kn:`
+# a lone binder, inside `Succ{..}` or after `kn+`: a name or `_`
+def binder(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TName{}:
+      True{}
+    case Lex.TWild{}:
+      True{}
+    case other:
+      False{}
+
+# `kn+p:` (p a name or `_`) or `kn:`
 def lit.shape(rest: Tree.Node, +kk: U32, +tt: String, +line: U32, +col: U32) -> Arm:
   match rest:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +o, l, c}},
         Tree.NCons{Tree.Leaf{Lex.Tok{b, +p, l2, c2}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, s, l3, c3}}, more}}}:
-      Bool.pick(Arm, String.eq(o, "+"), APlus{kk, tt ++ "+" ++ p, line, col, T.width(tt)}, AOther{})
+      Bool.pick(Arm, Bool.and(String.eq(o, "+"), binder(b)), APlus{kk, tt ++ "+" ++ p, line, col,
+        T.width(tt)}, AOther{})
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, s, l, c}}, more}:
       ALit{kk, line, col, T.width(tt)}
     case other:
@@ -42,16 +53,6 @@ def lit.of(mm: Maybe<&2, U32>, +tt: String, +rest: Tree.Node, +line: U32, +col: 
       AOther{}
     case Some{+k}:
       lit.shape(rest, k, tt, line, col)
-
-# a lone binder inside `Succ{..}`: a name or `_`
-def binder(kk: Lex.TokKind) -> Bool:
-  match kk:
-    case Lex.TName{}:
-      True{}
-    case Lex.TWild{}:
-      True{}
-    case other:
-      False{}
 
 # a case pattern's arm
 def arm(pat: Tree.Node) -> Arm:

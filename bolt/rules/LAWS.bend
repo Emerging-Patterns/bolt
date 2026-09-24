@@ -829,12 +829,23 @@ law foreign_counts:
 # The match rules arms and twice read a case statement's pattern: its tokens
 # after `case` in the tree (T.pattern), the first match column first.
 
-# after a Nat literal, `+ p :`: the arm matches every Nat from the literal up
+# a name or `_`: what `Succ{..}` or `kn+` binds when the arm matches every Nat from there up
+def arms.binder(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TName{}:
+      True{}
+    case Lex.TWild{}:
+      True{}
+    case other:
+      False{}
+
+# after a Nat literal, `+ p :` with p a name or `_`: the arm matches every Nat
+# from the literal up
 def arms.plus(rest: Tree.Node) -> Bool:
   match rest:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +o, l, c}},
         Tree.NCons{Tree.Leaf{Lex.Tok{b, p, l2, c2}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, s, l3, c3}}, more}}}:
-      String.eq(o, "+")
+      Bool.and(String.eq(o, "+"), arms.binder(b))
     case other:
       False{}
 
@@ -842,16 +853,6 @@ def arms.plus(rest: Tree.Node) -> Bool:
 def arms.exact(rest: Tree.Node) -> Bool:
   match rest:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, s, l, c}}, more}:
-      True{}
-    case other:
-      False{}
-
-# a name or `_`: what `Succ{..}` binds when it matches every Nat from 1 up
-def arms.binder(kk: Lex.TokKind) -> Bool:
-  match kk:
-    case Lex.TName{}:
-      True{}
-    case Lex.TWild{}:
       True{}
     case other:
       False{}
