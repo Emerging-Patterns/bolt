@@ -1,3 +1,4 @@
 # metric_direction: lower_is_better
 iteration	timestamp	commit	metric	delta	guard	guard-metric	status	description
 0	2026-09-24T21:35	38da7d9	208.24	0.0	pass	-	baseline	initial state: bolt over its own tree, native, --gpu off (rules/PROOF.bend alone 180s: bind 34s, unused 135s)
+1	2026-09-24T22:40	0676e81	64.66	-143.58	pass	-	keep	unused: trie index of use targets as a sound fast path (scan only on a miss), lazily gated on reportable binders; rules/PROOF.bend unused 135s -> 0.4s
