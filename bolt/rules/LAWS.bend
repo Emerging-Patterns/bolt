@@ -4511,3 +4511,64 @@ law inert_ring:
   for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
   {Ring.check(Src.Src{path, text, toks, tree, bound, items})
     == Ring.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: arms reads what no string says: two sources as the lexer makes them
+# whose trees read the same with strings cut have the same findings
+# BOLT-RULE-INERT
+law inert_arms:
+  for +path: String
+  for text: String
+  for +tree: Tree.Node
+  for toks: List<&2, Lex.Tok>
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for +tree2: Tree.Node
+  for toks2: List<&2, Lex.Tok>
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for +ok: {inert.ok(tree) == True{} : Bool}
+  for +ok2: {inert.ok(tree2) == True{} : Bool}
+  for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  {Arms.check(Src.Src{path, text, toks, tree, bound, items})
+    == Arms.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# a binder as unused reads it: its name, position and kind, and whether its
+# note opens with `-`, and nothing else the note says
+def inert.ubind(bb: Bind.Bind) -> Bind.Bind:
+  match bb:
+    case Bind.Bind{n, l, c, k, +note}:
+      Bind.Bind{n, l, c, k, Bool.pick(String, String.starts_with(note, "-"), "-", "")}
+
+# the binders, each as unused reads it
+def inert.ubinds(bs: List<&2, Bind.Bind>) -> List<&2, Bind.Bind>:
+  match bs:
+    case Nil{}:
+      Nil{}
+    case Con{h, t}:
+      inert.ubind(h) <> inert.ubinds(t)
+
+# LAW: unused reads no comment or string: two sources whose trees read the
+# same with strings cut, with the same uses, and whose binders are alike in
+# name, position, kind and a leading `-` of their notes have the same findings
+# BOLT-RULE-INERT
+law inert_unused:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +binds: List<&2, Bind.Bind>
+  for +uses: List<&2, Bind.Use>
+  for scopes: List<&2, Bind.Scope>
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for toks2: List<&2, Lex.Tok>
+  for +tree2: Tree.Node
+  for +binds2: List<&2, Bind.Bind>
+  for scopes2: List<&2, Bind.Scope>
+  for items2: List<&2, Outline.Item>
+  for et: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  for eb: {inert.ubinds(binds) == inert.ubinds(binds2) : List<&2, Bind.Bind>}
+  {Unused.check(Src.Src{path, text, toks, tree, Bind.Bound{binds, uses, scopes}, items})
+    == Unused.check(Src.Src{path, text2, toks2, tree2, Bind.Bound{binds2, uses, scopes2}, items2})
+    : List<&2, F.Finding>}
