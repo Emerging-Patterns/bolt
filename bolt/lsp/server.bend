@@ -14,6 +14,7 @@ import ../rules.bend as Lint
 import ../finding.bend as Finding
 import ../config.bend as Config
 import ../lint/plan.bend as Plan
+import ../noqa.bend as Noqa
 import ./transport/service.bend as T
 import ./checker/answer.bend as C
 import ./checker/bend.bend as BendChecker
@@ -21,6 +22,7 @@ import ./files/service.bend as F
 import ./report.bend as Rep
 import ./enc.bend as Enc
 import ../../syntax/outline.bend as Outline
+import ../../syntax/lex.bend as Lex
 import ../../syntax/word.bend as Word
 
 # the methods the server answers; MOther is anything else
@@ -222,10 +224,15 @@ def pub.cands(cwd: String, path: String) -> List<&2, String>:
   Config.chain(Config.home(cwd, Config.dir_of(path)))
 
 # the linter's findings on the text the editor shows, at the levels the
-# nearest bolt.bend read gives them; none for a bolt.bend, which is bolt's
-# configuration, not source
+# nearest bolt.bend read gives them, less what the text's noqa comments
+# silence, then the `noqa` rule's, which judges no project rule's code (the
+# editor runs none); none for a bolt.bend, which is bolt's configuration,
+# not source
 def pub.lint(+path: String, +text: String, rs: List<&2, Maybe<&2, String>>) -> List<&2, Finding.Graded>:
-  Bool.pick(List<&2, Finding.Graded>, Plan.is_config(path), [], Lint.graded(Config.nearest(rs), Lint.all(path, text)))
+  +cfg = Config.nearest(rs)
+  Bool.pick(List<&2, Finding.Graded>, Plan.is_config(path), [],
+    Plan.after([Noqa.file(path, Lex.tokens(text))], False{}, Lint.graded(cfg, Lint.all(path, text)),
+      fs => Lint.graded(cfg, fs)))
 
 # open or save: the checker's errors with the lint of the text, the errors
 # kept for the changes after

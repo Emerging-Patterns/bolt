@@ -52,7 +52,7 @@ unset group has its default. The groups:
 |---------------|----------------------------------------------------------------------------------|---------|
 | `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign`          | error   |
 | `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` | warn    |
-| `style`       | `doc` `space` `wrap` `param`                                                     | warn    |
+| `style`       | `doc` `space` `wrap` `param` `noqa`                                              | warn    |
 | `laws`        | `coverage` `closed` `unsafe` (`trace`: opt-in)                                   | warn    |
 | `pedantic`    | `tail`                                                                           | off     |
 
@@ -64,13 +64,13 @@ The stable codes, assigned once (do not renumber):
 | C002 | `hole` | U002 | `strict` | S002 | `space` |
 | C003 | `pick` | U003 | `eager` | S003 | `wrap` |
 | C004 | `put` | U004 | `concat` | S004 | `param` |
-| C005 | `arms` | U005 | retired | L001 | `coverage` |
-| C006 | `escape` | U006 | `fuel` | L002 | `closed` |
-| C007 | `twice` | U007 | `index` | L003 | `unsafe` |
-| C008 | `strings` | U008 | `table` | L004 | retired |
-| C009 | `chars` | U009 | `hoist` | L005 | `trace` |
-| C010 | `foreign` | U010 | `ring` | P001 | `tail` |
-| | | U011 | `rewalk` | | |
+| C005 | `arms` | U005 | retired | S005 | `noqa` |
+| C006 | `escape` | U006 | `fuel` | L001 | `coverage` |
+| C007 | `twice` | U007 | `index` | L002 | `closed` |
+| C008 | `strings` | U008 | `table` | L003 | `unsafe` |
+| C009 | `chars` | U009 | `hoist` | L004 | retired |
+| C010 | `foreign` | U010 | `ring` | L005 | `trace` |
+| | | U011 | `rewalk` | P001 | `tail` |
 | | | U012 | `unit` | | |
 
 Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic.
@@ -83,6 +83,34 @@ bolt.bend turns it on. An unknown level word grades as an error, so a typo shows
 read, never linted. Without one, the defaults apply. This repo's
 [bolt.bend](../bolt.bend) sets every group to error: the gate must see
 `clean`.
+
+## Suppressing a finding
+
+A comment on a finding's own line that names its code silences it, as in
+ruff:
+
+```
+def run(args: List<String>) -> IO(Unit):  # noqa: L001 IO entry point
+```
+
+The comment is `#`, any spaces, `noqa:`, then one or more codes split by
+commas (spaces around them allowed), then any text. Codes are the stable
+ids above, case-sensitive, and a comment may name several
+(`# noqa: U002, U003`). Only a real comment counts, as the lexer reads it:
+`noqa` inside a string literal is text. The filter runs once every rule has
+run, the project rules (`coverage`, `unsafe`, `trace`) included, and a
+silenced finding is neither printed nor counted, so it changes neither the
+summary nor the exit code. No rule reads the comments: what each rule finds
+is the same with or without them. The editor applies the same filter.
+
+A noqa comment that silences nothing is itself a finding, `noqa` (S005): a
+bare `# noqa`, which names no code, and each code that silences nothing on
+its line, an unknown code included. A project rule's code is judged only
+when bolt lints the whole tree; over files named on the line, and in the
+editor, those rules see only part of the laws, so their silence proves
+nothing. `noqa` runs last, and no comment silences it (`# noqa: S005` is
+itself reported). Like any rule, `def noqa() -> String: "off"` in a
+bolt.bend turns it off.
 
 ## Rules
 
@@ -155,6 +183,12 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   letter is a type parameter (`A`, `T`), and a bare parameter or one typed
   `Quant` is a quantity. Locals, patterns and a law's `for` names are not
   parameters. A PROOF.bend's parameters are the names its law bound.
+- `noqa` — a noqa comment that silences nothing (see "Suppressing a
+  finding"): a bare `# noqa`, or a code it names that no finding of its file
+  on its line has, an unknown code included, one finding per code, at the
+  comment. It reads the other rules' graded findings, so it runs after them
+  and after the filter, and nothing silences it. A project rule's code is
+  judged only over the whole tree.
 - `pick` — a def calls itself in a branch of a `Bool.pick`. Bool.pick is a
   function: both branches run whatever the condition. In both branches, two
   recursive calls a step is 2^n work (a per-token scan took 20 s this way and
@@ -360,7 +394,8 @@ With no `--gpu` that launch is `--gpu off` (the cores); `--gpu on` or
 
 [lsp](lsp/) runs the per-file rules on each edit and publishes the
 findings at the levels the nearest `bolt.bend` gives them: errors red,
-warnings yellow, off ones not at all. A finding's code is its stable id
+warnings yellow, off ones not at all, less what the file's noqa comments
+silence, then `noqa`'s own (never on a project rule's code). A finding's code is its stable id
 (`S003`) and its source is `bolt(group:slug)` (`bolt(style:wrap)`). The project rules (`coverage`) need every
 file, so they run in bolt alone.
 

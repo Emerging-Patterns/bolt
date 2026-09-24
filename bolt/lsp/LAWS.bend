@@ -16,6 +16,7 @@ import ./proto.bend as Proto
 import ../finding.bend as F
 import ../lint/world.bend as W
 import ../lint/plan.bend as Plan
+import ../noqa.bend as Noqa
 import ./checker/argv.bend as Argv
 import ./nav.bend as Nav
 import ./files/service.bend as Fs
@@ -287,16 +288,22 @@ def pub.docs(ww: Server.Work) -> List<&2, Docs.Doc>:
 
 # the CLI's per-file findings in a run, graded the CLI's way: each source's
 # per-file rules, each finding at the level the bolt.bend nearest its path
-# gives it (BOLT-SCOPE-2 and BOLT-OUT-3 place these among the run's findings)
+# gives it (BOLT-SCOPE-2 and BOLT-OUT-3 place these among the run's
+# findings), less what the sources' noqa comments silence, then the `noqa`
+# rule's findings as the CLI reports them, judging no project rule's code
 def pub.cli(+world: W.World) -> List<&2, F.Graded>:
-  Plan.grade(Plan.confs(world), world, Plan.per_file(Plan.srcs_of(Plan.gots(Plan.inputs(world), world))))
+  +ss = Plan.srcs_of(Plan.gots(Plan.inputs(world), world))
+  +cs = Plan.confs(world)
+  Plan.after(Noqa.of_srcs(ss), False{}, Plan.grade(cs, world, Plan.per_file(ss)), fs => Plan.grade(cs, world, fs))
 
 # LAW: an open document's lint is the CLI's: over every file system and
 # working directory (a World), for a document at a path whose text the CLI
 # reads as the editor shows it, the LSP's findings on that text, graded by
 # the bolt.bend candidates it reads from that same file system and
 # directory, are exactly what `bolt <path>` grades as that file's per-file
-# findings (none for a bolt.bend, which neither lints)
+# findings, the same noqa comments silencing the same findings and `noqa`
+# reporting what the CLI reports but for a project rule's code, which the
+# editor cannot judge (none for a bolt.bend, which neither lints)
 # BOLT-LSP-2
 law lint_is_cli:
   for +world: W.World

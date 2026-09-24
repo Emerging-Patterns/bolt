@@ -13,7 +13,10 @@
 # A directory's candidates are taken once it is resolved against the World's
 # working directory (Config.home), so a relative path is graded by the same
 # bolt.bend wherever bolt runs from.
-# `wants` never parses a file; `plan` parses and lints once.
+# `wants` never parses a file; `plan` parses and lints once. Once every rule
+# has run and each finding is graded, the noqa comments (bolt/noqa.bend)
+# silence what they name, and then the `noqa` rule reports the comments that
+# silenced nothing.
 import Base
 import ../../lazy/lazy.bend as Lazy
 import ./world.bend as W
@@ -21,6 +24,8 @@ import ../finding.bend as F
 import ../src.bend as Src
 import ../rules.bend as Rules
 import ../config.bend as Config
+import ../noqa.bend as Noqa
+import ../rules/style/noqa.bend as NoqaRule
 
 # what `bolt` prints, in order, and the status it exits with
 type Plan is Data:
@@ -310,14 +315,18 @@ def per_file(ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
     case Con{s, rest}:
       List.concat(&2, F.Finding, [Rules.on(s), per_file(rest)])
 
-# every finding of every rule, ungraded: the read failures, the per-file
-# findings of each source, then the project rules' over every source, told
-# whether the run is the whole tree, and SPEC.md's text
-def found(+world: W.World) -> List<&2, F.Finding>:
-  +gs = gots(inputs(world), world)
-  +ss = srcs_of(gs)
+# every finding of every rule, ungraded, from the sources and what the World
+# answers for them: the read failures, the per-file findings of each source,
+# then the project rules' over every source, told whether the run is the
+# whole tree, and SPEC.md's text
+def found.at(+world: W.World, +gs: List<&2, Got>, +ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
   List.concat(&2, F.Finding, [unread(gs), per_file(ss),
     Rules.project(ss, List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"))])
+
+# every finding of every rule, ungraded
+def found(+world: W.World) -> List<&2, F.Finding>:
+  +gs = gots(inputs(world), world)
+  found.at(world, gs, srcs_of(gs))
 
 # ---------------------------------------------------------------------------
 # grading
@@ -375,9 +384,37 @@ def grade(+cs: List<&2, Conf>, +world: W.World, fs: List<&2, F.Finding>) -> List
       List.append(&2, F.Graded, Rules.graded(config.at(cs, world, path), [F.Finding{path, line, col, len, rule, msg}]),
         grade(cs, world, rest))
 
-# every finding of the run, graded
-def graded(+world: W.World) -> List<&2, F.Graded>:
-  grade(confs(world), world, found(world))
+# ---------------------------------------------------------------------------
+# silencing, then the `noqa` rule
+
+# the `noqa` rule's findings on each file's marks, against the graded
+# findings, each put at its file as a per-file rule's are
+def noqa(ms: List<&2, Noqa.Marks>, +whole: Bool, +gs: List<&2, F.Graded>) -> List<&2, F.Finding>:
+  match ms:
+    case Nil{}:
+      Nil{}
+    case Con{Noqa.Marks{+path, mks}, rest}:
+      List.append(&2, F.Finding, Rules.on.at(path, NoqaRule.check(mks, whole, path, gs)), noqa(rest, whole, gs))
+
+# the graded findings no mark silences, in order, then the `noqa` rule's,
+# graded by the grader given: nothing silences what `noqa` reports
+def after(
+  +ms: List<&2, Noqa.Marks>,
+  +whole: Bool,
+  +gs: List<&2, F.Graded>,
+  grader: List<&2, F.Finding> -> List<&2, F.Graded>
+) -> List<&2, F.Graded>:
+  List.append(&2, F.Graded, Noqa.keep(ms, gs), grader(noqa(ms, whole, gs)))
+
+# every finding of the run, graded, then silenced by the marks of the
+# sources, then `noqa`'s own, which judges a project rule's code only when
+# the run is the whole tree. The sources are parsed once for both.
+def final(+world: W.World) -> List<&2, F.Graded>:
+  +gs = gots(inputs(world), world)
+  +ss = srcs_of(gs)
+  +cs = confs(world)
+  after(Noqa.of_srcs(ss), List.is_empty(&2, String, W.paths.of(world)), grade(cs, world, found.at(world, gs, ss)),
+    fs => grade(cs, world, fs))
 
 # ---------------------------------------------------------------------------
 # the plan
@@ -444,8 +481,8 @@ def show_all(gs: List<&2, F.Graded>) -> List<&2, String>:
     case Con{g, rest}:
       F.show_graded(g) <> show_all(rest)
 
-# `bolt` over a World: every graded finding as a line, then the summary, and
-# exit 1 exactly when one is an error
+# `bolt` over a World: every graded finding no mark silences as a line, then
+# `noqa`'s, then the summary of those, and exit 1 exactly when one is an error
 def plan(+world: W.World) -> Plan:
-  +gs = graded(world)
+  +gs = final(world)
   Plan{List.append(&2, String, show_all(gs), [summary(gs)]), Bool.pick(U32, has_error(gs), 1, 0)}

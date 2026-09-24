@@ -7,6 +7,10 @@ import ./rules.bend as Rules
 import ./src.bend as Src
 import ./lint/world.bend as W
 import ./lint/plan.bend as Plan
+import ./noqa.bend as Noqa
+import ./rules/style/noqa.bend as NoqaRule
+import ./codes.bend as Codes
+import ../syntax/lex.bend as Lex
 import ./rules/digest.bend as Digest
 import ./rules/laws/law.bend as Law
 import ./args.bend as Args
@@ -201,7 +205,9 @@ def Laws.slug_finds_row(n):
       {==}
     case 28n:
       {==}
-    case 29n+_p:
+    case 29n:
+      {==}
+    case 30n+_p:
       {==}
 
 # the same arms, looked up by code
@@ -265,7 +271,9 @@ def Laws.code_finds_row(n):
       {==}
     case 28n:
       {==}
-    case 29n+_p:
+    case 29n:
+      {==}
+    case 30n+_p:
       {==}
 
 def Laws.shown(_path, _line, _col, _len, _rule, _msg, _level):
@@ -580,15 +588,43 @@ def lint.grade(cs, world, fs):
         F.Finding{path, line, col, len, rule, msg}, Plan.grade(cs, world, tl), Laws.graded_by(cs, world, tl),
         lint.grade(cs, world, tl))
 
-# the planner's graded findings are the run's
+# the planner's graded findings, before any mark is read, are the run's
 law lint.graded:
   for +world: W.World
-  {Plan.graded(world) == Laws.run_graded(world) : List<&2, F.Graded>}
+  {Plan.grade(Plan.confs(world), world, Plan.found(world)) == Laws.run_raw(world) : List<&2, F.Graded>}
 
 def lint.graded(world):
   e = Equal.sym(List<&2, F.Finding>, Plan.found(world), Laws.in_scope(world), Laws.scope_findings(world))
-  %e : {Plan.grade(Plan.confs(world), world, _) == Laws.run_graded(world) : List<&2, F.Graded>}
+  %e : {Plan.grade(Plan.confs(world), world, _) == Laws.run_raw(world) : List<&2, F.Graded>}
   lint.grade(Plan.confs(world), world, Laws.in_scope(world))
+
+# the planner's final findings, the marks read and `noqa` run, are the run's
+law lint.final:
+  for +world: W.World
+  {Plan.final(world) == Laws.run_graded(world) : List<&2, F.Graded>}
+
+def lint.final(world):
+  e = Equal.sym(List<&2, F.Graded>, Plan.grade(Plan.confs(world), world, Plan.found(world)), Laws.run_raw(world),
+    lint.graded(world))
+  %e : {List.append(&2, F.Graded, Noqa.keep(Noqa.of_srcs(Plan.srcs_of(Plan.gots(Plan.inputs(world), world))), _),
+      Plan.grade(Plan.confs(world), world,
+        Plan.noqa(Noqa.of_srcs(Plan.srcs_of(Plan.gots(Plan.inputs(world), world))),
+          List.is_empty(&2, String, W.paths.of(world)), _)))
+    == Laws.run_graded(world) : List<&2, F.Graded>}
+  c = Equal.sym(List<&2, Src.Src>, Plan.srcs_of(Plan.gots(Plan.inputs(world), world)),
+    Laws.parsed_all(world, Plan.inputs(world)), lint.parsed(Plan.inputs(world), world))
+  %c : {List.append(&2, F.Graded, Noqa.keep(Noqa.of_srcs(_), Laws.run_raw(world)),
+      Plan.grade(Plan.confs(world), world,
+        Plan.noqa(Noqa.of_srcs(_), List.is_empty(&2, String, W.paths.of(world)), Laws.run_raw(world))))
+    == Laws.run_graded(world) : List<&2, F.Graded>}
+  Equal.cong(List<&2, F.Graded>, List<&2, F.Graded>,
+    rr => List.append(&2, F.Graded, Noqa.keep(Laws.marks_all(world), Laws.run_raw(world)), rr),
+    Plan.grade(Plan.confs(world), world,
+      Plan.noqa(Laws.marks_all(world), List.is_empty(&2, String, W.paths.of(world)), Laws.run_raw(world))),
+    Laws.graded_by(Plan.confs(world), world,
+      Plan.noqa(Laws.marks_all(world), List.is_empty(&2, String, W.paths.of(world)), Laws.run_raw(world))),
+    lint.grade(Plan.confs(world), world,
+      Plan.noqa(Laws.marks_all(world), List.is_empty(&2, String, W.paths.of(world)), Laws.run_raw(world))))
 
 # each graded finding is its line
 law lint.shown:
@@ -709,7 +745,7 @@ def lint.has_error(gs):
       lint.has_error.step(ll, Plan.has_error(tl), Laws.any_error(tl), lint.has_error(tl))
 
 def Laws.lines_in_order(world):
-  e = Equal.sym(List<&2, F.Graded>, Plan.graded(world), Laws.run_graded(world), lint.graded(world))
+  e = Equal.sym(List<&2, F.Graded>, Plan.final(world), Laws.run_graded(world), lint.final(world))
   %e : {List.append(&2, String, Plan.show_all(_), [Plan.summary(_)]) == Laws.out_lines(world) : List<&2, String>}
   s = Equal.sym(List<&2, String>, Plan.show_all(Laws.run_graded(world)), Laws.shown_all(Laws.run_graded(world)),
     lint.shown(Laws.run_graded(world)))
@@ -755,7 +791,7 @@ def Laws.last_line_summary(world):
   lint.last(Laws.shown_all(Laws.run_graded(world)), Laws.summary_of(Laws.run_graded(world)))
 
 def Laws.exit_on_error(world):
-  e = Equal.sym(List<&2, F.Graded>, Plan.graded(world), Laws.run_graded(world), lint.graded(world))
+  e = Equal.sym(List<&2, F.Graded>, Plan.final(world), Laws.run_graded(world), lint.final(world))
   %e : {Bool.pick(U32, Plan.has_error(_), 1, 0) == Bool.pick(U32, Laws.any_error(Laws.run_graded(world)), 1, 0) : U32}
   h = Equal.sym(Bool, Plan.has_error(Laws.run_graded(world)), Laws.any_error(Laws.run_graded(world)),
     lint.has_error(Laws.run_graded(world)))
@@ -3438,3 +3474,387 @@ def Laws.check_own_marked(names, path, parts, name, span, note, own, some, flat,
       flat, fits),
     mk.own.at(Laws.chk.own(names, name), own, U32.is_eq(Laws.chk.marks(Some{span}), 0), some, path, name,
       Laws.chk.marks(Some{span}), String.join(Laws.chk.texts(parts), "\n")))
+
+# silencing and the `noqa` rule (BOLT-OUT-7, BOLT-RULE-S005)
+# ----------------------------------
+
+# one token onto the marks: a comment's mark is read alike on both sides,
+# and any other token has none
+law nqp.comments.at:
+  for k: Lex.TokKind
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for +rest: List<&2, Lex.Tok>
+  for ih: {Noqa.marks(rest) == Noqa.marks(Laws.nq.comments(rest)) : List<&2, Noqa.Mark>}
+  {Noqa.marks(Lex.Tok{k, t, l, c} <> rest) == Noqa.marks(Laws.nq.comments(Lex.Tok{k, t, l, c} <> rest))
+    : List<&2, Noqa.Mark>}
+
+def nqp.comments.at(k, t, l, c, rest, ih):
+  match k:
+    case Lex.TComment{}:
+      Equal.cong(List<&2, Noqa.Mark>, List<&2, Noqa.Mark>,
+        rr => List.append(&2, Noqa.Mark, Noqa.mark.text(l, c, U32.from_nat(String.length(t)), t), rr),
+        Noqa.marks(rest), Noqa.marks(Laws.nq.comments(rest)), ih)
+    case Lex.TName{}:
+      ih
+    case Lex.TUpper{}:
+      ih
+    case Lex.TDotted{}:
+      ih
+    case Lex.TWild{}:
+      ih
+    case Lex.TKey{}:
+      ih
+    case Lex.TNum{}:
+      ih
+    case Lex.TStr{}:
+      ih
+    case Lex.TChar{}:
+      ih
+    case Lex.TSpace{}:
+      ih
+    case Lex.TNewline{}:
+      ih
+    case Lex.TOp{}:
+      ih
+    case Lex.TColon{}:
+      ih
+    case Lex.TEq{}:
+      ih
+    case Lex.TBind{}:
+      ih
+    case Lex.TArrow{}:
+      ih
+    case Lex.TLam{}:
+      ih
+    case Lex.TAll{}:
+      ih
+    case Lex.TAmp{}:
+      ih
+    case Lex.TOpen{}:
+      ih
+    case Lex.TClose{}:
+      ih
+    case Lex.TComma{}:
+      ih
+
+def Laws.noqa_comments(toks):
+  match toks:
+    case Nil{}:
+      {==}
+    case Con{Lex.Tok{k, +t, +l, +c}, +rest}:
+      nqp.comments.at(k, t, l, c, rest, Laws.noqa_comments(rest))
+
+# spaces then any text: the leading spaces are skipped
+law nqp.lead:
+  for n: Nat
+  for +w: String
+  {Noqa.lead(Laws.nq.spaces(n) ++ w) == Noqa.lead(w) : String}
+
+def nqp.lead(n, w):
+  match n:
+    case 0n:
+      {==}
+    case 1n+p:
+      nqp.lead(p, w)
+
+# spaces, a word, then any text: the leading spaces are skipped
+law nqp.lead3:
+  for n: Nat
+  for +w: String
+  for +tt: String
+  {Noqa.lead(Laws.nq.spaces(n) ++ w ++ tt) == Noqa.lead(w ++ tt) : String}
+
+def nqp.lead3(n, w, tt):
+  match n:
+    case 0n:
+      {==}
+    case 1n+p:
+      nqp.lead3(p, w, tt)
+
+def Laws.noqa_codes(line, col, len, n, tt):
+  Equal.cong(String, List<&2, Noqa.Mark>, ss => Noqa.mark.word(line, col, len, ss),
+    Noqa.lead(Laws.nq.spaces(n) ++ "noqa:" ++ tt), Noqa.lead("noqa:" ++ tt), nqp.lead3(n, "noqa:", tt))
+
+def Laws.noqa_bare(line, col, len, n):
+  Equal.cong(String, List<&2, Noqa.Mark>, ss => Noqa.mark.word(line, col, len, ss),
+    Noqa.lead(Laws.nq.spaces(n) ++ "noqa"), Noqa.lead("noqa"), nqp.lead(n, "noqa"))
+
+def Laws.noqa_bare_text(line, col, len, n, tt):
+  Equal.cong(String, List<&2, Noqa.Mark>, ss => Noqa.mark.word(line, col, len, ss),
+    Noqa.lead(Laws.nq.spaces(n) ++ "noqa " ++ tt), Noqa.lead("noqa " ++ tt), nqp.lead3(n, "noqa ", tt))
+
+# an early exit is the strict or, once its thunk's value is the other side
+law nqp.or_else:
+  for a: Bool
+  for -x: Bool
+  for -y: Bool
+  for e: {x == y : Bool}
+  {Lazy.or_else(a, _u => x) == Bool.or(a, y) : Bool}
+
+def nqp.or_else(a, _x, _y, e):
+  match a:
+    case True{}:
+      {==}
+    case False{}:
+      e
+
+# an early exit is the strict and, once its thunk's value is the other side
+law nqp.and_then:
+  for a: Bool
+  for -x: Bool
+  for -y: Bool
+  for e: {x == y : Bool}
+  {Lazy.and_then(a, _u => x) == Bool.and(a, y) : Bool}
+
+def nqp.and_then(a, _x, _y, e):
+  match a:
+    case True{}:
+      e
+    case False{}:
+      {==}
+
+# an early-exit or over a condition equal to the strict one's
+law nqp.or2:
+  for -a: Bool
+  for b: Bool
+  for -x: Bool
+  for -y: Bool
+  for ea: {a == b : Bool}
+  for ex: {x == y : Bool}
+  {Lazy.or_else(a, _u => x) == Bool.or(b, y) : Bool}
+
+def nqp.or2(a, b, x, y, ea, ex):
+  e = Equal.sym(Bool, a, b, ea)
+  %e : {Lazy.or_else(_, _u => x) == Bool.or(b, y) : Bool}
+  nqp.or_else(b, x, y, ex)
+
+# an early-exit and over a condition equal to the strict one's
+law nqp.and2:
+  for -a: Bool
+  for b: Bool
+  for -x: Bool
+  for -y: Bool
+  for ea: {a == b : Bool}
+  for ex: {x == y : Bool}
+  {Lazy.and_then(a, _u => x) == Bool.and(b, y) : Bool}
+
+def nqp.and2(a, b, x, y, ea, ex):
+  e = Equal.sym(Bool, a, b, ea)
+  %e : {Lazy.and_then(_, _u => x) == Bool.and(b, y) : Bool}
+  nqp.and_then(b, x, y, ex)
+
+# the filter's search of a mark's codes is the spec's
+law nqp.named:
+  for cs: List<&2, String>
+  for +code: String
+  {Noqa.named(cs, code) == Laws.nq.has(cs, code) : Bool}
+
+def nqp.named(cs, code):
+  match cs:
+    case Nil{}:
+      {==}
+    case Con{+c, +rest}:
+      nqp.or_else(String.eq(c, code), Noqa.named(rest, code), Laws.nq.has(rest, code), nqp.named(rest, code))
+
+# the filter's search of a file's marks is the spec's
+law nqp.on_line:
+  for mks: List<&2, Noqa.Mark>
+  for +line: U32
+  for +code: String
+  {Noqa.on_line(mks, line, code) == Laws.nq.on(mks, line, code) : Bool}
+
+def nqp.on_line(mks, line, code):
+  match mks:
+    case Nil{}:
+      {==}
+    case Con{Noqa.Mark{+l, _col, _len, +cs}, +rest}:
+      nqp.or2(Lazy.and_then(U32.is_eq(l, line), _u => Noqa.named(cs, code)),
+        Bool.and(U32.is_eq(l, line), Laws.nq.has(cs, code)),
+        Noqa.on_line(rest, line, code), Laws.nq.on(rest, line, code),
+        nqp.and_then(U32.is_eq(l, line), Noqa.named(cs, code), Laws.nq.has(cs, code), nqp.named(cs, code)),
+        nqp.on_line(rest, line, code))
+
+# the filter's search of every file's marks is the spec's
+law nqp.silenced:
+  for ms: List<&2, Noqa.Marks>
+  for +path: String
+  for +line: U32
+  for +code: String
+  {Noqa.silenced(ms, path, line, code) == Laws.nq.named(ms, path, line, code) : Bool}
+
+def nqp.silenced(ms, path, line, code):
+  match ms:
+    case Nil{}:
+      {==}
+    case Con{Noqa.Marks{+p, +mks}, +rest}:
+      nqp.or2(Lazy.and_then(String.eq(p, path), _u => Noqa.on_line(mks, line, code)),
+        Bool.and(String.eq(p, path), Laws.nq.on(mks, line, code)),
+        Noqa.silenced(rest, path, line, code), Laws.nq.named(rest, path, line, code),
+        nqp.and_then(String.eq(p, path), Noqa.on_line(mks, line, code), Laws.nq.on(mks, line, code),
+          nqp.on_line(mks, line, code)),
+        nqp.silenced(rest, path, line, code))
+
+def Laws.noqa_keeps(ms, gs):
+  match gs:
+    case Nil{}:
+      {==}
+    case Con{F.Graded{+ll, F.Finding{+path, +line, +col, +len, +rule, +msg}}, +rest}:
+      e = Equal.sym(Bool, Noqa.silenced(ms, path, line, Codes.code(rule)),
+        Laws.nq.named(ms, path, line, Codes.code(rule)), nqp.silenced(ms, path, line, Codes.code(rule)))
+      %e : {Bool.pick(List<&2, F.Graded>, _, Noqa.keep(ms, rest),
+          F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> Noqa.keep(ms, rest))
+        == Laws.nq.kept(ms, F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> rest) : List<&2, F.Graded>}
+      h = Equal.sym(List<&2, F.Graded>, Noqa.keep(ms, rest), Laws.nq.kept(ms, rest), Laws.noqa_keeps(ms, rest))
+      %h : {Bool.pick(List<&2, F.Graded>, Laws.nq.named(ms, path, line, Codes.code(rule)), _,
+          F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> _)
+        == Laws.nq.kept(ms, F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> rest) : List<&2, F.Graded>}
+      {==}
+
+# the length of two lists joined is the sum of theirs
+law nqp.len_app:
+  for xs: List<&2, F.Finding>
+  for +ys: List<&2, F.Finding>
+  {List.length(&2, F.Finding, List.append(&2, F.Finding, xs, ys))
+    == Nat.add(List.length(&2, F.Finding, xs), List.length(&2, F.Finding, ys)) : Nat}
+
+def nqp.len_app(xs, ys):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{_h, +t}:
+      Equal.cong(Nat, Nat, m => 1n+m, List.length(&2, F.Finding, List.append(&2, F.Finding, t, ys)),
+        Nat.add(List.length(&2, F.Finding, t), List.length(&2, F.Finding, ys)), nqp.len_app(t, ys))
+
+# a finding put onto the rest, or not, counts one or none
+law nqp.len_pick:
+  for bb: Bool
+  for -ff: F.Finding
+  for -more: List<&2, F.Finding>
+  for -m: Nat
+  for ih: {List.length(&2, F.Finding, more) == m : Nat}
+  {List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, bb, ff <> more, more))
+    == Bool.pick(Nat, bb, 1n+m, m) : Nat}
+
+def nqp.len_pick(bb, _ff, more, m, ih):
+  match bb:
+    case True{}:
+      Equal.cong(Nat, Nat, k => 1n+k, List.length(&2, F.Finding, more), m, ih)
+    case False{}:
+      ih
+
+# the rule's search of the graded findings is the spec's
+law nqp.used:
+  for gs: List<&2, F.Graded>
+  for +path: String
+  for +line: U32
+  for +code: String
+  {NoqaRule.used(gs, path, line, code) == Laws.nq.used(gs, path, line, code) : Bool}
+
+def nqp.used(gs, path, line, code):
+  match gs:
+    case Nil{}:
+      {==}
+    case Con{F.Graded{_ll, F.Finding{+p, +l, _col, _len, +rule, _msg}}, +rest}:
+      nqp.or2(
+        Lazy.and_then(String.eq(p, path),
+          _u => Lazy.and_then(U32.is_eq(l, line), _v => String.eq(Codes.code(rule), code))),
+        Bool.and(String.eq(p, path), Bool.and(U32.is_eq(l, line), String.eq(Codes.code(rule), code))),
+        NoqaRule.used(rest, path, line, code), Laws.nq.used(rest, path, line, code),
+        nqp.and_then(String.eq(p, path), Lazy.and_then(U32.is_eq(l, line), _v => String.eq(Codes.code(rule), code)),
+          Bool.and(U32.is_eq(l, line), String.eq(Codes.code(rule), code)),
+          nqp.and_then(U32.is_eq(l, line), String.eq(Codes.code(rule), code), String.eq(Codes.code(rule), code),
+            {==})),
+        nqp.used(rest, path, line, code))
+
+# the rule's project codes are the spec's: `coverage`, `unsafe`, `trace`
+law nqp.project:
+  for +code: String
+  {NoqaRule.project(code) == Laws.nq.project(code) : Bool}
+
+def nqp.project(code):
+  nqp.or_else(String.eq(code, Codes.code("coverage")),
+    Lazy.or_else(String.eq(code, Codes.code("unsafe")), _v => String.eq(code, Codes.code("trace"))),
+    Bool.or(String.eq(code, "L003"), String.eq(code, "L005")),
+    nqp.or_else(String.eq(code, Codes.code("unsafe")), String.eq(code, Codes.code("trace")),
+      String.eq(code, "L005"), {==}))
+
+# the rule's test of a code is the spec's: judged, and silencing nothing
+law nqp.bad:
+  for +whole: Bool
+  for +c: String
+  for +path: String
+  for +line: U32
+  for +gs: List<&2, F.Graded>
+  {Lazy.and_then(NoqaRule.judged(whole, c), _u => Bool.not(NoqaRule.used(gs, path, line, c)))
+    == Bool.and(Bool.or(whole, Bool.not(Laws.nq.project(c))), Bool.not(Laws.nq.used(gs, path, line, c))) : Bool}
+
+def nqp.bad(whole, c, path, line, gs):
+  nqp.and2(NoqaRule.judged(whole, c), Bool.or(whole, Bool.not(Laws.nq.project(c))),
+    Bool.not(NoqaRule.used(gs, path, line, c)), Bool.not(Laws.nq.used(gs, path, line, c)),
+    nqp.or_else(whole, Bool.not(NoqaRule.project(c)), Bool.not(Laws.nq.project(c)),
+      Equal.cong(Bool, Bool, bb => Bool.not(bb), NoqaRule.project(c), Laws.nq.project(c), nqp.project(c))),
+    Equal.cong(Bool, Bool, bb => Bool.not(bb), NoqaRule.used(gs, path, line, c), Laws.nq.used(gs, path, line, c),
+      nqp.used(gs, path, line, c)))
+
+# a mark's codes: one finding per code the spec counts
+law nqp.codes:
+  for cs: List<&2, String>
+  for +whole: Bool
+  for +path: String
+  for +line: U32
+  for +col: U32
+  for +len: U32
+  for +gs: List<&2, F.Graded>
+  {List.length(&2, F.Finding, NoqaRule.check.codes(cs, whole, path, line, col, len, gs))
+    == Laws.nq.unused(cs, whole, path, line, gs) : Nat}
+
+def nqp.codes(cs, whole, path, line, col, len, gs):
+  match cs:
+    case Nil{}:
+      {==}
+    case Con{+c, +rest}:
+      e = Equal.sym(Bool,
+        Lazy.and_then(NoqaRule.judged(whole, c), _u => Bool.not(NoqaRule.used(gs, path, line, c))),
+        Bool.and(Bool.or(whole, Bool.not(Laws.nq.project(c))), Bool.not(Laws.nq.used(gs, path, line, c))),
+        nqp.bad(whole, c, path, line, gs))
+      %e : {List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, _,
+          F.Finding{path, line, col, len, "noqa", NoqaRule.say(c)}
+            <> NoqaRule.check.codes(rest, whole, path, line, col, len, gs),
+          NoqaRule.check.codes(rest, whole, path, line, col, len, gs)))
+        == Laws.nq.unused(c <> rest, whole, path, line, gs) : Nat}
+      nqp.len_pick(Bool.and(Bool.or(whole, Bool.not(Laws.nq.project(c))), Bool.not(Laws.nq.used(gs, path, line, c))),
+        F.Finding{path, line, col, len, "noqa", NoqaRule.say(c)},
+        NoqaRule.check.codes(rest, whole, path, line, col, len, gs), Laws.nq.unused(rest, whole, path, line, gs),
+        nqp.codes(rest, whole, path, line, col, len, gs))
+
+# a mark: one finding when bare, else the spec's count of its codes
+law nqp.mark:
+  for mk: Noqa.Mark
+  for +whole: Bool
+  for +path: String
+  for +gs: List<&2, F.Graded>
+  {List.length(&2, F.Finding, NoqaRule.check.mark(mk, whole, path, gs)) == Laws.nq.earns(mk, whole, path, gs) : Nat}
+
+def nqp.mark(mk, whole, path, gs):
+  match mk:
+    case Noqa.Mark{_line, _col, _len, Nil{}}:
+      {==}
+    case Noqa.Mark{+line, +col, +len, Con{+c, +rest}}:
+      nqp.codes(c <> rest, whole, path, line, col, len, gs)
+
+def Laws.noqa_counts(mks, whole, path, gs):
+  match mks:
+    case Nil{}:
+      {==}
+    case Con{+mk, +rest}:
+      e1 = nqp.mark(mk, whole, path, gs)
+      %e1 : {List.length(&2, F.Finding, List.append(&2, F.Finding, NoqaRule.check.mark(mk, whole, path, gs),
+          NoqaRule.check(rest, whole, path, gs)))
+        == Nat.add(_, Laws.nq.count(rest, whole, path, gs)) : Nat}
+      e2 = Laws.noqa_counts(rest, whole, path, gs)
+      %e2 : {List.length(&2, F.Finding, List.append(&2, F.Finding, NoqaRule.check.mark(mk, whole, path, gs),
+          NoqaRule.check(rest, whole, path, gs)))
+        == Nat.add(List.length(&2, F.Finding, NoqaRule.check.mark(mk, whole, path, gs)), _) : Nat}
+      nqp.len_app(NoqaRule.check.mark(mk, whole, path, gs), NoqaRule.check(rest, whole, path, gs))

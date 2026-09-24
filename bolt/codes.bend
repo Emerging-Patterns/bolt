@@ -38,6 +38,7 @@ def table() -> List<&2, Entry>:
     Entry{"space", "S002", "style"},
     Entry{"wrap", "S003", "style"},
     Entry{"param", "S004", "style"},
+    Entry{"noqa", "S005", "style"},
     Entry{"coverage", "L001", "laws"},
     Entry{"closed", "L002", "laws"},
     Entry{"unsafe", "L003", "laws"},

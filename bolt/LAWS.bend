@@ -14,6 +14,9 @@ import ./rules/laws/unsafe.bend as Unsafe
 import ./rules/laws/trace.bend as Trace
 import ./lint/world.bend as W
 import ./lint/plan.bend as Plan
+import ./noqa.bend as Noqa
+import ./rules/style/noqa.bend as NoqaRule
+import ../syntax/lex.bend as Lex
 import ./args.bend as Args
 import ./version.bend as Ver
 import ./build_rev.bend as Rev
@@ -417,10 +420,25 @@ def any_error(gs: List<&2, F.Graded>) -> Bool:
     case Con{F.Graded{ll, _ff}, rest}:
       any_error.one(ll, any_error(rest))
 
-# a run's graded findings: the planner's config for each path, over the
-# findings in the order in_scope lists them
-def run_graded(+world: W.World) -> List<&2, F.Graded>:
+# a run's graded findings before any noqa comment is read: the planner's
+# config for each path, over the findings in the order in_scope lists them
+def run_raw(+world: W.World) -> List<&2, F.Graded>:
   graded_by(Plan.confs(world), world, in_scope(world))
+
+# the noqa marks of every source the World holds a text for, in file-list
+# order, each read from its own file's tokens
+def marks_all(+world: W.World) -> List<&2, Noqa.Marks>:
+  Noqa.of_srcs(parsed_all(world, Plan.inputs(world)))
+
+# a run's graded findings: the ones no mark silences (noqa_keeps says which
+# those are), in order, then the `noqa` rule's findings on every mark,
+# graded by the config of their paths and silenced by none; `noqa` judges a
+# project rule's code only when the run is the whole tree
+def run_graded(+world: W.World) -> List<&2, F.Graded>:
+  +ms = marks_all(world)
+  +gs = run_raw(world)
+  List.append(&2, F.Graded, Noqa.keep(ms, gs),
+    graded_by(Plan.confs(world), world, Plan.noqa(ms, List.is_empty(&2, String, W.paths.of(world)), gs)))
 
 # the lines a run prints: each graded finding, in order, then the summary
 def out_lines(+world: W.World) -> List<&2, String>:
@@ -429,23 +447,28 @@ def out_lines(+world: W.World) -> List<&2, String>:
 
 # LAW: `bolt` prints the read failures, then the per-file findings in
 # file-list order and `Rules.on` order, then coverage, unsafe and trace, each
-# graded finding as one line and the ones at off dropped, then the summary
+# graded finding as one line, the ones at off dropped and the ones a noqa
+# comment on their line names dropped, then `noqa`'s findings, then the
+# summary
 # BOLT-OUT-3
+# BOLT-OUT-7
 law lines_in_order:
   for +world: W.World
   {Plan.lines.of(Plan.plan(world)) == out_lines(world) : List<&2, String>}
 
 # LAW: the last line is `clean` or `N errors, M warnings` for the graded
-# findings
+# findings no noqa comment silenced, `noqa`'s own included
 # BOLT-OUT-4
+# BOLT-OUT-7
 law last_line_summary:
   for +world: W.World
   {List.last(&2, String, Plan.lines.of(Plan.plan(world))) == Some{summary_of(run_graded(world))}
     : Maybe<&2, String>}
 
 # LAW: the exit status is 1 exactly when some graded finding is an error,
-# and 0 otherwise
+# and 0 otherwise, a silenced finding counting for nothing
 # BOLT-OUT-4
+# BOLT-OUT-7
 law exit_on_error:
   for +world: W.World
   {Plan.exit.of(Plan.plan(world)) == Bool.pick(U32, any_error(run_graded(world)), 1, 0) : U32}
@@ -488,6 +511,174 @@ law read_is_correctness:
   {Rules.graded(cfg, [F.Finding{path, line, col, len, "read", msg}])
     == keep(Config.level(cfg, "correctness", "read"), F.Finding{path, line, col, len, "read", msg}, [])
     : List<&2, F.Graded>}
+
+# Silencing (BOLT-OUT-7, BOLT-RULE-S005). A noqa comment is read from the
+# lexer's comment tokens alone, and silences a finding when it sits on the
+# finding's line in the finding's file and names the finding's code. The
+# `noqa` rule then reports each bare comment and each code that silenced
+# nothing. The specs below are written apart from bolt/noqa.bend and
+# rules/style/noqa.bend: strict Bool.and/Bool.or folds where those stop early.
+
+# only comment tokens: every other token dropped. Law vocabulary.
+def nq.comments(toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
+  match toks:
+    case Nil{}:
+      Nil{}
+    case Con{Lex.Tok{Lex.TComment{}, t, l, c}, rest}:
+      Lex.Tok{Lex.TComment{}, t, l, c} <> nq.comments(rest)
+    case Con{_tk, rest}:
+      nq.comments(rest)
+
+# LAW: a file's noqa marks are read from its comment tokens alone: dropping
+# every other token (strings, names, everything that is code) changes none,
+# so a `noqa` inside a string literal is never one
+# BOLT-OUT-7
+law noqa_comments:
+  for toks: List<&2, Lex.Tok>
+  {Noqa.marks(toks) == Noqa.marks(nq.comments(toks)) : List<&2, Noqa.Mark>}
+
+# n spaces. Law vocabulary.
+def nq.spaces(nn: Nat) -> String:
+  match nn:
+    case 0n:
+      ""
+    case 1n+p:
+      SCon{' ', nq.spaces(p)}
+
+# LAW: a comment that is `#`, any number of spaces, `noqa:` and then any
+# text is one mark, at the comment, naming the codes that text lists
+# BOLT-OUT-7
+law noqa_codes:
+  for line: U32
+  for col: U32
+  for len: U32
+  for n: Nat
+  for tt: String
+  {Noqa.mark.text(line, col, len, "#" ++ nq.spaces(n) ++ "noqa:" ++ tt) == [Noqa.Mark{line, col, len, Noqa.codes(tt)}]
+    : List<&2, Noqa.Mark>}
+
+# LAW: a comment that is `#`, any number of spaces and `noqa` is one bare
+# mark, naming no code
+# BOLT-OUT-7
+# BOLT-RULE-S005
+law noqa_bare:
+  for line: U32
+  for col: U32
+  for len: U32
+  for n: Nat
+  {Noqa.mark.text(line, col, len, "#" ++ nq.spaces(n) ++ "noqa") == [Noqa.Mark{line, col, len, []}]
+    : List<&2, Noqa.Mark>}
+
+# LAW: a comment that is `#`, any number of spaces, `noqa`, a space and then
+# any text is one bare mark, naming no code, whatever the text says
+# BOLT-OUT-7
+# BOLT-RULE-S005
+law noqa_bare_text:
+  for line: U32
+  for col: U32
+  for len: U32
+  for n: Nat
+  for tt: String
+  {Noqa.mark.text(line, col, len, "#" ++ nq.spaces(n) ++ "noqa " ++ tt) == [Noqa.Mark{line, col, len, []}]
+    : List<&2, Noqa.Mark>}
+
+# the codes hold this one
+def nq.has(cs: List<&2, String>, +code: String) -> Bool:
+  match cs:
+    case Nil{}:
+      False{}
+    case Con{c, rest}:
+      Bool.or(String.eq(c, code), nq.has(rest, code))
+
+# some mark on the line names the code
+def nq.on(mks: List<&2, Noqa.Mark>, +line: U32, +code: String) -> Bool:
+  match mks:
+    case Nil{}:
+      False{}
+    case Con{Noqa.Mark{l, _col, _len, cs}, rest}:
+      Bool.or(Bool.and(U32.is_eq(l, line), nq.has(cs, code)), nq.on(rest, line, code))
+
+# some mark of the file at the path, on the line, names the code
+def nq.named(ms: List<&2, Noqa.Marks>, +path: String, +line: U32, +code: String) -> Bool:
+  match ms:
+    case Nil{}:
+      False{}
+    case Con{Noqa.Marks{p, mks}, rest}:
+      Bool.or(Bool.and(String.eq(p, path), nq.on(mks, line, code)), nq.named(rest, path, line, code))
+
+# a graded finding kept onto the rest, unless a mark names it
+def nq.kept.one(+ms: List<&2, Noqa.Marks>, gg: F.Graded, +rest: List<&2, F.Graded>) -> List<&2, F.Graded>:
+  F.Graded{ll, F.Finding{+path, +line, col, len, +rule, msg}} = gg
+  Bool.pick(List<&2, F.Graded>, nq.named(ms, path, line, Codes.code(rule)), rest,
+    F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> rest)
+
+# the graded findings no mark names, in order
+def nq.kept(+ms: List<&2, Noqa.Marks>, gs: List<&2, F.Graded>) -> List<&2, F.Graded>:
+  match gs:
+    case Nil{}:
+      Nil{}
+    case Con{g, rest}:
+      nq.kept.one(ms, g, nq.kept(ms, rest))
+
+# LAW: the filter keeps exactly the graded findings that no mark of their own
+# file, on their own line, names by their code, in order, and drops the rest
+# BOLT-OUT-7
+law noqa_keeps:
+  for +ms: List<&2, Noqa.Marks>
+  for gs: List<&2, F.Graded>
+  {Noqa.keep(ms, gs) == nq.kept(ms, gs) : List<&2, F.Graded>}
+
+# some graded finding at the path, on the line, has the code
+def nq.used(gs: List<&2, F.Graded>, +path: String, +line: U32, +code: String) -> Bool:
+  match gs:
+    case Nil{}:
+      False{}
+    case Con{F.Graded{_ll, F.Finding{p, l, _col, _len, rule, _msg}}, rest}:
+      Bool.or(Bool.and(String.eq(p, path), Bool.and(U32.is_eq(l, line), String.eq(Codes.code(rule), code))),
+        nq.used(rest, path, line, code))
+
+# a project rule's code: `coverage`, `unsafe` or `trace`'s
+def nq.project(+code: String) -> Bool:
+  Bool.or(String.eq(code, "L001"), Bool.or(String.eq(code, "L003"), String.eq(code, "L005")))
+
+# how many of a mark's codes the run judges (any over the whole tree, no
+# project rule's otherwise) and silence nothing on its line
+def nq.unused(cs: List<&2, String>, +whole: Bool, +path: String, +line: U32, +gs: List<&2, F.Graded>) -> Nat:
+  match cs:
+    case Nil{}:
+      0n
+    case Con{+c, rest}:
+      +m = nq.unused(rest, whole, path, line, gs)
+      Bool.pick(Nat, Bool.and(Bool.or(whole, Bool.not(nq.project(c))), Bool.not(nq.used(gs, path, line, c))),
+        1n+m, m)
+
+# how many findings a mark earns: one when bare, else one per code unused
+def nq.earns(mk: Noqa.Mark, +whole: Bool, +path: String, +gs: List<&2, F.Graded>) -> Nat:
+  match mk:
+    case Noqa.Mark{_line, _col, _len, Nil{}}:
+      1n
+    case Noqa.Mark{line, _col, _len, Con{c, rest}}:
+      nq.unused(c <> rest, whole, path, line, gs)
+
+# how many findings the marks earn
+def nq.count(mks: List<&2, Noqa.Mark>, +whole: Bool, +path: String, +gs: List<&2, F.Graded>) -> Nat:
+  match mks:
+    case Nil{}:
+      0n
+    case Con{mk, rest}:
+      Nat.add(nq.earns(mk, whole, path, gs), nq.count(rest, whole, path, gs))
+
+# LAW: over a file's marks and the run's graded findings, `noqa` reports one
+# finding for each bare mark and one for each code a mark names that the run
+# judges and that no graded finding of the file on the mark's line has (a
+# code that is no rule's never matches one), and nothing else
+# BOLT-RULE-S005
+law noqa_counts:
+  for mks: List<&2, Noqa.Mark>
+  for +whole: Bool
+  for +path: String
+  for +gs: List<&2, F.Graded>
+  {List.length(&2, F.Finding, NoqaRule.check(mks, whole, path, gs)) == nq.count(mks, whole, path, gs) : Nat}
 
 # The walk (BOLT-SCOPE-1). With no paths named, the planner lints what a
 # breadth-first search over the World's listings reaches from `.`. The spec
