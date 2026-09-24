@@ -199,7 +199,7 @@ def slide_at(mm: Maybe<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
       Nil{}
     case Some{Lex.Tok{k, +t, l, c}}:
       [F.Finding{path, l, c, U32.from_nat(String.length(t)), "ring",
-        "This step drops and appends a fixed window, which copies it; keep the window in an Array and advance an index."}]
+        "Each step drops from and appends to a fixed-size window, which copies it; keep the window in an Array and advance an index."}]
 
 # a finding at the drop, when the argument slides a window
 def slide(aa: Tree.Node, +path: String, +wins: List<&2, String>) -> List<&2, F.Finding>:

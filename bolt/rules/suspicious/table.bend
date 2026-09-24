@@ -232,10 +232,10 @@ def cite(+get: Bool, +path: String, +line: U32, +col: U32, +len: U32) -> F.Findi
   match get:
     case True{}:
       F.Finding{path, line, col, len, "table",
-        "List.get inside a recursive def walks a fixed table on every step; keep the table in an Array and use Array.get."}
+        "List.get in a recursive def walks the table from its head on every step; keep the table in an Array and use Array.get."}
     case False{}:
       F.Finding{path, line, col, len, "table",
-        "List.set inside a recursive def copies the list to change one cell; keep the table in an Array and use Array.set."}
+        "List.set in a recursive def copies the list to change one element; keep the table in an Array and use Array.set."}
 
 # a get or a set of a fixed table at a computed index
 def hit(

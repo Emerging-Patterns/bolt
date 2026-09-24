@@ -81,13 +81,13 @@ def verdict.on(+kk: U32, +text: String, aa: Arm, +path: String, +more: List<&2, 
     case APlus{+j, t, l, c, n}:
       Bool.pick(List<&2, F.Finding>, U32.is_ge(j, kk),
         F.Finding{path, l, c, n, "arms",
-          "Unreachable: case " ++ text ++ " above already matches every " ++ U32.show(j)
-            ++ "n+..; put the narrow arms first."} <> more,
+          "Unreachable: the case " ++ text ++ " above already matches everything from " ++ U32.show(j)
+            ++ "n up; put narrower arms first."} <> more,
         more)
     case ALit{+m, l, c, n}:
       Bool.pick(List<&2, F.Finding>, U32.is_ge(m, kk),
         F.Finding{path, l, c, n, "arms",
-          "Unreachable: case " ++ text ++ " above already matches " ++ U32.show(m) ++ "n; put the narrow arms first."}
+          "Unreachable: the case " ++ text ++ " above already matches " ++ U32.show(m) ++ "n; put narrower arms first."}
           <> more,
         more)
     case AOther{}:

@@ -49,7 +49,7 @@ The VS Code extension, from the same checkout:
 
 ```
 cd editors/vscode && npm install && npx --yes @vscode/vsce package
-code --install-extension bolt-1.4.0.vsix   # x-release-please-version or: Extensions > ... > Install from VSIX
+code --install-extension bolt-1.4.2.vsix   # x-release-please-version or: Extensions > ... > Install from VSIX
 ```
 
 Over Remote-SSH, install it from the remote window, so it lands on the

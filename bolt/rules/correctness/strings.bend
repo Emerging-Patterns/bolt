@@ -87,8 +87,8 @@ def tally(body: Tree.Node, +nn: U32, +chars: U32) -> Tally:
 def report(tt: Tally, +path: String, +ll: U32, +cc: U32) -> List<&2, F.Finding>:
   Tally{+n, +chars} = tt
   Bool.pick(List<&2, F.Finding>, U32.is_gt(chars, 64),
-    [F.Finding{path, ll, cc, 5, "strings", "A match over " ++ U32.show(n) ++ " string literals totals " ++ U32.show(chars)
-      ++ " characters, over the 64-character limit, and blows up compile time and memory; map the string to a sum type once."}],
+    [F.Finding{path, ll, cc, 5, "strings", "This match has " ++ U32.show(n) ++ " string-literal cases totalling " ++ U32.show(chars)
+      ++ " characters, over the limit of 64, which blows up compile time and memory; map the string to a sum type once and match on that."}],
     [])
 
 # a statement: a match is tallied
