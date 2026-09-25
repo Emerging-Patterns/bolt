@@ -7,8 +7,10 @@
 # `--help`), wherever they stand, and `--` hands even those to the program.
 # `out` is every decision the line makes, as data: what to print, where, and
 # the exit code, or the subcommand to run and its files. main only does it.
+# Only shake's interface (main.bend) is read here; what `parse` answers for a
+# given argv is shake's guarantee (SPEC.md BOLT-TRUST-8), not bolt's.
 import Base
-import 0xba6940aab8a335b70bf79944bd9b53c4/main.bend as Shake
+import 0x085b03c84ca37125e38dddede7b91e55/main.bend as Shake
 import ./version.bend as Ver
 import ./build_rev.bend as Rev
 
@@ -83,21 +85,40 @@ type Out is Data:
   Stop{to: Stream, text: String, code: U32}
   Go{cmd: Cmd, paths: List<&2, String>}
 
+# the files the selected command bound: each command keeps its own
+# bindings, so they are read from the Matched at the end of the selected
+# path, which is the root's own when no subcommand was selected
+def files.at(sel: Maybe<&2, Shake.Matched>, +mm: Shake.Matched) -> List<&2, String>:
+  match sel:
+    case Some{ss}:
+      Shake.get_all(ss, "files")
+    case None{}:
+      Shake.get_all(mm, "files")
+
+# the files a successful parse bound, to the command it selected
+def files(+mm: Shake.Matched) -> List<&2, String>:
+  files.at(Shake.at(mm, Shake.path_of(mm)), mm)
+
 # a successful parse: the version, or the selected command and its files
 def out.run(ask: Bool, +mm: Shake.Matched) -> Out:
   match ask:
     case True{}:
       Stop{Line{}, "bolt " ++ version(), 0}
     case False{}:
-      Go{command(String.join(Shake.path_of(mm), "/")), Shake.get_all(mm, "files")}
+      Go{command(String.join(Shake.path_of(mm), "/")), files(mm)}
+
+# a failed parse, given whether it asked for usage: that usage page, or the
+# error
+def out.fail.at(asked: Maybe<&2, List<&2, String>>, +ee: Shake.ParseErr) -> Out:
+  match asked:
+    case Some{path}:
+      Stop{Page{}, help_text(path), 0}
+    case None{}:
+      Stop{Err{}, err_text(ee), 1}
 
 # a failed parse: help text, or an error
-def out.fail(ee: Shake.ParseErr) -> Out:
-  match ee:
-    case Shake.NeedHelp{path}:
-      Stop{Page{}, help_text(path), 0}
-    case other:
-      Stop{Err{}, err_text(other), 1}
+def out.fail(+ee: Shake.ParseErr) -> Out:
+  out.fail.at(Shake.help_path(ee), ee)
 
 # a successful parse, read once for the version flag
 def out.done(+mm: Shake.Matched) -> Out:
