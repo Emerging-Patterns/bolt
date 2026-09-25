@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/Emerging-Patterns/bolt/compare/v1.8.0...v1.9.0) (2026-09-25)
+
+
+### Bug Fixes
+
+* build and run under bend 2.0.28 ([e1c8b27](https://github.com/Emerging-Patterns/bolt/commit/e1c8b27fd3767c6da966dd67f4c24e231477b87e))
+
 ## [1.8.0](https://github.com/Emerging-Patterns/bolt/compare/v1.7.0...v1.8.0) (2026-09-25)
 
 

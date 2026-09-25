@@ -2,7 +2,7 @@
   "name": "bolt",
   "displayName": "Bend",
   "description": "Bend 2: highlighting, diagnostics, hover, definition, completion, references, rename, semantic tokens and lint through bolt",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "publisher": "ngngardner",
   "private": true,
   "license": "MIT",
