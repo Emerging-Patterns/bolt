@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.8.0](https://github.com/Emerging-Patterns/bolt/compare/v1.7.0...v1.8.0) (2026-09-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **deps:** shake 0.2.0's parse rules reach bolt's command line: `bolt lint --version` (a root flag after a subcommand) is an unknown argument, `bolt help <word>` for a word that names no subcommand is an error instead of the root page, and `--version` given twice is refused.
+
+### Bug Fixes
+
+* **deps:** shake 0.2.0, ezjson 1.1.0 and snap 1.0.0 from the hub ([#204](https://github.com/Emerging-Patterns/bolt/issues/204)) ([19a7fbf](https://github.com/Emerging-Patterns/bolt/commit/19a7fbf4b9753666ef26f5f0f3af4b040b6ba92a))
+
+
+### Performance Improvements
+
+* bolt lint 10x faster over its own tree (208 s to 20 s) ([#201](https://github.com/Emerging-Patterns/bolt/issues/201)) ([6b687b0](https://github.com/Emerging-Patterns/bolt/commit/6b687b098a205f6dfce9e06f0392fdd13f9e7dd4))
+
 ## [1.7.0](https://github.com/Emerging-Patterns/bolt/compare/v1.6.2...v1.7.0) (2026-09-24)
 
 
