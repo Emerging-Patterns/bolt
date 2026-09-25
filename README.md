@@ -26,11 +26,11 @@ one built from source. You do not need ez or nix. Building bolt needs clang
 `flake.lock` pins. `bolt check` and `bolt lsp` run the `bend` on your PATH,
 so that `bend` is the one to keep at the tested version.
 
-With an installed `bend` and nothing else, build bolt v1.8.0 from the Bend
-hub, where it is `0xde9bb08f7de298b03207fb5797ede9a5`. Put this in `bolt.bend`:
+With an installed `bend` and nothing else, build bolt v1.9.0 from the Bend
+hub, where it is `0xd96f2ab40f5df4925c42e96d0ba857ff`. Put this in `bolt.bend`:
 
 ```
-import 0xde9bb08f7de298b03207fb5797ede9a5/main.bend as Bolt
+import 0xd96f2ab40f5df4925c42e96d0ba857ff/main.bend as Bolt
 
 def main() -> IO(Unit):
   Bolt.main()
@@ -40,7 +40,7 @@ and build it:
 
 ```
 bend bolt.bend -o bolt.bin               # fetches bolt and its libraries from the hub
-./bolt.bin --version                     # bolt 1.8.0
+./bolt.bin --version                     # bolt 1.9.0
 ```
 
 Or from a clone, at the head of `main`:
