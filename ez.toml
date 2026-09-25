@@ -1,7 +1,7 @@
 [package]
 name = "bolt"
 entry = "main.bend"
-
+[deps]
 [deps.ezjson]
 hash = "0x81c67699424929b5c44cd8577e18117f"
 git = "https://github.com/Emerging-Patterns/ezjson"
@@ -10,16 +10,14 @@ tag = "v1.1.0"
 root = "."
 narHash = "sha256-yHxl1aW4luf2bdPqOUcULhOEZLlcaTOWjTrPJys4CMI="
 entry = "main.bend"
-
 [deps.snap]
-hash = "0x103d0af04de36ab98b311e537366ec67"
+hash = "0xabe575924687afad4cee1a2c1194d639"
 git = "https://github.com/Emerging-Patterns/snap"
-rev = "ced24e103db518e37f565c577ef312602c217cf5"
-tag = "v1.0.0"
+rev = "fcabc81830c9e21d86d4968810285b287da49c12"
+tag = "v1.1.0"
 root = "."
-narHash = "sha256-dEO94GFkcgssyzOqz4A5VveB3npPq4/zpDpI+EvqnvI="
+narHash = "sha256-uKIWgjm98bQAYaNiMD/UOfwg55LWcAj2oC9AzSQuNBA="
 entry = "main.bend"
-
 [deps.shake]
 hash = "0x085b03c84ca37125e38dddede7b91e55"
 git = "https://github.com/Emerging-Patterns/shake"

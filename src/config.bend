@@ -29,12 +29,12 @@ type Level is Data:
   Error{}
 
 # a name (a group's or a rule's) at a level
-type Set is Data:
-  Set{name: String, level: Level}
+type LevelSet is Data:
+  LevelSet{name: String, level: Level}
 
 # the settings, in file order
 type Config is Data:
-  Config{sets: List<&2, Set>}
+  Config{sets: List<&2, LevelSet>}
 
 # no file: the defaults
 def none() -> Config:
@@ -89,18 +89,18 @@ def first_str(toks: List<&2, Lex.Tok>) -> Maybe<&2, String>:
       first_str(rest)
 
 # a def's name and the string it returns, as a setting
-def setting(name: Maybe<&2, String>, word: Maybe<&2, String>) -> List<&2, Set>:
+def setting(name: Maybe<&2, String>, word: Maybe<&2, String>) -> List<&2, LevelSet>:
   match name word:
     case Some{n} Some{w}:
-      [Set{n, of_word(w)}]
+      [LevelSet{n, of_word(w)}]
     case a b:
       []
 
 # every `def x(): "level"` of a tree
-def sets(root: Tree.Node) -> List<&2, Set>:
+def sets(root: Tree.Node) -> List<&2, LevelSet>:
   match root:
     case Tree.NCons{Tree.Stmt{Tree.SDef{}, kids, body}, rest}:
-      List.append(&2, Set, setting(Bind.declared(kids), first_str(Tree.leaves(body))), sets(rest))
+      List.append(&2, LevelSet, setting(Bind.declared(kids), first_str(Tree.leaves(body))), sets(rest))
     case Tree.NCons{h, rest}:
       sets(rest)
     case other:
@@ -203,11 +203,11 @@ def nearest(rs: List<&2, Maybe<&2, String>>) -> Config:
 # ------
 
 # the level a name is set to, when it is
-def set_level(sets: List<&2, Set>, +name: String) -> Maybe<&2, Level>:
+def set_level(sets: List<&2, LevelSet>, +name: String) -> Maybe<&2, Level>:
   match sets:
     case Nil{}:
       None{}
-    case Con{Set{+n, l}, rest}:
+    case Con{LevelSet{+n, l}, rest}:
       +more = set_level(rest, name)
       Bool.pick(Maybe<&2, Level>, String.eq(n, name), Some{l}, more)
 
@@ -223,7 +223,7 @@ def opt_in(+rule: String) -> Bool:
 
 # the rule's own setting, else its group's, else the group's default; an
 # opt-in rule's own setting, else off
-def level.of(+sets: List<&2, Set>, +group: String, +rule: String) -> Level:
+def level.of(+sets: List<&2, LevelSet>, +group: String, +rule: String) -> Level:
   Maybe.default(&2, Level, set_level(sets, rule),
     Lazy.stop(Level, opt_in(rule), Off{}, _u => Maybe.default(&2, Level, set_level(sets, group), default(group))))
 

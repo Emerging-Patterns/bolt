@@ -6,5 +6,5 @@ Term stdio_fd_run(Env e, Term* f, IoWork* w) {
 }
 
 static void __attribute__((constructor)) stdio_fd_use(void) {
-  io_eff(CID_STDIO_FD, stdio_fd_run, 0);
+  io_eff(CID(stdio.fd), stdio_fd_run, 0);
 }

@@ -12,3 +12,5 @@ function walkdir_entries(dir) {
   }
   return entries.map((e) => e.name + (e.isDirectory() ? "/" : "") + "\n").join("");
 }
+
+io_eff(CID(walkdir.entries), walkdir_entries);

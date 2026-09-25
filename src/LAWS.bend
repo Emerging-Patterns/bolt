@@ -35,22 +35,22 @@ law set_level_none:
 # LAW: a setting of the name, first in file order, is the name's setting
 # BOLT-CFG-1
 law set_level_first:
-  for sets: List<&2, Config.Set>
+  for sets: List<&2, Config.LevelSet>
   for +name: String
   for +nn: String
   for ll: Config.Level
   for h: {String.eq(nn, name) == True{} : Bool}
-  {Config.set_level(Config.Set{nn, ll} <> sets, name) == Some{ll} : Maybe<&2, Config.Level>}
+  {Config.set_level(Config.LevelSet{nn, ll} <> sets, name) == Some{ll} : Maybe<&2, Config.Level>}
 
 # LAW: a setting of another name is passed over
 # BOLT-CFG-1
 law set_level_skip:
-  for +sets: List<&2, Config.Set>
+  for +sets: List<&2, Config.LevelSet>
   for +name: String
   for +nn: String
   for ll: Config.Level
   for h: {String.eq(nn, name) == False{} : Bool}
-  {Config.set_level(Config.Set{nn, ll} <> sets, name) == Config.set_level(sets, name)
+  {Config.set_level(Config.LevelSet{nn, ll} <> sets, name) == Config.set_level(sets, name)
     : Maybe<&2, Config.Level>}
 
 # LAW: a rule's own setting is its level, whatever its group says, an
@@ -58,7 +58,7 @@ law set_level_skip:
 # BOLT-CFG-1
 # BOLT-CFG-6
 law level_own:
-  for +sets: List<&2, Config.Set>
+  for +sets: List<&2, Config.LevelSet>
   for +group: String
   for +rule: String
   for +l: Config.Level
@@ -69,7 +69,7 @@ law level_own:
 # setting
 # BOLT-CFG-1
 law level_group:
-  for +sets: List<&2, Config.Set>
+  for +sets: List<&2, Config.LevelSet>
   for +group: String
   for +rule: String
   for +l: Config.Level
@@ -82,7 +82,7 @@ law level_group:
 # setting either, is at its group's default
 # BOLT-CFG-1
 law level_default:
-  for +sets: List<&2, Config.Set>
+  for +sets: List<&2, Config.LevelSet>
   for +group: String
   for +rule: String
   for h_rule: {Config.set_level(sets, rule) == None{} : Maybe<&2, Config.Level>}
@@ -153,7 +153,7 @@ law default_rest:
 # says (with one, level_own gives it that setting)
 # BOLT-CFG-6
 law opt_in_off:
-  for +sets: List<&2, Config.Set>
+  for +sets: List<&2, Config.LevelSet>
   for +group: String
   for +rule: String
   for h_opt: {Config.opt_in(rule) == True{} : Bool}

@@ -59,5 +59,5 @@ Term walkdir_entries_run(Env e, Term* f, IoWork* w) {
 }
 
 static void __attribute__((constructor)) walkdir_entries_use(void) {
-  io_eff(CID_WALKDIR_ENTRIES, walkdir_entries_run, 0);
+  io_eff(CID(walkdir.entries), walkdir_entries_run, 0);
 }
