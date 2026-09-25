@@ -22,7 +22,7 @@ bolt needs a Bend 2, and any Bend 2 will do: the one
 one built from source. You do not need ez or nix. Building bolt needs clang
 14+ as well, since bolt is one native binary.
 
-**Bend version.** bolt is built and tested with Bend 2.0.27, the version
+**Bend version.** bolt is built and tested with Bend 2.0.28, the version
 `flake.lock` pins. `bolt check` and `bolt lsp` run the `bend` on your PATH,
 so that `bend` is the one to keep at the tested version.
 
