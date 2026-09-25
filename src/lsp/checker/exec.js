@@ -9,3 +9,5 @@ function bendcheck_exec(path, flag) {
   const tag = r.status === 127 || (r.error && r.status === null && r.signal === null) ? "x" : r.signal ? "s" : "r";
   return tag + (r.stdout ?? "") + (r.stderr ?? "");
 }
+
+io_eff(CID(bendcheck.exec), bendcheck_exec);

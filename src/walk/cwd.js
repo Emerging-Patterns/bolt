@@ -7,3 +7,5 @@ function walkdir_cwd() {
     return "";
   }
 }
+
+io_eff(CID(walkdir.cwd), walkdir_cwd);

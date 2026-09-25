@@ -2,3 +2,5 @@
 function stdio_fd(n) {
   return n;
 }
+
+io_eff(CID(stdio.fd), stdio_fd);

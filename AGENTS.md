@@ -171,8 +171,9 @@ Design specs and plans are not kept in this repo; they live under
 - `Kind` is a keyword: no type of that name.
 - `bend x.bend` runs main after checking. To check only, `bend <file.bend> --check-only` (or `bend x.bend -o t.js`).
 - A foreign effect `def a.b(..) -> IO(T)` with `import "./x.c"` and
-  `import "./x.js"` bodies is `a_b_run` + `io_eff(CID_A_B, ..)` in C and
-  `function a_b(..)` in JS (src/lsp/checker/exec.*).
+  `import "./x.js"` bodies registers itself on both lanes by its def name:
+  `io_eff(CID(a.b), a_b_run, 0)` in C and `io_eff(CID(a.b), a_b)` in JS
+  (bend 2.0.28; `bend guide effects`, src/lsp/checker/exec.*).
 - A server's stdin and stdout may be sockets (node spawns children that way),
   and no path opens a socket: wrap descriptors 0 and 1 (src/lsp/transport/fd.c),
   never `File.open("/dev/stdin")`. Test a server spawned from node
