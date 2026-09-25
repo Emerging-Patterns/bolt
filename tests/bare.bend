@@ -18,23 +18,23 @@
 # it, and it is the slow one, because the compile it drives is a whole build of
 # bolt.
 import Base
-import 0x9bfd9d57916f3439316c2775fd1f10b4/main.bend as Snap
+import 0x103d0af04de36ab98b311e537366ec67/main.bend as Snap
 
 # `ok name` when the two strings are equal, `FAIL name` when they are not
 def eq_str(name: String, got: String, want: String) -> IO(Unit):
   IO.print(Bool.pick(String, String.eq(got, want), "ok ", "FAIL ") ++ name)
 
-# the 0x name ez computed for shake v0.1.1
+# the 0x name ez computed for shake v0.2.0
 def shake.hash() -> String:
-  "0xba6940aab8a335b70bf79944bd9b53c4"
+  "0x085b03c84ca37125e38dddede7b91e55"
 
-# the 0x name ez computed for ezjson v0.4.2
+# the 0x name ez computed for ezjson v1.1.0
 def ezjson.hash() -> String:
-  "0xd9c8d4d2899ddda845dfa7525a3568ea"
+  "0x81c67699424929b5c44cd8577e18117f"
 
-# the 0x name ez computed for snap v0.1.0
+# the 0x name ez computed for snap v1.0.0
 def snap.hash() -> String:
-  "0x9bfd9d57916f3439316c2775fd1f10b4"
+  "0x103d0af04de36ab98b311e537366ec67"
 
 # the build, with ez taken out of the environment. BEND_LIB is the
 # checkouts this test laid out, not ez's.
@@ -46,27 +46,20 @@ def main() -> IO(Unit):
   do IO<Unit>:
     _wd : String <- Snap.exec(["rm", "-rf", ".scratch/shake", ".scratch/ezjson",
       ".scratch/snap", ".scratch/lib"])
-    _cl : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v0.1.1",
+    _cl : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v0.2.0",
       "https://github.com/Emerging-Patterns/shake.git", ".scratch/shake"])
-    _cj : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v0.4.2",
+    _cj : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v1.1.0",
       "https://github.com/Emerging-Patterns/ezjson.git", ".scratch/ezjson"])
-    _cs : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v0.1.0",
+    _cs : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v1.0.0",
       "https://github.com/Emerging-Patterns/snap.git", ".scratch/snap"])
     _mk : String <- Snap.exec(["mkdir", "-p", ".scratch/lib/" ++ shake.hash(),
       ".scratch/lib/" ++ ezjson.hash(), ".scratch/lib/" ++ snap.hash()])
-    _cp : String <- Snap.exec(["cp", ".scratch/shake/shake/main.bend",
-      ".scratch/lib/" ++ shake.hash() ++ "/main.bend"])
-    _cj2 : String <- Snap.exec(["cp",
-      ".scratch/ezjson/ezjson/lazy.bend", ".scratch/ezjson/ezjson/lex.bend",
-      ".scratch/ezjson/ezjson/main.bend", ".scratch/ezjson/ezjson/parse.bend",
-      ".scratch/ezjson/ezjson/print.bend", ".scratch/ezjson/ezjson/pull.bend",
-      ".scratch/ezjson/ezjson/value.bend",
-      ".scratch/lib/" ++ ezjson.hash() ++ "/"])
-    _cs2 : String <- Snap.exec(["cp",
-      ".scratch/snap/snap/main.bend", ".scratch/snap/snap/exec.c",
-      ".scratch/snap/snap/exec.js", ".scratch/snap/snap/start.c",
-      ".scratch/snap/snap/start.js", ".scratch/snap/snap/par.c",
-      ".scratch/snap/snap/par.js", ".scratch/lib/" ++ snap.hash() ++ "/"])
+    _cp : String <- Snap.exec(["cp", "-r", ".scratch/shake/main.bend",
+      ".scratch/shake/src", ".scratch/lib/" ++ shake.hash() ++ "/"])
+    _cj2 : String <- Snap.exec(["cp", "-r", ".scratch/ezjson/main.bend",
+      ".scratch/ezjson/src", ".scratch/lib/" ++ ezjson.hash() ++ "/"])
+    _cs2 : String <- Snap.exec(["cp", "-r", ".scratch/snap/main.bend",
+      ".scratch/snap/src", ".scratch/lib/" ++ snap.hash() ++ "/"])
     _bin : String <- Snap.exec(["mkdir", "-p", "bin"])
     built : String <- Snap.exec(bare())
     eq_str("bolt builds with bare bend and no ez",

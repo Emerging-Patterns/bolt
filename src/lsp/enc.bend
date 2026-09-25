@@ -6,8 +6,8 @@
 # server reads goes through `into`, and every one it sends through `out`
 # (proto.bend's position, semantic.bend's tokens).
 import Base
-import 0xd9c8d4d2899ddda845dfa7525a3568ea/main.bend as Ezjson
-import 0xd9c8d4d2899ddda845dfa7525a3568ea/value.bend as J
+import 0x81c67699424929b5c44cd8577e18117f/main.bend as Ezjson
+import 0x81c67699424929b5c44cd8577e18117f/src/value.bend as J
 
 # the encodings the server speaks
 type Enc is Data:

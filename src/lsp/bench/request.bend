@@ -7,8 +7,8 @@
 import Base
 import ../../syntax/outline.bend as Outline
 import ../../syntax/word.bend as Word
-import 0xd9c8d4d2899ddda845dfa7525a3568ea/main.bend as Ezjson
-import 0xd9c8d4d2899ddda845dfa7525a3568ea/value.bend as J
+import 0x81c67699424929b5c44cd8577e18117f/main.bend as Ezjson
+import 0x81c67699424929b5c44cd8577e18117f/src/value.bend as J
 
 # the document a hover is answered against
 def source() -> String:

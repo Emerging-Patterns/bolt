@@ -1,7 +1,7 @@
 # src/lsp: the proofs. `bend PROOF.bend` is the gate.
 import Base
-import 0xd9c8d4d2899ddda845dfa7525a3568ea/main.bend as Ezjson
-import 0xd9c8d4d2899ddda845dfa7525a3568ea/value.bend as J
+import 0x81c67699424929b5c44cd8577e18117f/main.bend as Ezjson
+import 0x81c67699424929b5c44cd8577e18117f/src/value.bend as J
 import ./frame.bend as Frame
 import ./server.bend as Server
 import ../lazy/lazy.bend as Lazy
