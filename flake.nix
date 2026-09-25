@@ -47,12 +47,11 @@
           ${old.buildPhase}
         '';
       });
-      # proofs and unit tests (`ez test --unit-only`).
+      # the proof gate (`ez prove`)
       test = ez.mkProofs {
         ez = inputs.ez.packages.${system}.default;
         src = self;
         name = "bolt-test";
-        extraFlags = [ "--unit-only" ];
       };
       # bolt, built from this tree, over this tree: exit 1 on any error
       lint = ez.mkLint { inherit bolt; src = self; };
