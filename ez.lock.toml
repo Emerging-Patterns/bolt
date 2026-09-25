@@ -1,8 +1,9 @@
 [lock]
 version = "2"
 hub = "https://hub.bend-lang.com"
-
-[packages."0x085b03c84ca37125e38dddede7b91e55".source]
+[packages]
+[packages.0x085b03c84ca37125e38dddede7b91e55]
+[packages.0x085b03c84ca37125e38dddede7b91e55.source]
 kind = "git"
 url = "https://github.com/Emerging-Patterns/shake"
 rev = "ddb93921dea168aed7a37d3e56e00c4732cf9082"
@@ -10,15 +11,14 @@ entry = "main.bend"
 root = "."
 narHash = "sha256-o5NRUjz6OBNMecXY8CZzYQpqoGFxdolD/ST8rIgAnLo="
 tag = "v0.2.0"
-
-[packages."0x085b03c84ca37125e38dddede7b91e55".files]
+[packages.0x085b03c84ca37125e38dddede7b91e55.files]
 LICENSE = "309f5aae946e4db157750e002fb179a74ed0fe27fce09a7be68a6977b14f205f"
 "main.bend" = "fff16a9f901df7150ec13b5488820e8fe4ca288133c3cf2e4fcc04ec6a3671f9"
 "src/args.bend" = "cb408b31dc02aa0525dc07f7a3119798f6d1d96f244361dc941797bb90653b24"
 "src/check.bend" = "ad47c820def9bb1b77ea52b8097e4a62a7f1bbe6aac3c753ddf089c29f9c012a"
 "src/cli.bend" = "c8b1c75699e77ca233aac1125cff8565246ae230aee25752c52f05e608f41362"
-
-[packages."0x103d0af04de36ab98b311e537366ec67".source]
+[packages.0x103d0af04de36ab98b311e537366ec67]
+[packages.0x103d0af04de36ab98b311e537366ec67.source]
 kind = "git"
 url = "https://github.com/Emerging-Patterns/snap"
 rev = "ced24e103db518e37f565c577ef312602c217cf5"
@@ -26,8 +26,7 @@ entry = "main.bend"
 root = "."
 narHash = "sha256-dEO94GFkcgssyzOqz4A5VveB3npPq4/zpDpI+EvqnvI="
 tag = "v1.0.0"
-
-[packages."0x103d0af04de36ab98b311e537366ec67".files]
+[packages.0x103d0af04de36ab98b311e537366ec67.files]
 LICENSE = "309f5aae946e4db157750e002fb179a74ed0fe27fce09a7be68a6977b14f205f"
 "main.bend" = "68a5a2f373983f652dc260683c57261930bbe1fba3b89f05973066697a4e8d43"
 "src/answer.bend" = "cfeb97ada7d0708c49abae1164af3e988a32c7fbdfb6591c61ce148b46d0738d"
@@ -41,8 +40,8 @@ LICENSE = "309f5aae946e4db157750e002fb179a74ed0fe27fce09a7be68a6977b14f205f"
 "src/par.js" = "791ced8192ca1d7238919629db661bfd3799db24d9483b397052e054f12d4225"
 "src/start.c" = "7306425871c0d4b859c6809f34b83ae7947b2065781fd2a8fe8ac8806a77391b"
 "src/start.js" = "d45eca4a2782e3fdbc1b7abc798fc3f131dc87dde34ab9cfa6dd917fff2ea04c"
-
-[packages."0x81c67699424929b5c44cd8577e18117f".source]
+[packages.0x81c67699424929b5c44cd8577e18117f]
+[packages.0x81c67699424929b5c44cd8577e18117f.source]
 kind = "git"
 url = "https://github.com/Emerging-Patterns/ezjson"
 rev = "f35ea6ce89962d338cdc0735cc7724ed82d47594"
@@ -50,8 +49,7 @@ entry = "main.bend"
 root = "."
 narHash = "sha256-yHxl1aW4luf2bdPqOUcULhOEZLlcaTOWjTrPJys4CMI="
 tag = "v1.1.0"
-
-[packages."0x81c67699424929b5c44cd8577e18117f".files]
+[packages.0x81c67699424929b5c44cd8577e18117f.files]
 LICENSE = "309f5aae946e4db157750e002fb179a74ed0fe27fce09a7be68a6977b14f205f"
 "main.bend" = "c31061d033e4b77bdf21d6cb5c160221d32ed111e4a141777df7bdf2a720524f"
 "src/lazy.bend" = "5e0ec859ceea76521a7a04c78edfe47dafe9b036166602af7f085079f6f7d7e5"
