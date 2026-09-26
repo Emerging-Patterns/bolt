@@ -889,8 +889,9 @@ law enc_utf32:
   {Enc.out(Enc.Cols{Enc.Utf32{}, lines}, line, col) == col : U32}
     & {Enc.into(Enc.Cols{Enc.Utf32{}, lines}, line, col) == col : U32}
 
-# LAW: on lines with no char past U+FFFF, UTF-16 counts every column as a
-# code point, both ways: why Enc.cols converts such a document as utf-32
+# LAW: on a line with no char past U+FFFF, a column counted in UTF-16 units
+# equals the column counted in characters, both ways: why Enc.cols converts
+# such a document as utf-32
 # BOLT-LSP-8
 law enc_narrow:
   for +lines: List<&2, String>
