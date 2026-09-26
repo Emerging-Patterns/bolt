@@ -5,6 +5,7 @@
 # from elsewhere is read by its shape: `Bool.pick` a function, `U32` a type,
 # `Nil{` a constructor.
 import Base
+import ../lazy/lazy.bend as Lazy
 import ../syntax/lex.bend as Lex
 import ../syntax/bind.bend as Bind
 import ./enc.bend as Enc
@@ -122,18 +123,153 @@ def head_bind_kind(binds: List<&2, Bind.Bind>) -> U32:
     case Con{Bind.Bind{n, l, c, k, note}, rest}:
       of_kind(k, n)
 
+# a binder where the index keeps it: its name, position and kind
+type Entry is Data:
+  Entry{name: String, line: U32, col: U32, kind: Bind.BindKind}
+
+# binders as a binary trie on the low bits of a key (a binder's line, or its
+# name's hash), a leaf holding the entries that reach it in source order: a
+# lookup is a walk down and a short scan, and finds what a scan of every
+# binder from the front would, as a miss down the path is a miss everywhere
+type Index is Data:
+  INone{}
+  ILeaf{es: List<&2, Entry>}
+  INode{lo: Index, hi: Index}
+
+# how many bits of a key the index branches on
+def depth() -> Nat:
+  16n
+
+# a key's way down the index: its low bits, lowest first
+def path(dd: Nat, +key: U32) -> List<&2, Bool>:
+  match dd:
+    case 0n:
+      Nil{}
+    case 1n+p:
+      U32.is_even(key) <> path(p, U32.shr(key))
+
+# the entries at a leaf, none elsewhere
+def idx.es(ii: Index) -> List<&2, Entry>:
+  match ii:
+    case INone{}:
+      Nil{}
+    case ILeaf{es}:
+      es
+    case INode{_lo, _hi}:
+      Nil{}
+
+# the half of a node a bit goes down, empty elsewhere
+def idx.near(bb: Bool, ii: Index) -> Index:
+  match ii:
+    case INone{}:
+      INone{}
+    case ILeaf{_es}:
+      INone{}
+    case INode{lo, hi}:
+      Bool.pick(Index, bb, lo, hi)
+
+# a node whose half down a bit is sub, and the other half far
+def idx.join(bb: Bool, sub: Index, far: Index) -> Index:
+  match bb:
+    case True{}:
+      INode{sub, far}
+    case False{}:
+      INode{far, sub}
+
+# the index with an entry in front of the ones down its path
+def idx.put(pp: List<&2, Bool>, +ii: Index, +ee: Entry) -> Index:
+  match pp:
+    case Nil{}:
+      ILeaf{ee <> idx.es(ii)}
+    case Con{+bb, rest}:
+      idx.join(bb, idx.put(rest, idx.near(bb, ii), ee), idx.near(Bool.not(bb), ii))
+
+# the entries at the end of a key's path
+def idx.find(pp: List<&2, Bool>, ii: Index) -> List<&2, Entry>:
+  match pp:
+    case Nil{}:
+      idx.es(ii)
+    case Con{bb, rest}:
+      idx.find(rest, idx.near(bb, ii))
+
+# a name's key: its chars folded, base 31
+def hash(ss: String, +acc: U32) -> U32:
+  match ss:
+    case SNil{}:
+      acc
+    case SCon{c, t}:
+      hash(t, (acc * 31 + Char.to_u32(c) : U32))
+
+# every binder, keyed by its line, in source order
+def by_line(binds: List<&2, Bind.Bind>) -> Index:
+  match binds:
+    case Nil{}:
+      INone{}
+    case Con{Bind.Bind{name, +line, col, kind, _note}, rest}:
+      idx.put(path(depth(), line), by_line(rest), Entry{name, line, col, kind})
+
+# an item or constructor into the index by its name's key; other binders pass
+def by_name.one(+name: String, line: U32, col: U32, kk: Bind.BindKind, ii: Index) -> Index:
+  match kk:
+    case Bind.KItem{}:
+      idx.put(path(depth(), hash(name, 0)), ii, Entry{name, line, col, Bind.KItem{}})
+    case Bind.KCtor{}:
+      idx.put(path(depth(), hash(name, 0)), ii, Entry{name, line, col, Bind.KCtor{}})
+    case _other:
+      ii
+
+# the file's items and constructors, keyed by name, in source order
+def by_name(binds: List<&2, Bind.Bind>) -> Index:
+  match binds:
+    case Nil{}:
+      INone{}
+    case Con{Bind.Bind{name, line, col, kind, _note}, rest}:
+      by_name.one(name, line, col, kind, by_name(rest))
+
+# the first entry at a position, as Bind.kind_at finds it
+def at.go(es: List<&2, Entry>, +line: U32, +col: U32) -> Maybe<&2, Bind.BindKind>:
+  match es:
+    case Nil{}:
+      None{}
+    case Con{Entry{_n, l, c, k}, rest}:
+      Lazy.stop(Maybe<&2, Bind.BindKind>, Bool.and(U32.is_eq(l, line), U32.is_eq(c, col)), Some{k},
+        _u => at.go(rest, line, col))
+
+# the first entry of a name, as Bind.kind_of_item finds it
+def named.go(es: List<&2, Entry>, +name: String) -> Maybe<&2, Bind.BindKind>:
+  match es:
+    case Nil{}:
+      None{}
+    case Con{Entry{n, _l, _c, k}, rest}:
+      Lazy.stop(Maybe<&2, Bind.BindKind>, Bind.same(n, name), Some{k}, _u => named.go(rest, name))
+
+# a document's binders, indexed once for every use's lookup: by position,
+# and its items and constructors by name
+type Kinds is Data:
+  Kinds{at: Index, named: Index}
+
+# the kind of the binder at a position
+def kind_at(kk: Kinds, +line: U32, col: U32) -> Maybe<&2, Bind.BindKind>:
+  Kinds{at, _named} = kk
+  at.go(idx.find(path(depth(), line), at), line, col)
+
+# the kind of an item or constructor of the file, by name
+def kind_of_item(kk: Kinds, +name: String) -> Maybe<&2, Bind.BindKind>:
+  Kinds{_at, named} = kk
+  named.go(idx.find(path(depth(), hash(name, 0)), named), name)
+
 # the type of a use, from what it refers to
-def of_target(tg: Bind.Target, all: List<&2, Bind.Bind>, name: String, braced: Bool) -> U32:
+def of_target(tg: Bind.Target, all: Kinds, name: String, braced: Bool) -> U32:
   match tg:
     case Bind.TLocal{tl, tc}:
-      of_maybe_kind(Bind.kind_at(all, tl, tc), name)
+      of_maybe_kind(kind_at(all, tl, tc), name)
     case Bind.TItem{i}:
-      of_maybe_kind(Bind.kind_of_item(all, i), name)
+      of_maybe_kind(kind_of_item(all, i), name)
     case other:
       by_shape(name, braced)
 
 # the type of the next use
-def head_use_class(uses: List<&2, Bind.Use>, all: List<&2, Bind.Bind>, braced: Bool) -> U32:
+def head_use_class(uses: List<&2, Bind.Use>, all: Kinds, braced: Bool) -> U32:
   match uses:
     case Nil{}:
       5
@@ -161,7 +297,7 @@ type Step is Data:
   Step{typ: Maybe<&2, U32>, cur: Cursor}
 
 # the class of a name: the use that sits on its head, else its own shape
-def use_class(+hu: Bool, +us: List<&2, Bind.Use>, +all: List<&2, Bind.Bind>, +name: String, +braced: Bool) -> U32:
+def use_class(+hu: Bool, +us: List<&2, Bind.Use>, +all: Kinds, +name: String, +braced: Bool) -> U32:
   match hu:
     case True{}:
       head_use_class(us, all, braced)
@@ -170,7 +306,7 @@ def use_class(+hu: Bool, +us: List<&2, Bind.Use>, +all: List<&2, Bind.Bind>, +na
 
 # a name token's type, taking the binder or the use that sits on it, and the
 # cursor after it
-def name_step(cur: Cursor, +all: List<&2, Bind.Bind>, +name: String, +line: U32, +col: U32, +braced: Bool) -> Step:
+def name_step(cur: Cursor, +all: Kinds, +name: String, +line: U32, +col: U32, +braced: Bool) -> Step:
   Cursor{+binds, +uses} = cur
   +bs = Bool.pick(List<&2, Bind.Bind>, behind_bind(binds, line, col), tail_binds(binds), binds)
   +us = Bool.pick(List<&2, Bind.Use>, behind_use(uses, line, col), tail_uses(uses), uses)
@@ -186,7 +322,7 @@ def name_step(cur: Cursor, +all: List<&2, Bind.Bind>, +name: String, +line: U32,
 def of_tok(
   kk: Lex.TokKind,
   cur: Cursor,
-  all: List<&2, Bind.Bind>,
+  all: Kinds,
   name: String,
   line: U32,
   col: U32,
@@ -231,7 +367,7 @@ def put(mm: Maybe<&2, U32>, +line: U32, +col: U32, +len: U32, rest: List<&2, Sem
       Sem{line, col, len, typ} <> rest
 
 # every token, in order, against the cursor
-def classify(toks: List<&2, Lex.Tok>, cur: Cursor, +all: List<&2, Bind.Bind>) -> List<&2, Sem>:
+def classify(toks: List<&2, Lex.Tok>, cur: Cursor, +all: Kinds) -> List<&2, Sem>:
   match toks:
     case Nil{}:
       Nil{}
@@ -275,7 +411,7 @@ def encode(sems: List<&2, Sem>, +pl: U32, +pc: U32) -> List<&2, U32>:
 
 def data.of(ee: Enc.Enc, +lines: List<&2, String>, bb: Bind.Bound, toks: List<&2, Lex.Tok>) -> List<&2, U32>:
   Bind.Bound{+binds, uses, scopes} = bb
-  encode(sent(classify(toks, Cursor{binds, uses}, binds), ee, lines, 0), 0, 0)
+  encode(sent(classify(toks, Cursor{binds, uses}, Kinds{by_line(binds), by_name(binds)}), ee, lines, 0), 0, 0)
 
 # a document's semantic tokens, encoded, their columns and lengths in the
 # negotiated encoding
