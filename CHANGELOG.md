@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/Emerging-Patterns/bolt/compare/v1.9.0...v1.10.0) (2026-09-26)
+
+
+### Performance Improvements
+
+* **lsp:** semantic tokens up to 10x faster, symbols up to 2.8x on large files ([#211](https://github.com/Emerging-Patterns/bolt/issues/211)) ([85f175d](https://github.com/Emerging-Patterns/bolt/commit/85f175dc80c2d02cb77231d6b010d6c599991df0))
+
 ## [1.9.0](https://github.com/Emerging-Patterns/bolt/compare/v1.8.0...v1.9.0) (2026-09-25)
 
 
