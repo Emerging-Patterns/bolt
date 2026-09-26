@@ -1031,26 +1031,3 @@ def named_sites.go(uses: List<&2, Use>, +name: String) -> List<&2, Pos>:
 def named_sites(bb: Bound, +name: String) -> List<&2, Pos>:
   Bound{binds, uses, scopes} = bb
   named_sites.go(uses, name)
-
-# the kind of the binder at a position, for what a use looks like
-def kind_at(binds: List<&2, Bind>, +line: U32, +col: U32) -> Maybe<&2, BindKind>:
-  match binds:
-    case Nil{}:
-      None{}
-    case Con{Bind{name, +l, +c, kind, note}, rest}:
-      +more = kind_at(rest, line, col)
-      Bool.pick(Maybe<&2, BindKind>, Bool.and(U32.is_eq(l, line), U32.is_eq(c, col)), Some{kind}, more)
-
-# the kind of an item or constructor of the file, by name
-def kind_of_item(binds: List<&2, Bind>, +name: String) -> Maybe<&2, BindKind>:
-  match binds:
-    case Nil{}:
-      None{}
-    case Con{Bind{+n, l, c, KItem{}, note}, rest}:
-      +more = kind_of_item(rest, name)
-      Bool.pick(Maybe<&2, BindKind>, String.eq(n, name), Some{KItem{}}, more)
-    case Con{Bind{+n, l, c, KCtor{}, note}, rest}:
-      +more = kind_of_item(rest, name)
-      Bool.pick(Maybe<&2, BindKind>, String.eq(n, name), Some{KCtor{}}, more)
-    case Con{other, rest}:
-      kind_of_item(rest, name)

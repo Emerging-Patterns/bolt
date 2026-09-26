@@ -6,6 +6,7 @@
 # server reads goes through `into`, and every one it sends through `out`
 # (proto.bend's position, semantic.bend's tokens).
 import Base
+import ../lazy/lazy.bend as Lazy
 import 0x81c67699424929b5c44cd8577e18117f/main.bend as Ezjson
 import 0x81c67699424929b5c44cd8577e18117f/src/value.bend as J
 
@@ -118,13 +119,44 @@ def into.of(ee: Enc, cs: List<&2, Char>, uu: Nat) -> Nat:
     case Utf32{}:
       uu
 
-# a document as the boundary sees it: the encoding and the text's lines
+# does a line hold a char past U+FFFF? Stops at the first
+def wide_in(cs: List<&2, Char>) -> Bool:
+  match cs:
+    case Nil{}:
+      False{}
+    case Con{c, t}:
+      Lazy.or_else(wide(c), _u => wide_in(t))
+
+# does any line hold one? Stops at the first
+def wide_any(lines: List<&2, String>) -> Bool:
+  match lines:
+    case Nil{}:
+      False{}
+    case Con{l, t}:
+      Lazy.or_else(wide_in(String.to_list(l)), _u => wide_any(t))
+
+# the encoding a document's columns convert by: UTF-16 on lines with no wide
+# char counts exactly as utf-32 does (LAWS.bend's enc_narrow), so such a
+# document converts as utf-32 and never looks a line up
+def narrowed(ee: Enc, wide: Bool) -> Enc:
+  match ee:
+    case Utf16{}:
+      Bool.pick(Enc, wide, Utf16{}, Utf32{})
+    case Utf32{}:
+      Utf32{}
+
+# a document as the boundary sees it: the encoding its columns convert by
+# and the text's lines
 type Cols is Data:
   Cols{enc: Enc, lines: List<&2, String>}
 
+# a document's lines under an encoding
+def cols.of(ee: Enc, +lines: List<&2, String>) -> Cols:
+  Cols{narrowed(ee, wide_any(lines)), lines}
+
 # a document's text under an encoding
 def cols(ee: Enc, text: String) -> Cols:
-  Cols{ee, String.lines(text)}
+  cols.of(ee, String.lines(text))
 
 # a line's chars, none past the end
 def chars(lines: List<&2, String>, line: U32) -> List<&2, Char>:
@@ -138,10 +170,19 @@ def out.col(ee: Enc, cs: List<&2, Char>, col: U32) -> U32:
     case Utf32{}:
       col
 
+# a code-point column of a document's line, sent in an encoding; utf-32
+# never looks the line up
+def out.at(ee: Enc, lines: List<&2, String>, line: U32, col: U32) -> U32:
+  match ee:
+    case Utf16{}:
+      out.col(Utf16{}, chars(lines, line), col)
+    case Utf32{}:
+      col
+
 # a code-point column sent in the negotiated encoding
 def out(cc: Cols, line: U32, col: U32) -> U32:
   Cols{ee, lines} = cc
-  out.col(ee, chars(lines, line), col)
+  out.at(ee, lines, line, col)
 
 # a column of a line's chars read in an encoding, as a code-point column
 def into.col(ee: Enc, cs: List<&2, Char>, col: U32) -> U32:
@@ -151,7 +192,16 @@ def into.col(ee: Enc, cs: List<&2, Char>, col: U32) -> U32:
     case Utf32{}:
       col
 
+# a column of a document's line read in an encoding; utf-32 never looks the
+# line up
+def into.at(ee: Enc, lines: List<&2, String>, line: U32, col: U32) -> U32:
+  match ee:
+    case Utf16{}:
+      into.col(Utf16{}, chars(lines, line), col)
+    case Utf32{}:
+      col
+
 # a column read in the negotiated encoding, as a code-point column
 def into(cc: Cols, line: U32, col: U32) -> U32:
   Cols{ee, lines} = cc
-  into.col(ee, chars(lines, line), col)
+  into.at(ee, lines, line, col)
