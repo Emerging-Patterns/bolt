@@ -79,7 +79,8 @@ Positions follow LSP 3.17's `positionEncoding`: initialize answers `utf-32`
 when the client offers it and `utf-16` otherwise, and `enc.bend` converts
 every character offset read or sent between bolt's code-point columns and
 the negotiated encoding (a char past U+FFFF is two UTF-16 units). On a line
-with no such char the two agree (BOLT-LSP-7 in `LAWS.bend`).
+with no such char the two agree (BOLT-LSP-8 in `LAWS.bend`), so a document
+with none converts as utf-32 and never looks a line up.
 
 Completion offers what could finish the name being typed: `Alias.pre` from the
 file behind the alias; anything else from the document, its aliases and (once

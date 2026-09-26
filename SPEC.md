@@ -131,6 +131,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | BOLT-LSP-5 | The checker never runs `main`. | Proved | proved | src/lsp/LAWS.bend check_only; src/lsp/LAWS.bend followup_check_only |
 | BOLT-LSP-6 | Hover, definition, references and completion answer from the binder (BOLT-SYN-5) over the open text and its relative imports. | Proved | proved | src/lsp/LAWS.bend nav_open_text; src/lsp/LAWS.bend nav_definition_binder; src/lsp/LAWS.bend nav_definition_local; src/lsp/LAWS.bend nav_definition_item; src/lsp/LAWS.bend nav_definition_import; src/lsp/LAWS.bend nav_definition_free; src/lsp/LAWS.bend nav_import_open; src/lsp/LAWS.bend nav_hover_use; src/lsp/LAWS.bend nav_hover_binder; src/lsp/LAWS.bend nav_hover_item; src/lsp/LAWS.bend nav_hover_own; src/lsp/LAWS.bend nav_references; src/lsp/LAWS.bend nav_completion; src/lsp/LAWS.bend nav_completion_import |
 | BOLT-LSP-7 | Positions are in the encoding the client negotiated. | Proved | proved | src/lsp/LAWS.bend enc_negotiated; src/lsp/LAWS.bend enc_advertised; src/lsp/LAWS.bend enc_kept; src/lsp/LAWS.bend enc_round; src/lsp/LAWS.bend enc_sent; src/lsp/LAWS.bend enc_read; src/lsp/LAWS.bend enc_tokens; src/lsp/LAWS.bend enc_utf32 |
+| BOLT-LSP-8 | On a line with no character past U+FFFF, a UTF-16 column is the code-point column, both sent and read. | Proved | proved | src/lsp/LAWS.bend enc_narrow |
 
 ### Library (BOLT-LIB)
 

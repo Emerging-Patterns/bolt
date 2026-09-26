@@ -891,7 +891,7 @@ law enc_utf32:
 
 # LAW: on lines with no char past U+FFFF, UTF-16 counts every column as a
 # code point, both ways: why Enc.cols converts such a document as utf-32
-# BOLT-LSP-7
+# BOLT-LSP-8
 law enc_narrow:
   for +lines: List<&2, String>
   for h: {Enc.wide_any(lines) == False{} : Bool}
