@@ -7184,29 +7184,30 @@ def doc.pick(c, _a, _x, _y, ih):
     case False{}:
       ih
 
-# the `#` test on line nn, to the rule and to the law
-law doc.hash:
+# the read down from ok to line nn, to the rule and to the law
+law doc.lead:
   for lines: List<&2, String>
   for +nn: U32
-  {Doc.check.hash(lines, nn) == Laws.doc.hash(lines, nn) : Bool}
+  for +ok: Bool
+  {Doc.check.lead(lines, nn, ok) == Laws.doc.lead(lines, nn, ok) : Bool}
 
-def doc.hash(lines, nn):
+def doc.lead(lines, nn, ok):
   match lines:
     case Nil{}:
       {==}
-    case Con{hh, tt}:
-      doc.pick(U32.is_eq(nn, 0), String.starts_with(hh, "#"), Doc.check.hash(tt, U32.sub(nn, 1)),
-        Laws.doc.hash(tt, U32.sub(nn, 1)), doc.hash(tt, U32.sub(nn, 1)))
+    case Con{+hh, tt}:
+      doc.pick(U32.is_eq(nn, 0), ok, Doc.check.lead(tt, U32.sub(nn, 1), Doc.check.after(hh, ok)),
+        Laws.doc.lead(tt, U32.sub(nn, 1), Laws.doc.after(hh, ok)),
+        doc.lead(tt, U32.sub(nn, 1), Doc.check.after(hh, ok)))
 
-# the `#` line right above line nn, to the rule and to the law
+# the comment block above line nn, to the rule and to the law
 law doc.above:
   for +lines: List<&2, String>
   for +nn: U32
-  {Doc.check.above(lines, nn) == Bool.and(Bool.not(U32.is_eq(nn, 0)), Laws.doc.hash(lines, U32.sub(nn, 1))) : Bool}
+  {Doc.check.above(lines, nn) == Laws.doc.lead(lines, nn, False{}) : Bool}
 
 def doc.above(lines, nn):
-  hole.and(Bool.not(U32.is_eq(nn, 0)), Doc.check.hash(lines, U32.sub(nn, 1)), Laws.doc.hash(lines, U32.sub(nn, 1)),
-    doc.hash(lines, U32.sub(nn, 1)))
+  doc.lead(lines, nn, False{})
 
 # the kind and name test, to the rule and to the law
 law doc.needs:
@@ -7243,12 +7244,12 @@ law doc.hit:
 def doc.hit(kk, name, line, _doc, lines):
   +ar = Bool.and(Doc.needs(kk), Bool.not(Doc.exempt(name)))
   +as = Bool.and(Laws.doc.kind(kk), Bool.not(Laws.doc.free(name)))
-  +ns = Bool.not(Bool.and(Bool.not(U32.is_eq(line, 0)), Laws.doc.hash(lines, U32.sub(line, 1))))
+  +ns = Bool.not(Laws.doc.lead(lines, line, False{}))
   Equal.trans(Bool, Lazy.and_then(ar, _u => Bool.not(Doc.check.above(lines, line))), Bool.and(ar, ns),
     Bool.and(as, ns),
     hole.and(ar, Bool.not(Doc.check.above(lines, line)), ns,
       Equal.cong(Bool, Bool, z => Bool.not(z), Doc.check.above(lines, line),
-        Bool.and(Bool.not(U32.is_eq(line, 0)), Laws.doc.hash(lines, U32.sub(line, 1))), doc.above(lines, line))),
+        Laws.doc.lead(lines, line, False{}), doc.above(lines, line))),
     Equal.cong(Bool, Bool, z => Bool.and(z, ns), ar, as, doc.needs(kk, name)))
 
 # an item onto a rest the law holds for
@@ -7328,6 +7329,133 @@ def unused.header(kids, rest, ih):
     Equal.cong(List<&2, U32>, List<&2, U32>, xs => List.append(&2, U32, Laws.unused.token_lines(Tree.leaves(kids)), xs),
       Unused.foreign(rest), Laws.unused.headers(rest), ih))
 
+# the rule's `:` test on a statement's chain is the law's
+law unused.ends:
+  for kids: Tree.Node
+  for last: Bool
+  {Unused.foreign.ends(kids, last) == Laws.unused.ends(kids, last) : Bool}
+
+def unused.ends(kids, _last):
+  match kids:
+    case Tree.NCons{h, t}:
+      unused.ends(t, Unused.colon(h))
+    case Tree.Leaf{x}:
+      {==}
+    case Tree.Group{x, y, z}:
+      {==}
+    case Tree.Stmt{x, y, z}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# the rule's import test is the law's
+law unused.first:
+  for sk: Tree.StmtKind
+  {Unused.foreign.first(sk) == Laws.unused.is_import(sk) : Bool}
+
+def unused.first(sk):
+  match sk:
+    case Tree.SDef{}:
+      {==}
+    case Tree.SType{}:
+      {==}
+    case Tree.SLaw{}:
+      {==}
+    case Tree.SImport{}:
+      {==}
+    case Tree.SCase{}:
+      {==}
+    case Tree.SFor{}:
+      {==}
+    case Tree.SLet{}:
+      {==}
+    case Tree.STerm{}:
+      {==}
+
+# the rule's test for a body that opens with an import once the header is
+# over is the law's, whether the header is still open or not
+law unused.opens:
+  for body: Tree.Node
+  for open: Bool
+  {Unused.foreign.opens(body, open) == Laws.unused.opens(body, open) : Bool}
+
+def unused.opens(body, open):
+  match body:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Stmt{sk, +kids, b}:
+          match open:
+            case True{}:
+              Equal.trans(Bool, Unused.foreign.opens(rest, Bool.not(Unused.foreign.ends(kids, False{}))),
+                Laws.unused.opens(rest, Bool.not(Unused.foreign.ends(kids, False{}))),
+                Laws.unused.opens(rest, Bool.not(Laws.unused.ends(kids, False{}))),
+                unused.opens(rest, Bool.not(Unused.foreign.ends(kids, False{}))),
+                Equal.cong(Bool, Bool, z => Laws.unused.opens(rest, Bool.not(z)), Unused.foreign.ends(kids, False{}),
+                  Laws.unused.ends(kids, False{}), unused.ends(kids, False{})))
+            case False{}:
+              unused.first(sk)
+        case Tree.Leaf{x}:
+          {==}
+        case Tree.Group{x, y, z}:
+          {==}
+        case Tree.NNil{}:
+          {==}
+        case Tree.NCons{x, y}:
+          {==}
+    case Tree.Leaf{x}:
+      {==}
+    case Tree.Group{x, y, z}:
+      {==}
+    case Tree.Stmt{x, y, z}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# a pick between lists equal branch by branch is equal
+law unused.pick:
+  for c: Bool
+  for -a1: List<&2, U32>
+  for -a2: List<&2, U32>
+  for -b1: List<&2, U32>
+  for -b2: List<&2, U32>
+  for ea: {a1 == a2 : List<&2, U32>}
+  for eb: {b1 == b2 : List<&2, U32>}
+  {Bool.pick(List<&2, U32>, c, a1, b1) == Bool.pick(List<&2, U32>, c, a2, b2) : List<&2, U32>}
+
+def unused.pick(c, _a1, _a2, _b1, _b2, ea, eb):
+  match c:
+    case True{}:
+      ea
+    case False{}:
+      eb
+
+# a def's lines onto the lines after it, to the rule and to the law
+law unused.def:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +ih: {Unused.foreign(rest) == Laws.unused.headers(rest) : List<&2, U32>}
+  {Bool.pick(List<&2, U32>, Unused.foreign.opens(body, Bool.not(Unused.foreign.ends(kids, False{}))),
+    Unused.lines(Tree.leaves(kids), Unused.foreign(rest)), Unused.foreign(rest))
+    == Bool.pick(List<&2, U32>, Laws.unused.imported(kids, body),
+      List.append(&2, U32, Laws.unused.token_lines(Tree.leaves(kids)), Laws.unused.headers(rest)),
+      Laws.unused.headers(rest)) : List<&2, U32>}
+
+def unused.def(kids, body, rest, ih):
+  +rc = Unused.foreign.opens(body, Bool.not(Unused.foreign.ends(kids, False{})))
+  +lc = Laws.unused.imported(kids, body)
+  +ra = Unused.lines(Tree.leaves(kids), Unused.foreign(rest))
+  +la = List.append(&2, U32, Laws.unused.token_lines(Tree.leaves(kids)), Laws.unused.headers(rest))
+  +ec = Equal.trans(Bool, rc, Laws.unused.opens(body, Bool.not(Unused.foreign.ends(kids, False{}))), lc,
+    unused.opens(body, Bool.not(Unused.foreign.ends(kids, False{}))),
+    Equal.cong(Bool, Bool, z => Laws.unused.opens(body, Bool.not(z)), Unused.foreign.ends(kids, False{}),
+      Laws.unused.ends(kids, False{}), unused.ends(kids, False{})))
+  Equal.trans(List<&2, U32>, Bool.pick(List<&2, U32>, rc, ra, Unused.foreign(rest)),
+    Bool.pick(List<&2, U32>, lc, ra, Unused.foreign(rest)),
+    Bool.pick(List<&2, U32>, lc, la, Laws.unused.headers(rest)),
+    Equal.cong(Bool, List<&2, U32>, z => Bool.pick(List<&2, U32>, z, ra, Unused.foreign(rest)), rc, lc, ec),
+    unused.pick(lc, ra, la, Unused.foreign(rest), Laws.unused.headers(rest), unused.header(kids, rest, ih), ih))
+
 # the rule's foreign lines are the law's header lines
 law unused.foreign:
   for root: Tree.Node
@@ -7349,46 +7477,10 @@ def unused.foreign(root):
           unused.foreign(rest)
         case Tree.Group{o, gk, cl}:
           unused.foreign(rest)
-        case Tree.Stmt{kind, +kids, body}:
+        case Tree.Stmt{kind, +kids, +body}:
           match kind:
             case Tree.SDef{}:
-              match body:
-                case Tree.Leaf{tok}:
-                  unused.foreign(rest)
-                case Tree.Group{o, gk, cl}:
-                  unused.foreign(rest)
-                case Tree.Stmt{bk, bs, bb}:
-                  unused.foreign(rest)
-                case Tree.NNil{}:
-                  unused.foreign(rest)
-                case Tree.NCons{bh, more}:
-                  match bh:
-                    case Tree.Leaf{tok}:
-                      unused.foreign(rest)
-                    case Tree.Group{o, gk, cl}:
-                      unused.foreign(rest)
-                    case Tree.NNil{}:
-                      unused.foreign(rest)
-                    case Tree.NCons{nh, nt}:
-                      unused.foreign(rest)
-                    case Tree.Stmt{ik, ks, ib}:
-                      match ik:
-                        case Tree.SDef{}:
-                          unused.foreign(rest)
-                        case Tree.SType{}:
-                          unused.foreign(rest)
-                        case Tree.SLaw{}:
-                          unused.foreign(rest)
-                        case Tree.SImport{}:
-                          unused.header(kids, rest, unused.foreign(rest))
-                        case Tree.SCase{}:
-                          unused.foreign(rest)
-                        case Tree.SFor{}:
-                          unused.foreign(rest)
-                        case Tree.SLet{}:
-                          unused.foreign(rest)
-                        case Tree.STerm{}:
-                          unused.foreign(rest)
+              unused.def(kids, body, rest, unused.foreign(rest))
             case Tree.SType{}:
               unused.foreign(rest)
             case Tree.SLaw{}:
@@ -21167,81 +21259,93 @@ def Laws.inert_pick(path, _text, tree, _toks, _bound, _items, _text2, tree2, _to
 # doc
 # ---
 
-# a line that is a `#` line exactly when b says so
-def inert.doc.line(bb: Bool) -> String:
-  match bb:
-    case True{}: "#"
-    case False{}: ""
+# a line that starts as ll says
+def inert.doc.line(ll: Laws.inert.Lead) -> String:
+  match ll:
+    case Laws.LHash{}: "#"
+    case Laws.LAt{}: "@"
+    case Laws.LPlain{}: ""
 
-# the lines rebuilt from which of them start with `#`
-def inert.doc.relines(bs: List<&2, Bool>) -> List<&2, String>:
+# the lines rebuilt from how each of them starts
+def inert.doc.relines(bs: List<&2, Laws.inert.Lead>) -> List<&2, String>:
   match bs:
     case Nil{}: Nil{}
     case Con{h, t}: inert.doc.line(h) <> inert.doc.relines(t)
 
-# a line rebuilt from its `#` test starts with `#` as it did
-law inert.doc.hash1:
-  for b: Bool
-  {String.starts_with(inert.doc.line(b), "#") == b : Bool}
+# a line rebuilt from how it starts steps doc's read down as it did
+law inert.doc.after1:
+  for b1: Bool
+  for b2: Bool
+  for +ok: Bool
+  {Doc.check.after(inert.doc.line(Laws.inert.lead(b1, b2)), ok) == Bool.or(b1, Bool.and(b2, ok)) : Bool}
 
-def inert.doc.hash1(b):
-  match b:
+def inert.doc.after1(b1, b2, _ok):
+  match b1:
     case True{}: {==}
-    case False{}: {==}
+    case False{}:
+      match b2:
+        case True{}: {==}
+        case False{}: {==}
 
-# the `#` test on the lines rebuilt is the test on the lines
-law inert.doc.hash:
+# doc's read down the lines rebuilt is its read down the lines
+law inert.doc.lead:
   for lines: List<&2, String>
   for +nn: U32
-  {Doc.check.hash(inert.doc.relines(Laws.inert.hashes(lines)), nn) == Doc.check.hash(lines, nn) : Bool}
+  for +ok: Bool
+  {Doc.check.lead(inert.doc.relines(Laws.inert.leads(lines)), nn, ok) == Doc.check.lead(lines, nn, ok) : Bool}
 
-def inert.doc.hash(lines, nn):
+def inert.doc.lead(lines, nn, ok):
   match lines:
     case Nil{}: {==}
-    case Con{+hh, tt}:
-      +h1 = String.starts_with(hh, "#")
-      %inert.doc.hash1(h1) : {Lazy.stop(Bool, U32.is_eq(nn, 0), String.starts_with(inert.doc.line(h1), "#"),
-        _u => Doc.check.hash(inert.doc.relines(Laws.inert.hashes(tt)), U32.sub(nn, 1)))
-        == Lazy.stop(Bool, U32.is_eq(nn, 0), _, _u => Doc.check.hash(tt, U32.sub(nn, 1))) : Bool}
-      %inert.doc.hash(tt, U32.sub(nn, 1)) : {Lazy.stop(Bool, U32.is_eq(nn, 0), String.starts_with(inert.doc.line(h1),
-        "#"),
-        _u => Doc.check.hash(inert.doc.relines(Laws.inert.hashes(tt)), U32.sub(nn, 1)))
-        == Lazy.stop(Bool, U32.is_eq(nn, 0), String.starts_with(inert.doc.line(h1), "#"), _u => _) : Bool}
-      {==}
+    case Con{+hh, +tt}:
+      +a1 = Doc.check.after(inert.doc.line(Laws.inert.lead(String.starts_with(hh, "#"), String.starts_with(hh, "@"))),
+        ok)
+      +a2 = Doc.check.after(hh, ok)
+      +rt = inert.doc.relines(Laws.inert.leads(tt))
+      Equal.cong(Bool, Bool, z => Lazy.stop(Bool, U32.is_eq(nn, 0), ok, _u => z),
+        Doc.check.lead(rt, U32.sub(nn, 1), a1), Doc.check.lead(tt, U32.sub(nn, 1), a2),
+        Equal.trans(Bool, Doc.check.lead(rt, U32.sub(nn, 1), a1), Doc.check.lead(rt, U32.sub(nn, 1), a2),
+          Doc.check.lead(tt, U32.sub(nn, 1), a2),
+          Equal.cong(Bool, Bool, z => Doc.check.lead(rt, U32.sub(nn, 1), z), a1, a2,
+            inert.doc.after1(String.starts_with(hh, "#"), String.starts_with(hh, "@"), ok)),
+          inert.doc.lead(tt, U32.sub(nn, 1), a2)))
 
 # doc's walk reads its items' kinds, names and lines, and of its lines only
-# which start with `#`
+# how each starts
 law inert.doc.go:
   for items: List<&2, Outline.Item>
   for +path: String
   for +lines: List<&2, String>
-  {Doc.check.go(Laws.inert.items(items), path, inert.doc.relines(Laws.inert.hashes(lines)))
+  {Doc.check.go(Laws.inert.items(items), path, inert.doc.relines(Laws.inert.leads(lines)))
     == Doc.check.go(items, path, lines) : List<&2, F.Finding>}
 
 def inert.doc.go(items, path, lines):
   match items:
     case Nil{}: {==}
-    case Con{Outline.Item{+k, +name, +line, +s, +d, +p}, +rest}:
-      +rl = inert.doc.relines(Laws.inert.hashes(lines))
-      +lhs = Doc.check.go(Laws.inert.items(Outline.Item{k, name, line, s, d, p} <> rest), path, rl)
-      %inert.doc.hash(lines, U32.sub(line, 1)) : {lhs == Bool.pick(List<&2, F.Finding>,
-        Lazy.and_then(Bool.and(Doc.needs(k),
-        Bool.not(Doc.exempt(name))), _u => Bool.not(Lazy.and_then(Bool.not(U32.is_eq(line, 0)), _v => _))),
-        F.Finding{path, line, 0, 0, "doc", Doc.what(k) ++ " " ++ name ++ " has no comment above it."}
-          <> Doc.check.go(rest, path, lines), Doc.check.go(rest, path, lines)) : List<&2, F.Finding>}
-      %inert.doc.go(rest, path, lines) : {lhs == Bool.pick(List<&2, F.Finding>, Lazy.and_then(Bool.and(Doc.needs(k),
-        Bool.not(Doc.exempt(name))), _u => Bool.not(Lazy.and_then(Bool.not(U32.is_eq(line, 0)),
-          _v => Doc.check.hash(rl, U32.sub(line, 1))))),
-        F.Finding{path, line, 0, 0, "doc", Doc.what(k) ++ " " ++ name ++ " has no comment above it."} <> _, _)
-        : List<&2, F.Finding>}
-      {==}
+    case Con{Outline.Item{+k, +name, +line, s, d, p}, +rest}:
+      +rl = inert.doc.relines(Laws.inert.leads(lines))
+      +x = {F.Finding{path, line, 0, 0, "doc", Doc.what(k) ++ " " ++ name ++ " has no comment above it."} : F.Finding}
+      +nd = Bool.and(Doc.needs(k), Bool.not(Doc.exempt(name)))
+      +m1 = Doc.check.go(Laws.inert.items(rest), path, rl)
+      +m2 = Doc.check.go(rest, path, lines)
+      Equal.trans(List<&2, F.Finding>,
+        Bool.pick(List<&2, F.Finding>, Lazy.and_then(nd, _u => Bool.not(Doc.check.above(rl, line))), x <> m1, m1),
+        Bool.pick(List<&2, F.Finding>, Lazy.and_then(nd, _u => Bool.not(Doc.check.above(lines, line))), x <> m1, m1),
+        Bool.pick(List<&2, F.Finding>, Lazy.and_then(nd, _u => Bool.not(Doc.check.above(lines, line))), x <> m2, m2),
+        Equal.cong(Bool, List<&2, F.Finding>,
+          z => Bool.pick(List<&2, F.Finding>, Lazy.and_then(nd, _u => Bool.not(z)), x <> m1, m1),
+          Doc.check.above(rl, line), Doc.check.above(lines, line), inert.doc.lead(lines, line, False{})),
+        Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
+          z => Bool.pick(List<&2, F.Finding>, Lazy.and_then(nd, _u => Bool.not(Doc.check.above(lines, line))),
+            x <> z, z),
+          m1, m2, inert.doc.go(rest, path, lines)))
 
 def Laws.inert_doc(path, text, toks, _tree, _bound, items, text2, toks2, _tree2, _bound2, items2, ei, el):
   +l1 = Doc.lines(text, toks)
   +l2 = Doc.lines(text2, toks2)
-  +r1 = Doc.check.go(Laws.inert.items(items), path, inert.doc.relines(Laws.inert.hashes(l1)))
-  +m = Doc.check.go(Laws.inert.items(items2), path, inert.doc.relines(Laws.inert.hashes(l1)))
-  +r2 = Doc.check.go(Laws.inert.items(items2), path, inert.doc.relines(Laws.inert.hashes(l2)))
+  +r1 = Doc.check.go(Laws.inert.items(items), path, inert.doc.relines(Laws.inert.leads(l1)))
+  +m = Doc.check.go(Laws.inert.items(items2), path, inert.doc.relines(Laws.inert.leads(l1)))
+  +r2 = Doc.check.go(Laws.inert.items(items2), path, inert.doc.relines(Laws.inert.leads(l2)))
   +w1 = Doc.check.go(items, path, l1)
   +w2 = Doc.check.go(items2, path, l2)
   Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
@@ -21249,12 +21353,12 @@ def Laws.inert_doc(path, text, toks, _tree, _bound, items, text2, toks2, _tree2,
     Equal.trans(List<&2, F.Finding>, w1, r1, w2, Equal.sym(List<&2, F.Finding>, r1, w1, inert.doc.go(items, path, l1)),
       Equal.trans(List<&2, F.Finding>, r1, m, w2,
         Equal.cong(List<&2, Outline.Item>, List<&2, F.Finding>,
-          z => Doc.check.go(z, path, inert.doc.relines(Laws.inert.hashes(l1))), Laws.inert.items(items),
+          z => Doc.check.go(z, path, inert.doc.relines(Laws.inert.leads(l1))), Laws.inert.items(items),
           Laws.inert.items(items2), ei),
         Equal.trans(List<&2, F.Finding>, m, r2, w2,
-          Equal.cong(List<&2, Bool>, List<&2, F.Finding>,
-            z => Doc.check.go(Laws.inert.items(items2), path, inert.doc.relines(z)), Laws.inert.hashes(l1),
-            Laws.inert.hashes(l2), el),
+          Equal.cong(List<&2, Laws.inert.Lead>, List<&2, F.Finding>,
+            z => Doc.check.go(Laws.inert.items(items2), path, inert.doc.relines(z)), Laws.inert.leads(l1),
+            Laws.inert.leads(l2), el),
           inert.doc.go(items2, path, l2)))))
 
 # param
@@ -28889,6 +28993,106 @@ def inert.unused.lines(kids, acc):
         Unused.lines(inert.canons(List.reverse.go(&2, Lex.Tok, lo, [])), acc),
         inert.canon_lines(List.reverse.go(&2, Lex.Tok, lo, []), acc))))
 
+# a node's `:` test, the node read that way, is the one it was
+law inert.unused.colon:
+  for nn: Tree.Node
+  {Unused.colon(Laws.inert.node(nn)) == Unused.colon(nn) : Bool}
+
+def inert.unused.colon(nn):
+  match nn:
+    case Tree.Leaf{tok}:
+      match tok:
+        case Lex.Tok{k, t, l, c}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+    case Tree.NCons{x, y}: {==}
+
+# a statement's `:` ending, its chain read that way, is the one it was
+law inert.unused.ends:
+  for kids: Tree.Node
+  for last: Bool
+  {Unused.foreign.ends(Laws.inert.node(kids), last) == Unused.foreign.ends(kids, last) : Bool}
+
+def inert.unused.ends(kids, _last):
+  match kids:
+    case Tree.NCons{+h, +t}:
+      Equal.trans(Bool, Unused.foreign.ends(Laws.inert.node(t), Unused.colon(Laws.inert.node(h))),
+        Unused.foreign.ends(Laws.inert.node(t), Unused.colon(h)), Unused.foreign.ends(t, Unused.colon(h)),
+        Equal.cong(Bool, Bool, z => Unused.foreign.ends(Laws.inert.node(t), z), Unused.colon(Laws.inert.node(h)),
+          Unused.colon(h), inert.unused.colon(h)),
+        inert.unused.ends(t, Unused.colon(h)))
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# a body's opening import, the body read that way, is the one it was
+law inert.unused.opens:
+  for body: Tree.Node
+  for open: Bool
+  {Unused.foreign.opens(Laws.inert.node(body), open) == Unused.foreign.opens(body, open) : Bool}
+
+def inert.unused.opens(body, open):
+  match body:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Stmt{sk, +kids, b}:
+          match open:
+            case True{}:
+              Equal.trans(Bool,
+                Unused.foreign.opens(Laws.inert.node(rest),
+                  Bool.not(Unused.foreign.ends(Laws.inert.node(kids), False{}))),
+                Unused.foreign.opens(Laws.inert.node(rest), Bool.not(Unused.foreign.ends(kids, False{}))),
+                Unused.foreign.opens(rest, Bool.not(Unused.foreign.ends(kids, False{}))),
+                Equal.cong(Bool, Bool, z => Unused.foreign.opens(Laws.inert.node(rest), Bool.not(z)),
+                  Unused.foreign.ends(Laws.inert.node(kids), False{}), Unused.foreign.ends(kids, False{}),
+                  inert.unused.ends(kids, False{})),
+                inert.unused.opens(rest, Bool.not(Unused.foreign.ends(kids, False{}))))
+            case False{}: {==}
+        case Tree.Leaf{x}: {==}
+        case Tree.Group{x, y, z}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# a def's lines onto the lines after it, the tree read that way, are the ones
+# they were
+law inert.unused.def:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +ih: {Unused.foreign(Laws.inert.node(rest)) == Unused.foreign(rest) : List<&2, U32>}
+  {Bool.pick(List<&2, U32>,
+    Unused.foreign.opens(Laws.inert.node(body), Bool.not(Unused.foreign.ends(Laws.inert.node(kids), False{}))),
+    Unused.lines(Tree.leaves(Laws.inert.node(kids)), Unused.foreign(Laws.inert.node(rest))),
+    Unused.foreign(Laws.inert.node(rest)))
+    == Bool.pick(List<&2, U32>, Unused.foreign.opens(body, Bool.not(Unused.foreign.ends(kids, False{}))),
+      Unused.lines(Tree.leaves(kids), Unused.foreign(rest)), Unused.foreign(rest)) : List<&2, U32>}
+
+def inert.unused.def(kids, body, rest, ih):
+  +fi = Unused.foreign(Laws.inert.node(rest))
+  +fo = Unused.foreign(rest)
+  +ra = Unused.lines(Tree.leaves(Laws.inert.node(kids)), fi)
+  +rb = Unused.lines(Tree.leaves(kids), fo)
+  +c1 = Unused.foreign.opens(Laws.inert.node(body), Bool.not(Unused.foreign.ends(Laws.inert.node(kids), False{})))
+  +c2 = Unused.foreign.opens(body, Bool.not(Unused.foreign.ends(kids, False{})))
+  +ec = Equal.trans(Bool, c1,
+    Unused.foreign.opens(Laws.inert.node(body), Bool.not(Unused.foreign.ends(kids, False{}))), c2,
+    Equal.cong(Bool, Bool, z => Unused.foreign.opens(Laws.inert.node(body), Bool.not(z)),
+      Unused.foreign.ends(Laws.inert.node(kids), False{}), Unused.foreign.ends(kids, False{}),
+      inert.unused.ends(kids, False{})),
+    inert.unused.opens(body, Bool.not(Unused.foreign.ends(kids, False{}))))
+  +ea = Equal.trans(List<&2, U32>, ra, Unused.lines(Tree.leaves(kids), fi), rb, inert.unused.lines(kids, fi),
+    Equal.cong(List<&2, U32>, List<&2, U32>, z => Unused.lines(Tree.leaves(kids), z), fi, fo, ih))
+  Equal.trans(List<&2, U32>, Bool.pick(List<&2, U32>, c1, ra, fi), Bool.pick(List<&2, U32>, c2, ra, fi),
+    Bool.pick(List<&2, U32>, c2, rb, fo),
+    Equal.cong(Bool, List<&2, U32>, z => Bool.pick(List<&2, U32>, z, ra, fi), c1, c2, ec),
+    unused.pick(c2, ra, rb, fi, fo, ea, ih))
+
 # the foreign defs' header lines, the tree read that way, are the ones they were
 law inert.unused.foreign:
   for root: Tree.Node
@@ -28898,34 +29102,9 @@ def inert.unused.foreign(root):
   match root:
     case Tree.NCons{h, +rest}:
       match h:
-        case Tree.Stmt{sk, +kids, body}:
+        case Tree.Stmt{sk, +kids, +body}:
           match sk:
-            case Tree.SDef{}:
-              match body:
-                case Tree.NCons{b1, more}:
-                  match b1:
-                    case Tree.Stmt{sk2, ik, ib}:
-                      match sk2:
-                        case Tree.SImport{}:
-                          %inert.unused.foreign(rest) : {Unused.lines(Tree.leaves(Laws.inert.node(kids)),
-                            Unused.foreign(Laws.inert.node(rest))) == Unused.lines(Tree.leaves(kids), _)
-                              : List<&2, U32>}
-                          inert.unused.lines(kids, Unused.foreign(Laws.inert.node(rest)))
-                        case Tree.SDef{}: inert.unused.foreign(rest)
-                        case Tree.SType{}: inert.unused.foreign(rest)
-                        case Tree.SLaw{}: inert.unused.foreign(rest)
-                        case Tree.SCase{}: inert.unused.foreign(rest)
-                        case Tree.SFor{}: inert.unused.foreign(rest)
-                        case Tree.SLet{}: inert.unused.foreign(rest)
-                        case Tree.STerm{}: inert.unused.foreign(rest)
-                    case Tree.Leaf{x}: inert.unused.foreign(rest)
-                    case Tree.Group{x, y, z}: inert.unused.foreign(rest)
-                    case Tree.NNil{}: inert.unused.foreign(rest)
-                    case Tree.NCons{x, y}: inert.unused.foreign(rest)
-                case Tree.Leaf{x}: inert.unused.foreign(rest)
-                case Tree.Group{x, y, z}: inert.unused.foreign(rest)
-                case Tree.Stmt{x, y, z}: inert.unused.foreign(rest)
-                case Tree.NNil{}: inert.unused.foreign(rest)
+            case Tree.SDef{}: inert.unused.def(kids, body, rest, inert.unused.foreign(rest))
             case Tree.SType{}: inert.unused.foreign(rest)
             case Tree.SLaw{}: inert.unused.foreign(rest)
             case Tree.SImport{}: inert.unused.foreign(rest)

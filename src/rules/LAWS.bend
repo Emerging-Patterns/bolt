@@ -1404,10 +1404,11 @@ law closed_counts:
     == Bool.pick(Nat, Paths.is_laws(path), closed.count(tree), 0n) : Nat}
 
 # doc (BOLT-RULE-S001). Over the outline's items the rule reports each def,
-# type and law with no comment block right above it: its outline doc text is
-# empty and the line right above it does not start with `#` (a block of bare
-# `#` lines has an empty text). The header's exemptions: a name that is
-# `main` or holds a dot (a helper), and a PROOF.bend or a file under a
+# type and law with no comment block right above it: reading up from the
+# item past any lines that start with `@` (attributes such as `@unsafe`),
+# the first other line does not start with `#` (a block of bare `#` lines
+# counts; its doc text is never read). The header's exemptions: a name that
+# is `main` or holds a dot (a helper), and a PROOF.bend or a file under a
 # `tests` directory.
 
 # a def, a type or a law: the kinds that need a comment
@@ -1426,19 +1427,25 @@ def doc.kind(kk: Outline.ItemKind) -> Bool:
 def doc.free(+name: String) -> Bool:
   Bool.or(String.eq(name, "main"), String.contains(name, "."))
 
-# line nn of the lines (0-based) starts with `#`
-def doc.hash(lines: List<&2, String>, +nn: U32) -> Bool:
+# reading down, does a comment block end right above the next line? After a
+# `#` line it does; an `@` line keeps what was above it; any other line ends it
+def doc.after(+line: String, ok: Bool) -> Bool:
+  Bool.or(String.starts_with(line, "#"), Bool.and(String.starts_with(line, "@"), ok))
+
+# reading lines 0 to nn - 1 (0-based) down from ok: does a comment block end
+# right above line nn, past a run of `@` lines?
+def doc.lead(lines: List<&2, String>, +nn: U32, +ok: Bool) -> Bool:
   match lines:
     case Nil{}:
-      False{}
+      Bool.and(U32.is_eq(nn, 0), ok)
     case Con{hh, tt}:
-      Bool.pick(Bool, U32.is_eq(nn, 0), String.starts_with(hh, "#"), doc.hash(tt, U32.sub(nn, 1)))
+      Bool.pick(Bool, U32.is_eq(nn, 0), ok, doc.lead(tt, U32.sub(nn, 1), doc.after(hh, ok)))
 
 # an item that needs a comment and has none: an unexempt def, type or law
-# whose line has no `#` line right above it (its doc text is never read)
+# with no `#` line right above it, or right above the `@` lines right above
+# it (its doc text is never read)
 def doc.bare(kk: Outline.ItemKind, +name: String, +line: U32, _doc: String, +lines: List<&2, String>) -> Bool:
-  Bool.and(Bool.and(doc.kind(kk), Bool.not(doc.free(name))),
-    Bool.not(Bool.and(Bool.not(U32.is_eq(line, 0)), doc.hash(lines, U32.sub(line, 1)))))
+  Bool.and(Bool.and(doc.kind(kk), Bool.not(doc.free(name))), Bool.not(doc.lead(lines, line, False{})))
 
 # how many items need a comment and have none
 def doc.count(items: List<&2, Outline.Item>, +lines: List<&2, String>) -> Nat:
@@ -1451,7 +1458,8 @@ def doc.count(items: List<&2, Outline.Item>, +lines: List<&2, String>) -> Nat:
 
 # LAW: over the outline's items, doc reports one finding for each def, type
 # or law not named `main` and holding no dot whose line has no `#` line
-# right above it, and none for any other item
+# right above it, or right above a run of `@` lines right above it, and none
+# for any other item
 # BOLT-RULE-S001
 law doc_walk_counts:
   for items: List<&2, Outline.Item>
@@ -1478,17 +1486,43 @@ law doc_counts:
 # every use with what it resolves to. A binder counts when it is a let, a
 # do-bind or a lambda binder (KLocal), or a parameter (KParam) that is not
 # erased (its declaration opens with `-`) and does not sit on a header line
-# of a foreign def; its name does not start with `_`; and no use resolves to
+# of a foreign def (its body's first statement, once a header that does not
+# end in `:` has run on through the statements up to one that does, is an
+# `import`); its name does not start with `_`; and no use resolves to
 # its position. Pattern binders (KPat), a law's `for` names (KFor) and every
 # other kind never count.
 
-# does a def's body open with an import statement? then the def is foreign
-def unused.imported(body: Tree.Node) -> Bool:
-  match body:
-    case Tree.NCons{Tree.Stmt{Tree.SImport{}, kids, b}, rest}:
+# is the statement an import?
+def unused.is_import(sk: Tree.StmtKind) -> Bool:
+  match sk:
+    case Tree.SImport{}:
       True{}
     case other:
       False{}
+
+# does a statement's own chain end in a `:` leaf (Unused.colon, the rule's
+# reading of one)? last: whether the node before the chain did
+def unused.ends(kids: Tree.Node, last: Bool) -> Bool:
+  match kids:
+    case Tree.NCons{h, t}:
+      unused.ends(t, Unused.colon(h))
+    case other:
+      last
+
+# does the body open with an import once the def's header is over? While the
+# header is open (its tokens so far do not end in `:`), each statement of the
+# body is more of it: `-> IO(T):` on the line after `def f(..)`
+def unused.opens(body: Tree.Node, +open: Bool) -> Bool:
+  match body:
+    case Tree.NCons{Tree.Stmt{sk, kids, b}, rest}:
+      Bool.pick(Bool, open, unused.opens(rest, Bool.not(unused.ends(kids, False{}))), unused.is_import(sk))
+    case other:
+      False{}
+
+# does a def's body open with an import statement, wherever its header's `->`
+# and return type fall? then the def is foreign
+def unused.imported(kids: Tree.Node, body: Tree.Node) -> Bool:
+  unused.opens(body, Bool.not(unused.ends(kids, False{})))
 
 # the line of each token
 def unused.token_lines(ts: List<&2, Lex.Tok>) -> List<&2, U32>:
@@ -1502,9 +1536,9 @@ def unused.token_lines(ts: List<&2, Lex.Tok>) -> List<&2, U32>:
 # of its own tokens, def by def
 def unused.headers(root: Tree.Node) -> List<&2, U32>:
   match root:
-    case Tree.NCons{Tree.Stmt{Tree.SDef{}, kids, body}, rest}:
+    case Tree.NCons{Tree.Stmt{Tree.SDef{}, +kids, body}, rest}:
       +more = unused.headers(rest)
-      Bool.pick(List<&2, U32>, unused.imported(body),
+      Bool.pick(List<&2, U32>, unused.imported(kids, body),
         List.append(&2, U32, unused.token_lines(Tree.leaves(kids)), more), more)
     case Tree.NCons{h, rest}:
       unused.headers(rest)
@@ -1569,7 +1603,7 @@ def unused.count(binds: List<&2, Bind.Bind>, +uses: List<&2, Bind.Use>, +fl: Lis
 # parameter no use resolves to, and none for any other binder: not a pattern
 # binder, a name starting with `_`, an erased parameter, a law's `for` name,
 # or a parameter of a foreign def (one whose body opens with `import`),
-# however its header is wrapped
+# wherever its header's `->` and return type fall
 # BOLT-RULE-U001
 law unused_counts:
   for +path: String
@@ -4746,18 +4780,36 @@ def inert.items(its: List<&2, Outline.Item>) -> List<&2, Outline.Item>:
     case Con{h, t}:
       inert.item(h) <> inert.items(t)
 
-# which lines start with `#`
-def inert.hashes(ls: List<&2, String>) -> List<&2, Bool>:
+# how a line starts, as doc reads it: with `#`, with `@`, or with neither
+type inert.Lead is Data:
+  LHash{}
+  LAt{}
+  LPlain{}
+
+# how a line starts, from whether it starts with `#` and whether with `@`
+def inert.lead(hash: Bool, at: Bool) -> inert.Lead:
+  match hash:
+    case True{}:
+      LHash{}
+    case False{}:
+      match at:
+        case True{}:
+          LAt{}
+        case False{}:
+          LPlain{}
+
+# how each line starts
+def inert.leads(ls: List<&2, String>) -> List<&2, inert.Lead>:
   match ls:
     case Nil{}:
       Nil{}
-    case Con{h, t}:
-      String.starts_with(h, "#") <> inert.hashes(t)
+    case Con{+h, t}:
+      inert.lead(String.starts_with(h, "#"), String.starts_with(h, "@")) <> inert.leads(t)
 
 # LAW: doc reads no comment or string: two sources whose items have the same
 # kinds, names and lines, and whose lines (one that starts inside a string
-# literal read as empty) start with `#` alike, have the same findings, what
-# their comments and strings say aside
+# literal read as empty) start with `#` alike and with `@` alike, have the
+# same findings, what their comments and strings say aside
 # BOLT-RULE-INERT
 law inert_doc:
   for +path: String
@@ -4772,7 +4824,7 @@ law inert_doc:
   for bound2: Bind.Bound
   for +items2: List<&2, Outline.Item>
   for ei: {inert.items(items) == inert.items(items2) : List<&2, Outline.Item>}
-  for el: {inert.hashes(Doc.lines(text, toks)) == inert.hashes(Doc.lines(text2, toks2)) : List<&2, Bool>}
+  for el: {inert.leads(Doc.lines(text, toks)) == inert.leads(Doc.lines(text2, toks2)) : List<&2, inert.Lead>}
   {Doc.check(Src.Src{path, text, toks, tree, bound, items})
     == Doc.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
 

@@ -147,17 +147,19 @@ or one written with no type at all (`def f(x, y):`, no `:` among its
 parameters and no `->`), which is how Bend fills the law named `f`.
 
 - `doc` — every top-level def, type and law has a comment block right above
-  it: column-0 `#` lines with no blank line before the item. A block of bare
-  `#` lines counts. Helpers (dotted names like `show.go`) ride on their
+  it: column-0 `#` lines with no blank line before the item, or before a run
+  of column-0 `@` lines (`@unsafe`) right above it. A block of bare `#` lines
+  counts. Helpers (dotted names like `show.go`) ride on their
   parent's, `main` needs none, PROOF.bend fills laws that LAWS.bend
   documents, and a test (under `tests/`) is documented by its header and its
   check names.
 - `unused` — a name bound by a let, a do-bind, a lambda or as a parameter is
   never used. Exempt: pattern binders (naming every field of `Tok{k, t, l, c}`
   reads better than `_`), names starting with `_`, erased parameters (`-x`),
-  a law's `for` names, and every parameter of a foreign def, one whose body
-  starts with `import` (its C and JS read them), however its header is
-  wrapped.
+  a law's `for` names, and every parameter of a foreign def, one whose body's
+  first statement is `import` (its C and JS read them), wherever its
+  header's `->` and return type fall. A name read in a dependent arrow's
+  types (`@+x: U32 -> S`) is a use.
 - `hole` — a TODO hole left in code, the one bend counts in "1 TODO found." /
   "N TODOs found." (under `SOME PROOFS FAIL`, exit 1):
   `?` and then `TODO`, with spaces, newlines or comments allowed between

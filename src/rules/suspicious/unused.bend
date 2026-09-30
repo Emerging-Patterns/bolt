@@ -1,10 +1,13 @@
 # rule unused: a name bound by a let, a do-bind, a lambda, or as a parameter
-# is never used. Pattern binders are exempt: naming every field of
-# `Tok{k, t, l, c}` reads better than `_`. So are names starting with `_`,
-# erased parameters (`-x`), which exist to be unused, a law's `for` names
-# (hypotheses the proof takes by position), and every parameter of a foreign
-# def (one whose body starts with `import`), which its C and JS bodies read,
-# however its header is wrapped.
+# is never used. A name read anywhere is a use, in a dependent arrow's types
+# too (`@+x: U32 -> S` reads `S`). Pattern binders are exempt: naming every
+# field of `Tok{k, t, l, c}` reads better than `_`. So are names starting
+# with `_`, erased parameters (`-x`), which exist to be unused, a law's `for`
+# names (hypotheses the proof takes by position), and every parameter of a
+# foreign def, which its C and JS bodies read: one whose body's first
+# statement is `import`, wherever its header's `->` and return type fall (a
+# header that does not end in `:` runs on through the body's statements up
+# to one that does, as `-> IO(T):` on the line after `def f(..) ->`).
 import Base
 import ../../src.bend as Src
 import ../../lazy/lazy.bend as Lazy
@@ -21,12 +24,61 @@ def lines(ts: List<&2, Lex.Tok>, acc: List<&2, U32>) -> List<&2, U32>:
     case Con{Lex.Tok{k, t, l, c}, rest}:
       l <> lines(rest, acc)
 
-# every header line of the defs whose body is `import "./x.c"`, however the
-# header is wrapped
+# is a token of this kind a `:`?
+def colon.kind(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TColon{}:
+      True{}
+    case other:
+      False{}
+
+# is the node a `:` leaf?
+def colon(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.Leaf{Lex.Tok{k, _t, _l, _c}}:
+      colon.kind(k)
+    case other:
+      False{}
+
+# does a statement's own chain end in a `:` leaf? last: whether the node
+# before the chain did
+def foreign.ends(kids: Tree.Node, last: Bool) -> Bool:
+  match kids:
+    case Tree.NCons{h, t}:
+      foreign.ends(t, colon(h))
+    case other:
+      last
+
+# is the statement an import?
+def foreign.first(sk: Tree.StmtKind) -> Bool:
+  match sk:
+    case Tree.SImport{}:
+      True{}
+    case other:
+      False{}
+
+# does the body open with an import once the def's header is over? While the
+# header is open (its tokens so far do not end in `:`), each statement is more
+# of it: `-> IO(T):` on the line after `def f(..) ->`
+def foreign.opens(body: Tree.Node, open: Bool) -> Bool:
+  match body:
+    case Tree.NCons{Tree.Stmt{sk, kids, _b}, rest}:
+      match open:
+        case True{}:
+          foreign.opens(rest, Bool.not(foreign.ends(kids, False{})))
+        case False{}:
+          foreign.first(sk)
+    case other:
+      False{}
+
+# every header line of the defs whose body is `import "./x.c"`, wherever the
+# header's `->` and return type fall
 def foreign(root: Tree.Node) -> List<&2, U32>:
   match root:
-    case Tree.NCons{Tree.Stmt{Tree.SDef{}, kids, Tree.NCons{Tree.Stmt{Tree.SImport{}, ik, ib}, more}}, rest}:
-      lines(Tree.leaves(kids), foreign(rest))
+    case Tree.NCons{Tree.Stmt{Tree.SDef{}, +kids, body}, rest}:
+      +more = foreign(rest)
+      +own = lines(Tree.leaves(kids), more)
+      Bool.pick(List<&2, U32>, foreign.opens(body, Bool.not(foreign.ends(kids, False{}))), own, more)
     case Tree.NCons{other, rest}:
       foreign(rest)
     case other:

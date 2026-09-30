@@ -18,7 +18,8 @@ import ./lex.bend as Lex
 # what a statement is, by its shape: SDef `def f(..)` (also `@unsafe def`),
 # SType, SLaw, SImport, SCase `case p:`, SFor `for x: T` / `exs x: T`, SLet
 # (a `=` or `<-` among its own tokens), else STerm (`match x:`, `do M<T>:`,
-# `return e`, a call)
+# `return e`, a call, and a dependent arrow `@x: A -> B` or `@+x: A -> B`,
+# which an `@` does not make a def)
 type StmtKind is Data:
   SDef{}
   SType{}
@@ -305,13 +306,32 @@ def keyword_kind(+tt: String) -> StmtKind:
           Bool.pick(StmtKind, String.eq(tt, "case"), SCase{},
             Bool.pick(StmtKind, Bool.or(String.eq(tt, "for"), String.eq(tt, "exs")), SFor{}, STerm{}))))))
 
+# does the chain after an `@` start with a binder's name and a `:`?
+def arrow.named(rest: Node) -> Bool:
+  match rest:
+    case NCons{Leaf{Lex.Tok{Lex.TName{}, _t, _l, _c}}, NCons{Leaf{Lex.Tok{Lex.TColon{}, _ct, _cl, _cc}}, _r}}:
+      True{}
+    case NCons{Leaf{Lex.Tok{Lex.TUpper{}, _t, _l, _c}}, NCons{Leaf{Lex.Tok{Lex.TColon{}, _ct, _cl, _cc}}, _r}}:
+      True{}
+    case _other:
+      False{}
+
+# does the chain after an `@` bind a name, `@x:` or with a quantity mark
+# `@+x:`, as a dependent arrow does, rather than name an attribute (`@unsafe`)?
+def arrow(rest: Node) -> Bool:
+  match rest:
+    case NCons{Leaf{Lex.Tok{Lex.TOp{}, _t, _l, _c}}, more}:
+      arrow.named(more)
+    case other:
+      arrow.named(other)
+
 # a statement's kind from its own tokens
 def classify(kids: Node) -> StmtKind:
   match kids:
     case NCons{Leaf{Lex.Tok{Lex.TKey{}, t, l, c}}, rest}:
       keyword_kind(t)
     case NCons{Leaf{Lex.Tok{Lex.TAll{}, t, l, c}}, rest}:
-      SDef{}
+      Bool.pick(StmtKind, arrow(rest), STerm{}, SDef{})
     case other:
       Bool.pick(StmtKind, binds_in(other), SLet{}, STerm{})
 

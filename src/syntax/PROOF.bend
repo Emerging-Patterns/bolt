@@ -3942,3 +3942,12 @@ def Laws.lets(kk, kids, body, rest, env, ns, out, e):
       Empty.absurd(rs.lets.ty(Tree.SCase{}, kids, body, rest, env, ns, out), true_false(e))
     case Tree.STerm{}:
       Empty.absurd(rs.lets.ty(Tree.STerm{}, kids, body, rest, env, ns, out), true_false(e))
+
+def Laws.arrow_term(_at, _al, _ac, _x, _xl, _xc, _ct, _cl, _cc, _rest):
+  {==}
+
+def Laws.marked_arrow_term(_at, _al, _ac, _mt, _ml, _mc, _x, _xl, _xc, _ct, _cl, _cc, _rest):
+  {==}
+
+def Laws.attribute_def(_at, _al, _ac, _x, _xl, _xc, _kt, _kl, _kc, _rest):
+  {==}
