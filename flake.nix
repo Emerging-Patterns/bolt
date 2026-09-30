@@ -54,15 +54,15 @@
         set -eu
         cd ${self}
         while IFS= read -r f; do
-          out=$(bend "$f" --check-only 2>&1 || true)
-          first=$(printf '%s\n' "$out" | head -n 1)
+          got=$(bend "$f" --check-only 2>&1 || true)
+          first=$(printf '%s\n' "$got" | head -n 1)
           if [ "$first" != "ALL PROOFS CHECK" ]; then
             printf '%s\n' "$f"
-            printf '%s\n' "$out"
+            printf '%s\n' "$got"
             exit 1
           fi
         done < <(find . -name PROOF.bend | sort)
-        touch $out
+        touch "$out"
       '';
       # bolt, built from this tree, over this tree: exit 1 on any error
       lint = ez.mkLint { inherit bolt; src = self; };
