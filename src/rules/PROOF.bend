@@ -9000,7 +9000,101 @@ def Laws.fuel_slots(ds):
             Equal.cong(List<&2, FuelRule.Fuel>, List<&2, FuelRule.Fuel>, x => List.append(&2, FuelRule.Fuel, bb, x),
               FuelRule.fuels(rest), Laws.fuel.slots(rest), Laws.fuel_slots(rest)))
 
-# a lone Nat literal argument is one finding, anything else none
+# a `U32.to_nat(..)` group holding one U32 literal alone is one finding when
+# the call is that one, anything else none
+law fuel.conv:
+  for kids: Tree.Node
+  for ok: Bool
+  for +ll: U32
+  for +cc: U32
+  for +path: String
+  {List.length(&2, F.Finding, FuelRule.converted(kids, ok, ll, cc, path))
+    == Bool.pick(Nat, Laws.fuel.conv(kids, ok), 1n, 0n) : Nat}
+
+def fuel.conv(kids, ok, ll, cc, path):
+  match kids:
+    case Tree.NCons{h, r}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, +t, l, c}:
+              match k:
+                case Lex.TName{}:
+                  {==}
+                case Lex.TUpper{}:
+                  {==}
+                case Lex.TDotted{}:
+                  {==}
+                case Lex.TWild{}:
+                  {==}
+                case Lex.TKey{}:
+                  {==}
+                case Lex.TNum{}:
+                  match r:
+                    case Tree.Leaf{x}:
+                      {==}
+                    case Tree.Group{x, y, z}:
+                      {==}
+                    case Tree.Stmt{x, y, z}:
+                      {==}
+                    case Tree.NNil{}:
+                      chars.one(Bool.and(ok, T.digits_ok(String.to_list(t))), F.Finding{path, ll, cc,
+                        U32.from_nat(Nat.add(String.length(t), 12n)), "fuel",
+                        "The fuel is fixed at U32.to_nat(" ++ t
+                          ++ "), so longer input is silently cut short; derive the fuel from the input size."})
+                    case Tree.NCons{x, y}:
+                      {==}
+                case Lex.TStr{}:
+                  {==}
+                case Lex.TChar{}:
+                  {==}
+                case Lex.TComment{}:
+                  {==}
+                case Lex.TSpace{}:
+                  {==}
+                case Lex.TNewline{}:
+                  {==}
+                case Lex.TOp{}:
+                  {==}
+                case Lex.TColon{}:
+                  {==}
+                case Lex.TEq{}:
+                  {==}
+                case Lex.TBind{}:
+                  {==}
+                case Lex.TArrow{}:
+                  {==}
+                case Lex.TLam{}:
+                  {==}
+                case Lex.TAll{}:
+                  {==}
+                case Lex.TAmp{}:
+                  {==}
+                case Lex.TOpen{}:
+                  {==}
+                case Lex.TClose{}:
+                  {==}
+                case Lex.TComma{}:
+                  {==}
+        case Tree.Group{x, y, z}:
+          {==}
+        case Tree.Stmt{x, y, z}:
+          {==}
+        case Tree.NNil{}:
+          {==}
+        case Tree.NCons{x, y}:
+          {==}
+    case Tree.Leaf{x}:
+      {==}
+    case Tree.Group{x, y, z}:
+      {==}
+    case Tree.Stmt{x, y, z}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# a lone Nat literal argument, or U32.to_nat of a lone U32 literal, is one
+# finding, anything else none
 law fuel.lit:
   for aa: Tree.Node
   for +path: String
@@ -9019,7 +9113,39 @@ def fuel.lit(aa, path):
                 case Lex.TUpper{}:
                   {==}
                 case Lex.TDotted{}:
-                  {==}
+                  match r:
+                    case Tree.Leaf{x}:
+                      {==}
+                    case Tree.Group{x, y, z}:
+                      {==}
+                    case Tree.Stmt{x, y, z}:
+                      {==}
+                    case Tree.NNil{}:
+                      {==}
+                    case Tree.NCons{g, y}:
+                      match g:
+                        case Tree.Leaf{x}:
+                          {==}
+                        case Tree.Group{o, kids, cl}:
+                          match o:
+                            case Lex.Tok{ok, +ot, ol, oc}:
+                              match y:
+                                case Tree.Leaf{x}:
+                                  {==}
+                                case Tree.Group{x, w, z}:
+                                  {==}
+                                case Tree.Stmt{x, w, z}:
+                                  {==}
+                                case Tree.NNil{}:
+                                  fuel.conv(kids, Bool.and(String.eq(t, "U32.to_nat"), String.eq(ot, "(")), l, c, path)
+                                case Tree.NCons{x, w}:
+                                  {==}
+                        case Tree.Stmt{x, w, z}:
+                          {==}
+                        case Tree.NNil{}:
+                          {==}
+                        case Tree.NCons{x, w}:
+                          {==}
                 case Lex.TWild{}:
                   {==}
                 case Lex.TKey{}:
@@ -11042,39 +11168,59 @@ def unsafe.reacher(ls, all, pp):
 law unsafe.report:
   for us: List<&2, Digest.Unsafe>
   for +origin: String
+  for +via: String
   for +path: String
-  {Unsafe.report(us, origin, path) == Laws.unsafe.each(us, origin, path) : List<&2, F.Finding>}
+  {Unsafe.report(us, origin, via, path) == Laws.unsafe.each(us, origin, via, path) : List<&2, F.Finding>}
 
-def unsafe.report(us, origin, path):
+def unsafe.report(us, origin, via, path):
   match us:
     case Nil{}:
       {==}
-    case Con{Digest.Unsafe{+n, +l, +c}, rest}:
-      Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
-        t => F.Finding{path, l, c, 7, "unsafe", "@unsafe def " ++ n ++ " is reachable from " ++ origin
-          ++ ", where the checker skips its termination check and still exits 0; recurse on a shrinking argument or on fuel, and drop @unsafe."} <> t,
-        Unsafe.report(rest, origin, path), Laws.unsafe.each(rest, origin, path), unsafe.report(rest, origin, path))
+    case Con{Digest.Unsafe{+n, +l, +c, fo}, rest}:
+      match fo:
+        case True{}:
+          Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
+            t => F.Finding{path, l, c, 3, "unsafe", Unsafe.say(True{}, n, origin, via)} <> t,
+            Unsafe.report(rest, origin, via, path), Laws.unsafe.each(rest, origin, via, path),
+            unsafe.report(rest, origin, via, path))
+        case False{}:
+          Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
+            t => F.Finding{path, l, c, 7, "unsafe", Unsafe.say(False{}, n, origin, via)} <> t,
+            Unsafe.report(rest, origin, via, path), Laws.unsafe.each(rest, origin, via, path),
+            unsafe.report(rest, origin, via, path))
 
 # the rule's found is unsafe.at
 law unsafe.found:
   for mm: Maybe<&2, String>
   for us: List<&2, Digest.Unsafe>
   for +path: String
-  {Unsafe.found(mm, us, path) == Laws.unsafe.at(mm, us, path) : List<&2, F.Finding>}
+  for +norm: String
+  for +all: List<&2, Digest.Digest>
+  {Unsafe.found(mm, us, path, norm, Digest.edges(all), Imports.paths(Digest.edges(all)),
+    List.length(&2, Digest.Digest, all)) == Laws.unsafe.at(mm, us, path, norm, all) : List<&2, F.Finding>}
 
-def unsafe.found(mm, us, path):
+def unsafe.found(mm, us, path, norm, all):
   match mm:
     case None{}:
       {==}
-    case Some{origin}:
-      unsafe.report(us, origin, path)
+    case Some{+origin}:
+      match us:
+        case Nil{}:
+          {==}
+        case Con{u, rest}:
+          unsafe.report(u <> rest, origin, Laws.unsafe.via(all, Imports.norm(origin), norm), path)
+
+# the rule's walk over fs, against the law files of all, as its check runs it
+def unsafe.run(fs: List<&2, Digest.Digest>, +all: List<&2, Digest.Digest>) -> List<&2, F.Finding>:
+  Unsafe.check.go(fs, Unsafe.reaches(all, Digest.edges(all), Imports.paths(Digest.edges(all)),
+    List.length(&2, Digest.Digest, all)), Digest.edges(all), Imports.paths(Digest.edges(all)),
+    List.length(&2, Digest.Digest, all))
 
 # the rule's walk over the files is unsafe.files
 law unsafe.go:
   for fs: List<&2, Digest.Digest>
   for +all: List<&2, Digest.Digest>
-  {Unsafe.check.go(fs, Unsafe.reaches(all, Digest.edges(all), Imports.paths(Digest.edges(all)),
-    List.length(&2, Digest.Digest, all))) == Laws.unsafe.files(fs, all) : List<&2, F.Finding>}
+  {unsafe.run(fs, all) == Laws.unsafe.files(fs, all) : List<&2, F.Finding>}
 
 def unsafe.go(fs, all):
   match fs:
@@ -11082,23 +11228,19 @@ def unsafe.go(fs, all):
       {==}
     case Con{Digest.Digest{+path, +norm, dir, is_laws, is_law_file, exempt, tops, says, deps, +unsafes, laws}, rest}:
       %unsafe.go(rest, all) :
-        {Unsafe.check.go(Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}
-          <> rest, Unsafe.reaches(all, Digest.edges(all), Imports.paths(Digest.edges(all)),
-            List.length(&2, Digest.Digest, all)))
-          == List.append(&2, F.Finding, Laws.unsafe.at(Laws.unsafe.origin(all, all, norm), unsafes, path), _)
+        {unsafe.run(Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}
+          <> rest, all)
+          == List.append(&2, F.Finding, Laws.unsafe.at(Laws.unsafe.origin(all, all, norm), unsafes, path, norm, all), _)
           : List<&2, F.Finding>}
-      %unsafe.found(Laws.unsafe.origin(all, all, norm), unsafes, path) :
-        {Unsafe.check.go(Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}
-          <> rest, Unsafe.reaches(all, Digest.edges(all), Imports.paths(Digest.edges(all)),
-            List.length(&2, Digest.Digest, all)))
-          == List.append(&2, F.Finding, _, Unsafe.check.go(rest, Unsafe.reaches(all, Digest.edges(all),
-            Imports.paths(Digest.edges(all)), List.length(&2, Digest.Digest, all)))) : List<&2, F.Finding>}
+      %unsafe.found(Laws.unsafe.origin(all, all, norm), unsafes, path, norm, all) :
+        {unsafe.run(Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}
+          <> rest, all)
+          == List.append(&2, F.Finding, _, unsafe.run(rest, all)) : List<&2, F.Finding>}
       %unsafe.reacher(all, all, norm) :
-        {Unsafe.check.go(Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}
-          <> rest, Unsafe.reaches(all, Digest.edges(all), Imports.paths(Digest.edges(all)),
-            List.length(&2, Digest.Digest, all)))
-          == List.append(&2, F.Finding, Unsafe.found(_, unsafes, path), Unsafe.check.go(rest, Unsafe.reaches(all,
-            Digest.edges(all), Imports.paths(Digest.edges(all)), List.length(&2, Digest.Digest, all))))
+        {unsafe.run(Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}
+          <> rest, all)
+          == List.append(&2, F.Finding, Unsafe.found(_, unsafes, path, norm, Digest.edges(all),
+            Imports.paths(Digest.edges(all)), List.length(&2, Digest.Digest, all)), unsafe.run(rest, all))
           : List<&2, F.Finding>}
       {==}
 
@@ -24198,6 +24340,61 @@ def inert.fuel.fuels(ds):
         FuelRule.fuels(inert.defs(rest))) : List<&2, FuelRule.Fuel>}
       {==}
 
+# a `U32.to_nat(..)` group read that way fixes the fuel it fixed
+law inert.fuel.conv:
+  for kids: Tree.Node
+  for ok: Bool
+  for +ll: U32
+  for +cc: U32
+  for +path: String
+  {FuelRule.converted(Laws.inert.node(kids), ok, ll, cc, path) == FuelRule.converted(kids, ok, ll, cc, path)
+    : List<&2, F.Finding>}
+
+def inert.fuel.conv(kids, _ok, _ll, _cc, _path):
+  match kids:
+    case Tree.NCons{h, +r}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, t, l, c}:
+              match k:
+                case Lex.TName{}: {==}
+                case Lex.TUpper{}: {==}
+                case Lex.TDotted{}: {==}
+                case Lex.TWild{}: {==}
+                case Lex.TKey{}: {==}
+                case Lex.TNum{}:
+                  match r:
+                    case Tree.NNil{}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, y, z}: {==}
+                    case Tree.Stmt{x, y, z}: {==}
+                    case Tree.NCons{x, y}: {==}
+                case Lex.TStr{}: {==}
+                case Lex.TChar{}: {==}
+                case Lex.TComment{}: {==}
+                case Lex.TSpace{}: {==}
+                case Lex.TNewline{}: {==}
+                case Lex.TOp{}: {==}
+                case Lex.TColon{}: {==}
+                case Lex.TEq{}: {==}
+                case Lex.TBind{}: {==}
+                case Lex.TArrow{}: {==}
+                case Lex.TLam{}: {==}
+                case Lex.TAll{}: {==}
+                case Lex.TAmp{}: {==}
+                case Lex.TOpen{}: {==}
+                case Lex.TClose{}: {==}
+                case Lex.TComma{}: {==}
+        case Tree.Group{o, gk, cl}: {==}
+        case Tree.Stmt{sk, sks, sb}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
 # an argument read that way is the Nat literal it was: a number is never cut
 law inert.fuel.literal:
   for aa: Tree.Node
@@ -24214,7 +24411,29 @@ def inert.fuel.literal(aa, _path):
               match k:
                 case Lex.TName{}: {==}
                 case Lex.TUpper{}: {==}
-                case Lex.TDotted{}: {==}
+                case Lex.TDotted{}:
+                  match r:
+                    case Tree.NCons{g, y}:
+                      match g:
+                        case Tree.Group{o, gk, cl}:
+                          match o:
+                            case Lex.Tok{ok, ot, ol, oc}:
+                              match y:
+                                case Tree.NNil{}:
+                                  inert.fuel.conv(gk, Bool.and(String.eq(t, "U32.to_nat"), String.eq(ot, "(")), l, c,
+                                    _path)
+                                case Tree.Leaf{x}: {==}
+                                case Tree.Group{x, w, z}: {==}
+                                case Tree.Stmt{x, w, z}: {==}
+                                case Tree.NCons{x, w}: {==}
+                        case Tree.Leaf{x}: {==}
+                        case Tree.Stmt{x, w, z}: {==}
+                        case Tree.NNil{}: {==}
+                        case Tree.NCons{x, w}: {==}
+                    case Tree.NNil{}: {==}
+                    case Tree.Leaf{x}: {==}
+                    case Tree.Group{x, w, z}: {==}
+                    case Tree.Stmt{x, w, z}: {==}
                 case Lex.TWild{}: {==}
                 case Lex.TKey{}: {==}
                 case Lex.TNum{}:

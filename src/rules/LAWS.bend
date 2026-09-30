@@ -1993,7 +1993,8 @@ law ring_counts:
 # then a `(` group, that is not a call of the statement's own name (a
 # self-call): for each fuel parameter of a def of that name, one finding when
 # the argument in its position (Calls.args, split at top-level commas) is one
-# Nat literal token alone, digits then `n`.
+# Nat literal token alone, digits then `n`, or the dotted name `U32.to_nat`
+# then a `(` group holding one U32 literal token alone, digits only.
 
 # is the name a fuel parameter's: `fuel`, `gas`, `steps` or `budget`, or one
 # starting with `fuel`?
@@ -2019,16 +2020,29 @@ def fuel.slots(ds: List<&2, Calls.Def>) -> List<&2, FuelRule.Fuel>:
     case Con{Calls.Def{name, sig, body}, rest}:
       List.append(&2, FuelRule.Fuel, fuel.slots.of(Calls.params(sig), name, 0n), fuel.slots(rest))
 
-# is the argument one Nat literal token alone, digits then `n`?
+# does a call's group hold one number token alone, digits only (a U32
+# literal), when ok says the call is `U32.to_nat(`?
+def fuel.conv(kids: Tree.Node, ok: Bool) -> Bool:
+  match kids:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, +t, l, c}}, Tree.NNil{}}:
+      Bool.and(ok, T.digits_ok(String.to_list(t)))
+    case other:
+      False{}
+
+# is the argument one Nat literal token alone, digits then `n`, or the
+# dotted name `U32.to_nat` then a `(` group holding one U32 literal alone?
 def fuel.lone(aa: Tree.Node) -> Bool:
   match aa:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, +t, l, c}}, Tree.NNil{}}:
       T.nat_ok(String.to_list(t))
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TDotted{}, +t, l, c}},
+      Tree.NCons{Tree.Group{Lex.Tok{ok, +o, ol, oc}, kids, cl}, Tree.NNil{}}}:
+      fuel.conv(kids, Bool.and(String.eq(t, "U32.to_nat"), String.eq(o, "(")))
     case other:
       False{}
 
 # how many fuel parameters of defs named name a call with these arguments
-# fills with a lone Nat literal
+# fills with a fixed number (fuel.lone)
 def fuel.hits(fs: List<&2, FuelRule.Fuel>, +name: String, +as: List<&2, Tree.Node>) -> Nat:
   match fs:
     case Nil{}:
@@ -2037,7 +2051,7 @@ def fuel.hits(fs: List<&2, FuelRule.Fuel>, +name: String, +as: List<&2, Tree.Nod
       +m = fuel.hits(rest, name, as)
       Bool.pick(Nat, Bool.and(String.eq(fn, name), fuel.lone(Calls.arg(as, at))), 1n+m, m)
 
-# how many lone Nat literals the calls under the node pass for fuel, at any
+# how many fixed numbers the calls under the node pass for fuel, at any
 # depth: a call is a name token then a `(` group, and a call of self is not
 # counted
 def fuel.count(nn: Tree.Node, +fs: List<&2, FuelRule.Fuel>, +self: String) -> Nat:
@@ -2084,7 +2098,8 @@ law fuel_slots:
   {FuelRule.fuels(ds) == fuel.slots(ds) : List<&2, FuelRule.Fuel>}
 
 # LAW: over any chain, fuel reports one finding for each fuel parameter a
-# call (not of self) fills with a lone Nat literal, and none for anything else
+# call (not of self) fills with a lone Nat literal or `U32.to_nat` of a lone
+# U32 literal, and none for anything else
 # BOLT-RULE-U006
 law fuel_walk_counts:
   for nn: Tree.Node
@@ -2660,14 +2675,22 @@ def coverage.lawful(ds: List<&2, Digest.Digest>) -> Bool:
 
 # unsafe (BOLT-LAW-3). Over every list of digests, as coverage's laws are.
 # A digest records a file's relative imports (normalized, `deps`) and its
-# `@unsafe def`s; the import graph is theirs, and the closure a law file
+# `@unsafe def`s and foreign defs (a def whose body is only imports of `.c`
+# or `.js` files); the import graph is theirs, and the closure a law file
 # reaches over it is Imports.closure.go's, the walk every project rule
-# shares.
+# shares. A finding names the import path from the law file to the def's
+# file, a shortest one, as Imports.trail walks it.
 
 # every file of the digests the file at from reaches by relative imports,
 # itself first, as the closure walk takes it
 def unsafe.closure(+all: List<&2, Digest.Digest>, from: String) -> List<&2, String>:
   Imports.closure.go(Digest.edges(all), Imports.paths(Digest.edges(all)), List.length(&2, Digest.Digest, all), from)
+
+# the import path from the file at from to the file at to, over the digests,
+# as the finding spells it: `a -> b -> c`
+def unsafe.via(+all: List<&2, Digest.Digest>, +from: String, +to: String) -> String:
+  String.join(Imports.trail(Digest.edges(all), Imports.paths(Digest.edges(all)), List.length(&2, Digest.Digest, all),
+    from, to), " -> ")
 
 # the path of the first law file among ls (a LAWS.bend or a PROOF.bend)
 # whose closure over all holds the path pp
@@ -2679,35 +2702,55 @@ def unsafe.origin(ls: List<&2, Digest.Digest>, +all: List<&2, Digest.Digest>, +p
       +more = unsafe.origin(rest, all, pp)
       Bool.pick(Maybe<&2, String>, Bool.and(is_law_file, Imports.has(unsafe.closure(all, norm), pp)), Some{path}, more)
 
-# one finding for each `@unsafe def`, at its `@`, naming the law file
-def unsafe.each(us: List<&2, Digest.Unsafe>, +origin: String, +path: String) -> List<&2, F.Finding>:
+# what the finding says of a foreign or an `@unsafe` def, reached from the
+# law file at origin along the import path via
+def unsafe.says(foreign: Bool, +name: String, +origin: String, +via: String) -> String:
+  match foreign:
+    case True{}:
+      "foreign def " ++ name ++ " is reachable from " ++ origin ++ " (" ++ via
+        ++ "), so bend fails that proof: SOME PROOFS FAIL, defs rely on unsafe or foreign code; move the effect into a sibling module no law file imports, and pass it in as a service."
+    case False{}:
+      "@unsafe def " ++ name ++ " is reachable from " ++ origin ++ " (" ++ via
+        ++ "), so bend fails that proof: SOME PROOFS FAIL, defs rely on unsafe or foreign code; recurse on a shrinking argument or on fuel and drop @unsafe, or move it into a sibling module no law file imports."
+
+# one finding for each def, at its `@` (7 wide) or, a foreign def, its
+# header's start (3 wide), naming the law file and the import path
+def unsafe.each(us: List<&2, Digest.Unsafe>, +origin: String, +via: String, +path: String) -> List<&2, F.Finding>:
   match us:
     case Nil{}:
       Nil{}
-    case Con{Digest.Unsafe{n, l, c}, rest}:
-      F.Finding{path, l, c, 7, "unsafe", "@unsafe def " ++ n ++ " is reachable from " ++ origin
-        ++ ", where the checker skips its termination check and still exits 0; recurse on a shrinking argument or on fuel, and drop @unsafe."}
-        <> unsafe.each(rest, origin, path)
+    case Con{Digest.Unsafe{n, l, c, +fo}, rest}:
+      F.Finding{path, l, c, Bool.pick(U32, fo, 3, 7), "unsafe", unsafe.says(fo, n, origin, via)}
+        <> unsafe.each(rest, origin, via, path)
 
-# a file's unsafe defs when a law file reaches it, else nothing
-def unsafe.at(mm: Maybe<&2, String>, us: List<&2, Digest.Unsafe>, path: String) -> List<&2, F.Finding>:
+# a file's unsafe and foreign defs when a law file reaches it, else nothing;
+# the path runs from that law file to the file at norm
+def unsafe.at(
+  mm: Maybe<&2, String>,
+  us: List<&2, Digest.Unsafe>,
+  +path: String,
+  +norm: String,
+  +all: List<&2, Digest.Digest>
+) -> List<&2, F.Finding>:
   match mm:
     case None{}:
       Nil{}
-    case Some{origin}:
-      unsafe.each(us, origin, path)
+    case Some{+origin}:
+      unsafe.each(us, origin, unsafe.via(all, Imports.norm(origin), norm), path)
 
 # the findings of every file of fs, in order, against the law files of all
 def unsafe.files(fs: List<&2, Digest.Digest>, +all: List<&2, Digest.Digest>) -> List<&2, F.Finding>:
   match fs:
     case Nil{}:
       Nil{}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
-      List.append(&2, F.Finding, unsafe.at(unsafe.origin(all, all, norm), unsafes, path), unsafe.files(rest, all))
+    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+      List.append(&2, F.Finding, unsafe.at(unsafe.origin(all, all, norm), unsafes, path, norm, all),
+        unsafe.files(rest, all))
 
 # LAW: over every list of digests, unsafe reports exactly each `@unsafe def`
-# of each file that the closure of some law file holds, in file order, and
-# names the first such law file
+# and each foreign def of each file that the closure of some law file holds,
+# in file order, and names the first such law file and the import path from
+# it to the file
 # BOLT-LAW-3
 law unsafe_reports:
   for +ds: List<&2, Digest.Digest>

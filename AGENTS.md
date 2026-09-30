@@ -26,8 +26,8 @@ A `#|` equality for a proveable claim is a bug. A directory with
 
 - A `LAWS.bend` is human-owned: do not edit it to make a proof pass. Every
   law is quantified; `closed` reports one that is not.
-- Every `PROOF.bend` in the tree is gated (`bend PROOF.bend` prints "All
-  terms check."), so a fixture holding a proof meant to fail cannot live here.
+- Every `PROOF.bend` in the tree is gated (`bend PROOF.bend` prints `ALL
+  PROOFS CHECK`), so a fixture holding a proof meant to fail cannot live here.
 - Anything under a `tests/` directory is a test, and only the stay list may
   have one; `ez test` runs each on its own and caches none. Fixtures a test
   reads are not tests, so they live beside it -- `src/lsp/fixtures/`, not
