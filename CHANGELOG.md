@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.0](https://github.com/Emerging-Patterns/bolt/compare/v1.12.0...v1.13.0) (2026-09-30)
+
+
+### Features
+
+* **rules:** scan (U013), argv (U014), thunk (U015) and setting (C011) ([#226](https://github.com/Emerging-Patterns/bolt/issues/226)) ([b60e9cd](https://github.com/Emerging-Patterns/bolt/commit/b60e9cd9f3cb96302f235ccfe5f096f66a46e429))
+
 ## [1.12.0](https://github.com/Emerging-Patterns/bolt/compare/v1.11.0...v1.12.0) (2026-09-30)
 
 
