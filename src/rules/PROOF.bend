@@ -1721,7 +1721,7 @@ def ex.thunk(ds, path, n, e):
       ex.push(
         Calls.exempt(path, sig),
         ex.calls(path, sig, e),
-        _u => Thunk.walk(body, name, path), n,
+        _u => Thunk.walk(body, False{}, name, path), n,
         v => Thunk.check.go(rest, path, v), ex.thunk(rest, path, 1n+n, e))
 
 def Laws.thunk_exempt(path, _text, _toks, tree, _bound, _items, e):
@@ -10451,10 +10451,11 @@ def unit.go(ds, path, acc):
 def Laws.unit_counts(path, _text, _toks, tree, _bound, _items):
   unit.go(Calls.defs(tree), path, Nil{})
 
-# thunk (BOLT-RULE-U015). The rule's reads and ends agree with the law's by
-# induction and by one split; each site helper agrees with the law's step of
-# the same place, so a site gives one finding exactly when the law's chain
-# opens a thunk; the walk and the def walk then add up as unit's do.
+# thunk (BOLT-RULE-U015). The rule's reads, ends and lams agree with the
+# law's by induction and by one split; each site helper agrees with the law's
+# step of the same place, so a site gives one finding exactly when the law's
+# chain opens a thunk, and a gated site exactly when the kids are a call's
+# with one lambda; the walk and the def walk then add up as unit's do.
 
 # the rule's reads is the law's
 law thunk.reads:
@@ -10630,19 +10631,75 @@ def thunk.site(hh, rest, name, path):
     case Tree.NNil{}: {==}
     case Tree.NCons{x, y}: {==}
 
-def Laws.thunk_walk_counts(nn, name, path):
+# the rule's count of lambda arguments is the law's
+law thunk.lams:
+  for nn: Tree.Node
+  for +seen: Bool
+  {Thunk.lams(nn, seen) == Laws.thunk.args(nn, seen) : Nat}
+
+def thunk.lams(nn, seen):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, l, c}:
+              +s2 = Bool.and(Bool.not(Lex.is_comma(k)), Bool.or(seen, String.eq(t, "=>")))
+              +p = Bool.pick(Nat, Bool.and(Lex.is_comma(k), seen), 1n, 0n)
+              Equal.cong(Nat, Nat, x => Nat.add(p, x), Thunk.lams(rest, s2), Laws.thunk.args(rest, s2),
+                thunk.lams(rest, s2))
+        case Tree.Group{x, y, z}: thunk.lams(rest, seen)
+        case Tree.Stmt{x, y, z}: thunk.lams(rest, seen)
+        case Tree.NNil{}: thunk.lams(rest, seen)
+        case Tree.NCons{x, y}: thunk.lams(rest, seen)
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# the rule's call given one lambda is the law's
+law thunk.only:
+  for +o: String
+  for +kids: Tree.Node
+  {Thunk.only(o, kids) == Laws.thunk.lone(o, kids) : Bool}
+
+def thunk.only(o, kids):
+  Equal.cong(Nat, Bool, x => Bool.and(String.eq(o, "("), Nat.is_eq(x, 1n)), Thunk.lams(kids, False{}),
+    Laws.thunk.args(kids, False{}), thunk.lams(kids, False{}))
+
+# a site gated by lone: the rule's finding is the law's count
+law thunk.gate:
+  for +lone: Bool
+  for hh: Tree.Node
+  for rest: Tree.Node
+  for +name: String
+  for +path: String
+  {List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, lone, Thunk.site(hh, rest, name, path), []))
+    == Bool.pick(Nat, Bool.and(lone, Laws.thunk.at(Tree.NCons{hh, rest}, name)), 1n, 0n) : Nat}
+
+def thunk.gate(lone, hh, rest, name, path):
+  match lone:
+    case True{}: thunk.site(hh, rest, name, path)
+    case False{}: {==}
+
+def Laws.thunk_walk_counts(nn, lone, name, path):
   match nn:
     case Tree.NCons{+h, +rest}:
-      table.three(Thunk.site(h, rest, name, path), Thunk.walk(h, name, path), Thunk.walk(rest, name, path),
-        Bool.pick(Nat, Laws.thunk.at(Tree.NCons{h, rest}, name), 1n, 0n), Laws.thunk.count(h, name),
-        Laws.thunk.count(rest, name), thunk.site(h, rest, name, path), Laws.thunk_walk_counts(h, name, path),
-        Laws.thunk_walk_counts(rest, name, path))
-    case Tree.Group{o, +kids, cl}:
-      Laws.thunk_walk_counts(kids, name, path)
+      table.three(Bool.pick(List<&2, F.Finding>, lone, Thunk.site(h, rest, name, path), []),
+        Thunk.walk(h, False{}, name, path), Thunk.walk(rest, lone, name, path),
+        Bool.pick(Nat, Bool.and(lone, Laws.thunk.at(Tree.NCons{h, rest}, name)), 1n, 0n),
+        Laws.thunk.count(h, False{}, name), Laws.thunk.count(rest, lone, name), thunk.gate(lone, h, rest, name, path),
+        Laws.thunk_walk_counts(h, False{}, name, path), Laws.thunk_walk_counts(rest, lone, name, path))
+    case Tree.Group{open, +kids, cl}:
+      match open:
+        case Lex.Tok{k, +o, l, c}:
+          %thunk.only(o, kids) : {List.length(&2, F.Finding, Thunk.walk(kids, Thunk.only(o, kids), name, path))
+            == Laws.thunk.count(kids, _, name) : Nat}
+          Laws.thunk_walk_counts(kids, Thunk.only(o, kids), name, path)
     case Tree.Stmt{sk, +kids, +body}:
-      table.two(Thunk.walk(kids, name, path), Thunk.walk(body, name, path), Laws.thunk.count(kids, name),
-        Laws.thunk.count(body, name), Laws.thunk_walk_counts(kids, name, path), Laws.thunk_walk_counts(body, name,
-          path))
+      table.two(Thunk.walk(kids, False{}, name, path), Thunk.walk(body, False{}, name, path),
+        Laws.thunk.count(kids, False{}, name), Laws.thunk.count(body, False{}, name),
+        Laws.thunk_walk_counts(kids, False{}, name, path), Laws.thunk_walk_counts(body, False{}, name, path))
     case Tree.Leaf{tok}:
       {==}
     case Tree.NNil{}:
@@ -10654,15 +10711,15 @@ law thunk.stop:
   for +body: Tree.Node
   for +name: String
   for +path: String
-  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, b, [], _u => Thunk.walk(body, name, path)))
-    == Bool.pick(Nat, b, 0n, Laws.thunk.count(body, name)) : Nat}
+  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, b, [], _u => Thunk.walk(body, False{}, name, path)))
+    == Bool.pick(Nat, b, 0n, Laws.thunk.count(body, False{}, name)) : Nat}
 
 def thunk.stop(b, body, name, path):
   match b:
     case True{}:
       {==}
     case False{}:
-      Laws.thunk_walk_counts(body, name, path)
+      Laws.thunk_walk_counts(body, False{}, name, path)
 
 # thunk's def walk: the findings gathered so far, then each def's
 law thunk.go:
@@ -10679,8 +10736,8 @@ def thunk.go(ds, path, acc):
       match d:
         case Calls.Def{+name, +sig, +body}:
           +b = Calls.exempt(path, sig)
-          +x = Lazy.stop(List<&2, F.Finding>, b, [], _u => Thunk.walk(body, name, path))
-          +cb = Bool.pick(Nat, b, 0n, Laws.thunk.count(body, name))
+          +x = Lazy.stop(List<&2, F.Finding>, b, [], _u => Thunk.walk(body, False{}, name, path))
+          +cb = Bool.pick(Nat, b, 0n, Laws.thunk.count(body, False{}, name))
           Equal.trans(Nat, List.length(&2, F.Finding, Thunk.check.go(rest, path, x <> acc)),
             pick.sum(acc, Nat.add(List.length(&2, F.Finding, x), Laws.thunk.defs(rest, path))),
             pick.sum(acc, Nat.add(cb, Laws.thunk.defs(rest, path))),
@@ -24607,40 +24664,84 @@ def inert.thunk.site(hh, rest, name, path, en, e):
     case Tree.NNil{}: {==}
     case Tree.NCons{x, y}: {==}
 
+# a chain read that way counts the lambda arguments it did: kinds are kept,
+# and `=>` is never cut
+law inert.thunk.lams:
+  for nn: Tree.Node
+  for +seen: Bool
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Thunk.lams(Laws.inert.node(nn), seen) == Thunk.lams(nn, seen) : Nat}
+
+def inert.thunk.lams(nn, seen, e):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, l, c}:
+              +ef = inert.and_l(Laws.inert.fits.go(Laws.inert.blanks(k), t), Laws.inert.ok(rest), e)
+              +er = inert.and_r(Laws.inert.fits.go(Laws.inert.blanks(k), t), Laws.inert.ok(rest), e)
+              +p = Bool.pick(Nat, Bool.and(Lex.is_comma(k), seen), 1n, 0n)
+              +s1 = Bool.and(Bool.not(Lex.is_comma(k)),
+                Bool.or(seen, String.eq(Laws.inert.keep(Laws.inert.blanks(k), t), "=>")))
+              %inert.eq_keep(Laws.inert.blanks(k), t, "=>", ef, {==}) : {Nat.add(p,
+                Thunk.lams(Laws.inert.node(rest), s1)) == Nat.add(p, Thunk.lams(rest,
+                  Bool.and(Bool.not(Lex.is_comma(k)), Bool.or(seen, _)))) : Nat}
+              Equal.cong(Nat, Nat, x => Nat.add(p, x), Thunk.lams(Laws.inert.node(rest), s1), Thunk.lams(rest, s1),
+                inert.thunk.lams(rest, s1, er))
+        case Tree.Group{x, y, z}: inert.thunk.lams(rest, seen, inert.and_r(Laws.inert.ok(h), Laws.inert.ok(rest), e))
+        case Tree.Stmt{x, y, z}: inert.thunk.lams(rest, seen, inert.and_r(Laws.inert.ok(h), Laws.inert.ok(rest), e))
+        case Tree.NNil{}: inert.thunk.lams(rest, seen, inert.and_r(Laws.inert.ok(h), Laws.inert.ok(rest), e))
+        case Tree.NCons{x, y}: inert.thunk.lams(rest, seen, inert.and_r(Laws.inert.ok(h), Laws.inert.ok(rest), e))
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
 # thunk's walk over a node read that way reports what it reports over the node
 law inert.thunk.walk:
   for nn: Tree.Node
+  for +lone: Bool
   for +name: String
   for +path: String
   for +en: {Laws.inert.marked(name) == False{} : Bool}
   for +e: {Laws.inert.ok(nn) == True{} : Bool}
-  {Thunk.walk(Laws.inert.node(nn), name, path) == Thunk.walk(nn, name, path) : List<&2, F.Finding>}
+  {Thunk.walk(Laws.inert.node(nn), lone, name, path) == Thunk.walk(nn, lone, name, path) : List<&2, F.Finding>}
 
-def inert.thunk.walk(nn, name, path, en, e):
+def inert.thunk.walk(nn, lone, name, path, en, e):
   match nn:
     case Tree.NCons{+h, +rest}:
       +eh = inert.and_l(Laws.inert.ok(h), Laws.inert.ok(rest), e)
       +er = inert.and_r(Laws.inert.ok(h), Laws.inert.ok(rest), e)
       +s1 = Thunk.site(Laws.inert.node(h), Laws.inert.node(rest), name, path)
-      +w1 = Thunk.walk(Laws.inert.node(h), name, path)
-      +w2 = Thunk.walk(Laws.inert.node(rest), name, path)
-      %inert.thunk.site(h, rest, name, path, en, er) : {List.concat(&2, F.Finding, [s1, w1, w2])
-        == List.concat(&2, F.Finding, [_, Thunk.walk(h, name, path), Thunk.walk(rest, name, path)])
-        : List<&2, F.Finding>}
-      %inert.thunk.walk(h, name, path, en, eh) : {List.concat(&2, F.Finding, [s1, w1, w2])
-        == List.concat(&2, F.Finding, [s1, _, Thunk.walk(rest, name, path)]) : List<&2, F.Finding>}
-      %inert.thunk.walk(rest, name, path, en, er) : {List.concat(&2, F.Finding, [s1, w1, w2])
-        == List.concat(&2, F.Finding, [s1, w1, _]) : List<&2, F.Finding>}
+      +w1 = Thunk.walk(Laws.inert.node(h), False{}, name, path)
+      +w2 = Thunk.walk(Laws.inert.node(rest), lone, name, path)
+      %inert.thunk.site(h, rest, name, path, en, er) : {List.concat(&2, F.Finding,
+        [Bool.pick(List<&2, F.Finding>, lone, s1, []), w1, w2])
+        == List.concat(&2, F.Finding, [Bool.pick(List<&2, F.Finding>, lone, _, []), Thunk.walk(h, False{}, name, path),
+          Thunk.walk(rest, lone, name, path)]) : List<&2, F.Finding>}
+      %inert.thunk.walk(h, False{}, name, path, en, eh) : {List.concat(&2, F.Finding,
+        [Bool.pick(List<&2, F.Finding>, lone, s1, []), w1, w2])
+        == List.concat(&2, F.Finding, [Bool.pick(List<&2, F.Finding>, lone, s1, []), _,
+          Thunk.walk(rest, lone, name, path)]) : List<&2, F.Finding>}
+      %inert.thunk.walk(rest, lone, name, path, en, er) : {List.concat(&2, F.Finding,
+        [Bool.pick(List<&2, F.Finding>, lone, s1, []), w1, w2])
+        == List.concat(&2, F.Finding, [Bool.pick(List<&2, F.Finding>, lone, s1, []), w1, _]) : List<&2, F.Finding>}
       {==}
-    case Tree.Group{o, +kids, cl}:
-      inert.thunk.walk(kids, name, path, en, e)
+    case Tree.Group{open, +kids, cl}:
+      match open:
+        case Lex.Tok{k, +o, l, c}:
+          +l1 = Thunk.only(o, Laws.inert.node(kids))
+          %inert.thunk.lams(kids, False{}, e) : {Thunk.walk(Laws.inert.node(kids), l1, name, path)
+            == Thunk.walk(kids, Bool.and(String.eq(o, "("), Nat.is_eq(_, 1n)), name, path) : List<&2, F.Finding>}
+          inert.thunk.walk(kids, l1, name, path, en, e)
     case Tree.Stmt{sk, +kids, +body}:
-      +w1 = Thunk.walk(Laws.inert.node(kids), name, path)
-      +w2 = Thunk.walk(Laws.inert.node(body), name, path)
-      %inert.thunk.walk(kids, name, path, en, inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), e)) :
-        {List.concat(&2, F.Finding, [w1, w2]) == List.concat(&2, F.Finding, [_, Thunk.walk(body, name, path)])
+      +w1 = Thunk.walk(Laws.inert.node(kids), False{}, name, path)
+      +w2 = Thunk.walk(Laws.inert.node(body), False{}, name, path)
+      %inert.thunk.walk(kids, False{}, name, path, en, inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), e)) :
+        {List.concat(&2, F.Finding, [w1, w2]) == List.concat(&2, F.Finding, [_, Thunk.walk(body, False{}, name, path)])
           : List<&2, F.Finding>}
-      %inert.thunk.walk(body, name, path, en, inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), e)) :
+      %inert.thunk.walk(body, False{}, name, path, en, inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), e)) :
         {List.concat(&2, F.Finding, [w1, w2]) == List.concat(&2, F.Finding, [w1, _]) : List<&2, F.Finding>}
       {==}
     case Tree.Leaf{tok}:
@@ -24660,10 +24761,11 @@ def inert.thunk.go(ds, path, acc, e):
   match ds:
     case Nil{}: {==}
     case Con{Calls.Def{+name, +sig, +body}, +rest}:
-      +lst = inert.pick.stop(Calls.exempt(path, Laws.inert.node(sig)), Thunk.walk(Laws.inert.node(body), name, path))
+      +lst = inert.pick.stop(Calls.exempt(path, Laws.inert.node(sig)), Thunk.walk(Laws.inert.node(body), False{}, name,
+        path))
       %inert.exempt(path, sig) : {Thunk.check.go(inert.defs(rest), path, lst <> acc) == Thunk.check.go(rest, path,
-        inert.pick.stop(_, Thunk.walk(body, name, path)) <> acc) : List<&2, F.Finding>}
-      %inert.thunk.walk(body, name, path, inert.dok.head(name, sig, body, rest, e),
+        inert.pick.stop(_, Thunk.walk(body, False{}, name, path)) <> acc) : List<&2, F.Finding>}
+      %inert.thunk.walk(body, False{}, name, path, inert.dok.head(name, sig, body, rest, e),
         inert.dok.body(name, sig, body, rest, e)) : {Thunk.check.go(inert.defs(rest), path, lst <> acc)
           == Thunk.check.go(rest, path, inert.pick.stop(Calls.exempt(path, Laws.inert.node(sig)), _) <> acc)
           : List<&2, F.Finding>}

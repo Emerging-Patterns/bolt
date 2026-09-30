@@ -2388,13 +2388,16 @@ law unit_counts:
   {List.length(&2, F.Finding, UnitRule.check(Src.Src{path, text, toks, tree, bound, items}))
     == unit.defs(Calls.defs(tree), path) : Nat}
 
-# thunk (BOLT-RULE-U015). A thunk of a self-call is read off a chain, at
-# any depth: its first node a leaf of a name kind (the parameter), then a
-# leaf whose text is `=>`, then a leaf whose text is the def's name, then a
-# group opened by `(`, and after the group the chain's end or a comma. The
-# group must not read the parameter: no name leaf under it, at any depth,
-# spells the parameter, or the parameter then a dot. Each def of the file
-# that is not exempt counts the thunks of its body.
+# thunk (BOLT-RULE-U015). A thunk of a self-call is read off the kids of a
+# call given one lambda: a group opened by `(` whose kids, split at their
+# comma leaves, hold exactly one argument with a leaf whose text is `=>`
+# among its own nodes. In those kids, its first node a leaf of a name kind
+# (the parameter), then a leaf whose text is `=>`, then a leaf whose text is
+# the def's name, then a group opened by `(`, and after the group the kids'
+# end or a comma. The group must not read the parameter: no name leaf under
+# it, at any depth, spells the parameter, or the parameter then a dot. Such
+# calls are found at any depth. Each def of the file that is not exempt
+# counts the thunks of its body.
 
 # does a name leaf under the node spell the parameter, or it then a dot?
 def thunk.reads(nn: Tree.Node, +pp: String) -> Bool:
@@ -2452,27 +2455,46 @@ def thunk.at(nn: Tree.Node, +name: String) -> Bool:
     case other:
       False{}
 
-# how many thunks of a self-call of the name the node holds, at any depth
-def thunk.count(nn: Tree.Node, +name: String) -> Nat:
+# the arguments of the chain, from here on, that hold a `=>` leaf among their
+# own nodes (a comma leaf ends one); seen: the one under way does
+def thunk.args(nn: Tree.Node, +seen: Bool) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{+k, t, l, c}}, rest}:
+      Nat.add(Bool.pick(Nat, Bool.and(Lex.is_comma(k), seen), 1n, 0n),
+        thunk.args(rest, Bool.and(Bool.not(Lex.is_comma(k)), Bool.or(seen, String.eq(t, "=>")))))
+    case Tree.NCons{h, rest}:
+      thunk.args(rest, seen)
+    case other:
+      Bool.pick(Nat, seen, 1n, 0n)
+
+# is a group opened by oo over the kids a call given exactly one lambda?
+def thunk.lone(+oo: String, +kids: Tree.Node) -> Bool:
+  Bool.and(String.eq(oo, "("), Nat.is_eq(thunk.args(kids, False{}), 1n))
+
+# how many thunks of a self-call of the name the node holds, at any depth,
+# each in the kids of a call given one lambda; lone: the node is the rest of
+# such kids
+def thunk.count(nn: Tree.Node, +lone: Bool, +name: String) -> Nat:
   match nn:
     case Tree.NCons{+h, +rest}:
-      Nat.add(Bool.pick(Nat, thunk.at(Tree.NCons{h, rest}, name), 1n, 0n),
-        Nat.add(thunk.count(h, name), thunk.count(rest, name)))
-    case Tree.Group{o, kids, cl}:
-      thunk.count(kids, name)
+      Nat.add(Bool.pick(Nat, Bool.and(lone, thunk.at(Tree.NCons{h, rest}, name)), 1n, 0n),
+        Nat.add(thunk.count(h, False{}, name), thunk.count(rest, lone, name)))
+    case Tree.Group{Lex.Tok{k, +o, l, c}, +kids, cl}:
+      thunk.count(kids, thunk.lone(o, kids), name)
     case Tree.Stmt{sk, kids, body}:
-      Nat.add(thunk.count(kids, name), thunk.count(body, name))
+      Nat.add(thunk.count(kids, False{}, name), thunk.count(body, False{}, name))
     case other:
       0n
 
 # LAW: over any node, thunk reports one finding for each thunk of a
-# self-call, and none for anything else
+# self-call passed as the one lambda of a call, and none for anything else
 # BOLT-RULE-U015
 law thunk_walk_counts:
   for nn: Tree.Node
+  for +lone: Bool
   for +name: String
   for +path: String
-  {List.length(&2, F.Finding, Thunk.walk(nn, name, path)) == thunk.count(nn, name) : Nat}
+  {List.length(&2, F.Finding, Thunk.walk(nn, lone, name, path)) == thunk.count(nn, lone, name) : Nat}
 
 # the thunks of a self-call in each def of the list that is not exempt
 def thunk.defs(ds: List<&2, Calls.Def>, +path: String) -> Nat:
@@ -2480,7 +2502,7 @@ def thunk.defs(ds: List<&2, Calls.Def>, +path: String) -> Nat:
     case Nil{}:
       0n
     case Con{Calls.Def{+name, +sig, +body}, rest}:
-      Nat.add(Bool.pick(Nat, Calls.exempt(path, sig), 0n, thunk.count(body, name)), thunk.defs(rest, path))
+      Nat.add(Bool.pick(Nat, Calls.exempt(path, sig), 0n, thunk.count(body, False{}, name)), thunk.defs(rest, path))
 
 # LAW: thunk reports exactly those, def by def, over the defs of the tree
 # BOLT-RULE-U015

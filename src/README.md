@@ -302,19 +302,24 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   tell the reader that drops it from one that does not: give that one
   reader `# noqa: U014`. No path is exempt.
 - `thunk` (opt-in) — a lambda whose body is exactly a self-call and whose
-  parameter the call does not read: a `Unit -> T` thunk such as
-  `Lazy.or_else(hit, _u => go(rest, k))`. The closure is allocated on every
-  step and the call in it is not a tail call of the def, so the search leaves
-  the loop each time round (bend 2.0.34, 500 misses over 100k cells: JS
-  2.40 s against 0.28 s, native 1.18 s against 0.76 s). Carry the test as a
-  Bool into the next call, `go(rest, k, test(h))`, and match on it first: the
-  step is then a tail call and compiles to a loop. `Lazy.*` stays right for
-  guarding work that does not recurse. Exactly: a name leaf (the parameter),
-  `=>`, the def's name and its `(` group, with the chain ending there or
-  going on with a comma, and no name leaf in the group spelling the
-  parameter or the parameter then a dot. A body that does more than the call
-  (`_u => Some{go(t)}`), or a continuation that reads its parameter
-  (`a => go(f, a)`), is left alone; `_ => loop(n)` is not, since the rule
+  parameter the call does not read, passed as the one lambda of a call: a
+  `Unit -> T` thunk such as `Lazy.or_else(hit, _u => go(rest, k))`. The
+  closure is allocated on every step and the call in it is not a tail call of
+  the def, so the search leaves the loop each time round (bend 2.0.34, 500
+  misses over 100k cells: JS 2.40 s against 0.28 s, native 1.18 s against
+  0.76 s). Carry the test as a Bool into the next call, `go(rest, k,
+  test(h))`, and match on it first: the step is then a tail call and compiles
+  to a loop. `Lazy.*` stays right for guarding work that does not recurse.
+  A dispatch, a call given two or more lambdas (`Lazy.either(T, c, _u =>
+  go(a), _v => go(b))`), is left alone: one carried Bool does not replace it.
+  Exactly: in the kids of a `(` group whose arguments (split at their commas)
+  hold exactly one with a `=>` leaf of its own (not inside a bracket), a name
+  leaf (the parameter), `=>`, the def's name and its `(` group, with the kids
+  ending there or going on with a comma, and no name leaf in the group
+  spelling the parameter or the parameter then a dot. A body that does more
+  than the call (`_u => Some{go(t)}`), a continuation that reads its
+  parameter (`a => go(f, a)`), or a lambda that is no call's argument
+  (`x = _u => go(t)`) is left alone; `_ => loop(n)` is not, since the rule
   reads the shape and not the type.
 - `fromrev` — `String.from_list(List.reverse(..))`: among the significant
   tokens, `String.from_list`, `(`, `List.reverse` and `(` right after one
