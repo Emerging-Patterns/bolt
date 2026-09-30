@@ -168,6 +168,55 @@ law argv_opt_in:
   for h_rule: {Config.set_level(sets, "argv") == None{} : Maybe<&2, Config.Level>}
   {Config.level(Config.Config{sets}, group, "argv") == Config.Off{} : Config.Level}
 
+# Unknown names (BOLT-CFG-7). The specs below are strict folds over the code
+# table, written apart from config.bend's lookups.
+
+# whether some row of the table has the name as its slug. Law vocabulary, as
+# are group_in and unknown_of.
+def slug_in(rows: List<&2, Codes.Entry>, +name: String) -> Bool:
+  match rows:
+    case Nil{}:
+      False{}
+    case Con{Codes.Entry{+s, _id, _grp}, rest}:
+      +more = slug_in(rest, name)
+      Bool.or(String.eq(s, name), more)
+
+# whether some row of the table has the name as its group
+def group_in(rows: List<&2, Codes.Entry>, +name: String) -> Bool:
+  match rows:
+    case Nil{}:
+      False{}
+    case Con{Codes.Entry{_s, _id, +grp}, rest}:
+      +more = group_in(rest, name)
+      Bool.or(String.eq(grp, name), more)
+
+# the settings, in order, whose name is neither the slug nor the group of any
+# row of the code table
+def unknown_of(ss: List<&2, Config.Setting>) -> List<&2, Config.Setting>:
+  match ss:
+    case Nil{}:
+      Nil{}
+    case Con{Config.Setting{+n, w, line}, rest}:
+      +more = unknown_of(rest)
+      Bool.pick(List<&2, Config.Setting>, Bool.or(slug_in(Codes.table(), n), group_in(Codes.table(), n)), more,
+        Config.Setting{n, w, line} <> more)
+
+# LAW: of a bolt.bend's settings, `unknown` holds exactly those whose name is
+# neither the slug nor the group of any row of the code table, in file order,
+# one each
+# BOLT-CFG-7
+# BOLT-RULE-C011
+law unknown_exact:
+  for ss: List<&2, Config.Setting>
+  {Config.unknown(ss) == unknown_of(ss) : List<&2, Config.Setting>}
+
+# LAW: the settings `unknown` judges are the ones grading reads: a bolt.bend's
+# config is its settings, in file order, each at the level its word gives
+# BOLT-CFG-7
+law settings_graded:
+  for text: String
+  {Config.parse(text) == Config.Config{Config.levels(Config.settings(text))} : Config.Config}
+
 # The code table and the printed line (BOLT-OUT). The table is finite, so
 # its laws quantify over every index into it: the row there, looked up again
 # by its slug and by its code, is the same row.
@@ -322,19 +371,104 @@ def on_all(+world: W.World, ps: List<&2, String>) -> List<&2, F.Finding>:
     case Con{+p, rest}:
       List.append(&2, F.Finding, on_at(p, W.text(world, p)), on_all(world, rest))
 
+# the path of the first of the paths the World read a text for, as a list of
+# one; none when it read none
+def read_first.at(+path: String, mm: Maybe<&2, W.Answer>, more: List<&2, String>) -> List<&2, String>:
+  match mm:
+    case None{}:
+      more
+    case Some{W.Listed{_names}}:
+      more
+    case Some{W.Read{_text}}:
+      [path]
+    case Some{W.Unread{}}:
+      more
+    case Some{W.Directory{}}:
+      more
+
+# the path of the first of the paths the World read a text for
+def read_first(+world: W.World, ps: List<&2, String>) -> List<&2, String>:
+  match ps:
+    case Nil{}:
+      []
+    case Con{+p, rest}:
+      read_first.at(p, W.answer(world, W.Text{p}), read_first(world, rest))
+
+# the bolt.bend that grades each directory, in directory order: of its
+# candidates (the directory resolved against the World's working directory,
+# then each parent up to the root) the first the World read, as
+# nearest_grades says; none for a directory the defaults grade
+def graders_all(+world: W.World, ds: List<&2, String>) -> List<&2, String>:
+  match ds:
+    case Nil{}:
+      []
+    case Con{d, rest}:
+      List.append(&2, String, read_first(world, Config.chain(Config.home(W.cwd.of(world), d))),
+        graders_all(world, rest))
+
+# one `setting` finding for each setting, at the bolt.bend's path and the
+# line of the setting's def, in order
+def flagged(+path: String, ss: List<&2, Config.Setting>) -> List<&2, F.Finding>:
+  match ss:
+    case Nil{}:
+      []
+    case Con{Config.Setting{n, _w, line}, rest}:
+      F.Finding{path, line, 0, 0, "setting", "`" ++ n ++ "` names no rule or group, so it sets nothing."}
+        <> flagged(path, rest)
+
+# a bolt.bend's `setting` findings, its unknown settings, when the World
+# read it
+def flagged_at(+path: String, mm: Maybe<&2, W.Answer>) -> List<&2, F.Finding>:
+  match mm:
+    case None{}:
+      []
+    case Some{W.Listed{_names}}:
+      []
+    case Some{W.Read{text}}:
+      flagged(path, Config.unknown(Config.settings(text)))
+    case Some{W.Unread{}}:
+      []
+    case Some{W.Directory{}}:
+      []
+
+# each bolt.bend's `setting` findings, in order
+def flagged_all(+world: W.World, ps: List<&2, String>) -> List<&2, F.Finding>:
+  match ps:
+    case Nil{}:
+      []
+    case Con{+p, rest}:
+      List.append(&2, F.Finding, flagged_at(p, W.answer(world, W.Text{p})), flagged_all(world, rest))
+
+# `setting`'s findings in a run: the unknown settings of every bolt.bend that
+# grades a directory grading needs (a source's or SPEC.md's), each bolt.bend
+# once, in the order its directories come
+def settings_found(+world: W.World) -> List<&2, F.Finding>:
+  flagged_all(world, Plan.uniq(graders_all(world, Plan.conf.dirs(Plan.inputs(world))), []))
+
+# LAW: `setting` reports, for each bolt.bend that grades a directory of the
+# run, each bolt.bend once in the order its directories come, one finding for
+# each setting `unknown` holds, at that bolt.bend's path and the line of the
+# setting's def, in file order, and nothing else
+# BOLT-RULE-C011
+law setting_reports:
+  for +world: W.World
+  {Plan.settings(world) == settings_found(world) : List<&2, F.Finding>}
+
 # every finding of a run, ungraded: the read failures, then each source's
-# per-file findings, each rule seeing that one source, then coverage, unsafe
-# and trace, each seeing the digests of every source in the run (trace also
-# whether the run is the whole tree, and SPEC.md's text)
+# per-file findings, each rule seeing that one source, then `setting`'s,
+# seeing each bolt.bend grading reads, then coverage, unsafe and trace, each
+# seeing the digests of every source in the run (trace also whether the run
+# is the whole tree, and SPEC.md's text)
 def in_scope(+world: W.World) -> List<&2, F.Finding>:
   +ps = Plan.inputs(world)
   +ds = Digest.all(parsed_all(world, ps))
-  List.concat(&2, F.Finding, [unread_all(world, ps), on_all(world, ps), Law.check(ds), Unsafe.check(ds),
-    Trace.check(List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"), ds)])
+  List.concat(&2, F.Finding, [unread_all(world, ps), on_all(world, ps), settings_found(world), Law.check(ds),
+    Unsafe.check(ds), Trace.check(List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"), ds)])
 
 # LAW: the planner's findings are the read failures, then the per-file rules
-# on each source's Src alone, then the project rules on the digests of every
-# source in the run, and nothing else
+# on each source's Src alone, then `setting` on each bolt.bend grading reads,
+# then the project rules on the digests of every source in the run, and
+# nothing else
 # BOLT-SCOPE-2
 law scope_findings:
   for +world: W.World
@@ -454,10 +588,10 @@ def out_lines(+world: W.World) -> List<&2, String>:
   List.append(&2, String, shown_all(gs), [summary_of(gs)])
 
 # LAW: `bolt` prints the read failures, then the per-file findings in
-# file-list order and `Rules.on` order, then coverage, unsafe and trace, each
-# graded finding as one line, the ones at off dropped and the ones a noqa
-# comment on their line names dropped, then `noqa`'s findings, then the
-# summary
+# file-list order and `Rules.on` order, then `setting`'s, then coverage,
+# unsafe and trace, each graded finding as one line, the ones at off dropped
+# and the ones a noqa comment on their line names dropped, then `noqa`'s
+# findings, then the summary
 # BOLT-OUT-3
 # BOLT-OUT-7
 law lines_in_order:

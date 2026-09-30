@@ -10,6 +10,7 @@ import ./lint/plan.bend as Plan
 import ./noqa.bend as Noqa
 import ./rules/style/noqa.bend as NoqaRule
 import ./codes.bend as Codes
+import ./rules/correctness/setting.bend as Setting
 import ./syntax/lex.bend as Lex
 import ./rules/digest.bend as Digest
 import ./rules/laws/law.bend as Law
@@ -150,7 +151,108 @@ def Laws.opt_in_off(sets, group, rule, h_opt, h_rule):
 def Laws.argv_opt_in(sets, group, h_rule):
   Laws.opt_in_off(sets, group, "argv", {==}, h_rule)
 
-# one arm per row of the code table (31), each checked by evaluation, and one
+# Unknown names (BOLT-CFG-7). config.bend looks a slug up with Codes.find and
+# a group with an early-exit fold; the spec folds both strictly. Each step
+# lemma takes the comparison it branches on as a variable and cases on it.
+
+# one row onto the slug lookup: the table finds a row exactly when the spec
+# says one has the slug
+law cfg7.slug.step:
+  for bb: Bool
+  for -row: Codes.Entry
+  for rest: List<&2, Codes.Entry>
+  for +name: String
+  for -sl: Bool
+  for ih: {Maybe.is_some(&2, Codes.Entry, Codes.find(rest, name)) == sl : Bool}
+  {Maybe.is_some(&2, Codes.Entry, Lazy.stop(Maybe<&2, Codes.Entry>, bb, Some{row}, _u => Codes.find(rest, name)))
+    == Bool.or(bb, sl) : Bool}
+
+def cfg7.slug.step(bb, _row, _rest, _name, _sl, ih):
+  match bb:
+    case True{}:
+      {==}
+    case False{}:
+      ih
+
+# the table finds a row by a slug exactly when some row has it
+law cfg7.slug:
+  for rows: List<&2, Codes.Entry>
+  for +name: String
+  {Maybe.is_some(&2, Codes.Entry, Codes.find(rows, name)) == Laws.slug_in(rows, name) : Bool}
+
+def cfg7.slug(rows, name):
+  match rows:
+    case Nil{}:
+      {==}
+    case Con{Codes.Entry{+s, +id, +grp}, +tl}:
+      cfg7.slug.step(String.eq(s, name), Codes.Entry{s, id, grp}, tl, name, Laws.slug_in(tl, name), cfg7.slug(tl, name))
+
+# one row onto the group lookup
+law cfg7.group.step:
+  for bb: Bool
+  for rest: List<&2, Codes.Entry>
+  for +name: String
+  for -gl: Bool
+  for ih: {Config.known.group(rest, name) == gl : Bool}
+  {Lazy.or_else(bb, _u => Config.known.group(rest, name)) == Bool.or(bb, gl) : Bool}
+
+def cfg7.group.step(bb, _rest, _name, _gl, ih):
+  match bb:
+    case True{}:
+      {==}
+    case False{}:
+      ih
+
+# a name is some row's group exactly when the spec says so
+law cfg7.group:
+  for rows: List<&2, Codes.Entry>
+  for +name: String
+  {Config.known.group(rows, name) == Laws.group_in(rows, name) : Bool}
+
+def cfg7.group(rows, name):
+  match rows:
+    case Nil{}:
+      {==}
+    case Con{Codes.Entry{_s, _id, +grp}, +tl}:
+      cfg7.group.step(String.eq(grp, name), tl, name, Laws.group_in(tl, name), cfg7.group(tl, name))
+
+# a name is known exactly when some row has it as its slug or its group
+law cfg7.known:
+  for +rows: List<&2, Codes.Entry>
+  for +name: String
+  {Config.known.in(rows, name) == Bool.or(Laws.slug_in(rows, name), Laws.group_in(rows, name)) : Bool}
+
+def cfg7.known(rows, name):
+  a = Equal.sym(Bool, Maybe.is_some(&2, Codes.Entry, Codes.find(rows, name)), Laws.slug_in(rows, name),
+    cfg7.slug(rows, name))
+  %a : {Bool.or(_, Config.known.group(rows, name)) == Bool.or(Laws.slug_in(rows, name), Laws.group_in(rows, name))
+    : Bool}
+  b = Equal.sym(Bool, Config.known.group(rows, name), Laws.group_in(rows, name), cfg7.group(rows, name))
+  %b : {Bool.or(Laws.slug_in(rows, name), _) == Bool.or(Laws.slug_in(rows, name), Laws.group_in(rows, name)) : Bool}
+  {==}
+
+def Laws.unknown_exact(ss):
+  match ss:
+    case Nil{}:
+      {==}
+    case Con{Config.Setting{+n, +w, +line}, +tl}:
+      k = Equal.sym(Bool, Config.known.in(Codes.table(), n),
+        Bool.or(Laws.slug_in(Codes.table(), n), Laws.group_in(Codes.table(), n)), cfg7.known(Codes.table(), n))
+      %k : {Bool.pick(List<&2, Config.Setting>, _, Config.unknown.in(tl, Codes.table()),
+          Config.Setting{n, w, line} <> Config.unknown.in(tl, Codes.table()))
+        == Laws.unknown_of(Config.Setting{n, w, line} <> tl) : List<&2, Config.Setting>}
+      r = Equal.sym(List<&2, Config.Setting>, Config.unknown.in(tl, Codes.table()), Laws.unknown_of(tl),
+        Laws.unknown_exact(tl))
+      %r : {Bool.pick(List<&2, Config.Setting>,
+          Bool.or(Laws.slug_in(Codes.table(), n), Laws.group_in(Codes.table(), n)),
+          _, Config.Setting{n, w, line} <> _)
+        == Laws.unknown_of(Config.Setting{n, w, line} <> tl) : List<&2, Config.Setting>}
+      {==}
+
+def Laws.settings_graded(_text):
+  {==}
+
+# one arm per row of the code table (32), each checked by evaluation, and one
 # past its end, where both sides are none: a new rule is a new arm here
 def Laws.slug_finds_row(n):
   match n:
@@ -216,7 +318,9 @@ def Laws.slug_finds_row(n):
       {==}
     case 30n:
       {==}
-    case 31n+_p:
+    case 31n:
+      {==}
+    case 32n+_p:
       {==}
 
 # the same arms, looked up by code
@@ -284,7 +388,9 @@ def Laws.code_finds_row(n):
       {==}
     case 30n:
       {==}
-    case 31n+_p:
+    case 31n:
+      {==}
+    case 32n+_p:
       {==}
 
 def Laws.shown(_path, _line, _col, _len, _rule, _msg, _level):
@@ -529,6 +635,130 @@ def lint.on(ps, world):
     case Con{+p, +tl}:
       lint.on.step(p, W.text(world, p), Plan.gots(tl, world), Laws.on_all(world, tl), lint.on(tl, world))
 
+# `setting` (BOLT-RULE-C011): the planner's walk to each grading bolt.bend
+# and its findings there are the spec's.
+
+# one candidate onto the first one read
+law c011.first.step:
+  for +path: String
+  for mm: Maybe<&2, W.Answer>
+  for gs: List<&2, Plan.Got>
+  for -more: List<&2, String>
+  for ih: {Plan.conf.first(gs) == more : List<&2, String>}
+  {Plan.conf.first(Plan.Got{path, W.text.got(mm)} <> gs) == Laws.read_first.at(path, mm, more) : List<&2, String>}
+
+def c011.first.step(_path, mm, _gs, _more, ih):
+  match mm:
+    case None{}:
+      ih
+    case Some{W.Listed{_names}}:
+      ih
+    case Some{W.Read{_text}}:
+      {==}
+    case Some{W.Unread{}}:
+      ih
+    case Some{W.Directory{}}:
+      ih
+
+# the planner's first read candidate is the spec's
+law c011.first:
+  for ps: List<&2, String>
+  for +world: W.World
+  {Plan.conf.first(Plan.gots(ps, world)) == Laws.read_first(world, ps) : List<&2, String>}
+
+def c011.first(ps, world):
+  match ps:
+    case Nil{}:
+      {==}
+    case Con{+p, +tl}:
+      c011.first.step(p, W.answer(world, W.Text{p}), Plan.gots(tl, world), Laws.read_first(world, tl),
+        c011.first(tl, world))
+
+# the planner's grading bolt.bend of each directory is the spec's
+law c011.used:
+  for ds: List<&2, String>
+  for +world: W.World
+  {Plan.conf.used(ds, world) == Laws.graders_all(world, ds) : List<&2, String>}
+
+def c011.used(ds, world):
+  match ds:
+    case Nil{}:
+      {==}
+    case Con{+d, +tl}:
+      a = Equal.sym(List<&2, String>, Plan.conf.first(Plan.gots(Config.chain(Config.home(W.cwd.of(world), d)), world)),
+        Laws.read_first(world, Config.chain(Config.home(W.cwd.of(world), d))),
+        c011.first(Config.chain(Config.home(W.cwd.of(world), d)), world))
+      %a : {List.append(&2, String, _, Plan.conf.used(tl, world))
+        == Laws.graders_all(world, d <> tl) : List<&2, String>}
+      Equal.cong(List<&2, String>, List<&2, String>,
+        rr => List.append(&2, String, Laws.read_first(world, Config.chain(Config.home(W.cwd.of(world), d))), rr),
+        Plan.conf.used(tl, world), Laws.graders_all(world, tl), c011.used(tl, world))
+
+# the rule's findings on settings are the spec's
+law c011.found:
+  for ss: List<&2, Config.Setting>
+  for +path: String
+  {Setting.found(ss, path) == Laws.flagged(path, ss) : List<&2, F.Finding>}
+
+def c011.found(ss, path):
+  match ss:
+    case Nil{}:
+      {==}
+    case Con{Config.Setting{+n, _w, +line}, +tl}:
+      Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
+        rr => F.Finding{path, line, 0, 0, "setting", "`" ++ n ++ "` names no rule or group, so it sets nothing."} <> rr,
+        Setting.found(tl, path), Laws.flagged(path, tl), c011.found(tl, path))
+
+# one bolt.bend onto the rule's findings
+law c011.at.step:
+  for +path: String
+  for mm: Maybe<&2, W.Answer>
+  for gs: List<&2, Plan.Got>
+  for -fs: List<&2, F.Finding>
+  for ih: {Plan.settings.at(gs) == fs : List<&2, F.Finding>}
+  {Plan.settings.at(Plan.Got{path, W.text.got(mm)} <> gs) == List.append(&2, F.Finding, Laws.flagged_at(path, mm), fs)
+    : List<&2, F.Finding>}
+
+def c011.at.step(path, mm, gs, fs, ih):
+  match mm:
+    case None{}:
+      ih
+    case Some{W.Listed{_names}}:
+      ih
+    case Some{W.Read{+text}}:
+      a = Equal.sym(List<&2, F.Finding>, Setting.found(Config.unknown(Config.settings(text)), path),
+        Laws.flagged(path, Config.unknown(Config.settings(text))),
+        c011.found(Config.unknown(Config.settings(text)), path))
+      %a : {List.append(&2, F.Finding, _, Plan.settings.at(gs))
+        == List.append(&2, F.Finding, Laws.flagged(path, Config.unknown(Config.settings(text))), fs)
+        : List<&2, F.Finding>}
+      Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
+        rr => List.append(&2, F.Finding, Laws.flagged(path, Config.unknown(Config.settings(text))), rr),
+        Plan.settings.at(gs), fs, ih)
+    case Some{W.Unread{}}:
+      ih
+    case Some{W.Directory{}}:
+      ih
+
+# the rule's findings on each bolt.bend are the spec's
+law c011.at:
+  for ps: List<&2, String>
+  for +world: W.World
+  {Plan.settings.at(Plan.gots(ps, world)) == Laws.flagged_all(world, ps) : List<&2, F.Finding>}
+
+def c011.at(ps, world):
+  match ps:
+    case Nil{}:
+      {==}
+    case Con{+p, +tl}:
+      c011.at.step(p, W.answer(world, W.Text{p}), Plan.gots(tl, world), Laws.flagged_all(world, tl), c011.at(tl, world))
+
+def Laws.setting_reports(world):
+  u = Equal.sym(List<&2, String>, Plan.conf.used(Plan.conf.dirs(Plan.inputs(world)), world),
+    Laws.graders_all(world, Plan.conf.dirs(Plan.inputs(world))), c011.used(Plan.conf.dirs(Plan.inputs(world)), world))
+  %u : {Plan.settings.at(Plan.gots(Plan.uniq(_, []), world)) == Laws.settings_found(world) : List<&2, F.Finding>}
+  c011.at(Plan.uniq(Laws.graders_all(world, Plan.conf.dirs(Plan.inputs(world))), []), world)
+
 def Laws.scope_findings(world):
   n = Equal.sym(List<&2, F.Finding>,
     List.append(&2, F.Finding, Rules.project(Plan.srcs_of(Plan.gots(Plan.inputs(world), world)),
@@ -538,27 +768,36 @@ def Laws.scope_findings(world):
     lint.app_nil(F.Finding, Rules.project(Plan.srcs_of(Plan.gots(Plan.inputs(world), world)),
       List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"))))
   %n : {List.append(&2, F.Finding, Plan.unread(Plan.gots(Plan.inputs(world), world)),
-      List.append(&2, F.Finding, Plan.per_file(Plan.srcs_of(Plan.gots(Plan.inputs(world), world))), _))
+      List.append(&2, F.Finding, Plan.per_file(Plan.srcs_of(Plan.gots(Plan.inputs(world), world))),
+        List.append(&2, F.Finding, Plan.settings(world), _)))
     == Laws.in_scope(world) : List<&2, F.Finding>}
   a = Equal.sym(List<&2, F.Finding>, Plan.unread(Plan.gots(Plan.inputs(world), world)),
     Laws.unread_all(world, Plan.inputs(world)), lint.unread(Plan.inputs(world), world))
   %a : {List.append(&2, F.Finding, _,
       List.append(&2, F.Finding, Plan.per_file(Plan.srcs_of(Plan.gots(Plan.inputs(world), world))),
-        Rules.project(Plan.srcs_of(Plan.gots(Plan.inputs(world), world)),
-          List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"))))
+        List.append(&2, F.Finding, Plan.settings(world),
+          Rules.project(Plan.srcs_of(Plan.gots(Plan.inputs(world), world)),
+          List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md")))))
     == Laws.in_scope(world) : List<&2, F.Finding>}
   b = Equal.sym(List<&2, F.Finding>, Plan.per_file(Plan.srcs_of(Plan.gots(Plan.inputs(world), world))),
     Laws.on_all(world, Plan.inputs(world)), lint.on(Plan.inputs(world), world))
   %b : {List.append(&2, F.Finding, Laws.unread_all(world, Plan.inputs(world)),
-      List.append(&2, F.Finding, _,
+      List.append(&2, F.Finding, _, List.append(&2, F.Finding, Plan.settings(world),
         Rules.project(Plan.srcs_of(Plan.gots(Plan.inputs(world), world)),
-          List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"))))
+          List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md")))))
+    == Laws.in_scope(world) : List<&2, F.Finding>}
+  t = Equal.sym(List<&2, F.Finding>, Plan.settings(world), Laws.settings_found(world), Laws.setting_reports(world))
+  %t : {List.append(&2, F.Finding, Laws.unread_all(world, Plan.inputs(world)),
+      List.append(&2, F.Finding, Laws.on_all(world, Plan.inputs(world)), List.append(&2, F.Finding, _,
+        Rules.project(Plan.srcs_of(Plan.gots(Plan.inputs(world), world)),
+          List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md")))))
     == Laws.in_scope(world) : List<&2, F.Finding>}
   c = Equal.sym(List<&2, Src.Src>, Plan.srcs_of(Plan.gots(Plan.inputs(world), world)),
     Laws.parsed_all(world, Plan.inputs(world)), lint.parsed(Plan.inputs(world), world))
   %c : {List.append(&2, F.Finding, Laws.unread_all(world, Plan.inputs(world)),
       List.append(&2, F.Finding, Laws.on_all(world, Plan.inputs(world)),
-        Rules.project(_, List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"))))
+        List.append(&2, F.Finding, Laws.settings_found(world),
+          Rules.project(_, List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md")))))
     == Laws.in_scope(world) : List<&2, F.Finding>}
   {==}
 

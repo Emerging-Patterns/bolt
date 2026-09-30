@@ -13,7 +13,8 @@
 # A directory's candidates are taken once it is resolved against the World's
 # working directory (Config.home), so a relative path is graded by the same
 # bolt.bend wherever bolt runs from.
-# `wants` never parses a file; `plan` parses and lints once. Once every rule
+# `wants` never parses a file; `plan` parses and lints once, and reads the
+# settings of each bolt.bend that grades a directory for `setting` (C011). Once every rule
 # has run and each finding is graded, the noqa comments (src/noqa.bend)
 # silence what they name, and then the `noqa` rule reports the comments that
 # silenced nothing.
@@ -26,6 +27,7 @@ import ../rules.bend as Rules
 import ../config.bend as Config
 import ../noqa.bend as Noqa
 import ../rules/style/noqa.bend as NoqaRule
+import ../rules/correctness/setting.bend as Setting
 
 # what `bolt` prints, in order, and the status it exits with
 type Plan is Data:
@@ -315,12 +317,53 @@ def per_file(ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
     case Con{s, rest}:
       List.concat(&2, F.Finding, [Rules.on(s), per_file(rest)])
 
+# the path of the first candidate the World holds a text for, as a list of
+# one; none when it holds none
+def conf.first(gs: List<&2, Got>) -> List<&2, String>:
+  match gs:
+    case Nil{}:
+      Nil{}
+    case Con{Got{path, Some{_text}}, _rest}:
+      [path]
+    case Con{Got{_path, None{}}, rest}:
+      conf.first(rest)
+
+# the bolt.bend that grades each directory, in directory order: the first of
+# its candidates the World read, as conf.near reads it; none for a directory
+# graded by the defaults
+def conf.used(ds: List<&2, String>, +world: W.World) -> List<&2, String>:
+  match ds:
+    case Nil{}:
+      Nil{}
+    case Con{d, rest}:
+      List.append(&2, String, conf.first(gots(conf.chain(world, d), world)), conf.used(rest, world))
+
+# every bolt.bend grading reads, each once, in the order its directories come
+def graders(+world: W.World) -> List<&2, String>:
+  uniq(conf.used(conf.dirs(inputs(world)), world), [])
+
+# the `setting` rule's findings on each bolt.bend the World read, in order
+def settings.at(gs: List<&2, Got>) -> List<&2, F.Finding>:
+  match gs:
+    case Nil{}:
+      Nil{}
+    case Con{Got{+path, Some{text}}, rest}:
+      List.append(&2, F.Finding, Setting.check(path, text), settings.at(rest))
+    case Con{Got{_path, None{}}, rest}:
+      settings.at(rest)
+
+# the `setting` rule's findings: each unknown setting of every bolt.bend
+# grading reads (src/rules/correctness/setting.bend)
+def settings(+world: W.World) -> List<&2, F.Finding>:
+  settings.at(gots(graders(world), world))
+
 # every finding of every rule, ungraded, from the sources and what the World
 # answers for them: the read failures, the per-file findings of each source,
-# then the project rules' over every source, told whether the run is the
-# whole tree, and SPEC.md's text
+# then `setting`'s over each bolt.bend grading reads, then the project rules'
+# over every source, told whether the run is the whole tree, and SPEC.md's
+# text
 def found.at(+world: W.World, +gs: List<&2, Got>, +ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
-  List.concat(&2, F.Finding, [unread(gs), per_file(ss),
+  List.concat(&2, F.Finding, [unread(gs), per_file(ss), settings(world),
     Rules.project(ss, List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"))])
 
 # every finding of every rule, ungraded
