@@ -20,11 +20,12 @@ def flag(rr: Run) -> String:
 def run_of(path: String) -> Run:
   Run{path, "--check-only"}
 
-# only the open-laws report ("N TODOs found"), and nothing else
+# only the open-laws report ("1 TODO found", "N TODOs found"), and nothing
+# else
 def only_todos(ds: List<&2, Rep.Diag>) -> Bool:
   match ds:
-    case Con{Rep.Diag{line, msg}, Nil{}}:
-      String.contains(msg, "TODO found")
+    case Con{Rep.Diag{line, +msg}, Nil{}}:
+      Bool.or(String.contains(msg, "TODO found"), String.contains(msg, "TODOs found"))
     case other:
       False{}
 
