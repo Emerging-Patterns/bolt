@@ -219,7 +219,7 @@ def default(+group: String) -> Level:
 # a rule only its own setting turns on: a group setting, or the group's
 # default, would put new findings on projects that never asked for it
 def opt_in(+rule: String) -> Bool:
-  String.eq(rule, "trace")
+  Bool.or(String.eq(rule, "trace"), String.eq(rule, "scan"))
 
 # the rule's own setting, else its group's, else the group's default; an
 # opt-in rule's own setting, else off

@@ -28,6 +28,7 @@ import ./suspicious/index.bend as Index
 import ./suspicious/ring.bend as Ring
 import ./suspicious/table.bend as Table
 import ./suspicious/unit.bend as UnitRule
+import ./suspicious/scan.bend as Scan
 import ./correctness/chars.bend as Chars
 import ./correctness/strings.bend as Strings
 import ./correctness/foreign.bend as Foreign
@@ -31267,3 +31268,1669 @@ def Laws.inert_wrap(path, _text, _toks, _tree, _bound, items, _text2, _toks2, _t
   %ei : {inert.wrap.go(i1, s1, path) == inert.wrap.go(_, Laws.inert.sigs(items2), path) : List<&2, F.Finding>}
   %es : {inert.wrap.go(i1, s1, path) == inert.wrap.go(i1, _, path) : List<&2, F.Finding>}
   {==}
+
+# scan
+# ----
+
+def Laws.scan_exempt(path, _text, _toks, tree, _bound, _items, e):
+  %Equal.sym(Bool, Paths.is_law_file(path), True{}, e) : {Lazy.stop(List<&2, F.Finding>, _, [],
+    _u => Scan.check.on(Calls.defs(tree), path)) == Nil{}
+    : List<&2, F.Finding>}
+  {==}
+
+# the file's walks of a name are the law's
+law scan.file_at:
+  for ws: List<&2, Scan.Walk>
+  for +tt: String
+  {Scan.file_at(ws, tt) == Laws.scan.file(ws, tt) : List<&2, Nat>}
+
+def scan.file_at(ws, tt):
+  match ws:
+    case Nil{}:
+      {==}
+    case Con{Scan.Walk{+nm, +at}, +rest}:
+      %scan.file_at(rest, tt) : {Scan.file_at(Scan.Walk{nm, at} <> rest, tt)
+        == Bool.pick(List<&2, Nat>, String.eq(nm, tt), at <> _, _) : List<&2, Nat>}
+      {==}
+
+def Laws.scan_slots(tt, ws):
+  %scan.file_at(ws, tt) : {Scan.slots(tt, ws) == List.append(&2, Nat, Laws.scan.base(tt), _) : List<&2, Nat>}
+  {==}
+
+# three finding lists, each empty, join empty
+law scan.nil3:
+  for -a: List<&2, F.Finding>
+  for -b: List<&2, F.Finding>
+  for -c: List<&2, F.Finding>
+  for ea: {a == Nil{} : List<&2, F.Finding>}
+  for eb: {b == Nil{} : List<&2, F.Finding>}
+  for ec: {c == Nil{} : List<&2, F.Finding>}
+  {List.concat(&2, F.Finding, [a, b, c]) == Nil{} : List<&2, F.Finding>}
+
+def scan.nil3(a, b, c, ea, eb, ec):
+  %Equal.sym(List<&2, F.Finding>, a, Nil{}, ea) : {List.concat(&2, F.Finding, [_, b, c]) == Nil{}
+    : List<&2, F.Finding>}
+  %Equal.sym(List<&2, F.Finding>, b, Nil{}, eb) : {List.concat(&2, F.Finding, [Nil{}, _, c]) == Nil{}
+    : List<&2, F.Finding>}
+  %Equal.sym(List<&2, F.Finding>, c, Nil{}, ec) : {List.concat(&2, F.Finding, [Nil{}, Nil{}, _]) == Nil{}
+    : List<&2, F.Finding>}
+  {==}
+
+# two finding lists, each empty, join empty
+law scan.nil2:
+  for -a: List<&2, F.Finding>
+  for -b: List<&2, F.Finding>
+  for ea: {a == Nil{} : List<&2, F.Finding>}
+  for eb: {b == Nil{} : List<&2, F.Finding>}
+  {List.concat(&2, F.Finding, [a, b]) == Nil{} : List<&2, F.Finding>}
+
+def scan.nil2(a, b, ea, eb):
+  %Equal.sym(List<&2, F.Finding>, a, Nil{}, ea) : {List.concat(&2, F.Finding, [_, b]) == Nil{} : List<&2, F.Finding>}
+  %Equal.sym(List<&2, F.Finding>, b, Nil{}, eb) : {List.concat(&2, F.Finding, [Nil{}, _]) == Nil{}
+    : List<&2, F.Finding>}
+  {==}
+
+# no name is kept against no names
+law scan.keep_nil:
+  for mm: Maybe<&2, String>
+  {Scan.keep_in(mm, []) == None{} : Maybe<&2, String>}
+
+def scan.keep_nil(mm):
+  match mm:
+    case None{}:
+      {==}
+    case Some{nm}:
+      {==}
+
+# no walked argument is one of no names
+law scan.found_nil:
+  for ss: List<&2, Nat>
+  for +as: List<&2, Tree.Node>
+  {Scan.found(ss, as, []) == None{} : Maybe<&2, String>}
+
+def scan.found_nil(ss, as):
+  match ss:
+    case Nil{}:
+      {==}
+    case Con{+at, +rest}:
+      %Equal.sym(Maybe<&2, String>, Scan.keep_in(Scan.name_of(Calls.arg(as, at)), []), None{},
+        scan.keep_nil(Scan.name_of(Calls.arg(as, at)))) : {Scan.first(_, Scan.found(rest, as, [])) == None{}
+          : Maybe<&2, String>}
+      scan.found_nil(rest, as)
+
+# a stop that gives nothing either way gives nothing
+law scan.stop_nil:
+  for c: Bool
+  {Lazy.stop(List<&2, F.Finding>, c, [], _u => Nil{}) == Nil{} : List<&2, F.Finding>}
+
+def scan.stop_nil(c):
+  match c:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# a named call reports nothing when nothing is carried
+law scan.on_nil:
+  for +hot: Bool
+  for +open: Bool
+  for +tt: String
+  for +line: U32
+  for +col: U32
+  for +kids: Tree.Node
+  for +self: String
+  for +ws: List<&2, Scan.Walk>
+  for +lead: String
+  for +path: String
+  {Scan.on_name(hot, open, tt, line, col, kids, self, ws, [], lead, path) == Nil{} : List<&2, F.Finding>}
+
+def scan.on_nil(hot, open, tt, line, col, kids, self, ws, lead, path):
+  %Equal.sym(Maybe<&2, String>, Scan.found(Scan.slots(tt, ws), Calls.args(kids), []), None{},
+    scan.found_nil(Scan.slots(tt, ws), Calls.args(kids))) : {Lazy.stop(List<&2, F.Finding>,
+      Bool.not(Bool.and(hot, Bool.and(open, Bool.not(String.eq(tt, self))))), [],
+      _u => Scan.cite(_, tt, line, col, self, lead, path)) == Nil{} : List<&2, F.Finding>}
+  scan.stop_nil(Bool.not(Bool.and(hot, Bool.and(open, Bool.not(String.eq(tt, self))))))
+
+# a call reports nothing when nothing is carried, whatever its callee's kind
+law scan.hit_nil:
+  for kk: Lex.TokKind
+  for +hot: Bool
+  for +open: Bool
+  for +tt: String
+  for +line: U32
+  for +col: U32
+  for +kids: Tree.Node
+  for +self: String
+  for +ws: List<&2, Scan.Walk>
+  for +lead: String
+  for +path: String
+  {Scan.call_hit(kk, hot, open, tt, line, col, kids, self, ws, [], lead, path) == Nil{} : List<&2, F.Finding>}
+
+def scan.hit_nil(kk, hot, open, tt, line, col, kids, self, ws, lead, path):
+  match kk:
+    case Lex.TName{}:
+      scan.on_nil(hot, open, tt, line, col, kids, self, ws, lead, path)
+    case Lex.TUpper{}:
+      {==}
+    case Lex.TDotted{}:
+      scan.on_nil(hot, open, tt, line, col, kids, self, ws, lead, path)
+    case Lex.TWild{}:
+      {==}
+    case Lex.TKey{}:
+      {==}
+    case Lex.TNum{}:
+      {==}
+    case Lex.TStr{}:
+      {==}
+    case Lex.TChar{}:
+      {==}
+    case Lex.TComment{}:
+      {==}
+    case Lex.TSpace{}:
+      {==}
+    case Lex.TNewline{}:
+      {==}
+    case Lex.TOp{}:
+      {==}
+    case Lex.TColon{}:
+      {==}
+    case Lex.TEq{}:
+      {==}
+    case Lex.TBind{}:
+      {==}
+    case Lex.TArrow{}:
+      {==}
+    case Lex.TLam{}:
+      {==}
+    case Lex.TAll{}:
+      {==}
+    case Lex.TAmp{}:
+      {==}
+    case Lex.TOpen{}:
+      {==}
+    case Lex.TClose{}:
+      {==}
+    case Lex.TComma{}:
+      {==}
+
+def Laws.scan_quiet(nn, self, ws, lead, path, hot):
+  match nn:
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{o, gk, cl}:
+      {==}
+    case Tree.Stmt{kind, sk, sb}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{Lex.Tok{+k, +t, +l, +c}}:
+          match rest:
+            case Tree.Leaf{tok}:
+              {==}
+            case Tree.Group{o, gk, cl}:
+              {==}
+            case Tree.Stmt{kind, sk, sb}:
+              {==}
+            case Tree.NNil{}:
+              {==}
+            case Tree.NCons{rh, +rr}:
+              match rh:
+                case Tree.Group{Lex.Tok{gk, +o, gl, gc}, +kids, cl}:
+                  scan.nil3(Scan.call_hit(k, Hoist.warm(hot, k), String.eq(o, "("), t, l, c, kids, self, ws, [], lead,
+                      path),
+                    Scan.walk(kids, self, ws, [], lead, path, Hoist.warm(hot, k)),
+                    Scan.walk(rr, self, ws, [], lead, path, Hoist.warm(hot, k)),
+                    scan.hit_nil(k, Hoist.warm(hot, k), String.eq(o, "("), t, l, c, kids, self, ws, lead, path),
+                    Laws.scan_quiet(kids, self, ws, lead, path, Hoist.warm(hot, k)), Laws.scan_quiet(rr, self, ws,
+                        lead, path, Hoist.warm(hot, k)))
+                case Tree.Leaf{tok}:
+                  Laws.scan_quiet(rest, self, ws, lead, path, Hoist.warm(hot, k))
+                case Tree.Stmt{kind, sk, sb}:
+                  Laws.scan_quiet(rest, self, ws, lead, path, Hoist.warm(hot, k))
+                case Tree.NNil{}:
+                  Laws.scan_quiet(rest, self, ws, lead, path, Hoist.warm(hot, k))
+                case Tree.NCons{nh, nt}:
+                  Laws.scan_quiet(rest, self, ws, lead, path, Hoist.warm(hot, k))
+        case Tree.Group{o, +kids, cl}:
+          scan.nil2(Scan.walk(kids, self, ws, [], lead, path, hot), Scan.walk(rest, self, ws, [], lead, path, hot),
+              Laws.scan_quiet(kids, self, ws, lead, path, hot), Laws.scan_quiet(rest, self, ws, lead, path, hot))
+        case Tree.Stmt{kind, +kids, +body}:
+          match kind:
+            case Tree.SDef{}:
+              scan.nil3(Scan.walk(kids, self, ws, [], lead, path, hot), Scan.walk(body, self, ws, [], lead, path, hot),
+                  Scan.walk(rest, self, ws, [], lead, path, hot),
+                Laws.scan_quiet(kids, self, ws, lead, path, hot), Laws.scan_quiet(body, self, ws, lead, path,
+                    hot), Laws.scan_quiet(rest, self, ws, lead, path, hot))
+            case Tree.SType{}:
+              scan.nil3(Scan.walk(kids, self, ws, [], lead, path, hot), Scan.walk(body, self, ws, [], lead, path, hot),
+                  Scan.walk(rest, self, ws, [], lead, path, hot),
+                Laws.scan_quiet(kids, self, ws, lead, path, hot), Laws.scan_quiet(body, self, ws, lead, path,
+                    hot), Laws.scan_quiet(rest, self, ws, lead, path, hot))
+            case Tree.SLaw{}:
+              scan.nil3(Scan.walk(kids, self, ws, [], lead, path, hot), Scan.walk(body, self, ws, [], lead, path, hot),
+                  Scan.walk(rest, self, ws, [], lead, path, hot),
+                Laws.scan_quiet(kids, self, ws, lead, path, hot), Laws.scan_quiet(body, self, ws, lead, path,
+                    hot), Laws.scan_quiet(rest, self, ws, lead, path, hot))
+            case Tree.SImport{}:
+              scan.nil3(Scan.walk(kids, self, ws, [], lead, path, hot), Scan.walk(body, self, ws, [], lead, path, hot),
+                  Scan.walk(rest, self, ws, [], lead, path, hot),
+                Laws.scan_quiet(kids, self, ws, lead, path, hot), Laws.scan_quiet(body, self, ws, lead, path,
+                    hot), Laws.scan_quiet(rest, self, ws, lead, path, hot))
+            case Tree.SCase{}:
+              scan.nil3(Scan.walk(kids, self, ws, [], lead, path, False{}), Scan.walk(body, self, ws, [], lead, path,
+                  Bool.and(hot, Calls.calls(body, self))), Scan.walk(rest, self, ws, [], lead, path, hot),
+                Laws.scan_quiet(kids, self, ws, lead, path, False{}), Laws.scan_quiet(body, self, ws, lead, path,
+                    Bool.and(hot, Calls.calls(body, self))), Laws.scan_quiet(rest, self, ws, lead, path, hot))
+            case Tree.SFor{}:
+              scan.nil3(Scan.walk(kids, self, ws, [], lead, path, hot), Scan.walk(body, self, ws, [], lead, path, hot),
+                  Scan.walk(rest, self, ws, [], lead, path, hot),
+                Laws.scan_quiet(kids, self, ws, lead, path, hot), Laws.scan_quiet(body, self, ws, lead, path,
+                    hot), Laws.scan_quiet(rest, self, ws, lead, path, hot))
+            case Tree.SLet{}:
+              scan.nil3(Scan.walk(kids, self, ws, [], lead, path, hot), Scan.walk(body, self, ws, [], lead, path, hot),
+                  Scan.walk(rest, self, ws, [], lead, path, hot),
+                Laws.scan_quiet(kids, self, ws, lead, path, hot), Laws.scan_quiet(body, self, ws, lead, path,
+                    hot), Laws.scan_quiet(rest, self, ws, lead, path, hot))
+            case Tree.STerm{}:
+              scan.nil3(Scan.walk(kids, self, ws, [], lead, path, hot), Scan.walk(body, self, ws, [], lead, path, hot),
+                  Scan.walk(rest, self, ws, [], lead, path, hot),
+                Laws.scan_quiet(kids, self, ws, lead, path, hot), Laws.scan_quiet(body, self, ws, lead, path,
+                    hot), Laws.scan_quiet(rest, self, ws, lead, path, hot))
+        case Tree.NNil{}:
+          Laws.scan_quiet(rest, self, ws, lead, path, hot)
+        case Tree.NCons{nh, nt}:
+          Laws.scan_quiet(rest, self, ws, lead, path, hot)
+
+# whether an answer has a name
+def scan.some(mm: Maybe<&2, String>) -> Bool:
+  match mm:
+    case None{}:
+      False{}
+    case Some{nm}:
+      True{}
+
+# a finding exactly when there is a name
+law scan.cite_len:
+  for mm: Maybe<&2, String>
+  for +tt: String
+  for +line: U32
+  for +col: U32
+  for +self: String
+  for +lead: String
+  for +path: String
+  {List.length(&2, F.Finding, Scan.cite(mm, tt, line, col, self, lead, path)) == Bool.pick(Nat, scan.some(mm), 1n, 0n)
+    : Nat}
+
+def scan.cite_len(mm, _tt, _line, _col, _self, _lead, _path):
+  match mm:
+    case None{}:
+      {==}
+    case Some{nm}:
+      {==}
+
+# the first of two answers has a name when either has
+law scan.first_some:
+  for aa: Maybe<&2, String>
+  for bb: Maybe<&2, String>
+  {scan.some(Scan.first(aa, bb)) == Bool.or(scan.some(aa), scan.some(bb)) : Bool}
+
+def scan.first_some(aa, _bb):
+  match aa:
+    case None{}:
+      {==}
+    case Some{nm}:
+      {==}
+
+# a kept name is there exactly when the list holds it
+law scan.pick_some:
+  for b: Bool
+  for +nm: String
+  {scan.some(Bool.pick(Maybe<&2, String>, b, Some{nm}, None{})) == b : Bool}
+
+def scan.pick_some(b, _nm):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# a token kept against the names is the law's named token
+law scan.named:
+  for tok: Lex.Tok
+  for +carried: List<&2, String>
+  {scan.some(Scan.keep_in(Scan.name_tok(tok), carried)) == Laws.scan.named(tok, carried) : Bool}
+
+def scan.named(tok, carried):
+  match tok:
+    case Lex.Tok{k, +t, l, c}:
+      match k:
+        case Lex.TName{}:
+          scan.pick_some(List.contains(~String, ~String.eq, carried, t), t)
+        case Lex.TUpper{}:
+          {==}
+        case Lex.TDotted{}:
+          {==}
+        case Lex.TWild{}:
+          {==}
+        case Lex.TKey{}:
+          {==}
+        case Lex.TNum{}:
+          {==}
+        case Lex.TStr{}:
+          {==}
+        case Lex.TChar{}:
+          {==}
+        case Lex.TComment{}:
+          {==}
+        case Lex.TSpace{}:
+          {==}
+        case Lex.TNewline{}:
+          {==}
+        case Lex.TOp{}:
+          {==}
+        case Lex.TColon{}:
+          {==}
+        case Lex.TEq{}:
+          {==}
+        case Lex.TBind{}:
+          {==}
+        case Lex.TArrow{}:
+          {==}
+        case Lex.TLam{}:
+          {==}
+        case Lex.TAll{}:
+          {==}
+        case Lex.TAmp{}:
+          {==}
+        case Lex.TOpen{}:
+          {==}
+        case Lex.TClose{}:
+          {==}
+        case Lex.TComma{}:
+          {==}
+
+# an argument kept against the names is the law's lone name
+law scan.lone:
+  for nn: Tree.Node
+  for +carried: List<&2, String>
+  {scan.some(Scan.keep_in(Scan.name_of(nn), carried)) == Laws.scan.lone(nn, carried) : Bool}
+
+def scan.lone(nn, carried):
+  match nn:
+    case Tree.NCons{h, r}:
+      match h:
+        case Tree.Leaf{tok}:
+          match r:
+            case Tree.NNil{}:
+              scan.named(tok, carried)
+            case Tree.Leaf{x}:
+              {==}
+            case Tree.Group{x, y, z}:
+              {==}
+            case Tree.Stmt{x, y, z}:
+              {==}
+            case Tree.NCons{x, y}:
+              {==}
+        case Tree.Group{x, y, z}:
+          {==}
+        case Tree.Stmt{x, y, z}:
+          {==}
+        case Tree.NNil{}:
+          {==}
+        case Tree.NCons{x, y}:
+          {==}
+    case Tree.Leaf{x}:
+      {==}
+    case Tree.Group{x, y, z}:
+      {==}
+    case Tree.Stmt{x, y, z}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# a found step's two sides are the law's
+law scan.found.or:
+  for +arg: Tree.Node
+  for rest: List<&2, Nat>
+  for +as: List<&2, Tree.Node>
+  for +carried: List<&2, String>
+  for ih: {scan.some(Scan.found(rest, as, carried)) == Laws.scan.held(rest, as, carried) : Bool}
+  {Bool.or(scan.some(Scan.keep_in(Scan.name_of(arg), carried)), scan.some(Scan.found(rest, as, carried)))
+    == Bool.or(Laws.scan.lone(arg, carried), Laws.scan.held(rest, as, carried)) : Bool}
+
+def scan.found.or(arg, rest, as, carried, ih):
+  %scan.lone(arg, carried) : {Bool.or(scan.some(Scan.keep_in(Scan.name_of(arg), carried)),
+    scan.some(Scan.found(rest, as, carried))) == Bool.or(_, Laws.scan.held(rest, as, carried)) : Bool}
+  %ih : {Bool.or(scan.some(Scan.keep_in(Scan.name_of(arg), carried)),
+    scan.some(Scan.found(rest, as, carried))) == Bool.or(scan.some(Scan.keep_in(Scan.name_of(arg), carried)), _)
+      : Bool}
+  {==}
+
+# a walked argument is found exactly when the law's held says so
+law scan.found:
+  for ss: List<&2, Nat>
+  for +as: List<&2, Tree.Node>
+  for +carried: List<&2, String>
+  {scan.some(Scan.found(ss, as, carried)) == Laws.scan.held(ss, as, carried) : Bool}
+
+def scan.found(ss, as, carried):
+  match ss:
+    case Nil{}:
+      {==}
+    case Con{+at, +rest}:
+      +arg = Calls.arg(as, at)
+      +lh = Laws.scan.lone(arg, carried)
+      Equal.trans(Bool, scan.some(Scan.first(Scan.keep_in(Scan.name_of(arg), carried), Scan.found(rest, as, carried))),
+        Bool.or(scan.some(Scan.keep_in(Scan.name_of(arg), carried)), scan.some(Scan.found(rest, as, carried))),
+        Bool.or(lh, Laws.scan.held(rest, as, carried)),
+        scan.first_some(Scan.keep_in(Scan.name_of(arg), carried), Scan.found(rest, as, carried)),
+        scan.found.or(arg, rest, as, carried, scan.found(rest, as, carried)))
+
+# a gated finding list counts when the gate opens and it counts
+law scan.gate_len:
+  for hot: Bool
+  for open: Bool
+  for q: Bool
+  for -x: List<&2, F.Finding>
+  for -hb: Bool
+  for ex: {List.length(&2, F.Finding, x) == Bool.pick(Nat, hb, 1n, 0n) : Nat}
+  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(hot, Bool.and(open, Bool.not(q)))), [],
+    _u => x)) == Bool.pick(Nat, Bool.and(hot, Bool.and(open, Bool.and(Bool.not(q), hb))), 1n, 0n) : Nat}
+
+def scan.gate_len(hot, open, q, _x, _hb, ex):
+  match hot:
+    case False{}:
+      {==}
+    case True{}:
+      match open:
+        case False{}:
+          {==}
+        case True{}:
+          match q:
+            case True{}:
+              {==}
+            case False{}:
+              ex
+
+# a named call's finding count is the law's
+law scan.on_len:
+  for +hot: Bool
+  for +open: Bool
+  for +tt: String
+  for +line: U32
+  for +col: U32
+  for +kids: Tree.Node
+  for +self: String
+  for +ws: List<&2, Scan.Walk>
+  for +carried: List<&2, String>
+  for +lead: String
+  for +path: String
+  {List.length(&2, F.Finding, Scan.on_name(hot, open, tt, line, col, kids, self, ws, carried, lead, path))
+    == Bool.pick(Nat, Bool.and(hot, Bool.and(open, Bool.and(Bool.not(String.eq(tt, self)),
+      Laws.scan.held(Scan.slots(tt, ws), Calls.args(kids), carried)))), 1n, 0n) : Nat}
+
+def scan.on_len(hot, open, tt, line, col, kids, self, ws, carried, lead, path):
+  +fd = Scan.found(Scan.slots(tt, ws), Calls.args(kids), carried)
+  +hb = Laws.scan.held(Scan.slots(tt, ws), Calls.args(kids), carried)
+  scan.gate_len(hot, open, String.eq(tt, self), Scan.cite(fd, tt, line, col, self, lead, path), hb,
+    Equal.trans(Nat, List.length(&2, F.Finding, Scan.cite(fd, tt, line, col, self, lead, path)),
+      Bool.pick(Nat, scan.some(fd), 1n, 0n), Bool.pick(Nat, hb, 1n, 0n),
+      scan.cite_len(fd, tt, line, col, self, lead, path),
+      Equal.cong(Bool, Nat, b => Bool.pick(Nat, b, 1n, 0n), scan.some(fd), hb,
+        scan.found(Scan.slots(tt, ws), Calls.args(kids), carried))))
+
+# a call's finding count is the law's, whatever its callee's kind
+law scan.hit_len:
+  for kk: Lex.TokKind
+  for +hot: Bool
+  for +open: Bool
+  for +tt: String
+  for +line: U32
+  for +col: U32
+  for +kids: Tree.Node
+  for +self: String
+  for +ws: List<&2, Scan.Walk>
+  for +carried: List<&2, String>
+  for +lead: String
+  for +path: String
+  {List.length(&2, F.Finding, Scan.call_hit(kk, hot, open, tt, line, col, kids, self, ws, carried, lead, path))
+    == Bool.pick(Nat, Laws.scan.call(kk, hot, open, tt, kids, self, ws, carried), 1n, 0n) : Nat}
+
+def scan.hit_len(kk, hot, open, tt, line, col, kids, self, ws, carried, lead, path):
+  match kk:
+    case Lex.TName{}:
+      scan.on_len(hot, open, tt, line, col, kids, self, ws, carried, lead, path)
+    case Lex.TUpper{}:
+      {==}
+    case Lex.TDotted{}:
+      scan.on_len(hot, open, tt, line, col, kids, self, ws, carried, lead, path)
+    case Lex.TWild{}:
+      {==}
+    case Lex.TKey{}:
+      {==}
+    case Lex.TNum{}:
+      {==}
+    case Lex.TStr{}:
+      {==}
+    case Lex.TChar{}:
+      {==}
+    case Lex.TComment{}:
+      {==}
+    case Lex.TSpace{}:
+      {==}
+    case Lex.TNewline{}:
+      {==}
+    case Lex.TOp{}:
+      {==}
+    case Lex.TColon{}:
+      {==}
+    case Lex.TEq{}:
+      {==}
+    case Lex.TBind{}:
+      {==}
+    case Lex.TArrow{}:
+      {==}
+    case Lex.TLam{}:
+      {==}
+    case Lex.TAll{}:
+      {==}
+    case Lex.TAmp{}:
+      {==}
+    case Lex.TOpen{}:
+      {==}
+    case Lex.TClose{}:
+      {==}
+    case Lex.TComma{}:
+      {==}
+
+# scan's walk counts the calls the law counts, at every heat
+law scan.walk:
+  for nn: Tree.Node
+  for +self: String
+  for +ws: List<&2, Scan.Walk>
+  for +carried: List<&2, String>
+  for +lead: String
+  for +path: String
+  for +hot: Bool
+  {List.length(&2, F.Finding, Scan.walk(nn, self, ws, carried, lead, path, hot))
+    == Laws.scan.count(nn, self, ws, carried, hot) : Nat}
+
+def scan.walk(nn, self, ws, carried, lead, path, hot):
+  match nn:
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{o, gk, cl}:
+      {==}
+    case Tree.Stmt{kind, sk, sb}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{Lex.Tok{+k, +t, +l, +c}}:
+          match rest:
+            case Tree.Leaf{tok}:
+              {==}
+            case Tree.Group{o, gk, cl}:
+              {==}
+            case Tree.Stmt{kind, sk, sb}:
+              {==}
+            case Tree.NNil{}:
+              {==}
+            case Tree.NCons{rh, +rr}:
+              match rh:
+                case Tree.Group{Lex.Tok{gk, +o, gl, gc}, +kids, cl}:
+                  chars.sum(Scan.call_hit(k, Hoist.warm(hot, k), String.eq(o, "("), t, l, c, kids, self, ws, carried,
+                      lead, path),
+                    Scan.walk(kids, self, ws, carried, lead, path, Hoist.warm(hot, k)),
+                    Scan.walk(rr, self, ws, carried, lead, path, Hoist.warm(hot, k)),
+                    Bool.pick(Nat, Laws.scan.call(k, Hoist.warm(hot, k), String.eq(o, "("), t, kids, self, ws,
+                        carried), 1n, 0n),
+                    Laws.scan.count(kids, self, ws, carried, Hoist.warm(hot, k)), Laws.scan.count(rr, self, ws,
+                        carried, Hoist.warm(hot, k)),
+                    scan.hit_len(k, Hoist.warm(hot, k), String.eq(o, "("), t, l, c, kids, self, ws, carried, lead,
+                        path),
+                    scan.walk(kids, self, ws, carried, lead, path, Hoist.warm(hot, k)),
+                    scan.walk(rr, self, ws, carried, lead, path, Hoist.warm(hot, k)))
+                case Tree.Leaf{tok}:
+                  scan.walk(rest, self, ws, carried, lead, path, Hoist.warm(hot, k))
+                case Tree.Stmt{kind, sk, sb}:
+                  scan.walk(rest, self, ws, carried, lead, path, Hoist.warm(hot, k))
+                case Tree.NNil{}:
+                  scan.walk(rest, self, ws, carried, lead, path, Hoist.warm(hot, k))
+                case Tree.NCons{nh, nt}:
+                  scan.walk(rest, self, ws, carried, lead, path, Hoist.warm(hot, k))
+        case Tree.Group{o, +kids, cl}:
+          index.two(Scan.walk(kids, self, ws, carried, lead, path, hot), Scan.walk(rest, self, ws, carried, lead, path,
+              hot),
+            Laws.scan.count(kids, self, ws, carried, hot), Laws.scan.count(rest, self, ws, carried, hot),
+            scan.walk(kids, self, ws, carried, lead, path, hot), scan.walk(rest, self, ws, carried, lead, path, hot))
+        case Tree.Stmt{kind, +kids, +body}:
+          match kind:
+            case Tree.SDef{}:
+              chars.sum(Scan.walk(kids, self, ws, carried, lead, path, hot), Scan.walk(body, self, ws, carried, lead,
+                  path, hot),
+                Scan.walk(rest, self, ws, carried, lead, path, hot), Laws.scan.count(kids, self, ws, carried, hot),
+                Laws.scan.count(body, self, ws, carried, hot), Laws.scan.count(rest, self, ws, carried, hot),
+                scan.walk(kids, self, ws, carried, lead, path, hot), scan.walk(body, self, ws, carried, lead, path,
+                    hot),
+                scan.walk(rest, self, ws, carried, lead, path, hot))
+            case Tree.SType{}:
+              chars.sum(Scan.walk(kids, self, ws, carried, lead, path, hot), Scan.walk(body, self, ws, carried, lead,
+                  path, hot),
+                Scan.walk(rest, self, ws, carried, lead, path, hot), Laws.scan.count(kids, self, ws, carried, hot),
+                Laws.scan.count(body, self, ws, carried, hot), Laws.scan.count(rest, self, ws, carried, hot),
+                scan.walk(kids, self, ws, carried, lead, path, hot), scan.walk(body, self, ws, carried, lead, path,
+                    hot),
+                scan.walk(rest, self, ws, carried, lead, path, hot))
+            case Tree.SLaw{}:
+              chars.sum(Scan.walk(kids, self, ws, carried, lead, path, hot), Scan.walk(body, self, ws, carried, lead,
+                  path, hot),
+                Scan.walk(rest, self, ws, carried, lead, path, hot), Laws.scan.count(kids, self, ws, carried, hot),
+                Laws.scan.count(body, self, ws, carried, hot), Laws.scan.count(rest, self, ws, carried, hot),
+                scan.walk(kids, self, ws, carried, lead, path, hot), scan.walk(body, self, ws, carried, lead, path,
+                    hot),
+                scan.walk(rest, self, ws, carried, lead, path, hot))
+            case Tree.SImport{}:
+              chars.sum(Scan.walk(kids, self, ws, carried, lead, path, hot), Scan.walk(body, self, ws, carried, lead,
+                  path, hot),
+                Scan.walk(rest, self, ws, carried, lead, path, hot), Laws.scan.count(kids, self, ws, carried, hot),
+                Laws.scan.count(body, self, ws, carried, hot), Laws.scan.count(rest, self, ws, carried, hot),
+                scan.walk(kids, self, ws, carried, lead, path, hot), scan.walk(body, self, ws, carried, lead, path,
+                    hot),
+                scan.walk(rest, self, ws, carried, lead, path, hot))
+            case Tree.SCase{}:
+              chars.sum(Scan.walk(kids, self, ws, carried, lead, path, False{}), Scan.walk(body, self, ws, carried,
+                  lead, path, Bool.and(hot, Calls.calls(body, self))),
+                Scan.walk(rest, self, ws, carried, lead, path, hot), Laws.scan.count(kids, self, ws, carried, False{}),
+                Laws.scan.count(body, self, ws, carried, Bool.and(hot, Calls.calls(body, self))), Laws.scan.count(rest,
+                    self, ws, carried, hot),
+                scan.walk(kids, self, ws, carried, lead, path, False{}), scan.walk(body, self, ws, carried, lead, path,
+                    Bool.and(hot, Calls.calls(body, self))),
+                scan.walk(rest, self, ws, carried, lead, path, hot))
+            case Tree.SFor{}:
+              chars.sum(Scan.walk(kids, self, ws, carried, lead, path, hot), Scan.walk(body, self, ws, carried, lead,
+                  path, hot),
+                Scan.walk(rest, self, ws, carried, lead, path, hot), Laws.scan.count(kids, self, ws, carried, hot),
+                Laws.scan.count(body, self, ws, carried, hot), Laws.scan.count(rest, self, ws, carried, hot),
+                scan.walk(kids, self, ws, carried, lead, path, hot), scan.walk(body, self, ws, carried, lead, path,
+                    hot),
+                scan.walk(rest, self, ws, carried, lead, path, hot))
+            case Tree.SLet{}:
+              chars.sum(Scan.walk(kids, self, ws, carried, lead, path, hot), Scan.walk(body, self, ws, carried, lead,
+                  path, hot),
+                Scan.walk(rest, self, ws, carried, lead, path, hot), Laws.scan.count(kids, self, ws, carried, hot),
+                Laws.scan.count(body, self, ws, carried, hot), Laws.scan.count(rest, self, ws, carried, hot),
+                scan.walk(kids, self, ws, carried, lead, path, hot), scan.walk(body, self, ws, carried, lead, path,
+                    hot),
+                scan.walk(rest, self, ws, carried, lead, path, hot))
+            case Tree.STerm{}:
+              chars.sum(Scan.walk(kids, self, ws, carried, lead, path, hot), Scan.walk(body, self, ws, carried, lead,
+                  path, hot),
+                Scan.walk(rest, self, ws, carried, lead, path, hot), Laws.scan.count(kids, self, ws, carried, hot),
+                Laws.scan.count(body, self, ws, carried, hot), Laws.scan.count(rest, self, ws, carried, hot),
+                scan.walk(kids, self, ws, carried, lead, path, hot), scan.walk(body, self, ws, carried, lead, path,
+                    hot),
+                scan.walk(rest, self, ws, carried, lead, path, hot))
+        case Tree.NNil{}:
+          scan.walk(rest, self, ws, carried, lead, path, hot)
+        case Tree.NCons{nh, nt}:
+          scan.walk(rest, self, ws, carried, lead, path, hot)
+
+# a def that calls itself and is not a proof gathers its walk, entered hot,
+# any other nothing
+law scan.def:
+  for g: Bool
+  for +sig: Tree.Node
+  for +body: Tree.Node
+  for +name: String
+  for +ws: List<&2, Scan.Walk>
+  for +path: String
+  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Bool.not(g), [], _u => Scan.run(sig, body, name, ws,
+      path)))
+    == Bool.pick(Nat, g, Laws.scan.count(body, name, ws, Hoist.carried(sig, body, name), True{}), 0n) : Nat}
+
+def scan.def(g, sig, body, name, ws, path):
+  match g:
+    case True{}:
+      +carried = Hoist.carried(sig, body, name)
+      scan.walk(body, name, ws, carried, Scan.lead.go(Calls.params(sig), carried), path, True{})
+    case False{}:
+      {==}
+
+# over the defs, the rule's join counts what it gathered and what the law
+# counts
+law scan.go:
+  for ds: List<&2, Calls.Def>
+  for +ws: List<&2, Scan.Walk>
+  for +path: String
+  for +acc: List<&2, List<&2, F.Finding>>
+  {List.length(&2, F.Finding, Scan.check.go(ds, ws, path, acc))
+    == Nat.add(index.sum(acc), Laws.scan.total(ds, ws, path)) : Nat}
+
+def scan.go(ds, ws, path, acc):
+  match ds:
+    case Nil{}:
+      index.flat(acc, Nil{})
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +g = Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))
+      +x = Lazy.stop(List<&2, F.Finding>, Bool.not(g), [], _u => Scan.run(sig, body, name, ws, path))
+      +n = Bool.pick(Nat, g, Laws.scan.count(body, name, ws, Hoist.carried(sig, body, name), True{}), 0n)
+      +tot = Laws.scan.total(rest, ws, path)
+      Equal.trans(Nat,
+        List.length(&2, F.Finding, Scan.check.go(rest, ws, path, x <> acc)),
+        Nat.add(Nat.add(index.sum(acc), List.length(&2, F.Finding, x)), tot),
+        Nat.add(index.sum(acc), Nat.add(n, tot)),
+        scan.go(rest, ws, path, x <> acc),
+        Equal.trans(Nat,
+          Nat.add(Nat.add(index.sum(acc), List.length(&2, F.Finding, x)), tot),
+          Nat.add(index.sum(acc), Nat.add(List.length(&2, F.Finding, x), tot)),
+          Nat.add(index.sum(acc), Nat.add(n, tot)),
+          index.assoc(index.sum(acc), List.length(&2, F.Finding, x), tot),
+          Equal.cong(Nat, Nat, z => Nat.add(index.sum(acc), Nat.add(z, tot)), List.length(&2, F.Finding, x), n,
+            scan.def(g, sig, body, name, ws, path))))
+
+def Laws.scan_counts(path, _text, _toks, tree, _bound, _items, e):
+  +ds = Calls.defs(tree)
+  %Equal.sym(Bool, Paths.is_law_file(path), False{}, e) : {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>,
+    _, [], _u => Scan.check.on(ds, path))) == Laws.scan.total(ds, Scan.walks(ds), path) : Nat}
+  scan.go(ds, Scan.walks(ds), path, Nil{})
+
+# scan reads no string: a string is never a callee or a lone name, so each
+# walk and each call reads the same over a tree read that way
+
+# a lone name read that way is the name it was
+law inert.scan.name_tok:
+  for tok: Lex.Tok
+  {Scan.name_tok(Laws.inert.tok(tok)) == Scan.name_tok(tok) : Maybe<&2, String>}
+
+def inert.scan.name_tok(tok):
+  match tok:
+    case Lex.Tok{k, t, l, c}:
+      match k:
+        case Lex.TName{}:
+          {==}
+        case Lex.TUpper{}:
+          {==}
+        case Lex.TDotted{}:
+          {==}
+        case Lex.TWild{}:
+          {==}
+        case Lex.TKey{}:
+          {==}
+        case Lex.TNum{}:
+          {==}
+        case Lex.TStr{}:
+          {==}
+        case Lex.TChar{}:
+          {==}
+        case Lex.TComment{}:
+          {==}
+        case Lex.TSpace{}:
+          {==}
+        case Lex.TNewline{}:
+          {==}
+        case Lex.TOp{}:
+          {==}
+        case Lex.TColon{}:
+          {==}
+        case Lex.TEq{}:
+          {==}
+        case Lex.TBind{}:
+          {==}
+        case Lex.TArrow{}:
+          {==}
+        case Lex.TLam{}:
+          {==}
+        case Lex.TAll{}:
+          {==}
+        case Lex.TAmp{}:
+          {==}
+        case Lex.TOpen{}:
+          {==}
+        case Lex.TClose{}:
+          {==}
+        case Lex.TComma{}:
+          {==}
+
+# an argument read that way is the lone name it was
+law inert.scan.name_of:
+  for nn: Tree.Node
+  {Scan.name_of(Laws.inert.node(nn)) == Scan.name_of(nn) : Maybe<&2, String>}
+
+def inert.scan.name_of(nn):
+  match nn:
+    case Tree.NCons{h, r}:
+      match h:
+        case Tree.Leaf{tok}:
+          match r:
+            case Tree.NNil{}:
+              inert.scan.name_tok(tok)
+            case Tree.Leaf{x}:
+              {==}
+            case Tree.Group{x, y, z}:
+              {==}
+            case Tree.Stmt{x, y, z}:
+              {==}
+            case Tree.NCons{x, y}:
+              {==}
+        case Tree.Group{x, y, z}:
+          {==}
+        case Tree.Stmt{x, y, z}:
+          {==}
+        case Tree.NNil{}:
+          {==}
+        case Tree.NCons{x, y}:
+          {==}
+    case Tree.Leaf{x}:
+      {==}
+    case Tree.Group{x, y, z}:
+      {==}
+    case Tree.Stmt{x, y, z}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# the walked argument of arguments read that way is the lone name it was
+law inert.scan.arg_name:
+  for +as: List<&2, Tree.Node>
+  for +at: Nat
+  {Scan.name_of(Calls.arg(inert.nodes(as), at)) == Scan.name_of(Calls.arg(as, at)) : Maybe<&2, String>}
+
+def inert.scan.arg_name(as, at):
+  %Equal.sym(Tree.Node, Calls.arg(inert.nodes(as), at), Laws.inert.node(Calls.arg(as, at)), inert.arg(as, at)) :
+    {Scan.name_of(_) == Scan.name_of(Calls.arg(as, at)) : Maybe<&2, String>}
+  inert.scan.name_of(Calls.arg(as, at))
+
+# the first carried name among arguments read that way is the one it was
+law inert.scan.found:
+  for ss: List<&2, Nat>
+  for +as: List<&2, Tree.Node>
+  for +carried: List<&2, String>
+  {Scan.found(ss, inert.nodes(as), carried) == Scan.found(ss, as, carried) : Maybe<&2, String>}
+
+def inert.scan.found(ss, as, carried):
+  match ss:
+    case Nil{}:
+      {==}
+    case Con{+at, +rest}:
+      %inert.scan.arg_name(as, at) : {Scan.first(Scan.keep_in(Scan.name_of(Calls.arg(inert.nodes(as), at)), carried),
+        Scan.found(rest, inert.nodes(as), carried)) == Scan.first(Scan.keep_in(_, carried), Scan.found(rest, as,
+          carried)) : Maybe<&2, String>}
+      %inert.scan.found(rest, as, carried) : {Scan.first(Scan.keep_in(Scan.name_of(Calls.arg(inert.nodes(as), at)),
+        carried), Scan.found(rest, inert.nodes(as), carried)) == Scan.first(Scan.keep_in(Scan.name_of(Calls.arg(
+          inert.nodes(as), at)), carried), _) : Maybe<&2, String>}
+      {==}
+
+# a named call whose arguments are read that way reports what it did
+law inert.scan.on_name:
+  for +hot: Bool
+  for +open: Bool
+  for +tt: String
+  for +line: U32
+  for +col: U32
+  for +kids: Tree.Node
+  for +self: String
+  for +ws: List<&2, Scan.Walk>
+  for +carried: List<&2, String>
+  for +lead: String
+  for +path: String
+  {Scan.on_name(hot, open, tt, line, col, Laws.inert.node(kids), self, ws, carried, lead, path)
+    == Scan.on_name(hot, open, tt, line, col, kids, self, ws, carried, lead, path) : List<&2, F.Finding>}
+
+def inert.scan.on_name(hot, open, tt, line, col, kids, self, ws, carried, lead, path):
+  +g = Bool.not(Bool.and(hot, Bool.and(open, Bool.not(String.eq(tt, self)))))
+  +lhs = Scan.on_name(hot, open, tt, line, col, Laws.inert.node(kids), self, ws, carried, lead, path)
+  %inert.scan.found(Scan.slots(tt, ws), Calls.args(kids), carried) : {lhs == Lazy.stop(List<&2, F.Finding>, g, [],
+    _u => Scan.cite(_, tt, line, col, self, lead, path)) : List<&2, F.Finding>}
+  %inert.args(kids) : {lhs == Lazy.stop(List<&2, F.Finding>, g, [],
+    _u => Scan.cite(Scan.found(Scan.slots(tt, ws), _, carried), tt, line, col, self, lead, path))
+      : List<&2, F.Finding>}
+  {==}
+
+# a call read that way reports what it did: only a name is a callee, and a
+# name is never cut
+law inert.scan.call_hit:
+  for kk: Lex.TokKind
+  for +hot: Bool
+  for +open: Bool
+  for +tt: String
+  for +line: U32
+  for +col: U32
+  for +kids: Tree.Node
+  for +self: String
+  for +ws: List<&2, Scan.Walk>
+  for +carried: List<&2, String>
+  for +lead: String
+  for +path: String
+  {Scan.call_hit(kk, hot, open, Laws.inert.keep(Laws.inert.blanks(kk), tt), line, col, Laws.inert.node(kids), self,
+    ws, carried, lead, path)
+    == Scan.call_hit(kk, hot, open, tt, line, col, kids, self, ws, carried, lead, path) : List<&2, F.Finding>}
+
+def inert.scan.call_hit(kk, hot, open, tt, line, col, kids, self, ws, carried, lead, path):
+  match kk:
+    case Lex.TName{}:
+      inert.scan.on_name(hot, open, tt, line, col, kids, self, ws, carried, lead, path)
+    case Lex.TUpper{}:
+      {==}
+    case Lex.TDotted{}:
+      inert.scan.on_name(hot, open, tt, line, col, kids, self, ws, carried, lead, path)
+    case Lex.TWild{}:
+      {==}
+    case Lex.TKey{}:
+      {==}
+    case Lex.TNum{}:
+      {==}
+    case Lex.TStr{}:
+      {==}
+    case Lex.TChar{}:
+      {==}
+    case Lex.TComment{}:
+      {==}
+    case Lex.TSpace{}:
+      {==}
+    case Lex.TNewline{}:
+      {==}
+    case Lex.TOp{}:
+      {==}
+    case Lex.TColon{}:
+      {==}
+    case Lex.TEq{}:
+      {==}
+    case Lex.TBind{}:
+      {==}
+    case Lex.TArrow{}:
+      {==}
+    case Lex.TLam{}:
+      {==}
+    case Lex.TAll{}:
+      {==}
+    case Lex.TAmp{}:
+      {==}
+    case Lex.TOpen{}:
+      {==}
+    case Lex.TClose{}:
+      {==}
+    case Lex.TComma{}:
+      {==}
+
+# a name then a group read that way: its call, the group and the rest walked
+# as they were
+law inert.scan.walk_lg:
+  for +k: Lex.TokKind
+  for +t: String
+  for +o: String
+  for +l: U32
+  for +c: U32
+  for +kids: Tree.Node
+  for +r2: Tree.Node
+  for +self: String
+  for +ws: List<&2, Scan.Walk>
+  for +carried: List<&2, String>
+  for +lead: String
+  for +path: String
+  for +hot: Bool
+  for ik: {Scan.walk(Laws.inert.node(kids), self, ws, carried, lead, path, Hoist.warm(hot, k)) == Scan.walk(kids, self,
+      ws, carried, lead, path, Hoist.warm(hot, k)) : List<&2, F.Finding>}
+  for ir: {Scan.walk(Laws.inert.node(r2), self, ws, carried, lead, path, Hoist.warm(hot, k)) == Scan.walk(r2, self, ws,
+      carried, lead, path, Hoist.warm(hot, k)) : List<&2, F.Finding>}
+  {List.concat(&2, F.Finding, [Scan.call_hit(k, Hoist.warm(hot, k), String.eq(o, "("),
+      Laws.inert.keep(Laws.inert.blanks(k), t),
+    l, c, Laws.inert.node(kids), self, ws, carried, lead, path), Scan.walk(Laws.inert.node(kids), self, ws, carried,
+        lead, path, Hoist.warm(hot, k)), Scan.walk(Laws.inert.node(r2), self, ws, carried, lead, path, Hoist.warm(hot,
+        k))])
+    == List.concat(&2, F.Finding, [Scan.call_hit(k, Hoist.warm(hot, k), String.eq(o, "("), t, l, c, kids, self, ws,
+        carried, lead,
+      path), Scan.walk(kids, self, ws, carried, lead, path, Hoist.warm(hot,
+          k)), Scan.walk(r2, self, ws, carried, lead, path, Hoist.warm(hot, k))]) : List<&2, F.Finding>}
+
+def inert.scan.walk_lg(k, t, o, l, c, kids, r2, self, ws, carried, lead, path, hot, ik, ir):
+  +w = Hoist.warm(hot, k)
+  inert.cat3(Scan.call_hit(k, w, String.eq(o, "("), Laws.inert.keep(Laws.inert.blanks(k), t), l, c,
+      Laws.inert.node(kids), self,
+    ws, carried, lead, path), Scan.call_hit(k, w, String.eq(o, "("), t, l, c, kids, self, ws, carried, lead, path),
+    Scan.walk(Laws.inert.node(kids), self, ws, carried, lead, path, w), Scan.walk(kids, self, ws, carried, lead, path,
+        w),
+    Scan.walk(Laws.inert.node(r2), self, ws, carried, lead, path, w), Scan.walk(r2, self, ws, carried, lead, path, w),
+    inert.scan.call_hit(k, w, String.eq(o, "("), t, l, c, kids, self, ws, carried, lead, path), ik, ir)
+
+# a case arm read that way: hot as it was, and its pattern, body and the rest
+# walked as they were
+law inert.scan.walk_case:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +rest: Tree.Node
+  for +self: String
+  for +ws: List<&2, Scan.Walk>
+  for +carried: List<&2, String>
+  for +lead: String
+  for +path: String
+  for +hot: Bool
+  for +es: {Laws.inert.marked(self) == False{} : Bool}
+  for +eb: {Laws.inert.ok(body) == True{} : Bool}
+  for ik: {Scan.walk(Laws.inert.node(kids), self, ws, carried, lead, path, False{}) == Scan.walk(kids, self, ws,
+      carried, lead, path, False{}) : List<&2, F.Finding>}
+  for ib: {Scan.walk(Laws.inert.node(body), self, ws, carried, lead, path, Bool.and(hot,
+      Calls.calls(Laws.inert.node(body),
+      self))) == Scan.walk(body, self, ws, carried, lead, path, Bool.and(hot, Calls.calls(Laws.inert.node(body),
+          self))) : List<&2, F.Finding>}
+  for ir: {Scan.walk(Laws.inert.node(rest), self, ws, carried, lead, path, hot) == Scan.walk(rest, self, ws, carried,
+      lead, path, hot) : List<&2, F.Finding>}
+  {List.concat(&2, F.Finding, [Scan.walk(Laws.inert.node(kids), self, ws, carried, lead, path, False{}),
+      Scan.walk(Laws.inert.node(body), self, ws, carried, lead, path, Bool.and(hot, Calls.calls(Laws.inert.node(body),
+      self))), Scan.walk(Laws.inert.node(rest), self, ws, carried, lead, path, hot)])
+    == List.concat(&2, F.Finding, [Scan.walk(kids, self, ws, carried, lead, path, False{}), Scan.walk(body, self, ws,
+        carried, lead, path, Bool.and(hot, Calls.calls(body,
+        self))), Scan.walk(rest, self, ws, carried, lead, path, hot)])
+      : List<&2, F.Finding>}
+
+def inert.scan.walk_case(kids, body, rest, self, ws, carried, lead, path, hot, es, eb, ik, ib, ir):
+  +arm = Bool.and(hot, Calls.calls(Laws.inert.node(body), self))
+  +lhs = List.concat(&2, F.Finding, [Scan.walk(Laws.inert.node(kids), self, ws, carried, lead, path, False{}),
+      Scan.walk(Laws.inert.node(body), self, ws, carried, lead, path, arm), Scan.walk(Laws.inert.node(rest), self, ws,
+      carried, lead, path, hot)])
+  %inert.calls(body, self, es, eb) : {lhs == List.concat(&2, F.Finding, [Scan.walk(kids, self, ws, carried, lead, path,
+      False{}),
+    Scan.walk(body, self, ws, carried, lead, path, Bool.and(hot, _)), Scan.walk(rest, self, ws, carried, lead, path,
+        hot)]) : List<&2, F.Finding>}
+  inert.cat3(Scan.walk(Laws.inert.node(kids), self, ws, carried, lead, path, False{}), Scan.walk(kids, self, ws,
+      carried, lead, path, False{}), Scan.walk(Laws.inert.node(body), self, ws, carried, lead, path, arm),
+          Scan.walk(body, self, ws, carried, lead, path, arm),
+    Scan.walk(Laws.inert.node(rest), self, ws, carried, lead, path, hot), Scan.walk(rest, self, ws, carried, lead,
+        path, hot), ik, ib, ir)
+
+# scan's walk reads no string: a string is never a callee or a lone name
+law inert.scan.walk:
+  for nn: Tree.Node
+  for +self: String
+  for +ws: List<&2, Scan.Walk>
+  for +carried: List<&2, String>
+  for +lead: String
+  for +path: String
+  for +hot: Bool
+  for +es: {Laws.inert.marked(self) == False{} : Bool}
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Scan.walk(Laws.inert.node(nn), self, ws, carried, lead, path, hot) == Scan.walk(nn, self, ws, carried, lead, path,
+      hot) : List<&2, F.Finding>}
+
+def inert.scan.walk(nn, self, ws, carried, lead, path, hot, es, e):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              match rest:
+                case Tree.NCons{h2, +r2}:
+                  match h2:
+                    case Tree.Group{go, +kids, +gcl}:
+                      match go:
+                        case Lex.Tok{+gk, +o, +gl, +gc}:
+                          +lf = {Tree.Leaf{Lex.Tok{k, t, l, c}} : Tree.Node}
+                          +gp = {Tree.Group{Lex.Tok{gk, o, gl, gc}, kids, gcl} : Tree.Node}
+                          +eg = inert.ok_t(lf, Tree.NCons{gp, r2}, e)
+                          inert.scan.walk_lg(k, t, o, l, c, kids, r2, self, ws, carried, lead, path, hot,
+                            inert.scan.walk(kids, self, ws, carried, lead, path, Hoist.warm(hot, k), es, inert.ok_h(gp,
+                                r2, eg)),
+                            inert.scan.walk(r2, self, ws, carried, lead, path, Hoist.warm(hot, k), es, inert.ok_t(gp,
+                                r2, eg)))
+                    case Tree.Leaf{x}:
+                      inert.scan.walk(rest, self, ws, carried, lead, path, Hoist.warm(hot, k), es,
+                          inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.Stmt{x, y, z}:
+                      inert.scan.walk(rest, self, ws, carried, lead, path, Hoist.warm(hot, k), es,
+                          inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.NNil{}:
+                      inert.scan.walk(rest, self, ws, carried, lead, path, Hoist.warm(hot, k), es,
+                          inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                    case Tree.NCons{x, y}:
+                      inert.scan.walk(rest, self, ws, carried, lead, path, Hoist.warm(hot, k), es,
+                          inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.Leaf{x}:
+                  inert.scan.walk(rest, self, ws, carried, lead, path, Hoist.warm(hot, k), es,
+                      inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.Group{x, y, z}:
+                  inert.scan.walk(rest, self, ws, carried, lead, path, Hoist.warm(hot, k), es,
+                      inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.Stmt{x, y, z}:
+                  inert.scan.walk(rest, self, ws, carried, lead, path, Hoist.warm(hot, k), es,
+                      inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                case Tree.NNil{}:
+                  inert.scan.walk(rest, self, ws, carried, lead, path, Hoist.warm(hot, k), es,
+                      inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+        case Tree.Group{+o, +kids, +cl}:
+          inert.cat2(Scan.walk(Laws.inert.node(kids), self, ws, carried, lead, path, hot), Scan.walk(kids, self, ws,
+              carried, lead, path, hot), Scan.walk(Laws.inert.node(rest), self, ws, carried, lead, path, hot),
+                  Scan.walk(rest, self, ws, carried, lead, path, hot),
+            inert.scan.walk(kids, self, ws, carried, lead, path, hot, es, inert.ok_h(Tree.Group{o, kids, cl}, rest, e)),
+            inert.scan.walk(rest, self, ws, carried, lead, path, hot, es, inert.ok_t(Tree.Group{o, kids, cl}, rest, e)))
+        case Tree.Stmt{sk, +kids, +body}:
+          match sk:
+            case Tree.SDef{}:
+              +es2 = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +eb = inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +er = inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              inert.cat3(Scan.walk(Laws.inert.node(kids), self, ws, carried, lead, path, hot), Scan.walk(kids, self,
+                  ws, carried, lead, path, hot), Scan.walk(Laws.inert.node(body), self, ws, carried, lead, path, hot),
+                      Scan.walk(body, self, ws, carried, lead, path, hot),
+                Scan.walk(Laws.inert.node(rest), self, ws, carried, lead, path, hot), Scan.walk(rest, self, ws,
+                    carried, lead, path, hot),
+                inert.scan.walk(kids, self, ws, carried, lead, path, hot, es, ek), inert.scan.walk(body, self, ws,
+                    carried, lead, path, hot, es, eb), inert.scan.walk(rest, self, ws, carried, lead, path, hot, es,
+                        er))
+            case Tree.SType{}:
+              +es2 = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +eb = inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +er = inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              inert.cat3(Scan.walk(Laws.inert.node(kids), self, ws, carried, lead, path, hot), Scan.walk(kids, self,
+                  ws, carried, lead, path, hot), Scan.walk(Laws.inert.node(body), self, ws, carried, lead, path, hot),
+                      Scan.walk(body, self, ws, carried, lead, path, hot),
+                Scan.walk(Laws.inert.node(rest), self, ws, carried, lead, path, hot), Scan.walk(rest, self, ws,
+                    carried, lead, path, hot),
+                inert.scan.walk(kids, self, ws, carried, lead, path, hot, es, ek), inert.scan.walk(body, self, ws,
+                    carried, lead, path, hot, es, eb), inert.scan.walk(rest, self, ws, carried, lead, path, hot, es,
+                        er))
+            case Tree.SLaw{}:
+              +es2 = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +eb = inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +er = inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              inert.cat3(Scan.walk(Laws.inert.node(kids), self, ws, carried, lead, path, hot), Scan.walk(kids, self,
+                  ws, carried, lead, path, hot), Scan.walk(Laws.inert.node(body), self, ws, carried, lead, path, hot),
+                      Scan.walk(body, self, ws, carried, lead, path, hot),
+                Scan.walk(Laws.inert.node(rest), self, ws, carried, lead, path, hot), Scan.walk(rest, self, ws,
+                    carried, lead, path, hot),
+                inert.scan.walk(kids, self, ws, carried, lead, path, hot, es, ek), inert.scan.walk(body, self, ws,
+                    carried, lead, path, hot, es, eb), inert.scan.walk(rest, self, ws, carried, lead, path, hot, es,
+                        er))
+            case Tree.SImport{}:
+              +es2 = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +eb = inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +er = inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              inert.cat3(Scan.walk(Laws.inert.node(kids), self, ws, carried, lead, path, hot), Scan.walk(kids, self,
+                  ws, carried, lead, path, hot), Scan.walk(Laws.inert.node(body), self, ws, carried, lead, path, hot),
+                      Scan.walk(body, self, ws, carried, lead, path, hot),
+                Scan.walk(Laws.inert.node(rest), self, ws, carried, lead, path, hot), Scan.walk(rest, self, ws,
+                    carried, lead, path, hot),
+                inert.scan.walk(kids, self, ws, carried, lead, path, hot, es, ek), inert.scan.walk(body, self, ws,
+                    carried, lead, path, hot, es, eb), inert.scan.walk(rest, self, ws, carried, lead, path, hot, es,
+                        er))
+            case Tree.SCase{}:
+              +es2 = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +eb = inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +er = inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              inert.scan.walk_case(kids, body, rest, self, ws, carried, lead, path, hot, es, eb,
+                inert.scan.walk(kids, self, ws, carried, lead, path, False{}, es, ek),
+                inert.scan.walk(body, self, ws, carried, lead, path, Bool.and(hot, Calls.calls(Laws.inert.node(body),
+                    self)), es, eb),
+                inert.scan.walk(rest, self, ws, carried, lead, path, hot, es, er))
+            case Tree.SFor{}:
+              +es2 = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +eb = inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +er = inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              inert.cat3(Scan.walk(Laws.inert.node(kids), self, ws, carried, lead, path, hot), Scan.walk(kids, self,
+                  ws, carried, lead, path, hot), Scan.walk(Laws.inert.node(body), self, ws, carried, lead, path, hot),
+                      Scan.walk(body, self, ws, carried, lead, path, hot),
+                Scan.walk(Laws.inert.node(rest), self, ws, carried, lead, path, hot), Scan.walk(rest, self, ws,
+                    carried, lead, path, hot),
+                inert.scan.walk(kids, self, ws, carried, lead, path, hot, es, ek), inert.scan.walk(body, self, ws,
+                    carried, lead, path, hot, es, eb), inert.scan.walk(rest, self, ws, carried, lead, path, hot, es,
+                        er))
+            case Tree.SLet{}:
+              +es2 = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +eb = inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +er = inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              inert.cat3(Scan.walk(Laws.inert.node(kids), self, ws, carried, lead, path, hot), Scan.walk(kids, self,
+                  ws, carried, lead, path, hot), Scan.walk(Laws.inert.node(body), self, ws, carried, lead, path, hot),
+                      Scan.walk(body, self, ws, carried, lead, path, hot),
+                Scan.walk(Laws.inert.node(rest), self, ws, carried, lead, path, hot), Scan.walk(rest, self, ws,
+                    carried, lead, path, hot),
+                inert.scan.walk(kids, self, ws, carried, lead, path, hot, es, ek), inert.scan.walk(body, self, ws,
+                    carried, lead, path, hot, es, eb), inert.scan.walk(rest, self, ws, carried, lead, path, hot, es,
+                        er))
+            case Tree.STerm{}:
+              +es2 = inert.and_l(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              +ek = inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +eb = inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es2)
+              +er = inert.and_r(Bool.and(Laws.inert.ok(kids), Laws.inert.ok(body)), Laws.inert.ok(rest), e)
+              inert.cat3(Scan.walk(Laws.inert.node(kids), self, ws, carried, lead, path, hot), Scan.walk(kids, self,
+                  ws, carried, lead, path, hot), Scan.walk(Laws.inert.node(body), self, ws, carried, lead, path, hot),
+                      Scan.walk(body, self, ws, carried, lead, path, hot),
+                Scan.walk(Laws.inert.node(rest), self, ws, carried, lead, path, hot), Scan.walk(rest, self, ws,
+                    carried, lead, path, hot),
+                inert.scan.walk(kids, self, ws, carried, lead, path, hot, es, ek), inert.scan.walk(body, self, ws,
+                    carried, lead, path, hot, es, eb), inert.scan.walk(rest, self, ws, carried, lead, path, hot, es,
+                        er))
+        case Tree.NNil{}:
+          inert.scan.walk(rest, self, ws, carried, lead, path, hot, es, e)
+        case Tree.NCons{x, y}:
+          inert.scan.walk(rest, self, ws, carried, lead, path, hot, es, inert.ok_t(Tree.NCons{x, y}, rest, e))
+    case Tree.Leaf{x}:
+      {==}
+    case Tree.Group{x, y, z}:
+      {==}
+    case Tree.Stmt{x, y, z}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# three lists of numbers that read alike join alike
+law scan.ncat3:
+  for -a1: List<&2, Nat>
+  for -a2: List<&2, Nat>
+  for -b1: List<&2, Nat>
+  for -b2: List<&2, Nat>
+  for -c1: List<&2, Nat>
+  for -c2: List<&2, Nat>
+  for ea: {a1 == a2 : List<&2, Nat>}
+  for eb: {b1 == b2 : List<&2, Nat>}
+  for ec: {c1 == c2 : List<&2, Nat>}
+  {List.concat(&2, Nat, [a1, b1, c1]) == List.concat(&2, Nat, [a2, b2, c2]) : List<&2, Nat>}
+
+def scan.ncat3(a1, _a2, b1, b2, c1, c2, ea, eb, ec):
+  %ea : {List.concat(&2, Nat, [a1, b1, c1]) == List.concat(&2, Nat, [_, b2, c2]) : List<&2, Nat>}
+  %eb : {List.concat(&2, Nat, [a1, b1, c1]) == List.concat(&2, Nat, [a1, _, c2]) : List<&2, Nat>}
+  %ec : {List.concat(&2, Nat, [a1, b1, c1]) == List.concat(&2, Nat, [a1, b1, _]) : List<&2, Nat>}
+  {==}
+
+# two lists of numbers that read alike join alike
+law scan.ncat2:
+  for -a1: List<&2, Nat>
+  for -a2: List<&2, Nat>
+  for -b1: List<&2, Nat>
+  for -b2: List<&2, Nat>
+  for ea: {a1 == a2 : List<&2, Nat>}
+  for eb: {b1 == b2 : List<&2, Nat>}
+  {List.concat(&2, Nat, [a1, b1]) == List.concat(&2, Nat, [a2, b2]) : List<&2, Nat>}
+
+def scan.ncat2(a1, _a2, b1, b2, ea, eb):
+  %ea : {List.concat(&2, Nat, [a1, b1]) == List.concat(&2, Nat, [_, b2]) : List<&2, Nat>}
+  %eb : {List.concat(&2, Nat, [a1, b1]) == List.concat(&2, Nat, [a1, _]) : List<&2, Nat>}
+  {==}
+
+# the parameters at walked arguments read that way are the ones they were
+law inert.scan.params_at:
+  for ss: List<&2, Nat>
+  for +as: List<&2, Tree.Node>
+  for +ps: List<&2, String>
+  {Scan.params_at(ss, inert.nodes(as), ps) == Scan.params_at(ss, as, ps) : List<&2, Nat>}
+
+def inert.scan.params_at(ss, as, ps):
+  match ss:
+    case Nil{}:
+      {==}
+    case Con{+at, +rest}:
+      %inert.scan.arg_name(as, at) : {List.append(&2, Nat,
+          Scan.opt(Scan.index_in(Scan.name_of(Calls.arg(inert.nodes(as),
+        at)), ps)), Scan.params_at(rest, inert.nodes(as), ps)) == List.append(&2, Nat, Scan.opt(Scan.index_in(_, ps)),
+          Scan.params_at(rest, as, ps)) : List<&2, Nat>}
+      %inert.scan.params_at(rest, as, ps) : {List.append(&2, Nat, Scan.opt(Scan.index_in(Scan.name_of(Calls.arg(
+        inert.nodes(as), at)), ps)), Scan.params_at(rest, inert.nodes(as), ps)) == List.append(&2, Nat,
+          Scan.opt(Scan.index_in(Scan.name_of(Calls.arg(inert.nodes(as), at)), ps)), _) : List<&2, Nat>}
+      {==}
+
+# a named call's walked parameters, its arguments read that way
+law inert.scan.pass_name:
+  for +open: Bool
+  for +tt: String
+  for +kids: Tree.Node
+  for +ps: List<&2, String>
+  for +ws: List<&2, Scan.Walk>
+  {Lazy.stop(List<&2, Nat>, Bool.not(open), [], _u => Scan.params_at(Scan.slots(tt, ws),
+      Calls.args(Laws.inert.node(kids)), ps))
+    == Lazy.stop(List<&2, Nat>, Bool.not(open), [], _u => Scan.params_at(Scan.slots(tt, ws), Calls.args(kids),
+        ps)) : List<&2, Nat>}
+
+def inert.scan.pass_name(open, tt, kids, ps, ws):
+  +lhs = Lazy.stop(List<&2, Nat>, Bool.not(open), [], _u => Scan.params_at(Scan.slots(tt, ws),
+      Calls.args(Laws.inert.node(kids)), ps))
+  %inert.scan.params_at(Scan.slots(tt, ws), Calls.args(kids), ps) : {lhs == Lazy.stop(List<&2, Nat>, Bool.not(open), [],
+    _u => _) : List<&2, Nat>}
+  %inert.args(kids) : {lhs == Lazy.stop(List<&2, Nat>, Bool.not(open), [], _u => Scan.params_at(Scan.slots(tt, ws), _,
+      ps))
+    : List<&2, Nat>}
+  {==}
+
+# a call read that way passes what it passed: only a name is a callee
+law inert.scan.pass_hit:
+  for kk: Lex.TokKind
+  for +open: Bool
+  for +tt: String
+  for +kids: Tree.Node
+  for +ps: List<&2, String>
+  for +ws: List<&2, Scan.Walk>
+  {Scan.pass_hit(kk, open, Laws.inert.keep(Laws.inert.blanks(kk), tt), Laws.inert.node(kids), ps, ws)
+    == Scan.pass_hit(kk, open, tt, kids, ps, ws) : List<&2, Nat>}
+
+def inert.scan.pass_hit(kk, open, tt, kids, ps, ws):
+  match kk:
+    case Lex.TName{}:
+      inert.scan.pass_name(open, tt, kids, ps, ws)
+    case Lex.TUpper{}:
+      {==}
+    case Lex.TDotted{}:
+      inert.scan.pass_name(open, tt, kids, ps, ws)
+    case Lex.TWild{}:
+      {==}
+    case Lex.TKey{}:
+      {==}
+    case Lex.TNum{}:
+      {==}
+    case Lex.TStr{}:
+      {==}
+    case Lex.TChar{}:
+      {==}
+    case Lex.TComment{}:
+      {==}
+    case Lex.TSpace{}:
+      {==}
+    case Lex.TNewline{}:
+      {==}
+    case Lex.TOp{}:
+      {==}
+    case Lex.TColon{}:
+      {==}
+    case Lex.TEq{}:
+      {==}
+    case Lex.TBind{}:
+      {==}
+    case Lex.TArrow{}:
+      {==}
+    case Lex.TLam{}:
+      {==}
+    case Lex.TAll{}:
+      {==}
+    case Lex.TAmp{}:
+      {==}
+    case Lex.TOpen{}:
+      {==}
+    case Lex.TClose{}:
+      {==}
+    case Lex.TComma{}:
+      {==}
+
+# what a body read that way passes is what it passed
+law inert.scan.passes:
+  for nn: Tree.Node
+  for +ps: List<&2, String>
+  for +ws: List<&2, Scan.Walk>
+  {Scan.passes(Laws.inert.node(nn), ps, ws) == Scan.passes(nn, ps, ws) : List<&2, Nat>}
+
+def inert.scan.passes(nn, ps, ws):
+  match nn:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+k, +t, +l, +c}:
+              match rest:
+                case Tree.NCons{h2, +r2}:
+                  match h2:
+                    case Tree.Group{go, +kids, +gcl}:
+                      match go:
+                        case Lex.Tok{+gk, +o, +gl, +gc}:
+                          scan.ncat3(Scan.pass_hit(k, String.eq(o, "("), Laws.inert.keep(Laws.inert.blanks(k), t),
+                            Laws.inert.node(kids), ps, ws), Scan.pass_hit(k, String.eq(o, "("), t, kids, ps, ws),
+                            Scan.passes(Laws.inert.node(kids), ps, ws), Scan.passes(kids, ps, ws),
+                            Scan.passes(Laws.inert.node(r2), ps, ws), Scan.passes(r2, ps, ws),
+                            inert.scan.pass_hit(k, String.eq(o, "("), t, kids, ps, ws),
+                            inert.scan.passes(kids, ps, ws), inert.scan.passes(r2, ps, ws))
+                    case Tree.Leaf{x}:
+                      inert.scan.passes(rest, ps, ws)
+                    case Tree.Stmt{x, y, z}:
+                      inert.scan.passes(rest, ps, ws)
+                    case Tree.NNil{}:
+                      inert.scan.passes(rest, ps, ws)
+                    case Tree.NCons{x, y}:
+                      inert.scan.passes(rest, ps, ws)
+                case Tree.Leaf{x}:
+                  inert.scan.passes(rest, ps, ws)
+                case Tree.Group{x, y, z}:
+                  inert.scan.passes(rest, ps, ws)
+                case Tree.Stmt{x, y, z}:
+                  inert.scan.passes(rest, ps, ws)
+                case Tree.NNil{}:
+                  inert.scan.passes(rest, ps, ws)
+        case Tree.Group{o, +kids, cl}:
+          scan.ncat2(Scan.passes(Laws.inert.node(kids), ps, ws), Scan.passes(kids, ps, ws),
+              Scan.passes(Laws.inert.node(rest), ps, ws),
+            Scan.passes(rest, ps, ws), inert.scan.passes(kids, ps, ws), inert.scan.passes(rest, ps, ws))
+        case Tree.Stmt{sk, +kids, +body}:
+          scan.ncat3(Scan.passes(Laws.inert.node(kids), ps, ws), Scan.passes(kids, ps, ws),
+              Scan.passes(Laws.inert.node(body), ps, ws),
+            Scan.passes(body, ps, ws), Scan.passes(Laws.inert.node(rest), ps, ws), Scan.passes(rest, ps, ws),
+            inert.scan.passes(kids, ps, ws), inert.scan.passes(body, ps, ws), inert.scan.passes(rest, ps, ws))
+        case Tree.NNil{}:
+          inert.scan.passes(rest, ps, ws)
+        case Tree.NCons{x, y}:
+          inert.scan.passes(rest, ps, ws)
+    case Tree.Leaf{x}:
+      {==}
+    case Tree.Group{x, y, z}:
+      {==}
+    case Tree.Stmt{x, y, z}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# a parameter read that way moves as it did
+law inert.scan.moves:
+  for +pp: Tree.Node
+  for +carried: List<&2, String>
+  {Scan.moves(Laws.inert.node(pp), carried) == Scan.moves(pp, carried) : Bool}
+
+def inert.scan.moves(pp, carried):
+  +lhs = Scan.moves(Laws.inert.node(pp), carried)
+  %inert.is_live(pp) : {lhs == Bool.and(_, Bool.not(List.contains(~String, ~String.eq, carried, Calls.param_name(pp))))
+    : Bool}
+  %inert.param_name(pp) : {lhs == Bool.and(Calls.is_live(Laws.inert.node(pp)), Bool.not(List.contains(~String,
+      ~String.eq,
+    carried, _))) : Bool}
+  {==}
+
+# a parameter read that way is a count or a text as it was
+law inert.scan.place:
+  for +pp: Tree.Node
+  for +ii: Nat
+  {Scan.place(Laws.inert.node(pp), ii) == Scan.place(pp, ii) : Maybe<&2, Nat>}
+
+def inert.scan.place(pp, ii):
+  %inert.type_head(pp, False{}) : {Scan.place(Laws.inert.node(pp), ii) == Bool.pick(Maybe<&2, Nat>,
+    Bool.or(String.eq(_, "Nat"), String.eq(_, "String")), None{}, Some{ii}) : Maybe<&2, Nat>}
+  {==}
+
+# the parameter shrunk, among parameters read that way, sits where it sat
+law inert.scan.own.go:
+  for ps: List<&2, Tree.Node>
+  for +carried: List<&2, String>
+  for +ii: Nat
+  {Scan.own.go(inert.nodes(ps), carried, ii) == Scan.own.go(ps, carried, ii) : Maybe<&2, Nat>}
+
+def inert.scan.own.go(ps, carried, ii):
+  match ps:
+    case Nil{}:
+      {==}
+    case Con{+p, +rest}:
+      +lhs = Scan.own.go(inert.nodes(p <> rest), carried, ii)
+      %inert.scan.moves(p, carried) : {lhs == Lazy.stop(Maybe<&2, Nat>, _, Scan.place(p, ii),
+        _u => Scan.own.go(rest, carried, 1n+ii)) : Maybe<&2, Nat>}
+      %inert.scan.place(p, ii) : {lhs == Lazy.stop(Maybe<&2, Nat>, Scan.moves(Laws.inert.node(p), carried), _,
+        _u => Scan.own.go(rest, carried, 1n+ii)) : Maybe<&2, Nat>}
+      %inert.scan.own.go(rest, carried, 1n+ii) : {lhs == Lazy.stop(Maybe<&2, Nat>, Scan.moves(Laws.inert.node(p),
+        carried), Scan.place(Laws.inert.node(p), ii), _u => _) : Maybe<&2, Nat>}
+      {==}
+
+# the name of the parameter shrunk, among parameters read that way, is the one it was
+law inert.scan.lead.go:
+  for ps: List<&2, Tree.Node>
+  for +carried: List<&2, String>
+  {Scan.lead.go(inert.nodes(ps), carried) == Scan.lead.go(ps, carried) : String}
+
+def inert.scan.lead.go(ps, carried):
+  match ps:
+    case Nil{}:
+      {==}
+    case Con{+p, +rest}:
+      +lhs = Scan.lead.go(inert.nodes(p <> rest), carried)
+      %inert.scan.moves(p, carried) : {lhs == Lazy.stop(String, _, Calls.param_name(p), _u => Scan.lead.go(rest,
+        carried)) : String}
+      %inert.param_name(p) : {lhs == Lazy.stop(String, Scan.moves(Laws.inert.node(p), carried), _,
+          _u => Scan.lead.go(rest,
+        carried)) : String}
+      %inert.scan.lead.go(rest, carried) : {lhs == Lazy.stop(String, Scan.moves(Laws.inert.node(p), carried),
+        Calls.param_name(Laws.inert.node(p)), _u => _) : String}
+      {==}
+
+# a signature read that way has its parameters read that way
+law inert.scan.params:
+  for +sig: Tree.Node
+  {Calls.params(Laws.inert.node(sig)) == inert.nodes(Calls.params(sig)) : List<&2, Tree.Node>}
+
+def inert.scan.params(sig):
+  %Equal.sym(Tree.Node, Calls.params.of(Laws.inert.node(sig)), Laws.inert.node(Calls.params.of(sig)),
+    inert.params.of(sig)) : {Calls.args(_) == inert.nodes(Calls.params(sig)) : List<&2, Tree.Node>}
+  inert.args(Calls.params.of(sig))
+
+# the parameter a def read that way shrinks is the one it shrank
+law inert.scan.own:
+  for +sig: Tree.Node
+  for +body: Tree.Node
+  for +name: String
+  for +en: {Laws.inert.marked(name) == False{} : Bool}
+  for +eb: {Laws.inert.ok(body) == True{} : Bool}
+  {Scan.own(Laws.inert.node(sig), Laws.inert.node(body), name) == Scan.own(sig, body, name) : Maybe<&2, Nat>}
+
+def inert.scan.own(sig, body, name, en, eb):
+  +isg = Laws.inert.node(sig)
+  +ib = Laws.inert.node(body)
+  +lhs = Scan.own(isg, ib, name)
+  %inert.calls(body, name, en, eb) : {lhs == Lazy.stop(Maybe<&2, Nat>, Bool.not(_), None{},
+    _u => Scan.own.go(Calls.params(sig), Hoist.carried(sig, body, name), 0n)) : Maybe<&2, Nat>}
+  %inert.hoist.carried(sig, body, name, en, eb) : {lhs == Lazy.stop(Maybe<&2, Nat>, Bool.not(Calls.calls(ib, name)),
+    None{}, _u => Scan.own.go(Calls.params(sig), _, 0n)) : Maybe<&2, Nat>}
+  %inert.scan.own.go(Calls.params(sig), Hoist.carried(isg, ib, name), 0n) : {lhs == Lazy.stop(Maybe<&2, Nat>,
+    Bool.not(Calls.calls(ib, name)), None{}, _u => _) : Maybe<&2, Nat>}
+  %inert.scan.params(sig) : {lhs == Lazy.stop(Maybe<&2, Nat>, Bool.not(Calls.calls(ib, name)), None{},
+    _u => Scan.own.go(_, Hoist.carried(isg, ib, name), 0n)) : Maybe<&2, Nat>}
+  {==}
+
+# a def read that way records the walks it recorded
+law inert.scan.walks.go:
+  for ds: List<&2, Calls.Def>
+  for +ws: List<&2, Scan.Walk>
+  for +e: {inert.dok(ds) == True{} : Bool}
+  {Scan.walks.go(inert.defs(ds), ws) == Scan.walks.go(ds, ws) : List<&2, Scan.Walk>}
+
+def inert.scan.walks.go(ds, ws, e):
+  match ds:
+    case Nil{}:
+      {==}
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +en = inert.dok.head(name, sig, body, rest, e)
+      +eb = inert.dok.body(name, sig, body, rest, e)
+      +isg = Laws.inert.node(sig)
+      +ib = Laws.inert.node(body)
+      +lhs = Scan.walks.go(inert.defs(Calls.Def{name, sig, body} <> rest), ws)
+      %inert.scan.own(sig, body, name, en, eb) : {lhs == Scan.walks.go(rest, Scan.tag(List.append(&2, Nat,
+        Scan.opt(_), Scan.passes(body, Calls.names(sig), ws)), name, ws)) : List<&2, Scan.Walk>}
+      %inert.scan.passes(body, Calls.names(sig), ws) : {lhs == Scan.walks.go(rest, Scan.tag(List.append(&2, Nat,
+        Scan.opt(Scan.own(isg, ib, name)), _), name, ws)) : List<&2, Scan.Walk>}
+      %inert.names(sig) : {lhs == Scan.walks.go(rest, Scan.tag(List.append(&2, Nat,
+        Scan.opt(Scan.own(isg, ib, name)), Scan.passes(ib, _, ws)), name, ws)) : List<&2, Scan.Walk>}
+      inert.scan.walks.go(rest, Scan.tag(List.append(&2, Nat, Scan.opt(Scan.own(isg, ib, name)),
+        Scan.passes(ib, Calls.names(isg), ws)), name, ws), inert.dok.rest(name, sig, body, rest, e))
+
+# a def read that way is walked as it was
+law inert.scan.run:
+  for +sig: Tree.Node
+  for +body: Tree.Node
+  for +name: String
+  for +ws: List<&2, Scan.Walk>
+  for +path: String
+  for +en: {Laws.inert.marked(name) == False{} : Bool}
+  for +eb: {Laws.inert.ok(body) == True{} : Bool}
+  {Scan.run(Laws.inert.node(sig), Laws.inert.node(body), name, ws, path) == Scan.run(sig, body, name, ws,
+      path) : List<&2, F.Finding>}
+
+def inert.scan.run(sig, body, name, ws, path, en, eb):
+  +isg = Laws.inert.node(sig)
+  +ib = Laws.inert.node(body)
+  +cr = Hoist.carried(isg, ib, name)
+  +lhs = Scan.run(isg, ib, name, ws, path)
+  %inert.hoist.carried(sig, body, name, en, eb) : {lhs == Scan.walk(body, name, ws, _, Scan.lead.go(Calls.params(sig),
+    _), path, True{}) : List<&2, F.Finding>}
+  %inert.scan.lead.go(Calls.params(sig), cr) : {lhs == Scan.walk(body, name, ws, cr, _, path, True{})
+    : List<&2, F.Finding>}
+  %inert.scan.params(sig) : {lhs == Scan.walk(body, name, ws, cr, Scan.lead.go(_, cr), path, True{})
+    : List<&2, F.Finding>}
+  inert.scan.walk(body, name, ws, cr, Scan.lead.go(Calls.params(isg), cr), path, True{}, en, eb)
+
+# scan over the defs read that way reports what it reports over the defs
+law inert.scan.go:
+  for ds: List<&2, Calls.Def>
+  for +ws: List<&2, Scan.Walk>
+  for +path: String
+  for +acc: List<&2, List<&2, F.Finding>>
+  for +e: {inert.dok(ds) == True{} : Bool}
+  {Scan.check.go(inert.defs(ds), ws, path, acc) == Scan.check.go(ds, ws, path, acc) : List<&2, F.Finding>}
+
+def inert.scan.go(ds, ws, path, acc, e):
+  match ds:
+    case Nil{}:
+      {==}
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +en = inert.dok.head(name, sig, body, rest, e)
+      +eb = inert.dok.body(name, sig, body, rest, e)
+      +ib = Laws.inert.node(body)
+      +isg = Laws.inert.node(sig)
+      +lst = Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Calls.calls(ib, name), Bool.not(Calls.exempt(path,
+        isg)))), [], _u => Scan.run(isg, ib, name, ws, path))
+      %inert.stop(Bool.not(Bool.and(Calls.calls(ib, name), Bool.not(Calls.exempt(path, isg)))),
+        Bool.not(Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))),
+        Scan.run(isg, ib, name, ws, path), Scan.run(sig, body, name, ws, path),
+        inert.gate(path, name, sig, body, en, eb), inert.scan.run(sig, body, name, ws, path, en, eb)) :
+        {Scan.check.go(inert.defs(rest), ws, path, lst <> acc) == Scan.check.go(rest, ws, path, _ <> acc)
+          : List<&2, F.Finding>}
+      inert.scan.go(rest, ws, path, lst <> acc, inert.dok.rest(name, sig, body, rest, e))
+
+# scan over the defs read that way, their walks read that way too
+law inert.scan.on:
+  for +ds: List<&2, Calls.Def>
+  for +path: String
+  for +e: {inert.dok(ds) == True{} : Bool}
+  {Scan.check.on(inert.defs(ds), path) == Scan.check.on(ds, path) : List<&2, F.Finding>}
+
+def inert.scan.on(ds, path, e):
+  %inert.scan.walks.go(ds, [], e) : {Scan.check.go(inert.defs(ds), Scan.walks(inert.defs(ds)), path, [])
+    == Scan.check.go(ds, _, path, []) : List<&2, F.Finding>}
+  inert.scan.go(ds, Scan.walks(inert.defs(ds)), path, [], e)
+
+# the rule's law-file gate over the defs read that way
+law inert.scan.gated:
+  for +ds: List<&2, Calls.Def>
+  for +path: String
+  for +e: {inert.dok(ds) == True{} : Bool}
+  {Lazy.stop(List<&2, F.Finding>, Paths.is_law_file(path), [], _u => Scan.check.on(inert.defs(ds), path))
+    == Lazy.stop(List<&2, F.Finding>, Paths.is_law_file(path), [], _v => Scan.check.on(ds, path))
+      : List<&2, F.Finding>}
+
+def inert.scan.gated(ds, path, e):
+  inert.stop(Paths.is_law_file(path), Paths.is_law_file(path), Scan.check.on(inert.defs(ds), path),
+    Scan.check.on(ds, path), {==}, inert.scan.on(ds, path, e))
+
+def Laws.inert_scan(path, _text, tree, _toks, _bound, _items, _text2, tree2, _toks2, _bound2, _items2, ok, ok2, e):
+  inert.via(Tree.Node, z => Lazy.stop(List<&2, F.Finding>, Paths.is_law_file(path), [],
+    _u => Scan.check.on(Calls.defs(z), path)), tree, tree2, Laws.inert.node(tree), Laws.inert.node(tree2),
+    inert.lift(z => Lazy.stop(List<&2, F.Finding>, Paths.is_law_file(path), [], _u => Scan.check.on(z, path)), tree,
+      inert.scan.gated(Calls.defs(tree), path, inert.dok.of(tree, ok))),
+    inert.lift(z => Lazy.stop(List<&2, F.Finding>, Paths.is_law_file(path), [], _u => Scan.check.on(z, path)), tree2,
+      inert.scan.gated(Calls.defs(tree2), path, inert.dok.of(tree2, ok2))),
+    e)

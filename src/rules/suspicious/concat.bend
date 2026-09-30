@@ -185,7 +185,8 @@ def hits(
       List.reverse(&2, F.Finding, acc)
     case Con{+a, rest}:
       +slot = Maybe.default(&2, String, List.head(&2, String, params), "")
-      hits(rest, List.tail(&2, String, params), lets, path, hit(seen(a, lets), slot, path, acc))
+      was = seen(a, lets)  # noqa: U013 a def's lets
+      hits(rest, List.tail(&2, String, params), lets, path, hit(was, slot, path, acc))
 
 # the lets a statement leaves in scope for the statements after it
 def after(kind: Tree.StmtKind, +kids: Tree.Node, +lets: List<&2, Let>) -> List<&2, Let>:

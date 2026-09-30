@@ -381,8 +381,8 @@ def grade(+cs: List<&2, Conf>, +world: W.World, fs: List<&2, F.Finding>) -> List
     case Nil{}:
       Nil{}
     case Con{F.Finding{+path, line, col, len, rule, msg}, rest}:
-      List.append(&2, F.Graded, Rules.graded(config.at(cs, world, path), [F.Finding{path, line, col, len, rule, msg}]),
-        grade(cs, world, rest))
+      cfg = config.at(cs, world, path)  # noqa: U013 one config per directory
+      List.append(&2, F.Graded, Rules.graded(cfg, [F.Finding{path, line, col, len, rule, msg}]), grade(cs, world, rest))
 
 # ---------------------------------------------------------------------------
 # silencing, then the `noqa` rule
