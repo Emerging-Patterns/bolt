@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/Emerging-Patterns/bolt/compare/v1.10.0...v1.11.0) (2026-09-30)
+
+
+### Bug Fixes
+
+* **deps:** shake v0.4.0 ([#215](https://github.com/Emerging-Patterns/bolt/issues/215)) ([f41f84c](https://github.com/Emerging-Patterns/bolt/commit/f41f84c90098ad18a68a81094882045af2df239f))
+
 ## [1.10.0](https://github.com/Emerging-Patterns/bolt/compare/v1.9.0...v1.10.0) (2026-09-30)
 
 
