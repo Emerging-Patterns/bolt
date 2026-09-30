@@ -5,7 +5,7 @@
 # the file count (100 files cost 362 s that way). So each file is read down
 # once to what those rules ask of it -- its path, its top-level defs and types
 # by name and line, what its laws name, what it imports, and its `@unsafe`
-# defs -- and the phases run over these, which are strings and cheap to copy.
+# and foreign defs -- and the phases run over these, which are strings and cheap to copy.
 import Base
 import ../src.bend as Src
 import ../syntax/lex.bend as Lex
@@ -16,6 +16,7 @@ import ../lazy/lazy.bend as Lazy
 import ./imports.bend as Imports
 import ./laws/closed.bend as Closed
 import ../paths.bend as Paths
+import ./correctness/foreign.bend as Foreign
 
 # what a file holds
 # -----------------
@@ -31,9 +32,11 @@ type Mention is Data:
 type Top is Data:
   Top{kind: Outline.ItemKind, name: String, line: U32, ctors: List<&2, String>, calls: List<&2, Mention>}
 
-# an `@unsafe def` and where its `@` is
+# a def a proof may not reach (bend 2.0.32): an `@unsafe def`, where its
+# `@` is, or a foreign def (its body only `import "./x.c"` / `import
+# "./x.js"` lines), where its header starts; foreign says which
 type Unsafe is Data:
-  Unsafe{name: String, line: U32, col: U32}
+  Unsafe{name: String, line: U32, col: U32, foreign: Bool}
 
 # a law of a LAWS.bend: its name, the line it starts on, whether it binds
 # (a `for` or `exs` line), and the lines of its comment block, `# ` dropped
@@ -43,7 +46,7 @@ type Law is Data:
 # one file as the project rules see it: its path as given and normalized, its
 # directory, whether it states laws (LAWS.bend) or proves them too
 # (PROOF.bend), whether the coverage rule lets it off, its top-level items, what
-# its own laws name, the files it imports, and its `@unsafe` defs
+# its own laws name, the files it imports, its `@unsafe` and foreign defs
 type Digest is Data:
   Digest{path: String, norm: String, dir: String, is_laws: Bool, is_law_file: Bool, exempt: Bool,
     tops: List<&2, Top>, says: List<&2, Mention>, deps: List<&2, String>, unsafes: List<&2, Unsafe>,
@@ -254,7 +257,7 @@ def push(mm: Maybe<&2, String>, +ll: U32, +cc: U32, more: List<&2, Unsafe>) -> L
     case None{}:
       more
     case Some{n}:
-      Unsafe{n, ll, cc} <> more
+      Unsafe{n, ll, cc, False{}} <> more
 
 # every `@ unsafe def name` run of tokens, on one line or two
 def unsafe_defs(toks: List<&2, Lex.Tok>) -> List<&2, Unsafe>:
@@ -264,6 +267,31 @@ def unsafe_defs(toks: List<&2, Lex.Tok>) -> List<&2, Unsafe>:
     case Con{Lex.Tok{k, +at, +l, +c}, +rest}:
       +more = unsafe_defs(rest)
       Bool.pick(List<&2, Unsafe>, String.eq(at, "@"), push(unsafe_name(rest), l, c, more), more)
+
+# a foreign def, when its body is one (Foreign.lanes), onto the others
+def foreign.push(
+  mm: Maybe<&2, Foreign.Lanes>,
+  +name: String,
+  +ll: U32,
+  +cc: U32,
+  more: List<&2, Unsafe>
+) -> List<&2, Unsafe>:
+  match mm:
+    case None{}:
+      more
+    case Some{_lanes}:
+      Unsafe{name, ll, cc, True{}} <> more
+
+# every top-level foreign def, where its header starts
+def foreign_defs(root: Tree.Node) -> List<&2, Unsafe>:
+  match root:
+    case Tree.NCons{Tree.Stmt{Tree.SDef{}, +kids, body}, rest}:
+      foreign.push(Foreign.lanes(body), Foreign.name.of(Bind.declared(kids)), Tree.line(kids), Tree.col(kids),
+        foreign_defs(rest))
+    case Tree.NCons{h, rest}:
+      foreign_defs(rest)
+    case other:
+      Nil{}
 
 # the laws
 # --------
@@ -315,7 +343,8 @@ def of(s2: Src.Src) -> Digest:
   +as = aliases(items, p)
   Digest{path, p, Imports.dir_of(path), Paths.is_laws(path), Paths.is_law_file(path), is_exempt(p),
     ranged(items, uses.of(bound), as, p), stated(Paths.is_laws(path), tree, bound, as, p), Imports.targets(items, p),
-    unsafe_defs(significant(toks)), laws.in(Paths.is_laws(path), tree, items)}
+    List.append(&2, Unsafe, unsafe_defs(significant(toks)), foreign_defs(tree)),
+    laws.in(Paths.is_laws(path), tree, items)}
 
 # every file the linter read, in one pass, in order
 def all(ss: List<&2, Src.Src>) -> List<&2, Digest>:

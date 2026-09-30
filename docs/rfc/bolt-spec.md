@@ -48,7 +48,7 @@ bolt has 271 laws, and 257 of them are closed: each pins one call on one input, 
 | `#\|` test | A test written as a `#\|` trailer comment beside the code, which a test runner evaluates. bolt#10 moved most of bolt's into closed laws. |
 | Closed law | A law with no `for` or `exs` binder. It holds for one input, which makes it a unit test checked at compile time. |
 | Quantified law | A law with at least one binder. It holds for every input of that type. |
-| Proof gate | For every PROOF.bend, `bend PROOF.bend` prints exactly `All terms check.` as its first line. |
+| Proof gate | For every PROOF.bend, `bend PROOF.bend` prints exactly `ALL PROOFS CHECK` as its first line. |
 | Proved | A requirement backed by a quantified law tagged with its ID, passing the proof gate. |
 | Trusted | A requirement that is assumed, listed in the trust boundary, and checked by nothing in bolt. |
 | Pending | The status of a Proved requirement whose law has not landed. It is a status, not a level. |
@@ -109,7 +109,7 @@ The proposal has five parts, four of them carried over from ez. A **specificatio
 
 |  |
 |:---:|
-| <pre>┌──────────┐     ┌───────────────┐          ┌────────────────┐     ┌────────────────┐<br>│ SPEC.md  │────▶│ Requirement   │──Proved─▶│ LAWS.bend      │────▶│ PROOF.bend     │<br>│ (IDs +   │     │ ID + level    │          │ (quantified,   │     │ (gate: "All    │<br>│  levels) │     │               │          │  # BOLT-X-N)   │     │  terms check.")│<br>└──────────┘     └───────┬───────┘          └────────────────┘     └────────────────┘<br>                         │                          ▲<br>                      Trusted                       │ checked by<br>                         ▼                          │<br>                 ┌───────────────┐          ┌────────────────┐<br>                 │ Trust boundary│          │ bolt: closed + │<br>                 │ (in SPEC.md)  │          │ traceability   │<br>                 └───────────────┘          └────────────────┘</pre> |
+| <pre>┌──────────┐     ┌───────────────┐          ┌────────────────┐     ┌────────────────┐<br>│ SPEC.md  │────▶│ Requirement   │──Proved─▶│ LAWS.bend      │────▶│ PROOF.bend     │<br>│ (IDs +   │     │ ID + level    │          │ (quantified,   │     │ (gate: "ALL    │<br>│  levels) │     │               │          │  # BOLT-X-N)   │     │  PROOFS CHECK")│<br>└──────────┘     └───────┬───────┘          └────────────────┘     └────────────────┘<br>                         │                          ▲<br>                      Trusted                       │ checked by<br>                         ▼                          │<br>                 ┌───────────────┐          ┌────────────────┐<br>                 │ Trust boundary│          │ bolt: closed + │<br>                 │ (in SPEC.md)  │          │ traceability   │<br>                 └───────────────┘          └────────────────┘</pre> |
 | Caption: Every requirement ends in a tagged quantified law the proof gate checks, or in a named assumption. bolt's own rules check that the tags and binders are there. |
 
 ### Two levels, and the positions carried over from ez
@@ -118,7 +118,7 @@ We take ez's positions as settled rather than re-argue them, since the two speci
 
 The other positions follow from keeping only those two levels. Closed laws have no standing, because a law about one input is a test, and tests and fixtures are never evidence for a requirement for the same reason. Untagged quantified laws are allowed, but nothing protects them, so a change may edit or delete them freely. A guarantee proved in a pinned dependency is Trusted from bolt's side, because bolt's gate does not re-check the dependency's proofs.
 
-The proof gate is the one mechanical check the spec depends on: every PROOF.bend's first output line is exactly `All terms check.`, which rules out the `All terms check, but N defs rely on unsafe or foreign code:` form bend exits 0 with. bolt does not run that gate itself. `flake.nix` calls ez's `mkProofs`, which runs `ez test --unit-only` today and `ez prove` once ez ships it, and that runner's faithfulness is BOLT-TRUST-6.
+The proof gate is the one mechanical check the spec depends on: every PROOF.bend's first output line is exactly `ALL PROOFS CHECK`, which rules out `SOME PROOFS FAIL` (bend 2.0.34 prints it, then the reason, `Error: N defs rely on unsafe or foreign code:` or `Error: N TODOs found.` among them, and exits 1; before 2.0.32 a proof leaning on unsafe or foreign code printed `All terms check, but N defs rely on unsafe or foreign code:` and exited 0). bolt does not run that gate itself. `flake.nix` calls ez's `mkProofs`, which runs `ez test --unit-only` today and `ez prove` once ez ships it, and that runner's faithfulness is BOLT-TRUST-6.
 
 ### Closed laws and the `closed` rule
 
@@ -474,7 +474,7 @@ These assumptions sit outside the proofs. They are the complete list of Trusted 
 | BOLT-TRUST-3 | The directory listing effect (`bolt/walk/dir.c`, `dir.js`) returns a directory's entries, marking directories with `/`, and the file read effect returns a file's text. | The walk and the reads are foreign code; the planner takes their answers as given. |
 | BOLT-TRUST-4 | The LSP transport (`bolt/lsp/transport/fd.c`, `fd.js`) delivers stdin bytes in order and writes stdout bytes whole. | Foreign code over descriptors 0 and 1. |
 | BOLT-TRUST-5 | `bend <file> --check-only` never runs `main`, and prints its report in the shape `bolt/lsp/report.bend` parses. | bend is a separate program, and the report format has already drifted once (`report_import`). |
-| BOLT-TRUST-6 | The proof gate runner runs bend on every PROOF.bend and accepts only an exact `All terms check.` first line. | It is ez code run by `mkProofs` (`ez test --unit-only` today, `ez prove` when ez ships it). CI builds from a clean tree. |
+| BOLT-TRUST-6 | The proof gate runner runs bend on every PROOF.bend and accepts only an exact `ALL PROOFS CHECK` first line. | It is ez code run by `mkProofs` (`ez test --unit-only` today, `ez prove` when ez ships it). CI builds from a clean tree. |
 | BOLT-TRUST-7 | Every commit on `main` passed `ci.yml`. | Holds only once the ruleset in REVIEW-8 exists. Today it does not hold. |
 | BOLT-TRUST-8 | shake v0.2.0 (`0x085b03c84ca37125e38dddede7b91e55`) parses argv as its proved rows say: SHAKE-TOK-1, SHAKE-TOK-3, SHAKE-TOK-4, SHAKE-PARSE-2, SHAKE-PARSE-3, SHAKE-PARSE-4, SHAKE-PARSE-8, SHAKE-GET-1, SHAKE-GET-2 and SHAKE-ERR-1; ezjson v1.1.0 (`0x81c67699424929b5c44cd8577e18117f`) parses and prints JSON correctly. | Pinned dependencies, by ez.toml hash, each proving its own rows in its own gate at the pinned tag. bolt reads shake through `main.bend` only and never unfolds its parser: the BOLT-CLI laws that name an argv take the answer those rows guarantee as premises, each citing its row, and prove what bolt does with it. |
 | BOLT-OUT-6 | A released code is never renumbered or reused. | A property across versions, enforced by review of the SPEC row that lists the table. |

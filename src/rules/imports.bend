@@ -172,3 +172,43 @@ def walk(
 # the closure of the file at from, a path normalized already, over the graph
 def closure.go(es: List<&2, Edge>, +read: List<&2, String>, +fuel: Nat, +from: String) -> List<&2, String>:
   List.reverse(&2, String, walk(fuel, [from], [from], es, read))
+
+# a file the trail's walk has queued, and the files it was reached through,
+# itself first and the start last
+type Step is Data:
+  Step{at: String, back: List<&2, String>}
+
+# each file queued, reached through back
+def steps(ds: List<&2, String>, +back: List<&2, String>) -> List<&2, Step>:
+  match ds:
+    case Nil{}:
+      Nil{}
+    case Con{+d, rest}:
+      Step{d, d <> back} <> steps(rest, back)
+
+# the walk `walk` takes, breadth first, each queued file carrying how it was
+# reached, until it takes the file at to: the files from the start to it, in
+# order; none when the walk never takes it
+def trail.go(
+  fuel: Nat,
+  todo: List<&2, Step>,
+  +seen: List<&2, String>,
+  +es: List<&2, Edge>,
+  +read: List<&2, String>,
+  +to: String
+) -> List<&2, String>:
+  match fuel todo:
+    case 0n t:
+      Nil{}
+    case 1n+f Nil{}:
+      Nil{}
+    case 1n+f Con{Step{+at, +back}, rest}:
+      +found = fresh.fast(deps.first(es, at), seen, read)
+      Lazy.stop(List<&2, String>, String.eq(at, to), List.reverse(&2, String, back),
+        _u => trail.go(f, List.append(&2, Step, rest, steps(found, back)),
+          List.append(&2, String, List.reverse(&2, String, found), seen), es, read, to))
+
+# a shortest chain of relative imports from the file at from to the file at
+# to, both normalized: the files in order, from first and to last
+def trail(es: List<&2, Edge>, +read: List<&2, String>, +fuel: Nat, +from: String, +to: String) -> List<&2, String>:
+  trail.go(fuel, [Step{from, [from]}], [from], es, read, to)

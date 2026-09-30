@@ -1,5 +1,6 @@
-# rule hole: a TODO hole left in code, the one bend counts in "N TODO found":
-# a `?` and then the name `TODO`, with any spaces, newlines or comments
+# rule hole: a TODO hole left in code, the one bend counts when it prints
+# `SOME PROOFS FAIL` then "Error: 1 TODO found." or "Error: N TODOs found."
+# and exits 1 (bend 2.0.34): a `?` and then the name `TODO`, with any spaces, newlines or comments
 # between them (`?TODO`, `? TODO`). `?todo`, `?TODO_later` and `?TODO.x` are
 # other names, which bend reports as a type error, not as a TODO, and they are
 # not reported here. The finding spans `?` through `TODO` when both sit on one

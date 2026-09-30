@@ -64,6 +64,16 @@ def nat_ok(cs: List<&2, Char>) -> Bool:
     case Nil{}:
       False{}
 
+# digits alone, one or more: a U32 literal's chars
+def digits_ok(cs: List<&2, Char>) -> Bool:
+  match cs:
+    case Con{+c, Nil{}}:
+      Char.is_digit(c)
+    case Con{+c, t}:
+      Lazy.and_then(Char.is_digit(c), _u => digits_ok(t))
+    case Nil{}:
+      False{}
+
 # the text without its last char (a Nat literal's digits)
 def stem(+tt: String) -> String:
   String.take(tt, Nat.sub(String.length(tt), 1n))

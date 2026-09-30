@@ -152,7 +152,8 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   a law's `for` names, and every parameter of a foreign def, one whose body
   starts with `import` (its C and JS read them), however its header is
   wrapped.
-- `hole` — a TODO hole left in code, the one bend counts in "N TODO found":
+- `hole` — a TODO hole left in code, the one bend counts in "1 TODO found." /
+  "N TODOs found." (under `SOME PROOFS FAIL`, exit 1):
   `?` and then `TODO`, with spaces, newlines or comments allowed between
   (`?TODO`, `? TODO`). `?todo` and `?TODO_later` are other names, a type
   error to bend, and are not reported. LAWS.bend is exempt: its laws are open
@@ -307,14 +308,17 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   reverse: the missing lane cannot run it. A file headed `# lanes: native`
   needs no `.js`: that exact line must be one of the comment lines before the
   file's first non-comment line.
-- `fuel` — a `Nat` literal (digits, then `n`) passed in a call, `name(..)`,
-  to a fuel parameter of a def of the same file. A fuel parameter is known by
-  its name alone, the one before its colon: `fuel`, `gas`, `steps` or
-  `budget`, or any name starting with `fuel`. Input past it is cut short
-  with no error: derive the fuel from the input. A literal of any size counts,
-  `3n` included. Only an argument that is one literal token alone counts, so
-  `U32.to_nat(1000)`, a let-bound literal and `(7n)` are not seen. A def's
-  own calls are exempt.
+- `fuel` — a `Nat` literal (digits, then `n`), or `U32.to_nat` of a U32
+  literal (`U32.to_nat(100000)`), passed in a call, `name(..)`, to a fuel
+  parameter of a def of the same file. A fuel parameter is known by its name
+  alone, the one before its colon: `fuel`, `gas`, `steps` or `budget`, or
+  any name starting with `fuel`. Input past it is cut short with no error:
+  derive the fuel from the input. In a law it is worse: a lemma proved over
+  every fuel, used at a big fixed one against a goal written another way,
+  overflows the checker's stack (bend 2.0.33/2.0.34). A literal of any size
+  counts, `3n` included. Only an argument that is the literal alone, or
+  `U32.to_nat(` it `)`, counts, so a let-bound literal and `(7n)` are not
+  seen. A def's own calls are exempt.
 - `tail` (pedantic) — a self-call that is not a tail call, in a def whose
   first live parameter is a `List` or a `String`. On a long one the JS lane
   overflows its stack (a 48 KB header crashed a server; ~4,900 entries and
@@ -338,11 +342,16 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   (proved or pending) `<path> <law>` entry that is missing, has no binder or
   lacks the tag, a Trusted row with no trust row, and a tag SPEC.md does not
   list as a Proved row, proved or pending.
-- `unsafe` (project) — an `@unsafe def` that a LAWS.bend or PROOF.bend
-  reaches through its imports. There the checker prints "All terms check,
-  but N defs rely on unsafe or foreign code:" and a `- name` list (2.0.16
-  counted marks: "with N unsafe annotations.") and exits 0, so a gate that
-  reads the exit status goes green on an unproven claim.
+- `unsafe` (project) — an `@unsafe def` or a foreign def (a body of only
+  `import "./x.c"` / `import "./x.js"` lines) that a LAWS.bend or PROOF.bend
+  reaches through its relative imports, over the files bolt read. Since bend
+  2.0.32 such a proof fails: bend prints `SOME PROOFS FAIL`, then `Error: N
+  defs rely on unsafe or foreign code:` and a `- name` list, and exits 1
+  (2.0.34), every def of every imported module counted. That list names the
+  defs, not the import that brought the effect in; the finding names the
+  import path from the law file (`LAWS.bend -> mid.bend -> eff/io.bend`). Move
+  the effect into a sibling module no law file imports and pass it in as a
+  service. Hash imports (`import 0x.../path`) are not followed.
 - `coverage` (project) — in a project that states laws (a LAWS.bend among the
   files bolt read), a def or a type that no law reaches. It is `coverage`, not `law`,
   because `law` is a Bend keyword: `def law()` is no def, so a bolt.bend
