@@ -119,7 +119,7 @@ def check.go(
     case Nil{}:
       Nil{}
     case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
-      List.append(&2, F.Finding, found(reacher(rs, norm), unsafes, path, norm, es, read, fuel),  # noqa: U013 law files
+      List.append(&2, F.Finding, found(reacher(rs, norm), unsafes, path, norm, es, read, fuel),
         check.go(rest, rs, es, read, fuel))
 
 # the rule, over every file the linter read

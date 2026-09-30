@@ -132,7 +132,7 @@ def mentions(us: List<&2, Bind.Use>, +ss: List<&2, Span>, +as: List<&2, Alias>, 
       Nil{}
     case Con{Bind.Use{n, +l, c, tt}, rest}:
       +more = mentions(rest, ss, as, file)
-      +out = Bool.not(within(ss, l))  # noqa: U013 law spans
+      +out = Bool.not(within(ss, l))
       Lazy.stop(List<&2, Mention>, out, more, _u => target(tt, as, file, more))
 
 # the uses the binder recorded
@@ -202,7 +202,7 @@ def called(us: List<&2, Bind.Use>, +as: List<&2, Alias>, +file: String) -> List<
     case Nil{}:
       Nil{}
     case Con{Bind.Use{n, l, c, tt}, rest}:
-      target(tt, as, file, called(rest, as, file))  # noqa: U013 as holds the file's import aliases
+      target(tt, as, file, called(rest, as, file))
 
 # the top-level defs and types, by name and line: what the coverage rule
 # grades. The uses are read in order, once: each item but a constructor
@@ -221,11 +221,11 @@ def ranged(
       ranged(rest, us, as, file)
     case Con{Outline.Item{Outline.IDef{}, name, line, sig, doc, path}, +rest}:
       +nx = next_line(rest)
-      cs = called(upto(us, nx), as, file)  # noqa: U013 import aliases
+      cs = called(upto(us, nx), as, file)
       Top{Outline.IDef{}, name, line, [], cs} <> ranged(rest, past(us, nx), as, file)
     case Con{Outline.Item{Outline.IType{}, name, line, sig, doc, path}, +rest}:
       +nx = next_line(rest)
-      Top{Outline.IType{}, name, line, ctors(rest), called(upto(us, nx), as, file)}  # noqa: U013 import aliases
+      Top{Outline.IType{}, name, line, ctors(rest), called(upto(us, nx), as, file)}
         <> ranged(rest, past(us, nx), as, file)
     case Con{Outline.Item{kind, name, line, sig, doc, path}, +rest}:
       ranged(rest, past(us, next_line(rest)), as, file)
@@ -312,7 +312,7 @@ def laws_of(root: Tree.Node, +items: List<&2, Outline.Item>) -> List<&2, Law>:
   match root:
     case Tree.NCons{Tree.Stmt{Tree.SLaw{}, +kids, body}, rest}:
       +at = Tree.line(kids)
-      dd = doc_at(items, at)  # noqa: U013 stops at the law's line
+      dd = doc_at(items, at)
       Law{Closed.name.of(Bind.declared(kids)), at, Closed.binds(body), String.lines(dd)} <> laws_of(rest, items)
     case Tree.NCons{h, rest}:
       laws_of(rest, items)

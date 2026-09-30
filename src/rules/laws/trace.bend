@@ -295,7 +295,7 @@ def judge_entries(es: List<&2, String>, +ds: List<&2, Digest.Digest>, +id: Strin
     case Nil{}:
       Nil{}
     case Con{e, rest}:
-      List.append(&2, F.Finding, judge_entry(ds, id, e, nn), judge_entries(rest, ds, id, nn))  # noqa: U013 one per file
+      List.append(&2, F.Finding, judge_entry(ds, id, e, nn), judge_entries(rest, ds, id, nn))
 
 # is the row a claim: Proved, and proved or pending?
 def claims(+lv: String, +st: String) -> Bool:
@@ -330,7 +330,7 @@ def judge_rows(rs: List<&2, Row>, +sp: Spec, +ds: List<&2, Digest.Digest>) -> Li
     case Nil{}:
       Nil{}
     case Con{r, rest}:
-      List.append(&2, F.Finding, judge_row(r, sp, ds), judge_rows(rest, sp, ds))  # noqa: U013 one per file
+      List.append(&2, F.Finding, judge_row(r, sp, ds), judge_rows(rest, sp, ds))
 
 # is the ID a row that is a claim: Proved, and proved or pending?
 def claimed(rs: List<&2, Row>, +id: String) -> Bool:
@@ -363,7 +363,7 @@ def strays.laws(ls: List<&2, Digest.Law>, +rs: List<&2, Row>, +path: String) -> 
     case Nil{}:
       Nil{}
     case Con{Digest.Law{+n, +l, b, d}, rest}:
-      List.append(&2, F.Finding, stray(d, rs, path, n, l), strays.laws(rest, rs, path))  # noqa: U013 SPEC.md rows
+      List.append(&2, F.Finding, stray(d, rs, path, n, l), strays.laws(rest, rs, path))
 
 # every stray tag of every law file
 def strays(ds: List<&2, Digest.Digest>, +rs: List<&2, Row>) -> List<&2, F.Finding>:
@@ -371,7 +371,7 @@ def strays(ds: List<&2, Digest.Digest>, +rs: List<&2, Row>) -> List<&2, F.Findin
     case Nil{}:
       Nil{}
     case Con{Digest.Digest{+path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
-      List.append(&2, F.Finding, strays.laws(laws, rs, path), strays(rest, rs))  # noqa: U013 rs holds SPEC.md's rows
+      List.append(&2, F.Finding, strays.laws(laws, rs, path), strays(rest, rs))
 
 # the rows that are not rows
 def malformed(ms: List<&2, Mark>) -> List<&2, F.Finding>:
@@ -388,7 +388,7 @@ def twins(ms: List<&2, Mark>, +all: List<&2, Mark>) -> List<&2, F.Finding>:
       Nil{}
     case Con{Mark{+id, +nn}, rest}:
       +more = twins(rest, all)
-      +dup = Nat.is_gt(marks_with(all, id), 1n)  # noqa: U013 SPEC.md's IDs
+      +dup = Nat.is_gt(marks_with(all, id), 1n)
       +twice = Bool.pick(List<&2, F.Finding>, dup, at(nn, id ++ " is listed twice.") <> more, more)
       Bool.pick(List<&2, F.Finding>, is_id(id), twice, at(nn, id ++ " is not a valid ID; an ID matches [A-Z][A-Z0-9]*(-[A-Z0-9]+)+.") <> twice)
 

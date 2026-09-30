@@ -104,7 +104,7 @@ def found(ss: List<&2, Nat>, +as: List<&2, Tree.Node>, +names: List<&2, String>)
       None{}
     case Con{at, rest}:
       +more = found(rest, as, names)
-      first(keep_in(name_of(Calls.arg(as, at)), names), more)  # noqa: U013 a call's parameters
+      first(keep_in(name_of(Calls.arg(as, at)), names), more)
 
 # where a name sits among the parameter names
 def index_of(ps: List<&2, String>, +nm: String, +ii: Nat) -> Maybe<&2, Nat>:
@@ -129,7 +129,7 @@ def params_at(ss: List<&2, Nat>, +as: List<&2, Tree.Node>, +ps: List<&2, String>
       Nil{}
     case Con{at, rest}:
       +more = params_at(rest, as, ps)
-      List.append(&2, Nat, opt(index_in(name_of(Calls.arg(as, at)), ps)), more)  # noqa: U013 a def's parameters
+      List.append(&2, Nat, opt(index_in(name_of(Calls.arg(as, at)), ps)), more)
 
 # a call's walked parameters, when its callee is a name and it is a call
 def pass_hit(
@@ -152,7 +152,7 @@ def pass_hit(
 def passes(nn: Tree.Node, +ps: List<&2, String>, +ws: List<&2, Walk>) -> List<&2, Nat>:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{+k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
-      +own = pass_hit(k, String.eq(o, "("), t, kids, ps, ws)  # noqa: U013 a def's parameters
+      +own = pass_hit(k, String.eq(o, "("), t, kids, ps, ws)
       List.concat(&2, Nat, [own, passes(kids, ps, ws), passes(rest, ps, ws)])
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
       List.concat(&2, Nat, [passes(kids, ps, ws), passes(rest, ps, ws)])
@@ -181,7 +181,7 @@ def own.go(ps: List<&2, Tree.Node>, +carried: List<&2, String>, +ii: Nat) -> May
     case Nil{}:
       None{}
     case Con{+p, rest}:
-      +here = moves(p, carried)  # noqa: U013 a def's parameters
+      +here = moves(p, carried)
       Lazy.stop(Maybe<&2, Nat>, here, place(p, ii), _u => own.go(rest, carried, 1n+ii))
 
 # where the parameter a def shrinks sits, when it calls itself and it is no count or text
@@ -215,7 +215,7 @@ def lead.go(ps: List<&2, Tree.Node>, +carried: List<&2, String>) -> String:
     case Nil{}:
       ""
     case Con{+p, rest}:
-      +here = moves(p, carried)  # noqa: U013 a def's parameters
+      +here = moves(p, carried)
       Lazy.stop(String, here, Calls.param_name(p), _u => lead.go(rest, carried))
 
 # a finding on the callee, naming the carried list
@@ -289,7 +289,7 @@ def walk(
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{+k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +heat = Hoist.warm(hot, k)
-      +own = call_hit(k, heat, String.eq(o, "("), t, l, c, kids, self, ws, carried, lead, path)  # noqa: U013 parameters
+      +own = call_hit(k, heat, String.eq(o, "("), t, l, c, kids, self, ws, carried, lead, path)
       +inn = walk(kids, self, ws, carried, lead, path, heat)
       +aft = walk(rest, self, ws, carried, lead, path, heat)
       List.concat(&2, F.Finding, [own, inn, aft])

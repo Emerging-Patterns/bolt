@@ -424,7 +424,7 @@ def grade(+cs: List<&2, Conf>, +world: W.World, fs: List<&2, F.Finding>) -> List
     case Nil{}:
       Nil{}
     case Con{F.Finding{+path, line, col, len, rule, msg}, rest}:
-      cfg = config.at(cs, world, path)  # noqa: U013 one config per directory
+      cfg = config.at(cs, world, path)
       List.append(&2, F.Graded, Rules.graded(cfg, [F.Finding{path, line, col, len, rule, msg}]), grade(cs, world, rest))
 
 # ---------------------------------------------------------------------------

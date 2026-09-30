@@ -51,7 +51,7 @@ def has_name(as: List<&2, Tree.Node>, +wins: List<&2, String>) -> Bool:
       False{}
     case Con{h, rest}:
       +more = has_name(rest, wins)
-      Bool.or(win_name(h, wins), more)  # noqa: U013 wins holds one def's windows
+      Bool.or(win_name(h, wins), more)
 
 # is the last argument a number?
 def last_num(as: List<&2, Tree.Node>) -> Bool:
@@ -100,7 +100,7 @@ def here_of(
 def drop_in(nn: Tree.Node, +wins: List<&2, String>) -> Maybe<&2, Lex.Tok>:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{+k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
-      +here = here_of(String.eq(o, "("), k, t, l, c, kids, wins)  # noqa: U013 wins holds one def's windows
+      +here = here_of(String.eq(o, "("), k, t, l, c, kids, wins)
       +inn = drop_in(kids, wins)
       +aft = drop_in(rest, wins)
       or_tok(here, or_tok(inn, aft))
@@ -177,14 +177,14 @@ def plus_scan(nn: Tree.Node, +seen: Maybe<&2, Lex.Tok>, +wins: List<&2, String>)
       or_tok(pp_found(is_pp, seen), plus_scan(rest, pp_seen(is_pp, seen), wins))
     case Tree.NCons{Tree.Leaf{Lex.Tok{+k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +open = String.eq(o, "(")
-      +recv = call_recv(open, t, kids, wins)  # noqa: U013 wins holds one def's windows
+      +recv = call_recv(open, t, kids, wins)
       +inn = plus_scan(kids, None{}, wins)
-      +drop = call_drop(open, k, t, l, c, kids, wins)  # noqa: U013 wins holds one def's windows
+      +drop = call_drop(open, k, t, l, c, kids, wins)
       +aft = plus_scan(rest, or_tok(seen, drop), wins)
       or_tok(recv, or_tok(inn, aft))
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
       +inn = plus_scan(kids, None{}, wins)
-      +aft = plus_scan(rest, or_tok(seen, drop_in(kids, wins)), wins)  # noqa: U013 wins holds one def's windows
+      +aft = plus_scan(rest, or_tok(seen, drop_in(kids, wins)), wins)
       or_tok(inn, aft)
     case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
       or_tok(plus_scan(kids, None{}, wins), or_tok(plus_scan(body, None{}, wins), plus_scan(rest, seen, wins)))
@@ -224,7 +224,7 @@ def slides(
       Nil{}
     case Con{h, rest}:
       +slot = Maybe.default(&2, String, List.head(&2, String, params), "")
-      List.append(&2, F.Finding, slide(h, path, slot_wins(slot, wins)),  # noqa: U013 wins holds one def's windows
+      List.append(&2, F.Finding, slide(h, path, slot_wins(slot, wins)),
         slides(rest, List.tail(&2, String, params), path, wins))
 
 # every self-call's sliding arguments
@@ -289,7 +289,7 @@ def windows.go(ps: List<&2, String>, +bad: List<&2, String>, +acc: List<&2, Stri
     case Nil{}:
       List.reverse(&2, String, acc)
     case Con{+p, rest}:
-      +known = List.contains(~String, ~String.eq, bad, p)  # noqa: U013 a def's parameters
+      +known = List.contains(~String, ~String.eq, bad, p)
       +keep = Bool.and(Bool.not(String.is_empty(p)), Bool.not(known))
       windows.go(rest, bad, Bool.pick(List<&2, String>, keep, p <> acc, acc))
 

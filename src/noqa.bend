@@ -248,5 +248,5 @@ def keep(+ms: List<&2, Marks>, gs: List<&2, F.Graded>) -> List<&2, F.Graded>:
       Nil{}
     case Con{F.Graded{ll, F.Finding{+path, +line, col, len, +rule, msg}}, rest}:
       +more = keep(ms, rest)
-      Bool.pick(List<&2, F.Graded>, silenced(ms, path, line, Codes.code(rule)), more,  # noqa: U013 files with marks
+      Bool.pick(List<&2, F.Graded>, silenced(ms, path, line, Codes.code(rule)), more,
         F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> more)
