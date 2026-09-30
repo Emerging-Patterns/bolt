@@ -9,6 +9,7 @@ import Base
 import ../server.bend as Server
 import ../transport/script.bend as Script
 import ../files/disk.bend as Disk
+import ../checker/bend.bend as BendChecker
 
 def inbox() -> List<&2, String>:
   ["{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"file://src/lsp/fixtures/mistyped.bend\"}}}",
@@ -17,7 +18,7 @@ def inbox() -> List<&2, String>:
    "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"file://src/lsp/fixtures/unproven/LAWS.bend\"}}}"]
 
 def main() -> IO(Unit):
-  Server.serve(~Script.Script, ~Script.new(), ~Disk.new(), 100n, Script.Script{inbox()}, [])
+  Server.serve(~Script.Script, ~Script.new(), ~Disk.new(), ~BendChecker.service(), 100n, Script.Script{inbox()}, [])
 
 #|{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://src/lsp/fixtures/mistyped.bend","diagnostics":[{"range":{"start":{"line":4,"character":0},"end":{"line":5,"character":0}},"severity":1,"source":"bend","message":"expected : String\nobserved : U32\nContext:\nxx : U32"}]}}
 #|{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://src/lsp/fixtures/effectful.bend","diagnostics":[]}}

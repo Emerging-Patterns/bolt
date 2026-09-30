@@ -18,10 +18,14 @@ import ./version.bend as Ver
 import ./build_rev.bend as Rev
 import ./check.bend as Check
 import ./lsp/checker/answer.bend as Checker
-import ./lsp/checker/bend.bend as BendChecker
 import ./lsp/report.bend as Rep
 import 0x085b03c84ca37125e38dddede7b91e55/main.bend as Shake
 import ./LAWS.bend as Laws
+
+# String.eq's last step (bend 2.0.33 dropped Base's String.eq.fin): whether a
+# comparison's result is EQ. String.eq(a, b) unfolds to eq_fin(String.cmp(a, b))
+def eq_fin(rr: (String & String) & Cmp) -> Bool:
+  Cmp.is_eq(Pair.snd(String & String, Cmp, rr))
 
 def Laws.set_level_none(_name):
   {==}
@@ -1146,7 +1150,7 @@ law cfg4.rec:
   for -h1: Char
   for -h2: Char
   for rr: (String & String) & Cmp
-  {String.eq.fin(String.cmp.rec(h1, h2, rr)) == String.eq.fin(rr) : Bool}
+  {eq_fin(String.cmp.rec(h1, h2, rr)) == eq_fin(rr) : Bool}
 
 def cfg4.rec(_h1, _h2, rr):
   ((_a, _b), _c) = rr
@@ -1162,7 +1166,7 @@ law cfg4.seq.arm:
   for c: Cmp
   for ec: {U32.cmp(x, y) == c : Cmp}
   for ih: {String.eq(t1, t2) == True{} : Bool} -> {t1 == t2 : String}
-  for e: {String.eq.fin(String.cmp.fin(t1, t2, ((Chr{x}, Chr{y}), c))) == True{} : Bool}
+  for e: {eq_fin(String.cmp.fin(t1, t2, ((Chr{x}, Chr{y}), c))) == True{} : Bool}
   {SCon{Chr{x}, t1} == SCon{Chr{y}, t2} : String}
 
 def cfg4.seq.arm(x, y, t1, t2, c, ec, ih, e):
@@ -1173,8 +1177,8 @@ def cfg4.seq.arm(x, y, t1, t2, c, ec, ih, e):
       Empty.absurd({SCon{Chr{x}, t1} == SCon{Chr{y}, t2} : String}, cfg4.false_true(e))
     case EQ{}:
       r = cfg4.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))
-      et = ih(Equal.trans(Bool, String.eq(t1, t2), String.eq.fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
-        True{}, Equal.sym(Bool, String.eq.fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
+      et = ih(Equal.trans(Bool, String.eq(t1, t2), eq_fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
+        True{}, Equal.sym(Bool, eq_fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
           String.eq(t1, t2), r), e))
       ex = cfg4.ueq(x, y, Equal.cong(Cmp, Bool, z => Cmp.is_eq(z), U32.cmp(x, y), EQ{}, ec))
       %ex : {SCon{Chr{x}, t1} == SCon{Chr{_}, t2} : String}
@@ -1401,6 +1405,9 @@ def Laws.cli_help(ps, ee, hp, hh):
 def Laws.cli_version(fs, _h, mm, hp, hv):
   Laws.cli_version_exits("--version" <> fs, mm, hp, hv)
 
+def Laws.cli_args_program(_prog, _ws):
+  {==}
+
 def Laws.version_release(rel, rev, h):
   e = Equal.sym(Bool, String.is_empty(rev), True{}, h)
   %e : {Bool.pick(String, _, rel, rel ++ " (" ++ rev ++ ")") == rel : String}
@@ -1579,12 +1586,12 @@ def Laws.check_exec_unrun(_names, _text):
   {==}
 
 def Laws.check_exec_died(names, text, h):
-  %Equal.sym(List<&2, Rep.Diag>, Rep.parse_in(names, text), [], h) : {BendChecker.died(_)
+  %Equal.sym(List<&2, Rep.Diag>, Rep.parse_in(names, text), [], h) : {Checker.died(_)
     == Checker.Unrun{} : Checker.Answer}
   {==}
 
 def Laws.check_exec_died_reported(names, text, dd, ds, h):
-  %Equal.sym(List<&2, Rep.Diag>, Rep.parse_in(names, text), dd <> ds, h) : {BendChecker.died(_)
+  %Equal.sym(List<&2, Rep.Diag>, Rep.parse_in(names, text), dd <> ds, h) : {Checker.died(_)
     == Checker.Checked{dd <> ds} : Checker.Answer}
   {==}
 
@@ -1595,15 +1602,15 @@ law chk.untagged:
   for -names: Maybe<&2, List<&2, String>>
   for text: String
   for h: {Bool.or(ran, killed) == False{} : Bool}
-  {BendChecker.answer.tag(ran, killed, names, text) == Checker.Unrun{} : Checker.Answer}
+  {Checker.answer.tag(ran, killed, names, text) == Checker.Unrun{} : Checker.Answer}
 
 def chk.untagged(ran, killed, names, text, h):
   match ran killed:
     case True{} _k:
-      Empty.absurd({BendChecker.answer.tag(True{}, _k, names, text) == Checker.Unrun{} : Checker.Answer},
+      Empty.absurd({Checker.answer.tag(True{}, _k, names, text) == Checker.Unrun{} : Checker.Answer},
         cli.true_false(h))
     case False{} True{}:
-      Empty.absurd({BendChecker.answer.tag(False{}, True{}, names, text) == Checker.Unrun{} : Checker.Answer},
+      Empty.absurd({Checker.answer.tag(False{}, True{}, names, text) == Checker.Unrun{} : Checker.Answer},
         cli.true_false(h))
     case False{} False{}:
       {==}

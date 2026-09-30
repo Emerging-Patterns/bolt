@@ -43,6 +43,11 @@ import ./imports.bend as Imports
 import ./digest.bend as Digest
 import ./LAWS.bend as Laws
 
+# String.eq's last step (bend 2.0.33 dropped Base's String.eq.fin): whether a
+# comparison's result is EQ. String.eq(a, b) unfolds to eq_fin(String.cmp(a, b))
+def eq_fin(rr: (String & String) & Cmp) -> Bool:
+  Cmp.is_eq(Pair.snd(String & String, Cmp, rr))
+
 # a finding in front when b holds adds one to the count
 law nat.pick:
   for b: Bool
@@ -15842,7 +15847,7 @@ law unsafe.rec:
   for -h1: Char
   for -h2: Char
   for rr: (String & String) & Cmp
-  {String.eq.fin(String.cmp.rec(h1, h2, rr)) == String.eq.fin(rr) : Bool}
+  {eq_fin(String.cmp.rec(h1, h2, rr)) == eq_fin(rr) : Bool}
 
 def unsafe.rec(_h1, _h2, rr):
   ((_a, _b), _c) = rr
@@ -15858,7 +15863,7 @@ law unsafe.seq.arm:
   for c: Cmp
   for ec: {U32.cmp(x, y) == c : Cmp}
   for ih: {String.eq(t1, t2) == True{} : Bool} -> {t1 == t2 : String}
-  for e: {String.eq.fin(String.cmp.fin(t1, t2, ((Chr{x}, Chr{y}), c))) == True{} : Bool}
+  for e: {eq_fin(String.cmp.fin(t1, t2, ((Chr{x}, Chr{y}), c))) == True{} : Bool}
   {SCon{Chr{x}, t1} == SCon{Chr{y}, t2} : String}
 
 def unsafe.seq.arm(x, y, t1, t2, c, ec, ih, e):
@@ -15869,8 +15874,8 @@ def unsafe.seq.arm(x, y, t1, t2, c, ec, ih, e):
       Empty.absurd({SCon{Chr{x}, t1} == SCon{Chr{y}, t2} : String}, unsafe.false_true(e))
     case EQ{}:
       r = unsafe.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))
-      et = ih(Equal.trans(Bool, String.eq(t1, t2), String.eq.fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
-        True{}, Equal.sym(Bool, String.eq.fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
+      et = ih(Equal.trans(Bool, String.eq(t1, t2), eq_fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
+        True{}, Equal.sym(Bool, eq_fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
           String.eq(t1, t2), r), e))
       ex = unsafe.ueq(x, y, Equal.cong(Cmp, Bool, z => Cmp.is_eq(z), U32.cmp(x, y), EQ{}, ec))
       %ex : {SCon{Chr{x}, t1} == SCon{Chr{_}, t2} : String}
@@ -15927,9 +15932,9 @@ def unsafe.srefl(s):
       {==}
     case SCon{Chr{U32{+w}}, +t}:
       %Equal.sym(Cmp, Word.cmp(32n, w, w), EQ{}, unsafe.wrefl(32n, w)) :
-        {String.eq.fin(String.cmp.fin(t, t, ((Chr{U32{w}}, Chr{U32{w}}), _))) == True{} : Bool}
-      %Equal.sym(Bool, String.eq.fin(String.cmp.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t))),
-          String.eq.fin(String.cmp(t, t)), unsafe.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t))) :
+        {eq_fin(String.cmp.fin(t, t, ((Chr{U32{w}}, Chr{U32{w}}), _))) == True{} : Bool}
+      %Equal.sym(Bool, eq_fin(String.cmp.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t))),
+          eq_fin(String.cmp(t, t)), unsafe.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t))) :
         {_ == True{} : Bool}
       unsafe.srefl(t)
 
@@ -17863,14 +17868,14 @@ law inert.fin_false:
   for -h1: Char
   for -h2: Char
   for ec: {Cmp.is_eq(c) == False{} : Bool}
-  {String.eq.fin(String.cmp.fin(r, ys, ((h1, h2), c))) == False{} : Bool}
+  {eq_fin(String.cmp.fin(r, ys, ((h1, h2), c))) == False{} : Bool}
 
 def inert.fin_false(c, r, ys, h1, h2, ec):
   match c:
     case LT{}: {==}
     case GT{}: {==}
     case EQ{}:
-      Empty.absurd({String.eq.fin(String.cmp.fin(r, ys, ((h1, h2), EQ{}))) == False{} : Bool},
+      Empty.absurd({eq_fin(String.cmp.fin(r, ys, ((h1, h2), EQ{}))) == False{} : Bool},
         inert.false_true(Equal.sym(Bool, True{}, False{}, ec)))
 
 # a text with a marked first char is never equal to one with an unmarked one

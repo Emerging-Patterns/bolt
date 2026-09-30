@@ -1,6 +1,7 @@
-# lsp/server: the loop. The transport the messages ride on and the files
-# behind imports and Base are passed in (transport/, files/); the checker
-# behind the diagnostics is checker/bend.bend, called directly. The open documents are the
+# lsp/server: the loop. The transport the messages ride on, the files
+# behind imports and Base, and the checker behind the diagnostics are passed
+# in (transport/, files/, checker/answer.bend's Checker; checker/bend.bend's
+# service is the real checker). The open documents are the
 # loop's state. The checker runs on open and save, against the file on disk;
 # the linter on every open, change and save, on the text the editor shows.
 import Base
@@ -17,7 +18,6 @@ import ../lint/plan.bend as Plan
 import ../noqa.bend as Noqa
 import ./transport/service.bend as T
 import ./checker/answer.bend as C
-import ./checker/bend.bend as BendChecker
 import ./files/service.bend as F
 import ./report.bend as Rep
 import ./enc.bend as Enc
@@ -292,20 +292,21 @@ def pub.configs(~fs: F.Files, +uri: String) -> IO(List<&2, Maybe<&2, String>>):
 # open, on the checker's run on the file on disk
 def pub.opened(
   ~fs: F.Files,
+  ~ck: C.Checker,
   ee: Enc.Enc,
   +uri: String,
   text: String,
   docs: List<&2, Docs.Doc>
 ) -> IO(Work):
   do IO<Work>:
-    aa : C.Answer <- BendChecker.check(Proto.path(uri))
+    aa : C.Answer <- C.check(ck, Proto.path(uri))
     rs : List<&2, Maybe<&2, String>> <- pub.configs(~fs, uri)
     return pub.open(ee, uri, text, C.errors(aa), rs, docs)
 
 # save, on the checker's run on the file on disk
-def pub.saved(~fs: F.Files, ee: Enc.Enc, +uri: String, docs: List<&2, Docs.Doc>) -> IO(Work):
+def pub.saved(~fs: F.Files, ~ck: C.Checker, ee: Enc.Enc, +uri: String, docs: List<&2, Docs.Doc>) -> IO(Work):
   do IO<Work>:
-    aa : C.Answer <- BendChecker.check(Proto.path(uri))
+    aa : C.Answer <- C.check(ck, Proto.path(uri))
     rs : List<&2, Maybe<&2, String>> <- pub.configs(~fs, uri)
     return pub.save(ee, uri, C.errors(aa), rs, docs)
 
@@ -458,6 +459,7 @@ def symbols(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String) 
 # give it. It does not see the message's id: step alone puts that on a reply
 def work(  # noqa: L001 LSP IO glue
   ~fs: F.Files,
+  ~ck: C.Checker,
   ee: Enc.Enc,
   mm: Method,
   +params: J.Json,
@@ -471,13 +473,13 @@ def work(  # noqa: L001 LSP IO glue
     case MExit{}:
       IO.pure(Work, noted([], docs))
     case MOpen{}:
-      pub.opened(~fs, ee, uri_of(params),
+      pub.opened(~fs, ~ck, ee, uri_of(params),
         Maybe.default(&2, String, Ezjson.as_str(Ezjson.get(Ezjson.get(params, "textDocument"), "text")), ""), docs)
     case MChange{}:
       pub.changed(~fs, ee, uri_of(params),
         Maybe.default(&2, String, Ezjson.as_str(Ezjson.get(Ezjson.at(Ezjson.get(params, "contentChanges"), 0), "text")), ""), docs)
     case MSave{}:
-      pub.saved(~fs, ee, uri_of(params), docs)
+      pub.saved(~fs, ~ck, ee, uri_of(params), docs)
     case MClose{}:
       IO.pure(Work, pub.close(ee, uri_of(params), docs))
     case MHover{}:
@@ -507,10 +509,16 @@ def encoding(mm: Method, params: J.Json, ee: Enc.Enc) -> Enc.Enc:
       ee
 
 # one message: its method's work, then step's decision on it
-def handle(~fs: F.Files, ee: Enc.Enc, +msg: J.Json, docs: List<&2, Docs.Doc>) -> IO(Out):  # noqa: L001 LSP IO glue
+def handle(  # noqa: L001 LSP IO glue
+  ~fs: F.Files,
+  ~ck: C.Checker,
+  ee: Enc.Enc,
+  +msg: J.Json,
+  docs: List<&2, Docs.Doc>
+) -> IO(Out):
   +mm = method(name_of(msg))
   do IO<Out>:
-    w : Work <- work(~fs, ee, mm, Ezjson.get(msg, "params"), docs)
+    w : Work <- work(~fs, ~ck, ee, mm, Ezjson.get(msg, "params"), docs)
     return step(mm, id_of(msg), w)
 
 # a parsed message, or null when it did not parse
@@ -561,6 +569,7 @@ def turn.msg(
   ~H: Type,
   ~tr: T.Transport<H>,
   ~fs: F.Files,
+  ~ck: C.Checker,
   +msg: J.Json,
   h3: H,
   ee: Enc.Enc,
@@ -569,7 +578,7 @@ def turn.msg(
 ) -> IO(Unit):
   +e2 = encoding(method(name_of(msg)), Ezjson.get(msg, "params"), ee)
   do IO<Unit>:
-    out : Out <- handle(~fs, e2, msg, docs)
+    out : Out <- handle(~fs, ~ck, e2, msg, docs)
     answer(~H, ~tr, out, h3, e2, rest)
 
 # one message body handled and answered; none means the peer is gone
@@ -577,6 +586,7 @@ def turn(  # noqa: L001 serve loop IO
   ~H: Type,
   ~tr: T.Transport<H>,
   ~fs: F.Files,
+  ~ck: C.Checker,
   mm: Maybe<&2, String>,
   h3: H,
   ee: Enc.Enc,
@@ -587,25 +597,27 @@ def turn(  # noqa: L001 serve loop IO
     case None{}:
       IO.pure(Unit, Unit{})
     case Some{body}:
-      turn.msg(~H, ~tr, ~fs, decoded(Ezjson.parse(body)), h3, ee, docs, rest)
+      turn.msg(~H, ~tr, ~fs, ~ck, decoded(Ezjson.parse(body)), h3, ee, docs, rest)
 
 # what recv gave: the handle and maybe a body
 def got(  # noqa: L001 serve loop IO
   ~H: Type,
   ~tr: T.Transport<H>,
   ~fs: F.Files,
+  ~ck: C.Checker,
   rr: H & Maybe<&2, String>,
   ee: Enc.Enc,
   docs: List<&2, Docs.Doc>,
   rest: H -> Enc.Enc -> List<&2, Docs.Doc> -> IO(Unit)
 ) -> IO(Unit):
   (h, m) = rr
-  turn(~H, ~tr, ~fs, m, h, ee, docs, rest)
+  turn(~H, ~tr, ~fs, ~ck, m, h, ee, docs, rest)
 
 def serve.go(
   ~H: Type,
   ~tr: T.Transport<H>,
   ~fs: F.Files,
+  ~ck: C.Checker,
   fuel: Nat,
   h3: H,
   ee: Enc.Enc,
@@ -617,7 +629,7 @@ def serve.go(
     case 1n+f:
       do IO<Unit>:
         r : H & Maybe<&2, String> <- T.recv(H, tr, h3)
-        got(~H, ~tr, ~fs, r, ee, docs, hh => e2 => dd => serve.go(~H, ~tr, ~fs, f, hh, e2, dd))
+        got(~H, ~tr, ~fs, ~ck, r, ee, docs, hh => e2 => dd => serve.go(~H, ~tr, ~fs, ~ck, f, hh, e2, dd))
 
 # serves until exit, the peer's end, or the fuel's (a message each), in
 # UTF-16 until initialize negotiates
@@ -625,8 +637,9 @@ def serve(  # noqa: L001 serve loop IO
   ~H: Type,
   ~tr: T.Transport<H>,
   ~fs: F.Files,
+  ~ck: C.Checker,
   fuel: Nat,
   h3: H,
   docs: List<&2, Docs.Doc>
 ) -> IO(Unit):
-  serve.go(~H, ~tr, ~fs, fuel, h3, Enc.Utf16{}, docs)
+  serve.go(~H, ~tr, ~fs, ~ck, fuel, h3, Enc.Utf16{}, docs)

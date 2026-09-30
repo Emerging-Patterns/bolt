@@ -22,7 +22,6 @@ import ./version.bend as Ver
 import ./build_rev.bend as Rev
 import ./check.bend as Check
 import ./lsp/checker/answer.bend as Checker
-import ./lsp/checker/bend.bend as BendChecker
 import ./lsp/report.bend as Rep
 import 0x085b03c84ca37125e38dddede7b91e55/main.bend as Shake
 
@@ -1192,6 +1191,16 @@ law version_commit:
   for h: {String.is_empty(rev) == False{} : Bool}
   {Args.version.at(rel, rev) == rel ++ " (" ++ rev ++ ")" : String}
 
+# The line bolt parses (BOLT-CLI-3). IO.args gives the program as invoked
+# first (bend 2.0.32), and bolt reads the words after it.
+
+# LAW: bolt's arguments are the words after the program IO.args names first
+# BOLT-CLI-3
+law cli_args_program:
+  for prog: String
+  for ws: List<&1, String>
+  {Args.args_of(prog <> ws) == Args.widen(ws) : List<&2, String>}
+
 # The checker (BOLT-CHK). `bolt check` runs bend on each file (BOLT-TRUST-5
 # for what bend prints, src/lsp/report.bend for how it is read), and
 # Check.out decides, from the diagnostics each file got, every line the
@@ -1199,7 +1208,7 @@ law version_commit:
 # The laws below quantify over every list of files and every diagnostics
 # each could get, and over a file bend could not be run on: exec tags its
 # text (checker/bend.bend's bendcheck.exec; that the tag is honest is
-# BOLT-TRUST-9), BendChecker.answer reads the tag, and a file with no check
+# BOLT-TRUST-9), Checker.answer reads the tag, and a file with no check
 # is an error line of its own. "On the line bend marks" is the section after
 # these (check_marked): that bend prints the shape it reads is BOLT-TRUST-5.
 
@@ -1313,7 +1322,7 @@ law check_run_unrun:
 law check_exec_ran:
   for +names: Maybe<&2, List<&2, String>>
   for text: String
-  {BendChecker.answer(names, "r" ++ text) == Checker.Checked{Rep.parse_in(names, text)} : Checker.Answer}
+  {Checker.answer(names, "r" ++ text) == Checker.Checked{Rep.parse_in(names, text)} : Checker.Answer}
 
 # LAW: when bend could not be run (no pipe, no fork, or exit 127), the answer
 # is Unrun, whatever was printed
@@ -1321,7 +1330,7 @@ law check_exec_ran:
 law check_exec_unrun:
   for -names: Maybe<&2, List<&2, String>>
   for text: String
-  {BendChecker.answer(names, "x" ++ text) == Checker.Unrun{} : Checker.Answer}
+  {Checker.answer(names, "x" ++ text) == Checker.Unrun{} : Checker.Answer}
 
 # LAW: when a signal killed bend before it reported an error, the answer is
 # Unrun, not clean
@@ -1330,7 +1339,7 @@ law check_exec_died:
   for +names: Maybe<&2, List<&2, String>>
   for +text: String
   for h: {Rep.parse_in(names, text) == [] : List<&2, Rep.Diag>}
-  {BendChecker.answer(names, "s" ++ text) == Checker.Unrun{} : Checker.Answer}
+  {Checker.answer(names, "s" ++ text) == Checker.Unrun{} : Checker.Answer}
 
 # LAW: when a signal killed bend after it reported errors, the answer is
 # those errors
@@ -1341,7 +1350,7 @@ law check_exec_died_reported:
   for dd: Rep.Diag
   for ds: List<&2, Rep.Diag>
   for h: {Rep.parse_in(names, text) == dd <> ds : List<&2, Rep.Diag>}
-  {BendChecker.answer(names, "s" ++ text) == Checker.Checked{dd <> ds} : Checker.Answer}
+  {Checker.answer(names, "s" ++ text) == Checker.Checked{dd <> ds} : Checker.Answer}
 
 # LAW: any other text from exec, the empty text included, is Unrun: text
 # with no tag is never read as a clean check
@@ -1351,14 +1360,14 @@ law check_exec_untagged:
   for +cc: Char
   for text: String
   for h: {Bool.or(Char.is_eq(cc, 'r'), Char.is_eq(cc, 's')) == False{} : Bool}
-  {BendChecker.answer(names, SCon{cc, text}) == Checker.Unrun{} : Checker.Answer}
+  {Checker.answer(names, SCon{cc, text}) == Checker.Unrun{} : Checker.Answer}
 
 # LAW: a LAWS.bend whose PROOF.bend bend could not be run on is not settled
 # clean: its answer is Unrun
 # BOLT-CHK-1
 law check_proof_unrun:
   for ds: List<&2, Rep.Diag>
-  {BendChecker.proved(Checker.Unrun{}, ds) == Checker.Unrun{} : Checker.Answer}
+  {Checker.proved(Checker.Unrun{}, ds) == Checker.Unrun{} : Checker.Answer}
 
 # The line bend marks (BOLT-CHK-1). bend prints an error in one shape
 # (BOLT-TRUST-5; err_show in bend 2.0.25): `Error:`, the message lines

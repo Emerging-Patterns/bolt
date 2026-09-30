@@ -1,5 +1,5 @@
-# nix flake check: the bolt package, checks.test (mkProofs, ez test --unit-only)
-# and checks.lint (mkLint: bolt on this tree).
+# nix flake check: the bolt package, checks.proofs (every PROOF.bend on the
+# flake's bend prints ALL PROOFS CHECK) and checks.lint (mkLint: bolt on this tree).
 
 name: ci
 

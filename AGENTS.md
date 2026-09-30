@@ -133,7 +133,7 @@ Design specs and plans are not kept in this repo; they live under
   caller can still recurse on them (see src/syntax/PROOF.bend, ol.weq.arm).
 - `match` takes parameters and pattern-bound variables only, in binder order;
   to branch on a computed value, pass it to a helper (see `answer.tag` in
-  src/lsp/checker/bend.bend).
+  src/lsp/checker/answer.bend).
 - No mutual recursion, and a def must be defined above its use. A loop that
   branches on a computed value either folds the branch into a non-recursive
   helper that returns the next state (json/lex.bend), or hands the helper a
@@ -181,12 +181,23 @@ Design specs and plans are not kept in this repo; they live under
 - A *compiled* Bend binary passes its whole command line to `IO.args()`,
   flags included (2.0.16; 2.0.5 did not, which is where "a Bend binary takes
   no arguments" came from). The runtime keeps only its own — `--threads`,
-  `--gpu`, `--gpu-build`, `--help` — and strips them wherever they stand, so
-  `bolt lsp --gpu off` reaches `IO.args()` as `[lsp]` (`bolt lsp` with no
-  `--gpu` is that same launch); `--` hands even those
-  to the program. `IO.args()` has no argv[0], so a binary cannot find itself
-  by it. The *interpreted* lane differs: `bend f.bend a b` passes positional
-  arguments but bend's own CLI rejects flags it does not know.
+  `--gpu`, `--gpu-build`, `--bend-help` — and strips them wherever they
+  stand, so `bolt lsp --gpu off` reaches the program as `lsp` (`bolt lsp`
+  with no `--gpu` is that same launch); the first `--` hands even those to
+  the program, and is itself stripped. `--help` reaches the program (2.0.29).
+  `IO.args()` starts with
+  the program as invoked, as C's argv does (2.0.32): `./bin/bolt.bin a b`
+  gives `[./bin/bolt.bin, a, b]`, and src/args.bend's `args_of` drops the
+  head. The *interpreted* lane gives `[f.bend, a, b]` for `bend f.bend a b`,
+  but bend's own CLI rejects a flag it does not know unless it follows `--`.
+- A proof prints `ALL PROOFS CHECK` only if no def it loads, imports
+  included, is `@unsafe` or reaches user foreign code (2.0.32): every def of
+  every imported module counts, named by a law or not. So no PROOF.bend
+  imports a module holding a foreign effect: an effect is passed in as a
+  service record (`Files`, `Transport`, the checker's `Checker`), and the
+  foreign implementation is imported only by the entry (main.bend,
+  src/lsp/run.bend). `bend main.bend --check-only` prints SOME PROOFS FAIL,
+  as any entry that reaches foreign effects does.
 - A pair `A & B` is never `Data`: a list of pairs is `List<&1, A & B>`.
 - `x.of` and `x_of` mangle to the same C name ("two names mangle to
   FID_.."): never both in one module.

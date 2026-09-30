@@ -28,6 +28,11 @@ import ../syntax/bind.bend as Bind
 import ../syntax/outline.bend as Outline
 import ../syntax/word.bend as Word
 
+# String.eq's last step (bend 2.0.33 dropped Base's String.eq.fin): whether a
+# comparison's result is EQ. String.eq(a, b) unfolds to eq_fin(String.cmp(a, b))
+def eq_fin(rr: (String & String) & Cmp) -> Bool:
+  Cmp.is_eq(Pair.snd(String & String, Cmp, rr))
+
 # small facts
 # -----------
 
@@ -1447,7 +1452,7 @@ law pub.rec:
   for -h1: Char
   for -h2: Char
   for rr: (String & String) & Cmp
-  {String.eq.fin(String.cmp.rec(h1, h2, rr)) == String.eq.fin(rr) : Bool}
+  {eq_fin(String.cmp.rec(h1, h2, rr)) == eq_fin(rr) : Bool}
 
 def pub.rec(_h1, _h2, rr):
   ((_a, _b), _c) = rr
@@ -1464,8 +1469,8 @@ def pub.seq_refl(s):
       {==}
     case SCon{Chr{U32{+w}}, +t}:
       e = Equal.sym(Cmp, Word.cmp(32n, w, w), EQ{}, pub.weq_refl(32n, w))
-      %e : {String.eq.fin(String.cmp.fin(t, t, ((Chr{U32{w}}, Chr{U32{w}}), _))) == True{} : Bool}
-      Equal.trans(Bool, String.eq.fin(String.cmp.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t))),
+      %e : {eq_fin(String.cmp.fin(t, t, ((Chr{U32{w}}, Chr{U32{w}}), _))) == True{} : Bool}
+      Equal.trans(Bool, eq_fin(String.cmp.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t))),
         String.eq(t, t), True{}, pub.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t)), pub.seq_refl(t))
 
 # the document just put at the head of the list is the one a lookup of its

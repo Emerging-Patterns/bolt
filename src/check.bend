@@ -9,7 +9,6 @@ import Base
 import ./status.bend as Status
 import ./lsp/report.bend as Rep
 import ./lsp/checker/answer.bend as Checker
-import ./lsp/checker/bend.bend as BendChecker
 
 # a message's lines after the first, indented
 def rest_lines(ls: List<&2, String>) -> String:
@@ -94,14 +93,14 @@ def run_of(path: String, aa: Checker.Answer) -> Run:
       Failed{path}
 
 # every file checked, in order: what bend reported for each
-def check_all(paths: List<&2, String>) -> IO(List<&2, Run>):  # noqa: L001 IO driver
+def check_all(~ck: Checker.Checker, paths: List<&2, String>) -> IO(List<&2, Run>):  # noqa: L001 IO driver
   match paths:
     case Nil{}:
       IO.pure(List<&2, Run>, [])
     case Con{+path, rest}:
       do IO<List<&2, Run>>:
-        aa : Checker.Answer <- BendChecker.check(path)
-        more : List<&2, Run> <- check_all(rest)
+        aa : Checker.Answer <- Checker.check(ck, path)
+        more : List<&2, Run> <- check_all(~ck, rest)
         return run_of(path, aa) <> more
 
 # what out decided, done (BOLT-TRUST-9): its lines printed, then its code
@@ -112,7 +111,8 @@ def perform(oo: Out) -> IO(Unit):  # noqa: L001 IO driver
     Status.stop(U32.is_gt(code, 0))
 
 # the checker over the files given, exiting 1 when any of them had an error
-def run(paths: List<&2, String>) -> IO(Unit):  # noqa: L001 IO driver
+# (main passes checker/bend.bend's service)
+def run(~ck: Checker.Checker, paths: List<&2, String>) -> IO(Unit):  # noqa: L001 IO driver
   do IO<Unit>:
-    runs : List<&2, Run> <- check_all(paths)
+    runs : List<&2, Run> <- check_all(~ck, paths)
     perform(out(runs))
