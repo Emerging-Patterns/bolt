@@ -51,7 +51,7 @@ unset group has its default. The groups:
 | group         | rules                                                                            | default |
 |---------------|----------------------------------------------------------------------------------|---------|
 | `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign`          | error   |
-| `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` | warn    |
+| `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` (`argv`: opt-in) | warn    |
 | `style`       | `doc` `space` `wrap` `param` `noqa`                                              | warn    |
 | `laws`        | `coverage` `closed` `unsafe` (`trace`: opt-in)                                   | warn    |
 | `pedantic`    | `tail`                                                                           | off     |
@@ -72,6 +72,7 @@ The stable codes, assigned once (do not renumber):
 | C010 | `foreign` | U010 | `ring` | L005 | `trace` |
 | | | U011 | `rewalk` | P001 | `tail` |
 | | | U012 | `unit` | | |
+| | | U014 | `argv` | | |
 
 Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic.
 
@@ -79,8 +80,9 @@ Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic.
 asks for it. L004 was `quantify`, the opt-in strict mode of `closed`;
 `closed` is strict itself now, and L004 is never reused. `trace` is opt-in:
 it is in `laws`, but no group setting reaches it; only `def trace()` in a
-bolt.bend turns it on. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
-read, never linted. Without one, the defaults apply. This repo's
+bolt.bend turns it on. `argv` is opt-in the same way, in `suspicious`, and
+only `def argv()` turns it on. An unknown level word grades as an error, so
+a typo shows. A `bolt.bend` is read, never linted. Without one, the defaults apply. This repo's
 [bolt.bend](../bolt.bend) sets every group to error: the gate must see
 `clean`.
 
@@ -273,6 +275,13 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   arm that does not call the def. Only a `case` arm can be a base case, so a
   `Bool.pick` branch beside a self-call is still the step, and so is a lambda
   body inside it. One finding per operation: `Nat.mul(1n, 1n)` is one.
+- `argv` (opt-in) — a call `IO.args(`: an `IO.args` token with a `(` right
+  after it. Since bend 2.0.32 `IO.args()` starts with the program as
+  invoked, as C's argv does, so a program that parses it as it comes takes
+  its own path for its first argument. Read the arguments through shake's
+  `Shake.argv()`, or drop the first word before parsing. The rule cannot
+  tell the reader that drops it from one that does not: give that one
+  reader `# noqa: U014`. No path is exempt.
 - `put` — `Map.put`. It is Base's internal helper: at a leaf it keeps the old
   key and replaces the value without comparing, so a new key silently
   overwrites another entry. `Map.set` compares. A file that defines

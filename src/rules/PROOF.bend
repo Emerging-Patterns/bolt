@@ -28,6 +28,7 @@ import ./suspicious/index.bend as Index
 import ./suspicious/ring.bend as Ring
 import ./suspicious/table.bend as Table
 import ./suspicious/unit.bend as UnitRule
+import ./suspicious/argv.bend as Argv
 import ./correctness/chars.bend as Chars
 import ./correctness/strings.bend as Strings
 import ./correctness/foreign.bend as Foreign
@@ -683,6 +684,217 @@ def Laws.put_counts(toks, path):
     put.stop(Put.defines(toks), Put.calls(toks, path), Laws.put_count(toks), put.calls(toks, path)),
     Equal.cong(Bool, Nat, z => Bool.pick(Nat, z, 0n, Laws.put_count(toks)),
       Put.defines(toks), Laws.put_defined(toks), put.defines(toks)))
+
+# argv
+# ----
+
+# a lone token: no call follows it
+law argv.one:
+  for kk: Lex.TokKind
+  for t: String
+  for l: U32
+  for c: U32
+  for +path: String
+  {List.length(&2, F.Finding, Argv.calls(Lex.Tok{kk, t, l, c} <> [], path))
+    == Laws.argv_count(Lex.Tok{kk, t, l, c} <> []) : Nat}
+
+def argv.one(kk, _t, _l, _c, _path):
+  match kk:
+    case Lex.TName{}:
+      {==}
+    case Lex.TUpper{}:
+      {==}
+    case Lex.TDotted{}:
+      {==}
+    case Lex.TWild{}:
+      {==}
+    case Lex.TKey{}:
+      {==}
+    case Lex.TNum{}:
+      {==}
+    case Lex.TStr{}:
+      {==}
+    case Lex.TChar{}:
+      {==}
+    case Lex.TComment{}:
+      {==}
+    case Lex.TSpace{}:
+      {==}
+    case Lex.TNewline{}:
+      {==}
+    case Lex.TOp{}:
+      {==}
+    case Lex.TColon{}:
+      {==}
+    case Lex.TEq{}:
+      {==}
+    case Lex.TBind{}:
+      {==}
+    case Lex.TArrow{}:
+      {==}
+    case Lex.TLam{}:
+      {==}
+    case Lex.TAll{}:
+      {==}
+    case Lex.TAmp{}:
+      {==}
+    case Lex.TOpen{}:
+      {==}
+    case Lex.TClose{}:
+      {==}
+    case Lex.TComma{}:
+      {==}
+
+# an `IO.args` token, then any token, onto a list the law holds for
+law argv.dot:
+  for kk: Lex.TokKind
+  for +t: String
+  for +o: String
+  for +l: U32
+  for +c: U32
+  for l2: U32
+  for c2: U32
+  for +r: List<&2, Lex.Tok>
+  for +path: String
+  for ih1: {List.length(&2, F.Finding, Argv.calls(Lex.Tok{kk, o, l2, c2} <> r, path))
+    == Laws.argv_count(Lex.Tok{kk, o, l2, c2} <> r) : Nat}
+  for ih2: {List.length(&2, F.Finding, Argv.calls(r, path)) == Laws.argv_count(r) : Nat}
+  {List.length(&2, F.Finding, Argv.calls(Lex.Tok{Lex.TDotted{}, t, l, c} <> Lex.Tok{kk, o, l2, c2} <> r, path))
+    == Laws.argv_count(Lex.Tok{Lex.TDotted{}, t, l, c} <> Lex.Tok{kk, o, l2, c2} <> r) : Nat}
+
+def argv.dot(kk, t, o, l, c, _l2, _c2, r, path, ih1, ih2):
+  match kk:
+    case Lex.TName{}:
+      ih1
+    case Lex.TUpper{}:
+      ih1
+    case Lex.TDotted{}:
+      ih1
+    case Lex.TWild{}:
+      ih1
+    case Lex.TKey{}:
+      ih1
+    case Lex.TNum{}:
+      ih1
+    case Lex.TStr{}:
+      ih1
+    case Lex.TChar{}:
+      ih1
+    case Lex.TComment{}:
+      ih1
+    case Lex.TSpace{}:
+      ih1
+    case Lex.TNewline{}:
+      ih1
+    case Lex.TOp{}:
+      ih1
+    case Lex.TColon{}:
+      ih1
+    case Lex.TEq{}:
+      ih1
+    case Lex.TBind{}:
+      ih1
+    case Lex.TArrow{}:
+      ih1
+    case Lex.TLam{}:
+      ih1
+    case Lex.TAll{}:
+      ih1
+    case Lex.TAmp{}:
+      ih1
+    case Lex.TOpen{}:
+      nat.pick(Bool.and(String.eq(t, "IO.args"), String.eq(o, "(")),
+        F.Finding{path, l, c, 7, "argv", "IO.args() starts with the program as invoked (bend 2.0.32); use Shake.argv(), or drop the first word before parsing."},
+        Argv.calls(r, path), Laws.argv_count(r), ih2)
+    case Lex.TClose{}:
+      ih1
+    case Lex.TComma{}:
+      ih1
+
+# two tokens onto a list the law holds for
+law argv.pair:
+  for kk: Lex.TokKind
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for k2: Lex.TokKind
+  for +o: String
+  for +l2: U32
+  for +c2: U32
+  for +r: List<&2, Lex.Tok>
+  for +path: String
+  for ih1: {List.length(&2, F.Finding, Argv.calls(Lex.Tok{k2, o, l2, c2} <> r, path))
+    == Laws.argv_count(Lex.Tok{k2, o, l2, c2} <> r) : Nat}
+  for ih2: {List.length(&2, F.Finding, Argv.calls(r, path)) == Laws.argv_count(r) : Nat}
+  {List.length(&2, F.Finding, Argv.calls(Lex.Tok{kk, t, l, c} <> Lex.Tok{k2, o, l2, c2} <> r, path))
+    == Laws.argv_count(Lex.Tok{kk, t, l, c} <> Lex.Tok{k2, o, l2, c2} <> r) : Nat}
+
+def argv.pair(kk, t, l, c, k2, o, l2, c2, r, path, ih1, ih2):
+  match kk:
+    case Lex.TName{}:
+      ih1
+    case Lex.TUpper{}:
+      ih1
+    case Lex.TDotted{}:
+      argv.dot(k2, t, o, l, c, l2, c2, r, path, ih1, ih2)
+    case Lex.TWild{}:
+      ih1
+    case Lex.TKey{}:
+      ih1
+    case Lex.TNum{}:
+      ih1
+    case Lex.TStr{}:
+      ih1
+    case Lex.TChar{}:
+      ih1
+    case Lex.TComment{}:
+      ih1
+    case Lex.TSpace{}:
+      ih1
+    case Lex.TNewline{}:
+      ih1
+    case Lex.TOp{}:
+      ih1
+    case Lex.TColon{}:
+      ih1
+    case Lex.TEq{}:
+      ih1
+    case Lex.TBind{}:
+      ih1
+    case Lex.TArrow{}:
+      ih1
+    case Lex.TLam{}:
+      ih1
+    case Lex.TAll{}:
+      ih1
+    case Lex.TAmp{}:
+      ih1
+    case Lex.TOpen{}:
+      ih1
+    case Lex.TClose{}:
+      ih1
+    case Lex.TComma{}:
+      ih1
+
+# argv's calls count the `IO.args(` sites
+law argv.calls:
+  for toks: List<&2, Lex.Tok>
+  for +path: String
+  {List.length(&2, F.Finding, Argv.calls(toks, path)) == Laws.argv_count(toks) : Nat}
+
+def argv.calls(toks, path):
+  match toks:
+    case Nil{}:
+      {==}
+    case Con{Lex.Tok{kk, t, l, c}, +rest}:
+      match rest:
+        case Nil{}:
+          argv.one(kk, t, l, c, path)
+        case Con{Lex.Tok{k2, o, l2, c2}, r}:
+          argv.pair(kk, t, l, c, k2, o, l2, c2, r, path, argv.calls(rest, path), argv.calls(r, path))
+
+def Laws.argv_counts(path, _text, toks, _tree, _bound, _items):
+  argv.calls(T.sig(toks), path)
 
 # one token onto a list the TODO test agrees on
 law hole.todo.step:
@@ -18441,6 +18653,89 @@ def inert.put.on(ts, path, e):
 def Laws.inert_put(path, _text, toks, _tree, _bound, _items, _text2, toks2, _tree2, _bound2, _items2, ok, ok2, e):
   inert.via(List<&2, Lex.Tok>, z => Put.check.on(T.sig(z), path), toks, toks2, Laws.inert.toks(toks),
     Laws.inert.toks(toks2), inert.put.on(toks, path, ok), inert.put.on(toks2, path, ok2), e)
+
+# argv
+# ----
+
+# a dotted name then an open bracket, their texts read that way: compared
+# with `IO.args` and `(` as they were
+law inert.argv.call:
+  for +b1: Bool
+  for +t: String
+  for +b2: Bool
+  for +o: String
+  for +l: U32
+  for +c: U32
+  for +path: String
+  for +more: List<&2, F.Finding>
+  for +e1: {Laws.inert.fits.go(b1, t) == True{} : Bool}
+  for +e2: {Laws.inert.fits.go(b2, o) == True{} : Bool}
+  {Argv.calls.one(Laws.inert.keep(b1, t), Laws.inert.keep(b2, o), l, c, path, more)
+    == Argv.calls.one(t, o, l, c, path, more)
+    : List<&2, F.Finding>}
+
+def inert.argv.call(b1, t, b2, o, l, c, path, more, e1, e2):
+  +x = {F.Finding{path, l, c, 7, "argv", "IO.args() starts with the program as invoked (bend 2.0.32); use Shake.argv(), or drop the first word before parsing."}
+    : F.Finding}
+  +lhs = Argv.calls.one(Laws.inert.keep(b1, t), Laws.inert.keep(b2, o), l, c, path, more)
+  %inert.eq_keep(b1, t, "IO.args", e1, {==}) : {lhs == Bool.pick(List<&2, F.Finding>, Bool.and(_, String.eq(o, "(")),
+    x <> more, more) : List<&2, F.Finding>}
+  %inert.eq_keep(b2, o, "(", e2, {==}) : {lhs == Bool.pick(List<&2, F.Finding>,
+    Bool.and(String.eq(Laws.inert.keep(b1, t), "IO.args"), _), x <> more, more) : List<&2, F.Finding>}
+  {==}
+
+# argv's walk reads no comment or string: it tests kinds, then compares texts
+# with `IO.args` and `(`
+law inert.argv.calls:
+  for ts: List<&2, Lex.Tok>
+  for +path: String
+  for +e: {Laws.inert.oks(ts) == True{} : Bool}
+  {Argv.calls(Laws.inert.toks(ts), path) == Argv.calls(ts, path) : List<&2, F.Finding>}
+
+def inert.argv.calls(ts, path, e):
+  match ts:
+    case Nil{}: {==}
+    case Con{Lex.Tok{+k, +t, +l, +c}, +rest}:
+      match rest:
+        case Nil{}: {==}
+        case Con{Lex.Tok{+k2, +o, +l2, +c2}, +r2}:
+          +h1 = {Lex.Tok{k, t, l, c} : Lex.Tok}
+          +h2 = {Lex.Tok{k2, o, l2, c2} : Lex.Tok}
+          +er = inert.and_r(Laws.inert.fits(h1), Laws.inert.oks(rest), e)
+          +e2 = inert.and_r(Laws.inert.fits(h2), Laws.inert.oks(r2), er)
+          +cr = Laws.inert.toks(rest)
+          +cond = Bool.and(Argv.calls.dotted(k), Lex.is_open(k2))
+          +tt = Laws.inert.keep(Laws.inert.blanks(k), t)
+          +oo = Laws.inert.keep(Laws.inert.blanks(k2), o)
+          +lhs = Lazy.either(List<&2, F.Finding>, cond, _u => Argv.calls.one(tt, oo, l, c, path,
+            Argv.calls(Laws.inert.toks(r2), path)), _v => Argv.calls(cr, path))
+          %inert.argv.calls(rest, path, er) : {lhs == Lazy.either(List<&2, F.Finding>, cond,
+            _u => Argv.calls.one(t, o, l, c, path, Argv.calls(r2, path)), _v => _) : List<&2, F.Finding>}
+          %inert.argv.calls(r2, path, e2) : {lhs == Lazy.either(List<&2, F.Finding>, cond,
+            _u => Argv.calls.one(t, o, l, c, path, _), _v => Argv.calls(cr, path)) : List<&2, F.Finding>}
+          %inert.argv.call(Laws.inert.blanks(k), t, Laws.inert.blanks(k2), o, l, c, path,
+            Argv.calls(Laws.inert.toks(r2), path), inert.and_l(Laws.inert.fits(h1), Laws.inert.oks(rest), e),
+            inert.and_l(Laws.inert.fits(h2), Laws.inert.oks(r2), er)) : {lhs == Lazy.either(List<&2, F.Finding>, cond,
+              _u => _, _v => Argv.calls(cr, path)) : List<&2, F.Finding>}
+          {==}
+
+# argv's check reads no comment or string
+law inert.argv.on:
+  for +ts: List<&2, Lex.Tok>
+  for +path: String
+  for +e: {Laws.inert.oks(ts) == True{} : Bool}
+  {Argv.calls(T.sig(Laws.inert.toks(ts)), path) == Argv.calls(T.sig(ts), path) : List<&2, F.Finding>}
+
+def inert.argv.on(ts, path, e):
+  +s = T.sig(ts)
+  +cs = Laws.inert.toks(s)
+  %Equal.sym(List<&2, Lex.Tok>, T.sig(Laws.inert.toks(ts)), cs, inert.put.sig(ts)) :
+    {Argv.calls(_, path) == Argv.calls(s, path) : List<&2, F.Finding>}
+  inert.argv.calls(s, path, inert.put.sig_ok(ts, e))
+
+def Laws.inert_argv(path, _text, toks, _tree, _bound, _items, _text2, toks2, _tree2, _bound2, _items2, ok, ok2, e):
+  inert.via(List<&2, Lex.Tok>, z => Argv.calls(T.sig(z), path), toks, toks2, Laws.inert.toks(toks),
+    Laws.inert.toks(toks2), inert.argv.on(toks, path, ok), inert.argv.on(toks2, path, ok2), e)
 
 # the tree rules: what calls.bend gives them
 # ------------------------------------------

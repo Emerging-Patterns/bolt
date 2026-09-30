@@ -32,3 +32,8 @@ def unsafe() -> String:
 # SPEC.md's rows and the laws' tags agree
 def trace() -> String:
   "error"
+
+# a direct IO.args() read: the one reader, src/args.bend's, drops the
+# program and says so with a noqa
+def argv() -> String:
+  "error"
