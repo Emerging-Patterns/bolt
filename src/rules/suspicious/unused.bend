@@ -192,7 +192,8 @@ def check.go(
       Nil{}
     case Con{Bind.Bind{+name, +line, +col, +kind, note}, rest}:
       +more = check.go(rest, hh, uses, fl, path)
-      +hit = Bool.and(reportable(kind, note, line, fl), Bool.not(String.starts_with(name, "_")))
+      +shown = reportable(kind, note, line, fl)  # noqa: U013 the file's foreign lines
+      +hit = Bool.and(shown, Bool.not(String.starts_with(name, "_")))
       Bool.pick(List<&2, F.Finding>, Lazy.and_then(hit, _u => Bool.not(seen(hh, uses, line, col))),
         F.Finding{path, line, col, U32.from_nat(String.length(name)), "unused",
           what(kind) ++ " " ++ name ++ " is never used."} <> more, more)

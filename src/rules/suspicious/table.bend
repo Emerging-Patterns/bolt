@@ -259,7 +259,7 @@ def hit(
 def walk(nn: Tree.Node, +path: String, +fixed: List<&2, String>) -> List<&2, F.Finding>:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
-      +own = hit(String.eq(o, "("), t, kids, fixed, path, l, c)
+      +own = hit(String.eq(o, "("), t, kids, fixed, path, l, c)  # noqa: U013 fixed holds the file's table defs
       List.concat(&2, F.Finding, [own, walk(kids, path, fixed), walk(rest, path, fixed)])
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
       List.concat(&2, F.Finding, [walk(kids, path, fixed), walk(rest, path, fixed)])

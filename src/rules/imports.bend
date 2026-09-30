@@ -91,8 +91,8 @@ def fresh.spec(ds: List<&2, String>, +seen: List<&2, String>, +read: List<&2, St
       Nil{}
     case Con{+d, rest}:
       +more = fresh.spec(rest, seen, read)
-      Bool.pick(List<&2, String>, Bool.and(Bool.and(has(read, d), Bool.not(has(seen, d))), Bool.not(has(more, d))),
-        d <> more, more)
+      +known = Bool.and(has(read, d), Bool.not(has(seen, d)))  # noqa: U013 the spec fresh.fast is proven against
+      Bool.pick(List<&2, String>, Bool.and(known, Bool.not(has(more, d))), d <> more, more)
 
 # the paths of the files
 def paths(es: List<&2, Edge>) -> List<&2, String>:
@@ -119,7 +119,7 @@ def walk.spec(
     case 1n+f Nil{}:
       seen
     case 1n+f Con{p, rest}:
-      +found = fresh.spec(deps.spec(es, p), seen, read)
+      +found = fresh.spec(deps.spec(es, p), seen, read)  # noqa: U013 the spec walk is proven against
       walk.spec(f, List.append(&2, String, found, rest), List.append(&2, String, List.reverse(&2, String, found), seen),
         es, read)
 
@@ -165,7 +165,7 @@ def walk(
     case 1n+f Nil{}:
       seen
     case 1n+f Con{p, rest}:
-      +found = fresh.fast(deps.first(es, p), seen, read)
+      +found = fresh.fast(deps.first(es, p), seen, read)  # noqa: U013 one lookup per file reached, fuel-bound
       walk(f, List.append(&2, String, found, rest), List.append(&2, String, List.reverse(&2, String, found), seen), es,
         read)
 
@@ -203,7 +203,7 @@ def trail.go(
     case 1n+f Nil{}:
       Nil{}
     case 1n+f Con{Step{+at, +back}, rest}:
-      +found = fresh.fast(deps.first(es, at), seen, read)
+      +found = fresh.fast(deps.first(es, at), seen, read)  # noqa: U013 one lookup per file on the path
       Lazy.stop(List<&2, String>, String.eq(at, to), List.reverse(&2, String, back),
         _u => trail.go(f, List.append(&2, Step, rest, steps(found, back)),
           List.append(&2, String, List.reverse(&2, String, found), seen), es, read, to))

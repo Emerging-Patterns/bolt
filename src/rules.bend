@@ -5,7 +5,10 @@
 # names the group, and codes.bend says it again for the config.
 # Adding one is adding it here and a row in codes.bend. One rule is not
 # listed here, `noqa` (rules/style/noqa.bend): it reads the other rules'
-# graded findings, so the planner runs it after them (lint/plan.bend).
+# graded findings, so the planner runs it after them (lint/plan.bend). Nor
+# is `setting` (rules/correctness/setting.bend): it reads each bolt.bend that
+# grades the run, not a source, so the planner runs it between the per-file
+# and the project rules.
 # The groups are what a bolt.bend switches at once: correctness (what will
 # fail or blow up), suspicious (what is probably a slip), style, laws, and
 # pedantic (advice that is noisy on idiomatic code: off unless a project
@@ -34,6 +37,9 @@ import ./rules/suspicious/hoist.bend as Hoist
 import ./rules/suspicious/ring.bend as Ring
 import ./rules/suspicious/rewalk.bend as Rewalk
 import ./rules/suspicious/unit.bend as Unit
+import ./rules/suspicious/scan.bend as Scan
+import ./rules/suspicious/argv.bend as Argv
+import ./rules/suspicious/thunk.bend as Thunk
 import ./rules/correctness/put.bend as Put
 import ./rules/correctness/escape.bend as Escape
 import ./rules/correctness/strings.bend as Strings
@@ -80,6 +86,9 @@ def on.rules(+ss: Src.Src) -> List<&2, F.Finding>:
     Ring.check(ss),
     Rewalk.check(ss),
     Unit.check(ss),
+    Scan.check(ss),
+    Argv.check(ss),
+    Thunk.check(ss),
     Put.check(ss),
     Escape.check(ss),
     Strings.check(ss),

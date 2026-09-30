@@ -6,15 +6,20 @@
 # sees it (a game's overlap test moved out of a pick branch took a scene from
 # 31 to 55 fps; one `gaps(..)` in a branch here ran on every file the linter
 # read, 88 s of a 100 s run). Bind the call above the pick (`+x = gaps(..)`),
-# or take the branch lazily (`Lazy.stop`, `Lazy.or_else` from src/lazy/lazy.bend:
-# the last argument is a `Unit -> T` thunk, applied only on the branch that
-# needs it). Two things keep it off idiomatic code: only a call to a def of
-# this file counts, and only to one that loops (it calls itself, or reaches
-# something that does), since a Base call and a one-line accessor are
-# everywhere and cost nothing; only the branch arguments count, not the type
-# and the condition, which run whatever is written; and what sits after a
-# `=>` is a lambda's body, which the call does not run. The body ends at the
-# next comma of its group, so an argument after it counts again.
+# or branch with `match` on the condition. For a search that recurses, carry
+# the test as a Bool into the next call (`go(rest, k, test(h))`) and match on
+# it first: the step stays a tail call and compiles to a loop, where a thunk
+# around the recursive call (`Lazy.or_else(hit, _u => go(rest))`) allocates a
+# closure and leaves the loop on every step (`thunk`, U015). The early exits
+# of src/lazy/lazy.bend (`Lazy.stop`, `Lazy.or_else`: the last argument is a
+# `Unit -> T` thunk, applied only on the branch that needs it) stay right for
+# work that does not recurse. Two things keep it off idiomatic code: only a
+# call to a def of this file counts, and only to one that loops (it calls
+# itself, or reaches something that does), since a Base call and a one-line
+# accessor are everywhere and cost nothing; only the branch arguments count,
+# not the type and the condition, which run whatever is written; and what
+# sits after a `=>` is a lambda's body, which the call does not run. The body
+# ends at the next comma of its group, so an argument after it counts again.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
@@ -44,7 +49,7 @@ def any_of(cs: List<&2, String>, +set: List<&2, String>) -> Bool:
     case Nil{}:
       False{}
     case Con{c, t}:
-      Lazy.or_else(List.contains(~String, ~String.eq, set, c), _u => any_of(t, set))
+      Lazy.or_else(List.contains(~String, ~String.eq, set, c), _u => any_of(t, set))  # noqa: U013 a def's names
 
 def loops.go(ds: List<&2, Calls.Def>, +acc: List<&2, String>) -> List<&2, String>:
   match ds:
@@ -116,7 +121,8 @@ def work(
       +now = work.hot(k, hot, seg, keep)
       +call = Bool.and(work.name(k), String.eq(o, "("))
       +is_pick = Bool.and(call, String.eq(t, "Bool.pick"))
-      +mine = Bool.and(Bool.not(String.eq(t, self)), List.contains(~String, ~String.eq, ns, t))
+      +known = List.contains(~String, ~String.eq, ns, t)  # noqa: U013 a def's names
+      +mine = Bool.and(Bool.not(String.eq(t, self)), known)
       +report = Bool.and(now, Bool.and(call, mine))
       +inner = Bool.and(now, Bool.not(is_pick))
       +more = List.concat(&2, F.Finding,

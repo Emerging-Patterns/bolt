@@ -959,7 +959,7 @@ def refresh(env: List<&2, Bind>, +binds: List<&2, Bind>) -> List<&2, Bind>:
     case Nil{}:
       Nil{}
     case Con{Bind{name, +l, +c, kind, note}, rest}:
-      noted(binder(binds, l, c), Bind{name, l, c, kind, note}) <> refresh(rest, binds)
+      noted(binder(binds, l, c), Bind{name, l, c, kind, note}) <> refresh(rest, binds)  # noqa: U013 annotated binders
 
 # the names in scope at a line: those of the statement on it, else of the
 # nearest statement above

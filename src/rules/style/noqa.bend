@@ -92,4 +92,4 @@ def check(mks: List<&2, Noqa.Mark>, +whole: Bool, +path: String, +gs: List<&2, F
     case Nil{}:
       Nil{}
     case Con{mk, rest}:
-      List.append(&2, F.Finding, check.mark(mk, whole, path, gs), check(rest, whole, path, gs))
+      List.append(&2, F.Finding, check.mark(mk, whole, path, gs), check(rest, whole, path, gs))  # noqa: U013 one file's

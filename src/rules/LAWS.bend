@@ -27,6 +27,9 @@ import ./suspicious/index.bend as Index
 import ./suspicious/ring.bend as Ring
 import ./suspicious/table.bend as Table
 import ./suspicious/unit.bend as UnitRule
+import ./suspicious/argv.bend as Argv
+import ./suspicious/thunk.bend as Thunk
+import ./suspicious/scan.bend as Scan
 import ./correctness/chars.bend as Chars
 import ./correctness/strings.bend as Strings
 import ./calls.bend as Calls
@@ -186,6 +189,41 @@ law put_counts:
   for +path: String
   {List.length(&2, F.Finding, Put.check.on(toks, path))
     == Bool.pick(Nat, put_defined(toks), 0n, put_count(toks)) : Nat}
+
+# True when tt is `IO.args` and the tokens open with a `(` token
+def argv_open(+tt: String, toks: List<&2, Lex.Tok>) -> Bool:
+  match toks:
+    case Con{Lex.Tok{Lex.TOpen{}, +o, l, c}, rest}:
+      Bool.and(String.eq(tt, "IO.args"), String.eq(o, "("))
+    case Con{h, rest}:
+      False{}
+    case Nil{}:
+      False{}
+
+# how many `IO.args` tokens have a `(` token right after them
+def argv_count(toks: List<&2, Lex.Tok>) -> Nat:
+  match toks:
+    case Nil{}:
+      0n
+    case Con{Lex.Tok{Lex.TDotted{}, +t, l, c}, +rest}:
+      +m = argv_count(rest)
+      Bool.pick(Nat, argv_open(t, rest), 1n+m, m)
+    case Con{h, rest}:
+      argv_count(rest)
+
+# LAW: argv reports one finding for each `IO.args` token with a `(` token
+# right after it among the significant tokens, at any path, and none for
+# any other token
+# BOLT-RULE-U014
+law argv_counts:
+  for +path: String
+  for text: String
+  for +toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Argv.check(Src.Src{path, text, toks, tree, bound, items}))
+    == argv_count(T.sig(toks)) : Nat}
 
 # True when the first token past spaces, newlines and comments is `TODO`
 def todo_next(toks: List<&2, Lex.Tok>) -> Bool:
@@ -547,6 +585,30 @@ law unit_exempt:
   for items: List<&2, Outline.Item>
   for e: {Paths.is_law_file(path) == True{} : Bool}
   {UnitRule.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: thunk reports nothing in a LAWS.bend or a PROOF.bend, which never run, whatever the source holds
+# BOLT-RULE-EXEMPT
+law thunk_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_law_file(path) == True{} : Bool}
+  {Thunk.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: scan reports nothing in a LAWS.bend or a PROOF.bend, which never run, whatever the source holds
+# BOLT-RULE-EXEMPT
+law scan_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_law_file(path) == True{} : Bool}
+  {Scan.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
 
 # LAW: a def written with no type (no `:` among its parameters, no `->`) fills the law of its name, so it is a
 # proof: every cost rule that reads Calls.exempt skips it wherever it is, as it skips one that returns a proof
@@ -2271,6 +2333,260 @@ law unit_counts:
   {List.length(&2, F.Finding, UnitRule.check(Src.Src{path, text, toks, tree, bound, items}))
     == unit.defs(Calls.defs(tree), path) : Nat}
 
+# thunk (BOLT-RULE-U015). A thunk of a self-call is read off a chain, at
+# any depth: its first node a leaf of a name kind (the parameter), then a
+# leaf whose text is `=>`, then a leaf whose text is the def's name, then a
+# group opened by `(`, and after the group the chain's end or a comma. The
+# group must not read the parameter: no name leaf under it, at any depth,
+# spells the parameter, or the parameter then a dot. Each def of the file
+# that is not exempt counts the thunks of its body.
+
+# does a name leaf under the node spell the parameter, or it then a dot?
+def thunk.reads(nn: Tree.Node, +pp: String) -> Bool:
+  match nn:
+    case Tree.Leaf{Lex.Tok{k, +t, l, c}}:
+      Bool.and(Lex.is_name(k), Bool.or(String.eq(t, pp), String.starts_with(t, pp ++ ".")))
+    case Tree.Group{o, kids, cl}:
+      thunk.reads(kids, pp)
+    case Tree.Stmt{sk, kids, body}:
+      Bool.or(thunk.reads(kids, pp), thunk.reads(body, pp))
+    case Tree.NCons{h, t}:
+      Bool.or(thunk.reads(h, pp), thunk.reads(t, pp))
+    case Tree.NNil{}:
+      False{}
+
+# is what follows the call the chain's end, or a comma?
+def thunk.last(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.NCons{h, t}:
+      Calls.kind.leaf(~Lex.is_comma, h)
+    case other:
+      True{}
+
+# the rest past the name: a `(` group that does not read the parameter, then
+# the body's end
+def thunk.call(kp: Lex.TokKind, +pp: String, +aa: String, +nm: String, r3: Tree.Node, +name: String) -> Bool:
+  match r3:
+    case Tree.NCons{Tree.Group{Lex.Tok{ko, o, lo, co}, kids, cl}, after}:
+      Bool.and(Bool.and(Lex.is_name(kp), Bool.not(thunk.reads(kids, pp))),
+        Bool.and(String.eq(aa, "=>"), Bool.and(String.eq(nm, name), Bool.and(String.eq(o, "("), thunk.last(after)))))
+    case other:
+      False{}
+
+# the rest past `=>`: a leaf, the name called
+def thunk.callee(kp: Lex.TokKind, +pp: String, +aa: String, r2: Tree.Node, +name: String) -> Bool:
+  match r2:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{kn, n, ln, cn}}, r3}:
+      thunk.call(kp, pp, aa, n, r3, name)
+    case other:
+      False{}
+
+# the rest past the parameter: a leaf, the arrow
+def thunk.lam(kp: Lex.TokKind, +pp: String, rr: Tree.Node, +name: String) -> Bool:
+  match rr:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{ka, a, la, ca}}, r2}:
+      thunk.callee(kp, pp, a, r2, name)
+    case other:
+      False{}
+
+# does the chain open with a thunk of a self-call of the name?
+def thunk.at(nn: Tree.Node, +name: String) -> Bool:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{kp, p, lp, cp}}, rr}:
+      thunk.lam(kp, p, rr, name)
+    case other:
+      False{}
+
+# how many thunks of a self-call of the name the node holds, at any depth
+def thunk.count(nn: Tree.Node, +name: String) -> Nat:
+  match nn:
+    case Tree.NCons{+h, +rest}:
+      Nat.add(Bool.pick(Nat, thunk.at(Tree.NCons{h, rest}, name), 1n, 0n),
+        Nat.add(thunk.count(h, name), thunk.count(rest, name)))
+    case Tree.Group{o, kids, cl}:
+      thunk.count(kids, name)
+    case Tree.Stmt{sk, kids, body}:
+      Nat.add(thunk.count(kids, name), thunk.count(body, name))
+    case other:
+      0n
+
+# LAW: over any node, thunk reports one finding for each thunk of a
+# self-call, and none for anything else
+# BOLT-RULE-U015
+law thunk_walk_counts:
+  for nn: Tree.Node
+  for +name: String
+  for +path: String
+  {List.length(&2, F.Finding, Thunk.walk(nn, name, path)) == thunk.count(nn, name) : Nat}
+
+# the thunks of a self-call in each def of the list that is not exempt
+def thunk.defs(ds: List<&2, Calls.Def>, +path: String) -> Nat:
+  match ds:
+    case Nil{}:
+      0n
+    case Con{Calls.Def{+name, +sig, +body}, rest}:
+      Nat.add(Bool.pick(Nat, Calls.exempt(path, sig), 0n, thunk.count(body, name)), thunk.defs(rest, path))
+
+# LAW: thunk reports exactly those, def by def, over the defs of the tree
+# BOLT-RULE-U015
+law thunk_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Thunk.check(Src.Src{path, text, toks, tree, bound, items}))
+    == thunk.defs(Calls.defs(tree), path) : Nat}
+
+# scan (BOLT-RULE-U013). Outside a law file the rule walks each def of the
+# file that calls itself (Calls.calls) and is not a proof, its body hot, as
+# hoist does: a `=>` token makes the rest of its chain cold, a case's pattern
+# is cold, and a case arm's body stays hot only when it calls the def. In a
+# hot region it reports each call, a plain or dotted name token then a `(`
+# group, of a callee other than the def, when one of the arguments the
+# callee walks (Scan.slots, over the file's walks, Scan.walks) is exactly the
+# lone name of a carried parameter (Hoist.carried).
+
+# a callee is a plain or a dotted name
+def scan.callee(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TName{}:
+      True{}
+    case Lex.TDotted{}:
+      True{}
+    case other:
+      False{}
+
+# is the token a plain name the list holds?
+def scan.named(tok: Lex.Tok, +carried: List<&2, String>) -> Bool:
+  match tok:
+    case Lex.Tok{Lex.TName{}, +t, l, c}:
+      List.contains(~String, ~String.eq, carried, t)
+    case other:
+      False{}
+
+# is the argument exactly the lone name of a carried parameter?
+def scan.lone(nn: Tree.Node, +carried: List<&2, String>) -> Bool:
+  match nn:
+    case Tree.NCons{Tree.Leaf{tok}, Tree.NNil{}}:
+      scan.named(tok, carried)
+    case other:
+      False{}
+
+# does some walked argument hold a carried parameter's lone name?
+def scan.held(ss: List<&2, Nat>, +as: List<&2, Tree.Node>, +carried: List<&2, String>) -> Bool:
+  match ss:
+    case Nil{}:
+      False{}
+    case Con{at, rest}:
+      Bool.or(scan.lone(Calls.arg(as, at), carried), scan.held(rest, as, carried))
+
+# does a call site report: a named callee, hot, a `(` group, not the def,
+# and a walked argument carried
+def scan.call(
+  kk: Lex.TokKind,
+  +hot: Bool,
+  +open: Bool,
+  +tt: String,
+  kids: Tree.Node,
+  +self: String,
+  +ws: List<&2, Scan.Walk>,
+  +carried: List<&2, String>
+) -> Bool:
+  Bool.and(scan.callee(kk), Bool.and(hot, Bool.and(open, Bool.and(Bool.not(String.eq(tt, self)),
+    scan.held(Scan.slots(tt, ws), Calls.args(kids), carried)))))
+
+# how many calls scan reports under the node, entered hot or cold
+def scan.count(
+  nn: Tree.Node,
+  +self: String,
+  +ws: List<&2, Scan.Walk>,
+  +carried: List<&2, String>,
+  +hot: Bool
+) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{+k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
+      +heat = Hoist.warm(hot, k)
+      Nat.add(Bool.pick(Nat, scan.call(k, heat, String.eq(o, "("), t, kids, self, ws, carried), 1n, 0n),
+        Nat.add(scan.count(kids, self, ws, carried, heat), scan.count(rest, self, ws, carried, heat)))
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, rest}:
+      scan.count(rest, self, ws, carried, Hoist.warm(hot, k))
+    case Tree.NCons{Tree.Group{o, kids, cl}, rest}:
+      Nat.add(scan.count(kids, self, ws, carried, hot), scan.count(rest, self, ws, carried, hot))
+    case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, +body}, rest}:
+      Nat.add(scan.count(kids, self, ws, carried, False{}),
+        Nat.add(scan.count(body, self, ws, carried, Bool.and(hot, Calls.calls(body, self))),
+          scan.count(rest, self, ws, carried, hot)))
+    case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
+      Nat.add(scan.count(kids, self, ws, carried, hot),
+        Nat.add(scan.count(body, self, ws, carried, hot), scan.count(rest, self, ws, carried, hot)))
+    case Tree.NCons{h, rest}:
+      scan.count(rest, self, ws, carried, hot)
+    case other:
+      0n
+
+# how many scan reports over the defs: those in each def that calls itself
+# and is not a proof, walked hot, with its carried parameters
+def scan.total(ds: List<&2, Calls.Def>, +ws: List<&2, Scan.Walk>, +path: String) -> Nat:
+  match ds:
+    case Nil{}:
+      0n
+    case Con{Calls.Def{+name, +sig, +body}, rest}:
+      Nat.add(Bool.pick(Nat, Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig))),
+        scan.count(body, name, ws, Hoist.carried(sig, body, name), True{}), 0n), scan.total(rest, ws, path))
+
+# LAW: outside a law file, scan reports one finding for each call the walk
+# above counts, in each def that calls itself and is not a proof, with the
+# file's walks; none for anything else
+# BOLT-RULE-U013
+law scan_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_law_file(path) == False{} : Bool}
+  {List.length(&2, F.Finding, Scan.check(Src.Src{path, text, toks, tree, bound, items}))
+    == scan.total(Calls.defs(tree), Scan.walks(Calls.defs(tree)), path) : Nat}
+
+# LAW: a walk whose def carries no parameter reports nothing, whatever the
+# tree, the file's walks and the heat
+# BOLT-RULE-U013
+law scan_quiet:
+  for nn: Tree.Node
+  for +self: String
+  for +ws: List<&2, Scan.Walk>
+  for +lead: String
+  for +path: String
+  for +hot: Bool
+  {Scan.walk(nn, self, ws, [], lead, path, hot) == Nil{} : List<&2, F.Finding>}
+
+# the list arguments of the Base list searches: 2, 3 or 4, counted from 0
+def scan.base(+tt: String) -> List<&2, Nat>:
+  Bool.pick(List<&2, Nat>, List.contains(~String, ~String.eq, ["List.contains", "List.find", "List.filter",
+    "List.length"], tt), [2n],
+    Bool.pick(List<&2, Nat>, List.contains(~String, ~String.eq, ["List.any", "List.all"], tt), [3n],
+      Bool.pick(List<&2, Nat>, List.contains(~String, ~String.eq, ["List.foldl", "List.foldr"], tt), [4n], [])))
+
+# the arguments the file's walks record for a name, in order
+def scan.file(ws: List<&2, Scan.Walk>, +tt: String) -> List<&2, Nat>:
+  match ws:
+    case Nil{}:
+      Nil{}
+    case Con{Scan.Walk{+nm, at}, rest}:
+      +more = scan.file(rest, tt)
+      Bool.pick(List<&2, Nat>, String.eq(nm, tt), at <> more, more)
+
+# LAW: a callee walks the Base search's list argument, then each argument a
+# walk of the file of that name records
+# BOLT-RULE-U013
+law scan_slots:
+  for +tt: String
+  for ws: List<&2, Scan.Walk>
+  {Scan.slots(tt, ws) == List.append(&2, Nat, scan.base(tt), scan.file(ws, tt)) : List<&2, Nat>}
+
 # The header rule wrap (BOLT-RULE-S003) judges each def header of the
 # outline by its sig's tokens (Lex.tokens), once: a finding or none. A
 # header is across lines when one of its tokens is a newline (Lex.is_nl), so
@@ -3377,11 +3693,11 @@ law scope_param:
 # the findings of each rule a LAWS.bend or a PROOF.bend exempts, rule by rule
 def scope.law_file(+ss: Src.Src) -> List<&2, List<&2, F.Finding>>:
   [Pick.check(ss), Tail.check(ss), Concat.check(ss), Eager.check(ss), Rewalk.check(ss), Strict.check(ss),
-    Hoist.check(ss), Index.check(ss), Ring.check(ss), Table.check(ss), UnitRule.check(ss)]
+    Hoist.check(ss), Index.check(ss), Ring.check(ss), Table.check(ss), UnitRule.check(ss), Thunk.check(ss)]
 
 # LAW: on a LAWS.bend or a PROOF.bend, the findings of each rule its header
 # exempts there (pick, tail, concat, eager, rewalk, strict, hoist, index,
-# ring, table, unit) are the same for any two sources at that path
+# ring, table, unit, thunk) are the same for any two sources at that path
 # BOLT-SCOPE-4
 law scope_law_file:
   for +path: String
@@ -4171,6 +4487,29 @@ law inert_put:
   {Put.check(Src.Src{path, text, toks, tree, bound, items})
     == Put.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
 
+# LAW: argv reads what no comment or string says: two sources as the lexer
+# makes them whose tokens read the same with comments and strings cut have
+# the same findings
+# BOLT-RULE-INERT
+# BOLT-RULE-U014
+law inert_argv:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for toks2: List<&2, Lex.Tok>
+  for tree2: Tree.Node
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for ok: {inert.oks(toks) == True{} : Bool}
+  for ok2: {inert.oks(toks2) == True{} : Bool}
+  for e: {inert.toks(toks) == inert.toks(toks2) : List<&2, Lex.Tok>}
+  {Argv.check(Src.Src{path, text, toks, tree, bound, items})
+    == Argv.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
 # LAW: tail reads what no string says: two sources as the lexer makes them
 # whose trees read the same with strings cut have the same findings (a
 # string's text is only ever compared with the def's name or `Bool.pick`)
@@ -4388,6 +4727,27 @@ law inert_unit:
   for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
   {UnitRule.check(Src.Src{path, text, toks, tree, bound, items})
     == UnitRule.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: thunk reads what no string says: two sources as the lexer makes them
+# whose trees read the same with strings cut have the same findings
+# BOLT-RULE-INERT
+law inert_thunk:
+  for +path: String
+  for text: String
+  for +tree: Tree.Node
+  for toks: List<&2, Lex.Tok>
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for +tree2: Tree.Node
+  for toks2: List<&2, Lex.Tok>
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for +ok: {inert.ok(tree) == True{} : Bool}
+  for +ok2: {inert.ok(tree2) == True{} : Bool}
+  for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  {Thunk.check(Src.Src{path, text, toks, tree, bound, items})
+    == Thunk.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
 
 # LAW: eager reads what no string says: two sources as the lexer makes them
 # whose trees read the same with strings cut have the same findings
@@ -4810,6 +5170,28 @@ law inert_hoist:
   for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
   {Hoist.check(Src.Src{path, text, toks, tree, bound, items})
     == Hoist.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: scan reads what no comment or string says: two sources as the lexer
+# makes them whose trees read the same with comments and strings cut have
+# the same findings
+# BOLT-RULE-INERT
+law inert_scan:
+  for +path: String
+  for text: String
+  for +tree: Tree.Node
+  for toks: List<&2, Lex.Tok>
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for +tree2: Tree.Node
+  for toks2: List<&2, Lex.Tok>
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for +ok: {inert.ok(tree) == True{} : Bool}
+  for +ok2: {inert.ok(tree2) == True{} : Bool}
+  for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  {Scan.check(Src.Src{path, text, toks, tree, bound, items})
+    == Scan.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
 
 # the tokens of each item's header, with comments and strings cut
 def inert.sigs(its: List<&2, Outline.Item>) -> List<&2, List<&2, Lex.Tok>>:
