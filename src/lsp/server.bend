@@ -509,7 +509,13 @@ def encoding(mm: Method, params: J.Json, ee: Enc.Enc) -> Enc.Enc:
       ee
 
 # one message: its method's work, then step's decision on it
-def handle(~fs: F.Files, ~ck: Ck.Checker, ee: Enc.Enc, +msg: J.Json, docs: List<&2, Docs.Doc>) -> IO(Out):  # noqa: L001 LSP IO glue
+def handle(  # noqa: L001 LSP IO glue
+  ~fs: F.Files,
+  ~ck: Ck.Checker,
+  ee: Enc.Enc,
+  +msg: J.Json,
+  docs: List<&2, Docs.Doc>
+) -> IO(Out):
   +mm = method(name_of(msg))
   do IO<Out>:
     w : Work <- work(~fs, ~ck, ee, mm, Ezjson.get(msg, "params"), docs)
