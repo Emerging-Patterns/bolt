@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.0](https://github.com/Emerging-Patterns/bolt/compare/v1.13.0...v1.14.0) (2026-09-30)
+
+
+### Features
+
+* **rules:** fromrev (U016), fewer false positives in six rules, retire argv ([#229](https://github.com/Emerging-Patterns/bolt/issues/229)) ([35271b9](https://github.com/Emerging-Patterns/bolt/commit/35271b9a06517f0d9d035c309d160aaf50f54d85))
+
 ## [1.13.0](https://github.com/Emerging-Patterns/bolt/compare/v1.12.0...v1.13.0) (2026-09-30)
 
 
