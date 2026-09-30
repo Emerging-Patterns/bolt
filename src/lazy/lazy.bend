@@ -4,7 +4,10 @@
 # whatever `hit` says (measured native, 100 iterations over 100k cells: the
 # hit at the head costs 0.10 s, the same as the hit at the end, while the
 # forms here cost 0.00 s). A thunk `Unit -> T` is a value, so the branch
-# that is not taken is never applied.
+# that is not taken is never applied. Keep them for work that does not
+# recurse: a thunk around a search's own recursive step allocates a closure
+# and leaves the loop on every step, where carrying the test as a Bool into
+# the next call keeps it a loop (the `thunk` rule, U015).
 import Base
 
 # `a` when c, else what rest gives: the early exit of a search

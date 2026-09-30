@@ -147,7 +147,7 @@ def Laws.opt_in_off(sets, group, rule, h_opt, h_rule):
     == Config.Off{} : Config.Level}
   {==}
 
-# one arm per row of the code table (29), each checked by evaluation, and one
+# one arm per row of the code table (31), each checked by evaluation, and one
 # past its end, where both sides are none: a new rule is a new arm here
 def Laws.slug_finds_row(n):
   match n:
@@ -211,7 +211,9 @@ def Laws.slug_finds_row(n):
       {==}
     case 29n:
       {==}
-    case 30n+_p:
+    case 30n:
+      {==}
+    case 31n+_p:
       {==}
 
 # the same arms, looked up by code
@@ -277,7 +279,9 @@ def Laws.code_finds_row(n):
       {==}
     case 29n:
       {==}
-    case 30n+_p:
+    case 30n:
+      {==}
+    case 31n+_p:
       {==}
 
 def Laws.shown(_path, _line, _col, _len, _rule, _msg, _level):

@@ -41,6 +41,7 @@ import ./laws/law.bend as Coverage
 import ./laws/unsafe.bend as Unsafe
 import ./imports.bend as Imports
 import ./digest.bend as Digest
+import ./suspicious/thunk.bend as Thunk
 import ./LAWS.bend as Laws
 
 # String.eq's last step (bend 2.0.33 dropped Base's String.eq.fin): whether a
@@ -1426,6 +1427,28 @@ def ex.unit(ds, path, n, e):
 
 def Laws.unit_exempt(path, _text, _toks, tree, _bound, _items, e):
   ex.unit(Calls.defs(tree), path, 0n, e)
+
+# thunk's def walk gathers nothing in a law file
+law ex.thunk:
+  for ds: List<&2, Calls.Def>
+  for +path: String
+  for +n: Nat
+  for +e: {Paths.is_law_file(path) == True{} : Bool}
+  {Thunk.check.go(ds, path, ex.rep(n)) == Nil{} : List<&2, F.Finding>}
+
+def ex.thunk(ds, path, n, e):
+  match ds:
+    case Nil{}:
+      ex.flat(n, Nil{})
+    case Con{Calls.Def{+name, +sig, +body}, rest}:
+      ex.push(
+        Calls.exempt(path, sig),
+        ex.calls(path, sig, e),
+        _u => Thunk.walk(body, name, path), n,
+        v => Thunk.check.go(rest, path, v), ex.thunk(rest, path, 1n+n, e))
+
+def Laws.thunk_exempt(path, _text, _toks, tree, _bound, _items, e):
+  ex.thunk(Calls.defs(tree), path, 0n, e)
 
 # an or whose second side ends in a true or holds whatever the rest is
 law ex.or_true:
@@ -10151,6 +10174,246 @@ def unit.go(ds, path, acc):
 def Laws.unit_counts(path, _text, _toks, tree, _bound, _items):
   unit.go(Calls.defs(tree), path, Nil{})
 
+# thunk (BOLT-RULE-U015). The rule's reads and ends agree with the law's by
+# induction and by one split; each site helper agrees with the law's step of
+# the same place, so a site gives one finding exactly when the law's chain
+# opens a thunk; the walk and the def walk then add up as unit's do.
+
+# the rule's reads is the law's
+law thunk.reads:
+  for nn: Tree.Node
+  for +pp: String
+  {Thunk.reads(nn, pp) == Laws.thunk.reads(nn, pp) : Bool}
+
+def thunk.reads(nn, pp):
+  match nn:
+    case Tree.Leaf{tok}:
+      match tok:
+        case Lex.Tok{k, t, l, c}:
+          {==}
+    case Tree.Group{o, +kids, cl}:
+      thunk.reads(kids, pp)
+    case Tree.Stmt{sk, +kids, +body}:
+      %thunk.reads(kids, pp) : {Bool.or(Thunk.reads(kids, pp), Thunk.reads(body, pp))
+        == Bool.or(_, Laws.thunk.reads(body, pp)) : Bool}
+      %thunk.reads(body, pp) : {Bool.or(Thunk.reads(kids, pp), Thunk.reads(body, pp))
+        == Bool.or(Thunk.reads(kids, pp), _) : Bool}
+      {==}
+    case Tree.NCons{+h, +t}:
+      %thunk.reads(h, pp) : {Bool.or(Thunk.reads(h, pp), Thunk.reads(t, pp))
+        == Bool.or(_, Laws.thunk.reads(t, pp)) : Bool}
+      %thunk.reads(t, pp) : {Bool.or(Thunk.reads(h, pp), Thunk.reads(t, pp))
+        == Bool.or(Thunk.reads(h, pp), _) : Bool}
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# the rule's end of a body is the law's
+law thunk.ends:
+  for nn: Tree.Node
+  {Thunk.ends(nn) == Laws.thunk.last(nn) : Bool}
+
+def thunk.ends(nn):
+  match nn:
+    case Tree.NCons{h, t}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, s, l, c}: {==}
+        case Tree.Group{a, b, c}: {==}
+        case Tree.Stmt{a, b, c}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{a, b}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{a, b, c}: {==}
+    case Tree.Stmt{a, b, c}: {==}
+    case Tree.NNil{}: {==}
+
+# a finding when b, none otherwise, counts one when b
+law thunk.one:
+  for b: Bool
+  for -x: F.Finding
+  {List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, b, [x], [])) == Bool.pick(Nat, b, 1n, 0n) : Nat}
+
+def thunk.one(b, _x):
+  match b:
+    case True{}: {==}
+    case False{}: {==}
+
+# past the name: the rule's finding is the law's count
+law thunk.site.group:
+  for kp: Lex.TokKind
+  for +pp: String
+  for +aa: String
+  for +nm: String
+  for +ll: U32
+  for +cc: U32
+  for r3: Tree.Node
+  for +name: String
+  for +path: String
+  {List.length(&2, F.Finding, Thunk.site.group(kp, pp, aa, nm, ll, cc, r3, name, path))
+    == Bool.pick(Nat, Laws.thunk.call(kp, pp, aa, nm, r3, name), 1n, 0n) : Nat}
+
+def thunk.site.group(kp, pp, aa, nm, ll, cc, r3, name, path):
+  match r3:
+    case Tree.NCons{h, +after}:
+      match h:
+        case Tree.Group{open, +kids, cl}:
+          match open:
+            case Lex.Tok{ko, +o, lo, co}:
+              +f = Thunk.cite(ll, cc, name, path)
+              +b = Thunk.hit(Bool.and(Lex.is_name(kp), Bool.not(Thunk.reads(kids, pp))), String.eq(aa, "=>"),
+                String.eq(nm, name), String.eq(o, "("), Thunk.ends(after))
+              %thunk.reads(kids, pp) : {List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, b, [f], []))
+                == Bool.pick(Nat, Bool.and(Bool.and(Lex.is_name(kp), Bool.not(_)), Bool.and(String.eq(aa, "=>"),
+                  Bool.and(String.eq(nm, name), Bool.and(String.eq(o, "("), Laws.thunk.last(after))))), 1n, 0n) : Nat}
+              %thunk.ends(after) : {List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, b, [f], []))
+                == Bool.pick(Nat, Bool.and(Bool.and(Lex.is_name(kp), Bool.not(Thunk.reads(kids, pp))),
+                  Bool.and(String.eq(aa, "=>"), Bool.and(String.eq(nm, name), Bool.and(String.eq(o, "("), _)))), 1n,
+                  0n) : Nat}
+              thunk.one(b, f)
+        case Tree.Leaf{x}: {==}
+        case Tree.Stmt{x, y, z}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# past `=>`: the rule's finding is the law's count
+law thunk.site.name:
+  for kp: Lex.TokKind
+  for +pp: String
+  for +aa: String
+  for r2: Tree.Node
+  for +name: String
+  for +path: String
+  {List.length(&2, F.Finding, Thunk.site.name(kp, pp, aa, r2, name, path))
+    == Bool.pick(Nat, Laws.thunk.callee(kp, pp, aa, r2, name), 1n, 0n) : Nat}
+
+def thunk.site.name(kp, pp, aa, r2, name, path):
+  match r2:
+    case Tree.NCons{h, r3}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{kn, n, l, c}: thunk.site.group(kp, pp, aa, n, l, c, r3, name, path)
+        case Tree.Group{x, y, z}: {==}
+        case Tree.Stmt{x, y, z}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# past the parameter: the rule's finding is the law's count
+law thunk.site.lam:
+  for kp: Lex.TokKind
+  for +pp: String
+  for rest: Tree.Node
+  for +name: String
+  for +path: String
+  {List.length(&2, F.Finding, Thunk.site.lam(kp, pp, rest, name, path))
+    == Bool.pick(Nat, Laws.thunk.lam(kp, pp, rest, name), 1n, 0n) : Nat}
+
+def thunk.site.lam(kp, pp, rest, name, path):
+  match rest:
+    case Tree.NCons{h, r2}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{ka, a, l, c}: thunk.site.name(kp, pp, a, r2, name, path)
+        case Tree.Group{x, y, z}: {==}
+        case Tree.Stmt{x, y, z}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# a node and the chain after it: the rule's finding is the law's count
+law thunk.site:
+  for hh: Tree.Node
+  for rest: Tree.Node
+  for +name: String
+  for +path: String
+  {List.length(&2, F.Finding, Thunk.site(hh, rest, name, path))
+    == Bool.pick(Nat, Laws.thunk.at(Tree.NCons{hh, rest}, name), 1n, 0n) : Nat}
+
+def thunk.site(hh, rest, name, path):
+  match hh:
+    case Tree.Leaf{tok}:
+      match tok:
+        case Lex.Tok{kp, p, l, c}: thunk.site.lam(kp, p, rest, name, path)
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+    case Tree.NCons{x, y}: {==}
+
+def Laws.thunk_walk_counts(nn, name, path):
+  match nn:
+    case Tree.NCons{+h, +rest}:
+      table.three(Thunk.site(h, rest, name, path), Thunk.walk(h, name, path), Thunk.walk(rest, name, path),
+        Bool.pick(Nat, Laws.thunk.at(Tree.NCons{h, rest}, name), 1n, 0n), Laws.thunk.count(h, name),
+        Laws.thunk.count(rest, name), thunk.site(h, rest, name, path), Laws.thunk_walk_counts(h, name, path),
+        Laws.thunk_walk_counts(rest, name, path))
+    case Tree.Group{o, +kids, cl}:
+      Laws.thunk_walk_counts(kids, name, path)
+    case Tree.Stmt{sk, +kids, +body}:
+      table.two(Thunk.walk(kids, name, path), Thunk.walk(body, name, path), Laws.thunk.count(kids, name),
+        Laws.thunk.count(body, name), Laws.thunk_walk_counts(kids, name, path), Laws.thunk_walk_counts(body, name,
+          path))
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# one def's findings: none when it is exempt, else its walk
+law thunk.stop:
+  for b: Bool
+  for +body: Tree.Node
+  for +name: String
+  for +path: String
+  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, b, [], _u => Thunk.walk(body, name, path)))
+    == Bool.pick(Nat, b, 0n, Laws.thunk.count(body, name)) : Nat}
+
+def thunk.stop(b, body, name, path):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      Laws.thunk_walk_counts(body, name, path)
+
+# thunk's def walk: the findings gathered so far, then each def's
+law thunk.go:
+  for ds: List<&2, Calls.Def>
+  for +path: String
+  for +acc: List<&2, List<&2, F.Finding>>
+  {List.length(&2, F.Finding, Thunk.check.go(ds, path, acc)) == pick.sum(acc, Laws.thunk.defs(ds, path)) : Nat}
+
+def thunk.go(ds, path, acc):
+  match ds:
+    case Nil{}:
+      pick.rev(acc, Nil{})
+    case Con{d, +rest}:
+      match d:
+        case Calls.Def{+name, +sig, +body}:
+          +b = Calls.exempt(path, sig)
+          +x = Lazy.stop(List<&2, F.Finding>, b, [], _u => Thunk.walk(body, name, path))
+          +cb = Bool.pick(Nat, b, 0n, Laws.thunk.count(body, name))
+          Equal.trans(Nat, List.length(&2, F.Finding, Thunk.check.go(rest, path, x <> acc)),
+            pick.sum(acc, Nat.add(List.length(&2, F.Finding, x), Laws.thunk.defs(rest, path))),
+            pick.sum(acc, Nat.add(cb, Laws.thunk.defs(rest, path))),
+            thunk.go(rest, path, x <> acc),
+            Equal.cong(Nat, Nat, n => pick.sum(acc, Nat.add(n, Laws.thunk.defs(rest, path))),
+              List.length(&2, F.Finding, x), cb, thunk.stop(b, body, name, path)))
+
+def Laws.thunk_counts(path, _text, _toks, tree, _bound, _items):
+  thunk.go(Calls.defs(tree), path, Nil{})
+
 # The header rule wrap (BOLT-RULE-S003). The width walk agrees with the
 # spec's width from any state; the shape walk, read through wrap.of, takes
 # each token the way the spec's read does, so the two agree on the whole
@@ -13754,68 +14017,73 @@ def Laws.scope_law_file(path, text, toks, tree, bound, items, text2, toks2, tree
     Laws.pick_exempt(path, text, toks, tree, bound, items, e),
     Laws.pick_exempt(path, text2, toks2, tree2, bound2, items2, e),
     [Tail.check(s), Concat.check(s), Eager.check(s), Rewalk.check(s), Strict.check(s),
-      Hoist.check(s), Index.check(s), Ring.check(s), Table.check(s), UnitRule.check(s)],
+      Hoist.check(s), Index.check(s), Ring.check(s), Table.check(s), UnitRule.check(s), Thunk.check(s)],
     [Tail.check(t), Concat.check(t), Eager.check(t), Rewalk.check(t), Strict.check(t),
-      Hoist.check(t), Index.check(t), Ring.check(t), Table.check(t), UnitRule.check(t)],
+      Hoist.check(t), Index.check(t), Ring.check(t), Table.check(t), UnitRule.check(t), Thunk.check(t)],
   scope.con(Tail.check(s), Tail.check(t),
     Laws.tail_exempt(path, text, toks, tree, bound, items, e),
     Laws.tail_exempt(path, text2, toks2, tree2, bound2, items2, e),
     [Concat.check(s), Eager.check(s), Rewalk.check(s), Strict.check(s), Hoist.check(s),
-      Index.check(s), Ring.check(s), Table.check(s), UnitRule.check(s)],
+      Index.check(s), Ring.check(s), Table.check(s), UnitRule.check(s), Thunk.check(s)],
     [Concat.check(t), Eager.check(t), Rewalk.check(t), Strict.check(t), Hoist.check(t),
-      Index.check(t), Ring.check(t), Table.check(t), UnitRule.check(t)],
+      Index.check(t), Ring.check(t), Table.check(t), UnitRule.check(t), Thunk.check(t)],
   scope.con(Concat.check(s), Concat.check(t),
     Laws.concat_exempt(path, text, toks, tree, bound, items, e),
     Laws.concat_exempt(path, text2, toks2, tree2, bound2, items2, e),
     [Eager.check(s), Rewalk.check(s), Strict.check(s), Hoist.check(s), Index.check(s),
-      Ring.check(s), Table.check(s), UnitRule.check(s)],
+      Ring.check(s), Table.check(s), UnitRule.check(s), Thunk.check(s)],
     [Eager.check(t), Rewalk.check(t), Strict.check(t), Hoist.check(t), Index.check(t),
-      Ring.check(t), Table.check(t), UnitRule.check(t)],
+      Ring.check(t), Table.check(t), UnitRule.check(t), Thunk.check(t)],
   scope.con(Eager.check(s), Eager.check(t),
     Laws.eager_exempt(path, text, toks, tree, bound, items, e),
     Laws.eager_exempt(path, text2, toks2, tree2, bound2, items2, e),
     [Rewalk.check(s), Strict.check(s), Hoist.check(s), Index.check(s), Ring.check(s),
-      Table.check(s), UnitRule.check(s)],
+      Table.check(s), UnitRule.check(s), Thunk.check(s)],
     [Rewalk.check(t), Strict.check(t), Hoist.check(t), Index.check(t), Ring.check(t),
-      Table.check(t), UnitRule.check(t)],
+      Table.check(t), UnitRule.check(t), Thunk.check(t)],
   scope.con(Rewalk.check(s), Rewalk.check(t),
     Laws.rewalk_exempt(path, text, toks, tree, bound, items, e),
     Laws.rewalk_exempt(path, text2, toks2, tree2, bound2, items2, e),
     [Strict.check(s), Hoist.check(s), Index.check(s), Ring.check(s), Table.check(s),
-      UnitRule.check(s)],
+      UnitRule.check(s), Thunk.check(s)],
     [Strict.check(t), Hoist.check(t), Index.check(t), Ring.check(t), Table.check(t),
-      UnitRule.check(t)],
+      UnitRule.check(t), Thunk.check(t)],
   scope.con(Strict.check(s), Strict.check(t),
     Laws.strict_exempt(path, text, toks, tree, bound, items, e),
     Laws.strict_exempt(path, text2, toks2, tree2, bound2, items2, e),
-    [Hoist.check(s), Index.check(s), Ring.check(s), Table.check(s), UnitRule.check(s)],
-    [Hoist.check(t), Index.check(t), Ring.check(t), Table.check(t), UnitRule.check(t)],
+    [Hoist.check(s), Index.check(s), Ring.check(s), Table.check(s), UnitRule.check(s), Thunk.check(s)],
+    [Hoist.check(t), Index.check(t), Ring.check(t), Table.check(t), UnitRule.check(t), Thunk.check(t)],
   scope.con(Hoist.check(s), Hoist.check(t),
     Laws.hoist_exempt(path, text, toks, tree, bound, items, e),
     Laws.hoist_exempt(path, text2, toks2, tree2, bound2, items2, e),
-    [Index.check(s), Ring.check(s), Table.check(s), UnitRule.check(s)],
-    [Index.check(t), Ring.check(t), Table.check(t), UnitRule.check(t)],
+    [Index.check(s), Ring.check(s), Table.check(s), UnitRule.check(s), Thunk.check(s)],
+    [Index.check(t), Ring.check(t), Table.check(t), UnitRule.check(t), Thunk.check(t)],
   scope.con(Index.check(s), Index.check(t),
     Laws.index_exempt(path, text, toks, tree, bound, items, e),
     Laws.index_exempt(path, text2, toks2, tree2, bound2, items2, e),
-    [Ring.check(s), Table.check(s), UnitRule.check(s)],
-    [Ring.check(t), Table.check(t), UnitRule.check(t)],
+    [Ring.check(s), Table.check(s), UnitRule.check(s), Thunk.check(s)],
+    [Ring.check(t), Table.check(t), UnitRule.check(t), Thunk.check(t)],
   scope.con(Ring.check(s), Ring.check(t),
     Laws.ring_exempt(path, text, toks, tree, bound, items, e),
     Laws.ring_exempt(path, text2, toks2, tree2, bound2, items2, e),
-    [Table.check(s), UnitRule.check(s)],
-    [Table.check(t), UnitRule.check(t)],
+    [Table.check(s), UnitRule.check(s), Thunk.check(s)],
+    [Table.check(t), UnitRule.check(t), Thunk.check(t)],
   scope.con(Table.check(s), Table.check(t),
     Laws.table_exempt(path, text, toks, tree, bound, items, e),
     Laws.table_exempt(path, text2, toks2, tree2, bound2, items2, e),
-    [UnitRule.check(s)],
-    [UnitRule.check(t)],
+    [UnitRule.check(s), Thunk.check(s)],
+    [UnitRule.check(t), Thunk.check(t)],
   scope.con(UnitRule.check(s), UnitRule.check(t),
     Laws.unit_exempt(path, text, toks, tree, bound, items, e),
     Laws.unit_exempt(path, text2, toks2, tree2, bound2, items2, e),
+    [Thunk.check(s)],
+    [Thunk.check(t)],
+  scope.con(Thunk.check(s), Thunk.check(t),
+    Laws.thunk_exempt(path, text, toks, tree, bound, items, e),
+    Laws.thunk_exempt(path, text2, toks2, tree2, bound2, items2, e),
     Nil{},
     Nil{},
-  {==})))))))))))
+  {==}))))))))))))
 
 # closed reports nothing outside a LAWS.bend
 law scope.closed:
@@ -23590,6 +23858,326 @@ def Laws.inert_unit(path, _text, tree, _toks, _bound, _items, _text2, tree2, _to
     inert.lift(z => UnitRule.check.go(z, path, []), tree, inert.unit.go(Calls.defs(tree), path, [], inert.dok.of(tree,
       ok))),
     inert.lift(z => UnitRule.check.go(z, path, []), tree2, inert.unit.go(Calls.defs(tree2), path, [],
+      inert.dok.of(tree2, ok2))),
+    e)
+
+# thunk
+# -----
+
+# a name is never cut, read in the order thunk tests it
+law inert.thunk.name_code:
+  for k: Lex.TokKind
+  {Bool.and(Lex.is_name(k), Laws.inert.blanks(k)) == False{} : Bool}
+
+def inert.thunk.name_code(k):
+  match k:
+    case Lex.TName{}: {==}
+    case Lex.TUpper{}: {==}
+    case Lex.TDotted{}: {==}
+    case Lex.TWild{}: {==}
+    case Lex.TKey{}: {==}
+    case Lex.TNum{}: {==}
+    case Lex.TStr{}: {==}
+    case Lex.TChar{}: {==}
+    case Lex.TComment{}: {==}
+    case Lex.TSpace{}: {==}
+    case Lex.TNewline{}: {==}
+    case Lex.TOp{}: {==}
+    case Lex.TColon{}: {==}
+    case Lex.TEq{}: {==}
+    case Lex.TBind{}: {==}
+    case Lex.TArrow{}: {==}
+    case Lex.TLam{}: {==}
+    case Lex.TAll{}: {==}
+    case Lex.TAmp{}: {==}
+    case Lex.TOpen{}: {==}
+    case Lex.TClose{}: {==}
+    case Lex.TComma{}: {==}
+
+# a node read that way reads the parameter as it did: only name leaves are
+# compared, and a name is never cut
+law inert.thunk.reads:
+  for nn: Tree.Node
+  for +pp: String
+  {Thunk.reads(Laws.inert.node(nn), pp) == Thunk.reads(nn, pp) : Bool}
+
+def inert.thunk.reads(nn, pp):
+  match nn:
+    case Tree.Leaf{tok}:
+      match tok:
+        case Lex.Tok{+k, +t, l, c}:
+          inert.guard(Lex.is_name(k), Laws.inert.blanks(k), t,
+            z => Bool.or(String.eq(z, pp), String.starts_with(z, pp ++ ".")), inert.thunk.name_code(k))
+    case Tree.Group{o, +kids, cl}:
+      inert.thunk.reads(kids, pp)
+    case Tree.Stmt{sk, +kids, +body}:
+      %inert.thunk.reads(kids, pp) : {Bool.or(Thunk.reads(Laws.inert.node(kids), pp), Thunk.reads(Laws.inert.node(body),
+        pp)) == Bool.or(_, Thunk.reads(body, pp)) : Bool}
+      %inert.thunk.reads(body, pp) : {Bool.or(Thunk.reads(Laws.inert.node(kids), pp), Thunk.reads(Laws.inert.node(body),
+        pp)) == Bool.or(Thunk.reads(Laws.inert.node(kids), pp), _) : Bool}
+      {==}
+    case Tree.NCons{+h, +t}:
+      %inert.thunk.reads(h, pp) : {Bool.or(Thunk.reads(Laws.inert.node(h), pp), Thunk.reads(Laws.inert.node(t), pp))
+        == Bool.or(_, Thunk.reads(t, pp)) : Bool}
+      %inert.thunk.reads(t, pp) : {Bool.or(Thunk.reads(Laws.inert.node(h), pp), Thunk.reads(Laws.inert.node(t), pp))
+        == Bool.or(Thunk.reads(Laws.inert.node(h), pp), _) : Bool}
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# a chain read that way ends a body as it did: kinds are kept
+law inert.thunk.ends:
+  for nn: Tree.Node
+  {Thunk.ends(Laws.inert.node(nn)) == Thunk.ends(nn) : Bool}
+
+def inert.thunk.ends(nn):
+  match nn:
+    case Tree.NCons{h, t}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, s, l, c}: {==}
+        case Tree.Group{a, b, c}: {==}
+        case Tree.Stmt{a, b, c}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{a, b}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{a, b, c}: {==}
+    case Tree.Stmt{a, b, c}: {==}
+    case Tree.NNil{}: {==}
+
+# the lead read that way is the lead: the group reads the parameter as it
+# did, and a name parameter is never cut
+law inert.thunk.lead:
+  for +kp: Lex.TokKind
+  for +pp: String
+  for +kids: Tree.Node
+  {Bool.and(Lex.is_name(kp), Bool.not(Thunk.reads(Laws.inert.node(kids), Laws.inert.keep(Laws.inert.blanks(kp), pp))))
+    == Bool.and(Lex.is_name(kp), Bool.not(Thunk.reads(kids, pp))) : Bool}
+
+def inert.thunk.lead(kp, pp, kids):
+  Equal.trans(Bool,
+    Bool.and(Lex.is_name(kp), Bool.not(Thunk.reads(Laws.inert.node(kids), Laws.inert.keep(Laws.inert.blanks(kp), pp)))),
+    Bool.and(Lex.is_name(kp), Bool.not(Thunk.reads(kids, Laws.inert.keep(Laws.inert.blanks(kp), pp)))),
+    Bool.and(Lex.is_name(kp), Bool.not(Thunk.reads(kids, pp))),
+    Equal.cong(Bool, Bool, z => Bool.and(Lex.is_name(kp), Bool.not(z)),
+      Thunk.reads(Laws.inert.node(kids), Laws.inert.keep(Laws.inert.blanks(kp), pp)),
+      Thunk.reads(kids, Laws.inert.keep(Laws.inert.blanks(kp), pp)),
+      inert.thunk.reads(kids, Laws.inert.keep(Laws.inert.blanks(kp), pp))),
+    inert.guard(Lex.is_name(kp), Laws.inert.blanks(kp), pp, z => Bool.not(Thunk.reads(kids, z)),
+      inert.thunk.name_code(kp)))
+
+# past the name, read that way: the finding it gave
+law inert.thunk.group:
+  for +kp: Lex.TokKind
+  for +pp: String
+  for +ka: Lex.TokKind
+  for +aa: String
+  for +kn: Lex.TokKind
+  for +nm: String
+  for +ll: U32
+  for +cc: U32
+  for r3: Tree.Node
+  for +name: String
+  for +path: String
+  for ea: {Laws.inert.fits.go(Laws.inert.blanks(ka), aa) == True{} : Bool}
+  for ef: {Laws.inert.fits.go(Laws.inert.blanks(kn), nm) == True{} : Bool}
+  for en: {Laws.inert.marked(name) == False{} : Bool}
+  {Thunk.site.group(kp, Laws.inert.keep(Laws.inert.blanks(kp), pp), Laws.inert.keep(Laws.inert.blanks(ka), aa),
+    Laws.inert.keep(Laws.inert.blanks(kn), nm), ll, cc, Laws.inert.node(r3), name, path)
+    == Thunk.site.group(kp, pp, aa, nm, ll, cc, r3, name, path) : List<&2, F.Finding>}
+
+def inert.thunk.group(kp, pp, ka, aa, kn, nm, ll, cc, r3, name, path, ea, ef, en):
+  match r3:
+    case Tree.NCons{h, +after}:
+      match h:
+        case Tree.Group{open, +kids, cl}:
+          match open:
+            case Lex.Tok{ko, +o, lo, co}:
+              +f = Thunk.cite(ll, cc, name, path)
+              +l1 = Bool.and(Lex.is_name(kp),
+                Bool.not(Thunk.reads(Laws.inert.node(kids), Laws.inert.keep(Laws.inert.blanks(kp), pp))))
+              +a1 = String.eq(Laws.inert.keep(Laws.inert.blanks(ka), aa), "=>")
+              +n1 = String.eq(Laws.inert.keep(Laws.inert.blanks(kn), nm), name)
+              +e1 = Thunk.ends(Laws.inert.node(after))
+              +oo = String.eq(o, "(")
+              %inert.thunk.lead(kp, pp, kids) : {Bool.pick(List<&2, F.Finding>, Thunk.hit(l1, a1, n1, oo, e1), [f], [])
+                == Bool.pick(List<&2, F.Finding>, Thunk.hit(_, String.eq(aa, "=>"), String.eq(nm, name), oo,
+                  Thunk.ends(after)), [f], []) : List<&2, F.Finding>}
+              %inert.eq_keep(Laws.inert.blanks(ka), aa, "=>", ea, {==}) : {Bool.pick(List<&2, F.Finding>,
+                Thunk.hit(l1, a1, n1, oo, e1), [f], [])
+                == Bool.pick(List<&2, F.Finding>, Thunk.hit(l1, _, String.eq(nm, name), oo, Thunk.ends(after)), [f],
+                  []) : List<&2, F.Finding>}
+              %inert.eq_keep(Laws.inert.blanks(kn), nm, name, ef, en) : {Bool.pick(List<&2, F.Finding>,
+                Thunk.hit(l1, a1, n1, oo, e1), [f], [])
+                == Bool.pick(List<&2, F.Finding>, Thunk.hit(l1, a1, _, oo, Thunk.ends(after)), [f], [])
+                  : List<&2, F.Finding>}
+              %inert.thunk.ends(after) : {Bool.pick(List<&2, F.Finding>, Thunk.hit(l1, a1, n1, oo, e1), [f], [])
+                == Bool.pick(List<&2, F.Finding>, Thunk.hit(l1, a1, n1, oo, _), [f], []) : List<&2, F.Finding>}
+              {==}
+        case Tree.Leaf{x}: {==}
+        case Tree.Stmt{x, y, z}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# past `=>`, read that way: the finding it gave
+law inert.thunk.name:
+  for +kp: Lex.TokKind
+  for +pp: String
+  for +ka: Lex.TokKind
+  for +aa: String
+  for r2: Tree.Node
+  for +name: String
+  for +path: String
+  for ea: {Laws.inert.fits.go(Laws.inert.blanks(ka), aa) == True{} : Bool}
+  for en: {Laws.inert.marked(name) == False{} : Bool}
+  for e: {Laws.inert.ok(r2) == True{} : Bool}
+  {Thunk.site.name(kp, Laws.inert.keep(Laws.inert.blanks(kp), pp), Laws.inert.keep(Laws.inert.blanks(ka), aa),
+    Laws.inert.node(r2), name, path)
+    == Thunk.site.name(kp, pp, aa, r2, name, path) : List<&2, F.Finding>}
+
+def inert.thunk.name(kp, pp, ka, aa, r2, name, path, ea, en, e):
+  match r2:
+    case Tree.NCons{h, +r3}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+kn, +n, l, c}:
+              inert.thunk.group(kp, pp, ka, aa, kn, n, l, c, r3, name, path, ea,
+                inert.and_l(Laws.inert.fits.go(Laws.inert.blanks(kn), n), Laws.inert.ok(r3), e), en)
+        case Tree.Group{x, y, z}: {==}
+        case Tree.Stmt{x, y, z}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# past the parameter, read that way: the finding it gave
+law inert.thunk.lam:
+  for +kp: Lex.TokKind
+  for +pp: String
+  for rest: Tree.Node
+  for +name: String
+  for +path: String
+  for en: {Laws.inert.marked(name) == False{} : Bool}
+  for +e: {Laws.inert.ok(rest) == True{} : Bool}
+  {Thunk.site.lam(kp, Laws.inert.keep(Laws.inert.blanks(kp), pp), Laws.inert.node(rest), name, path)
+    == Thunk.site.lam(kp, pp, rest, name, path) : List<&2, F.Finding>}
+
+def inert.thunk.lam(kp, pp, rest, name, path, en, e):
+  match rest:
+    case Tree.NCons{h, +r2}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{+ka, +a, l, c}:
+              inert.thunk.name(kp, pp, ka, a, r2, name, path,
+                inert.and_l(Laws.inert.fits.go(Laws.inert.blanks(ka), a), Laws.inert.ok(r2), e), en,
+                inert.and_r(Laws.inert.fits.go(Laws.inert.blanks(ka), a), Laws.inert.ok(r2), e))
+        case Tree.Group{x, y, z}: {==}
+        case Tree.Stmt{x, y, z}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{x}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+
+# a node and the chain after it, read that way: the finding they gave
+law inert.thunk.site:
+  for hh: Tree.Node
+  for rest: Tree.Node
+  for +name: String
+  for +path: String
+  for en: {Laws.inert.marked(name) == False{} : Bool}
+  for e: {Laws.inert.ok(rest) == True{} : Bool}
+  {Thunk.site(Laws.inert.node(hh), Laws.inert.node(rest), name, path) == Thunk.site(hh, rest, name, path)
+    : List<&2, F.Finding>}
+
+def inert.thunk.site(hh, rest, name, path, en, e):
+  match hh:
+    case Tree.Leaf{tok}:
+      match tok:
+        case Lex.Tok{+kp, +p, l, c}: inert.thunk.lam(kp, p, rest, name, path, en, e)
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+    case Tree.NCons{x, y}: {==}
+
+# thunk's walk over a node read that way reports what it reports over the node
+law inert.thunk.walk:
+  for nn: Tree.Node
+  for +name: String
+  for +path: String
+  for +en: {Laws.inert.marked(name) == False{} : Bool}
+  for +e: {Laws.inert.ok(nn) == True{} : Bool}
+  {Thunk.walk(Laws.inert.node(nn), name, path) == Thunk.walk(nn, name, path) : List<&2, F.Finding>}
+
+def inert.thunk.walk(nn, name, path, en, e):
+  match nn:
+    case Tree.NCons{+h, +rest}:
+      +eh = inert.and_l(Laws.inert.ok(h), Laws.inert.ok(rest), e)
+      +er = inert.and_r(Laws.inert.ok(h), Laws.inert.ok(rest), e)
+      +s1 = Thunk.site(Laws.inert.node(h), Laws.inert.node(rest), name, path)
+      +w1 = Thunk.walk(Laws.inert.node(h), name, path)
+      +w2 = Thunk.walk(Laws.inert.node(rest), name, path)
+      %inert.thunk.site(h, rest, name, path, en, er) : {List.concat(&2, F.Finding, [s1, w1, w2])
+        == List.concat(&2, F.Finding, [_, Thunk.walk(h, name, path), Thunk.walk(rest, name, path)])
+        : List<&2, F.Finding>}
+      %inert.thunk.walk(h, name, path, en, eh) : {List.concat(&2, F.Finding, [s1, w1, w2])
+        == List.concat(&2, F.Finding, [s1, _, Thunk.walk(rest, name, path)]) : List<&2, F.Finding>}
+      %inert.thunk.walk(rest, name, path, en, er) : {List.concat(&2, F.Finding, [s1, w1, w2])
+        == List.concat(&2, F.Finding, [s1, w1, _]) : List<&2, F.Finding>}
+      {==}
+    case Tree.Group{o, +kids, cl}:
+      inert.thunk.walk(kids, name, path, en, e)
+    case Tree.Stmt{sk, +kids, +body}:
+      +w1 = Thunk.walk(Laws.inert.node(kids), name, path)
+      +w2 = Thunk.walk(Laws.inert.node(body), name, path)
+      %inert.thunk.walk(kids, name, path, en, inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), e)) :
+        {List.concat(&2, F.Finding, [w1, w2]) == List.concat(&2, F.Finding, [_, Thunk.walk(body, name, path)])
+          : List<&2, F.Finding>}
+      %inert.thunk.walk(body, name, path, en, inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), e)) :
+        {List.concat(&2, F.Finding, [w1, w2]) == List.concat(&2, F.Finding, [w1, _]) : List<&2, F.Finding>}
+      {==}
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+
+# thunk over the defs read that way reports what it reports over the defs
+law inert.thunk.go:
+  for ds: List<&2, Calls.Def>
+  for +path: String
+  for +acc: List<&2, List<&2, F.Finding>>
+  for +e: {inert.dok(ds) == True{} : Bool}
+  {Thunk.check.go(inert.defs(ds), path, acc) == Thunk.check.go(ds, path, acc) : List<&2, F.Finding>}
+
+def inert.thunk.go(ds, path, acc, e):
+  match ds:
+    case Nil{}: {==}
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +lst = inert.pick.stop(Calls.exempt(path, Laws.inert.node(sig)), Thunk.walk(Laws.inert.node(body), name, path))
+      %inert.exempt(path, sig) : {Thunk.check.go(inert.defs(rest), path, lst <> acc) == Thunk.check.go(rest, path,
+        inert.pick.stop(_, Thunk.walk(body, name, path)) <> acc) : List<&2, F.Finding>}
+      %inert.thunk.walk(body, name, path, inert.dok.head(name, sig, body, rest, e),
+        inert.dok.body(name, sig, body, rest, e)) : {Thunk.check.go(inert.defs(rest), path, lst <> acc)
+          == Thunk.check.go(rest, path, inert.pick.stop(Calls.exempt(path, Laws.inert.node(sig)), _) <> acc)
+          : List<&2, F.Finding>}
+      inert.thunk.go(rest, path, lst <> acc, inert.dok.rest(name, sig, body, rest, e))
+
+def Laws.inert_thunk(path, _text, tree, _toks, _bound, _items, _text2, tree2, _toks2, _bound2, _items2, ok, ok2, e):
+  inert.via(Tree.Node, z => Thunk.check.go(Calls.defs(z), path, []), tree, tree2, Laws.inert.node(tree),
+    Laws.inert.node(tree2),
+    inert.lift(z => Thunk.check.go(z, path, []), tree, inert.thunk.go(Calls.defs(tree), path, [], inert.dok.of(tree,
+      ok))),
+    inert.lift(z => Thunk.check.go(z, path, []), tree2, inert.thunk.go(Calls.defs(tree2), path, [],
       inert.dok.of(tree2, ok2))),
     e)
 

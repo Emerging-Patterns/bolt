@@ -6,15 +6,20 @@
 # sees it (a game's overlap test moved out of a pick branch took a scene from
 # 31 to 55 fps; one `gaps(..)` in a branch here ran on every file the linter
 # read, 88 s of a 100 s run). Bind the call above the pick (`+x = gaps(..)`),
-# or take the branch lazily (`Lazy.stop`, `Lazy.or_else` from src/lazy/lazy.bend:
-# the last argument is a `Unit -> T` thunk, applied only on the branch that
-# needs it). Two things keep it off idiomatic code: only a call to a def of
-# this file counts, and only to one that loops (it calls itself, or reaches
-# something that does), since a Base call and a one-line accessor are
-# everywhere and cost nothing; only the branch arguments count, not the type
-# and the condition, which run whatever is written; and what sits after a
-# `=>` is a lambda's body, which the call does not run. The body ends at the
-# next comma of its group, so an argument after it counts again.
+# or branch with `match` on the condition. For a search that recurses, carry
+# the test as a Bool into the next call (`go(rest, k, test(h))`) and match on
+# it first: the step stays a tail call and compiles to a loop, where a thunk
+# around the recursive call (`Lazy.or_else(hit, _u => go(rest))`) allocates a
+# closure and leaves the loop on every step (`thunk`, U015). The early exits
+# of src/lazy/lazy.bend (`Lazy.stop`, `Lazy.or_else`: the last argument is a
+# `Unit -> T` thunk, applied only on the branch that needs it) stay right for
+# work that does not recurse. Two things keep it off idiomatic code: only a
+# call to a def of this file counts, and only to one that loops (it calls
+# itself, or reaches something that does), since a Base call and a one-line
+# accessor are everywhere and cost nothing; only the branch arguments count,
+# not the type and the condition, which run whatever is written; and what
+# sits after a `=>` is a lambda's body, which the call does not run. The body
+# ends at the next comma of its group, so an argument after it counts again.
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
