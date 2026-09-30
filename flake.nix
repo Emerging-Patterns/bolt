@@ -51,21 +51,9 @@
           ${old.buildPhase}
         '';
       });
-      # the proof gate: every PROOF.bend on this flake's bend, its first line
-      # ALL PROOFS CHECK. ez.mkProofs comes back when ez runs on 2.0.34.
-      proofs = pkgs.runCommand "bolt-proofs" {
-        nativeBuildInputs = [ bend ];
-        BEND_LIB = ez.bendLib ./ez.lock.toml;
-      } ''
-        export HOME=$TMPDIR
-        cp -r ${self} src && chmod -R u+w src && cd src
-        for p in $(find . -name PROOF.bend -not -path './.ez/*' | sort); do
-          first=$(cd "$(dirname "$p")" && bend "$(basename "$p")" | head -n 1)
-          echo "$p: $first"
-          [ "$first" = "ALL PROOFS CHECK" ] || exit 1
-        done
-        touch $out
-      '';
+      # the proof gate: `ez prove`, every PROOF.bend on this flake's bend,
+      # each passing only on a first line of ALL PROOFS CHECK
+      proofs = ez.mkProofs { ez = inputs.ez.packages.${system}.default; src = self; };
       # bolt, built from this tree, over this tree: exit 1 on any error
       lint = ez.mkLint { inherit bolt; src = self; };
     in {

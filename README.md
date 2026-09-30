@@ -17,20 +17,19 @@ written in Bend, with a VS Code extension.
 
 ## Install
 
-bolt needs a Bend 2, and any Bend 2 will do: the one
+bolt needs Bend 2.0.32 or later; it is built and checked on Bend 2.0.34, the
+version `flake.lock` pins. Any install of it will do: the one
 `curl -fsSL https://bend-lang.com/install.sh | sh` installs, one from nix, or
 one built from source. You do not need ez or nix. Building bolt needs clang
-14+ as well, since bolt is one native binary.
+14+ as well, since bolt is one native binary. `bolt check` and `bolt lsp` run
+the `bend` on your PATH, so that `bend` is the one to keep at the tested
+version.
 
-**Bend version.** bolt is built and tested with Bend 2.0.34, the version
-`flake.lock` pins. `bolt check` and `bolt lsp` run the `bend` on your PATH,
-so that `bend` is the one to keep at the tested version.
+With an installed `bend` and nothing else, build bolt v1.12.0 from the Bend
+hub, where it is published as `bolt@1.12.0.0`. Put this in `t.bend`:
 
-With an installed `bend` and nothing else, build bolt v1.9.0 from the Bend
-hub, where it is `0xd96f2ab40f5df4925c42e96d0ba857ff`. Put this in `bolt.bend`:
-
-```
-import 0xd96f2ab40f5df4925c42e96d0ba857ff/main.bend as Bolt
+```bend
+import bolt@1.12.0.0/main.bend as Bolt
 
 def main() -> IO(Unit):
   Bolt.main()
@@ -39,9 +38,13 @@ def main() -> IO(Unit):
 and build it:
 
 ```
-bend bolt.bend -o bolt.bin               # fetches bolt and its libraries from the hub
-./bolt.bin --version                     # bolt 1.9.0
+bend t.bend -o bolt                      # fetches bolt and its libraries from the hub
+./bolt --version                         # bolt 1.12.0
 ```
+
+There is no install step: `bend` fetches the package on the first build.
+`bolt@1.12.0.0` resolves to `0x582b4b0fdf3dafdeecc8c3bfddc5e4db`, and
+`import 0x582b4b0fdf3dafdeecc8c3bfddc5e4db/main.bend` pins it by content.
 
 Or from a clone, at the head of `main`:
 
@@ -160,11 +163,13 @@ The gate is [ez](https://github.com/Emerging-Patterns/ez), a separate binary
 from a separate repo:
 
 ```
-ez test                  every */tests/*.bend on both lanes, every PROOF.bend
+ez prove                 every PROOF.bend: the proof gate
+ez test                  every */tests/*.bend on both lanes
 ez build bin/bolt.bin    the binary people run
 ```
 
-`ez test` checks every `PROOF.bend`, then runs each stay-list
+`ez prove` passes when every `PROOF.bend` prints `ALL PROOFS CHECK`. `ez test`
+runs each stay-list
 host/integration test on the JS lane and the native lane against the `#|`
 trailer the file ends in, caps each `bend` at `EZ_CAP` gigabytes, and caches
 a lane on the content of everything it reads, so a second run over an
