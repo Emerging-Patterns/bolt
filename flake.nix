@@ -12,9 +12,8 @@
   inputs.ez = {
     url = "github:Emerging-Patterns/ez";
     inputs.nixpkgs.follows = "nixpkgs";
-    # ez stays on the bend its own flake.lock records (2.0.31) until ez
-    # releases on 2.0.34, so ez's inputs.bend is pinned, not followed
-    inputs.bend.url = "github:bendlang/bend/af569d4826913b2ce3557e9829ccad31fcf86f94";
+    # ez's flake.lock names the same 2.0.34 commit as inputs.bend
+    inputs.bend.follows = "bend";
   };
 
   outputs = { self, nixpkgs, ... }@inputs:
