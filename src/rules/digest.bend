@@ -307,16 +307,27 @@ def doc_at(items: List<&2, Outline.Item>, +at: U32) -> String:
     case Con{Outline.Item{kk, nn, +ln, sig, +doc, pp}, rest}:
       Lazy.stop(String, U32.is_le(at, ln), Bool.pick(String, U32.is_eq(ln, at), doc, ""), _u => doc_at(rest, at))
 
+# does the first item sit on or after a line (from_line stops there)?
+def from_line.stop(items: List<&2, Outline.Item>, +at: U32) -> Bool:
+  match items:
+    case Nil{}:
+      True{}
+    case Con{Outline.Item{kk, nn, +ln, sig, doc, pp}, rest}:
+      U32.is_le(at, ln)
+
 # the items from the first on or after a line; the items are in line order,
 # and so are a tree's laws, so an item this drops lies above every later law
-# too
-def from_line(+items: List<&2, Outline.Item>, +at: U32) -> List<&2, Outline.Item>:
+# too. stop is from_line.stop of items, carried so the step stays a loop
+def from_line(items: List<&2, Outline.Item>, +at: U32, +stop: Bool) -> List<&2, Outline.Item>:
   match items:
     case Nil{}:
       Nil{}
-    case Con{Outline.Item{kk, nn, +ln, sig, doc, pp}, rest}:
-      Lazy.stop(List<&2, Outline.Item>, U32.is_le(at, ln), Outline.Item{kk, nn, ln, sig, doc, pp} <> rest,
-        _u => from_line(rest, at))
+    case Con{h, +rest}:
+      match stop:
+        case True{}:
+          h <> rest
+        case False{}:
+          from_line(rest, at, from_line.stop(rest, at))
 
 # every law of a tree, with whether it binds and its doc lines. items is a
 # cursor: each law's search starts where the last one stopped, so the items
@@ -325,7 +336,7 @@ def laws_of(root: Tree.Node, +items: List<&2, Outline.Item>) -> List<&2, Law>:
   match root:
     case Tree.NCons{Tree.Stmt{Tree.SLaw{}, +kids, body}, rest}:
       +at = Tree.line(kids)
-      +left = from_line(items, at)
+      +left = from_line(items, at, from_line.stop(items, at))
       dd = doc_at(left, at)
       Law{Closed.name.of(Bind.declared(kids)), at, Closed.binds(body), String.lines(dd)} <> laws_of(rest, left)
     case Tree.NCons{h, rest}:
