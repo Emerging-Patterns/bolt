@@ -49,7 +49,7 @@ def any_of(cs: List<&2, String>, +set: List<&2, String>) -> Bool:
     case Nil{}:
       False{}
     case Con{c, t}:
-      Lazy.or_else(List.contains(~String, ~String.eq, set, c), _u => any_of(t, set))  # noqa: U013 a def's names
+      Lazy.or_else(List.contains(~String, ~String.eq, set, c), _u => any_of(t, set))
 
 def loops.go(ds: List<&2, Calls.Def>, +acc: List<&2, String>) -> List<&2, String>:
   match ds:
@@ -121,7 +121,7 @@ def work(
       +now = work.hot(k, hot, seg, keep)
       +call = Bool.and(work.name(k), String.eq(o, "("))
       +is_pick = Bool.and(call, String.eq(t, "Bool.pick"))
-      +known = List.contains(~String, ~String.eq, ns, t)  # noqa: U013 a def's names
+      +known = List.contains(~String, ~String.eq, ns, t)
       +mine = Bool.and(Bool.not(String.eq(t, self)), known)
       +report = Bool.and(now, Bool.and(call, mine))
       +inner = Bool.and(now, Bool.not(is_pick))

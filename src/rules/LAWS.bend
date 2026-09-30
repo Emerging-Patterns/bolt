@@ -27,7 +27,7 @@ import ./suspicious/index.bend as Index
 import ./suspicious/ring.bend as Ring
 import ./suspicious/table.bend as Table
 import ./suspicious/unit.bend as UnitRule
-import ./suspicious/argv.bend as Argv
+import ./suspicious/fromrev.bend as Fromrev
 import ./suspicious/thunk.bend as Thunk
 import ./suspicious/scan.bend as Scan
 import ./correctness/chars.bend as Chars
@@ -190,40 +190,46 @@ law put_counts:
   {List.length(&2, F.Finding, Put.check.on(toks, path))
     == Bool.pick(Nat, put_defined(toks), 0n, put_count(toks)) : Nat}
 
-# True when tt is `IO.args` and the tokens open with a `(` token
-def argv_open(+tt: String, toks: List<&2, Lex.Tok>) -> Bool:
+# True when tt is `String.from_list` and the tokens open with `(`,
+# `List.reverse` and `(`
+def fromrev_at(+tt: String, toks: List<&2, Lex.Tok>) -> Bool:
   match toks:
-    case Con{Lex.Tok{Lex.TOpen{}, +o, l, c}, rest}:
-      Bool.and(String.eq(tt, "IO.args"), String.eq(o, "("))
-    case Con{h, rest}:
-      False{}
     case Nil{}:
       False{}
+    case Con{Lex.Tok{k1, +a, l1, c1}, r1}:
+      match r1:
+        case Nil{}:
+          False{}
+        case Con{Lex.Tok{k2, +b, l2, c2}, r2}:
+          match r2:
+            case Nil{}:
+              False{}
+            case Con{Lex.Tok{k3, +d, l3, c3}, r3}:
+              Bool.and(Bool.and(String.eq(tt, "String.from_list"), String.eq(a, "(")),
+                Bool.and(String.eq(b, "List.reverse"), String.eq(d, "(")))
 
-# how many `IO.args` tokens have a `(` token right after them
-def argv_count(toks: List<&2, Lex.Tok>) -> Nat:
+# how many tokens start a `String.from_list`, `(`, `List.reverse`, `(` run
+def fromrev_count(toks: List<&2, Lex.Tok>) -> Nat:
   match toks:
     case Nil{}:
       0n
-    case Con{Lex.Tok{Lex.TDotted{}, +t, l, c}, +rest}:
-      +m = argv_count(rest)
-      Bool.pick(Nat, argv_open(t, rest), 1n+m, m)
-    case Con{h, rest}:
-      argv_count(rest)
+    case Con{Lex.Tok{k, +t, l, c}, +rest}:
+      +m = fromrev_count(rest)
+      Bool.pick(Nat, fromrev_at(t, rest), 1n+m, m)
 
-# LAW: argv reports one finding for each `IO.args` token with a `(` token
-# right after it among the significant tokens, at any path, and none for
-# any other token
-# BOLT-RULE-U014
-law argv_counts:
+# LAW: fromrev reports, outside a LAWS.bend or a PROOF.bend, one finding for
+# each run of significant tokens whose texts are `String.from_list`, `(`,
+# `List.reverse` and `(`, and none for any other token
+# BOLT-RULE-U016
+law fromrev_counts:
   for +path: String
   for text: String
   for +toks: List<&2, Lex.Tok>
   for tree: Tree.Node
   for bound: Bind.Bound
   for items: List<&2, Outline.Item>
-  {List.length(&2, F.Finding, Argv.check(Src.Src{path, text, toks, tree, bound, items}))
-    == argv_count(T.sig(toks)) : Nat}
+  {List.length(&2, F.Finding, Fromrev.check(Src.Src{path, text, toks, tree, bound, items}))
+    == Bool.pick(Nat, Paths.is_law_file(path), 0n, fromrev_count(T.sig(toks))) : Nat}
 
 # True when the first token past spaces, newlines and comments is `TODO`
 def todo_next(toks: List<&2, Lex.Tok>) -> Bool:
@@ -609,6 +615,19 @@ law scan_exempt:
   for items: List<&2, Outline.Item>
   for e: {Paths.is_law_file(path) == True{} : Bool}
   {Scan.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: fromrev reports nothing in a LAWS.bend or a PROOF.bend, which never run, whatever the source holds
+# BOLT-RULE-EXEMPT
+# BOLT-RULE-U016
+law fromrev_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_law_file(path) == True{} : Bool}
+  {Fromrev.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
 
 # LAW: a def written with no type (no `:` among its parameters, no `->`) fills the law of its name, so it is a
 # proof: every cost rule that reads Calls.exempt skips it wherever it is, as it skips one that returns a proof
@@ -1349,10 +1368,11 @@ law closed_counts:
     == Bool.pick(Nat, Paths.is_laws(path), closed.count(tree), 0n) : Nat}
 
 # doc (BOLT-RULE-S001). Over the outline's items the rule reports each def,
-# type and law with no comment block right above it: its outline doc text is
-# empty and the line right above it does not start with `#` (a block of bare
-# `#` lines has an empty text). The header's exemptions: a name that is
-# `main` or holds a dot (a helper), and a PROOF.bend or a file under a
+# type and law with no comment block right above it: reading up from the
+# item past any lines that start with `@` (attributes such as `@unsafe`),
+# the first other line does not start with `#` (a block of bare `#` lines
+# counts; its doc text is never read). The header's exemptions: a name that
+# is `main` or holds a dot (a helper), and a PROOF.bend or a file under a
 # `tests` directory.
 
 # a def, a type or a law: the kinds that need a comment
@@ -1371,19 +1391,25 @@ def doc.kind(kk: Outline.ItemKind) -> Bool:
 def doc.free(+name: String) -> Bool:
   Bool.or(String.eq(name, "main"), String.contains(name, "."))
 
-# line nn of the lines (0-based) starts with `#`
-def doc.hash(lines: List<&2, String>, +nn: U32) -> Bool:
+# reading down, does a comment block end right above the next line? After a
+# `#` line it does; an `@` line keeps what was above it; any other line ends it
+def doc.after(+line: String, ok: Bool) -> Bool:
+  Bool.or(String.starts_with(line, "#"), Bool.and(String.starts_with(line, "@"), ok))
+
+# reading lines 0 to nn - 1 (0-based) down from ok: does a comment block end
+# right above line nn, past a run of `@` lines?
+def doc.lead(lines: List<&2, String>, +nn: U32, +ok: Bool) -> Bool:
   match lines:
     case Nil{}:
-      False{}
+      Bool.and(U32.is_eq(nn, 0), ok)
     case Con{hh, tt}:
-      Bool.pick(Bool, U32.is_eq(nn, 0), String.starts_with(hh, "#"), doc.hash(tt, U32.sub(nn, 1)))
+      Bool.pick(Bool, U32.is_eq(nn, 0), ok, doc.lead(tt, U32.sub(nn, 1), doc.after(hh, ok)))
 
 # an item that needs a comment and has none: an unexempt def, type or law
-# whose line has no `#` line right above it (its doc text is never read)
+# with no `#` line right above it, or right above the `@` lines right above
+# it (its doc text is never read)
 def doc.bare(kk: Outline.ItemKind, +name: String, +line: U32, _doc: String, +lines: List<&2, String>) -> Bool:
-  Bool.and(Bool.and(doc.kind(kk), Bool.not(doc.free(name))),
-    Bool.not(Bool.and(Bool.not(U32.is_eq(line, 0)), doc.hash(lines, U32.sub(line, 1)))))
+  Bool.and(Bool.and(doc.kind(kk), Bool.not(doc.free(name))), Bool.not(doc.lead(lines, line, False{})))
 
 # how many items need a comment and have none
 def doc.count(items: List<&2, Outline.Item>, +lines: List<&2, String>) -> Nat:
@@ -1396,7 +1422,8 @@ def doc.count(items: List<&2, Outline.Item>, +lines: List<&2, String>) -> Nat:
 
 # LAW: over the outline's items, doc reports one finding for each def, type
 # or law not named `main` and holding no dot whose line has no `#` line
-# right above it, and none for any other item
+# right above it, or right above a run of `@` lines right above it, and none
+# for any other item
 # BOLT-RULE-S001
 law doc_walk_counts:
   for items: List<&2, Outline.Item>
@@ -1423,17 +1450,43 @@ law doc_counts:
 # every use with what it resolves to. A binder counts when it is a let, a
 # do-bind or a lambda binder (KLocal), or a parameter (KParam) that is not
 # erased (its declaration opens with `-`) and does not sit on a header line
-# of a foreign def; its name does not start with `_`; and no use resolves to
+# of a foreign def (its body's first statement, once a header that does not
+# end in `:` has run on through the statements up to one that does, is an
+# `import`); its name does not start with `_`; and no use resolves to
 # its position. Pattern binders (KPat), a law's `for` names (KFor) and every
 # other kind never count.
 
-# does a def's body open with an import statement? then the def is foreign
-def unused.imported(body: Tree.Node) -> Bool:
-  match body:
-    case Tree.NCons{Tree.Stmt{Tree.SImport{}, kids, b}, rest}:
+# is the statement an import?
+def unused.is_import(sk: Tree.StmtKind) -> Bool:
+  match sk:
+    case Tree.SImport{}:
       True{}
     case other:
       False{}
+
+# does a statement's own chain end in a `:` leaf (Unused.colon, the rule's
+# reading of one)? last: whether the node before the chain did
+def unused.ends(kids: Tree.Node, last: Bool) -> Bool:
+  match kids:
+    case Tree.NCons{h, t}:
+      unused.ends(t, Unused.colon(h))
+    case other:
+      last
+
+# does the body open with an import once the def's header is over? While the
+# header is open (its tokens so far do not end in `:`), each statement of the
+# body is more of it: `-> IO(T):` on the line after `def f(..)`
+def unused.opens(body: Tree.Node, +open: Bool) -> Bool:
+  match body:
+    case Tree.NCons{Tree.Stmt{sk, kids, b}, rest}:
+      Bool.pick(Bool, open, unused.opens(rest, Bool.not(unused.ends(kids, False{}))), unused.is_import(sk))
+    case other:
+      False{}
+
+# does a def's body open with an import statement, wherever its header's `->`
+# and return type fall? then the def is foreign
+def unused.imported(kids: Tree.Node, body: Tree.Node) -> Bool:
+  unused.opens(body, Bool.not(unused.ends(kids, False{})))
 
 # the line of each token
 def unused.token_lines(ts: List<&2, Lex.Tok>) -> List<&2, U32>:
@@ -1447,9 +1500,9 @@ def unused.token_lines(ts: List<&2, Lex.Tok>) -> List<&2, U32>:
 # of its own tokens, def by def
 def unused.headers(root: Tree.Node) -> List<&2, U32>:
   match root:
-    case Tree.NCons{Tree.Stmt{Tree.SDef{}, kids, body}, rest}:
+    case Tree.NCons{Tree.Stmt{Tree.SDef{}, +kids, body}, rest}:
       +more = unused.headers(rest)
-      Bool.pick(List<&2, U32>, unused.imported(body),
+      Bool.pick(List<&2, U32>, unused.imported(kids, body),
         List.append(&2, U32, unused.token_lines(Tree.leaves(kids)), more), more)
     case Tree.NCons{h, rest}:
       unused.headers(rest)
@@ -1514,7 +1567,7 @@ def unused.count(binds: List<&2, Bind.Bind>, +uses: List<&2, Bind.Use>, +fl: Lis
 # parameter no use resolves to, and none for any other binder: not a pattern
 # binder, a name starting with `_`, an erased parameter, a law's `for` name,
 # or a parameter of a foreign def (one whose body opens with `import`),
-# however its header is wrapped
+# wherever its header's `->` and return type fall
 # BOLT-RULE-U001
 law unused_counts:
   for +path: String
@@ -1534,6 +1587,8 @@ law unused_counts:
 # (argument 1) is not one number token is a finding. So is a `List.get(..)`
 # whose index (argument 3) is not one number token, unless `table` reports
 # that same call: its fixed-table test, over the tables it finds in that def.
+# A call whose name is the def's own (a def named `List.get` or `String.get`
+# stepping to itself) is neither.
 
 # is the chain exactly one number token?
 def index.lit(nn: Tree.Node) -> Bool:
@@ -1553,27 +1608,39 @@ def index.fires(list: Bool, +ob: Bool, +sget: Bool, +as: List<&2, Tree.Node>, ta
     case False{}:
       Bool.and(ob, Bool.and(sget, Bool.not(index.lit(Calls.arg(as, 1n)))))
 
-# one when the name token tt at (ll, cc), then the rest, is a call index reports
-def index.site(+tt: String, +ll: U32, +cc: U32, rest: Tree.Node, +path: String, +fixed: List<&2, String>) -> Nat:
+# one when the name token tt at (ll, cc), then the rest, is a call index
+# reports in the def named self
+def index.site(
+  +tt: String,
+  +ll: U32,
+  +cc: U32,
+  rest: Tree.Node,
+  +path: String,
+  +fixed: List<&2, String>,
+  +self: String
+) -> Nat:
   match rest:
     case Tree.NCons{Tree.Group{Lex.Tok{k, +o, ol, oc}, +kids, cl}, r}:
-      Bool.pick(Nat, index.fires(String.eq(tt, "List.get"), String.eq(o, "("), String.eq(tt, "String.get"),
+      +other = Bool.not(String.eq(tt, self))
+      Bool.pick(Nat, index.fires(Bool.and(String.eq(tt, "List.get"), other), String.eq(o, "("),
+        Bool.and(String.eq(tt, "String.get"), other),
         Calls.args(kids), Table.hit(String.eq(o, "("), "List.get", kids, fixed, path, ll, cc)), 1n, 0n)
     case other:
       0n
 
 # how many calls at any depth of the node index reports, fixed the tables
-# `table` sees
-def index.count(nn: Tree.Node, +path: String, +fixed: List<&2, String>) -> Nat:
+# `table` sees, in the def named self
+def index.count(nn: Tree.Node, +path: String, +fixed: List<&2, String>, +self: String) -> Nat:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, +rest}:
-      Nat.add(index.site(t, l, c, rest, path, fixed), index.count(rest, path, fixed))
+      Nat.add(index.site(t, l, c, rest, path, fixed, self), index.count(rest, path, fixed, self))
     case Tree.NCons{Tree.Group{o, kids, cl}, rest}:
-      Nat.add(index.count(kids, path, fixed), index.count(rest, path, fixed))
+      Nat.add(index.count(kids, path, fixed, self), index.count(rest, path, fixed, self))
     case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
-      Nat.add(index.count(kids, path, fixed), Nat.add(index.count(body, path, fixed), index.count(rest, path, fixed)))
+      Nat.add(index.count(kids, path, fixed, self), Nat.add(index.count(body, path, fixed, self),
+        index.count(rest, path, fixed, self)))
     case Tree.NCons{h, rest}:
-      index.count(rest, path, fixed)
+      index.count(rest, path, fixed, self)
     case other:
       0n
 
@@ -1585,13 +1652,14 @@ def index.total(ds: List<&2, Calls.Def>, +mods: List<&2, String>, +path: String)
       0n
     case Con{Calls.Def{+name, +sig, +body}, rest}:
       Nat.add(Bool.pick(Nat, Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig))),
-        index.count(body, path, Table.scope(body, mods)), 0n), index.total(rest, mods, path))
+        index.count(body, path, Table.scope(body, mods), name), 0n), index.total(rest, mods, path))
 
 # LAW: index reports one finding for each `List.get(..)` or `String.get(..)`
 # at an index that is not one number token, anywhere in a def that calls
 # itself (a base arm included) and is not a law or a proof, except a
-# `List.get` that `table` reports as a get on a fixed table; none for
-# anything else
+# `List.get` that `table` reports as a get on a fixed table and a get that is
+# the def's own self-call (in a def named `List.get` or `String.get`); none
+# for anything else
 # BOLT-RULE-U007
 law index_counts:
   for +path: String
@@ -2048,11 +2116,15 @@ law ring_counts:
     == ring.defs(Calls.defs(tree), path) : Nat}
 
 # fuel (BOLT-RULE-U006). The rule lists the file's fuel parameters: for each
-# def of the file (Calls.defs), each parameter (Calls.params) whose name, its
-# first lowercase name before the colon (Calls.param_name), is `fuel`, `gas`,
-# `steps` or `budget` or starts with `fuel`, with its position. Over each
-# top-level statement it then reads every call at any depth, a name token
-# then a `(` group, that is not a call of the statement's own name (a
+# def of the file (Calls.defs) that returns no effect, each parameter
+# (Calls.params) whose name, its first lowercase name before the colon
+# (Calls.param_name), is `fuel`, `gas`, `steps` or `budget` or starts with
+# `fuel`, with its position. A def returns an effect when its header's
+# top-level tokens hold a `->` leaf followed right away by a capitalized name
+# leaf `IO`, or, when that `->` is the header's last token (a header wrapped
+# after its arrow), the first statement under the def starts with one. Over
+# each top-level statement it then reads every call at any depth, a name
+# token then a `(` group, that is not a call of the statement's own name (a
 # self-call): for each fuel parameter of a def of that name, one finding when
 # the argument in its position (Calls.args, split at top-level commas) is one
 # Nat literal token alone, digits then `n`, or the dotted name `U32.to_nat`
@@ -2074,13 +2146,52 @@ def fuel.slots.of(ps: List<&2, Tree.Node>, +name: String, +ii: Nat) -> List<&2, 
       +more = fuel.slots.of(rest, name, 1n+ii)
       Bool.pick(List<&2, FuelRule.Fuel>, fuel.named(Calls.param_name(p)), FuelRule.Fuel{name, ii} <> more, more)
 
-# every fuel parameter of every def, in order
+# is the node after an arrow a capitalized name leaf reading `IO`?
+def fuel.io.next(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.NCons{+g, rest}:
+      Bool.and(Calls.kind.leaf(~Calls.kind.upper, g), String.eq(Calls.leaf.text(g), "IO"))
+    case other:
+      False{}
+
+# the tokens of the first statement under a def, none when there is none
+def fuel.under(body: Tree.Node) -> Tree.Node:
+  match body:
+    case Tree.NCons{Tree.Stmt{kind, kids, inner}, rest}:
+      kids
+    case other:
+      Tree.NNil{}
+
+# after an arrow: the rest of the header when there is one, else the tokens
+# of the line under it (the header wrapped after its `->`)
+def fuel.io.after(rest: Tree.Node, +below: Tree.Node) -> Bool:
+  match rest:
+    case Tree.NCons{h, t}:
+      fuel.io.next(Tree.NCons{h, t})
+    case other:
+      fuel.io.next(below)
+
+# does the header return an effect: some top-level `->` leaf followed by a
+# capitalized name leaf reading `IO`, the first of the line under it when the
+# arrow ends the header?
+def fuel.io(sig: Tree.Node, +below: Tree.Node) -> Bool:
+  match sig:
+    case Tree.NCons{h, +rest}:
+      Bool.or(Bool.and(Calls.kind.leaf(~Calls.kind.arrow, h), fuel.io.after(rest, below)), fuel.io(rest, below))
+    case other:
+      False{}
+
+# the parameters of a def that returns no effect, none of one that does
+def fuel.params(+sig: Tree.Node, body: Tree.Node) -> List<&2, Tree.Node>:
+  Bool.pick(List<&2, Tree.Node>, fuel.io(sig, fuel.under(body)), [], Calls.params(sig))
+
+# every fuel parameter of every def that returns no effect, in order
 def fuel.slots(ds: List<&2, Calls.Def>) -> List<&2, FuelRule.Fuel>:
   match ds:
     case Nil{}:
       Nil{}
     case Con{Calls.Def{name, sig, body}, rest}:
-      List.append(&2, FuelRule.Fuel, fuel.slots.of(Calls.params(sig), name, 0n), fuel.slots(rest))
+      List.append(&2, FuelRule.Fuel, fuel.slots.of(fuel.params(sig, body), name, 0n), fuel.slots(rest))
 
 # does a call's group hold one number token alone, digits only (a U32
 # literal), when ok says the call is `U32.to_nat(`?
@@ -2152,8 +2263,8 @@ def fuel.total(root: Tree.Node, +fs: List<&2, FuelRule.Fuel>) -> Nat:
     case other:
       0n
 
-# LAW: the rule's fuel parameters are the file's defs' parameters with a fuel
-# name, each at its position
+# LAW: the rule's fuel parameters are the parameters with a fuel name of the
+# file's defs that return no effect (no `-> IO`), each at its position
 # BOLT-RULE-U006
 law fuel_slots:
   for ds: List<&2, Calls.Def>
@@ -2333,13 +2444,16 @@ law unit_counts:
   {List.length(&2, F.Finding, UnitRule.check(Src.Src{path, text, toks, tree, bound, items}))
     == unit.defs(Calls.defs(tree), path) : Nat}
 
-# thunk (BOLT-RULE-U015). A thunk of a self-call is read off a chain, at
-# any depth: its first node a leaf of a name kind (the parameter), then a
-# leaf whose text is `=>`, then a leaf whose text is the def's name, then a
-# group opened by `(`, and after the group the chain's end or a comma. The
-# group must not read the parameter: no name leaf under it, at any depth,
-# spells the parameter, or the parameter then a dot. Each def of the file
-# that is not exempt counts the thunks of its body.
+# thunk (BOLT-RULE-U015). A thunk of a self-call is read off the kids of a
+# call given one lambda: a group opened by `(` whose kids, split at their
+# comma leaves, hold exactly one argument with a leaf whose text is `=>`
+# among its own nodes. In those kids, its first node a leaf of a name kind
+# (the parameter), then a leaf whose text is `=>`, then a leaf whose text is
+# the def's name, then a group opened by `(`, and after the group the kids'
+# end or a comma. The group must not read the parameter: no name leaf under
+# it, at any depth, spells the parameter, or the parameter then a dot. Such
+# calls are found at any depth. Each def of the file that is not exempt
+# counts the thunks of its body.
 
 # does a name leaf under the node spell the parameter, or it then a dot?
 def thunk.reads(nn: Tree.Node, +pp: String) -> Bool:
@@ -2397,27 +2511,46 @@ def thunk.at(nn: Tree.Node, +name: String) -> Bool:
     case other:
       False{}
 
-# how many thunks of a self-call of the name the node holds, at any depth
-def thunk.count(nn: Tree.Node, +name: String) -> Nat:
+# the arguments of the chain, from here on, that hold a `=>` leaf among their
+# own nodes (a comma leaf ends one); seen: the one under way does
+def thunk.args(nn: Tree.Node, +seen: Bool) -> Nat:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{+k, t, l, c}}, rest}:
+      Nat.add(Bool.pick(Nat, Bool.and(Lex.is_comma(k), seen), 1n, 0n),
+        thunk.args(rest, Bool.and(Bool.not(Lex.is_comma(k)), Bool.or(seen, String.eq(t, "=>")))))
+    case Tree.NCons{h, rest}:
+      thunk.args(rest, seen)
+    case other:
+      Bool.pick(Nat, seen, 1n, 0n)
+
+# is a group opened by oo over the kids a call given exactly one lambda?
+def thunk.lone(+oo: String, +kids: Tree.Node) -> Bool:
+  Bool.and(String.eq(oo, "("), Nat.is_eq(thunk.args(kids, False{}), 1n))
+
+# how many thunks of a self-call of the name the node holds, at any depth,
+# each in the kids of a call given one lambda; lone: the node is the rest of
+# such kids
+def thunk.count(nn: Tree.Node, +lone: Bool, +name: String) -> Nat:
   match nn:
     case Tree.NCons{+h, +rest}:
-      Nat.add(Bool.pick(Nat, thunk.at(Tree.NCons{h, rest}, name), 1n, 0n),
-        Nat.add(thunk.count(h, name), thunk.count(rest, name)))
-    case Tree.Group{o, kids, cl}:
-      thunk.count(kids, name)
+      Nat.add(Bool.pick(Nat, Bool.and(lone, thunk.at(Tree.NCons{h, rest}, name)), 1n, 0n),
+        Nat.add(thunk.count(h, False{}, name), thunk.count(rest, lone, name)))
+    case Tree.Group{Lex.Tok{k, +o, l, c}, +kids, cl}:
+      thunk.count(kids, thunk.lone(o, kids), name)
     case Tree.Stmt{sk, kids, body}:
-      Nat.add(thunk.count(kids, name), thunk.count(body, name))
+      Nat.add(thunk.count(kids, False{}, name), thunk.count(body, False{}, name))
     case other:
       0n
 
 # LAW: over any node, thunk reports one finding for each thunk of a
-# self-call, and none for anything else
+# self-call passed as the one lambda of a call, and none for anything else
 # BOLT-RULE-U015
 law thunk_walk_counts:
   for nn: Tree.Node
+  for +lone: Bool
   for +name: String
   for +path: String
-  {List.length(&2, F.Finding, Thunk.walk(nn, name, path)) == thunk.count(nn, name) : Nat}
+  {List.length(&2, F.Finding, Thunk.walk(nn, lone, name, path)) == thunk.count(nn, lone, name) : Nat}
 
 # the thunks of a self-call in each def of the list that is not exempt
 def thunk.defs(ds: List<&2, Calls.Def>, +path: String) -> Nat:
@@ -2425,7 +2558,7 @@ def thunk.defs(ds: List<&2, Calls.Def>, +path: String) -> Nat:
     case Nil{}:
       0n
     case Con{Calls.Def{+name, +sig, +body}, rest}:
-      Nat.add(Bool.pick(Nat, Calls.exempt(path, sig), 0n, thunk.count(body, name)), thunk.defs(rest, path))
+      Nat.add(Bool.pick(Nat, Calls.exempt(path, sig), 0n, thunk.count(body, False{}, name)), thunk.defs(rest, path))
 
 # LAW: thunk reports exactly those, def by def, over the defs of the tree
 # BOLT-RULE-U015
@@ -4487,12 +4620,12 @@ law inert_put:
   {Put.check(Src.Src{path, text, toks, tree, bound, items})
     == Put.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
 
-# LAW: argv reads what no comment or string says: two sources as the lexer
-# makes them whose tokens read the same with comments and strings cut have
-# the same findings
+# LAW: fromrev reads what no comment or string says: two sources as the
+# lexer makes them whose tokens read the same with comments and strings cut
+# have the same findings
 # BOLT-RULE-INERT
-# BOLT-RULE-U014
-law inert_argv:
+# BOLT-RULE-U016
+law inert_fromrev:
   for +path: String
   for text: String
   for toks: List<&2, Lex.Tok>
@@ -4507,8 +4640,8 @@ law inert_argv:
   for ok: {inert.oks(toks) == True{} : Bool}
   for ok2: {inert.oks(toks2) == True{} : Bool}
   for e: {inert.toks(toks) == inert.toks(toks2) : List<&2, Lex.Tok>}
-  {Argv.check(Src.Src{path, text, toks, tree, bound, items})
-    == Argv.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+  {Fromrev.check(Src.Src{path, text, toks, tree, bound, items})
+    == Fromrev.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
 
 # LAW: tail reads what no string says: two sources as the lexer makes them
 # whose trees read the same with strings cut have the same findings (a
@@ -4588,18 +4721,36 @@ def inert.items(its: List<&2, Outline.Item>) -> List<&2, Outline.Item>:
     case Con{h, t}:
       inert.item(h) <> inert.items(t)
 
-# which lines start with `#`
-def inert.hashes(ls: List<&2, String>) -> List<&2, Bool>:
+# how a line starts, as doc reads it: with `#`, with `@`, or with neither
+type inert.Lead is Data:
+  LHash{}
+  LAt{}
+  LPlain{}
+
+# how a line starts, from whether it starts with `#` and whether with `@`
+def inert.lead(hash: Bool, at: Bool) -> inert.Lead:
+  match hash:
+    case True{}:
+      LHash{}
+    case False{}:
+      match at:
+        case True{}:
+          LAt{}
+        case False{}:
+          LPlain{}
+
+# how each line starts
+def inert.leads(ls: List<&2, String>) -> List<&2, inert.Lead>:
   match ls:
     case Nil{}:
       Nil{}
-    case Con{h, t}:
-      String.starts_with(h, "#") <> inert.hashes(t)
+    case Con{+h, t}:
+      inert.lead(String.starts_with(h, "#"), String.starts_with(h, "@")) <> inert.leads(t)
 
 # LAW: doc reads no comment or string: two sources whose items have the same
 # kinds, names and lines, and whose lines (one that starts inside a string
-# literal read as empty) start with `#` alike, have the same findings, what
-# their comments and strings say aside
+# literal read as empty) start with `#` alike and with `@` alike, have the
+# same findings, what their comments and strings say aside
 # BOLT-RULE-INERT
 law inert_doc:
   for +path: String
@@ -4614,7 +4765,7 @@ law inert_doc:
   for bound2: Bind.Bound
   for +items2: List<&2, Outline.Item>
   for ei: {inert.items(items) == inert.items(items2) : List<&2, Outline.Item>}
-  for el: {inert.hashes(Doc.lines(text, toks)) == inert.hashes(Doc.lines(text2, toks2)) : List<&2, Bool>}
+  for el: {inert.leads(Doc.lines(text, toks)) == inert.leads(Doc.lines(text2, toks2)) : List<&2, inert.Lead>}
   {Doc.check(Src.Src{path, text, toks, tree, bound, items})
     == Doc.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
 

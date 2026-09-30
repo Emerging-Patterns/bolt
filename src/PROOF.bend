@@ -148,9 +148,6 @@ def Laws.opt_in_off(sets, group, rule, h_opt, h_rule):
     == Config.Off{} : Config.Level}
   {==}
 
-def Laws.argv_opt_in(sets, group, h_rule):
-  Laws.opt_in_off(sets, group, "argv", {==}, h_rule)
-
 # Unknown names (BOLT-CFG-7). config.bend looks a slug up with Codes.find and
 # a group with an early-exit fold; the spec folds both strictly. Each step
 # lemma takes the comparison it branches on as a variable and cases on it.

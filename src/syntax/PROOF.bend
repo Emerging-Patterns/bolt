@@ -1,6 +1,7 @@
 # syntax: the proofs. `bend PROOF.bend` is the gate.
 import Base
 import ./lex.bend as Lex
+import ../rchars.bend as Rchars
 import ./tree.bend as Tree
 import ./outline.bend as Outline
 import ../lazy/lazy.bend as Lazy
@@ -63,11 +64,11 @@ def rword(buf: List<&2, Char>) -> String:
     case Con{h, t}:
       String.append(rword(t), one(h))
 
-# reversing onto an accumulator spells the reversed list, then the accumulator
+# folding a buffer onto a string spells the reversed buffer, then the string
 law rword.go:
   for +xs: List<&2, Char>
-  for +acc: List<&2, Char>
-  {String.from_list(List.reverse.go(&2, Char, xs, acc)) == String.append(rword(xs), String.from_list(acc)) : String}
+  for +acc: String
+  {Rchars.onto(xs, acc) == String.append(rword(xs), acc) : String}
 
 def rword.go(xs, acc):
   match xs:
@@ -75,13 +76,13 @@ def rword.go(xs, acc):
       {==}
     case Con{h, t}:
       Equal.trans(String,
-        String.from_list(List.reverse.go(&2, Char, t, h <> acc)),
-        String.append(rword(t), SCon{h, String.from_list(acc)}),
-        String.append(String.append(rword(t), one(h)), String.from_list(acc)),
-        rword.go(t, h <> acc),
-        Equal.sym(String, String.append(String.append(rword(t), one(h)), String.from_list(acc)),
-          String.append(rword(t), SCon{h, String.from_list(acc)}),
-          app.assoc(rword(t), one(h), String.from_list(acc))))
+        Rchars.onto(t, SCon{h, acc}),
+        String.append(rword(t), SCon{h, acc}),
+        String.append(String.append(rword(t), one(h)), acc),
+        rword.go(t, SCon{h, acc}),
+        Equal.sym(String, String.append(String.append(rword(t), one(h)), acc),
+          String.append(rword(t), SCon{h, acc}),
+          app.assoc(rword(t), one(h), acc)))
 
 # a buffer's word is its reversed chars
 law rword.word:
@@ -90,7 +91,7 @@ law rword.word:
 
 def rword.word(buf):
   Equal.trans(String, Lex.word(buf), String.append(rword(buf), SNil{}), rword(buf),
-    rword.go(buf, []), app.nil(rword(buf)))
+    rword.go(buf, SNil{}), app.nil(rword(buf)))
 
 # a reversed token list's texts, in order
 def rspell(toks: List<&2, Lex.Tok>) -> String:
@@ -3941,3 +3942,12 @@ def Laws.lets(kk, kids, body, rest, env, ns, out, e):
       Empty.absurd(rs.lets.ty(Tree.SCase{}, kids, body, rest, env, ns, out), true_false(e))
     case Tree.STerm{}:
       Empty.absurd(rs.lets.ty(Tree.STerm{}, kids, body, rest, env, ns, out), true_false(e))
+
+def Laws.arrow_term(_at, _al, _ac, _x, _xl, _xc, _ct, _cl, _cc, _rest):
+  {==}
+
+def Laws.marked_arrow_term(_at, _al, _ac, _mt, _ml, _mc, _x, _xl, _xc, _ct, _cl, _cc, _rest):
+  {==}
+
+def Laws.attribute_def(_at, _al, _ac, _x, _xl, _xc, _kt, _kl, _kc, _rest):
+  {==}

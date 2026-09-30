@@ -92,7 +92,7 @@ def carried.go(
       List.reverse(&2, String, acc)
     case Con{p, rest}:
       +nm = Calls.param_name(p)
-      +keep = Bool.and(Bool.not(String.is_empty(nm)), all_same(cs, ii, nm))  # noqa: U013 cs holds one def's self-calls
+      +keep = Bool.and(Bool.not(String.is_empty(nm)), all_same(cs, ii, nm))
       carried.go(rest, cs, (ii + 1n : Nat), Bool.pick(List<&2, String>, keep, nm <> acc, acc))
 
 # parameters passed through unchanged; empty when nothing recurses
@@ -136,18 +136,18 @@ def value_ok(+app: Bool, kk: Lex.TokKind, +tt: String, +carried: List<&2, String
 def closed(nn: Tree.Node, +carried: List<&2, String>) -> Bool:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +op, l, c}}, Tree.NCons{Tree.Leaf{+tok}, tail}}:
-      +ok = leaf_ok(String.eq(op, "~"), tok, carried)  # noqa: U013 carried holds one def's parameters
+      +ok = leaf_ok(String.eq(op, "~"), tok, carried)
       +aft = closed(tail, carried)
       Bool.and(ok, aft)
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, op, l, c}}, rest}:
       closed(rest, carried)
     case Tree.NCons{Tree.Leaf{Lex.Tok{+k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
-      +ok = value_ok(String.eq(o, "("), k, t, carried)  # noqa: U013 carried holds one def's parameters
+      +ok = value_ok(String.eq(o, "("), k, t, carried)
       +inn = closed(kids, carried)
       +aft = closed(rest, carried)
       Bool.and(ok, Bool.and(inn, aft))
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, +t, l, c}}, rest}:
-      +ok = List.contains(~String, ~String.eq, carried, t)  # noqa: U013 carried holds one def's parameters
+      +ok = List.contains(~String, ~String.eq, carried, t)
       +aft = closed(rest, carried)
       Bool.and(ok, aft)
     case Tree.NCons{Tree.Leaf{tok}, rest}:
@@ -609,7 +609,7 @@ def walk(
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +heat = warm(hot, k)
-      +own = call_table(heat, String.eq(o, "("), t, kids, self, wides, carried, path)  # noqa: U013 a def's parameters
+      +own = call_table(heat, String.eq(o, "("), t, kids, self, wides, carried, path)
       +inn = walk(kids, self, wides, carried, path, heat)
       +aft = walk(rest, self, wides, carried, path, heat)
       List.concat(&2, F.Finding, [own, inn, aft])
@@ -623,7 +623,7 @@ def walk(
       List.concat(&2, F.Finding, [walk(kids, self, wides, carried, path, False{}),
         walk(body, self, wides, carried, path, arm), walk(rest, self, wides, carried, path, hot)])
     case Tree.NCons{Tree.Stmt{kind, +kids, +body}, +rest}:
-      +own = let_hit(hot, kids, body, rest, self, wides, carried, path)  # noqa: U013 carried holds one def's parameters
+      +own = let_hit(hot, kids, body, rest, self, wides, carried, path)
       List.concat(&2, F.Finding, [own, walk(kids, self, wides, carried, path, hot),
         walk(body, self, wides, carried, path, hot), walk(rest, self, wides, carried, path, hot)])
     case Tree.NCons{h, rest}:

@@ -20,6 +20,7 @@
 import Base
 import ./lazy/lazy.bend as Lazy
 import ./syntax/lex.bend as Lex
+import ./rchars.bend as Rchars
 import ./syntax/tree.bend as Tree
 import ./syntax/bind.bend as Bind
 import ./codes.bend as Codes
@@ -158,7 +159,7 @@ def unknown.in(ss: List<&2, Setting>, +rows: List<&2, Codes.Entry>) -> List<&2, 
       Nil{}
     case Con{Setting{+n, w, line}, rest}:
       +more = unknown.in(rest, rows)
-      Bool.pick(List<&2, Setting>, known.in(rows, n),  # noqa: U013 the fixed code table
+      Bool.pick(List<&2, Setting>, known.in(rows, n),
         more, Setting{n, w, line} <> more)
 
 # the settings, in order, whose name is neither a rule's slug nor a group of
@@ -170,7 +171,7 @@ def unknown(ss: List<&2, Setting>) -> List<&2, Setting>:
 def dir_of.go(cs: List<&2, Char>, +acc: List<&2, Char>, best: List<&2, Char>) -> String:
   match cs:
     case Nil{}:
-      String.from_list(List.reverse(&2, Char, best))
+      Rchars.text(best)
     case Con{'/', t}:
       dir_of.go(t, '/' <> acc, '/' <> acc)
     case Con{c, t}:
@@ -215,9 +216,9 @@ def home.step(+seg: String, +above: List<&2, String>) -> List<&2, String>:
 def home.segs(cs: List<&2, Char>, seg: List<&2, Char>, above: List<&2, String>) -> List<&2, String>:
   match cs:
     case Nil{}:
-      home.step(String.from_list(List.reverse(&2, Char, seg)), above)
+      home.step(Rchars.text(seg), above)
     case Con{'/', t}:
-      home.segs(t, [], home.step(String.from_list(List.reverse(&2, Char, seg)), above))
+      home.segs(t, [], home.step(Rchars.text(seg), above))
     case Con{c, t}:
       home.segs(t, c <> seg, above)
 
@@ -274,10 +275,9 @@ def default(+group: String) -> Level:
 
 # a rule only its own setting turns on: a group setting, or the group's
 # default, would put new findings on projects that never asked for it
-# (`trace`, and `argv`, which cannot tell the one reader that drops the
-# program from the rest)
+# (`trace`, `thunk` and `scan`)
 def opt_in(+rule: String) -> Bool:
-  List.contains(~String, ~String.eq, ["trace", "argv", "thunk", "scan"], rule)
+  List.contains(~String, ~String.eq, ["trace", "thunk", "scan"], rule)
 
 # the rule's own setting, else its group's, else the group's default; an
 # opt-in rule's own setting, else off

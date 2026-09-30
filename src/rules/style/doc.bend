@@ -1,8 +1,9 @@
 # rule doc: every top-level def, type and law has a comment block right above
 # it: one or more column-0 `#` lines with no blank line between them and the
-# item. A block of bare `#` lines counts, though its text is empty; a line
-# that starts inside a multi-line string literal is text, never a comment
-# line. Helpers
+# item, save a run of column-0 `@` lines (attributes such as `@unsafe`) that
+# may sit between the block and the item. A block of bare `#` lines counts,
+# though its text is empty; a line that starts inside a multi-line string
+# literal is text, never a comment line. Helpers
 # (dotted names like `show.go`) ride on their parent's doc, `main` needs none,
 # PROOF.bend fills laws that LAWS.bend already documents, and a test (under
 # tests/) is documented by its header and its check names.
@@ -40,20 +41,27 @@ def what(kk: Outline.ItemKind) -> String:
     case other:
       "Def"
 
-# is line nn of the lines a comment line (its first char `#`)?
-def check.hash(lines: List<&2, String>, +nn: U32) -> Bool:
+# reading down, does a comment block end right above the next line? After a
+# comment line (its first char `#`) it does; an attribute line (`@unsafe`)
+# keeps what was above it; any other line ends it
+def check.after(+hh: String, ok: Bool) -> Bool:
+  Bool.or(String.starts_with(hh, "#"), Bool.and(String.starts_with(hh, "@"), ok))
+
+# reading lines 0 to nn - 1 down from ok: does a comment block end right
+# above line nn, past a run of attribute lines?
+def check.lead(lines: List<&2, String>, +nn: U32, +ok: Bool) -> Bool:
   match lines:
     case Nil{}:
-      False{}
+      Bool.and(U32.is_eq(nn, 0), ok)
     case Con{hh, tt}:
-      Lazy.stop(Bool, U32.is_eq(nn, 0), String.starts_with(hh, "#"), _u => check.hash(tt, U32.sub(nn, 1)))
+      Lazy.stop(Bool, U32.is_eq(nn, 0), ok, _u => check.lead(tt, U32.sub(nn, 1), check.after(hh, ok)))
 
-# is there a comment line right above line nn? A block of bare `#` lines
-# counts, though its doc text is empty. An item's comment block always ends
-# on the line right above it, so this test alone decides: the doc text, what
-# the comments say, is never read
+# is there a comment line right above line nn, or right above the attribute
+# lines right above it? A block of bare `#` lines counts, though its doc text
+# is empty. An item's comment block always ends there, so this test alone
+# decides: the doc text, what the comments say, is never read
 def check.above(+lines: List<&2, String>, +nn: U32) -> Bool:
-  Lazy.and_then(Bool.not(U32.is_eq(nn, 0)), _u => check.hash(lines, U32.sub(nn, 1)))
+  check.lead(lines, nn, False{})
 
 def check.go(items: List<&2, Outline.Item>, +path: String, +lines: List<&2, String>) -> List<&2, F.Finding>:
   match items:

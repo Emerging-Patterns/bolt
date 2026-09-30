@@ -38,8 +38,8 @@ import ./rules/suspicious/ring.bend as Ring
 import ./rules/suspicious/rewalk.bend as Rewalk
 import ./rules/suspicious/unit.bend as Unit
 import ./rules/suspicious/scan.bend as Scan
-import ./rules/suspicious/argv.bend as Argv
 import ./rules/suspicious/thunk.bend as Thunk
+import ./rules/suspicious/fromrev.bend as Fromrev
 import ./rules/correctness/put.bend as Put
 import ./rules/correctness/escape.bend as Escape
 import ./rules/correctness/strings.bend as Strings
@@ -87,8 +87,8 @@ def on.rules(+ss: Src.Src) -> List<&2, F.Finding>:
     Rewalk.check(ss),
     Unit.check(ss),
     Scan.check(ss),
-    Argv.check(ss),
     Thunk.check(ss),
+    Fromrev.check(ss),
     Put.check(ss),
     Escape.check(ss),
     Strings.check(ss),

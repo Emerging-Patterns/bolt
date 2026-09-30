@@ -3,7 +3,8 @@
 # source `bolt(group:slug)`. Numbers are assigned once, in the group order
 # of src/README.md: do not renumber a rule, and do not reuse a retired code
 # (L004 was `quantify`, now `closed` itself; C001 was `shadow` and U005 was
-# `nat`, whose failures bend 2.0.25 no longer has).
+# `nat`, whose failures bend 2.0.25 no longer has; U014 was `argv`, retired
+# before its first release, since every reader already drops the program).
 import Base
 import ./lazy/lazy.bend as Lazy
 
@@ -36,8 +37,8 @@ def table() -> List<&2, Entry>:
     Entry{"rewalk", "U011", "suspicious"},
     Entry{"unit", "U012", "suspicious"},
     Entry{"scan", "U013", "suspicious"},
-    Entry{"argv", "U014", "suspicious"},
     Entry{"thunk", "U015", "suspicious"},
+    Entry{"fromrev", "U016", "suspicious"},
     Entry{"doc", "S001", "style"},
     Entry{"space", "S002", "style"},
     Entry{"wrap", "S003", "style"},

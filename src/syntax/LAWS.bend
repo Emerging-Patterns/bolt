@@ -428,3 +428,55 @@ law groups:
   exs o: Bind.Out
   {Bind.walk(Tree.NCons{Tree.Group{open, gkids, close}, rest}, Bind.MTerm{}, env, ns, out)
     == Bind.walk(rest, Bind.MTerm{}, env, ns, o) : Bind.W}
+
+# LAW: a statement led by `@`, a name and a `:` is a dependent arrow, a term,
+# never a def, whatever the name and whatever follows
+law arrow_term:
+  for +at: String
+  for +al: U32
+  for +ac: U32
+  for +x: String
+  for +xl: U32
+  for +xc: U32
+  for +ct: String
+  for +cl: U32
+  for +cc: U32
+  for +rest: Tree.Node
+  {Tree.classify(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TAll{}, at, al, ac}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, x,
+    xl, xc}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, ct, cl, cc}}, rest}}}) == Tree.STerm{} : Tree.StmtKind}
+
+# LAW: so is one whose name carries a quantity mark (`@+x:`, `@-x:`)
+law marked_arrow_term:
+  for +at: String
+  for +al: U32
+  for +ac: U32
+  for +mt: String
+  for +ml: U32
+  for +mc: U32
+  for +x: String
+  for +xl: U32
+  for +xc: U32
+  for +ct: String
+  for +cl: U32
+  for +cc: U32
+  for +rest: Tree.Node
+  {Tree.classify(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TAll{}, at, al, ac}},
+    Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, mt, ml, mc}},
+      Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, x, xl, xc}},
+        Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, ct, cl, cc}}, rest}}}}) == Tree.STerm{} : Tree.StmtKind}
+
+# LAW: a statement led by an attribute, `@` and a name then a keyword
+# (`@unsafe def`), is a def, whatever follows
+law attribute_def:
+  for +at: String
+  for +al: U32
+  for +ac: U32
+  for +x: String
+  for +xl: U32
+  for +xc: U32
+  for +kt: String
+  for +kl: U32
+  for +kc: U32
+  for +rest: Tree.Node
+  {Tree.classify(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TAll{}, at, al, ac}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, x,
+    xl, xc}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TKey{}, kt, kl, kc}}, rest}}}) == Tree.SDef{} : Tree.StmtKind}

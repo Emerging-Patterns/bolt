@@ -2,6 +2,7 @@
 # N bytes of UTF-8. Framing counts bytes and a read may end inside a char, so
 # the transport reads bytes, cuts on bytes, and only then decodes.
 import Base
+import ../rchars.bend as Rchars
 
 # UTF-8, bytes to chars
 # ---------------------
@@ -49,7 +50,7 @@ def decode.run(bs: List<&2, U32>, st: Dec) -> Dec:
 
 def decode.end(st: Dec) -> String:
   Dec{need, acc, out} = st
-  String.from_list(List.reverse(&2, Char, out))
+  Rchars.text(out)
 
 # UTF-8 bytes as a string (a bad byte is skipped)
 def decode(bs: List<&2, U32>) -> String:

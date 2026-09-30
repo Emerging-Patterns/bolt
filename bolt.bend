@@ -32,12 +32,3 @@ def unsafe() -> String:
 # SPEC.md's rows and the laws' tags agree
 def trace() -> String:
   "error"
-
-# a loop that walks a list it carries unchanged, on every step
-def scan() -> String:
-  "error"
-
-# a direct IO.args() read: the one reader, src/args.bend's, drops the
-# program and says so with a noqa
-def argv() -> String:
-  "error"

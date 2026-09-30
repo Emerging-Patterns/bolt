@@ -51,7 +51,7 @@ unset group has its default. The groups:
 | group         | rules                                                                            | default |
 |---------------|----------------------------------------------------------------------------------|---------|
 | `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign` `setting` | error   |
-| `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` (`scan`, `argv`, `thunk`: opt-in) | warn    |
+| `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` `fromrev` (`scan`, `thunk`: opt-in) | warn    |
 | `style`       | `doc` `space` `wrap` `param` `noqa`                                              | warn    |
 | `laws`        | `coverage` `closed` `unsafe` (`trace`: opt-in)                                   | warn    |
 | `pedantic`    | `tail`                                                                           | off     |
@@ -73,14 +73,18 @@ The stable codes, assigned once (do not renumber):
 | C011 | `setting` | U011 | `rewalk` | P001 | `tail` |
 | | | U012 | `unit` | | |
 | | | U013 | `scan` | | |
-| | | U014 | `argv` | | |
+| | | U014 | retired | | |
 | | | U015 | `thunk` | | |
+| | | U016 | `fromrev` | | |
 
 Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic.
 
 `pedantic` is advice that is noisy on idiomatic code: off until a project
 asks for it. L004 was `quantify`, the opt-in strict mode of `closed`;
-`closed` is strict itself now, and L004 is never reused. `trace` is opt-in:
+`closed` is strict itself now, and L004 is never reused. U014 was `argv`,
+a check on `IO.args()` readers, retired before its first release: every
+reader already drops the program, and it could not tell one that does from
+one that does not. U014 is never reused either. `trace` is opt-in:
 it is in `laws`, but no group setting reaches it; only `def trace()` in a
 bolt.bend turns it on. `scan` and `thunk` are opt-in the same way, in `suspicious`: only
 `def scan()` or `def thunk()` turns each on. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
@@ -146,17 +150,19 @@ or one written with no type at all (`def f(x, y):`, no `:` among its
 parameters and no `->`), which is how Bend fills the law named `f`.
 
 - `doc` — every top-level def, type and law has a comment block right above
-  it: column-0 `#` lines with no blank line before the item. A block of bare
-  `#` lines counts. Helpers (dotted names like `show.go`) ride on their
+  it: column-0 `#` lines with no blank line before the item, or before a run
+  of column-0 `@` lines (`@unsafe`) right above it. A block of bare `#` lines
+  counts. Helpers (dotted names like `show.go`) ride on their
   parent's, `main` needs none, PROOF.bend fills laws that LAWS.bend
   documents, and a test (under `tests/`) is documented by its header and its
   check names.
 - `unused` — a name bound by a let, a do-bind, a lambda or as a parameter is
   never used. Exempt: pattern binders (naming every field of `Tok{k, t, l, c}`
   reads better than `_`), names starting with `_`, erased parameters (`-x`),
-  a law's `for` names, and every parameter of a foreign def, one whose body
-  starts with `import` (its C and JS read them), however its header is
-  wrapped.
+  a law's `for` names, and every parameter of a foreign def, one whose body's
+  first statement is `import` (its C and JS read them), wherever its
+  header's `->` and return type fall. A name read in a dependent arrow's
+  types (`@+x: U32 -> S`) is a use.
 - `hole` — a TODO hole left in code, the one bend counts in "1 TODO found." /
   "N TODOs found." (under `SOME PROOFS FAIL`, exit 1):
   `?` and then `TODO`, with spaces, newlines or comments allowed between
@@ -244,7 +250,8 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   (one sort phase went 39 s -> 0.9 s). A get anywhere in the def is
   reported, one in a base arm that runs once included. A literal index of
   any size is exempt. A `List.get` on a fixed table is `table`'s; a
-  `String.get` always stays here.
+  `String.get` always stays here. A get that is the def's own self-call (the
+  step of a def named `List.get` or `String.get`, as Base's are) is exempt.
 - `table` — `List.get` or `List.set` at a computed index inside a def that
   calls itself, when the list is a fixed table (a literal, a sized array, or
   `List.replicate` / `Array.new` / `List.range` with a constant count),
@@ -293,28 +300,48 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   recurse, a Base walk that rebuilds the list (`List.map`, `List.append`),
   and a def of another module are left alone. One finding per call, on its
   callee.
-- `argv` (opt-in) — a call `IO.args(`: an `IO.args` token with a `(` right
-  after it. Since bend 2.0.32 `IO.args()` starts with the program as
-  invoked, as C's argv does, so a program that parses it as it comes takes
-  its own path for its first argument. Read the arguments through shake's
-  `Shake.argv()`, or drop the first word before parsing. The rule cannot
-  tell the reader that drops it from one that does not: give that one
-  reader `# noqa: U014`. No path is exempt.
 - `thunk` (opt-in) — a lambda whose body is exactly a self-call and whose
-  parameter the call does not read: a `Unit -> T` thunk such as
-  `Lazy.or_else(hit, _u => go(rest, k))`. The closure is allocated on every
-  step and the call in it is not a tail call of the def, so the search leaves
-  the loop each time round (bend 2.0.34, 500 misses over 100k cells: JS
-  2.40 s against 0.28 s, native 1.18 s against 0.76 s). Carry the test as a
-  Bool into the next call, `go(rest, k, test(h))`, and match on it first: the
-  step is then a tail call and compiles to a loop. `Lazy.*` stays right for
-  guarding work that does not recurse. Exactly: a name leaf (the parameter),
-  `=>`, the def's name and its `(` group, with the chain ending there or
-  going on with a comma, and no name leaf in the group spelling the
-  parameter or the parameter then a dot. A body that does more than the call
-  (`_u => Some{go(t)}`), or a continuation that reads its parameter
-  (`a => go(f, a)`), is left alone; `_ => loop(n)` is not, since the rule
+  parameter the call does not read, passed as the one lambda of a call: a
+  `Unit -> T` thunk such as `Lazy.or_else(hit, _u => go(rest, k))`. The
+  closure is allocated on every step and the call in it is not a tail call of
+  the def, so the search leaves the loop each time round (bend 2.0.34, 500
+  misses over 100k cells: JS 2.40 s against 0.28 s, native 1.18 s against
+  0.76 s). Carry the test as a Bool into the next call, `go(rest, k,
+  test(h))`, and match on it first: the step is then a tail call and compiles
+  to a loop. `Lazy.*` stays right for guarding work that does not recurse.
+  A dispatch, a call given two or more lambdas (`Lazy.either(T, c, _u =>
+  go(a), _v => go(b))`), is left alone: one carried Bool does not replace it.
+  Exactly: in the kids of a `(` group whose arguments (split at their commas)
+  hold exactly one with a `=>` leaf of its own (not inside a bracket), a name
+  leaf (the parameter), `=>`, the def's name and its `(` group, with the kids
+  ending there or going on with a comma, and no name leaf in the group
+  spelling the parameter or the parameter then a dot. A body that does more
+  than the call (`_u => Some{go(t)}`), a continuation that reads its
+  parameter (`a => go(f, a)`), or a lambda that is no call's argument
+  (`x = _u => go(t)`) is left alone; `_ => loop(n)` is not, since the rule
   reads the shape and not the type.
+- `fromrev` — `String.from_list(List.reverse(..))`: among the significant
+  tokens, `String.from_list`, `(`, `List.reverse` and `(` right after one
+  another, one finding on the first. A buffer of chars consed on the front
+  and then reversed and read into a String walks the buffer twice and builds
+  a list only to throw it away; `String.from_list` is not a tail call either,
+  so a long buffer runs the JS lane out of stack. Fold the buffer onto a
+  String with `SCon` in one pass (`src/rchars.bend`, bolt's own):
+
+  ```bend
+  def text.go(buf: List<&2, Char>, acc: String) -> String:
+    match buf:
+      case Nil{}:
+        acc
+      case Con{h, t}:
+        text.go(t, SCon{h, acc})
+  ```
+
+  Called as `text.go(buf, SNil{})` (bend 2.0.34, a 100k-char buffer 200
+  times: native 0.35 s against 0.17 s; JS at 20k chars 4.6 s against 3.1 s,
+  and at 50k the two-pass form overflows). Anything between the four tokens,
+  another `(` included, is not the shape, and neither is `List.reverse.go`.
+  A LAWS.bend or a PROOF.bend is exempt.
 - `put` — `Map.put`. It is Base's internal helper: at a leaf it keeps the old
   key and replaces the value without comparing, so a new key silently
   overwrites another entry. `Map.set` compares. A file that defines
@@ -369,7 +396,11 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   overflows the checker's stack (bend 2.0.33/2.0.34). A literal of any size
   counts, `3n` included. Only an argument that is the literal alone, or
   `U32.to_nat(` it `)`, counts, so a let-bound literal and `(7n)` are not
-  seen. A def's own calls are exempt.
+  seen. A def's own calls are exempt, and so is a def that returns an
+  effect: a header with `->` then the name `IO` (`-> IO(Unit):`), or one
+  that ends in `->` with `IO(..):` on the next line. Its fuel bounds reads,
+  frames or retries the outside world sets (a drain of 256 datagrams a
+  tick, a read of 100000 chunks), not the size of an input it was given.
 - `tail` (pedantic) — a self-call that is not a tail call, in a def whose
   first live parameter is a `List` or a `String`. On a long one the JS lane
   overflows its stack (a 48 KB header crashed a server; ~4,900 entries and

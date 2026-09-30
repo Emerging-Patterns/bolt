@@ -159,15 +159,6 @@ law opt_in_off:
   for h_rule: {Config.set_level(sets, rule) == None{} : Maybe<&2, Config.Level>}
   {Config.level(Config.Config{sets}, group, rule) == Config.Off{} : Config.Level}
 
-# LAW: argv is opt-in: with no setting of its own it is off, whatever its
-# group says, so it reports on no project that did not name it
-# BOLT-RULE-U014
-law argv_opt_in:
-  for +sets: List<&2, Config.LevelSet>
-  for +group: String
-  for h_rule: {Config.set_level(sets, "argv") == None{} : Maybe<&2, Config.Level>}
-  {Config.level(Config.Config{sets}, group, "argv") == Config.Off{} : Config.Level}
-
 # Unknown names (BOLT-CFG-7). The specs below are strict folds over the code
 # table, written apart from config.bend's lookups.
 
