@@ -756,49 +756,46 @@ def pin(+ps: List<&2, Pos>, sites: List<&2, Site>) -> List<&2, Site>:
     case Con{s, rest}:
       pin_one(ps, s) <> pin(ps, rest)
 
-# the other site keeps the whole result
-def other_full(+yes: Bool, how: How, +body: Tree.Node) -> Bool:
-  match yes:
-    case False{}:
-      False{}
-    case True{}:
-      Bool.not(narrow(how, body))
+# a site, with whether its result is read for a single value over the piece
+type Rated is Data:
+  Rated{site: Site, nar: Bool}
 
-# another site has the same callee and the same arguments, and keeps the whole result
-def other_go(sites: List<&2, Site>, +name: String, +args: String, +line: U32, +col: U32, +body: Tree.Node) -> Bool:
+# one site, rated: the piece is walked for it here, once
+def rate_one(ss: Site, +body: Tree.Node) -> Rated:
+  Site{+name, +args, +line, +col, +len, +how} = ss
+  Rated{Site{name, args, line, col, len, how}, narrow(how, body)}
+
+# each site, rated once, so the reports below compare ratings and never walk
+# the piece again: a walk per site, not one per pair of sites
+def rate(sites: List<&2, Site>, +body: Tree.Node) -> List<&2, Rated>:
   match sites:
     case Nil{}:
+      Nil{}
+    case Con{s, rest}:
+      rate_one(s, body) <> rate(rest, body)
+
+# another site has the same callee and the same arguments, and keeps the whole result
+def other_go(rs: List<&2, Rated>, +name: String, +args: String, +line: U32, +col: U32) -> Bool:
+  match rs:
+    case Nil{}:
       False{}
-    case Con{Site{+nm, +as, +l, +c, len, how}, rest}:
+    case Con{Rated{Site{+nm, +as, +l, +c, len, how}, +nar}, rest}:
       +same = Bool.and(String.eq(nm, name), String.eq(as, args))
       +diff = Bool.not(Bool.and(U32.is_eq(l, line), U32.is_eq(c, col)))
-      +here = other_full(Bool.and(same, diff), how, body)
-      +more = other_go(rest, name, args, line, col, body)
+      +here = Bool.and(Bool.and(same, diff), Bool.not(nar))
+      +more = other_go(rest, name, args, line, col)
       Bool.or(here, more)
 
-# this earlier site is a narrow read of the same call
-def earlier_nar(+yes: Bool, how: How, +body: Tree.Node) -> Bool:
-  match yes:
-    case False{}:
-      False{}
-    case True{}:
-      narrow(how, body)
-
-# this earlier site is a narrow read of the same call
-def earlier_one(ss: Site, +name: String, +args: String, +line: U32, +col: U32, +body: Tree.Node) -> Bool:
-  Site{+nm, +as, +l, +c, len, how} = ss
-  +same = Bool.and(String.eq(nm, name), String.eq(as, args))
-  +diff = Bool.not(Bool.and(U32.is_eq(l, line), U32.is_eq(c, col)))
-  earlier_nar(Bool.and(same, diff), how, body)
-
 # a narrow site of this call already reported
-def earlier(seen: List<&2, Site>, +name: String, +args: String, +line: U32, +col: U32, +body: Tree.Node) -> Bool:
+def earlier(seen: List<&2, Rated>, +name: String, +args: String, +line: U32, +col: U32) -> Bool:
   match seen:
     case Nil{}:
       False{}
-    case Con{s, rest}:
-      +here = earlier_one(s, name, args, line, col, body)
-      +more = earlier(rest, name, args, line, col, body)
+    case Con{Rated{Site{+nm, +as, +l, +c, len, how}, +nar}, rest}:
+      +same = Bool.and(String.eq(nm, name), String.eq(as, args))
+      +diff = Bool.not(Bool.and(U32.is_eq(l, line), U32.is_eq(c, col)))
+      +here = Bool.and(Bool.and(same, diff), nar)
+      +more = earlier(rest, name, args, line, col)
       Bool.or(here, more)
 
 # the finding when no earlier narrow site took this call
@@ -836,53 +833,40 @@ def report_nar(
 # the finding when a duplicate exists and this site is the first narrow one
 def report_dup(
   +dup: Bool,
-  how: How,
+  +nar: Bool,
   +name: String,
   +args: String,
   +line: U32,
   +col: U32,
   +len: U32,
-  +body: Tree.Node,
   +path: String,
-  +seen: List<&2, Site>
+  +seen: List<&2, Rated>
 ) -> List<&2, F.Finding>:
   match dup:
     case False{}:
       Nil{}
     case True{}:
-      report_nar(narrow(how, body), earlier(seen, name, args, line, col, body), name, line, col, len, path)
-
+      report_nar(nar, earlier(seen, name, args, line, col), name, line, col, len, path)
 
 # one site
-def report_one(
-  ss: Site,
-  +all: List<&2, Site>,
-  +body: Tree.Node,
-  +path: String,
-  +seen: List<&2, Site>
-) -> List<&2, F.Finding>:
+def report_one(rr: Rated, +all: List<&2, Rated>, +path: String, +seen: List<&2, Rated>) -> List<&2, F.Finding>:
+  Rated{ss, +nar} = rr
   Site{+name, +args, +line, +col, +len, how} = ss
-  report_dup(other_go(all, name, args, line, col, body), how, name, args, line, col, len, body, path, seen)
+  report_dup(other_go(all, name, args, line, col), nar, name, args, line, col, len, path, seen)
 
 # the first narrow site of each duplicated call
-def report(
-  sites: List<&2, Site>,
-  +all: List<&2, Site>,
-  +body: Tree.Node,
-  +path: String,
-  +seen: List<&2, Site>
-) -> List<&2, F.Finding>:
-  match sites:
+def report(rs: List<&2, Rated>, +all: List<&2, Rated>, +path: String, +seen: List<&2, Rated>) -> List<&2, F.Finding>:
+  match rs:
     case Nil{}:
       Nil{}
-    case Con{+s, rest}:
-      +mine = report_one(s, all, body, path, seen)
-      List.append(&2, F.Finding, mine, report(rest, all, body, path, s <> seen))
+    case Con{+r, rest}:
+      +mine = report_one(r, all, path, seen)
+      List.append(&2, F.Finding, mine, report(rest, all, path, r <> seen))
 
 # findings in one straight region; a case arm is not part of it
 def local(+nn: Tree.Node, +self: String, +lp: List<&2, String>, +path: String) -> List<&2, F.Finding>:
-  +sites = pin(mark(nn), apply(nn, gather(nn, self, lp, binds(nn, []))))
-  report(sites, sites, nn, path, [])
+  +rs = rate(pin(mark(nn), apply(nn, gather(nn, self, lp, binds(nn, [])))), nn)
+  report(rs, rs, path, [])
 
 # each case arm on its own, so two arms are not one path
 def visit(nn: Tree.Node, +self: String, +lp: List<&2, String>, +path: String) -> List<&2, F.Finding>:

@@ -13785,36 +13785,7 @@ def rewalk.single_eq(hh, piece):
         Laws.rewalk.reads(piece, binder, False{}, 0n, False{}, False{}),
         rewalk.reads_eq(piece, binder, False{}, 0n, False{}, False{}))
 
-# a twin keeps its whole result, to the rule and to the law
-law rewalk.full_eq:
-  for b: Bool
-  for +hh: Rewalk.How
-  for +piece: Tree.Node
-  {Rewalk.other_full(b, hh, piece) == Bool.and(b, Bool.not(Laws.rewalk.single(hh, piece))) : Bool}
-
-def rewalk.full_eq(b, hh, piece):
-  match b:
-    case False{}:
-      {==}
-    case True{}:
-      Equal.cong(Bool, Bool, x => Bool.not(x), Rewalk.narrow(hh, piece), Laws.rewalk.single(hh, piece),
-        rewalk.single_eq(hh, piece))
-
-# a twin is read for a single value, to the rule and to the law
-law rewalk.nar_eq:
-  for b: Bool
-  for +hh: Rewalk.How
-  for +piece: Tree.Node
-  {Rewalk.earlier_nar(b, hh, piece) == Bool.and(b, Laws.rewalk.single(hh, piece)) : Bool}
-
-def rewalk.nar_eq(b, hh, piece):
-  match b:
-    case False{}:
-      {==}
-    case True{}:
-      rewalk.single_eq(hh, piece)
-
-# the rule's other_go is the law's whole
+# the rule's other_go over the rated sites is the law's whole
 law rewalk.whole_eq:
   for sites: List<&2, Rewalk.Site>
   for +name: String
@@ -13822,24 +13793,25 @@ law rewalk.whole_eq:
   for +line: U32
   for +col: U32
   for +piece: Tree.Node
-  {Rewalk.other_go(sites, name, args, line, col, piece) == Laws.rewalk.whole(sites, name, args, line, col, piece)
-    : Bool}
+  {Rewalk.other_go(Rewalk.rate(sites, piece), name, args, line, col)
+    == Laws.rewalk.whole(sites, name, args, line, col, piece) : Bool}
 
 def rewalk.whole_eq(sites, name, args, line, col, piece):
   match sites:
     case Nil{}:
       {==}
-    case Con{s, rest}:
+    case Con{s, +rest}:
       match s:
         case Rewalk.Site{+nm, +as, +l, +c, len, +how}:
           +tw = Laws.rewalk.twin(nm, as, l, c, name, args, line, col)
-          %rewalk.full_eq(tw, how, piece) : {Rewalk.other_go(Rewalk.Site{nm, as, l, c, len, how} <> rest, name, args,
-            line, col, piece) == Bool.or(_, Laws.rewalk.whole(rest, name, args, line, col, piece)) : Bool}
-          %rewalk.whole_eq(rest, name, args, line, col, piece) : {Rewalk.other_go(Rewalk.Site{nm, as, l, c, len, how}
-            <> rest, name, args, line, col, piece) == Bool.or(Rewalk.other_full(tw, how, piece), _) : Bool}
+          +lhs = Rewalk.other_go(Rewalk.rate(Rewalk.Site{nm, as, l, c, len, how} <> rest, piece), name, args, line, col)
+          %rewalk.single_eq(how, piece) : {lhs == Bool.or(Bool.and(tw, Bool.not(_)),
+            Laws.rewalk.whole(rest, name, args, line, col, piece)) : Bool}
+          %rewalk.whole_eq(rest, name, args, line, col, piece) : {lhs
+            == Bool.or(Bool.and(tw, Bool.not(Rewalk.narrow(how, piece))), _) : Bool}
           {==}
 
-# the rule's earlier is the law's prior
+# the rule's earlier over the rated sites is the law's prior
 law rewalk.prior_eq:
   for seen: List<&2, Rewalk.Site>
   for +name: String
@@ -13847,20 +13819,22 @@ law rewalk.prior_eq:
   for +line: U32
   for +col: U32
   for +piece: Tree.Node
-  {Rewalk.earlier(seen, name, args, line, col, piece) == Laws.rewalk.prior(seen, name, args, line, col, piece) : Bool}
+  {Rewalk.earlier(Rewalk.rate(seen, piece), name, args, line, col)
+    == Laws.rewalk.prior(seen, name, args, line, col, piece) : Bool}
 
 def rewalk.prior_eq(seen, name, args, line, col, piece):
   match seen:
     case Nil{}:
       {==}
-    case Con{s, rest}:
+    case Con{s, +rest}:
       match s:
         case Rewalk.Site{+nm, +as, +l, +c, len, +how}:
           +tw = Laws.rewalk.twin(nm, as, l, c, name, args, line, col)
-          %rewalk.nar_eq(tw, how, piece) : {Rewalk.earlier(Rewalk.Site{nm, as, l, c, len, how} <> rest, name, args,
-            line, col, piece) == Bool.or(_, Laws.rewalk.prior(rest, name, args, line, col, piece)) : Bool}
-          %rewalk.prior_eq(rest, name, args, line, col, piece) : {Rewalk.earlier(Rewalk.Site{nm, as, l, c, len, how}
-            <> rest, name, args, line, col, piece) == Bool.or(Rewalk.earlier_nar(tw, how, piece), _) : Bool}
+          +lhs = Rewalk.earlier(Rewalk.rate(Rewalk.Site{nm, as, l, c, len, how} <> rest, piece), name, args, line, col)
+          %rewalk.single_eq(how, piece) : {lhs == Bool.or(Bool.and(tw, _),
+            Laws.rewalk.prior(rest, name, args, line, col, piece)) : Bool}
+          %rewalk.prior_eq(rest, name, args, line, col, piece) : {lhs
+            == Bool.or(Bool.and(tw, Rewalk.narrow(how, piece)), _) : Bool}
           {==}
 
 # a narrow site with no narrow twin before it: one finding
@@ -13888,52 +13862,51 @@ def rewalk.nar_len(n, p, _name, _line, _col, _len, _path):
 # finding
 law rewalk.dup_len:
   for d: Bool
-  for +how: Rewalk.How
+  for +nar: Bool
   for +name: String
   for +args: String
   for +line: U32
   for +col: U32
   for +len: U32
-  for +body: Tree.Node
   for +path: String
-  for +seen: List<&2, Rewalk.Site>
-  {List.length(&2, F.Finding, Rewalk.report_dup(d, how, name, args, line, col, len, body, path, seen))
-    == Bool.pick(Nat, Bool.and(d, Bool.and(Rewalk.narrow(how, body), Bool.not(Rewalk.earlier(seen, name, args, line,
-      col, body)))), 1n, 0n) : Nat}
+  for +seen: List<&2, Rewalk.Rated>
+  {List.length(&2, F.Finding, Rewalk.report_dup(d, nar, name, args, line, col, len, path, seen))
+    == Bool.pick(Nat, Bool.and(d, Bool.and(nar, Bool.not(Rewalk.earlier(seen, name, args, line, col)))), 1n, 0n)
+    : Nat}
 
-def rewalk.dup_len(d, how, name, args, line, col, len, body, path, seen):
+def rewalk.dup_len(d, nar, name, args, line, col, len, path, seen):
   match d:
     case False{}:
       {==}
     case True{}:
-      rewalk.nar_len(Rewalk.narrow(how, body), Rewalk.earlier(seen, name, args, line, col, body), name, line, col, len,
-        path)
+      rewalk.nar_len(nar, Rewalk.earlier(seen, name, args, line, col), name, line, col, len, path)
 
-# one site: one finding when the law flags it, none otherwise
+# one site, rated: one finding when the law flags it, none otherwise
 law rewalk.one_len:
   for s: Rewalk.Site
   for +all: List<&2, Rewalk.Site>
   for +body: Tree.Node
   for +path: String
   for +seen: List<&2, Rewalk.Site>
-  {List.length(&2, F.Finding, Rewalk.report_one(s, all, body, path, seen))
-    == Bool.pick(Nat, Laws.rewalk.flag(s, all, body, seen), 1n, 0n) : Nat}
+  {List.length(&2, F.Finding, Rewalk.report_one(Rewalk.rate_one(s, body), Rewalk.rate(all, body), path,
+    Rewalk.rate(seen, body))) == Bool.pick(Nat, Laws.rewalk.flag(s, all, body, seen), 1n, 0n) : Nat}
 
 def rewalk.one_len(s, all, body, path, seen):
   match s:
     case Rewalk.Site{+name, +args, +line, +col, +len, +how}:
-      +lhs = List.length(&2, F.Finding, Rewalk.report_one(Rewalk.Site{name, args, line, col, len, how}, all, body, path,
-        seen))
+      +lhs = List.length(&2, F.Finding, Rewalk.report_one(Rewalk.rate_one(Rewalk.Site{name, args, line, col, len, how},
+        body), Rewalk.rate(all, body), path, Rewalk.rate(seen, body)))
       %rewalk.whole_eq(all, name, args, line, col, body) : {lhs == Bool.pick(Nat, Bool.and(_,
         Bool.and(Laws.rewalk.single(how, body), Bool.not(Laws.rewalk.prior(seen, name, args, line, col, body)))), 1n,
           0n)
         : Nat}
-      %rewalk.single_eq(how, body) : {lhs == Bool.pick(Nat, Bool.and(Rewalk.other_go(all, name, args, line, col, body),
-        Bool.and(_, Bool.not(Laws.rewalk.prior(seen, name, args, line, col, body)))), 1n, 0n) : Nat}
-      %rewalk.prior_eq(seen, name, args, line, col, body) : {lhs == Bool.pick(Nat, Bool.and(Rewalk.other_go(all, name,
-        args, line, col, body), Bool.and(Rewalk.narrow(how, body), Bool.not(_))), 1n, 0n) : Nat}
-      rewalk.dup_len(Rewalk.other_go(all, name, args, line, col, body), how, name, args, line, col, len, body, path,
-        seen)
+      %rewalk.single_eq(how, body) : {lhs == Bool.pick(Nat, Bool.and(Rewalk.other_go(Rewalk.rate(all, body), name,
+        args, line, col), Bool.and(_, Bool.not(Laws.rewalk.prior(seen, name, args, line, col, body)))), 1n, 0n) : Nat}
+      %rewalk.prior_eq(seen, name, args, line, col, body) : {lhs == Bool.pick(Nat, Bool.and(Rewalk.other_go(
+        Rewalk.rate(all, body), name, args, line, col), Bool.and(Rewalk.narrow(how, body), Bool.not(_))), 1n, 0n)
+        : Nat}
+      rewalk.dup_len(Rewalk.other_go(Rewalk.rate(all, body), name, args, line, col), Rewalk.narrow(how, body), name,
+        args, line, col, len, path, Rewalk.rate(seen, body))
 
 # a flag's one or none, onto the rest's count
 law rewalk.add_pick:
@@ -13948,23 +13921,23 @@ def rewalk.add_pick(f, _m):
     case False{}:
       {==}
 
-# the rule's report counts what the law counts
+# the rule's report over the rated sites counts what the law counts
 law rewalk.report_len:
   for sites: List<&2, Rewalk.Site>
   for +all: List<&2, Rewalk.Site>
   for +body: Tree.Node
   for +path: String
   for +seen: List<&2, Rewalk.Site>
-  {List.length(&2, F.Finding, Rewalk.report(sites, all, body, path, seen))
-    == Laws.rewalk.count(sites, all, body, seen) : Nat}
+  {List.length(&2, F.Finding, Rewalk.report(Rewalk.rate(sites, body), Rewalk.rate(all, body), path,
+    Rewalk.rate(seen, body))) == Laws.rewalk.count(sites, all, body, seen) : Nat}
 
 def rewalk.report_len(sites, all, body, path, seen):
   match sites:
     case Nil{}:
       {==}
     case Con{+s, +rest}:
-      +one = Rewalk.report_one(s, all, body, path, seen)
-      +tl = Rewalk.report(rest, all, body, path, s <> seen)
+      +one = Rewalk.report_one(Rewalk.rate_one(s, body), Rewalk.rate(all, body), path, Rewalk.rate(seen, body))
+      +tl = Rewalk.report(Rewalk.rate(rest, body), Rewalk.rate(all, body), path, Rewalk.rate(s <> seen, body))
       +f = Laws.rewalk.flag(s, all, body, seen)
       +m = Laws.rewalk.count(rest, all, body, s <> seen)
       Equal.trans(Nat, List.length(&2, F.Finding, List.append(&2, F.Finding, one, tl)),
@@ -13998,8 +13971,8 @@ def rewalk.sites_eq(nn, self, lp):
 
 def Laws.rewalk_local_counts(nn, self, lp, path):
   +ss = Rewalk.pin(Rewalk.mark(nn), Rewalk.apply(nn, Rewalk.gather(nn, self, lp, Rewalk.binds(nn, []))))
-  %rewalk.sites_eq(nn, self, lp) : {List.length(&2, F.Finding, Rewalk.report(ss, ss, nn, path, []))
-    == Laws.rewalk.count(_, _, nn, []) : Nat}
+  %rewalk.sites_eq(nn, self, lp) : {List.length(&2, F.Finding, Rewalk.report(Rewalk.rate(ss, nn), Rewalk.rate(ss, nn),
+    path, [])) == Laws.rewalk.count(_, _, nn, []) : Nat}
   rewalk.report_len(ss, ss, nn, path, [])
 
 # two finding lists joined: the counts added

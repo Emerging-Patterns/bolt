@@ -953,13 +953,66 @@ def noted(mm: Maybe<&2, Bind>, bb: Bind) -> Bind:
     case Some{full}:
       full
 
-# each binder of an environment, with the note its annotated twin carries
-def refresh(env: List<&2, Bind>, +binds: List<&2, Bind>) -> List<&2, Bind>:
-  match env:
+# does (l1, c1) come before (l2, c2) in the source?
+def before(+l1: U32, +c1: U32, +l2: U32, +c2: U32) -> Bool:
+  Bool.or(U32.is_lt(l1, l2), Bool.and(U32.is_eq(l1, l2), U32.is_lt(c1, c2)))
+
+# does a cursor's head sit at or after a position (the seek stops there)?
+def seek.stop(cur: List<&2, Bind>, +line: U32, +col: U32) -> Bool:
+  match cur:
+    case Nil{}:
+      True{}
+    case Con{Bind{name, +l, +c, kind, note}, rest}:
+      Bool.not(before(l, c, line, col))
+
+# the binders from the first one not before a position on; the binders are in
+# source order, so none this drops sits at the position. stop is seek.stop of
+# binds, carried so the step stays a loop
+def seek(binds: List<&2, Bind>, +line: U32, +col: U32, +stop: Bool) -> List<&2, Bind>:
+  match binds:
     case Nil{}:
       Nil{}
+    case Con{h, +rest}:
+      match stop:
+        case True{}:
+          h <> rest
+        case False{}:
+          seek(rest, line, col, seek.stop(rest, line, col))
+
+# the binder at the head of a cursor, when it sits at the position
+def seek.head(cur: List<&2, Bind>, +line: U32, +col: U32) -> Maybe<&2, Bind>:
+  match cur:
+    case Nil{}:
+      None{}
     case Con{Bind{name, +l, +c, kind, note}, rest}:
-      noted(binder(binds, l, c), Bind{name, l, c, kind, note}) <> refresh(rest, binds)
+      Bool.pick(Maybe<&2, Bind>, Bool.and(U32.is_eq(l, line), U32.is_eq(c, col)), Some{Bind{name, l, c, kind, note}},
+        None{})
+
+# each binder of an environment, outermost first, with the note its annotated
+# twin carries, pushed onto acc (so acc ends innermost first again). cur is a
+# cursor into binds that drops only binders before (tl, tc), the last one
+# read: an environment's binders were pushed in source order, so each lookup
+# picks up where the last stopped and binds is read once, not once per
+# binder. A binder before the last one read starts the cursor over
+def refresh.go(
+  env: List<&2, Bind>,
+  +binds: List<&2, Bind>,
+  +cur: List<&2, Bind>,
+  +tl: U32,
+  +tc: U32,
+  acc: List<&2, Bind>
+) -> List<&2, Bind>:
+  match env:
+    case Nil{}:
+      acc
+    case Con{Bind{name, +l, +c, kind, note}, rest}:
+      +start = Bool.pick(List<&2, Bind>, before(l, c, tl, tc), binds, cur)
+      +from = seek(start, l, c, seek.stop(start, l, c))
+      refresh.go(rest, binds, from, l, c, noted(seek.head(from, l, c), Bind{name, l, c, kind, note}) <> acc)
+
+# each binder of an environment, with the note its annotated twin carries
+def refresh(env: List<&2, Bind>, +binds: List<&2, Bind>) -> List<&2, Bind>:
+  refresh.go(List.reverse(&2, Bind, env), binds, binds, 0, 0, [])
 
 # the names in scope at a line: those of the statement on it, else of the
 # nearest statement above
