@@ -1192,7 +1192,11 @@ law version_commit:
   {Args.version.at(rel, rev) == rel ++ " (" ++ rev ++ ")" : String}
 
 # The line bolt parses (BOLT-CLI-3). IO.args gives the program as invoked
-# first (bend 2.0.32), and bolt reads the words after it.
+# first (bend 2.0.32), and bolt reads the words after it. A compiled binary
+# passes `--help` to the program (bend 2.0.29): Args.line reads it, before
+# the line's first `--`, as `help` for the command path it asks about, so it
+# prints the page `bolt help` prints (cli_help); any other line is parsed as
+# it is.
 
 # LAW: bolt's arguments are the words after the program IO.args names first
 # BOLT-CLI-3
@@ -1200,6 +1204,55 @@ law cli_args_program:
   for prog: String
   for ws: List<&1, String>
   {Args.args_of(prog <> ws) == Args.widen(ws) : List<&2, String>}
+
+# LAW: a line with no `--help` before its first `--` is parsed as it is
+# BOLT-CLI-3
+law cli_line_plain:
+  for +ws: List<&2, String>
+  for h: {Args.asks_help(ws) == False{} : Bool}
+  {Args.line(ws) == ws : List<&2, String>}
+
+# LAW: a line that opens with `--help` asks for help
+# BOLT-CLI-3
+law cli_help_flag:
+  for ws: List<&2, String>
+  {Args.asks_help("--help" <> ws) == True{} : Bool}
+
+# LAW: after `--`, `--help` is a file: the line is parsed as it is
+# BOLT-CLI-3
+law cli_help_dashes:
+  for +ws: List<&2, String>
+  {Args.line("--" <> ws) == "--" <> ws : List<&2, String>}
+
+# LAW: `--help` is passed over in finding the command path it asks about
+# BOLT-CLI-3
+law cli_help_flag_path:
+  for ws: List<&2, String>
+  {Args.help_path("--help" <> ws) == Args.help_path(ws) : List<&2, String>}
+
+# LAW: a line whose first word (other than `--help`) is a subcommand asks
+# about that subcommand
+# BOLT-CLI-3
+law cli_help_cmd:
+  for +cc: String
+  for ws: List<&2, String>
+  for h_cmd: {Args.is_cmd(cc) == True{} : Bool}
+  for h_not: {String.eq(cc, "--help") == False{} : Bool}
+  {Args.help_path(cc <> ws) == [cc] : List<&2, String>}
+
+# LAW: a line that asks for `--help` prints the usage of the command path it
+# asks about to stdout and exits 0, the page `bolt help` prints for that
+# path. shake's answer, the premise: `help` followed by that path fails the
+# parse as a request for usage of it (SHAKE-PARSE-8, SHAKE-ERR-1)
+# BOLT-CLI-1
+# BOLT-CLI-3
+law cli_dash_help:
+  for +ws: List<&2, String>
+  for +ee: Shake.ParseErr
+  for h: {Args.asks_help(ws) == True{} : Bool}
+  for hp: {Args.parse("help" <> Args.help_path(ws)) == Fail{ee} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for hh: {Shake.help_path(ee) == Some{Args.help_path(ws)} : Maybe<&2, List<&2, String>>}
+  {Args.out(Args.parse(Args.line(ws))) == Args.Stop{Args.Page{}, Args.help_text(Args.help_path(ws)), 0} : Args.Out}
 
 # The checker (BOLT-CHK). `bolt check` runs bend on each file (BOLT-TRUST-5
 # for what bend prints, src/lsp/report.bend for how it is read), and

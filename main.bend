@@ -3,7 +3,7 @@
 # The one binary. Shake parses the line: `lint`, or a word that is no
 # subcommand, or nothing, lints the files named after it (every `.bend` file
 # under the current directory when none are); `check` runs the checker on
-# them; `lsp` serves an editor over stdio; `help` prints usage; `--version`
+# them; `lsp` serves an editor over stdio; `help` (or `--help`) prints usage; `--version`
 # prints the release and the short commit when the build has one. Build it
 # native (`bend main.bend -o bin/bolt.bin`). `bolt lsp` runs on the cores:
 # with no `--gpu` it is `--gpu off`, and `--gpu on` or `--gpu 4GB` asks for
@@ -42,4 +42,4 @@ def perform(oo: Args.Out) -> IO(Unit):  # noqa: L001 IO driver
 def main() -> IO(Unit):  # noqa: L001 IO entry point
   do IO<Unit>:
     +av : List<&2, String> <- Args.argv()
-    perform(Args.out(Args.parse(av)))
+    perform(Args.out(Args.parse(Args.line(av))))

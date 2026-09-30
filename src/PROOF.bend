@@ -1408,6 +1408,34 @@ def Laws.cli_version(fs, _h, mm, hp, hv):
 def Laws.cli_args_program(_prog, _ws):
   {==}
 
+def Laws.cli_line_plain(ws, h):
+  e = Equal.sym(Bool, Args.asks_help(ws), False{}, h)
+  %e : {Args.line.at(_, ws) == ws : List<&2, String>}
+  {==}
+
+def Laws.cli_help_flag(_ws):
+  {==}
+
+def Laws.cli_help_dashes(_ws):
+  {==}
+
+def Laws.cli_help_flag_path(_ws):
+  {==}
+
+def Laws.cli_help_cmd(cc, ws, h_cmd, h_not):
+  e = Equal.sym(Bool, String.eq(cc, "--help"), False{}, h_not)
+  %e : {Lazy.either(List<&2, String>, _, _u => Args.help_path(ws),
+    _u => Bool.pick(List<&2, String>, Args.is_cmd(cc), [cc], [])) == [cc] : List<&2, String>}
+  c = Equal.sym(Bool, Args.is_cmd(cc), True{}, h_cmd)
+  %c : {Bool.pick(List<&2, String>, _, [cc], []) == [cc] : List<&2, String>}
+  {==}
+
+def Laws.cli_dash_help(ws, ee, h, hp, hh):
+  e = Equal.sym(Bool, Args.asks_help(ws), True{}, h)
+  %e : {Args.out(Args.parse(Args.line.at(_, ws))) == Args.Stop{Args.Page{}, Args.help_text(Args.help_path(ws)), 0}
+    : Args.Out}
+  Laws.cli_help(Args.help_path(ws), ee, hp, hh)
+
 def Laws.version_release(rel, rev, h):
   e = Equal.sym(Bool, String.is_empty(rev), True{}, h)
   %e : {Bool.pick(String, _, rel, rel ++ " (" ++ rev ++ ")") == rel : String}

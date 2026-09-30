@@ -1,11 +1,13 @@
 # src/args: bolt's command line, parsed by shake. `bolt [lint] [file..]`,
 # `bolt check file..`, `bolt lsp`, `bolt --version`. A rest positional at the root (and on
 # `lint` / `check`) takes every leftover word, so `bolt a.bend b.bend` lints
-# those files. `help` is shake's usage page. IO.args gives the program as invoked first, then its
+# those files. `help` is shake's usage page, and `--help` asks for the same
+# page (`line`). IO.args gives the program as invoked first, then its
 # arguments (bend 2.0.32); `argv` drops the program. A compiled binary passes
 # its arguments through; the runtime takes only its own out of the line
 # (`--threads`, `--gpu`, `--gpu-build`, `--bend-help`), wherever they stand,
-# and the first `--`, which hands even those to the program.
+# and the first `--`, which hands even those to the program. `--help` reaches
+# the program (bend 2.0.29).
 # `out` is every decision the line makes, as data: what to print, where, and
 # the exit code, or the subcommand to run and its files. main only does it.
 # Only shake's interface (main.bend) is read here; what `parse` answers for a
@@ -14,6 +16,7 @@ import Base
 import 0x085b03c84ca37125e38dddede7b91e55/main.bend as Shake
 import ./version.bend as Ver
 import ./build_rev.bend as Rev
+import ./lazy/lazy.bend as Lazy
 
 # the line at the quantity the rest of bolt reads it at (IO.args gives each
 # argument once)
@@ -38,6 +41,42 @@ def argv() -> IO(List<&2, String>):  # noqa: L001 IO: reads argv
   do IO<List<&2, String>>:
     ss : List<&1, String> <- IO.args()
     return args_of(ss)
+
+# whether a word names a subcommand
+def is_cmd(+ww: String) -> Bool:
+  Bool.or(String.eq(ww, "lint"), Bool.or(String.eq(ww, "check"), String.eq(ww, "lsp")))
+
+# whether `--help` stands among the words before the first `--` (after it,
+# every word is a file); the search stops at either
+def asks_help(ws: List<&2, String>) -> Bool:
+  match ws:
+    case Nil{}:
+      False{}
+    case Con{+ww, rest}:
+      Lazy.and_then(Bool.not(String.eq(ww, "--")), _u => Lazy.or_else(String.eq(ww, "--help"), _v => asks_help(rest)))
+
+# the command path `--help` asks about: the first word other than `--help`,
+# when it names a subcommand, else the root's
+def help_path(ws: List<&2, String>) -> List<&2, String>:
+  match ws:
+    case Nil{}:
+      Nil{}
+    case Con{+ww, rest}:
+      Lazy.either(List<&2, String>, String.eq(ww, "--help"), _u => help_path(rest),
+        _u => Bool.pick(List<&2, String>, is_cmd(ww), [ww], []))
+
+# the line, given whether it asks for `--help`
+def line.at(ask: Bool, +ws: List<&2, String>) -> List<&2, String>:
+  match ask:
+    case True{}:
+      "help" <> help_path(ws)
+    case False{}:
+      ws
+
+# the line shake parses: one that asks for `--help` is `help` for its command
+# path, the page `bolt help` prints; any other is itself
+def line(+ws: List<&2, String>) -> List<&2, String>:
+  line.at(asks_help(ws), ws)
 
 # the files rest, optional, last among positionals
 def spec.files(+help: String) -> Shake.Arg:

@@ -184,8 +184,8 @@ Design specs and plans are not kept in this repo; they live under
   `--gpu`, `--gpu-build`, `--bend-help` — and strips them wherever they
   stand, so `bolt lsp --gpu off` reaches the program as `lsp` (`bolt lsp`
   with no `--gpu` is that same launch); the first `--` hands even those to
-  the program, and is itself stripped. `--help` reaches the program (2.0.29).
-  `IO.args()` starts with
+  the program, and is itself stripped. `--help` reaches the program (2.0.29):
+  bolt reads it as `help` (src/args.bend's `line`). `IO.args()` starts with
   the program as invoked, as C's argv does (2.0.32): `./bin/bolt.bin a b`
   gives `[./bin/bolt.bin, a, b]`, and src/args.bend's `args_of` drops the
   head. The *interpreted* lane gives `[f.bend, a, b]` for `bend f.bend a b`,
