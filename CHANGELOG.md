@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.0](https://github.com/Emerging-Patterns/bolt/compare/v1.14.0...v1.15.0) (2026-09-30)
+
+
+### Performance Improvements
+
+* index once in rewalk, bind.refresh and digest.laws_of ([#231](https://github.com/Emerging-Patterns/bolt/issues/231)) ([9994646](https://github.com/Emerging-Patterns/bolt/commit/9994646fadf6294c3006b746cea2b64521bee94a))
+
 ## [1.14.0](https://github.com/Emerging-Patterns/bolt/compare/v1.13.0...v1.14.0) (2026-09-30)
 
 
