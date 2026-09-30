@@ -26,7 +26,7 @@ def eq_str(name: String, got: String, want: String) -> IO(Unit):
 
 # the 0x name ez computed for shake v0.2.0
 def shake.hash() -> String:
-  "0x085b03c84ca37125e38dddede7b91e55"
+  "0xcab8a7a189cec2b51e8db0484f69c593"
 
 # the 0x name ez computed for ezjson v1.1.0
 def ezjson.hash() -> String:

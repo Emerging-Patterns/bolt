@@ -13,7 +13,7 @@
 # Only shake's interface (main.bend) is read here; what `parse` answers for a
 # given argv is shake's guarantee (SPEC.md BOLT-TRUST-8), not bolt's.
 import Base
-import 0x085b03c84ca37125e38dddede7b91e55/main.bend as Shake
+import 0xcab8a7a189cec2b51e8db0484f69c593/main.bend as Shake
 import ./version.bend as Ver
 import ./build_rev.bend as Rev
 import ./lazy/lazy.bend as Lazy
