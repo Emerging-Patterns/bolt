@@ -1141,12 +1141,17 @@ def cfg4.ueq(a, b, e):
     case U32{x} U32{y}:
       Equal.cong(Word(32n), U32, w => U32{w}, x, y, cfg4.weq(32n, x, y, e))
 
+# the equality half of a string compare. Base named this String.eq.fin until
+# 2.0.33; String.eq is Cmp.is_eq of that half
+def str.eq_fin(r: (String & String) & Cmp) -> Bool:
+  Cmp.is_eq(Pair.snd(String & String, Cmp, r))
+
 # a compare that went on past equal first characters answers as the rest's
 law cfg4.rec:
   for -h1: Char
   for -h2: Char
   for rr: (String & String) & Cmp
-  {String.eq.fin(String.cmp.rec(h1, h2, rr)) == String.eq.fin(rr) : Bool}
+  {str.eq_fin(String.cmp.rec(h1, h2, rr)) == str.eq_fin(rr) : Bool}
 
 def cfg4.rec(_h1, _h2, rr):
   ((_a, _b), _c) = rr
@@ -1162,7 +1167,7 @@ law cfg4.seq.arm:
   for c: Cmp
   for ec: {U32.cmp(x, y) == c : Cmp}
   for ih: {String.eq(t1, t2) == True{} : Bool} -> {t1 == t2 : String}
-  for e: {String.eq.fin(String.cmp.fin(t1, t2, ((Chr{x}, Chr{y}), c))) == True{} : Bool}
+  for e: {str.eq_fin(String.cmp.fin(t1, t2, ((Chr{x}, Chr{y}), c))) == True{} : Bool}
   {SCon{Chr{x}, t1} == SCon{Chr{y}, t2} : String}
 
 def cfg4.seq.arm(x, y, t1, t2, c, ec, ih, e):
@@ -1173,8 +1178,8 @@ def cfg4.seq.arm(x, y, t1, t2, c, ec, ih, e):
       Empty.absurd({SCon{Chr{x}, t1} == SCon{Chr{y}, t2} : String}, cfg4.false_true(e))
     case EQ{}:
       r = cfg4.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))
-      et = ih(Equal.trans(Bool, String.eq(t1, t2), String.eq.fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
-        True{}, Equal.sym(Bool, String.eq.fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
+      et = ih(Equal.trans(Bool, String.eq(t1, t2), str.eq_fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
+        True{}, Equal.sym(Bool, str.eq_fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
           String.eq(t1, t2), r), e))
       ex = cfg4.ueq(x, y, Equal.cong(Cmp, Bool, z => Cmp.is_eq(z), U32.cmp(x, y), EQ{}, ec))
       %ex : {SCon{Chr{x}, t1} == SCon{Chr{_}, t2} : String}

@@ -1,9 +1,8 @@
 # rule unsafe (project-wide): an `@unsafe def` that a LAWS.bend or PROOF.bend
 # reaches by relative imports, over the files bolt read. The checker skips its
-# termination check, prints "All terms check, but N defs rely on unsafe or
-# foreign code:" (2.0.16: "with N unsafe annotation(s).") and exits 0, so a
-# gate that only reads the exit status goes green on a proof that is not
-# sound (a def that never returns proves anything). Recurse
+# termination check. A proof that reaches one does not print a clean
+# "ALL PROOFS CHECK" (2.0.16: "with N unsafe annotation(s).", and the
+# verdict then still exited 0). Recurse
 # on a shrinking argument, or on a fuel, and drop the `@unsafe`; or keep the
 # def out of what the laws import. An `@unsafe` def no law file reaches is
 # not this rule's business. The rule reads each file's digest
@@ -47,7 +46,7 @@ def report(us: List<&2, Digest.Unsafe>, +origin: String, +path: String) -> List<
       Nil{}
     case Con{Digest.Unsafe{n, l, c}, rest}:
       F.Finding{path, l, c, 7, "unsafe", "@unsafe def " ++ n ++ " is reachable from " ++ origin
-        ++ ", where the checker skips its termination check and still exits 0; recurse on a shrinking argument or on fuel, and drop @unsafe."} <> report(rest, origin, path)
+        ++ ", where the checker skips its termination check and the proof verdict fails; recurse on a shrinking argument or on fuel, and drop @unsafe."} <> report(rest, origin, path)
 
 # the unsafe defs of a file, when a law file reaches it
 def found(mm: Maybe<&2, String>, us: List<&2, Digest.Unsafe>, path: String) -> List<&2, F.Finding>:

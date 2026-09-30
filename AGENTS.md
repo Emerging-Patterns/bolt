@@ -180,13 +180,15 @@ Design specs and plans are not kept in this repo; they live under
   (src/lsp/tests/spawn.js), not only through pipes.
 - A *compiled* Bend binary passes its whole command line to `IO.args()`,
   flags included (2.0.16; 2.0.5 did not, which is where "a Bend binary takes
-  no arguments" came from). The runtime keeps only its own — `--threads`,
-  `--gpu`, `--gpu-build`, `--help` — and strips them wherever they stand, so
-  `bolt lsp --gpu off` reaches `IO.args()` as `[lsp]` (`bolt lsp` with no
-  `--gpu` is that same launch); `--` hands even those
-  to the program. `IO.args()` has no argv[0], so a binary cannot find itself
-  by it. The *interpreted* lane differs: `bend f.bend a b` passes positional
-  arguments but bend's own CLI rejects flags it does not know.
+  no arguments" came from). Since 2.0.32 the first word is the program as
+  invoked, on every lane, and the arguments start at the next word. The
+  runtime keeps only its own — `--threads`, `--gpu`, `--gpu-build`,
+  `--bend-help` — and strips them wherever they stand, so `bolt lsp --gpu off`
+  reaches `IO.args()` as `[bolt, lsp]` and bolt drops the program (`bolt lsp`
+  with no `--gpu` is that same launch). `--help` reaches the program; the
+  runtime's own help is `--bend-help`. `--` hands even the runtime's flags to
+  the program. The *interpreted* lane passes the `.bend` file first, then the
+  positional arguments; bend's own CLI rejects flags it does not know.
 - A pair `A & B` is never `Data`: a list of pairs is `List<&1, A & B>`.
 - `x.of` and `x_of` mangle to the same C name ("two names mangle to
   FID_.."): never both in one module.

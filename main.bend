@@ -13,8 +13,9 @@
 # Everything under src/ is internal.
 import Base
 import ./src/args.bend as Args
+import ./src/say.bend as Say
 import ./src/lint.bend as Lint
-import ./src/check.bend as Check
+import ./src/check_run.bend as CheckRun
 import ./src/lsp/run.bend as Lsp
 
 # what a subcommand runs, over the files after it
@@ -23,38 +24,17 @@ def dispatch(cmd: Args.Cmd, paths: List<&2, String>) -> IO(Unit):  # noqa: L001 
     case Args.CLint{}:
       Lint.run(paths)
     case Args.CCheck{}:
-      Check.run(paths)
+      CheckRun.run(paths)
     case Args.CLsp{}:
       Lsp.run()
-
-# a text on its stream
-def say(to: Args.Stream, text: String) -> IO(Unit):
-  match to:
-    case Args.Line{}:
-      IO.print(text)
-    case Args.Page{}:
-      IO.write(text)
-    case Args.Err{}:
-      IO.print_err(text)
-
-def leave.at(zero: Bool, code: U32) -> IO(Unit):
-  match zero:
-    case True{}:
-      IO.pure(Unit, Unit{})
-    case False{}:
-      IO.die(Unit, code, "")
-
-# exit with a code: 0 falls through, any other ends the run with it
-def leave(+code: U32) -> IO(Unit):
-  leave.at(U32.is_eq(code, 0), code)
 
 # what a parsed line does, done
 def perform(oo: Args.Out) -> IO(Unit):  # noqa: L001 IO driver
   match oo:
     case Args.Stop{to, text, code}:
       do IO<Unit>:
-        say(to, text)
-        leave(code)
+        Say.say(to, text)
+        Say.leave(code)
     case Args.Go{cmd, paths}:
       dispatch(cmd, paths)
 

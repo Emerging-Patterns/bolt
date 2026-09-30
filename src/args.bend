@@ -1,10 +1,11 @@
 # src/args: bolt's command line, parsed by shake. `bolt [lint] [file..]`,
 # `bolt check file..`, `bolt lsp`, `bolt --version`. A rest positional at the root (and on
 # `lint` / `check`) takes every leftover word, so `bolt a.bend b.bend` lints
-# those files. `help` is shake's usage page; `--help` stays with the Bend
-# runtime. A compiled binary does pass its arguments through; the runtime
-# takes only its own out of the line (`--threads`, `--gpu`, `--gpu-build`,
-# `--help`), wherever they stand, and `--` hands even those to the program.
+# those files. `help` is shake's usage page. A compiled binary does pass its
+# arguments through; the runtime takes only its own out of the line
+# (`--threads`, `--gpu`, `--gpu-build`, `--bend-help`), wherever they stand,
+# and `--` hands even those to the program. `IO.args` starts with the program
+# as invoked (2.0.32); the words after it are the command.
 # `out` is every decision the line makes, as data: what to print, where, and
 # the exit code, or the subcommand to run and its files. main only does it.
 # Only shake's interface (main.bend) is read here; what `parse` answers for a
@@ -23,11 +24,19 @@ def widen(ss: List<&1, String>) -> List<&2, String>:
     case Con{s, t}:
       s <> widen(t)
 
+# the command, past the program IO.args puts first
+def argv.rest(ss: List<&1, String>) -> List<&1, String>:
+  match ss:
+    case Nil{}:
+      Nil{}
+    case Con{_prog, tt}:
+      tt
+
 # bolt's command line
 def argv() -> IO(List<&2, String>):  # noqa: L001 IO: reads argv
   do IO<List<&2, String>>:
     ss : List<&1, String> <- IO.args()
-    return widen(ss)
+    return widen(argv.rest(ss))
 
 # the files rest, optional, last among positionals
 def spec.files(+help: String) -> Shake.Arg:

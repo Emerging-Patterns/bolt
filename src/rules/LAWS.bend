@@ -2686,7 +2686,7 @@ def unsafe.each(us: List<&2, Digest.Unsafe>, +origin: String, +path: String) -> 
       Nil{}
     case Con{Digest.Unsafe{n, l, c}, rest}:
       F.Finding{path, l, c, 7, "unsafe", "@unsafe def " ++ n ++ " is reachable from " ++ origin
-        ++ ", where the checker skips its termination check and still exits 0; recurse on a shrinking argument or on fuel, and drop @unsafe."}
+        ++ ", where the checker skips its termination check and the proof verdict fails; recurse on a shrinking argument or on fuel, and drop @unsafe."}
         <> unsafe.each(rest, origin, path)
 
 # a file's unsafe defs when a law file reaches it, else nothing

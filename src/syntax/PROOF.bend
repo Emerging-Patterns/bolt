@@ -3511,12 +3511,17 @@ def rs.qual.at(c, q, r, mm, als, e1, e2):
       Bind.TFree{}, _u => Bind.TQual{q, _}) == Laws.res.qual(mm, q, als) : Bind.Target}
   rs.qual(mm, q, als)
 
+# the equality half of a string compare. Base named this String.eq.fin until
+# 2.0.33; String.eq is Cmp.is_eq of that half
+def str.eq_fin(r: (String & String) & Cmp) -> Bool:
+  Cmp.is_eq(Pair.snd(String & String, Cmp, r))
+
 # String.eq's last step, through one more pair of heads, reads the same
 law rs.fin:
   for +hx: Char
   for +hy: Char
   for rr: (String & String) & Cmp
-  {String.eq.fin(String.cmp.rec(hx, hy, rr)) == String.eq.fin(rr) : Bool}
+  {str.eq_fin(String.cmp.rec(hx, hy, rr)) == str.eq_fin(rr) : Bool}
 
 def rs.fin(_hx, _hy, rr):
   match rr:
@@ -3531,7 +3536,7 @@ law rs.step:
   for +hx: Char
   for +hy: Char
   for ih: {Bind.same(t1, t2) == String.eq(t1, t2) : Bool}
-  {Lazy.and_then(Cmp.is_eq(c), _u => Bind.same(t1, t2)) == String.eq.fin(String.cmp.fin(t1, t2, ((hx, hy), c)))
+  {Lazy.and_then(Cmp.is_eq(c), _u => Bind.same(t1, t2)) == str.eq_fin(String.cmp.fin(t1, t2, ((hx, hy), c)))
     : Bool}
 
 def rs.step(c, t1, t2, hx, hy, ih):
@@ -3540,8 +3545,8 @@ def rs.step(c, t1, t2, hx, hy, ih):
       {==}
     case EQ{}:
       Equal.trans(Bool, Bind.same(t1, t2), String.eq(t1, t2),
-        String.eq.fin(String.cmp.rec(hx, hy, String.cmp(t1, t2))), ih,
-        Equal.sym(Bool, String.eq.fin(String.cmp.rec(hx, hy, String.cmp(t1, t2))), String.eq(t1, t2),
+        str.eq_fin(String.cmp.rec(hx, hy, String.cmp(t1, t2))), ih,
+        Equal.sym(Bool, str.eq_fin(String.cmp.rec(hx, hy, String.cmp(t1, t2))), String.eq(t1, t2),
           rs.fin(hx, hy, String.cmp(t1, t2))))
     case GT{}:
       {==}

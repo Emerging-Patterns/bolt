@@ -3,15 +3,12 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   inputs.bend = {
-    url = "github:bendlang/bend";
+    url = "github:bendlang/bend/777ee0b55c485afdd7e68bd917b3d23a88d77371";
     inputs.nixpkgs.follows = "nixpkgs";
   };
   inputs.ez = {
     url = "github:Emerging-Patterns/ez";
     inputs.nixpkgs.follows = "nixpkgs";
-    # not `inputs.bend.follows = "bend"`: ez 1.2.0 does not build on bend
-    # 2.0.28, so ez (and `ez prove`) keep the bend ez 1.2.0 locks, 2.0.27
-    inputs.bend.url = "github:bendlang/bend/d37909174ebd664338ae3194799a9e0899dedd51";
   };
 
   outputs = { self, nixpkgs, ... }@inputs:
@@ -49,12 +46,24 @@
           ${old.buildPhase}
         '';
       });
-      # the proof gate (`ez prove`)
-      test = ez.mkProofs {
-        ez = inputs.ez.packages.${system}.default;
-        src = self;
-        name = "bolt-test";
-      };
+      # every PROOF.bend, on this bend: the first line is ALL PROOFS CHECK
+      test = pkgs.runCommand "bolt-test" {
+        nativeBuildInputs = [ bend ];
+        BEND_LIB = ez.bendLib (self + "/ez.lock.toml");
+      } ''
+        set -eu
+        cd ${self}
+        while IFS= read -r f; do
+          out=$(bend "$f" --check-only 2>&1 || true)
+          first=$(printf '%s\n' "$out" | head -n 1)
+          if [ "$first" != "ALL PROOFS CHECK" ]; then
+            printf '%s\n' "$f"
+            printf '%s\n' "$out"
+            exit 1
+          fi
+        done < <(find . -name PROOF.bend | sort)
+        touch $out
+      '';
       # bolt, built from this tree, over this tree: exit 1 on any error
       lint = ez.mkLint { inherit bolt; src = self; };
     in {

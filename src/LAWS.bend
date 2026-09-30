@@ -938,9 +938,10 @@ law nearest_grades:
 # are about bolt's code alone. Those naming an argv (cli_bare to cli_version)
 # take what shake answers for it as premises, each premise citing the shake
 # row that guarantees it, and prove what bolt does with that answer. An argv
-# here is the list IO.args hands the program: a compiled binary's runtime has
-# already taken its own flags and the first `--` out of the command line, so
-# at a shell `bolt -- -- -x.bend` is what reaches shake as `-- -x.bend`
+# here is the list shake parses. IO.args starts with the program (2.0.32) and
+# argv drops it. A compiled binary's runtime has already taken its own flags
+# and the first `--` out of the command line, so at a shell
+# `bolt -- -- -x.bend` is what reaches shake as `-- -x.bend`
 # (SHAKE-TRUST-2).
 
 # a word bolt reads as a file after a command: neither `--` nor `help`, and
@@ -1195,10 +1196,10 @@ law version_commit:
 # The checker (BOLT-CHK). `bolt check` runs bend on each file (BOLT-TRUST-5
 # for what bend prints, src/lsp/report.bend for how it is read), and
 # Check.out decides, from the diagnostics each file got, every line the
-# command prints and its exit code; Check.run only does it (BOLT-TRUST-9).
+# command prints and its exit code; check_run.run only does it (BOLT-TRUST-9).
 # The laws below quantify over every list of files and every diagnostics
 # each could get, and over a file bend could not be run on: exec tags its
-# text (checker/bend.bend's bendcheck.exec; that the tag is honest is
+# text (checker/run.bend's bendcheck.exec; that the tag is honest is
 # BOLT-TRUST-9), BendChecker.answer reads the tag, and a file with no check
 # is an error line of its own. "On the line bend marks" is the section after
 # these (check_marked): that bend prints the shape it reads is BOLT-TRUST-5.

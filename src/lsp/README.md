@@ -13,8 +13,8 @@ It is one command of [bolt](../)'s binary (`lsp/run.bend` is its
 entry). `bolt lsp` with no `--gpu` is `--gpu off`: a native binary takes
 the device when the line asks and one is present, and a language server
 stays on the cores unless the line says `--gpu on` or a size (`--gpu 4GB`).
-The runtime takes `--gpu` out of the line, so `IO.args()` still reads just
-`lsp`. It ships native only: the JS lane overflows its stack on a large
+The runtime takes `--gpu` out of the line. `IO.args()` starts with the
+program, and bolt drops it, so the command reads just `lsp`. It ships native only: the JS lane overflows its stack on a large
 message. Idle it costs no CPU.
 
 ## How it is wired

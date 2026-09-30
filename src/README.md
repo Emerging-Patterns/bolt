@@ -339,10 +339,8 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   lacks the tag, a Trusted row with no trust row, and a tag SPEC.md does not
   list as a Proved row, proved or pending.
 - `unsafe` (project) — an `@unsafe def` that a LAWS.bend or PROOF.bend
-  reaches through its imports. There the checker prints "All terms check,
-  but N defs rely on unsafe or foreign code:" and a `- name` list (2.0.16
-  counted marks: "with N unsafe annotations.") and exits 0, so a gate that
-  reads the exit status goes green on an unproven claim.
+  reaches through its imports. There the checker prints "SOME PROOFS FAIL"
+  and lists the defs, so the proof does not print a clean "ALL PROOFS CHECK".
 - `coverage` (project) — in a project that states laws (a LAWS.bend among the
   files bolt read), a def or a type that no law reaches. It is `coverage`, not `law`,
   because `law` is a Bend keyword: `def law()` is no def, so a bolt.bend
@@ -389,7 +387,8 @@ that answers the planner's questions (a directory listed through
 through `lsp/files/`) until it asks for nothing more, then prints the
 plan's lines and exits with its status. `bolt help` prints usage. A run
 that found errors exits 1. Bend's runtime takes its own flags out of the
-line before the program sees it, so `bolt lsp` reaches `main` as `lsp`.
+line before the program sees it, and `IO.args` starts with the program, which
+bolt drops, so `bolt lsp` reaches `main` as `lsp`.
 With no `--gpu` that launch is `--gpu off` (the cores); `--gpu on` or
 `--gpu 4GB` asks for the device.
 

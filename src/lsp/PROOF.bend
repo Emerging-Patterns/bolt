@@ -1442,12 +1442,17 @@ def pub.weq_refl(n, a):
           %e : {Word.cmp.fin(b, b, _) == EQ{} : Cmp}
           pub.bcmp(b)
 
+# the equality half of a string compare. Base named this String.eq.fin until
+# 2.0.33; String.eq is Cmp.is_eq of that half
+def str.eq_fin(r: (String & String) & Cmp) -> Bool:
+  Cmp.is_eq(Pair.snd(String & String, Cmp, r))
+
 # a compare that went on past equal first characters answers as the rest's
 law pub.rec:
   for -h1: Char
   for -h2: Char
   for rr: (String & String) & Cmp
-  {String.eq.fin(String.cmp.rec(h1, h2, rr)) == String.eq.fin(rr) : Bool}
+  {str.eq_fin(String.cmp.rec(h1, h2, rr)) == str.eq_fin(rr) : Bool}
 
 def pub.rec(_h1, _h2, rr):
   ((_a, _b), _c) = rr
@@ -1464,8 +1469,8 @@ def pub.seq_refl(s):
       {==}
     case SCon{Chr{U32{+w}}, +t}:
       e = Equal.sym(Cmp, Word.cmp(32n, w, w), EQ{}, pub.weq_refl(32n, w))
-      %e : {String.eq.fin(String.cmp.fin(t, t, ((Chr{U32{w}}, Chr{U32{w}}), _))) == True{} : Bool}
-      Equal.trans(Bool, String.eq.fin(String.cmp.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t))),
+      %e : {str.eq_fin(String.cmp.fin(t, t, ((Chr{U32{w}}, Chr{U32{w}}), _))) == True{} : Bool}
+      Equal.trans(Bool, str.eq_fin(String.cmp.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t))),
         String.eq(t, t), True{}, pub.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t)), pub.seq_refl(t))
 
 # the document just put at the head of the list is the one a lookup of its

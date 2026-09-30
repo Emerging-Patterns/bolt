@@ -11047,7 +11047,7 @@ def unsafe.report(us, origin, path):
     case Con{Digest.Unsafe{+n, +l, +c}, rest}:
       Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
         t => F.Finding{path, l, c, 7, "unsafe", "@unsafe def " ++ n ++ " is reachable from " ++ origin
-          ++ ", where the checker skips its termination check and still exits 0; recurse on a shrinking argument or on fuel, and drop @unsafe."} <> t,
+          ++ ", where the checker skips its termination check and the proof verdict fails; recurse on a shrinking argument or on fuel, and drop @unsafe."} <> t,
         Unsafe.report(rest, origin, path), Laws.unsafe.each(rest, origin, path), unsafe.report(rest, origin, path))
 
 # the rule's found is unsafe.at
@@ -15837,12 +15837,17 @@ def unsafe.ueq(a, b, e):
     case U32{x} U32{y}:
       Equal.cong(Word(32n), U32, w => U32{w}, x, y, unsafe.weq(32n, x, y, e))
 
+# the equality half of a string compare. Base named this String.eq.fin until
+# 2.0.33; String.eq is Cmp.is_eq of that half
+def str.eq_fin(r: (String & String) & Cmp) -> Bool:
+  Cmp.is_eq(Pair.snd(String & String, Cmp, r))
+
 # a compare that went on past equal first characters answers as the rest's
 law unsafe.rec:
   for -h1: Char
   for -h2: Char
   for rr: (String & String) & Cmp
-  {String.eq.fin(String.cmp.rec(h1, h2, rr)) == String.eq.fin(rr) : Bool}
+  {str.eq_fin(String.cmp.rec(h1, h2, rr)) == str.eq_fin(rr) : Bool}
 
 def unsafe.rec(_h1, _h2, rr):
   ((_a, _b), _c) = rr
@@ -15858,7 +15863,7 @@ law unsafe.seq.arm:
   for c: Cmp
   for ec: {U32.cmp(x, y) == c : Cmp}
   for ih: {String.eq(t1, t2) == True{} : Bool} -> {t1 == t2 : String}
-  for e: {String.eq.fin(String.cmp.fin(t1, t2, ((Chr{x}, Chr{y}), c))) == True{} : Bool}
+  for e: {str.eq_fin(String.cmp.fin(t1, t2, ((Chr{x}, Chr{y}), c))) == True{} : Bool}
   {SCon{Chr{x}, t1} == SCon{Chr{y}, t2} : String}
 
 def unsafe.seq.arm(x, y, t1, t2, c, ec, ih, e):
@@ -15869,8 +15874,8 @@ def unsafe.seq.arm(x, y, t1, t2, c, ec, ih, e):
       Empty.absurd({SCon{Chr{x}, t1} == SCon{Chr{y}, t2} : String}, unsafe.false_true(e))
     case EQ{}:
       r = unsafe.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))
-      et = ih(Equal.trans(Bool, String.eq(t1, t2), String.eq.fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
-        True{}, Equal.sym(Bool, String.eq.fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
+      et = ih(Equal.trans(Bool, String.eq(t1, t2), str.eq_fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
+        True{}, Equal.sym(Bool, str.eq_fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
           String.eq(t1, t2), r), e))
       ex = unsafe.ueq(x, y, Equal.cong(Cmp, Bool, z => Cmp.is_eq(z), U32.cmp(x, y), EQ{}, ec))
       %ex : {SCon{Chr{x}, t1} == SCon{Chr{_}, t2} : String}
@@ -15927,9 +15932,9 @@ def unsafe.srefl(s):
       {==}
     case SCon{Chr{U32{+w}}, +t}:
       %Equal.sym(Cmp, Word.cmp(32n, w, w), EQ{}, unsafe.wrefl(32n, w)) :
-        {String.eq.fin(String.cmp.fin(t, t, ((Chr{U32{w}}, Chr{U32{w}}), _))) == True{} : Bool}
-      %Equal.sym(Bool, String.eq.fin(String.cmp.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t))),
-          String.eq.fin(String.cmp(t, t)), unsafe.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t))) :
+        {str.eq_fin(String.cmp.fin(t, t, ((Chr{U32{w}}, Chr{U32{w}}), _))) == True{} : Bool}
+      %Equal.sym(Bool, str.eq_fin(String.cmp.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t))),
+          str.eq_fin(String.cmp(t, t)), unsafe.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t))) :
         {_ == True{} : Bool}
       unsafe.srefl(t)
 
@@ -17863,14 +17868,14 @@ law inert.fin_false:
   for -h1: Char
   for -h2: Char
   for ec: {Cmp.is_eq(c) == False{} : Bool}
-  {String.eq.fin(String.cmp.fin(r, ys, ((h1, h2), c))) == False{} : Bool}
+  {str.eq_fin(String.cmp.fin(r, ys, ((h1, h2), c))) == False{} : Bool}
 
 def inert.fin_false(c, r, ys, h1, h2, ec):
   match c:
     case LT{}: {==}
     case GT{}: {==}
     case EQ{}:
-      Empty.absurd({String.eq.fin(String.cmp.fin(r, ys, ((h1, h2), EQ{}))) == False{} : Bool},
+      Empty.absurd({str.eq_fin(String.cmp.fin(r, ys, ((h1, h2), EQ{}))) == False{} : Bool},
         inert.false_true(Equal.sym(Bool, True{}, False{}, ec)))
 
 # a text with a marked first char is never equal to one with an unmarked one
