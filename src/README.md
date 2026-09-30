@@ -50,7 +50,7 @@ unset group has its default. The groups:
 
 | group         | rules                                                                            | default |
 |---------------|----------------------------------------------------------------------------------|---------|
-| `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign`          | error   |
+| `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign` `setting` | error   |
 | `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` | warn    |
 | `style`       | `doc` `space` `wrap` `param` `noqa`                                              | warn    |
 | `laws`        | `coverage` `closed` `unsafe` (`trace`: opt-in)                                   | warn    |
@@ -70,7 +70,7 @@ The stable codes, assigned once (do not renumber):
 | C008 | `strings` | U008 | `table` | L003 | `unsafe` |
 | C009 | `chars` | U009 | `hoist` | L004 | retired |
 | C010 | `foreign` | U010 | `ring` | L005 | `trace` |
-| | | U011 | `rewalk` | P001 | `tail` |
+| C011 | `setting` | U011 | `rewalk` | P001 | `tail` |
 | | | U012 | `unit` | | |
 
 Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic.
@@ -80,7 +80,8 @@ asks for it. L004 was `quantify`, the opt-in strict mode of `closed`;
 `closed` is strict itself now, and L004 is never reused. `trace` is opt-in:
 it is in `laws`, but no group setting reaches it; only `def trace()` in a
 bolt.bend turns it on. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
-read, never linted. Without one, the defaults apply. This repo's
+read, never linted. A setting whose name is no rule's slug and no group
+sets nothing, so `setting` (C011) reports it. Without one, the defaults apply. This repo's
 [bolt.bend](../bolt.bend) sets every group to error: the gate must see
 `clean`.
 
@@ -308,6 +309,15 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   reverse: the missing lane cannot run it. A file headed `# lanes: native`
   needs no `.js`: that exact line must be one of the comment lines before the
   file's first non-comment line.
+- `setting` — a setting in a bolt.bend whose name is no rule's slug and no
+  group (`def wrp() -> String: "off"`, or a retired name such as `quantify`
+  or `shadow`): grading only looks names up, so it sets nothing, and the
+  typo fails open. It is reported once for each bolt.bend that grades a
+  file of the run, at that bolt.bend's path and the setting's `def` line,
+  after the per-file findings and before `coverage`, `unsafe` and `trace`.
+  It is graded by that bolt.bend like any rule (`def setting() -> String:
+  "off"` there turns it off). A bolt.bend is read, not linted, so a noqa
+  comment in one silences nothing. bolt runs it; the editor does not.
 - `fuel` — a `Nat` literal (digits, then `n`), or `U32.to_nat` of a U32
   literal (`U32.to_nat(100000)`), passed in a call, `name(..)`, to a fuel
   parameter of a def of the same file. A fuel parameter is known by its name

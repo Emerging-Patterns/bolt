@@ -15,12 +15,14 @@
 #     def space() -> String:
 #       "warn"
 #
-# A level is "off", "warn" or "error".
+# A level is "off", "warn" or "error". A setting whose name is no rule's slug
+# and no group is `unknown`, and sets nothing.
 import Base
 import ./lazy/lazy.bend as Lazy
 import ./syntax/lex.bend as Lex
 import ./syntax/tree.bend as Tree
 import ./syntax/bind.bend as Bind
+import ./codes.bend as Codes
 
 # how much a finding matters
 type Level is Data:
@@ -88,27 +90,80 @@ def first_str(toks: List<&2, Lex.Tok>) -> Maybe<&2, String>:
     case Con{h, rest}:
       first_str(rest)
 
-# a def's name and the string it returns, as a setting
-def setting(name: Maybe<&2, String>, word: Maybe<&2, String>) -> List<&2, LevelSet>:
+# a setting as a bolt.bend writes it: the def's name, the word its body
+# returns, and the line of its `def` (0-based)
+type Setting is Data:
+  Setting{name: String, word: String, line: U32}
+
+# a def's name and the string it returns, at its line, as a setting
+def setting(name: Maybe<&2, String>, word: Maybe<&2, String>, +line: U32) -> List<&2, Setting>:
   match name word:
     case Some{n} Some{w}:
-      [LevelSet{n, of_word(w)}]
-    case a b:
+      [Setting{n, w, line}]
+    case _a _b:
       []
 
 # every `def x(): "level"` of a tree
-def sets(root: Tree.Node) -> List<&2, LevelSet>:
+def settings.go(root: Tree.Node) -> List<&2, Setting>:
   match root:
-    case Tree.NCons{Tree.Stmt{Tree.SDef{}, kids, body}, rest}:
-      List.append(&2, LevelSet, setting(Bind.declared(kids), first_str(Tree.leaves(body))), sets(rest))
-    case Tree.NCons{h, rest}:
-      sets(rest)
-    case other:
+    case Tree.NCons{Tree.Stmt{Tree.SDef{}, +kids, body}, rest}:
+      +ln = Tree.line(kids)
+      List.append(&2, Setting, setting(Bind.declared(kids), first_str(Tree.leaves(body)), ln), settings.go(rest))
+    case Tree.NCons{_h, rest}:
+      settings.go(rest)
+    case _other:
       Nil{}
 
-# a bolt.bend's text as a config
+# every setting of a bolt.bend's text, in file order
+def settings(text: String) -> List<&2, Setting>:
+  settings.go(Tree.parse(text))
+
+# each setting as the level it sets its name to
+def levels(ss: List<&2, Setting>) -> List<&2, LevelSet>:
+  match ss:
+    case Nil{}:
+      Nil{}
+    case Con{Setting{n, w, _line}, rest}:
+      LevelSet{n, of_word(w)} <> levels(rest)
+
+# a bolt.bend's text as a config: its settings, each at its level
 def parse(text: String) -> Config:
-  Config{sets(Tree.parse(text))}
+  Config{levels(settings(text))}
+
+# unknown names
+# -------------
+# A name a bolt.bend may set is a rule's slug or a group, as the code table
+# (src/codes.bend) lists them; a setting of any other name sets nothing, so
+# `setting` (C011) reports it.
+
+# some row of the table has the name as its group
+def known.group(rows: List<&2, Codes.Entry>, +name: String) -> Bool:
+  match rows:
+    case Nil{}:
+      False{}
+    case Con{Codes.Entry{_s, _id, +grp}, rest}:
+      Lazy.or_else(String.eq(grp, name), _u => known.group(rest, name))
+
+# some row of the table has the name as its slug or its group
+def known.in(+rows: List<&2, Codes.Entry>, +name: String) -> Bool:
+  +slug = Maybe.is_some(&2, Codes.Entry, Codes.find(rows, name))
+  +grp = known.group(rows, name)
+  Bool.or(slug, grp)
+
+# the settings, in order, whose name no row of the table has as its slug or
+# its group
+def unknown.in(ss: List<&2, Setting>, +rows: List<&2, Codes.Entry>) -> List<&2, Setting>:
+  match ss:
+    case Nil{}:
+      Nil{}
+    case Con{Setting{+n, w, line}, rest}:
+      +more = unknown.in(rest, rows)
+      Bool.pick(List<&2, Setting>, known.in(rows, n), more, Setting{n, w, line} <> more)
+
+# the settings, in order, whose name is neither a rule's slug nor a group of
+# the code table
+def unknown(ss: List<&2, Setting>) -> List<&2, Setting>:
+  unknown.in(ss, Codes.table())
 
 # a path's directory, with its slash; `` at the top
 def dir_of.go(cs: List<&2, Char>, +acc: List<&2, Char>, best: List<&2, Char>) -> String:

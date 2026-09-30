@@ -23,6 +23,7 @@ def table() -> List<&2, Entry>:
     Entry{"strings", "C008", "correctness"},
     Entry{"chars", "C009", "correctness"},
     Entry{"foreign", "C010", "correctness"},
+    Entry{"setting", "C011", "correctness"},
     Entry{"unused", "U001", "suspicious"},
     Entry{"strict", "U002", "suspicious"},
     Entry{"eager", "U003", "suspicious"},

@@ -5,7 +5,10 @@
 # names the group, and codes.bend says it again for the config.
 # Adding one is adding it here and a row in codes.bend. One rule is not
 # listed here, `noqa` (rules/style/noqa.bend): it reads the other rules'
-# graded findings, so the planner runs it after them (lint/plan.bend).
+# graded findings, so the planner runs it after them (lint/plan.bend). Nor
+# is `setting` (rules/correctness/setting.bend): it reads each bolt.bend that
+# grades the run, not a source, so the planner runs it between the per-file
+# and the project rules.
 # The groups are what a bolt.bend switches at once: correctness (what will
 # fail or blow up), suspicious (what is probably a slip), style, laws, and
 # pedantic (advice that is noisy on idiomatic code: off unless a project
