@@ -158,7 +158,8 @@ def unknown.in(ss: List<&2, Setting>, +rows: List<&2, Codes.Entry>) -> List<&2, 
       Nil{}
     case Con{Setting{+n, w, line}, rest}:
       +more = unknown.in(rest, rows)
-      Bool.pick(List<&2, Setting>, known.in(rows, n), more, Setting{n, w, line} <> more)
+      Bool.pick(List<&2, Setting>, known.in(rows, n),  # noqa: U013 the fixed code table
+        more, Setting{n, w, line} <> more)
 
 # the settings, in order, whose name is neither a rule's slug nor a group of
 # the code table
@@ -276,7 +277,7 @@ def default(+group: String) -> Level:
 # (`trace`, and `argv`, which cannot tell the one reader that drops the
 # program from the rest)
 def opt_in(+rule: String) -> Bool:
-  List.contains(~String, ~String.eq, ["trace", "argv", "thunk"], rule)
+  List.contains(~String, ~String.eq, ["trace", "argv", "thunk", "scan"], rule)
 
 # the rule's own setting, else its group's, else the group's default; an
 # opt-in rule's own setting, else off

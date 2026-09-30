@@ -391,7 +391,7 @@ def any_of(cs: List<&2, String>, +set: List<&2, String>) -> Bool:
     case Nil{}:
       False{}
     case Con{c, t}:
-      Lazy.or_else(List.contains(~String, ~String.eq, set, c), _u => any_of(t, set))
+      Lazy.or_else(List.contains(~String, ~String.eq, set, c), _u => any_of(t, set))  # noqa: U013 the file's loops
 
 def loops.go(ds: List<&2, Calls.Def>, +acc: List<&2, String>) -> List<&2, String>:
   match ds:
@@ -553,15 +553,15 @@ def stamp(ns: List<&2, String>, +bs: List<&2, Bind>, +line: U32, +col: U32) -> S
     case Nil{}:
       ""
     case Con{+nm, rest}:
-      "|" ++ nm ++ "=" ++ U32.show(count(bs, nm, line, col)) ++ stamp(rest, bs, line, col)
+      "|" ++ nm ++ "=" ++ U32.show(count(bs, nm, line, col)) ++ stamp(rest, bs, line, col)  # noqa: U013 a piece's lets
 
 # every expensive call, wide unless the call is indexed on the spot; its
 # arguments are their text and which let of each name they read
 def gather(nn: Tree.Node, +self: String, +lp: List<&2, String>, +bs: List<&2, Bind>) -> List<&2, Site>:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, +rest}}:
-      +args = Tree.show(kids) ++ stamp(names(kids, []), bs, l, c)
-      +here = open_site(String.eq(o, "("), indexed(rest), t, args, l, c,
+      +args = Tree.show(kids) ++ stamp(names(kids, []), bs, l, c)  # noqa: U013 bs holds one piece's lets
+      +here = open_site(String.eq(o, "("), indexed(rest), t, args, l, c,  # noqa: U013 lp holds the file's loops
         U32.from_nat(String.length(t)), self, lp)
       List.concat(&2, Site, [here, gather(kids, self, lp, bs), gather(rest, self, lp, bs)])
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
@@ -754,7 +754,7 @@ def pin(+ps: List<&2, Pos>, sites: List<&2, Site>) -> List<&2, Site>:
     case Nil{}:
       Nil{}
     case Con{s, rest}:
-      pin_one(ps, s) <> pin(ps, rest)
+      pin_one(ps, s) <> pin(ps, rest)  # noqa: U013 ps holds one piece's marks
 
 # the other site keeps the whole result
 def other_full(+yes: Bool, how: How, +body: Tree.Node) -> Bool:
@@ -772,7 +772,7 @@ def other_go(sites: List<&2, Site>, +name: String, +args: String, +line: U32, +c
     case Con{Site{+nm, +as, +l, +c, len, how}, rest}:
       +same = Bool.and(String.eq(nm, name), String.eq(as, args))
       +diff = Bool.not(Bool.and(U32.is_eq(l, line), U32.is_eq(c, col)))
-      +here = other_full(Bool.and(same, diff), how, body)
+      +here = other_full(Bool.and(same, diff), how, body)  # noqa: U013 body is one straight piece
       +more = other_go(rest, name, args, line, col, body)
       Bool.or(here, more)
 
@@ -797,7 +797,7 @@ def earlier(seen: List<&2, Site>, +name: String, +args: String, +line: U32, +col
     case Nil{}:
       False{}
     case Con{s, rest}:
-      +here = earlier_one(s, name, args, line, col, body)
+      +here = earlier_one(s, name, args, line, col, body)  # noqa: U013 body is one straight piece
       +more = earlier(rest, name, args, line, col, body)
       Bool.or(here, more)
 
@@ -876,7 +876,8 @@ def report(
     case Nil{}:
       Nil{}
     case Con{+s, rest}:
-      List.append(&2, F.Finding, report_one(s, all, body, path, seen), report(rest, all, body, path, s <> seen))
+      +mine = report_one(s, all, body, path, seen)  # noqa: U013 one straight piece
+      List.append(&2, F.Finding, mine, report(rest, all, body, path, s <> seen))
 
 # findings in one straight region; a case arm is not part of it
 def local(+nn: Tree.Node, +self: String, +lp: List<&2, String>, +path: String) -> List<&2, F.Finding>:
@@ -887,8 +888,8 @@ def local(+nn: Tree.Node, +self: String, +lp: List<&2, String>, +path: String) -
 def visit(nn: Tree.Node, +self: String, +lp: List<&2, String>, +path: String) -> List<&2, F.Finding>:
   match nn:
     case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, +body}, rest}:
-      List.concat(&2, F.Finding, [local(body, self, lp, path), visit(body, self, lp, path),
-        visit(rest, self, lp, path)])
+      +here = local(body, self, lp, path)  # noqa: U013 the file's loops
+      List.concat(&2, F.Finding, [here, visit(body, self, lp, path), visit(rest, self, lp, path)])
     case Tree.NCons{Tree.Stmt{kind, +kids, +body}, rest}:
       List.concat(&2, F.Finding, [visit(kids, self, lp, path), visit(body, self, lp, path),
         visit(rest, self, lp, path)])

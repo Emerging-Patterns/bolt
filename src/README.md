@@ -51,7 +51,7 @@ unset group has its default. The groups:
 | group         | rules                                                                            | default |
 |---------------|----------------------------------------------------------------------------------|---------|
 | `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign` `setting` | error   |
-| `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` (`argv`, `thunk`: opt-in) | warn    |
+| `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` (`scan`, `argv`, `thunk`: opt-in) | warn    |
 | `style`       | `doc` `space` `wrap` `param` `noqa`                                              | warn    |
 | `laws`        | `coverage` `closed` `unsafe` (`trace`: opt-in)                                   | warn    |
 | `pedantic`    | `tail`                                                                           | off     |
@@ -72,6 +72,7 @@ The stable codes, assigned once (do not renumber):
 | C010 | `foreign` | U010 | `ring` | L005 | `trace` |
 | C011 | `setting` | U011 | `rewalk` | P001 | `tail` |
 | | | U012 | `unit` | | |
+| | | U013 | `scan` | | |
 | | | U014 | `argv` | | |
 | | | U015 | `thunk` | | |
 
@@ -81,8 +82,8 @@ Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic.
 asks for it. L004 was `quantify`, the opt-in strict mode of `closed`;
 `closed` is strict itself now, and L004 is never reused. `trace` is opt-in:
 it is in `laws`, but no group setting reaches it; only `def trace()` in a
-bolt.bend turns it on. `thunk` is opt-in the same way, in `suspicious`: only
-`def thunk()` turns it on. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
+bolt.bend turns it on. `scan` and `thunk` are opt-in the same way, in `suspicious`: only
+`def scan()` or `def thunk()` turns each on. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
 read, never linted. A setting whose name is no rule's slug and no group
 sets nothing, so `setting` (C011) reports it. Without one, the defaults apply. This repo's
 [bolt.bend](../bolt.bend) sets every group to error: the gate must see
@@ -139,7 +140,7 @@ What the rules share, `rules/calls.bend` (the recursion rules),
 `rules/tokens.bend`, `rules/imports.bend` and `rules/digest.bend`, sits
 beside the groups. The cost rules built on `rules/calls.bend` (`pick`,
 `strict`, `eager`, `tail`, `concat`, `index`, `table`, `hoist`, `ring`,
-`rewalk`, `unit`, `thunk`) skip what never runs: a law file, a proof file, and a def
+`rewalk`, `unit`, `scan`, `thunk`) skip what never runs: a law file, a proof file, and a def
 that is a proof wherever it is, one that returns a proof (`-> {a == b : T}`)
 or one written with no type at all (`def f(x, y):`, no `:` among its
 parameters and no `->`), which is how Bend fills the law named `f`.
@@ -280,6 +281,18 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   arm that does not call the def. Only a `case` arm can be a base case, so a
   `Bool.pick` branch beside a self-call is still the step, and so is a lambda
   body inside it. One finding per operation: `Nat.mul(1n, 1n)` is one.
+- `scan` (opt-in) — a def that calls itself and, on the same step, hands a
+  parameter it carries unchanged (every self-call passes it back as the same
+  lone name in its own position) to a walk: a Base list search
+  (`List.contains`, `List.find`, `List.filter`, `List.length`, `List.any`,
+  `List.all`, `List.foldl`, `List.foldr`), or a def of the file that walks
+  that argument (the one it shrinks, unless a `Nat` or a `String`, or one it
+  passes to a walk). Every step walks the list again, O(|A| * |B|). Index it
+  once outside the loop, or merge two sorted walks. A literal table or an
+  expression in that argument, a lambda's body, a case arm that does not
+  recurse, a Base walk that rebuilds the list (`List.map`, `List.append`),
+  and a def of another module are left alone. One finding per call, on its
+  callee.
 - `argv` (opt-in) — a call `IO.args(`: an `IO.args` token with a `(` right
   after it. Since bend 2.0.32 `IO.args()` starts with the program as
   invoked, as C's argv does, so a program that parses it as it comes takes

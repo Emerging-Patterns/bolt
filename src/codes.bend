@@ -35,6 +35,7 @@ def table() -> List<&2, Entry>:
     Entry{"ring", "U010", "suspicious"},
     Entry{"rewalk", "U011", "suspicious"},
     Entry{"unit", "U012", "suspicious"},
+    Entry{"scan", "U013", "suspicious"},
     Entry{"argv", "U014", "suspicious"},
     Entry{"thunk", "U015", "suspicious"},
     Entry{"doc", "S001", "style"},

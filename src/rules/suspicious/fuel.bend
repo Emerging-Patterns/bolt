@@ -121,7 +121,9 @@ def check.go(root: Tree.Node, +fs: List<&2, Fuel>, +path: String) -> List<&2, F.
   match root:
     case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
       +self = own(Bind.declared(kids))
-      List.concat(&2, F.Finding, [calls(kids, fs, self, path), calls(body, fs, self, path), check.go(rest, fs, path)])
+      +head = calls(kids, fs, self, path)  # noqa: U013 the file's fuel defs
+      +inner = calls(body, fs, self, path)  # noqa: U013 the file's fuel defs
+      List.concat(&2, F.Finding, [head, inner, check.go(rest, fs, path)])
     case Tree.NCons{h, rest}:
       check.go(rest, fs, path)
     case other:
