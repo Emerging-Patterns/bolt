@@ -1589,6 +1589,8 @@ law unused_counts:
 # (argument 1) is not one number token is a finding. So is a `List.get(..)`
 # whose index (argument 3) is not one number token, unless `table` reports
 # that same call: its fixed-table test, over the tables it finds in that def.
+# A call whose name is the def's own (a def named `List.get` or `String.get`
+# stepping to itself) is neither.
 
 # is the chain exactly one number token?
 def index.lit(nn: Tree.Node) -> Bool:
@@ -1608,27 +1610,39 @@ def index.fires(list: Bool, +ob: Bool, +sget: Bool, +as: List<&2, Tree.Node>, ta
     case False{}:
       Bool.and(ob, Bool.and(sget, Bool.not(index.lit(Calls.arg(as, 1n)))))
 
-# one when the name token tt at (ll, cc), then the rest, is a call index reports
-def index.site(+tt: String, +ll: U32, +cc: U32, rest: Tree.Node, +path: String, +fixed: List<&2, String>) -> Nat:
+# one when the name token tt at (ll, cc), then the rest, is a call index
+# reports in the def named self
+def index.site(
+  +tt: String,
+  +ll: U32,
+  +cc: U32,
+  rest: Tree.Node,
+  +path: String,
+  +fixed: List<&2, String>,
+  +self: String
+) -> Nat:
   match rest:
     case Tree.NCons{Tree.Group{Lex.Tok{k, +o, ol, oc}, +kids, cl}, r}:
-      Bool.pick(Nat, index.fires(String.eq(tt, "List.get"), String.eq(o, "("), String.eq(tt, "String.get"),
+      +other = Bool.not(String.eq(tt, self))
+      Bool.pick(Nat, index.fires(Bool.and(String.eq(tt, "List.get"), other), String.eq(o, "("),
+        Bool.and(String.eq(tt, "String.get"), other),
         Calls.args(kids), Table.hit(String.eq(o, "("), "List.get", kids, fixed, path, ll, cc)), 1n, 0n)
     case other:
       0n
 
 # how many calls at any depth of the node index reports, fixed the tables
-# `table` sees
-def index.count(nn: Tree.Node, +path: String, +fixed: List<&2, String>) -> Nat:
+# `table` sees, in the def named self
+def index.count(nn: Tree.Node, +path: String, +fixed: List<&2, String>, +self: String) -> Nat:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, +rest}:
-      Nat.add(index.site(t, l, c, rest, path, fixed), index.count(rest, path, fixed))
+      Nat.add(index.site(t, l, c, rest, path, fixed, self), index.count(rest, path, fixed, self))
     case Tree.NCons{Tree.Group{o, kids, cl}, rest}:
-      Nat.add(index.count(kids, path, fixed), index.count(rest, path, fixed))
+      Nat.add(index.count(kids, path, fixed, self), index.count(rest, path, fixed, self))
     case Tree.NCons{Tree.Stmt{kind, kids, body}, rest}:
-      Nat.add(index.count(kids, path, fixed), Nat.add(index.count(body, path, fixed), index.count(rest, path, fixed)))
+      Nat.add(index.count(kids, path, fixed, self), Nat.add(index.count(body, path, fixed, self),
+        index.count(rest, path, fixed, self)))
     case Tree.NCons{h, rest}:
-      index.count(rest, path, fixed)
+      index.count(rest, path, fixed, self)
     case other:
       0n
 
@@ -1640,13 +1654,14 @@ def index.total(ds: List<&2, Calls.Def>, +mods: List<&2, String>, +path: String)
       0n
     case Con{Calls.Def{+name, +sig, +body}, rest}:
       Nat.add(Bool.pick(Nat, Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig))),
-        index.count(body, path, Table.scope(body, mods)), 0n), index.total(rest, mods, path))
+        index.count(body, path, Table.scope(body, mods), name), 0n), index.total(rest, mods, path))
 
 # LAW: index reports one finding for each `List.get(..)` or `String.get(..)`
 # at an index that is not one number token, anywhere in a def that calls
 # itself (a base arm included) and is not a law or a proof, except a
-# `List.get` that `table` reports as a get on a fixed table; none for
-# anything else
+# `List.get` that `table` reports as a get on a fixed table and a get that is
+# the def's own self-call (in a def named `List.get` or `String.get`); none
+# for anything else
 # BOLT-RULE-U007
 law index_counts:
   for +path: String
@@ -2103,11 +2118,15 @@ law ring_counts:
     == ring.defs(Calls.defs(tree), path) : Nat}
 
 # fuel (BOLT-RULE-U006). The rule lists the file's fuel parameters: for each
-# def of the file (Calls.defs), each parameter (Calls.params) whose name, its
-# first lowercase name before the colon (Calls.param_name), is `fuel`, `gas`,
-# `steps` or `budget` or starts with `fuel`, with its position. Over each
-# top-level statement it then reads every call at any depth, a name token
-# then a `(` group, that is not a call of the statement's own name (a
+# def of the file (Calls.defs) that returns no effect, each parameter
+# (Calls.params) whose name, its first lowercase name before the colon
+# (Calls.param_name), is `fuel`, `gas`, `steps` or `budget` or starts with
+# `fuel`, with its position. A def returns an effect when its header's
+# top-level tokens hold a `->` leaf followed right away by a capitalized name
+# leaf `IO`, or, when that `->` is the header's last token (a header wrapped
+# after its arrow), the first statement under the def starts with one. Over
+# each top-level statement it then reads every call at any depth, a name
+# token then a `(` group, that is not a call of the statement's own name (a
 # self-call): for each fuel parameter of a def of that name, one finding when
 # the argument in its position (Calls.args, split at top-level commas) is one
 # Nat literal token alone, digits then `n`, or the dotted name `U32.to_nat`
@@ -2129,13 +2148,52 @@ def fuel.slots.of(ps: List<&2, Tree.Node>, +name: String, +ii: Nat) -> List<&2, 
       +more = fuel.slots.of(rest, name, 1n+ii)
       Bool.pick(List<&2, FuelRule.Fuel>, fuel.named(Calls.param_name(p)), FuelRule.Fuel{name, ii} <> more, more)
 
-# every fuel parameter of every def, in order
+# is the node after an arrow a capitalized name leaf reading `IO`?
+def fuel.io.next(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.NCons{+g, rest}:
+      Bool.and(Calls.kind.leaf(~Calls.kind.upper, g), String.eq(Calls.leaf.text(g), "IO"))
+    case other:
+      False{}
+
+# the tokens of the first statement under a def, none when there is none
+def fuel.under(body: Tree.Node) -> Tree.Node:
+  match body:
+    case Tree.NCons{Tree.Stmt{kind, kids, inner}, rest}:
+      kids
+    case other:
+      Tree.NNil{}
+
+# after an arrow: the rest of the header when there is one, else the tokens
+# of the line under it (the header wrapped after its `->`)
+def fuel.io.after(rest: Tree.Node, +below: Tree.Node) -> Bool:
+  match rest:
+    case Tree.NCons{h, t}:
+      fuel.io.next(Tree.NCons{h, t})
+    case other:
+      fuel.io.next(below)
+
+# does the header return an effect: some top-level `->` leaf followed by a
+# capitalized name leaf reading `IO`, the first of the line under it when the
+# arrow ends the header?
+def fuel.io(sig: Tree.Node, +below: Tree.Node) -> Bool:
+  match sig:
+    case Tree.NCons{h, +rest}:
+      Bool.or(Bool.and(Calls.kind.leaf(~Calls.kind.arrow, h), fuel.io.after(rest, below)), fuel.io(rest, below))
+    case other:
+      False{}
+
+# the parameters of a def that returns no effect, none of one that does
+def fuel.params(+sig: Tree.Node, body: Tree.Node) -> List<&2, Tree.Node>:
+  Bool.pick(List<&2, Tree.Node>, fuel.io(sig, fuel.under(body)), [], Calls.params(sig))
+
+# every fuel parameter of every def that returns no effect, in order
 def fuel.slots(ds: List<&2, Calls.Def>) -> List<&2, FuelRule.Fuel>:
   match ds:
     case Nil{}:
       Nil{}
     case Con{Calls.Def{name, sig, body}, rest}:
-      List.append(&2, FuelRule.Fuel, fuel.slots.of(Calls.params(sig), name, 0n), fuel.slots(rest))
+      List.append(&2, FuelRule.Fuel, fuel.slots.of(fuel.params(sig, body), name, 0n), fuel.slots(rest))
 
 # does a call's group hold one number token alone, digits only (a U32
 # literal), when ok says the call is `U32.to_nat(`?
@@ -2207,8 +2265,8 @@ def fuel.total(root: Tree.Node, +fs: List<&2, FuelRule.Fuel>) -> Nat:
     case other:
       0n
 
-# LAW: the rule's fuel parameters are the file's defs' parameters with a fuel
-# name, each at its position
+# LAW: the rule's fuel parameters are the parameters with a fuel name of the
+# file's defs that return no effect (no `-> IO`), each at its position
 # BOLT-RULE-U006
 law fuel_slots:
   for ds: List<&2, Calls.Def>

@@ -71,7 +71,7 @@ def recv.loop(fuel: Nat, h2: Stdio) -> IO(Stdio & Maybe<&2, String>):
 
 # the fuel bounds the reads one message may take
 def recv(h2: Stdio) -> IO(Stdio & Maybe<&2, String>):  # noqa: L001 transport effect
-  recv.loop(U32.to_nat(1000000), h2)  # noqa: U006 a million reads for one message
+  recv.loop(U32.to_nat(1000000), h2)
 
 def send.done(ww: File & Result<&1, &1, U32 & String, Unit>, inp: File, buf: List<&2, U32>) -> IO(Stdio):
   (out, r) = ww

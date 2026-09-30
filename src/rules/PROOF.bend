@@ -1630,7 +1630,7 @@ def ex.index(ds, mods, path, n, e):
       ex.push(
         Bool.not(Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))),
         ex.guard(Calls.calls(body, name), path, sig, e),
-        _u => Index.walk(body, path, Table.scope(body, mods)), n,
+        _u => Index.walk(body, path, Table.scope(body, mods), name), n,
         v => Index.check.go(rest, mods, path, v), ex.index(rest, mods, path, 1n+n, e))
 
 def Laws.index_exempt(path, _text, _toks, tree, _bound, _items, e):
@@ -8109,23 +8109,26 @@ law index.call:
   for +rr: Tree.Node
   for +path: String
   for +fixed: List<&2, String>
-  for ih1: {List.length(&2, F.Finding, Index.walk(kids, path, fixed)) == Laws.index.count(kids, path, fixed) : Nat}
-  for ih2: {List.length(&2, F.Finding, Index.walk(rr, path, fixed)) == Laws.index.count(rr, path, fixed) : Nat}
+  for +self: String
+  for ih1: {List.length(&2, F.Finding, Index.walk(kids, path, fixed, self)) == Laws.index.count(kids, path, fixed, self)
+    : Nat}
+  for ih2: {List.length(&2, F.Finding, Index.walk(rr, path, fixed, self)) == Laws.index.count(rr, path, fixed, self)
+    : Nat}
   {List.length(&2, F.Finding, Index.walk(Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}},
-      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, kids, cl}, rr}}, path, fixed))
+      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, kids, cl}, rr}}, path, fixed, self))
     == Laws.index.count(Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}},
-      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, kids, cl}, rr}}, path, fixed) : Nat}
+      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, kids, cl}, rr}}, path, fixed, self) : Nat}
 
-def index.call(_k, t, l, c, _gk, o, _gl, _gc, kids, _cl, rr, path, fixed, ih1, ih2):
-  +list = String.eq(t, "List.get")
+def index.call(_k, t, l, c, _gk, o, _gl, _gc, kids, _cl, rr, path, fixed, self, ih1, ih2):
+  +list = Index.named(t, self, "List.get")
   +ob = String.eq(o, "(")
-  +sb = String.eq(t, "String.get")
+  +sb = Index.named(t, self, "String.get")
   +as = Calls.args(kids)
   +fire = Bool.and(Bool.and(ob, Bool.or(list, sb)),
     Bool.and(Bool.not(Index.literal(Calls.arg(as, Bool.pick(Nat, list, 3n, 1n)))),
       Bool.not(Index.held(list, Calls.arg(as, 2n), fixed))))
-  +more = List.concat(&2, F.Finding, [Index.walk(kids, path, fixed), Index.walk(rr, path, fixed)])
-  +m = Nat.add(Laws.index.count(kids, path, fixed), Laws.index.count(rr, path, fixed))
+  +more = List.concat(&2, F.Finding, [Index.walk(kids, path, fixed, self), Index.walk(rr, path, fixed, self)])
+  +m = Nat.add(Laws.index.count(kids, path, fixed, self), Laws.index.count(rr, path, fixed, self))
   +spec = Laws.index.fires(list, ob, sb, as, Table.hit(ob, "List.get", kids, fixed, path, l, c))
   +x = {F.Finding{path, l, c, U32.from_nat(String.length(t)), "index",
     t ++ " in a recursive def walks the list from its head on every step, which is quadratic; recurse over the list itself."}
@@ -8134,8 +8137,8 @@ def index.call(_k, t, l, c, _gk, o, _gl, _gc, kids, _cl, rr, path, fixed, ih1, i
     List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, fire, x <> more, more)),
     Bool.pick(Nat, fire, 1n+m, m),
     Nat.add(Bool.pick(Nat, spec, 1n, 0n), m),
-    nat.pick(fire, x, more, m, index.two(Index.walk(kids, path, fixed), Index.walk(rr, path, fixed),
-      Laws.index.count(kids, path, fixed), Laws.index.count(rr, path, fixed), ih1, ih2)),
+    nat.pick(fire, x, more, m, index.two(Index.walk(kids, path, fixed, self), Index.walk(rr, path, fixed, self),
+      Laws.index.count(kids, path, fixed, self), Laws.index.count(rr, path, fixed, self), ih1, ih2)),
     Equal.trans(Nat,
       Bool.pick(Nat, fire, 1n+m, m),
       Nat.add(Bool.pick(Nat, fire, 1n, 0n), m),
@@ -8149,9 +8152,10 @@ law index.walk:
   for nn: Tree.Node
   for +path: String
   for +fixed: List<&2, String>
-  {List.length(&2, F.Finding, Index.walk(nn, path, fixed)) == Laws.index.count(nn, path, fixed) : Nat}
+  for +self: String
+  {List.length(&2, F.Finding, Index.walk(nn, path, fixed, self)) == Laws.index.count(nn, path, fixed, self) : Nat}
 
-def index.walk(nn, path, fixed):
+def index.walk(nn, path, fixed, self):
   match nn:
     case Tree.Leaf{tok}:
       {==}
@@ -8176,29 +8180,31 @@ def index.walk(nn, path, fixed):
             case Tree.NCons{rh, +rr}:
               match rh:
                 case Tree.Group{Lex.Tok{gk, o, gl, gc}, +kids, cl}:
-                  index.call(k, t, l, c, gk, o, gl, gc, kids, cl, rr, path, fixed,
-                    index.walk(kids, path, fixed), index.walk(rr, path, fixed))
+                  index.call(k, t, l, c, gk, o, gl, gc, kids, cl, rr, path, fixed, self,
+                    index.walk(kids, path, fixed, self), index.walk(rr, path, fixed, self))
                 case Tree.Leaf{tok}:
-                  index.walk(rest, path, fixed)
+                  index.walk(rest, path, fixed, self)
                 case Tree.Stmt{kind, sk, sb}:
-                  index.walk(rest, path, fixed)
+                  index.walk(rest, path, fixed, self)
                 case Tree.NNil{}:
-                  index.walk(rest, path, fixed)
+                  index.walk(rest, path, fixed, self)
                 case Tree.NCons{nh, nt}:
-                  index.walk(rest, path, fixed)
+                  index.walk(rest, path, fixed, self)
         case Tree.Group{o, +kids, cl}:
-          index.two(Index.walk(kids, path, fixed), Index.walk(rest, path, fixed),
-            Laws.index.count(kids, path, fixed), Laws.index.count(rest, path, fixed),
-            index.walk(kids, path, fixed), index.walk(rest, path, fixed))
+          index.two(Index.walk(kids, path, fixed, self), Index.walk(rest, path, fixed, self),
+            Laws.index.count(kids, path, fixed, self), Laws.index.count(rest, path, fixed, self),
+            index.walk(kids, path, fixed, self), index.walk(rest, path, fixed, self))
         case Tree.Stmt{kind, +kids, +body}:
-          chars.sum(Index.walk(kids, path, fixed), Index.walk(body, path, fixed), Index.walk(rest, path, fixed),
-            Laws.index.count(kids, path, fixed), Laws.index.count(body, path, fixed),
-            Laws.index.count(rest, path, fixed),
-            index.walk(kids, path, fixed), index.walk(body, path, fixed), index.walk(rest, path, fixed))
+          chars.sum(Index.walk(kids, path, fixed, self), Index.walk(body, path, fixed, self),
+            Index.walk(rest, path, fixed, self),
+            Laws.index.count(kids, path, fixed, self), Laws.index.count(body, path, fixed, self),
+            Laws.index.count(rest, path, fixed, self),
+            index.walk(kids, path, fixed, self), index.walk(body, path, fixed, self),
+            index.walk(rest, path, fixed, self))
         case Tree.NNil{}:
-          index.walk(rest, path, fixed)
+          index.walk(rest, path, fixed, self)
         case Tree.NCons{nh, nt}:
-          index.walk(rest, path, fixed)
+          index.walk(rest, path, fixed, self)
 
 # the counts of gathered finding lists, the last gathered first
 def index.sum(acc: List<&2, List<&2, F.Finding>>) -> Nat:
@@ -8259,13 +8265,15 @@ law index.def:
   for +body: Tree.Node
   for +path: String
   for +fixed: List<&2, String>
-  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Bool.not(g), [], _u => Index.walk(body, path, fixed)))
-    == Bool.pick(Nat, g, Laws.index.count(body, path, fixed), 0n) : Nat}
+  for +self: String
+  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Bool.not(g), [], _u => Index.walk(body, path, fixed,
+      self)))
+    == Bool.pick(Nat, g, Laws.index.count(body, path, fixed, self), 0n) : Nat}
 
-def index.def(g, body, path, fixed):
+def index.def(g, body, path, fixed, self):
   match g:
     case True{}:
-      index.walk(body, path, fixed)
+      index.walk(body, path, fixed, self)
     case False{}:
       {==}
 
@@ -8286,8 +8294,8 @@ def index.go(ds, mods, path, acc):
     case Con{Calls.Def{+name, +sig, +body}, +rest}:
       +g = Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))
       +fixed = Table.scope(body, mods)
-      +x = Lazy.stop(List<&2, F.Finding>, Bool.not(g), [], _u => Index.walk(body, path, fixed))
-      +n = Bool.pick(Nat, g, Laws.index.count(body, path, fixed), 0n)
+      +x = Lazy.stop(List<&2, F.Finding>, Bool.not(g), [], _u => Index.walk(body, path, fixed, name))
+      +n = Bool.pick(Nat, g, Laws.index.count(body, path, fixed, name), 0n)
       +tot = Laws.index.total(rest, mods, path)
       Equal.trans(Nat,
         List.length(&2, F.Finding, Index.check.go(rest, mods, path, x <> acc)),
@@ -8300,7 +8308,7 @@ def index.go(ds, mods, path, acc):
           Nat.add(index.sum(acc), Nat.add(n, tot)),
           index.assoc(index.sum(acc), List.length(&2, F.Finding, x), tot),
           Equal.cong(Nat, Nat, z => Nat.add(index.sum(acc), Nat.add(z, tot)), List.length(&2, F.Finding, x), n,
-            index.def(g, body, path, fixed))))
+            index.def(g, body, path, fixed, name))))
 
 def Laws.index_counts(path, _text, _toks, tree, _bound, _items):
   +ds = Calls.defs(tree)
@@ -9282,21 +9290,139 @@ def fuel.of(ps, name, ii):
         x => Bool.pick(List<&2, FuelRule.Fuel>, FuelRule.is_fuel(Calls.param_name(p)), FuelRule.Fuel{name, ii} <> x, x),
         FuelRule.fuels.params(rest, name, 1n+ii), Laws.fuel.slots.of(rest, name, 1n+ii), fuel.of(rest, name, 1n+ii))
 
+# the rule reads the name after an arrow as the law does
+law fuel.io.next:
+  for nn: Tree.Node
+  {FuelRule.effect.io(nn) == Laws.fuel.io.next(nn) : Bool}
+
+def fuel.io.next(nn):
+  match nn:
+    case Tree.NCons{g, r}:
+      match g:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, t, l, c}:
+              match k:
+                case Lex.TName{}: {==}
+                case Lex.TUpper{}: {==}
+                case Lex.TDotted{}: {==}
+                case Lex.TWild{}: {==}
+                case Lex.TKey{}: {==}
+                case Lex.TNum{}: {==}
+                case Lex.TStr{}: {==}
+                case Lex.TChar{}: {==}
+                case Lex.TComment{}: {==}
+                case Lex.TSpace{}: {==}
+                case Lex.TNewline{}: {==}
+                case Lex.TOp{}: {==}
+                case Lex.TColon{}: {==}
+                case Lex.TEq{}: {==}
+                case Lex.TBind{}: {==}
+                case Lex.TArrow{}: {==}
+                case Lex.TLam{}: {==}
+                case Lex.TAll{}: {==}
+                case Lex.TAmp{}: {==}
+                case Lex.TOpen{}: {==}
+                case Lex.TClose{}: {==}
+                case Lex.TComma{}: {==}
+        case Tree.Group{o, gk, cl}: {==}
+        case Tree.Stmt{sk, sks, sb}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# the rule's first line under a def is the law's
+law fuel.under:
+  for body: Tree.Node
+  {FuelRule.under(body) == Laws.fuel.under(body) : Tree.Node}
+
+def fuel.under(body):
+  match body:
+    case Tree.NCons{h, r}:
+      match h:
+        case Tree.Stmt{k, kids, inner}: {==}
+        case Tree.Leaf{tok}: {==}
+        case Tree.Group{o, gk, cl}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# the rule reads what follows an arrow as the law does
+law fuel.after:
+  for rest: Tree.Node
+  for +below: Tree.Node
+  {FuelRule.effect.next(rest, below) == Laws.fuel.io.after(rest, below) : Bool}
+
+def fuel.after(rest, below):
+  match rest:
+    case Tree.NCons{h, t}: fuel.io.next(Tree.NCons{h, t})
+    case Tree.Leaf{tok}: fuel.io.next(below)
+    case Tree.Group{o, gk, cl}: fuel.io.next(below)
+    case Tree.Stmt{sk, sks, sb}: fuel.io.next(below)
+    case Tree.NNil{}: fuel.io.next(below)
+
+# the rule's effect test on a header is the law's
+law fuel.effect:
+  for sig: Tree.Node
+  for +below: Tree.Node
+  {FuelRule.effect(sig, below) == Laws.fuel.io(sig, below) : Bool}
+
+def fuel.effect(sig, below):
+  match sig:
+    case Tree.NCons{h, +rest}:
+      +a = Calls.kind.leaf(~Calls.kind.arrow, h)
+      Equal.trans(Bool,
+        Bool.or(Bool.and(a, FuelRule.effect.next(rest, below)), FuelRule.effect(rest, below)),
+        Bool.or(Bool.and(a, Laws.fuel.io.after(rest, below)), FuelRule.effect(rest, below)),
+        Bool.or(Bool.and(a, Laws.fuel.io.after(rest, below)), Laws.fuel.io(rest, below)),
+        Equal.cong(Bool, Bool, z => Bool.or(Bool.and(a, z), FuelRule.effect(rest, below)),
+          FuelRule.effect.next(rest, below), Laws.fuel.io.after(rest, below), fuel.after(rest, below)),
+        Equal.cong(Bool, Bool, z => Bool.or(Bool.and(a, Laws.fuel.io.after(rest, below)), z),
+          FuelRule.effect(rest, below), Laws.fuel.io(rest, below), fuel.effect(rest, below)))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a def's effect test, the rule's and the law's
+law fuel.def:
+  for +sig: Tree.Node
+  for +body: Tree.Node
+  {FuelRule.effect(sig, FuelRule.under(body)) == Laws.fuel.io(sig, Laws.fuel.under(body)) : Bool}
+
+def fuel.def(sig, body):
+  Equal.trans(Bool, FuelRule.effect(sig, FuelRule.under(body)), Laws.fuel.io(sig, FuelRule.under(body)),
+    Laws.fuel.io(sig, Laws.fuel.under(body)), fuel.effect(sig, FuelRule.under(body)),
+    Equal.cong(Tree.Node, Bool, z => Laws.fuel.io(sig, z), FuelRule.under(body), Laws.fuel.under(body),
+      fuel.under(body)))
+
 def Laws.fuel_slots(ds):
   match ds:
     case Nil{}:
       {==}
     case Con{d, +rest}:
       match d:
-        case Calls.Def{+name, +sig, body}:
-          +aa = FuelRule.fuels.params(Calls.params(sig), name, 0n)
-          +bb = Laws.fuel.slots.of(Calls.params(sig), name, 0n)
+        case Calls.Def{+name, +sig, +body}:
+          +aa = FuelRule.fuels.params(FuelRule.slots(sig, body), name, 0n)
+          +bb = Laws.fuel.slots.of(Laws.fuel.params(sig, body), name, 0n)
           Equal.trans(List<&2, FuelRule.Fuel>, List.append(&2, FuelRule.Fuel, aa, FuelRule.fuels(rest)),
             List.append(&2, FuelRule.Fuel, bb, FuelRule.fuels(rest)), List.append(&2, FuelRule.Fuel, bb,
               Laws.fuel.slots(rest)),
             Equal.cong(List<&2, FuelRule.Fuel>, List<&2, FuelRule.Fuel>, x => List.append(&2, FuelRule.Fuel, x,
               FuelRule.fuels(rest)),
-              aa, bb, fuel.of(Calls.params(sig), name, 0n)),
+              aa, bb, Equal.trans(List<&2, FuelRule.Fuel>, aa,
+                FuelRule.fuels.params(Laws.fuel.params(sig, body), name, 0n), bb,
+                Equal.cong(Bool, List<&2, FuelRule.Fuel>,
+                  z => FuelRule.fuels.params(Bool.pick(List<&2, Tree.Node>, z, [], Calls.params(sig)), name, 0n),
+                  FuelRule.effect(sig, FuelRule.under(body)), Laws.fuel.io(sig, Laws.fuel.under(body)),
+                  fuel.def(sig, body)),
+                fuel.of(Laws.fuel.params(sig, body), name, 0n))),
             Equal.cong(List<&2, FuelRule.Fuel>, List<&2, FuelRule.Fuel>, x => List.append(&2, FuelRule.Fuel, bb, x),
               FuelRule.fuels(rest), Laws.fuel.slots(rest), Laws.fuel_slots(rest)))
 
@@ -23043,16 +23169,18 @@ law inert.index.off2:
   for +c: U32
   for +path: String
   for +more: List<&2, F.Finding>
+  for +self: String
   for eg: {String.eq(t, "List.get") == False{} : Bool}
   for es: {String.eq(t, "String.get") == False{} : Bool}
-  {inert.index.at(o, String.eq(t, "List.get"), String.eq(t, "String.get"), lit, hd, t, l, c, path, more) == more
-    : List<&2, F.Finding>}
-
-def inert.index.off2(o, lit, hd, t, l, c, path, more, eg, es):
-  %Equal.sym(Bool, String.eq(t, "List.get"), False{}, eg) : {inert.index.at(o, _, String.eq(t, "String.get"), lit, hd, t,
-    l, c, path, more) == more : List<&2, F.Finding>}
-  %Equal.sym(Bool, String.eq(t, "String.get"), False{}, es) : {inert.index.at(o, False{}, _, lit, hd, t, l, c, path,
+  {inert.index.at(o, Index.named(t, self, "List.get"), Index.named(t, self, "String.get"), lit, hd, t, l, c, path,
     more) == more : List<&2, F.Finding>}
+
+def inert.index.off2(o, lit, hd, t, l, c, path, more, self, eg, es):
+  +ns = Bool.not(String.eq(t, self))
+  %Equal.sym(Bool, String.eq(t, "List.get"), False{}, eg) : {inert.index.at(o, Bool.and(_, ns),
+    Bool.and(String.eq(t, "String.get"), ns), lit, hd, t, l, c, path, more) == more : List<&2, F.Finding>}
+  %Equal.sym(Bool, String.eq(t, "String.get"), False{}, es) : {inert.index.at(o, Bool.and(False{}, ns),
+    Bool.and(_, ns), lit, hd, t, l, c, path, more) == more : List<&2, F.Finding>}
   inert.index.off(o, lit, hd, t, l, c, path, more)
 
 # what index reads of a call from its name, its group and what they report
@@ -23064,11 +23192,12 @@ def inert.index.call(
   +c: U32,
   +path: String,
   +fixed: List<&2, String>,
+  +self: String,
   +more: List<&2, F.Finding>
 ) -> List<&2, F.Finding>:
-  +go = String.eq(tt, "List.get")
+  +go = Index.named(tt, self, "List.get")
   +aa = Calls.args(kids)
-  inert.index.at(o, go, String.eq(tt, "String.get"), Index.literal(Calls.arg(aa, Bool.pick(Nat, go, 3n, 1n))),
+  inert.index.at(o, go, Index.named(tt, self, "String.get"), Index.literal(Calls.arg(aa, Bool.pick(Nat, go, 3n, 1n))),
     Index.held(go, Calls.arg(aa, 2n), fixed), tt, l, c, path, more)
 
 # a call named no get, read either way, is no finding
@@ -23081,15 +23210,16 @@ law inert.index.calloff:
   for +path: String
   for +fixed: List<&2, String>
   for +more: List<&2, F.Finding>
+  for +self: String
   for eg: {String.eq(tt, "List.get") == False{} : Bool}
   for es: {String.eq(tt, "String.get") == False{} : Bool}
-  {inert.index.call(o, tt, kids, l, c, path, fixed, more) == more : List<&2, F.Finding>}
+  {inert.index.call(o, tt, kids, l, c, path, fixed, self, more) == more : List<&2, F.Finding>}
 
-def inert.index.calloff(o, tt, kids, l, c, path, fixed, more, eg, es):
-  +go = String.eq(tt, "List.get")
+def inert.index.calloff(o, tt, kids, l, c, path, fixed, more, self, eg, es):
+  +go = Index.named(tt, self, "List.get")
   +aa = Calls.args(kids)
   inert.index.off2(o, Index.literal(Calls.arg(aa, Bool.pick(Nat, go, 3n, 1n))), Index.held(go, Calls.arg(aa, 2n),
-    fixed), tt, l, c, path, more, eg, es)
+    fixed), tt, l, c, path, more, self, eg, es)
 
 # a name then a group, read that way: the call reported as it was, the group
 # and the rest walked as they were
@@ -23101,45 +23231,49 @@ law inert.index.lg:
   for +c: U32
   for +path: String
   for +fixed: List<&2, String>
+  for +self: String
   for +kids: Tree.Node
   for +r2: Tree.Node
   for +ef: {Laws.inert.fits.go(b, t) == True{} : Bool}
   for +ek: {Laws.inert.ok(kids) == True{} : Bool}
-  for ik: {Index.walk(Laws.inert.node(kids), path, fixed) == Index.walk(kids, path, fixed) : List<&2, F.Finding>}
-  for ir: {Index.walk(Laws.inert.node(r2), path, fixed) == Index.walk(r2, path, fixed) : List<&2, F.Finding>}
-  {inert.index.call(o, Laws.inert.keep(b, t), Laws.inert.node(kids), l, c, path, fixed,
-    List.concat(&2, F.Finding, [Index.walk(Laws.inert.node(kids), path, fixed), Index.walk(Laws.inert.node(r2), path,
-      fixed)]))
-    == inert.index.call(o, t, kids, l, c, path, fixed, List.concat(&2, F.Finding, [Index.walk(kids, path, fixed),
-      Index.walk(r2, path, fixed)])) : List<&2, F.Finding>}
+  for ik: {Index.walk(Laws.inert.node(kids), path, fixed, self) == Index.walk(kids, path, fixed, self)
+    : List<&2, F.Finding>}
+  for ir: {Index.walk(Laws.inert.node(r2), path, fixed, self) == Index.walk(r2, path, fixed, self)
+    : List<&2, F.Finding>}
+  {inert.index.call(o, Laws.inert.keep(b, t), Laws.inert.node(kids), l, c, path, fixed, self,
+    List.concat(&2, F.Finding, [Index.walk(Laws.inert.node(kids), path, fixed, self),
+      Index.walk(Laws.inert.node(r2), path, fixed, self)]))
+    == inert.index.call(o, t, kids, l, c, path, fixed, self, List.concat(&2, F.Finding,
+      [Index.walk(kids, path, fixed, self), Index.walk(r2, path, fixed, self)])) : List<&2, F.Finding>}
 
-def inert.index.lg(b, t, o, l, c, path, fixed, kids, r2, ef, ek, ik, ir):
+def inert.index.lg(b, t, o, l, c, path, fixed, self, kids, r2, ef, ek, ik, ir):
   match b:
     case True{}:
-      +wk = Index.walk(Laws.inert.node(kids), path, fixed)
-      +wr = Index.walk(Laws.inert.node(r2), path, fixed)
+      +wk = Index.walk(Laws.inert.node(kids), path, fixed, self)
+      +wr = Index.walk(Laws.inert.node(r2), path, fixed, self)
       +mi = List.concat(&2, F.Finding, [wk, wr])
-      +mo = List.concat(&2, F.Finding, [Index.walk(kids, path, fixed), Index.walk(r2, path, fixed)])
+      +mo = List.concat(&2, F.Finding, [Index.walk(kids, path, fixed, self), Index.walk(r2, path, fixed, self)])
       +ct = Laws.inert.cut(t)
-      Equal.trans(List<&2, F.Finding>, inert.index.call(o, ct, Laws.inert.node(kids), l, c, path, fixed, mi), mi,
-        inert.index.call(o, t, kids, l, c, path, fixed, mo),
-        inert.index.calloff(o, ct, Laws.inert.node(kids), l, c, path, fixed, mi,
+      Equal.trans(List<&2, F.Finding>, inert.index.call(o, ct, Laws.inert.node(kids), l, c, path, fixed, self, mi), mi,
+        inert.index.call(o, t, kids, l, c, path, fixed, self, mo),
+        inert.index.calloff(o, ct, Laws.inert.node(kids), l, c, path, fixed, mi, self,
           inert.neq(ct, "List.get", inert.cut_marked(t, ef), {==}),
           inert.neq(ct, "String.get", inert.cut_marked(t, ef), {==})),
-        Equal.trans(List<&2, F.Finding>, mi, mo, inert.index.call(o, t, kids, l, c, path, fixed, mo),
-          inert.cat2(wk, Index.walk(kids, path, fixed), wr, Index.walk(r2, path, fixed), ik, ir),
-          Equal.sym(List<&2, F.Finding>, inert.index.call(o, t, kids, l, c, path, fixed, mo), mo,
-            inert.index.calloff(o, t, kids, l, c, path, fixed, mo, inert.neq(t, "List.get", ef, {==}),
+        Equal.trans(List<&2, F.Finding>, mi, mo, inert.index.call(o, t, kids, l, c, path, fixed, self, mo),
+          inert.cat2(wk, Index.walk(kids, path, fixed, self), wr, Index.walk(r2, path, fixed, self), ik, ir),
+          Equal.sym(List<&2, F.Finding>, inert.index.call(o, t, kids, l, c, path, fixed, self, mo), mo,
+            inert.index.calloff(o, t, kids, l, c, path, fixed, mo, self, inert.neq(t, "List.get", ef, {==}),
               inert.neq(t, "String.get", ef, {==})))))
     case False{}:
-      +wk = Index.walk(Laws.inert.node(kids), path, fixed)
-      +wr = Index.walk(Laws.inert.node(r2), path, fixed)
-      +mo = List.concat(&2, F.Finding, [Index.walk(kids, path, fixed), Index.walk(r2, path, fixed)])
-      +go = String.eq(t, "List.get")
-      +gs = String.eq(t, "String.get")
+      +wk = Index.walk(Laws.inert.node(kids), path, fixed, self)
+      +wr = Index.walk(Laws.inert.node(r2), path, fixed, self)
+      +mo = List.concat(&2, F.Finding, [Index.walk(kids, path, fixed, self), Index.walk(r2, path, fixed, self)])
+      +go = Index.named(t, self, "List.get")
+      +gs = Index.named(t, self, "String.get")
       +aa = Calls.args(kids)
       +nn = Bool.pick(Nat, go, 3n, 1n)
-      +lhs = inert.index.call(o, t, Laws.inert.node(kids), l, c, path, fixed, List.concat(&2, F.Finding, [wk, wr]))
+      +lhs = inert.index.call(o, t, Laws.inert.node(kids), l, c, path, fixed, self,
+        List.concat(&2, F.Finding, [wk, wr]))
       %inert.index.literal(Calls.arg(aa, nn)) : {lhs == inert.index.at(o, go, gs, _, Index.held(go, Calls.arg(aa, 2n),
         fixed), t, l, c, path, mo) : List<&2, F.Finding>}
       %inert.index.held(go, Calls.arg(aa, 2n), fixed, inert.ok.arg(kids, 2n, ek)) : {lhs == inert.index.at(o, go, gs,
@@ -23150,7 +23284,7 @@ def inert.index.lg(b, t, o, l, c, path, fixed, kids, r2, ef, ek, ik, ir):
         Index.held(go, _, fixed), t, l, c, path, mo) : List<&2, F.Finding>}
       %inert.args(kids) : {lhs == inert.index.at(o, go, gs, Index.literal(Calls.arg(_, nn)), Index.held(go,
         Calls.arg(_, 2n), fixed), t, l, c, path, mo) : List<&2, F.Finding>}
-      %inert.cat2(wk, Index.walk(kids, path, fixed), wr, Index.walk(r2, path, fixed), ik, ir) : {lhs
+      %inert.cat2(wk, Index.walk(kids, path, fixed, self), wr, Index.walk(r2, path, fixed, self), ik, ir) : {lhs
         == inert.index.at(o, go, gs, Index.literal(Calls.arg(Calls.args(Laws.inert.node(kids)), nn)), Index.held(go,
           Calls.arg(Calls.args(Laws.inert.node(kids)), 2n), fixed), t, l, c, path, _) : List<&2, F.Finding>}
       {==}
@@ -23161,10 +23295,11 @@ law inert.index.walk:
   for nn: Tree.Node
   for +path: String
   for +fixed: List<&2, String>
+  for +self: String
   for +e: {Laws.inert.ok(nn) == True{} : Bool}
-  {Index.walk(Laws.inert.node(nn), path, fixed) == Index.walk(nn, path, fixed) : List<&2, F.Finding>}
+  {Index.walk(Laws.inert.node(nn), path, fixed, self) == Index.walk(nn, path, fixed, self) : List<&2, F.Finding>}
 
-def inert.index.walk(nn, path, fixed, e):
+def inert.index.walk(nn, path, fixed, self, e):
   match nn:
     case Tree.NCons{h, +rest}:
       match h:
@@ -23180,38 +23315,38 @@ def inert.index.walk(nn, path, fixed, e):
                           +lf = {Tree.Leaf{Lex.Tok{k, t, l, c}} : Tree.Node}
                           +eg = inert.ok_t(lf, Tree.NCons{Tree.Group{Lex.Tok{ok, ot, ol, oc}, kids, cl}, r2}, e)
                           +ec = inert.ok_h(Tree.Group{Lex.Tok{ok, ot, ol, oc}, kids, cl}, r2, eg)
-                          inert.index.lg(Laws.inert.blanks(k), t, ot, l, c, path, fixed, kids, r2,
+                          inert.index.lg(Laws.inert.blanks(k), t, ot, l, c, path, fixed, self, kids, r2,
                             inert.ok_h(lf, Tree.NCons{Tree.Group{Lex.Tok{ok, ot, ol, oc}, kids, cl}, r2}, e), ec,
-                            inert.index.walk(kids, path, fixed, ec),
-                            inert.index.walk(r2, path, fixed, inert.ok_t(Tree.Group{Lex.Tok{ok, ot, ol, oc}, kids,
+                            inert.index.walk(kids, path, fixed, self, ec),
+                            inert.index.walk(r2, path, fixed, self, inert.ok_t(Tree.Group{Lex.Tok{ok, ot, ol, oc}, kids,
                               cl}, r2, eg)))
                     case Tree.Leaf{x}:
-                      inert.index.walk(rest, path, fixed, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                      inert.index.walk(rest, path, fixed, self, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
                     case Tree.Stmt{x, y, z}:
-                      inert.index.walk(rest, path, fixed, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                      inert.index.walk(rest, path, fixed, self, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
                     case Tree.NNil{}:
-                      inert.index.walk(rest, path, fixed, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                      inert.index.walk(rest, path, fixed, self, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
                     case Tree.NCons{x, y}:
-                      inert.index.walk(rest, path, fixed, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
+                      inert.index.walk(rest, path, fixed, self, inert.ok_t(Tree.Leaf{Lex.Tok{k, t, l, c}}, rest, e))
                 case Tree.Leaf{x}: {==}
                 case Tree.Group{x, y, z}: {==}
                 case Tree.Stmt{x, y, z}: {==}
                 case Tree.NNil{}: {==}
         case Tree.Group{+o, +kids, +cl}:
-          inert.cat2(Index.walk(Laws.inert.node(kids), path, fixed), Index.walk(kids, path, fixed),
-            Index.walk(Laws.inert.node(rest), path, fixed), Index.walk(rest, path, fixed),
-            inert.index.walk(kids, path, fixed, inert.ok_h(Tree.Group{o, kids, cl}, rest, e)),
-            inert.index.walk(rest, path, fixed, inert.ok_t(Tree.Group{o, kids, cl}, rest, e)))
+          inert.cat2(Index.walk(Laws.inert.node(kids), path, fixed, self), Index.walk(kids, path, fixed, self),
+            Index.walk(Laws.inert.node(rest), path, fixed, self), Index.walk(rest, path, fixed, self),
+            inert.index.walk(kids, path, fixed, self, inert.ok_h(Tree.Group{o, kids, cl}, rest, e)),
+            inert.index.walk(rest, path, fixed, self, inert.ok_t(Tree.Group{o, kids, cl}, rest, e)))
         case Tree.Stmt{+sk, +kids, +body}:
           +es = inert.ok_h(Tree.Stmt{sk, kids, body}, rest, e)
-          inert.cat3(Index.walk(Laws.inert.node(kids), path, fixed), Index.walk(kids, path, fixed),
-            Index.walk(Laws.inert.node(body), path, fixed), Index.walk(body, path, fixed),
-            Index.walk(Laws.inert.node(rest), path, fixed), Index.walk(rest, path, fixed),
-            inert.index.walk(kids, path, fixed, inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es)),
-            inert.index.walk(body, path, fixed, inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es)),
-            inert.index.walk(rest, path, fixed, inert.ok_t(Tree.Stmt{sk, kids, body}, rest, e)))
-        case Tree.NNil{}: inert.index.walk(rest, path, fixed, e)
-        case Tree.NCons{x, y}: inert.index.walk(rest, path, fixed, inert.ok_t(Tree.NCons{x, y}, rest, e))
+          inert.cat3(Index.walk(Laws.inert.node(kids), path, fixed, self), Index.walk(kids, path, fixed, self),
+            Index.walk(Laws.inert.node(body), path, fixed, self), Index.walk(body, path, fixed, self),
+            Index.walk(Laws.inert.node(rest), path, fixed, self), Index.walk(rest, path, fixed, self),
+            inert.index.walk(kids, path, fixed, self, inert.and_l(Laws.inert.ok(kids), Laws.inert.ok(body), es)),
+            inert.index.walk(body, path, fixed, self, inert.and_r(Laws.inert.ok(kids), Laws.inert.ok(body), es)),
+            inert.index.walk(rest, path, fixed, self, inert.ok_t(Tree.Stmt{sk, kids, body}, rest, e)))
+        case Tree.NNil{}: inert.index.walk(rest, path, fixed, self, e)
+        case Tree.NCons{x, y}: inert.index.walk(rest, path, fixed, self, inert.ok_t(Tree.NCons{x, y}, rest, e))
     case Tree.Leaf{tok}: {==}
     case Tree.Group{o, gk, cl}: {==}
     case Tree.Stmt{sk, sks, sb}: {==}
@@ -23234,14 +23369,14 @@ def inert.index.go(ds, mods, path, acc, e):
       +eb = inert.dok.body(name, sig, body, rest, e)
       +ib = Laws.inert.node(body)
       +lst = Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Calls.calls(ib, name), Bool.not(Calls.exempt(path,
-        Laws.inert.node(sig))))), [], _u => Index.walk(ib, path, Table.scope(ib, mods)))
+        Laws.inert.node(sig))))), [], _u => Index.walk(ib, path, Table.scope(ib, mods), name))
       %inert.table.scope(body, mods, eb) : {Index.check.go(inert.defs(rest), mods, path, lst <> acc)
         == Index.check.go(rest, mods, path, Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(Calls.calls(body, name),
-          Bool.not(Calls.exempt(path, sig)))), [], _u => Index.walk(body, path, _)) <> acc) : List<&2, F.Finding>}
+          Bool.not(Calls.exempt(path, sig)))), [], _u => Index.walk(body, path, _, name)) <> acc) : List<&2, F.Finding>}
       %inert.stop(Bool.not(Bool.and(Calls.calls(ib, name), Bool.not(Calls.exempt(path, Laws.inert.node(sig))))),
         Bool.not(Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))),
-        Index.walk(ib, path, Table.scope(ib, mods)), Index.walk(body, path, Table.scope(ib, mods)),
-        inert.gate(path, name, sig, body, en, eb), inert.index.walk(body, path, Table.scope(ib, mods), eb)) :
+        Index.walk(ib, path, Table.scope(ib, mods), name), Index.walk(body, path, Table.scope(ib, mods), name),
+        inert.gate(path, name, sig, body, en, eb), inert.index.walk(body, path, Table.scope(ib, mods), name, eb)) :
         {Index.check.go(inert.defs(rest), mods, path, lst <> acc) == Index.check.go(rest, mods, path, _ <> acc)
           : List<&2, F.Finding>}
       inert.index.go(rest, mods, path, lst <> acc, inert.dok.rest(name, sig, body, rest, e))
@@ -25509,6 +25644,136 @@ def inert.fuel.params(ps, name, ii):
         FuelRule.Fuel{name, ii} <> mi, mi) : List<&2, FuelRule.Fuel>}
       {==}
 
+# a capitalized name after an arrow, read that way, is the name it was
+law inert.fuel.io:
+  for nn: Tree.Node
+  {FuelRule.effect.io(Laws.inert.node(nn)) == FuelRule.effect.io(nn) : Bool}
+
+def inert.fuel.io(nn):
+  match nn:
+    case Tree.NCons{h, r}:
+      match h:
+        case Tree.Leaf{tok}:
+          match tok:
+            case Lex.Tok{k, t, l, c}:
+              match k:
+                case Lex.TName{}: {==}
+                case Lex.TUpper{}: {==}
+                case Lex.TDotted{}: {==}
+                case Lex.TWild{}: {==}
+                case Lex.TKey{}: {==}
+                case Lex.TNum{}: {==}
+                case Lex.TStr{}: {==}
+                case Lex.TChar{}: {==}
+                case Lex.TComment{}: {==}
+                case Lex.TSpace{}: {==}
+                case Lex.TNewline{}: {==}
+                case Lex.TOp{}: {==}
+                case Lex.TColon{}: {==}
+                case Lex.TEq{}: {==}
+                case Lex.TBind{}: {==}
+                case Lex.TArrow{}: {==}
+                case Lex.TLam{}: {==}
+                case Lex.TAll{}: {==}
+                case Lex.TAmp{}: {==}
+                case Lex.TOpen{}: {==}
+                case Lex.TClose{}: {==}
+                case Lex.TComma{}: {==}
+        case Tree.Group{o, gk, cl}: {==}
+        case Tree.Stmt{sk, sks, sb}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# an arrow read that way is an arrow as it was
+law inert.fuel.arrow:
+  for h: Tree.Node
+  {Calls.kind.leaf(~Calls.kind.arrow, Laws.inert.node(h)) == Calls.kind.leaf(~Calls.kind.arrow, h) : Bool}
+
+def inert.fuel.arrow(h):
+  match h:
+    case Tree.Leaf{tok}:
+      match tok:
+        case Lex.Tok{k, t, l, c}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+    case Tree.NCons{x, y}: {==}
+
+# the first line under a def, read that way, is that line read that way
+law inert.fuel.under:
+  for body: Tree.Node
+  {FuelRule.under(Laws.inert.node(body)) == Laws.inert.node(FuelRule.under(body)) : Tree.Node}
+
+def inert.fuel.under(body):
+  match body:
+    case Tree.NCons{h, r}:
+      match h:
+        case Tree.Stmt{k, kids, inner}: {==}
+        case Tree.Leaf{tok}: {==}
+        case Tree.Group{o, gk, cl}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# what follows an arrow, read that way, is `IO` when it was
+law inert.fuel.next:
+  for rest: Tree.Node
+  for +below: Tree.Node
+  {FuelRule.effect.next(Laws.inert.node(rest), Laws.inert.node(below)) == FuelRule.effect.next(rest, below) : Bool}
+
+def inert.fuel.next(rest, below):
+  match rest:
+    case Tree.NCons{h, t}: inert.fuel.io(Tree.NCons{h, t})
+    case Tree.Leaf{tok}: inert.fuel.io(below)
+    case Tree.Group{o, gk, cl}: inert.fuel.io(below)
+    case Tree.Stmt{sk, sks, sb}: inert.fuel.io(below)
+    case Tree.NNil{}: inert.fuel.io(below)
+
+# a header read that way returns an effect when it did
+law inert.fuel.effect:
+  for sig: Tree.Node
+  for +below: Tree.Node
+  {FuelRule.effect(Laws.inert.node(sig), Laws.inert.node(below)) == FuelRule.effect(sig, below) : Bool}
+
+def inert.fuel.effect(sig, below):
+  match sig:
+    case Tree.NCons{+h, +rest}:
+      +lhs = FuelRule.effect(Laws.inert.node(Tree.NCons{h, rest}), Laws.inert.node(below))
+      +ir = Laws.inert.node(rest)
+      +ib = Laws.inert.node(below)
+      %inert.fuel.effect(rest, below) : {lhs == Bool.or(Bool.and(Calls.kind.leaf(~Calls.kind.arrow, h),
+        FuelRule.effect.next(rest, below)), _) : Bool}
+      %inert.fuel.next(rest, below) : {lhs == Bool.or(Bool.and(Calls.kind.leaf(~Calls.kind.arrow, h), _),
+        FuelRule.effect(ir, ib)) : Bool}
+      %inert.fuel.arrow(h) : {lhs == Bool.or(Bool.and(_, FuelRule.effect.next(ir, ib)), FuelRule.effect(ir, ib))
+        : Bool}
+      {==}
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# the fuel parameters among parameters read that way, or none, are the ones
+# they were
+law inert.fuel.pick:
+  for b: Bool
+  for +ps: List<&2, Tree.Node>
+  for +name: String
+  {FuelRule.fuels.params(Bool.pick(List<&2, Tree.Node>, b, [], inert.nodes(ps)), name, 0n)
+    == FuelRule.fuels.params(Bool.pick(List<&2, Tree.Node>, b, [], ps), name, 0n) : List<&2, FuelRule.Fuel>}
+
+def inert.fuel.pick(b, ps, name):
+  match b:
+    case True{}: {==}
+    case False{}: inert.fuel.params(ps, name, 0n)
+
 # the fuel parameters of defs read that way are the ones they were
 law inert.fuel.fuels:
   for ds: List<&2, Calls.Def>
@@ -25519,12 +25784,21 @@ def inert.fuel.fuels(ds):
     case Nil{}: {==}
     case Con{Calls.Def{+name, +sig, +body}, +rest}:
       +lhs = FuelRule.fuels(inert.defs(Con{Calls.Def{name, sig, body}, rest}))
-      %inert.fuel.fuels(rest) : {lhs == List.append(&2, FuelRule.Fuel, FuelRule.fuels.params(Calls.params(sig), name,
-        0n), _) : List<&2, FuelRule.Fuel>}
-      %inert.fuel.params(Calls.params(sig), name, 0n) : {lhs == List.append(&2, FuelRule.Fuel, _,
-        FuelRule.fuels(inert.defs(rest))) : List<&2, FuelRule.Fuel>}
-      %inert.params(sig) : {lhs == List.append(&2, FuelRule.Fuel, FuelRule.fuels.params(_, name, 0n),
-        FuelRule.fuels(inert.defs(rest))) : List<&2, FuelRule.Fuel>}
+      +isig = Laws.inert.node(sig)
+      +iu = FuelRule.under(Laws.inert.node(body))
+      +ps = Calls.params(sig)
+      +more = FuelRule.fuels(inert.defs(rest))
+      %inert.fuel.fuels(rest) : {lhs == List.append(&2, FuelRule.Fuel, FuelRule.fuels.params(FuelRule.slots(sig, body),
+        name, 0n), _) : List<&2, FuelRule.Fuel>}
+      %inert.fuel.effect(sig, FuelRule.under(body)) : {lhs == List.append(&2, FuelRule.Fuel,
+        FuelRule.fuels.params(Bool.pick(List<&2, Tree.Node>, _, [], ps), name, 0n), more) : List<&2, FuelRule.Fuel>}
+      %inert.fuel.under(body) : {lhs == List.append(&2, FuelRule.Fuel,
+        FuelRule.fuels.params(Bool.pick(List<&2, Tree.Node>, FuelRule.effect(isig, _), [], ps), name, 0n), more)
+        : List<&2, FuelRule.Fuel>}
+      %inert.fuel.pick(FuelRule.effect(isig, iu), ps, name) : {lhs == List.append(&2, FuelRule.Fuel, _, more)
+        : List<&2, FuelRule.Fuel>}
+      %inert.params(sig) : {lhs == List.append(&2, FuelRule.Fuel, FuelRule.fuels.params(Bool.pick(List<&2, Tree.Node>,
+        FuelRule.effect(isig, iu), [], _), name, 0n), more) : List<&2, FuelRule.Fuel>}
       {==}
 
 # a `U32.to_nat(..)` group read that way fixes the fuel it fixed

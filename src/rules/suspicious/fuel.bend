@@ -15,7 +15,14 @@
 # counts, an exact repeat count such as `3n` included. Only an argument that
 # is the literal alone, or `U32.to_nat(` the U32 literal alone `)`, counts: a
 # let-bound literal and a parenthesized `(7n)` are not seen. A def's own calls
-# are exempt: its step passes `fuel - 1`, not a literal.
+# are exempt: its step passes `fuel - 1`, not a literal. So is a call to a
+# def that returns an effect: its header holds a top-level `->` token with
+# the capitalized name token `IO` right after it (`-> IO(Unit):`, parameters
+# wrapped over lines or not), or, when the `->` is the header's last token,
+# first on the line under it (`->` then `IO(Unit):`). An effect loop's fuel
+# bounds its reads, frames or retries, a budget the outside world sets, not
+# the size of an input it was handed (a netcode drain of 256 datagrams a
+# tick, a read of 100000 chunks).
 import Base
 import ../../src.bend as Src
 import ../../lazy/lazy.bend as Lazy
@@ -44,13 +51,54 @@ def fuels.params(ps: List<&2, Tree.Node>, +name: String, +ii: Nat) -> List<&2, F
       +more = fuels.params(rest, name, 1n+ii)
       Bool.pick(List<&2, Fuel>, is_fuel(Calls.param_name(p)), Fuel{name, ii} <> more, more)
 
-# every fuel parameter of every def of the file
+# is the chain's first node the capitalized name `IO`?
+def effect.io(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, +t, l, c}}, rest}:
+      String.eq(t, "IO")
+    case other:
+      False{}
+
+# the kids of the first statement under a def: the line a header wrapped
+# after its `->` continues on (`->` then `IO(Unit):` on the next line)
+def under(body: Tree.Node) -> Tree.Node:
+  match body:
+    case Tree.NCons{Tree.Stmt{kind, kids, inner}, rest}:
+      kids
+    case other:
+      Tree.NNil{}
+
+# what follows an arrow: the rest of the header, or the line under it (below)
+# when the arrow ends the header; is it `IO`?
+def effect.next(rest: Tree.Node, +below: Tree.Node) -> Bool:
+  match rest:
+    case Tree.NCons{h, tail}:
+      effect.io(Tree.NCons{h, tail})
+    case other:
+      effect.io(below)
+
+# does a def's header return an effect: a top-level `->` with the
+# capitalized name `IO` right after it, on the next line (below) when the
+# arrow ends the header?
+def effect(sig: Tree.Node, +below: Tree.Node) -> Bool:
+  match sig:
+    case Tree.NCons{h, +rest}:
+      +more = effect(rest, below)
+      Bool.or(Bool.and(Calls.kind.leaf(~Calls.kind.arrow, h), effect.next(rest, below)), more)
+    case other:
+      False{}
+
+# the parameters a def's fuel may sit in: none when it returns an effect
+def slots(+sig: Tree.Node, body: Tree.Node) -> List<&2, Tree.Node>:
+  Bool.pick(List<&2, Tree.Node>, effect(sig, under(body)), [], Calls.params(sig))
+
+# every fuel parameter of every def of the file that returns no effect
 def fuels(ds: List<&2, Calls.Def>) -> List<&2, Fuel>:
   match ds:
     case Nil{}:
       Nil{}
     case Con{Calls.Def{name, sig, body}, rest}:
-      List.append(&2, Fuel, fuels.params(Calls.params(sig), name, 0n), fuels(rest))
+      List.append(&2, Fuel, fuels.params(slots(sig, body), name, 0n), fuels(rest))
 
 # the group of a call at line ll, column cc, as a finding when it holds one
 # U32 literal alone (digits) and ok says the call is `U32.to_nat(`

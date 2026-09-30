@@ -245,7 +245,8 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   (one sort phase went 39 s -> 0.9 s). A get anywhere in the def is
   reported, one in a base arm that runs once included. A literal index of
   any size is exempt. A `List.get` on a fixed table is `table`'s; a
-  `String.get` always stays here.
+  `String.get` always stays here. A get that is the def's own self-call (the
+  step of a def named `List.get` or `String.get`, as Base's are) is exempt.
 - `table` — `List.get` or `List.set` at a computed index inside a def that
   calls itself, when the list is a fixed table (a literal, a sized array, or
   `List.replicate` / `Array.new` / `List.range` with a constant count),
@@ -397,7 +398,11 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   overflows the checker's stack (bend 2.0.33/2.0.34). A literal of any size
   counts, `3n` included. Only an argument that is the literal alone, or
   `U32.to_nat(` it `)`, counts, so a let-bound literal and `(7n)` are not
-  seen. A def's own calls are exempt.
+  seen. A def's own calls are exempt, and so is a def that returns an
+  effect: a header with `->` then the name `IO` (`-> IO(Unit):`), or one
+  that ends in `->` with `IO(..):` on the next line. Its fuel bounds reads,
+  frames or retries the outside world sets (a drain of 256 datagrams a
+  tick, a read of 100000 chunks), not the size of an input it was given.
 - `tail` (pedantic) — a self-call that is not a tail call, in a def whose
   first live parameter is a `List` or a `String`. On a long one the JS lane
   overflows its stack (a 48 KB header crashed a server; ~4,900 entries and

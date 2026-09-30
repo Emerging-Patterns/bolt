@@ -57,7 +57,7 @@ def read.opened(rr: Result<&1, &1, U32 & String, File>) -> IO(Maybe<&2, String>)
     case Fail{e}:
       IO.pure(Maybe<&2, String>, None{})
     case Done{file}:
-      slurp(U32.to_nat(100000), file, [])  # noqa: U006 100000 reads of 64 KiB, past any source
+      slurp(U32.to_nat(100000), file, [])
 
 # a file's text, or None when it cannot be opened
 def read(path: String) -> IO(Maybe<&2, String>):  # noqa: L001 disk effect
