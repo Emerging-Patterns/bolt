@@ -28,6 +28,7 @@ import ./suspicious/ring.bend as Ring
 import ./suspicious/table.bend as Table
 import ./suspicious/unit.bend as UnitRule
 import ./suspicious/argv.bend as Argv
+import ./suspicious/thunk.bend as Thunk
 import ./correctness/chars.bend as Chars
 import ./correctness/strings.bend as Strings
 import ./calls.bend as Calls
@@ -583,6 +584,18 @@ law unit_exempt:
   for items: List<&2, Outline.Item>
   for e: {Paths.is_law_file(path) == True{} : Bool}
   {UnitRule.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: thunk reports nothing in a LAWS.bend or a PROOF.bend, which never run, whatever the source holds
+# BOLT-RULE-EXEMPT
+law thunk_exempt:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for e: {Paths.is_law_file(path) == True{} : Bool}
+  {Thunk.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
 
 # LAW: a def written with no type (no `:` among its parameters, no `->`) fills the law of its name, so it is a
 # proof: every cost rule that reads Calls.exempt skips it wherever it is, as it skips one that returns a proof
@@ -2307,6 +2320,112 @@ law unit_counts:
   {List.length(&2, F.Finding, UnitRule.check(Src.Src{path, text, toks, tree, bound, items}))
     == unit.defs(Calls.defs(tree), path) : Nat}
 
+# thunk (BOLT-RULE-U015). A thunk of a self-call is read off a chain, at
+# any depth: its first node a leaf of a name kind (the parameter), then a
+# leaf whose text is `=>`, then a leaf whose text is the def's name, then a
+# group opened by `(`, and after the group the chain's end or a comma. The
+# group must not read the parameter: no name leaf under it, at any depth,
+# spells the parameter, or the parameter then a dot. Each def of the file
+# that is not exempt counts the thunks of its body.
+
+# does a name leaf under the node spell the parameter, or it then a dot?
+def thunk.reads(nn: Tree.Node, +pp: String) -> Bool:
+  match nn:
+    case Tree.Leaf{Lex.Tok{k, +t, l, c}}:
+      Bool.and(Lex.is_name(k), Bool.or(String.eq(t, pp), String.starts_with(t, pp ++ ".")))
+    case Tree.Group{o, kids, cl}:
+      thunk.reads(kids, pp)
+    case Tree.Stmt{sk, kids, body}:
+      Bool.or(thunk.reads(kids, pp), thunk.reads(body, pp))
+    case Tree.NCons{h, t}:
+      Bool.or(thunk.reads(h, pp), thunk.reads(t, pp))
+    case Tree.NNil{}:
+      False{}
+
+# is what follows the call the chain's end, or a comma?
+def thunk.last(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.NCons{h, t}:
+      Calls.kind.leaf(~Lex.is_comma, h)
+    case other:
+      True{}
+
+# the rest past the name: a `(` group that does not read the parameter, then
+# the body's end
+def thunk.call(kp: Lex.TokKind, +pp: String, +aa: String, +nm: String, r3: Tree.Node, +name: String) -> Bool:
+  match r3:
+    case Tree.NCons{Tree.Group{Lex.Tok{ko, o, lo, co}, kids, cl}, after}:
+      Bool.and(Bool.and(Lex.is_name(kp), Bool.not(thunk.reads(kids, pp))),
+        Bool.and(String.eq(aa, "=>"), Bool.and(String.eq(nm, name), Bool.and(String.eq(o, "("), thunk.last(after)))))
+    case other:
+      False{}
+
+# the rest past `=>`: a leaf, the name called
+def thunk.callee(kp: Lex.TokKind, +pp: String, +aa: String, r2: Tree.Node, +name: String) -> Bool:
+  match r2:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{kn, n, ln, cn}}, r3}:
+      thunk.call(kp, pp, aa, n, r3, name)
+    case other:
+      False{}
+
+# the rest past the parameter: a leaf, the arrow
+def thunk.lam(kp: Lex.TokKind, +pp: String, rr: Tree.Node, +name: String) -> Bool:
+  match rr:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{ka, a, la, ca}}, r2}:
+      thunk.callee(kp, pp, a, r2, name)
+    case other:
+      False{}
+
+# does the chain open with a thunk of a self-call of the name?
+def thunk.at(nn: Tree.Node, +name: String) -> Bool:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{kp, p, lp, cp}}, rr}:
+      thunk.lam(kp, p, rr, name)
+    case other:
+      False{}
+
+# how many thunks of a self-call of the name the node holds, at any depth
+def thunk.count(nn: Tree.Node, +name: String) -> Nat:
+  match nn:
+    case Tree.NCons{+h, +rest}:
+      Nat.add(Bool.pick(Nat, thunk.at(Tree.NCons{h, rest}, name), 1n, 0n),
+        Nat.add(thunk.count(h, name), thunk.count(rest, name)))
+    case Tree.Group{o, kids, cl}:
+      thunk.count(kids, name)
+    case Tree.Stmt{sk, kids, body}:
+      Nat.add(thunk.count(kids, name), thunk.count(body, name))
+    case other:
+      0n
+
+# LAW: over any node, thunk reports one finding for each thunk of a
+# self-call, and none for anything else
+# BOLT-RULE-U015
+law thunk_walk_counts:
+  for nn: Tree.Node
+  for +name: String
+  for +path: String
+  {List.length(&2, F.Finding, Thunk.walk(nn, name, path)) == thunk.count(nn, name) : Nat}
+
+# the thunks of a self-call in each def of the list that is not exempt
+def thunk.defs(ds: List<&2, Calls.Def>, +path: String) -> Nat:
+  match ds:
+    case Nil{}:
+      0n
+    case Con{Calls.Def{+name, +sig, +body}, rest}:
+      Nat.add(Bool.pick(Nat, Calls.exempt(path, sig), 0n, thunk.count(body, name)), thunk.defs(rest, path))
+
+# LAW: thunk reports exactly those, def by def, over the defs of the tree
+# BOLT-RULE-U015
+law thunk_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Thunk.check(Src.Src{path, text, toks, tree, bound, items}))
+    == thunk.defs(Calls.defs(tree), path) : Nat}
+
 # The header rule wrap (BOLT-RULE-S003) judges each def header of the
 # outline by its sig's tokens (Lex.tokens), once: a finding or none. A
 # header is across lines when one of its tokens is a newline (Lex.is_nl), so
@@ -3413,11 +3532,11 @@ law scope_param:
 # the findings of each rule a LAWS.bend or a PROOF.bend exempts, rule by rule
 def scope.law_file(+ss: Src.Src) -> List<&2, List<&2, F.Finding>>:
   [Pick.check(ss), Tail.check(ss), Concat.check(ss), Eager.check(ss), Rewalk.check(ss), Strict.check(ss),
-    Hoist.check(ss), Index.check(ss), Ring.check(ss), Table.check(ss), UnitRule.check(ss)]
+    Hoist.check(ss), Index.check(ss), Ring.check(ss), Table.check(ss), UnitRule.check(ss), Thunk.check(ss)]
 
 # LAW: on a LAWS.bend or a PROOF.bend, the findings of each rule its header
 # exempts there (pick, tail, concat, eager, rewalk, strict, hoist, index,
-# ring, table, unit) are the same for any two sources at that path
+# ring, table, unit, thunk) are the same for any two sources at that path
 # BOLT-SCOPE-4
 law scope_law_file:
   for +path: String
@@ -4447,6 +4566,27 @@ law inert_unit:
   for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
   {UnitRule.check(Src.Src{path, text, toks, tree, bound, items})
     == UnitRule.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: thunk reads what no string says: two sources as the lexer makes them
+# whose trees read the same with strings cut have the same findings
+# BOLT-RULE-INERT
+law inert_thunk:
+  for +path: String
+  for text: String
+  for +tree: Tree.Node
+  for toks: List<&2, Lex.Tok>
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for +tree2: Tree.Node
+  for toks2: List<&2, Lex.Tok>
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for +ok: {inert.ok(tree) == True{} : Bool}
+  for +ok2: {inert.ok(tree2) == True{} : Bool}
+  for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  {Thunk.check(Src.Src{path, text, toks, tree, bound, items})
+    == Thunk.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
 
 # LAW: eager reads what no string says: two sources as the lexer makes them
 # whose trees read the same with strings cut have the same findings

@@ -153,10 +153,19 @@ Design specs and plans are not kept in this repo; they live under
   do not hide a search's recursion in one branch either: it runs whatever the
   condition says, so the search never exits early (native, 100 searches over
   100k cells: 0.10 s for a hit at the head, 0.11 s at the end). Bind the one
-  recursive call with `+rest = ..` and pick between values built from it, or
-  take the early exit from `src/lazy/lazy.bend` (`Lazy.stop`, `Lazy.or_else`,
-  `Lazy.and_then`: the last argument is a `Unit -> T` thunk, applied only on
-  the branch that needs it; the same search costs 0.00 s). The same goes for
+  recursive call with `+rest = ..` and pick between values built from it. For
+  a search, carry the test as a Bool into the next call and match on it
+  first (`has.go(t, k, U32.is_eq(h, k))`, then `match hit` before the next
+  step): the self-call stays a tail call and compiles to a `for(;;)` loop.
+  Do not wrap the recursive step in a thunk (`Lazy.or_else(U32.is_eq(h, k),
+  _u => has(t, k))`): it exits early, but it allocates a closure and leaves
+  the loop on every miss (bend 2.0.34, 500 misses over 100k cells: JS 2.40 s
+  against 0.28 s carried, native `--gpu off` 1.18 s against 0.76 s; bend's
+  self-hosted compiler, PR #1207, gained 5.8 to 6.7% per site). `bolt`'s
+  `thunk` rule (U015, opt-in) reports that shape. The early exits of
+  `src/lazy/lazy.bend` (`Lazy.stop`, `Lazy.or_else`, `Lazy.and_then`: the
+  last argument is a `Unit -> T` thunk, applied only on the branch that needs
+  it) stay right for expensive work that does not recurse. The same goes for
   any expensive expression in a branch: a scan of the whole token list inside
   a per-token pick runs for every token (bind's notes were 20 s that way,
   20 ms as one pass). `bolt`'s `strict` rule catches the Bool.and/or shape.

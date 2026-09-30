@@ -252,7 +252,7 @@ def Laws.unknown_exact(ss):
 def Laws.settings_graded(_text):
   {==}
 
-# one arm per row of the code table (32), each checked by evaluation, and one
+# one arm per row of the code table (33), each checked by evaluation, and one
 # past its end, where both sides are none: a new rule is a new arm here
 def Laws.slug_finds_row(n):
   match n:
@@ -320,7 +320,9 @@ def Laws.slug_finds_row(n):
       {==}
     case 31n:
       {==}
-    case 32n+_p:
+    case 32n:
+      {==}
+    case 33n+_p:
       {==}
 
 # the same arms, looked up by code
@@ -390,7 +392,9 @@ def Laws.code_finds_row(n):
       {==}
     case 31n:
       {==}
-    case 32n+_p:
+    case 32n:
+      {==}
+    case 33n+_p:
       {==}
 
 def Laws.shown(_path, _line, _col, _len, _rule, _msg, _level):

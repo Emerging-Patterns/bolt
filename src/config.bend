@@ -276,7 +276,7 @@ def default(+group: String) -> Level:
 # (`trace`, and `argv`, which cannot tell the one reader that drops the
 # program from the rest)
 def opt_in(+rule: String) -> Bool:
-  Bool.or(String.eq(rule, "trace"), String.eq(rule, "argv"))
+  List.contains(~String, ~String.eq, ["trace", "argv", "thunk"], rule)
 
 # the rule's own setting, else its group's, else the group's default; an
 # opt-in rule's own setting, else off

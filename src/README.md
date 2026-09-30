@@ -51,7 +51,7 @@ unset group has its default. The groups:
 | group         | rules                                                                            | default |
 |---------------|----------------------------------------------------------------------------------|---------|
 | `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign` `setting` | error   |
-| `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` (`argv`: opt-in) | warn    |
+| `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` (`argv`, `thunk`: opt-in) | warn    |
 | `style`       | `doc` `space` `wrap` `param` `noqa`                                              | warn    |
 | `laws`        | `coverage` `closed` `unsafe` (`trace`: opt-in)                                   | warn    |
 | `pedantic`    | `tail`                                                                           | off     |
@@ -73,6 +73,7 @@ The stable codes, assigned once (do not renumber):
 | C011 | `setting` | U011 | `rewalk` | P001 | `tail` |
 | | | U012 | `unit` | | |
 | | | U014 | `argv` | | |
+| | | U015 | `thunk` | | |
 
 Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic.
 
@@ -80,7 +81,8 @@ Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic.
 asks for it. L004 was `quantify`, the opt-in strict mode of `closed`;
 `closed` is strict itself now, and L004 is never reused. `trace` is opt-in:
 it is in `laws`, but no group setting reaches it; only `def trace()` in a
-bolt.bend turns it on. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
+bolt.bend turns it on. `thunk` is opt-in the same way, in `suspicious`: only
+`def thunk()` turns it on. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
 read, never linted. A setting whose name is no rule's slug and no group
 sets nothing, so `setting` (C011) reports it. Without one, the defaults apply. This repo's
 [bolt.bend](../bolt.bend) sets every group to error: the gate must see
@@ -137,7 +139,7 @@ What the rules share, `rules/calls.bend` (the recursion rules),
 `rules/tokens.bend`, `rules/imports.bend` and `rules/digest.bend`, sits
 beside the groups. The cost rules built on `rules/calls.bend` (`pick`,
 `strict`, `eager`, `tail`, `concat`, `index`, `table`, `hoist`, `ring`,
-`rewalk`, `unit`) skip what never runs: a law file, a proof file, and a def
+`rewalk`, `unit`, `thunk`) skip what never runs: a law file, a proof file, and a def
 that is a proof wherever it is, one that returns a proof (`-> {a == b : T}`)
 or one written with no type at all (`def f(x, y):`, no `:` among its
 parameters and no `->`), which is how Bend fills the law named `f`.
@@ -216,11 +218,14 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   game's overlap test in a branch went 31 -> 55 fps once it moved out; one
   `gaps(..)` in a branch here cost 88 s of a 100 s run). `pick` sees only the
   self-call and `strict` only Bool.and/or, so the call to a neighbour is this
-  rule's. Bind it above the pick, or branch with `match` on the condition
-  (bolt's own code uses `src/lazy/lazy.bend`, which matches on the Bool and
-  applies a `Unit -> T` thunk in one branch). A call into Base is not
-  counted: a def of the file is the cheap proxy for work the file itself
-  wrote. Nor is a call in a lambda's body (from `=>` to the next comma of
+  rule's. Bind it above the pick, or branch with `match` on the condition.
+  For a search that recurses, carry the test as a Bool into the next call
+  (`go(rest, k, test(h))`) and match on it first, so the step stays a loop;
+  a `Unit -> T` thunk around the recursive call leaves the loop on every step
+  (`thunk`). `src/lazy/lazy.bend`, which matches on the Bool and applies a
+  thunk in one branch, stays right for work that does not recurse. A call
+  into Base is not counted: a def of the file is the cheap proxy for work the
+  file itself wrote. Nor is a call in a lambda's body (from `=>` to the next comma of
   its group), which the pick does not run; an argument after that comma
   counts again.
 - `concat` — a self-call whose argument grows a carried parameter by
@@ -282,6 +287,21 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   `Shake.argv()`, or drop the first word before parsing. The rule cannot
   tell the reader that drops it from one that does not: give that one
   reader `# noqa: U014`. No path is exempt.
+- `thunk` (opt-in) — a lambda whose body is exactly a self-call and whose
+  parameter the call does not read: a `Unit -> T` thunk such as
+  `Lazy.or_else(hit, _u => go(rest, k))`. The closure is allocated on every
+  step and the call in it is not a tail call of the def, so the search leaves
+  the loop each time round (bend 2.0.34, 500 misses over 100k cells: JS
+  2.40 s against 0.28 s, native 1.18 s against 0.76 s). Carry the test as a
+  Bool into the next call, `go(rest, k, test(h))`, and match on it first: the
+  step is then a tail call and compiles to a loop. `Lazy.*` stays right for
+  guarding work that does not recurse. Exactly: a name leaf (the parameter),
+  `=>`, the def's name and its `(` group, with the chain ending there or
+  going on with a comma, and no name leaf in the group spelling the
+  parameter or the parameter then a dot. A body that does more than the call
+  (`_u => Some{go(t)}`), or a continuation that reads its parameter
+  (`a => go(f, a)`), is left alone; `_ => loop(n)` is not, since the rule
+  reads the shape and not the type.
 - `put` — `Map.put`. It is Base's internal helper: at a leaf it keeps the old
   key and replaces the value without comparing, so a new key silently
   overwrites another entry. `Map.set` compares. A file that defines
