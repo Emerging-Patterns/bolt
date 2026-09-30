@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.0](https://github.com/Emerging-Patterns/bolt/compare/v1.11.0...v1.12.0) (2026-09-30)
+
+
+### Features
+
+* **rules:** unsafe reaches foreign defs, fuel sees U32.to_nat, bend 2.0.34 text ([#219](https://github.com/Emerging-Patterns/bolt/issues/219)) ([639d1fe](https://github.com/Emerging-Patterns/bolt/commit/639d1fe38bfa0a1c1876ac705a91ee2f02d9399b))
+
 ## [1.11.0](https://github.com/Emerging-Patterns/bolt/compare/v1.10.0...v1.11.0) (2026-09-30)
 
 
