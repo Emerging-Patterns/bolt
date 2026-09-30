@@ -25,11 +25,11 @@ one built from source. You do not need ez or nix. Building bolt needs clang
 the `bend` on your PATH, so that `bend` is the one to keep at the tested
 version.
 
-With an installed `bend` and nothing else, build bolt v1.11.0 from the Bend
-hub, where it is published as `bolt@1.11.0.0`. Put this in `t.bend`:
+With an installed `bend` and nothing else, build bolt v1.12.0 from the Bend
+hub, where it is published as `bolt@1.12.0.0`. Put this in `t.bend`:
 
 ```bend
-import bolt@1.11.0.0/main.bend as Bolt
+import bolt@1.12.0.0/main.bend as Bolt
 
 def main() -> IO(Unit):
   Bolt.main()
@@ -39,12 +39,12 @@ and build it:
 
 ```
 bend t.bend -o bolt                      # fetches bolt and its libraries from the hub
-./bolt --version                         # bolt 1.11.0
+./bolt --version                         # bolt 1.12.0
 ```
 
 There is no install step: `bend` fetches the package on the first build.
-`bolt@1.11.0.0` resolves to `0x013e0f9a479bbebad5ed196725eede95`, and
-`import 0x013e0f9a479bbebad5ed196725eede95/main.bend` pins it by content.
+`bolt@1.12.0.0` resolves to `0x582b4b0fdf3dafdeecc8c3bfddc5e4db`, and
+`import 0x582b4b0fdf3dafdeecc8c3bfddc5e4db/main.bend` pins it by content.
 
 Or from a clone, at the head of `main`:
 
