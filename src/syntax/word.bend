@@ -4,6 +4,7 @@
 # as on it, as editors put the cursor there.
 import Base
 import ../lazy/lazy.bend as Lazy
+import ../rchars.bend as Rchars
 
 # i: the column of the next char; start: where the current run began; run: the
 # current name, reversed; hit: the name found
@@ -16,7 +17,7 @@ def is_name(+cc: Char) -> Bool:
 
 # the run's chars (reversed) as a string
 def text(run: List<&2, Char>) -> String:
-  String.from_list(List.reverse(&2, Char, run))
+  Rchars.text(run)
 
 # the run holds the column: keep it; otherwise the hit so far
 def close.yes(ok: Bool, run: List<&2, Char>, hit: Maybe<&2, String>) -> Maybe<&2, String>:

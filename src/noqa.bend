@@ -15,6 +15,7 @@
 import Base
 import ./lazy/lazy.bend as Lazy
 import ./syntax/lex.bend as Lex
+import ./rchars.bend as Rchars
 import ./finding.bend as F
 import ./codes.bend as Codes
 import ./src.bend as Src
@@ -60,7 +61,7 @@ type Rd is Data:
 
 # the chars read, the last first, as a code
 def word(buf: List<&2, Char>) -> String:
-  String.from_list(List.reverse(&2, Char, buf))
+  Rchars.text(buf)
 
 # before a code: a space waits, a letter or digit starts one, anything else
 # ends the list

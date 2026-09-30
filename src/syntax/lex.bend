@@ -15,6 +15,7 @@
 # a binder), `_` (TWild), and the operators that bind: `:` `=` `<-` `->` `=>`
 # `@` `&`.
 import Base
+import ../rchars.bend as Rchars
 import ../lazy/lazy.bend as Lazy
 
 # the kinds; TName is a plain name (lowercase, undotted): what a pattern can
@@ -224,7 +225,7 @@ def begin.kind(cls: Class) -> TokKind:
 
 # the buffered chars as a string, in order
 def word(buf: List<&2, Char>) -> String:
-  String.from_list(List.reverse(&2, Char, buf))
+  Rchars.text(buf)
 
 # is the text one of Bend's keywords?
 def is_keyword(+tt: String) -> Bool:

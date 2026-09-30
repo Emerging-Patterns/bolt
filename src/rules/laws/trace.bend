@@ -21,6 +21,7 @@ import ../../finding.bend as F
 import ../digest.bend as Digest
 import ../imports.bend as Imports
 import ../../lazy/lazy.bend as Lazy
+import ../../rchars.bend as Rchars
 
 # reading SPEC.md
 # ---------------
@@ -70,7 +71,7 @@ def cells.at(bar: Bool, cc: Char, st: Cells) -> Cells:
   match bar:
     case True{}:
       Cells{cur, done} = st
-      Cells{[], trim(String.from_list(List.reverse(&2, Char, cur))) <> done}
+      Cells{[], trim(Rchars.text(cur)) <> done}
     case False{}:
       Cells{cur, done} = st
       Cells{cc <> cur, done}
@@ -82,7 +83,7 @@ def cells.go(cs: List<&2, Char>, esc: Bool, st: Cells) -> List<&2, String>:
   match cs:
     case Nil{}:
       Cells{cur, done} = st
-      List.reverse(&2, String, String.from_list(List.reverse(&2, Char, cur)) <> done)
+      List.reverse(&2, String, Rchars.text(cur) <> done)
     case Con{+c, t}:
       cells.go(t, Char.is_eq(c, '\\'), cells.at(Bool.and(Char.is_eq(c, '|'), Bool.not(esc)), c, st))
 

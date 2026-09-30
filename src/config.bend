@@ -20,6 +20,7 @@
 import Base
 import ./lazy/lazy.bend as Lazy
 import ./syntax/lex.bend as Lex
+import ./rchars.bend as Rchars
 import ./syntax/tree.bend as Tree
 import ./syntax/bind.bend as Bind
 import ./codes.bend as Codes
@@ -170,7 +171,7 @@ def unknown(ss: List<&2, Setting>) -> List<&2, Setting>:
 def dir_of.go(cs: List<&2, Char>, +acc: List<&2, Char>, best: List<&2, Char>) -> String:
   match cs:
     case Nil{}:
-      String.from_list(List.reverse(&2, Char, best))
+      Rchars.text(best)
     case Con{'/', t}:
       dir_of.go(t, '/' <> acc, '/' <> acc)
     case Con{c, t}:
@@ -215,9 +216,9 @@ def home.step(+seg: String, +above: List<&2, String>) -> List<&2, String>:
 def home.segs(cs: List<&2, Char>, seg: List<&2, Char>, above: List<&2, String>) -> List<&2, String>:
   match cs:
     case Nil{}:
-      home.step(String.from_list(List.reverse(&2, Char, seg)), above)
+      home.step(Rchars.text(seg), above)
     case Con{'/', t}:
-      home.segs(t, [], home.step(String.from_list(List.reverse(&2, Char, seg)), above))
+      home.segs(t, [], home.step(Rchars.text(seg), above))
     case Con{c, t}:
       home.segs(t, c <> seg, above)
 

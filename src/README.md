@@ -51,7 +51,7 @@ unset group has its default. The groups:
 | group         | rules                                                                            | default |
 |---------------|----------------------------------------------------------------------------------|---------|
 | `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign` `setting` | error   |
-| `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` (`scan`, `argv`, `thunk`: opt-in) | warn    |
+| `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` `fromrev` (`scan`, `argv`, `thunk`: opt-in) | warn    |
 | `style`       | `doc` `space` `wrap` `param` `noqa`                                              | warn    |
 | `laws`        | `coverage` `closed` `unsafe` (`trace`: opt-in)                                   | warn    |
 | `pedantic`    | `tail`                                                                           | off     |
@@ -75,6 +75,7 @@ The stable codes, assigned once (do not renumber):
 | | | U013 | `scan` | | |
 | | | U014 | `argv` | | |
 | | | U015 | `thunk` | | |
+| | | U016 | `fromrev` | | |
 
 Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic.
 
@@ -315,6 +316,28 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   (`_u => Some{go(t)}`), or a continuation that reads its parameter
   (`a => go(f, a)`), is left alone; `_ => loop(n)` is not, since the rule
   reads the shape and not the type.
+- `fromrev` — `String.from_list(List.reverse(..))`: among the significant
+  tokens, `String.from_list`, `(`, `List.reverse` and `(` right after one
+  another, one finding on the first. A buffer of chars consed on the front
+  and then reversed and read into a String walks the buffer twice and builds
+  a list only to throw it away; `String.from_list` is not a tail call either,
+  so a long buffer runs the JS lane out of stack. Fold the buffer onto a
+  String with `SCon` in one pass (`src/rchars.bend`, bolt's own):
+
+  ```bend
+  def text.go(buf: List<&2, Char>, acc: String) -> String:
+    match buf:
+      case Nil{}:
+        acc
+      case Con{h, t}:
+        text.go(t, SCon{h, acc})
+  ```
+
+  Called as `text.go(buf, SNil{})` (bend 2.0.34, a 100k-char buffer 200
+  times: native 0.35 s against 0.17 s; JS at 20k chars 4.6 s against 3.1 s,
+  and at 50k the two-pass form overflows). Anything between the four tokens,
+  another `(` included, is not the shape, and neither is `List.reverse.go`.
+  A LAWS.bend or a PROOF.bend is exempt.
 - `put` — `Map.put`. It is Base's internal helper: at a leaf it keeps the old
   key and replaces the value without comparing, so a new key silently
   overwrites another entry. `Map.set` compares. A file that defines

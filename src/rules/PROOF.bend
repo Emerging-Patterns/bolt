@@ -29,6 +29,8 @@ import ./suspicious/ring.bend as Ring
 import ./suspicious/table.bend as Table
 import ./suspicious/unit.bend as UnitRule
 import ./suspicious/argv.bend as Argv
+import ./suspicious/fromrev.bend as Fromrev
+import ../rchars.bend as Rchars
 import ./suspicious/scan.bend as Scan
 import ./correctness/chars.bend as Chars
 import ./correctness/strings.bend as Strings
@@ -897,6 +899,68 @@ def argv.calls(toks, path):
 
 def Laws.argv_counts(path, _text, toks, _tree, _bound, _items):
   argv.calls(T.sig(toks), path)
+
+# fromrev
+# -------
+
+# an and of four, grouped either way
+law fromrev.and4:
+  for p: Bool
+  for q: Bool
+  for r: Bool
+  for w: Bool
+  {Bool.and(p, Bool.and(q, Bool.and(r, w))) == Bool.and(Bool.and(p, q), Bool.and(r, w)) : Bool}
+
+def fromrev.and4(p, _q, _r, _w):
+  match p:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# the rule's test of a run is the law's
+law fromrev.at:
+  for +t: String
+  for toks: List<&2, Lex.Tok>
+  {Fromrev.at(t, toks) == Laws.fromrev_at(t, toks) : Bool}
+
+def fromrev.at(t, toks):
+  match toks:
+    case Nil{}:
+      {==}
+    case Con{Lex.Tok{k1, a, l1, c1}, r1}:
+      match r1:
+        case Nil{}:
+          {==}
+        case Con{Lex.Tok{k2, b, l2, c2}, r2}:
+          match r2:
+            case Nil{}:
+              {==}
+            case Con{Lex.Tok{k3, d, l3, c3}, r3}:
+              fromrev.and4(String.eq(t, "String.from_list"), String.eq(a, "("), String.eq(b, "List.reverse"),
+                String.eq(d, "("))
+
+# fromrev's walk counts the runs
+law fromrev.walk:
+  for toks: List<&2, Lex.Tok>
+  for +path: String
+  {List.length(&2, F.Finding, Fromrev.walk(toks, path)) == Laws.fromrev_count(toks) : Nat}
+
+def fromrev.walk(toks, path):
+  match toks:
+    case Nil{}:
+      {==}
+    case Con{Lex.Tok{k, +t, +l, +c}, +rest}:
+      +x = {F.Finding{path, l, c, 16, "fromrev", "String.from_list(List.reverse(..)) walks the list twice and builds one it throws away; fold it onto a String with SCon in one pass."}
+        : F.Finding}
+      %fromrev.at(t, rest) : {List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, Fromrev.at(t, rest),
+        x <> Fromrev.walk(rest, path), Fromrev.walk(rest, path)))
+        == Bool.pick(Nat, _, 1n+Laws.fromrev_count(rest), Laws.fromrev_count(rest)) : Nat}
+      nat.pick(Fromrev.at(t, rest), x, Fromrev.walk(rest, path), Laws.fromrev_count(rest), fromrev.walk(rest, path))
+
+def Laws.fromrev_counts(path, _text, toks, _tree, _bound, _items):
+  put.stop(Paths.is_law_file(path), Fromrev.walk(T.sig(toks), path), Laws.fromrev_count(T.sig(toks)),
+    fromrev.walk(T.sig(toks), path))
 
 # one token onto a list the TODO test agrees on
 law hole.todo.step:
@@ -14334,6 +14398,19 @@ def trace.close(cut: Laws.trace.Cut, st: Trace.Cells) -> List<&2, String>:
     case Laws.trace.Cut{hh, tl} Trace.Cells{cur, done}:
       List.reverse.go(&2, String, done, trace.closed(tl, List.reverse.go(&2, Char, cur, hh)))
 
+# a buffer folded onto a list's string spells what reversing it onto the list does
+law trace.text:
+  for cs: List<&2, Char>
+  for acc: List<&2, Char>
+  {Rchars.onto(cs, String.from_list(acc)) == String.from_list(List.reverse.go(&2, Char, cs, acc)) : String}
+
+def trace.text(cs, acc):
+  match cs:
+    case Nil{}:
+      {==}
+    case Con{h, t}:
+      trace.text(t, h <> acc)
+
 # one char onto the state is one piece onto the cut
 law trace.at:
   for bar: Bool
@@ -14346,6 +14423,8 @@ law trace.at:
 def trace.at(bar, _cc, cut, st):
   match bar cut st:
     case True{} Laws.trace.Cut{hh, tl} Trace.Cells{cur, done}:
+      %trace.text(cur, []) : {List.reverse.go(&2, String, done, String.trim(Rchars.text(cur)) <> trace.closed(tl, hh))
+        == List.reverse.go(&2, String, done, String.trim(_) <> trace.closed(tl, hh)) : List<&2, String>}
       {==}
     case False{} Laws.trace.Cut{hh, tl} Trace.Cells{cur, done}:
       {==}
@@ -14362,6 +14441,8 @@ def trace.go(cs, esc, st):
     case Nil{}:
       match st:
         case Trace.Cells{cur, done}:
+          %trace.text(cur, []) : {List.reverse.go(&2, String, done, [Rchars.text(cur)])
+            == List.reverse.go(&2, String, done, [_]) : List<&2, String>}
           {==}
     case Con{+cc, +t}:
       Equal.trans(List<&2, String>,
@@ -19005,6 +19086,126 @@ def inert.argv.on(ts, path, e):
 def Laws.inert_argv(path, _text, toks, _tree, _bound, _items, _text2, toks2, _tree2, _bound2, _items2, ok, ok2, e):
   inert.via(List<&2, Lex.Tok>, z => Argv.calls(T.sig(z), path), toks, toks2, Laws.inert.toks(toks),
     Laws.inert.toks(toks2), inert.argv.on(toks, path, ok), inert.argv.on(toks2, path, ok2), e)
+
+# fromrev
+# -------
+
+# four texts, each read that way: tested for the shape as they were
+law inert.fromrev.shape:
+  for +b1: Bool
+  for +t: String
+  for +b2: Bool
+  for +a: String
+  for +b3: Bool
+  for +b: String
+  for +b4: Bool
+  for +d: String
+  for +e1: {Laws.inert.fits.go(b1, t) == True{} : Bool}
+  for +e2: {Laws.inert.fits.go(b2, a) == True{} : Bool}
+  for +e3: {Laws.inert.fits.go(b3, b) == True{} : Bool}
+  for +e4: {Laws.inert.fits.go(b4, d) == True{} : Bool}
+  {Fromrev.shape(Laws.inert.keep(b1, t), Laws.inert.keep(b2, a), Laws.inert.keep(b3, b), Laws.inert.keep(b4, d))
+    == Fromrev.shape(t, a, b, d) : Bool}
+
+def inert.fromrev.shape(b1, t, b2, a, b3, b, b4, d, e1, e2, e3, e4):
+  +k1 = Laws.inert.keep(b1, t)
+  +k2 = Laws.inert.keep(b2, a)
+  +k3 = Laws.inert.keep(b3, b)
+  +k4 = Laws.inert.keep(b4, d)
+  +lhs = Fromrev.shape(k1, k2, k3, k4)
+  %inert.eq_keep(b1, t, "String.from_list", e1, {==}) : {lhs == Bool.and(_,
+    Bool.and(String.eq(a, "("), Bool.and(String.eq(b, "List.reverse"), String.eq(d, "(")))) : Bool}
+  %inert.eq_keep(b2, a, "(", e2, {==}) : {lhs == Bool.and(String.eq(k1, "String.from_list"),
+    Bool.and(_, Bool.and(String.eq(b, "List.reverse"), String.eq(d, "(")))) : Bool}
+  %inert.eq_keep(b3, b, "List.reverse", e3, {==}) : {lhs == Bool.and(String.eq(k1, "String.from_list"),
+    Bool.and(String.eq(k2, "("), Bool.and(_, String.eq(d, "(")))) : Bool}
+  %inert.eq_keep(b4, d, "(", e4, {==}) : {lhs == Bool.and(String.eq(k1, "String.from_list"),
+    Bool.and(String.eq(k2, "("), Bool.and(String.eq(k3, "List.reverse"), _))) : Bool}
+  {==}
+
+# a token's text, then tokens as the lexer makes them, each read that way:
+# they open the shape as they did
+law inert.fromrev.at:
+  for +b1: Bool
+  for +t: String
+  for ts: List<&2, Lex.Tok>
+  for +e1: {Laws.inert.fits.go(b1, t) == True{} : Bool}
+  for +e: {Laws.inert.oks(ts) == True{} : Bool}
+  {Fromrev.at(Laws.inert.keep(b1, t), Laws.inert.toks(ts)) == Fromrev.at(t, ts) : Bool}
+
+def inert.fromrev.at(b1, t, ts, e1, e):
+  match ts:
+    case Nil{}:
+      {==}
+    case Con{Lex.Tok{+k1, +a, +l1, +c1}, +r1}:
+      match r1:
+        case Nil{}:
+          {==}
+        case Con{Lex.Tok{+k2, +b, +l2, +c2}, +r2}:
+          match r2:
+            case Nil{}:
+              {==}
+            case Con{Lex.Tok{+k3, +d, +l3, +c3}, +r3}:
+              +h1 = {Lex.Tok{k1, a, l1, c1} : Lex.Tok}
+              +h2 = {Lex.Tok{k2, b, l2, c2} : Lex.Tok}
+              +h3 = {Lex.Tok{k3, d, l3, c3} : Lex.Tok}
+              +er1 = inert.and_r(Laws.inert.fits(h1), Laws.inert.oks(r1), e)
+              +er2 = inert.and_r(Laws.inert.fits(h2), Laws.inert.oks(r2), er1)
+              inert.fromrev.shape(b1, t, Laws.inert.blanks(k1), a, Laws.inert.blanks(k2), b, Laws.inert.blanks(k3), d,
+                e1, inert.and_l(Laws.inert.fits(h1), Laws.inert.oks(r1), e),
+                inert.and_l(Laws.inert.fits(h2), Laws.inert.oks(r2), er1),
+                inert.and_l(Laws.inert.fits(h3), Laws.inert.oks(r3), er2))
+
+# fromrev's walk reads no comment or string: it compares texts with the shape's
+law inert.fromrev.walk:
+  for ts: List<&2, Lex.Tok>
+  for +path: String
+  for +e: {Laws.inert.oks(ts) == True{} : Bool}
+  {Fromrev.walk(Laws.inert.toks(ts), path) == Fromrev.walk(ts, path) : List<&2, F.Finding>}
+
+def inert.fromrev.walk(ts, path, e):
+  match ts:
+    case Nil{}:
+      {==}
+    case Con{Lex.Tok{+k, +t, +l, +c}, +rest}:
+      +h = {Lex.Tok{k, t, l, c} : Lex.Tok}
+      +er = inert.and_r(Laws.inert.fits(h), Laws.inert.oks(rest), e)
+      +x = {F.Finding{path, l, c, 16, "fromrev", "String.from_list(List.reverse(..)) walks the list twice and builds one it throws away; fold it onto a String with SCon in one pass."}
+        : F.Finding}
+      +tt = Laws.inert.keep(Laws.inert.blanks(k), t)
+      +cr = Laws.inert.toks(rest)
+      +lhs = Bool.pick(List<&2, F.Finding>, Fromrev.at(tt, cr), x <> Fromrev.walk(cr, path), Fromrev.walk(cr, path))
+      %inert.fromrev.walk(rest, path, er) : {lhs == Bool.pick(List<&2, F.Finding>, Fromrev.at(t, rest),
+        x <> _, _) : List<&2, F.Finding>}
+      %inert.fromrev.at(Laws.inert.blanks(k), t, rest, inert.and_l(Laws.inert.fits(h), Laws.inert.oks(rest), e), er) :
+        {lhs == Bool.pick(List<&2, F.Finding>, _, x <> Fromrev.walk(cr, path), Fromrev.walk(cr, path))
+        : List<&2, F.Finding>}
+      {==}
+
+# fromrev's walk of the significant tokens reads no comment or string
+law inert.fromrev.on:
+  for +ts: List<&2, Lex.Tok>
+  for +path: String
+  for +e: {Laws.inert.oks(ts) == True{} : Bool}
+  {Fromrev.walk(T.sig(Laws.inert.toks(ts)), path) == Fromrev.walk(T.sig(ts), path) : List<&2, F.Finding>}
+
+def inert.fromrev.on(ts, path, e):
+  +s = T.sig(ts)
+  +cs = Laws.inert.toks(s)
+  %Equal.sym(List<&2, Lex.Tok>, T.sig(Laws.inert.toks(ts)), cs, inert.put.sig(ts)) :
+    {Fromrev.walk(_, path) == Fromrev.walk(s, path) : List<&2, F.Finding>}
+  inert.fromrev.walk(s, path, inert.put.sig_ok(ts, e))
+
+def Laws.inert_fromrev(path, _text, toks, _tree, _bound, _items, _text2, toks2, _tree2, _bound2, _items2, ok, ok2, e):
+  inert.via(List<&2, Lex.Tok>, z => Lazy.stop(List<&2, F.Finding>, Paths.is_law_file(path), [],
+    _u => Fromrev.walk(T.sig(z), path)), toks, toks2, Laws.inert.toks(toks), Laws.inert.toks(toks2),
+    Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>, w => Lazy.stop(List<&2, F.Finding>, Paths.is_law_file(path),
+      [], _u => w), Fromrev.walk(T.sig(Laws.inert.toks(toks)), path), Fromrev.walk(T.sig(toks), path),
+      inert.fromrev.on(toks, path, ok)),
+    Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>, w => Lazy.stop(List<&2, F.Finding>, Paths.is_law_file(path),
+      [], _u => w), Fromrev.walk(T.sig(Laws.inert.toks(toks2)), path), Fromrev.walk(T.sig(toks2), path),
+      inert.fromrev.on(toks2, path, ok2)),
+    e)
 
 # the tree rules: what calls.bend gives them
 # ------------------------------------------
@@ -32158,6 +32359,12 @@ def Laws.inert_wrap(path, _text, _toks, _tree, _bound, items, _text2, _toks2, _t
 def Laws.scan_exempt(path, _text, _toks, tree, _bound, _items, e):
   %Equal.sym(Bool, Paths.is_law_file(path), True{}, e) : {Lazy.stop(List<&2, F.Finding>, _, [],
     _u => Scan.check.on(Calls.defs(tree), path)) == Nil{}
+    : List<&2, F.Finding>}
+  {==}
+
+def Laws.fromrev_exempt(path, _text, toks, _tree, _bound, _items, e):
+  %Equal.sym(Bool, Paths.is_law_file(path), True{}, e) : {Lazy.stop(List<&2, F.Finding>, _, [],
+    _u => Fromrev.walk(T.sig(toks), path)) == Nil{}
     : List<&2, F.Finding>}
   {==}
 
