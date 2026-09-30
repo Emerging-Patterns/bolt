@@ -39,7 +39,7 @@ def args_of(ss: List<&1, String>) -> List<&2, String>:
 # bolt's command line: its arguments, without the program
 def argv() -> IO(List<&2, String>):  # noqa: L001 IO: reads argv
   do IO<List<&2, String>>:
-    ss : List<&1, String> <- IO.args()  # noqa: U014 the one reader: args_of drops the program
+    ss : List<&1, String> <- IO.args()
     return args_of(ss)
 
 # whether a word names a subcommand

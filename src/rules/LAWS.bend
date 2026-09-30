@@ -27,7 +27,6 @@ import ./suspicious/index.bend as Index
 import ./suspicious/ring.bend as Ring
 import ./suspicious/table.bend as Table
 import ./suspicious/unit.bend as UnitRule
-import ./suspicious/argv.bend as Argv
 import ./suspicious/fromrev.bend as Fromrev
 import ./suspicious/thunk.bend as Thunk
 import ./suspicious/scan.bend as Scan
@@ -190,41 +189,6 @@ law put_counts:
   for +path: String
   {List.length(&2, F.Finding, Put.check.on(toks, path))
     == Bool.pick(Nat, put_defined(toks), 0n, put_count(toks)) : Nat}
-
-# True when tt is `IO.args` and the tokens open with a `(` token
-def argv_open(+tt: String, toks: List<&2, Lex.Tok>) -> Bool:
-  match toks:
-    case Con{Lex.Tok{Lex.TOpen{}, +o, l, c}, rest}:
-      Bool.and(String.eq(tt, "IO.args"), String.eq(o, "("))
-    case Con{h, rest}:
-      False{}
-    case Nil{}:
-      False{}
-
-# how many `IO.args` tokens have a `(` token right after them
-def argv_count(toks: List<&2, Lex.Tok>) -> Nat:
-  match toks:
-    case Nil{}:
-      0n
-    case Con{Lex.Tok{Lex.TDotted{}, +t, l, c}, +rest}:
-      +m = argv_count(rest)
-      Bool.pick(Nat, argv_open(t, rest), 1n+m, m)
-    case Con{h, rest}:
-      argv_count(rest)
-
-# LAW: argv reports one finding for each `IO.args` token with a `(` token
-# right after it among the significant tokens, at any path, and none for
-# any other token
-# BOLT-RULE-U014
-law argv_counts:
-  for +path: String
-  for text: String
-  for +toks: List<&2, Lex.Tok>
-  for tree: Tree.Node
-  for bound: Bind.Bound
-  for items: List<&2, Outline.Item>
-  {List.length(&2, F.Finding, Argv.check(Src.Src{path, text, toks, tree, bound, items}))
-    == argv_count(T.sig(toks)) : Nat}
 
 # True when tt is `String.from_list` and the tokens open with `(`,
 # `List.reverse` and `(`
@@ -4655,29 +4619,6 @@ law inert_put:
   for e: {inert.toks(toks) == inert.toks(toks2) : List<&2, Lex.Tok>}
   {Put.check(Src.Src{path, text, toks, tree, bound, items})
     == Put.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
-
-# LAW: argv reads what no comment or string says: two sources as the lexer
-# makes them whose tokens read the same with comments and strings cut have
-# the same findings
-# BOLT-RULE-INERT
-# BOLT-RULE-U014
-law inert_argv:
-  for +path: String
-  for text: String
-  for toks: List<&2, Lex.Tok>
-  for tree: Tree.Node
-  for bound: Bind.Bound
-  for items: List<&2, Outline.Item>
-  for text2: String
-  for toks2: List<&2, Lex.Tok>
-  for tree2: Tree.Node
-  for bound2: Bind.Bound
-  for items2: List<&2, Outline.Item>
-  for ok: {inert.oks(toks) == True{} : Bool}
-  for ok2: {inert.oks(toks2) == True{} : Bool}
-  for e: {inert.toks(toks) == inert.toks(toks2) : List<&2, Lex.Tok>}
-  {Argv.check(Src.Src{path, text, toks, tree, bound, items})
-    == Argv.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
 
 # LAW: fromrev reads what no comment or string says: two sources as the
 # lexer makes them whose tokens read the same with comments and strings cut

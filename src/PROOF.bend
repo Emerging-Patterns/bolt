@@ -148,9 +148,6 @@ def Laws.opt_in_off(sets, group, rule, h_opt, h_rule):
     == Config.Off{} : Config.Level}
   {==}
 
-def Laws.argv_opt_in(sets, group, h_rule):
-  Laws.opt_in_off(sets, group, "argv", {==}, h_rule)
-
 # Unknown names (BOLT-CFG-7). config.bend looks a slug up with Codes.find and
 # a group with an early-exit fold; the spec folds both strictly. Each step
 # lemma takes the comparison it branches on as a variable and cases on it.
@@ -252,7 +249,7 @@ def Laws.unknown_exact(ss):
 def Laws.settings_graded(_text):
   {==}
 
-# one arm per row of the code table (35), each checked by evaluation, and one
+# one arm per row of the code table (34), each checked by evaluation, and one
 # past its end, where both sides are none: a new rule is a new arm here
 def Laws.slug_finds_row(n):
   match n:
@@ -324,9 +321,7 @@ def Laws.slug_finds_row(n):
       {==}
     case 33n:
       {==}
-    case 34n:
-      {==}
-    case 35n+_p:
+    case 34n+_p:
       {==}
 
 # the same arms, looked up by code
@@ -400,9 +395,7 @@ def Laws.code_finds_row(n):
       {==}
     case 33n:
       {==}
-    case 34n:
-      {==}
-    case 35n+_p:
+    case 34n+_p:
       {==}
 
 def Laws.shown(_path, _line, _col, _len, _rule, _msg, _level):
