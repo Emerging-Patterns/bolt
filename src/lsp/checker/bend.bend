@@ -1,6 +1,9 @@
 # checker/bend: an effect (CPU event loop only): the diagnostics of the file
 # at a path. It runs `bend` on the file and reads its report. Which runs it
-# makes is argv.bend's, pure; this file only performs them.
+# makes is argv.bend's, and what its output answers is answer.bend's, both
+# pure; this file only performs them. `service` hands it to the server and
+# to `bolt check`, which take the checker as a service and never import this
+# file, so their proofs reach no foreign code.
 import Base
 import ./answer.bend as S
 import ./argv.bend as Argv
@@ -24,45 +27,6 @@ def launch(rr: Argv.Run) -> IO(String):  # noqa: L001 checker effect
   Argv.Run{path, flag} = rr
   bendcheck.exec(path, flag)
 
-# a run a signal cut short: what bend reported before it died, or, when that
-# is nothing, no check at all
-def died(ds: List<&2, Rep.Diag>) -> S.Answer:
-  match ds:
-    case Nil{}:
-      S.Unrun{}
-    case Con{dd, rest}:
-      S.Checked{dd <> rest}
-
-# the answer a tag gives: bend ran (`r`), a signal killed it (`s`), or
-# neither, and it could not be run; each error placed by the checked file's
-# names, when they are known
-def answer.tag(ran: Bool, killed: Bool, names: Maybe<&2, List<&2, String>>, text: String) -> S.Answer:
-  match ran killed:
-    case True{} _k:
-      S.Checked{Rep.parse_in(names, text)}
-    case False{} True{}:
-      died(Rep.parse_in(names, text))
-    case False{} False{}:
-      S.Unrun{}
-
-# exec's text read: its tag, then what bend printed, as diagnostics placed by
-# the checked file's names
-def answer(names: Maybe<&2, List<&2, String>>, ss: String) -> S.Answer:
-  match ss:
-    case SNil{}:
-      S.Unrun{}
-    case SCon{+cc, text}:
-      answer.tag(Char.is_eq(cc, 'r'), Char.is_eq(cc, 's'), names, text)
-
-# a LAWS.bend's errors, settled by its PROOF.bend's answer: none when that
-# checks clean, and no check at all when bend could not be run on it
-def proved(aa: S.Answer, ds: List<&2, Rep.Diag>) -> S.Answer:
-  match aa:
-    case S.Checked{pds}:
-      S.Checked{Bool.pick(List<&2, Rep.Diag>, List.is_empty(&2, Rep.Diag, pds), [], ds)}
-    case S.Unrun{}:
-      S.Unrun{}
-
 # the first report, settled by the run that follows it (a LAWS.bend's
 # PROOF.bend), when argv.bend gives one
 def settle(mr: Maybe<&2, Argv.Run>, +ds: List<&2, Rep.Diag>) -> IO(S.Answer):  # noqa: L001 checker effect
@@ -72,7 +36,7 @@ def settle(mr: Maybe<&2, Argv.Run>, +ds: List<&2, Rep.Diag>) -> IO(S.Answer):  #
     case Some{rr}:
       do IO<S.Answer>:
         text : String <- launch(rr)
-        return proved(answer(None{}, text), ds)
+        return S.proved(S.answer(None{}, text), ds)
 
 # the diagnostics of a run, settled by the run that follows it
 def checked(+ds: List<&2, Rep.Diag>, +path: String) -> IO(S.Answer):  # noqa: L001 checker effect
@@ -92,4 +56,8 @@ def check(+path: String) -> IO(S.Answer):  # noqa: L001 checker effect
   do IO<S.Answer>:
     text : String <- launch(Argv.run_of(path))
     src : Maybe<&2, String> <- Disk.read(path)
-    settled(answer(Names.of(src), text), path)
+    settled(S.answer(Names.of(src), text), path)
+
+# the checker as a service (answer.bend's Checker)
+def service() -> S.Checker:  # noqa: L001 checker effect
+  S.Checker{p => check(p)}

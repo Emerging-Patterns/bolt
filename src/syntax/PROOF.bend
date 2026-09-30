@@ -7,6 +7,11 @@ import ../lazy/lazy.bend as Lazy
 import ./bind.bend as Bind
 import ./LAWS.bend as Laws
 
+# String.eq's last step (bend 2.0.33 dropped Base's String.eq.fin): whether a
+# comparison's result is EQ. String.eq(a, b) unfolds to eq_fin(String.cmp(a, b))
+def eq_fin(rr: (String & String) & Cmp) -> Bool:
+  Cmp.is_eq(Pair.snd(String & String, Cmp, rr))
+
 # a string onto nothing is itself
 law app.nil:
   for +a: String
@@ -3516,7 +3521,7 @@ law rs.fin:
   for +hx: Char
   for +hy: Char
   for rr: (String & String) & Cmp
-  {String.eq.fin(String.cmp.rec(hx, hy, rr)) == String.eq.fin(rr) : Bool}
+  {eq_fin(String.cmp.rec(hx, hy, rr)) == eq_fin(rr) : Bool}
 
 def rs.fin(_hx, _hy, rr):
   match rr:
@@ -3531,7 +3536,7 @@ law rs.step:
   for +hx: Char
   for +hy: Char
   for ih: {Bind.same(t1, t2) == String.eq(t1, t2) : Bool}
-  {Lazy.and_then(Cmp.is_eq(c), _u => Bind.same(t1, t2)) == String.eq.fin(String.cmp.fin(t1, t2, ((hx, hy), c)))
+  {Lazy.and_then(Cmp.is_eq(c), _u => Bind.same(t1, t2)) == eq_fin(String.cmp.fin(t1, t2, ((hx, hy), c)))
     : Bool}
 
 def rs.step(c, t1, t2, hx, hy, ih):
@@ -3540,8 +3545,8 @@ def rs.step(c, t1, t2, hx, hy, ih):
       {==}
     case EQ{}:
       Equal.trans(Bool, Bind.same(t1, t2), String.eq(t1, t2),
-        String.eq.fin(String.cmp.rec(hx, hy, String.cmp(t1, t2))), ih,
-        Equal.sym(Bool, String.eq.fin(String.cmp.rec(hx, hy, String.cmp(t1, t2))), String.eq(t1, t2),
+        eq_fin(String.cmp.rec(hx, hy, String.cmp(t1, t2))), ih,
+        Equal.sym(Bool, eq_fin(String.cmp.rec(hx, hy, String.cmp(t1, t2))), String.eq(t1, t2),
           rs.fin(hx, hy, String.cmp(t1, t2))))
     case GT{}:
       {==}

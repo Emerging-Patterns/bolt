@@ -29,9 +29,11 @@ transport:
 | `transport/` — one message body in, one out | `stdio`: Content-Length framing over bytes | `script`: a list of bodies in; every body sent is printed |
 | `files/` — a file's text by path; where Base lives; the working directory | `disk` | any `Files` record |
 
-The checker, a path's diagnostics, has one implementation and the loop calls
-it directly: `checker/bend.bend`, a foreign effect (`exec.c`, `exec.js`)
-running `bend <path> --check-only`.
+The checker, a path's diagnostics, is passed in too, as `checker/answer.bend`'s
+`Checker` record. It has one implementation: `checker/bend.bend`'s `service`,
+a foreign effect (`exec.c`, `exec.js`) running `bend <path> --check-only`.
+The loop never imports it, so `LAWS.bend`'s proofs load no foreign code (bend
+2.0.32's verdict fails a proof that does, imports included).
 
 The pure parts: `frame.bend` (framing, UTF-8 both ways — Content-Length counts
 bytes and a read may end inside a char, so the transport reads bytes and
