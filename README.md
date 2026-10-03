@@ -17,7 +17,7 @@ written in Bend, with a VS Code extension.
 
 ## Install
 
-bolt needs Bend 2.0.32 or later; it is built and checked on Bend 2.0.34, the
+bolt needs Bend 2.0.32 or later; it is built and checked on Bend 2.0.35, the
 version `flake.lock` pins. Any install of it will do: the one
 `curl -fsSL https://bend-lang.com/install.sh | sh` installs, one from nix, or
 one built from source. You do not need ez or nix. Building bolt needs clang
