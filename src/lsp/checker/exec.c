@@ -74,7 +74,7 @@ Term bendcheck_exec_run(Env e, Term* f, IoWork* w) {
 }
 
 static void __attribute__((constructor)) bendcheck_exec_use(void) {
-  io_eff(CID(bendcheck.exec), bendcheck_exec_run, 0);
+  io_eff(CID(bendcheck.exec), bendcheck_exec_run);
 }
 
 // `bolt lsp` with no `--gpu` is `--gpu off`. The runtime chooses the device

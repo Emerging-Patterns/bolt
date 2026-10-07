@@ -182,7 +182,7 @@ Design specs and plans are not kept in this repo; they live under
 - `bend x.bend` runs main after checking. To check only, `bend <file.bend> --check-only` (or `bend x.bend -o t.js`).
 - A foreign effect `def a.b(..) -> IO(T)` with `import "./x.c"` and
   `import "./x.js"` bodies registers itself on both lanes by its def name:
-  `io_eff(CID(a.b), a_b_run, 0)` in C and `io_eff(CID(a.b), a_b)` in JS
+  `io_eff(CID(a.b), a_b_run)` in C and `io_eff(CID(a.b), a_b)` in JS
   (bend 2.0.28; `bend guide effects`, src/lsp/checker/exec.*).
 - A server's stdin and stdout may be sockets (node spawns children that way),
   and no path opens a socket: wrap descriptors 0 and 1 (src/lsp/transport/fd.c),
