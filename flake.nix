@@ -51,9 +51,21 @@
           ${old.buildPhase}
         '';
       });
+      # ez follows this flake's bend. Its plan constructors Wait and Ready are
+      # Pending and Planned, and its effect registers with io_eff(cid, run).
+      ezPkg = inputs.ez.packages.${system}.default.overrideAttrs (old: {
+        postPatch = (old.postPatch or "") + ''
+          find . -name '*.bend' -print0 | xargs -0 sed -i -E \
+            -e 's/(^|[^A-Za-z0-9_])Wait\{/\1Pending{/g' \
+            -e 's/(^|[^A-Za-z0-9_])Ready\{/\1Planned{/g'
+          sed -i \
+            's/io_eff(CID(ezpass.run), ezpass_run_run, 0)/io_eff(CID(ezpass.run), ezpass_run_run)/' \
+            share/pass.c
+        '';
+      });
       # the proof gate: `ez prove`, every PROOF.bend on this flake's bend,
       # each passing only on a first line of ALL PROOFS CHECK
-      proofs = ez.mkProofs { ez = inputs.ez.packages.${system}.default; src = self; };
+      proofs = ez.mkProofs { ez = ezPkg; src = self; };
       # bolt, built from this tree, over this tree: exit 1 on any error
       lint = ez.mkLint { inherit bolt; src = self; };
     in {
