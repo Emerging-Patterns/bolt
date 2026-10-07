@@ -2,18 +2,16 @@
   description = "bolt: a linter, checker and language server for Bend 2";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-  # bendlang/bend's flake at the commit that packages 2.0.35 (the v2.0.35 tag
-  # still packages 2.0.34): bolt builds on it, lints itself with the bolt it
+  # bendlang/bend's flake at the commit that packages 2.0.36 (the v2.0.36 tag
+  # still packages 2.0.35): bolt builds on it, lints itself with the bolt it
   # builds, and checks.proofs runs every PROOF.bend on it
   inputs.bend = {
-    url = "github:bendlang/bend/5a0b523f7759335164f1dead0e0815234a5fd9dc";
+    url = "github:bendlang/bend/eebc18cd04daeade06c3f68c3c96c1faefd3462f";
     inputs.nixpkgs.follows = "nixpkgs";
   };
   inputs.ez = {
     url = "github:Emerging-Patterns/ez";
     inputs.nixpkgs.follows = "nixpkgs";
-    # ez follows this flake's bend (2.0.35); ez's own lock still names 2.0.34
-    inputs.bend.follows = "bend";
   };
 
   outputs = { self, nixpkgs, ... }@inputs:
@@ -51,9 +49,17 @@
           ${old.buildPhase}
         '';
       });
+      # ez's package is the one its flake builds. The proof gate runs on this
+      # flake's bend: that bend replaces the one on the ez wrapper's PATH.
+      ezProve = pkgs.runCommand "ez-prove" { } ''
+        mkdir -p $out/bin
+        sed 's|/nix/store/[a-z0-9]*-bend-[0-9.]*/bin|${bend}/bin|g' \
+          ${inputs.ez.packages.${system}.default}/bin/ez > $out/bin/ez
+        chmod +x $out/bin/ez
+      '';
       # the proof gate: `ez prove`, every PROOF.bend on this flake's bend,
       # each passing only on a first line of ALL PROOFS CHECK
-      proofs = ez.mkProofs { ez = inputs.ez.packages.${system}.default; src = self; };
+      proofs = ez.mkProofs { ez = ezProve; src = self; };
       # bolt, built from this tree, over this tree: exit 1 on any error
       lint = ez.mkLint { inherit bolt; src = self; };
     in {

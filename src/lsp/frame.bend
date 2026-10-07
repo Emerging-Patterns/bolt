@@ -293,7 +293,7 @@ type Head is Data:
 # the front of a buffer: a whole body and the bytes after it, or not yet
 type Cut is Data:
   More{}
-  Ready{body: List<&2, U32>, rest: List<&2, U32>}
+  Whole{body: List<&2, U32>, rest: List<&2, U32>}
 
 # bytes as chars, one each (for the ASCII header)
 def chars(bs: List<&2, U32>, acc: List<&2, Char>) -> List<&2, Char>:
@@ -329,7 +329,7 @@ def header(bs: List<&2, U32>, line: List<&2, U32>, len: List<&2, Digit>) -> Head
 def split.on(zz: Bool, xs: List<&2, U32>, acc: List<&2, U32>, more: Unit -> Cut) -> Cut:
   match zz:
     case True{}:
-      Ready{List.reverse(&2, U32, acc), xs}
+      Whole{List.reverse(&2, U32, acc), xs}
     case False{}:
       more(Unit{})
 

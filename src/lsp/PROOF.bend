@@ -568,14 +568,14 @@ law split.ready:
   for acc: List<&2, U32>
   for -more: Unit -> Frame.Cut
   for h: {zz == True{} : Bool}
-  {Frame.split.on(zz, xs, acc, more) == Frame.Ready{List.reverse(&2, U32, acc), xs} : Frame.Cut}
+  {Frame.split.on(zz, xs, acc, more) == Frame.Whole{List.reverse(&2, U32, acc), xs} : Frame.Cut}
 
 def split.ready(zz, xs, acc, more, h):
   match zz:
     case True{}:
       {==}
     case False{}:
-      Empty.absurd({Frame.split.on(False{}, xs, acc, more) == Frame.Ready{List.reverse(&2, U32, acc), xs} : Frame.Cut},
+      Empty.absurd({Frame.split.on(False{}, xs, acc, more) == Frame.Whole{List.reverse(&2, U32, acc), xs} : Frame.Cut},
         false_true(h))
 
 # split, while the count is not zero, goes on
@@ -602,7 +602,7 @@ law split.takes:
   for +acc: List<&2, U32>
   for +hv: {Laws.value(ds) == List.length(&2, U32, xs) : Nat}
   {Frame.split(List.append(&2, U32, xs, rest), ds, acc)
-    == Frame.Ready{List.reverse(&2, U32, List.reverse.go(&2, U32, xs, acc)), rest} : Frame.Cut}
+    == Frame.Whole{List.reverse(&2, U32, List.reverse.go(&2, U32, xs, acc)), rest} : Frame.Cut}
 
 def split.takes(xs, rest, ds, acc, hv):
   match xs:
@@ -616,7 +616,7 @@ def split.takes(xs, rest, ds, acc, hv):
     case Con{+x, +t}:
       +tr = List.append(&2, U32, t, rest)
       Equal.trans(Frame.Cut, Frame.split(x <> tr, ds, acc), Frame.split(tr, Frame.untick(ds), x <> acc),
-        Frame.Ready{List.reverse(&2, U32, List.reverse.go(&2, U32, t, x <> acc)), rest},
+        Frame.Whole{List.reverse(&2, U32, List.reverse.go(&2, U32, t, x <> acc)), rest},
         split.more(Frame.count.zero(ds), x <> tr, acc, _u => Frame.split(tr, Frame.untick(ds), x <> acc),
           down.full(ds, List.length(&2, U32, t), hv)),
         split.takes(t, rest, Frame.untick(ds), x <> acc, down.less(ds, List.length(&2, U32, t), hv)))
@@ -1018,7 +1018,7 @@ def Laws.frame_round(s, more0):
   +more = more0
   +e = Frame.encode(s)
   Equal.trans(Frame.Cut, Frame.cut(List.append(&2, U32, Laws.wire(s), more)),
-    Frame.split(List.append(&2, U32, e, more), cnt(s), []), Frame.Ready{e, more},
+    Frame.split(List.append(&2, U32, e, more), cnt(s), []), Frame.Whole{e, more},
     Equal.trans(Frame.Cut, Frame.cut(List.append(&2, U32, Laws.wire(s), more)),
       Frame.cut.body(Frame.header(body(s, List.append(&2, U32, e, more)), pl(), [Frame.D0{}])),
       Frame.split(List.append(&2, U32, e, more), cnt(s), []),
@@ -1034,9 +1034,9 @@ def Laws.frame_round(s, more0):
         Frame.header(body(s, List.append(&2, U32, e, more)), pl(), [Frame.D0{}]),
         Frame.Head{cnt(s), List.append(&2, U32, e, more)}, head.shape(s, List.append(&2, U32, e, more)))),
     Equal.trans(Frame.Cut, Frame.split(List.append(&2, U32, e, more), cnt(s), []),
-      Frame.Ready{List.reverse(&2, U32, List.reverse(&2, U32, e)), more}, Frame.Ready{e, more},
+      Frame.Whole{List.reverse(&2, U32, List.reverse(&2, U32, e)), more}, Frame.Whole{e, more},
       split.takes(e, more, cnt(s), [], count.value(s)),
-      Equal.cong(List<&2, U32>, Frame.Cut, x => Frame.Ready{x, more}, List.reverse(&2, U32, List.reverse(&2, U32, e)),
+      Equal.cong(List<&2, U32>, Frame.Cut, x => Frame.Whole{x, more}, List.reverse(&2, U32, List.reverse(&2, U32, e)),
         e, rev_rev(U32, e))))
 
 # waiting
