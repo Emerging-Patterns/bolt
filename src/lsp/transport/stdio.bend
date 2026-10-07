@@ -54,7 +54,7 @@ def recv.on(
   rest: Stdio -> IO(Stdio & Maybe<&2, String>)
 ) -> IO(Stdio & Maybe<&2, String>):
   match cc:
-    case Frame.Ready{body, left}:
+    case Frame.Whole{body, left}:
       IO.pure(Stdio & Maybe<&2, String>, (Stdio{inp, out, left}, Some{Frame.decode(body)}))
     case Frame.More{}:
       do IO<Stdio & Maybe<&2, String>>:

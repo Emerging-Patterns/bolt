@@ -119,7 +119,7 @@ law frame_counts:
 law frame_round:
   for +s: String
   for more: List<&2, U32>
-  {Frame.cut(List.append(&2, U32, wire(s), more)) == Frame.Ready{Frame.encode(s), more} : Frame.Cut}
+  {Frame.cut(List.append(&2, U32, wire(s), more)) == Frame.Whole{Frame.encode(s), more} : Frame.Cut}
 
 # LAW: a partial header or body waits: cut of every proper prefix of the wire
 # is not yet a message
