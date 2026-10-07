@@ -21,11 +21,31 @@
         "type": "github"
       }
     },
+    "bend_2": {
+      "inputs": {
+        "nixpkgs": [
+          "ez",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1790643370,
+        "narHash": "sha256-VYGPIHkNeccEaBHGer1B7+GNiWKQBiN/iiS7PozBXx0=",
+        "owner": "bendlang",
+        "repo": "bend",
+        "rev": "777ee0b55c485afdd7e68bd917b3d23a88d77371",
+        "type": "github"
+      },
+      "original": {
+        "owner": "bendlang",
+        "repo": "bend",
+        "rev": "777ee0b55c485afdd7e68bd917b3d23a88d77371",
+        "type": "github"
+      }
+    },
     "ez": {
       "inputs": {
-        "bend": [
-          "bend"
-        ],
+        "bend": "bend_2",
         "nixpkgs": [
           "nixpkgs"
         ]
