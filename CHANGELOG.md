@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.0](https://github.com/Emerging-Patterns/bolt/compare/v1.16.0...v1.17.0) (2026-10-23)
+
+
+### Bug Fixes
+
+* **flake:** expose ez as packages.ez ([#239](https://github.com/Emerging-Patterns/bolt/issues/239)) ([561b5b0](https://github.com/Emerging-Patterns/bolt/commit/561b5b07c2f891d0e3773fa519221b443743adb2))
+
 ## [1.16.0](https://github.com/Emerging-Patterns/bolt/compare/v1.15.0...v1.16.0) (2026-10-23)
 
 
