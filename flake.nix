@@ -73,7 +73,11 @@
       # bolt, built from this tree, over this tree: exit 1 on any error
       lint = ez.mkLint { inherit bolt; src = self; };
     in {
-      packages.${system} = { inherit bolt bend bend-cc; default = bolt; };
+      packages.${system} = {
+        inherit bolt bend bend-cc;
+        ez = inputs.ez.packages.${system}.default;
+        default = bolt;
+      };
       checks.${system} = { inherit bolt proofs lint; };
       apps.${system}.default = { type = "app"; program = "${bolt}/bin/bolt"; };
       devShells.${system}.default = ez.mkShell {
