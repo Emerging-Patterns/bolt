@@ -2,16 +2,20 @@
   description = "bolt: a linter, checker and language server for Bend 2";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-  # bendlang/bend's flake at the commit that packages 2.0.36 (the v2.0.36 tag
-  # still packages 2.0.35): bolt builds on it, lints itself with the bolt it
+  # bendlang/bend's flake at the commit that packages 2.0.38 (the v2.0.38 tag
+  # may still package 2.0.37): bolt builds on it, lints itself with the bolt it
   # builds, and checks.proofs runs every PROOF.bend on it
   inputs.bend = {
-    url = "github:bendlang/bend/eebc18cd04daeade06c3f68c3c96c1faefd3462f";
+    url = "github:bendlang/bend/042e797ebd1cfc060603e2682879909fe86fa8c2";
     inputs.nixpkgs.follows = "nixpkgs";
   };
+  # ez stays on the bend its own flake.lock records (2.0.36) until it releases
+  # on 2.0.38: it does not check on 2.0.38 yet. The tooling pass puts
+  # `inputs.bend.follows = "bend"` and ez.mkProofs back then.
   inputs.ez = {
     url = "github:Emerging-Patterns/ez";
     inputs.nixpkgs.follows = "nixpkgs";
+    inputs.bend.url = "github:bendlang/bend/eebc18cd04daeade06c3f68c3c96c1faefd3462f";
   };
 
   outputs = { self, nixpkgs, ... }@inputs:
@@ -29,7 +33,8 @@
         inherit bend;
         src = self;
         version = "1.15.0"; # x-release-please-version
-        wrapFlags = [ "--gpu" "off" ];
+        # the runtime's options go between +RTS and -RTS (bend 2.0.38)
+        wrapFlags = [ "+RTS" "--gpu" "off" "-RTS" ];
         meta = {
           description = "A linter, checker and language server for Bend 2";
           license = pkgs.lib.licenses.mit;
@@ -49,17 +54,22 @@
           ${old.buildPhase}
         '';
       });
-      # ez's package is the one its flake builds. The proof gate runs on this
-      # flake's bend: that bend replaces the one on the ez wrapper's PATH.
-      ezProve = pkgs.runCommand "ez-prove" { } ''
-        mkdir -p $out/bin
-        sed 's|/nix/store/[a-z0-9]*-bend-[0-9.]*/bin|${bend}/bin|g' \
-          ${inputs.ez.packages.${system}.default}/bin/ez > $out/bin/ez
-        chmod +x $out/bin/ez
+      # the proof gate: every PROOF.bend on this flake's bend, each passing
+      # only on a first line of ALL PROOFS CHECK. A shell loop until ez
+      # releases on 2.0.38 and ez.mkProofs runs on it (the tooling pass).
+      proofs = pkgs.runCommand "bolt-proofs" {
+        nativeBuildInputs = [ bend ];
+        BEND_LIB = ez.bendLib ./ez.lock.toml;
+      } ''
+        export HOME=$TMPDIR
+        cp -r ${self} src && chmod -R u+w src && cd src
+        for p in $(find . -name PROOF.bend -not -path './.ez/*' | sort); do
+          first=$(cd "$(dirname "$p")" && bend "$(basename "$p")" | head -n 1)
+          echo "$p: $first"
+          [ "$first" = "ALL PROOFS CHECK" ] || exit 1
+        done
+        touch $out
       '';
-      # the proof gate: `ez prove`, every PROOF.bend on this flake's bend,
-      # each passing only on a first line of ALL PROOFS CHECK
-      proofs = ez.mkProofs { ez = ezProve; src = self; };
       # bolt, built from this tree, over this tree: exit 1 on any error
       lint = ez.mkLint { inherit bolt; src = self; };
     in {

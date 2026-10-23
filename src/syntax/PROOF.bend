@@ -8,11 +8,6 @@ import ../lazy/lazy.bend as Lazy
 import ./bind.bend as Bind
 import ./LAWS.bend as Laws
 
-# String.eq's last step (bend 2.0.33 dropped Base's String.eq.fin): whether a
-# comparison's result is EQ. String.eq(a, b) unfolds to eq_fin(String.cmp(a, b))
-def eq_fin(rr: (String & String) & Cmp) -> Bool:
-  Cmp.is_eq(Pair.snd(String & String, Cmp, rr))
-
 # a string onto nothing is itself
 law app.nil:
   for +a: String
@@ -1434,7 +1429,7 @@ law decide.op:
   for +gs: List<&2, Lex.Tok>
   for +one: List<&2, Lex.Tok>
   {Bool.pick(List<&2, Lex.Tok>, Bool.not(Lazy.and_then(b, _u => Tree.all_gt(String.to_list(r)))), one,
-      Bool.pick(List<&2, Lex.Tok>, String.starts_with.if(r, SNil{}, b), gs, one))
+      Bool.pick(List<&2, Lex.Tok>, String.starts_with.go.if(SNil{}, r, b), gs, one))
     == Bool.pick(List<&2, Lex.Tok>, Lazy.and_then(b, _u => Laws.only_gt(String.to_list(r))), gs, one)
     : List<&2, Lex.Tok>}
 
@@ -2981,11 +2976,11 @@ def ol.head_none(x, t, nn, e105, e100, e64, e108, e116):
     Some{Outline.Item{Outline.IDef{}, Laws.top.name(String.drop(SCon{Chr{x}, t}, 12n)), nn, "", "", ""}},
     Some{Outline.Item{Outline.ILaw{}, Laws.top.name(String.drop(SCon{Chr{x}, t}, 4n)), nn, "", "", ""}},
     Some{Outline.Item{Outline.IType{}, Laws.top.name(String.drop(SCon{Chr{x}, t}, 5n)), nn, "", "", ""}},
-    Equal.cong(Bool, Bool, b => String.starts_with.if(t, "mport ", b), U32.is_eq(x, 105), False{}, e105),
-    Equal.cong(Bool, Bool, b => String.starts_with.if(t, "ef ", b), U32.is_eq(x, 100), False{}, e100),
-    Equal.cong(Bool, Bool, b => String.starts_with.if(t, "unsafe def ", b), U32.is_eq(x, 64), False{}, e64),
-    Equal.cong(Bool, Bool, b => String.starts_with.if(t, "aw ", b), U32.is_eq(x, 108), False{}, e108),
-    Equal.cong(Bool, Bool, b => String.starts_with.if(t, "ype ", b), U32.is_eq(x, 116), False{}, e116))
+    Equal.cong(Bool, Bool, b => String.starts_with.go.if("mport ", t, b), U32.is_eq(x, 105), False{}, e105),
+    Equal.cong(Bool, Bool, b => String.starts_with.go.if("ef ", t, b), U32.is_eq(x, 100), False{}, e100),
+    Equal.cong(Bool, Bool, b => String.starts_with.go.if("unsafe def ", t, b), U32.is_eq(x, 64), False{}, e64),
+    Equal.cong(Bool, Bool, b => String.starts_with.go.if("aw ", t, b), U32.is_eq(x, 108), False{}, e108),
+    Equal.cong(Bool, Bool, b => String.starts_with.go.if("ype ", t, b), U32.is_eq(x, 116), False{}, e116))
 
 # what a line of code with first char x leaves: what the spec says it opens,
 # onto the items settled, one line on
@@ -3387,7 +3382,7 @@ law rs.dot.arm:
   for +b: Bool
   for +t: String
   for ih: {String.contains(t, ".") == rs.ok(Laws.res.after(t)) : Bool}
-  {String.contains.if(t, ".", String.starts_with.if(t, SNil{}, b))
+  {String.contains.if(t, ".", String.starts_with.go.if(SNil{}, t, b))
     == rs.ok(Bool.pick(Maybe<&2, String>, b, Some{t}, Laws.res.after(t))) : Bool}
 
 def rs.dot.arm(b, t, ih):
@@ -3517,16 +3512,38 @@ def rs.qual.at(c, q, r, mm, als, e1, e2):
       Bind.TFree{}, _u => Bind.TQual{q, _}) == Laws.res.qual(mm, q, als) : Bind.Target}
   rs.qual(mm, q, als)
 
-# String.eq's last step, through one more pair of heads, reads the same
-law rs.fin:
-  for +hx: Char
-  for +hy: Char
-  for rr: (String & String) & Cmp
-  {eq_fin(String.cmp.rec(hx, hy, rr)) == eq_fin(rr) : Bool}
+# String.eq walks with String.order.go (bend 2.0.37): once the heads differ,
+# the order is theirs, whatever the rest
+law rs.go_lt:
+  for a: String
+  for b: String
+  {String.order.go(a, b, LT{}) == LT{} : Cmp}
 
-def rs.fin(_hx, _hy, rr):
-  match rr:
-    case ((a2, b2), c):
+def rs.go_lt(a, b):
+  match a b:
+    case SNil{} SNil{}:
+      {==}
+    case SNil{} SCon{_h, _t}:
+      {==}
+    case SCon{_h, _t} SNil{}:
+      {==}
+    case SCon{Chr{_x}, _t1} SCon{Chr{_y}, _t2}:
+      {==}
+
+law rs.go_gt:
+  for a: String
+  for b: String
+  {String.order.go(a, b, GT{}) == GT{} : Cmp}
+
+def rs.go_gt(a, b):
+  match a b:
+    case SNil{} SNil{}:
+      {==}
+    case SNil{} SCon{_h, _t}:
+      {==}
+    case SCon{_h, _t} SNil{}:
+      {==}
+    case SCon{Chr{_x}, _t1} SCon{Chr{_y}, _t2}:
       {==}
 
 # a step of `same` is a step of String.eq, whatever the heads compare to
@@ -3534,22 +3551,20 @@ law rs.step:
   for c: Cmp
   for +t1: String
   for +t2: String
-  for +hx: Char
-  for +hy: Char
   for ih: {Bind.same(t1, t2) == String.eq(t1, t2) : Bool}
-  {Lazy.and_then(Cmp.is_eq(c), _u => Bind.same(t1, t2)) == eq_fin(String.cmp.fin(t1, t2, ((hx, hy), c)))
-    : Bool}
+  {Lazy.and_then(Cmp.is_eq(c), _u => Bind.same(t1, t2)) == Cmp.is_eq(String.order.go(t1, t2, c)) : Bool}
 
-def rs.step(c, t1, t2, hx, hy, ih):
+def rs.step(c, t1, t2, ih):
   match c:
     case LT{}:
+      %Equal.sym(Cmp, String.order.go(t1, t2, LT{}), LT{}, rs.go_lt(t1, t2)) :
+        {Lazy.and_then(Cmp.is_eq(LT{}), _u => Bind.same(t1, t2)) == Cmp.is_eq(_) : Bool}
       {==}
     case EQ{}:
-      Equal.trans(Bool, Bind.same(t1, t2), String.eq(t1, t2),
-        eq_fin(String.cmp.rec(hx, hy, String.cmp(t1, t2))), ih,
-        Equal.sym(Bool, eq_fin(String.cmp.rec(hx, hy, String.cmp(t1, t2))), String.eq(t1, t2),
-          rs.fin(hx, hy, String.cmp(t1, t2))))
+      ih
     case GT{}:
+      %Equal.sym(Cmp, String.order.go(t1, t2, GT{}), GT{}, rs.go_gt(t1, t2)) :
+        {Lazy.and_then(Cmp.is_eq(GT{}), _u => Bind.same(t1, t2)) == Cmp.is_eq(_) : Bool}
       {==}
 
 # the binder's name test is String.eq
@@ -3567,17 +3582,17 @@ def rs.alike(aa, bb):
     case SCon{h1, t1} SNil{}:
       {==}
     case SCon{Chr{+x}, +t1} SCon{Chr{+y}, +t2}:
-      rs.step(U32.cmp(x, y), t1, t2, Chr{x}, Chr{y}, rs.alike(t1, t2))
+      rs.step(U32.cmp(x, y), t1, t2, rs.alike(t1, t2))
 
-# a stop at the first True is Bool.or
-law rs.or:
+# a stop at the first True is List.contains's step (List.any.if, bend 2.0.37)
+law rs.or_if:
   for a: Bool
   for -x: Bool
   for -y: Bool
   for ih: {x == y : Bool}
-  {Lazy.or_else(a, _u => x) == Bool.or(a, y) : Bool}
+  {Lazy.or_else(a, _u => x) == List.any.if(_u => y, a) : Bool}
 
-def rs.or(a, _x, _y, ih):
+def rs.or_if(a, _x, _y, ih):
   match a:
     case True{}:
       {==}
@@ -3597,11 +3612,11 @@ def rs.items(names, name):
     case Con{+hh, +rest}:
       Equal.trans(Bool,
         Lazy.or_else(Bind.same(hh, name), _u => Bind.has_item(rest, name)),
-        Bool.or(Bind.same(hh, name), List.contains(~String, ~String.eq, rest, name)),
-        Bool.or(String.eq(hh, name), List.contains(~String, ~String.eq, rest, name)),
-        rs.or(Bind.same(hh, name), Bind.has_item(rest, name), List.contains(~String, ~String.eq, rest, name),
+        List.any.if(_u => List.contains(~String, ~String.eq, rest, name), Bind.same(hh, name)),
+        List.any.if(_u => List.contains(~String, ~String.eq, rest, name), String.eq(hh, name)),
+        rs.or_if(Bind.same(hh, name), Bind.has_item(rest, name), List.contains(~String, ~String.eq, rest, name),
           rs.items(rest, name)),
-        Equal.cong(Bool, Bool, z => Bool.or(z, List.contains(~String, ~String.eq, rest, name)),
+        Equal.cong(Bool, Bool, z => List.any.if(_u => List.contains(~String, ~String.eq, rest, name), z),
           Bind.same(hh, name), String.eq(hh, name), rs.alike(hh, name)))
 
 # what the binder makes of a name no binder holds and no item has

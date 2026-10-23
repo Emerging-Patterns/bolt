@@ -7,6 +7,28 @@
         ]
       },
       "locked": {
+        "lastModified": 1792534666,
+        "narHash": "sha256-fzvSP+xnX/4FFv5VrYJPmyJEbAfNIi1TQHoAZ28rwwo=",
+        "owner": "bendlang",
+        "repo": "bend",
+        "rev": "042e797ebd1cfc060603e2682879909fe86fa8c2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "bendlang",
+        "repo": "bend",
+        "rev": "042e797ebd1cfc060603e2682879909fe86fa8c2",
+        "type": "github"
+      }
+    },
+    "bend_2": {
+      "inputs": {
+        "nixpkgs": [
+          "ez",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
         "lastModified": 1791348820,
         "narHash": "sha256-2YQX/3rN/NVkKcxjVMPLs4D5ItBwsVTEJxxKV6mIGSE=",
         "owner": "bendlang",
@@ -21,28 +43,6 @@
         "type": "github"
       }
     },
-    "bend_2": {
-      "inputs": {
-        "nixpkgs": [
-          "ez",
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1790643370,
-        "narHash": "sha256-VYGPIHkNeccEaBHGer1B7+GNiWKQBiN/iiS7PozBXx0=",
-        "owner": "bendlang",
-        "repo": "bend",
-        "rev": "777ee0b55c485afdd7e68bd917b3d23a88d77371",
-        "type": "github"
-      },
-      "original": {
-        "owner": "bendlang",
-        "repo": "bend",
-        "rev": "777ee0b55c485afdd7e68bd917b3d23a88d77371",
-        "type": "github"
-      }
-    },
     "ez": {
       "inputs": {
         "bend": "bend_2",
@@ -51,11 +51,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1790728722,
-        "narHash": "sha256-6SDNpCeAfR66xuSO8vkoBMZAQ24ZUyGYLc9GFadFYy8=",
+        "lastModified": 1791381403,
+        "narHash": "sha256-TaCVkunKx0FZVquSGNHmuzPDAI7DCv8Sy8upvTh324g=",
         "owner": "Emerging-Patterns",
         "repo": "ez",
-        "rev": "b5693ce28337e770b2c70c99d53d311cd044dc24",
+        "rev": "10276ec0d103f77f14bf2191e6bf7d41416a870f",
         "type": "github"
       },
       "original": {

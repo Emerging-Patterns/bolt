@@ -23,7 +23,7 @@ import ./build_rev.bend as Rev
 import ./check.bend as Check
 import ./lsp/checker/answer.bend as Checker
 import ./lsp/report.bend as Rep
-import 0xcab8a7a189cec2b51e8db0484f69c593/main.bend as Shake
+import 0xa383b26a5a0ef35663b3615d7aedf9e3/main.bend as Shake
 
 # LAW: nothing is set in an empty config
 # BOLT-CFG-1
@@ -383,7 +383,7 @@ def read_first(+world: W.World, ps: List<&2, String>) -> List<&2, String>:
     case Nil{}:
       []
     case Con{+p, rest}:
-      read_first.at(p, W.answer(world, W.Text{p}), read_first(world, rest))
+      read_first.at(p, W.answer(world, W.Contents{p}), read_first(world, rest))
 
 # the bolt.bend that grades each directory, in directory order: of its
 # candidates (the directory resolved against the World's working directory,
@@ -428,7 +428,7 @@ def flagged_all(+world: W.World, ps: List<&2, String>) -> List<&2, F.Finding>:
     case Nil{}:
       []
     case Con{+p, rest}:
-      List.append(&2, F.Finding, flagged_at(p, W.answer(world, W.Text{p})), flagged_all(world, rest))
+      List.append(&2, F.Finding, flagged_at(p, W.answer(world, W.Contents{p})), flagged_all(world, rest))
 
 # `setting`'s findings in a run: the unknown settings of every bolt.bend that
 # grades a directory grading needs (a source's or SPEC.md's), each bolt.bend
@@ -613,7 +613,7 @@ law unread_one_finding:
   for +world: W.World
   for +path: String
   for ps: List<&2, String>
-  for h: {W.answer(world, W.Text{path}) == Some{W.Unread{}} : Maybe<&2, W.Answer>}
+  for h: {W.answer(world, W.Contents{path}) == Some{W.Unread{}} : Maybe<&2, W.Answer>}
   {Plan.unread(Plan.gots(path <> ps, world))
     == F.Finding{path, 0, 0, 0, "read", "Cannot read this file."} <> Plan.unread(Plan.gots(ps, world))
     : List<&2, F.Finding>}
@@ -626,7 +626,7 @@ law directory_one_finding:
   for +world: W.World
   for +path: String
   for ps: List<&2, String>
-  for h: {W.answer(world, W.Text{path}) == Some{W.Directory{}} : Maybe<&2, W.Answer>}
+  for h: {W.answer(world, W.Contents{path}) == Some{W.Directory{}} : Maybe<&2, W.Answer>}
   {Plan.unread(Plan.gots(path <> ps, world))
     == F.Finding{path, 0, 0, 0, "read", "Cannot read this file."} <> Plan.unread(Plan.gots(ps, world))
     : List<&2, F.Finding>}
@@ -1043,7 +1043,7 @@ def first_read(+world: W.World, ps: List<&2, String>) -> Config.Config:
     case Nil{}:
       Config.none()
     case Con{p, rest}:
-      first_read.at(W.answer(world, W.Text{p}), first_read(world, rest))
+      first_read.at(W.answer(world, W.Contents{p}), first_read(world, rest))
 
 # LAW: a finding at a path is graded by the nearest bolt.bend the World read:
 # of the bolt.bend in the path's directory, resolved against the working

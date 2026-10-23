@@ -226,7 +226,7 @@ def asks.texts(ps: List<&2, String>) -> List<&2, W.Ask>:
     case Nil{}:
       Nil{}
     case Con{p, rest}:
-      W.Text{p} <> asks.texts(rest)
+      W.Contents{p} <> asks.texts(rest)
 
 # the directories the walk lists: every one it reads, none when files were
 # named

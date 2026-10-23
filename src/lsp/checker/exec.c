@@ -78,31 +78,53 @@ static void __attribute__((constructor)) bendcheck_exec_use(void) {
 }
 
 // `bolt lsp` with no `--gpu` is `--gpu off`. The runtime chooses the device
-// in main and takes `--gpu` out of the line, so this runs first and starts
-// the same binary with `--gpu off` in front. `--gpu on` or a size
-// (`--gpu 4GB`) is left as written.
+// in main, from the options between `+RTS` and `-RTS` (or to the end of the
+// line when `-RTS` is left off) and from the environment's BENDRTS, and
+// takes the bracket out of the line (bend 2.0.38). So this runs first and
+// starts the same binary with `+RTS --gpu off -RTS` in front. A `--gpu` in a
+// bracket or in BENDRTS (`--gpu on`, `--gpu 4GB`) is left as written. A
+// `--RTS` ends option reading: what follows reaches the program.
 #if defined(__linux__) || defined(__APPLE__)
 static int bolt_lsp_bare(int argc, char** argv) {
   int gpu = 0;
+  int rts = 0;
   const char* cmd = NULL;
+  const char* env = getenv("BENDRTS");
+  if (env != NULL && strstr(env, "--gpu") != NULL) {
+    gpu = 1;
+  }
   for (int i = 1; i < argc; i++) {
     const char* a = argv[i];
+    if (rts) {
+      if (strcmp(a, "-RTS") == 0) {
+        rts = 0;
+      } else if (strcmp(a, "--threads") == 0 || strcmp(a, "--gpu") == 0) {
+        if (strcmp(a, "--gpu") == 0) {
+          gpu = 1;
+        }
+        if (i + 1 < argc) {
+          i++;
+        }
+      }
+      continue;
+    }
+    if (strcmp(a, "--RTS") == 0) {
+      if (cmd == NULL && i + 1 < argc) {
+        cmd = argv[i + 1];
+      }
+      break;
+    }
+    if (strcmp(a, "+RTS") == 0) {
+      rts = 1;
+      continue;
+    }
     if (strcmp(a, "--") == 0) {
       if (cmd == NULL && i + 1 < argc) {
         cmd = argv[i + 1];
       }
       break;
     }
-    if (strcmp(a, "--help") == 0 || strcmp(a, "--gpu-build") == 0) {
-      continue;
-    }
-    if (strcmp(a, "--threads") == 0 || strcmp(a, "--gpu") == 0) {
-      if (strcmp(a, "--gpu") == 0) {
-        gpu = 1;
-      }
-      if (i + 1 < argc) {
-        i++;
-      }
+    if (strcmp(a, "--help") == 0) {
       continue;
     }
     if (cmd == NULL) {
@@ -113,17 +135,19 @@ static int bolt_lsp_bare(int argc, char** argv) {
 }
 
 static void bolt_exec_gpu_off(const char* exe, int argc, char** argv) {
-  char** next = malloc((size_t)(argc + 3) * sizeof(char*));
+  char** next = malloc((size_t)(argc + 5) * sizeof(char*));
   if (next == NULL) {
     return;
   }
   next[0] = (char*)exe;
-  next[1] = "--gpu";
-  next[2] = "off";
+  next[1] = "+RTS";
+  next[2] = "--gpu";
+  next[3] = "off";
+  next[4] = "-RTS";
   for (int i = 1; i < argc; i++) {
-    next[i + 2] = argv[i];
+    next[i + 4] = argv[i];
   }
-  next[argc + 2] = NULL;
+  next[argc + 4] = NULL;
   execv(exe, next);
   free(next);
 }

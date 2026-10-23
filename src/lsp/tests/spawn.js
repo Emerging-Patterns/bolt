@@ -4,7 +4,7 @@
 const { spawn } = require("child_process");
 const path = require("path");
 
-const server = spawn(process.argv[2], ["lsp", "--gpu", "off"],
+const server = spawn(process.argv[2], ["lsp"],
   { stdio: ["pipe", "pipe", "inherit"] });
 let buf = Buffer.alloc(0);
 const waiting = [];

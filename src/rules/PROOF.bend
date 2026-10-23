@@ -47,11 +47,6 @@ import ./digest.bend as Digest
 import ./suspicious/thunk.bend as Thunk
 import ./LAWS.bend as Laws
 
-# String.eq's last step (bend 2.0.33 dropped Base's String.eq.fin): whether a
-# comparison's result is EQ. String.eq(a, b) unfolds to eq_fin(String.cmp(a, b))
-def eq_fin(rr: (String & String) & Cmp) -> Bool:
-  Cmp.is_eq(Pair.snd(String & String, Cmp, rr))
-
 # a finding in front when b holds adds one to the count
 law nat.pick:
   for b: Bool
@@ -16582,16 +16577,39 @@ def unsafe.ueq(a, b, e):
     case U32{x} U32{y}:
       Equal.cong(Word(32n), U32, w => U32{w}, x, y, unsafe.weq(32n, x, y, e))
 
-# a compare that went on past equal first characters answers as the rest's
-law unsafe.rec:
-  for -h1: Char
-  for -h2: Char
-  for rr: (String & String) & Cmp
-  {eq_fin(String.cmp.rec(h1, h2, rr)) == eq_fin(rr) : Bool}
+# a compare whose first characters already differ answers as they do, whatever
+# the rest (String.eq walks with String.order.go since bend 2.0.37)
+law unsafe.go_lt:
+  for a: String
+  for b: String
+  {String.order.go(a, b, LT{}) == LT{} : Cmp}
 
-def unsafe.rec(_h1, _h2, rr):
-  ((_a, _b), _c) = rr
-  {==}
+def unsafe.go_lt(a, b):
+  match a b:
+    case SNil{} SNil{}:
+      {==}
+    case SNil{} SCon{_h, _t}:
+      {==}
+    case SCon{_h, _t} SNil{}:
+      {==}
+    case SCon{Chr{_x}, _t1} SCon{Chr{_y}, _t2}:
+      {==}
+
+law unsafe.go_gt:
+  for a: String
+  for b: String
+  {String.order.go(a, b, GT{}) == GT{} : Cmp}
+
+def unsafe.go_gt(a, b):
+  match a b:
+    case SNil{} SNil{}:
+      {==}
+    case SNil{} SCon{_h, _t}:
+      {==}
+    case SCon{_h, _t} SNil{}:
+      {==}
+    case SCon{Chr{_x}, _t1} SCon{Chr{_y}, _t2}:
+      {==}
 
 # strings whose first characters compare as c and whose compare comes out
 # equal: when c is equal and the rest are equal, they are equal
@@ -16603,20 +16621,23 @@ law unsafe.seq.arm:
   for c: Cmp
   for ec: {U32.cmp(x, y) == c : Cmp}
   for ih: {String.eq(t1, t2) == True{} : Bool} -> {t1 == t2 : String}
-  for e: {eq_fin(String.cmp.fin(t1, t2, ((Chr{x}, Chr{y}), c))) == True{} : Bool}
+  for e: {Cmp.is_eq(String.order.go(t1, t2, c)) == True{} : Bool}
   {SCon{Chr{x}, t1} == SCon{Chr{y}, t2} : String}
 
 def unsafe.seq.arm(x, y, t1, t2, c, ec, ih, e):
   match c:
     case LT{}:
-      Empty.absurd({SCon{Chr{x}, t1} == SCon{Chr{y}, t2} : String}, unsafe.false_true(e))
+      g = Equal.cong(Cmp, Bool, z => Cmp.is_eq(z), LT{}, String.order.go(t1, t2, LT{}),
+        Equal.sym(Cmp, String.order.go(t1, t2, LT{}), LT{}, unsafe.go_lt(t1, t2)))
+      Empty.absurd({SCon{Chr{x}, t1} == SCon{Chr{y}, t2} : String},
+        unsafe.false_true(Equal.trans(Bool, False{}, Cmp.is_eq(String.order.go(t1, t2, LT{})), True{}, g, e)))
     case GT{}:
-      Empty.absurd({SCon{Chr{x}, t1} == SCon{Chr{y}, t2} : String}, unsafe.false_true(e))
+      g = Equal.cong(Cmp, Bool, z => Cmp.is_eq(z), GT{}, String.order.go(t1, t2, GT{}),
+        Equal.sym(Cmp, String.order.go(t1, t2, GT{}), GT{}, unsafe.go_gt(t1, t2)))
+      Empty.absurd({SCon{Chr{x}, t1} == SCon{Chr{y}, t2} : String},
+        unsafe.false_true(Equal.trans(Bool, False{}, Cmp.is_eq(String.order.go(t1, t2, GT{})), True{}, g, e)))
     case EQ{}:
-      r = unsafe.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))
-      et = ih(Equal.trans(Bool, String.eq(t1, t2), eq_fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
-        True{}, Equal.sym(Bool, eq_fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
-          String.eq(t1, t2), r), e))
+      et = ih(e)
       ex = unsafe.ueq(x, y, Equal.cong(Cmp, Bool, z => Cmp.is_eq(z), U32.cmp(x, y), EQ{}, ec))
       %ex : {SCon{Chr{x}, t1} == SCon{Chr{_}, t2} : String}
       %et : {SCon{Chr{x}, t1} == SCon{Chr{x}, _} : String}
@@ -16672,10 +16693,7 @@ def unsafe.srefl(s):
       {==}
     case SCon{Chr{U32{+w}}, +t}:
       %Equal.sym(Cmp, Word.cmp(32n, w, w), EQ{}, unsafe.wrefl(32n, w)) :
-        {eq_fin(String.cmp.fin(t, t, ((Chr{U32{w}}, Chr{U32{w}}), _))) == True{} : Bool}
-      %Equal.sym(Bool, eq_fin(String.cmp.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t))),
-          eq_fin(String.cmp(t, t)), unsafe.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t))) :
-        {_ == True{} : Bool}
+        {Cmp.is_eq(String.order.go(t, t, _)) == True{} : Bool}
       unsafe.srefl(t)
 
 # Bool facts the reach proofs lean on
@@ -16803,6 +16821,30 @@ def unsafe.and_true(a, b, ea, eb):
 
 # membership, as Imports.has reads it
 
+# List.contains steps with List.any.if (bend 2.0.37): on a constructor head
+# test it is Bool.or
+law unsafe.any_or:
+  for b: Bool
+  for -r: Bool
+  {List.any.if(_u => r, b) == Bool.or(b, r) : Bool}
+
+def unsafe.any_or(b, _r):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# has on a cons is the head's test or the rest's
+law unsafe.has_con:
+  for +h: String
+  for +t: List<&2, String>
+  for +x: String
+  {Imports.has(h <> t, x) == Bool.or(String.eq(h, x), Imports.has(t, x)) : Bool}
+
+def unsafe.has_con(h, t, x):
+  unsafe.any_or(String.eq(h, x), Imports.has(t, x))
+
 # has over an append is has over either part
 law unsafe.has_app:
   for xs: List<&2, String>
@@ -16815,6 +16857,13 @@ def unsafe.has_app(xs, ys, x):
     case Nil{}:
       {==}
     case Con{+h, +t}:
+      %Equal.sym(Bool, Imports.has(h <> List.append(&2, String, t, ys), x),
+          Bool.or(String.eq(h, x), Imports.has(List.append(&2, String, t, ys), x)),
+          unsafe.has_con(h, List.append(&2, String, t, ys), x)) :
+        {_ == Bool.or(Imports.has(h <> t, x), Imports.has(ys, x)) : Bool}
+      %Equal.sym(Bool, Imports.has(h <> t, x), Bool.or(String.eq(h, x), Imports.has(t, x)), unsafe.has_con(h, t, x)) :
+        {Bool.or(String.eq(h, x), Imports.has(List.append(&2, String, t, ys), x))
+          == Bool.or(_, Imports.has(ys, x)) : Bool}
       %Equal.sym(Bool, Imports.has(List.append(&2, String, t, ys), x), Bool.or(Imports.has(t, x), Imports.has(ys, x)),
           unsafe.has_app(t, ys, x)) :
         {Bool.or(String.eq(h, x), _) == Bool.or(Bool.or(String.eq(h, x), Imports.has(t, x)), Imports.has(ys, x)) : Bool}
@@ -16834,9 +16883,17 @@ def unsafe.has_rgo(xs, acc, x):
     case Nil{}:
       {==}
     case Con{+h, +t}:
+      %Equal.sym(Bool, Imports.has(h <> t, x), Bool.or(String.eq(h, x), Imports.has(t, x)), unsafe.has_con(h, t, x)) :
+        {Imports.has(List.reverse.go(&2, String, t, h <> acc), x) == Bool.or(_, Imports.has(acc, x)) : Bool}
+      ih = Equal.trans(Bool, Imports.has(List.reverse.go(&2, String, t, h <> acc), x),
+        Bool.or(Imports.has(t, x), Imports.has(h <> acc, x)),
+        Bool.or(Imports.has(t, x), Bool.or(String.eq(h, x), Imports.has(acc, x))),
+        unsafe.has_rgo(t, h <> acc, x),
+        Equal.cong(Bool, Bool, r => Bool.or(Imports.has(t, x), r), Imports.has(h <> acc, x),
+          Bool.or(String.eq(h, x), Imports.has(acc, x)), unsafe.has_con(h, acc, x)))
       %Equal.sym(Bool, Imports.has(List.reverse.go(&2, String, t, h <> acc), x),
           Bool.or(Imports.has(t, x), Bool.or(String.eq(h, x), Imports.has(acc, x))),
-          unsafe.has_rgo(t, h <> acc, x)) :
+          ih) :
         {_ == Bool.or(Bool.or(String.eq(h, x), Imports.has(t, x)), Imports.has(acc, x)) : Bool}
       %Equal.sym(Bool, Bool.or(Bool.or(String.eq(h, x), Imports.has(t, x)), Imports.has(acc, x)),
           Bool.or(String.eq(h, x), Bool.or(Imports.has(t, x), Imports.has(acc, x))),
@@ -16873,7 +16930,7 @@ law unsafe.has_sub.at:
   for b: Bool
   for eb: {String.eq(h, x) == b : Bool}
   for hh: {Imports.has(ss, h) == True{} : Bool}
-  for hx: {Bool.or(b, Imports.has(t, x)) == True{} : Bool}
+  for hx: {List.any.if(_u => Imports.has(t, x), b) == True{} : Bool}
   for ih: {Imports.has(t, x) == True{} : Bool} -> {Imports.has(ss, x) == True{} : Bool}
   {Imports.has(ss, x) == True{} : Bool}
 
@@ -16955,7 +17012,9 @@ def unsafe.in_refl(xs):
       {==}
     case Con{+h, +t}:
       unsafe.and_true(Imports.has(h <> t, h), unsafe.all_in(h <> t, t),
-        unsafe.or_l(String.eq(h, h), Imports.has(t, h), unsafe.srefl(h)), unsafe.in_pre([h], t, t, unsafe.in_refl(t)))
+        Equal.trans(Bool, Imports.has(h <> t, h), Bool.or(String.eq(h, h), Imports.has(t, h)), True{},
+          unsafe.has_con(h, t, h), unsafe.or_l(String.eq(h, h), Imports.has(t, h), unsafe.srefl(h))),
+        unsafe.in_pre([h], t, t, unsafe.in_refl(t)))
 
 # a list that holds two lists holds them appended
 law unsafe.in_app:
@@ -17053,6 +17112,10 @@ def unsafe.read_paths(ds, pp):
     case Nil{}:
       {==}
     case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, +rest}:
+      %Equal.sym(Bool, Imports.has(norm <> Imports.paths(Digest.edges(rest)), pp),
+          Bool.or(String.eq(norm, pp), Imports.has(Imports.paths(Digest.edges(rest)), pp)),
+          unsafe.has_con(norm, Imports.paths(Digest.edges(rest)), pp)) :
+        {_ == Bool.or(String.eq(norm, pp), Laws.unsafe.read(rest, pp)) : Bool}
       %Equal.sym(Bool, Imports.has(Imports.paths(Digest.edges(rest)), pp), Laws.unsafe.read(rest, pp),
           unsafe.read_paths(rest, pp)) :
         {Bool.or(String.eq(norm, pp), _) == Bool.or(String.eq(norm, pp), Laws.unsafe.read(rest, pp)) : Bool}
@@ -17096,7 +17159,7 @@ law unsafe.shut_at.at:
   for b: Bool
   for eb: {String.eq(h, p) == b : Bool}
   for hh: {Laws.unsafe.held(ds, ss, Laws.unsafe.imports(ds, h)) == True{} : Bool}
-  for hx: {Bool.or(b, Imports.has(t, p)) == True{} : Bool}
+  for hx: {List.any.if(_u => Imports.has(t, p), b) == True{} : Bool}
   for ih: {Imports.has(t, p) == True{} : Bool}
     -> {Laws.unsafe.held(ds, ss, Laws.unsafe.imports(ds, p)) == True{} : Bool}
   {Laws.unsafe.held(ds, ss, Laws.unsafe.imports(ds, p)) == True{} : Bool}
@@ -17251,8 +17314,12 @@ def imp.seek(ps, pp):
   match ps:
     case Nil{}:
       {==}
-    case Con{p, +rest}:
-      unused.or(String.eq(p, pp), Imports.seek(rest, pp), Imports.has(rest, pp), imp.seek(rest, pp))
+    case Con{+p, +rest}:
+      Equal.trans(Bool, Lazy.or_else(String.eq(p, pp), _u => Imports.seek(rest, pp)),
+        Bool.or(String.eq(p, pp), Imports.has(rest, pp)), Imports.has(p <> rest, pp),
+        unused.or(String.eq(p, pp), Imports.seek(rest, pp), Imports.has(rest, pp), imp.seek(rest, pp)),
+        Equal.sym(Bool, Imports.has(p <> rest, pp), Bool.or(String.eq(p, pp), Imports.has(rest, pp)),
+          unsafe.has_con(p, rest, pp)))
 
 # an early exit on the first hit is the pick that computed the rest anyway
 law imp.stop:
@@ -17408,7 +17475,8 @@ def Laws.unsafe_from(ds, from):
   Equal.trans(Bool, Imports.has(List.reverse(&2, String, ww), from), Imports.has(ww, from), True{},
     unsafe.has_rev(ww, from),
     unsafe.keep(ds, List.length(&2, Digest.Digest, ds), [from], [from], from,
-      unsafe.or_l(String.eq(from, from), False{}, unsafe.srefl(from))))
+      Equal.trans(Bool, Imports.has([from], from), Bool.or(String.eq(from, from), False{}), True{},
+        unsafe.has_con(from, [], from), unsafe.or_l(String.eq(from, from), False{}, unsafe.srefl(from)))))
 
 def Laws.unsafe_least(ds, from, ss, pp, hf, hs, hw):
   +ww = Imports.walk.spec(List.length(&2, Digest.Digest, ds), [from], [from], Digest.edges(ds),
@@ -17638,7 +17706,7 @@ law unsafe.inv_keep.at:
   for e3: {Imports.has(rest, q) == b3 : Bool}
   for hp: {Laws.unsafe.held(ds, seen2, Laws.unsafe.imports(ds, p)) == True{} : Bool}
   for hg: {unsafe.all_in(seen2, seen) == True{} : Bool}
-  for h0: {Bool.or(Bool.or(b2, b3), b1) == True{} : Bool}
+  for h0: {Bool.or(List.any.if(_u => b3, b2), b1) == True{} : Bool}
   {Bool.or(Imports.has(List.append(&2, String, found, rest), q), Laws.unsafe.held(ds, seen2, Laws.unsafe.imports(ds,
     q)))
     == True{} : Bool}
@@ -17689,7 +17757,7 @@ def unsafe.inv_keep(ds, p, rest, seen, found, seen2, qs, hp, hg, hi):
       {==}
     case Con{+q, +t}:
       +b1 = Laws.unsafe.held(ds, seen, Laws.unsafe.imports(ds, q))
-      +hq = Bool.or(Bool.or(String.eq(p, q), Imports.has(rest, q)), b1)
+      +hq = Bool.or(Imports.has(p <> rest, q), b1)
       unsafe.and_true(
         Bool.or(Imports.has(List.append(&2, String, found, rest), q), Laws.unsafe.held(ds, seen2,
           Laws.unsafe.imports(ds, q))),
@@ -17934,7 +18002,8 @@ law unsafe.miss_cons0.at:
   for w: &s: Nat -> {unsafe.miss(t, tt) == Nat.add(unsafe.miss(t, d <> tt), s) : Nat}
   exs s2: Nat
   {Bool.pick(Nat, b1, unsafe.miss(t, tt), 1n+unsafe.miss(t, tt))
-    == Nat.add(Bool.pick(Nat, Bool.or(b2, b1), unsafe.miss(t, d <> tt), 1n+unsafe.miss(t, d <> tt)), s2) : Nat}
+    == Nat.add(Bool.pick(Nat, List.any.if(_u => b1, b2), unsafe.miss(t, d <> tt),
+      1n+unsafe.miss(t, d <> tt)), s2) : Nat}
 
 def unsafe.miss_cons0.at(tt, d, t, b1, b2, w):
   match b1:
@@ -17979,12 +18048,13 @@ law unsafe.miss_cons1.at:
   for e2: {String.eq(d, h) == b2 : Bool}
   for e3: {String.eq(h, d) == b3 : Bool}
   for ht: {Imports.has(tt, d) == False{} : Bool}
-  for hr: {Bool.or(b3, Imports.has(t, d)) == True{} : Bool}
+  for hr: {List.any.if(_u => Imports.has(t, d), b3) == True{} : Bool}
   for ih: {Imports.has(t, d) == True{} : Bool}
     -> &s: Nat -> {unsafe.miss(t, tt) == 1n+Nat.add(unsafe.miss(t, d <> tt), s) : Nat}
   exs s2: Nat
   {Bool.pick(Nat, b1, unsafe.miss(t, tt), 1n+unsafe.miss(t, tt))
-    == 1n+Nat.add(Bool.pick(Nat, Bool.or(b2, b1), unsafe.miss(t, d <> tt), 1n+unsafe.miss(t, d <> tt)), s2) : Nat}
+    == 1n+Nat.add(Bool.pick(Nat, List.any.if(_u => b1, b2), unsafe.miss(t, d <> tt),
+      1n+unsafe.miss(t, d <> tt)), s2) : Nat}
 
 def unsafe.miss_cons1.at(tt, d, h, t, b1, b2, b3, e1, e2, e3, ht, hr, ih):
   match b1:
@@ -18374,7 +18444,9 @@ def unsafe.shut_top.go(ds, from, w):
   +hh = Laws.unsafe.held(ds, [from], Laws.unsafe.imports(ds, from))
   unsafe.shut_walk(ds, List.length(&2, Digest.Digest, ds), [from], [from], k, e,
     unsafe.and_true(Bool.or(Imports.has([from], from), hh), True{},
-      unsafe.or_l(Imports.has([from], from), hh, unsafe.or_l(String.eq(from, from), False{}, unsafe.srefl(from))),
+      unsafe.or_l(Imports.has([from], from), hh,
+        Equal.trans(Bool, Imports.has([from], from), Bool.or(String.eq(from, from), False{}), True{},
+          unsafe.has_con(from, [], from), unsafe.or_l(String.eq(from, from), False{}, unsafe.srefl(from)))),
         {==}))
 
 # the walk from any start returns a shut list: a start that was read is
@@ -18603,27 +18675,31 @@ def inert.differ(c, x, y, ec, ex, ey):
 # a string comparison whose first chars differ is not equal, whatever follows
 law inert.fin_false:
   for c: Cmp
-  for -r: String
-  for -ys: String
-  for -h1: Char
-  for -h2: Char
+  for r: String
+  for ys: String
   for ec: {Cmp.is_eq(c) == False{} : Bool}
-  {eq_fin(String.cmp.fin(r, ys, ((h1, h2), c))) == False{} : Bool}
+  {Cmp.is_eq(String.order.go(r, ys, c)) == False{} : Bool}
 
-def inert.fin_false(c, r, ys, h1, h2, ec):
+def inert.fin_false(c, r, ys, ec):
   match c:
-    case LT{}: {==}
-    case GT{}: {==}
+    case LT{}:
+      %Equal.sym(Cmp, String.order.go(r, ys, LT{}), LT{}, unsafe.go_lt(r, ys)) :
+        {Cmp.is_eq(_) == False{} : Bool}
+      {==}
+    case GT{}:
+      %Equal.sym(Cmp, String.order.go(r, ys, GT{}), GT{}, unsafe.go_gt(r, ys)) :
+        {Cmp.is_eq(_) == False{} : Bool}
+      {==}
     case EQ{}:
-      Empty.absurd({eq_fin(String.cmp.fin(r, ys, ((h1, h2), EQ{}))) == False{} : Bool},
+      Empty.absurd({Cmp.is_eq(String.order.go(r, ys, EQ{})) == False{} : Bool},
         inert.false_true(Equal.sym(Bool, True{}, False{}, ec)))
 
 # a text with a marked first char is never equal to one with an unmarked one
 law inert.neq.con:
   for h: Char
-  for -r: String
+  for r: String
   for y: Char
-  for -ys: String
+  for ys: String
   for et: {Laws.inert.mark(h) == True{} : Bool}
   for ex: {Laws.inert.mark(y) == False{} : Bool}
   {String.eq(SCon{h, r}, SCon{y, ys}) == False{} : Bool}
@@ -18631,7 +18707,7 @@ law inert.neq.con:
 def inert.neq.con(h, r, y, ys, et, ex):
   match h y:
     case Chr{+a} Chr{+b}:
-      inert.fin_false(U32.cmp(a, b), r, ys, Chr{a}, Chr{b}, inert.differ(U32.cmp(a, b), a, b, {==}, et, ex))
+      inert.fin_false(U32.cmp(a, b), r, ys, inert.differ(U32.cmp(a, b), a, b, {==}, et, ex))
 
 # a marked text is never equal to an unmarked one
 law inert.neq:
@@ -18644,7 +18720,7 @@ law inert.neq:
 def inert.neq(t, x, et, ex):
   match t x:
     case SNil{} x: Empty.absurd({String.eq(SNil{}, x) == False{} : Bool}, inert.false_true(et))
-    case SCon{h, r} SNil{}: {==}
+    case SCon{Chr{_a}, r} SNil{}: {==}
     case SCon{h, r} SCon{y, ys}: inert.neq.con(h, r, y, ys, et, ex)
 
 # a text cut to its first char is marked when the text is
@@ -19860,6 +19936,21 @@ law inert.or2:
 def inert.or2(a1, _a2, b1, b2, ea, eb):
   %ea : {Bool.or(a1, b1) == Bool.or(_, b2) : Bool}
   %eb : {Bool.or(a1, b1) == Bool.or(a1, _) : Bool}
+  {==}
+
+# the same for List.contains's step (List.any.if, bend 2.0.37)
+law inert.if2:
+  for -a1: Bool
+  for -a2: Bool
+  for -b1: Bool
+  for -b2: Bool
+  for ea: {a1 == a2 : Bool}
+  for eb: {b1 == b2 : Bool}
+  {List.any.if(_u => b1, a1) == List.any.if(_u => b2, a2) : Bool}
+
+def inert.if2(a1, _a2, b1, b2, ea, eb):
+  %ea : {List.any.if(_u => b1, a1) == List.any.if(_u => b2, _) : Bool}
+  %eb : {List.any.if(_u => b1, a1) == List.any.if(_u => _, a1) : Bool}
   {==}
 
 # a chain read that way calls the name as it did, for a plain name
@@ -21599,9 +21690,9 @@ def inert.differ_r(c, x, y, ec, ex, ey):
 # a text with an unmarked first char is never equal to one with a marked one
 law inert.neq.con_r:
   for h: Char
-  for -r: String
+  for r: String
   for y: Char
-  for -ys: String
+  for ys: String
   for ex: {Laws.inert.mark(h) == False{} : Bool}
   for et: {Laws.inert.mark(y) == True{} : Bool}
   {String.eq(SCon{h, r}, SCon{y, ys}) == False{} : Bool}
@@ -21609,7 +21700,7 @@ law inert.neq.con_r:
 def inert.neq.con_r(h, r, y, ys, ex, et):
   match h y:
     case Chr{+a} Chr{+b}:
-      inert.fin_false(U32.cmp(a, b), r, ys, Chr{a}, Chr{b}, inert.differ_r(U32.cmp(a, b), a, b, {==}, ex, et))
+      inert.fin_false(U32.cmp(a, b), r, ys, inert.differ_r(U32.cmp(a, b), a, b, {==}, ex, et))
 
 # an unmarked text is never equal to a marked one
 law inert.neq_r:
@@ -21662,7 +21753,7 @@ def inert.contains_keep(xs, b, t, ef, ep):
     case Nil{}: {==}
     case Con{+h, +r}:
       +kt = Laws.inert.keep(b, t)
-      inert.or2(String.eq(h, kt), String.eq(h, t), List.contains(~String, ~String.eq, r, kt),
+      inert.if2(String.eq(h, kt), String.eq(h, t), List.contains(~String, ~String.eq, r, kt),
         List.contains(~String, ~String.eq, r, t),
         inert.eq_keep_r(b, t, h, ef, inert.not_true(Laws.inert.marked(h), inert.and_l(Bool.not(Laws.inert.marked(h)),
           inert.plains(r), ep))),
@@ -24937,7 +25028,7 @@ def inert.contains_mks(cs, x, ex):
   match cs:
     case Nil{}: {==}
     case Con{+h, +t}:
-      inert.or2(String.eq(inert.mk(h), x), String.eq(h, x), List.contains(~String, ~String.eq, inert.mks(t), x),
+      inert.if2(String.eq(inert.mk(h), x), String.eq(h, x), List.contains(~String, ~String.eq, inert.mks(t), x),
         List.contains(~String, ~String.eq, t, x), inert.eq_keep(Laws.inert.marked(h), h, x, inert.fits_mk(h), ex),
         inert.contains_mks(t, x, ex))
 
@@ -24954,8 +25045,8 @@ def inert.contains_marked(xs, t, ep, et):
     case Nil{}: {==}
     case Con{+h, +r}:
       %Equal.sym(Bool, String.eq(h, t), False{}, inert.neq_r(h, t, inert.not_true(Laws.inert.marked(h),
-        inert.and_l(Bool.not(Laws.inert.marked(h)), inert.plains(r), ep)), et)) : {Bool.or(_,
-          List.contains(~String, ~String.eq, r, t)) == False{} : Bool}
+        inert.and_l(Bool.not(Laws.inert.marked(h)), inert.plains(r), ep)), et)) :
+        {List.any.if(_u => List.contains(~String, ~String.eq, r, t), _) == False{} : Bool}
       inert.contains_marked(r, t, inert.and_r(Bool.not(Laws.inert.marked(h)), inert.plains(r), ep), et)
 
 # the names read that way reach the set as they did
