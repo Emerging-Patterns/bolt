@@ -6,14 +6,18 @@ and save, and hover, go-to-definition, document symbols and completion as you ty
 ```
 bend main.bend -o bin/bolt.bin   # from the repo root; clang 14 is enough
 bolt lsp                              # speaks LSP on stdio, on the cores
-bolt lsp --gpu on                     # the same, on the device
+bolt +RTS --gpu on -RTS lsp           # the same, on the device
 ```
 
 It is one command of [bolt](../)'s binary (`lsp/run.bend` is its
-entry). `bolt lsp` with no `--gpu` is `--gpu off`: a native binary takes
-the device when the line asks and one is present, and a language server
-stays on the cores unless the line says `--gpu on` or a size (`--gpu 4GB`).
-The runtime takes `--gpu` out of the line, so `IO.args()` still reads just
+entry). `bolt lsp` with no runtime `--gpu` is `--gpu off`: a native binary
+takes the device when its runtime options ask and one is present, and a
+language server stays on the cores unless they say `--gpu on` or a size
+(`--gpu 4GB`). Since bend 2.0.38 runtime options go between `+RTS` and
+`-RTS` (or in the environment's `BENDRTS`), and a bare `--gpu` is an
+unknown option to bolt. With none given, `bolt lsp` starts itself again
+with `+RTS --gpu off -RTS` in front (`checker/exec.c`). The runtime takes
+the bracket out of the line, so `IO.args()` still reads just
 `lsp`. It ships native only: the JS lane overflows its stack on a large
 message. Idle it costs no CPU.
 
