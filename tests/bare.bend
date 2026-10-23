@@ -18,23 +18,23 @@
 # it, and it is the slow one, because the compile it drives is a whole build of
 # bolt.
 import Base
-import 0xabe575924687afad4cee1a2c1194d639/main.bend as Snap
+import 0xead4c7939c9eaca8d47da53b4496b731/main.bend as Snap
 
 # `ok name` when the two strings are equal, `FAIL name` when they are not
 def eq_str(name: String, got: String, want: String) -> IO(Unit):
   IO.print(Bool.pick(String, String.eq(got, want), "ok ", "FAIL ") ++ name)
 
-# the 0x name ez computed for shake v0.2.0
+# the 0x name ez computed for shake v0.6.0
 def shake.hash() -> String:
-  "0xcab8a7a189cec2b51e8db0484f69c593"
+  "0xa383b26a5a0ef35663b3615d7aedf9e3"
 
 # the 0x name ez computed for ezjson v1.1.0
 def ezjson.hash() -> String:
   "0x81c67699424929b5c44cd8577e18117f"
 
-# the 0x name ez computed for snap v1.1.0
+# the 0x name ez computed for snap v1.3.0
 def snap.hash() -> String:
-  "0xabe575924687afad4cee1a2c1194d639"
+  "0xead4c7939c9eaca8d47da53b4496b731"
 
 # the build, with ez taken out of the environment. BEND_LIB is the
 # checkouts this test laid out, not ez's.
@@ -46,11 +46,11 @@ def main() -> IO(Unit):
   do IO<Unit>:
     _wd : String <- Snap.exec(["rm", "-rf", ".scratch/shake", ".scratch/ezjson",
       ".scratch/snap", ".scratch/lib"])
-    _cl : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v0.2.0",
+    _cl : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v0.6.0",
       "https://github.com/Emerging-Patterns/shake.git", ".scratch/shake"])
     _cj : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v1.1.0",
       "https://github.com/Emerging-Patterns/ezjson.git", ".scratch/ezjson"])
-    _cs : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v1.0.0",
+    _cs : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v1.3.0",
       "https://github.com/Emerging-Patterns/snap.git", ".scratch/snap"])
     _mk : String <- Snap.exec(["mkdir", "-p", ".scratch/lib/" ++ shake.hash(),
       ".scratch/lib/" ++ ezjson.hash(), ".scratch/lib/" ++ snap.hash()])

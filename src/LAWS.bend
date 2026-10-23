@@ -23,7 +23,7 @@ import ./build_rev.bend as Rev
 import ./check.bend as Check
 import ./lsp/checker/answer.bend as Checker
 import ./lsp/report.bend as Rep
-import 0xcab8a7a189cec2b51e8db0484f69c593/main.bend as Shake
+import 0xa383b26a5a0ef35663b3615d7aedf9e3/main.bend as Shake
 
 # LAW: nothing is set in an empty config
 # BOLT-CFG-1
