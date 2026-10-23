@@ -10,15 +10,16 @@ const { locate, serverEnv } = require("./locate.js");
 let client;
 
 async function start() {
-  // `bolt lsp --gpu off`: the server stays on the cores, where this work is
-  // 2-5x faster than on the GPU (src/lsp/bench); bend's runtime takes
-  // `--gpu off` out of the line before the program reads it. No `transport`:
-  // stdio is the default for a command, and naming it would only make the
-  // client append a `--stdio` the server has no use for.
+  // `bolt lsp`: the server stays on the cores, where this work is 2-5x
+  // faster than on the GPU (src/lsp/bench). `bolt lsp` with no `--gpu` starts
+  // itself again as `+RTS --gpu off -RTS lsp` (src/lsp/checker/exec.c), so
+  // the launch passes no runtime options. No `transport`: stdio is the
+  // default for a command, and naming it would only make the client append a
+  // `--stdio` the server has no use for.
   const setting = vscode.workspace.getConfiguration("bend").get("server.path");
   const run = {
     command: locate({ setting }),
-    args: ["lsp", "--gpu", "off"],
+    args: ["lsp"],
     options: { env: serverEnv(process.env, os.homedir()) },
   };
   client = new LanguageClient("bend", "Bend", { run, debug: run },

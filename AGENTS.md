@@ -190,11 +190,14 @@ Design specs and plans are not kept in this repo; they live under
   (src/lsp/tests/spawn.js), not only through pipes.
 - A *compiled* Bend binary passes its whole command line to `IO.args()`,
   flags included (2.0.16; 2.0.5 did not, which is where "a Bend binary takes
-  no arguments" came from). The runtime keeps only its own — `--threads`,
-  `--gpu`, `--gpu-build`, `--bend-help` — and strips them wherever they
-  stand, so `bolt lsp --gpu off` reaches the program as `lsp` (`bolt lsp`
-  with no `--gpu` is that same launch); the first `--` hands even those to
-  the program, and is itself stripped. `--help` reaches the program (2.0.29):
+  no arguments" came from). The runtime keeps only the options between
+  `+RTS` and `-RTS` (a trailing `-RTS` may be left off) and those in the
+  environment's `BENDRTS`, the command line winning (2.0.38): `bolt +RTS
+  --gpu off -RTS lsp` reaches the program as `lsp` (`bolt lsp` with no
+  `--gpu` is that same launch), while `bolt lsp --gpu off` reaches it as
+  `lsp --gpu off`. `--RTS` ends option reading and hands the rest to the
+  program; `--` reaches the program and does not end it; an unknown option
+  in the bracket is an error. `--help` reaches the program (2.0.29):
   bolt reads it as `help` (src/args.bend's `line`). `IO.args()` starts with
   the program as invoked, as C's argv does (2.0.32): `./bin/bolt.bin a b`
   gives `[./bin/bolt.bin, a, b]`, and src/args.bend's `args_of` drops the
@@ -213,10 +216,11 @@ Design specs and plans are not kept in this repo; they live under
   FID_.."): never both in one module.
 - The JS lane overflows its stack on long strings (~65KB). Head such a test
   `# lanes: native`; anything long-running ships as the native binary.
-- The GPU is on by default in a native binary: the CPU lane is `--gpu off`.
-  `bolt lsp` with no `--gpu` starts again as `--gpu off` before the runtime
-  chooses a device; `--gpu on` or `--gpu 4GB` is left as written. Launchers
-  may still pass `--gpu off` (tests/bare.bend, src/lsp/tests/spawn.js, the
-  VS Code extension, the nix wrapper).
+- The GPU is on by default in a native binary: the CPU lane is `+RTS --gpu
+  off -RTS`. `bolt lsp` with no `--gpu` in a bracket or in `BENDRTS` starts
+  again as `+RTS --gpu off -RTS lsp` before the runtime chooses a device;
+  `--gpu on` or `--gpu 4GB` is left as written. The VS Code extension and
+  src/lsp/tests/spawn.js launch plain `bolt lsp`; tests/bare.bend and the
+  nix wrapper pass `+RTS --gpu off -RTS`.
 - Link native binaries with `bend-cc` only. The wrapped nix clang links nix's
   glibc and nvrtc then fails to load `libnvrtc-builtins`.

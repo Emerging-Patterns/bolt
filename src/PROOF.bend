@@ -23,11 +23,6 @@ import ./lsp/report.bend as Rep
 import 0xcab8a7a189cec2b51e8db0484f69c593/main.bend as Shake
 import ./LAWS.bend as Laws
 
-# String.eq's last step (bend 2.0.33 dropped Base's String.eq.fin): whether a
-# comparison's result is EQ. String.eq(a, b) unfolds to eq_fin(String.cmp(a, b))
-def eq_fin(rr: (String & String) & Cmp) -> Bool:
-  Cmp.is_eq(Pair.snd(String & String, Cmp, rr))
-
 def Laws.set_level_none(_name):
   {==}
 
@@ -676,7 +671,7 @@ def c011.first(ps, world):
     case Nil{}:
       {==}
     case Con{+p, +tl}:
-      c011.first.step(p, W.answer(world, W.Text{p}), Plan.gots(tl, world), Laws.read_first(world, tl),
+      c011.first.step(p, W.answer(world, W.Contents{p}), Plan.gots(tl, world), Laws.read_first(world, tl),
         c011.first(tl, world))
 
 # the planner's grading bolt.bend of each directory is the spec's
@@ -756,7 +751,8 @@ def c011.at(ps, world):
     case Nil{}:
       {==}
     case Con{+p, +tl}:
-      c011.at.step(p, W.answer(world, W.Text{p}), Plan.gots(tl, world), Laws.flagged_all(world, tl), c011.at(tl, world))
+      c011.at.step(p, W.answer(world, W.Contents{p}), Plan.gots(tl, world), Laws.flagged_all(world, tl),
+        c011.at(tl, world))
 
 def Laws.setting_reports(world):
   u = Equal.sym(List<&2, String>, Plan.conf.used(Plan.conf.dirs(Plan.inputs(world)), world),
@@ -1054,14 +1050,14 @@ def Laws.exit_on_error(world):
   {==}
 
 def Laws.unread_one_finding(world, path, ps, h):
-  e = Equal.sym(Maybe<&2, W.Answer>, W.answer(world, W.Text{path}), Some{W.Unread{}}, h)
+  e = Equal.sym(Maybe<&2, W.Answer>, W.answer(world, W.Contents{path}), Some{W.Unread{}}, h)
   %e : {Plan.unread(Plan.Got{path, W.text.got(_)} <> Plan.gots(ps, world))
     == F.Finding{path, 0, 0, 0, "read", "Cannot read this file."} <> Plan.unread(Plan.gots(ps, world))
     : List<&2, F.Finding>}
   {==}
 
 def Laws.directory_one_finding(world, path, ps, h):
-  e = Equal.sym(Maybe<&2, W.Answer>, W.answer(world, W.Text{path}), Some{W.Directory{}}, h)
+  e = Equal.sym(Maybe<&2, W.Answer>, W.answer(world, W.Contents{path}), Some{W.Directory{}}, h)
   %e : {Plan.unread(Plan.Got{path, W.text.got(_)} <> Plan.gots(ps, world))
     == F.Finding{path, 0, 0, 0, "read", "Cannot read this file."} <> Plan.unread(Plan.gots(ps, world))
     : List<&2, F.Finding>}
@@ -1396,16 +1392,39 @@ def cfg4.ueq(a, b, e):
     case U32{x} U32{y}:
       Equal.cong(Word(32n), U32, w => U32{w}, x, y, cfg4.weq(32n, x, y, e))
 
-# a compare that went on past equal first characters answers as the rest's
-law cfg4.rec:
-  for -h1: Char
-  for -h2: Char
-  for rr: (String & String) & Cmp
-  {eq_fin(String.cmp.rec(h1, h2, rr)) == eq_fin(rr) : Bool}
+# a compare whose first characters already differ answers as they do, whatever
+# the rest (String.eq walks with String.order.go since bend 2.0.37)
+law cfg4.go_lt:
+  for a: String
+  for b: String
+  {String.order.go(a, b, LT{}) == LT{} : Cmp}
 
-def cfg4.rec(_h1, _h2, rr):
-  ((_a, _b), _c) = rr
-  {==}
+def cfg4.go_lt(a, b):
+  match a b:
+    case SNil{} SNil{}:
+      {==}
+    case SNil{} SCon{_h, _t}:
+      {==}
+    case SCon{_h, _t} SNil{}:
+      {==}
+    case SCon{Chr{_x}, _t1} SCon{Chr{_y}, _t2}:
+      {==}
+
+law cfg4.go_gt:
+  for a: String
+  for b: String
+  {String.order.go(a, b, GT{}) == GT{} : Cmp}
+
+def cfg4.go_gt(a, b):
+  match a b:
+    case SNil{} SNil{}:
+      {==}
+    case SNil{} SCon{_h, _t}:
+      {==}
+    case SCon{_h, _t} SNil{}:
+      {==}
+    case SCon{Chr{_x}, _t1} SCon{Chr{_y}, _t2}:
+      {==}
 
 # strings whose first characters compare as c and whose compare comes out
 # equal: when c is equal and the rest are equal, they are equal
@@ -1417,20 +1436,23 @@ law cfg4.seq.arm:
   for c: Cmp
   for ec: {U32.cmp(x, y) == c : Cmp}
   for ih: {String.eq(t1, t2) == True{} : Bool} -> {t1 == t2 : String}
-  for e: {eq_fin(String.cmp.fin(t1, t2, ((Chr{x}, Chr{y}), c))) == True{} : Bool}
+  for e: {Cmp.is_eq(String.order.go(t1, t2, c)) == True{} : Bool}
   {SCon{Chr{x}, t1} == SCon{Chr{y}, t2} : String}
 
 def cfg4.seq.arm(x, y, t1, t2, c, ec, ih, e):
   match c:
     case LT{}:
-      Empty.absurd({SCon{Chr{x}, t1} == SCon{Chr{y}, t2} : String}, cfg4.false_true(e))
+      g = Equal.cong(Cmp, Bool, z => Cmp.is_eq(z), LT{}, String.order.go(t1, t2, LT{}),
+        Equal.sym(Cmp, String.order.go(t1, t2, LT{}), LT{}, cfg4.go_lt(t1, t2)))
+      Empty.absurd({SCon{Chr{x}, t1} == SCon{Chr{y}, t2} : String},
+        cfg4.false_true(Equal.trans(Bool, False{}, Cmp.is_eq(String.order.go(t1, t2, LT{})), True{}, g, e)))
     case GT{}:
-      Empty.absurd({SCon{Chr{x}, t1} == SCon{Chr{y}, t2} : String}, cfg4.false_true(e))
+      g = Equal.cong(Cmp, Bool, z => Cmp.is_eq(z), GT{}, String.order.go(t1, t2, GT{}),
+        Equal.sym(Cmp, String.order.go(t1, t2, GT{}), GT{}, cfg4.go_gt(t1, t2)))
+      Empty.absurd({SCon{Chr{x}, t1} == SCon{Chr{y}, t2} : String},
+        cfg4.false_true(Equal.trans(Bool, False{}, Cmp.is_eq(String.order.go(t1, t2, GT{})), True{}, g, e)))
     case EQ{}:
-      r = cfg4.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))
-      et = ih(Equal.trans(Bool, String.eq(t1, t2), eq_fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
-        True{}, Equal.sym(Bool, eq_fin(String.cmp.rec(Chr{x}, Chr{y}, String.cmp(t1, t2))),
-          String.eq(t1, t2), r), e))
+      et = ih(e)
       ex = cfg4.ueq(x, y, Equal.cong(Cmp, Bool, z => Cmp.is_eq(z), U32.cmp(x, y), EQ{}, ec))
       %ex : {SCon{Chr{x}, t1} == SCon{Chr{_}, t2} : String}
       %et : {SCon{Chr{x}, t1} == SCon{Chr{x}, _} : String}
@@ -1524,7 +1546,7 @@ def cfg4.first(ps, world):
     case Nil{}:
       {==}
     case Con{+p, +tl}:
-      cfg4.first.step(W.answer(world, W.Text{p}), Plan.texts.at(tl, world), Laws.first_read(world, tl),
+      cfg4.first.step(W.answer(world, W.Contents{p}), Plan.texts.at(tl, world), Laws.first_read(world, tl),
         cfg4.first(tl, world))
 
 def Laws.nearest_grades(world, path):
@@ -1924,7 +1946,7 @@ law mk.split.at:
   for +tt: String
   for +rr: String
   for bb: Bool
-  for hh: {String.contains.if(tt, "\n", String.starts_with.if(tt, SNil{}, bb)) == False{} : Bool}
+  for hh: {String.contains.if(tt, "\n", String.starts_with.go.if(SNil{}, tt, bb)) == False{} : Bool}
   for ih: {String.contains(tt, "\n") == False{} : Bool}
     -> {String.split(String.append(tt, SCon{'\n', rr}), '\n') == tt <> String.split(rr, '\n') : List<&2,
       String>}

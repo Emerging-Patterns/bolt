@@ -15,7 +15,7 @@ import ../lazy/lazy.bend as Lazy
 # directory listed (src/walk/), or a file read (src/lsp/files/).
 type Ask is Data:
   Entries{dir: String}
-  Text{path: String}
+  Contents{path: String}
 
 # the answer to one question. A directory that cannot be opened lists as
 # empty, as src/walk/dir.c answers. A text asked of a path that is a
@@ -51,11 +51,11 @@ def ask.eq(aa: Ask, bb: Ask) -> Bool:
   match aa bb:
     case Entries{x1} Entries{y1}:
       String.eq(x1, y1)
-    case Text{x2} Text{y2}:
+    case Contents{x2} Contents{y2}:
       String.eq(x2, y2)
-    case Entries{_x3} Text{_y3}:
+    case Entries{_x3} Contents{_y3}:
       False{}
-    case Text{_x4} Entries{_y4}:
+    case Contents{_x4} Entries{_y4}:
       False{}
 
 # the first answer given to a question
@@ -121,4 +121,4 @@ def text.got(mm: Maybe<&2, Answer>) -> Maybe<&2, String>:
 # a file's text, or None when it could not be read, is a directory, or is
 # not read yet
 def text(world: World, path: String) -> Maybe<&2, String>:
-  text.got(answer(world, Text{path}))
+  text.got(answer(world, Contents{path}))

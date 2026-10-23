@@ -42,7 +42,7 @@ def answer(ask: W.Ask) -> IO(W.Answer):  # noqa: L001 IO driver
       do IO<W.Answer>:
         es : List<&2, String> <- WalkDisk.entries(dir)
         return W.Listed{es}
-    case W.Text{+path}:
+    case W.Contents{+path}:
       do IO<W.Answer>:
         dir : Bool <- WalkDisk.is_dir(path)
         text.answer(dir, path)

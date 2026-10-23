@@ -6,8 +6,10 @@
 # them; `lsp` serves an editor over stdio; `help` (or `--help`) prints usage; `--version`
 # prints the release and the short commit when the build has one. Build it
 # native (`bend main.bend -o bin/bolt.bin`). `bolt lsp` runs on the cores:
-# with no `--gpu` it is `--gpu off`, and `--gpu on` or `--gpu 4GB` asks for
-# the device. The runtime takes `--gpu` out of the line itself. What the line
+# with no runtime `--gpu` it is `+RTS --gpu off -RTS lsp`, and
+# `+RTS --gpu on -RTS` or `+RTS --gpu 4GB -RTS` asks for the device. Runtime
+# options go between `+RTS` and `-RTS` (bend 2.0.38); bolt declares no
+# `--gpu` of its own, so `bolt --gpu off` is an unknown option. What the line
 # does is Args.out's decision (src/LAWS.bend proves it); this file only does
 # it, and LAWS.bend states what src/stop.bend's say and leave do.
 # Everything under src/ is internal.

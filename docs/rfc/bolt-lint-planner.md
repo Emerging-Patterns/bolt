@@ -45,7 +45,7 @@ Everything else, parsing, the per-file rules, the project rules, grading, counti
 # a question the planner asks. Each is answered by one IO action.
 type Ask is Data:
   Entries{dir: String}          # list a directory (bolt/walk/dir.c)
-  Text{path: String}            # read a file (bolt/lsp/files/disk)
+  Contents{path: String}        # read a file (bolt/lsp/files/disk)
 
 # the answer to one question. A directory that cannot be opened lists as
 # empty, as dir.c answers today (REVIEW-P2).
@@ -71,9 +71,9 @@ As in ez, the World holds only what the command reads: the named paths and the a
 | Ask | Gathered by | When the planner asks |
 | :---- | :---- | :---- |
 | `Entries{dir}` | `Walk.entries(WalkDisk.new(), dir)` | no files named, for each directory the walk has queued and not yet had answered |
-| `Text{path}` for a source | `Files.read(Disk.new(), path)` | once the file list is known: each named or walked path that is not a bolt.bend |
-| `Text{"SPEC.md"}` | the same | always, in the same round as the sources |
-| `Text{".../bolt.bend"}` | the same | in the same round: `Config.candidates(64n, dir_of(p))` for every source path and for `SPEC.md`, each asked once (REVIEW-P1) |
+| `Contents{path}` for a source | `Files.read(Disk.new(), path)` | once the file list is known: each named or walked path that is not a bolt.bend |
+| `Contents{"SPEC.md"}` | the same | always, in the same round as the sources |
+| `Contents{".../bolt.bend"}` | the same | in the same round: `Config.candidates(64n, dir_of(p))` for every source path and for `SPEC.md`, each asked once (REVIEW-P1) |
 
 ### Laziness without losing purity
 
@@ -81,7 +81,7 @@ The file list is known only after the walk, and the walk's next directories are 
 
 |  |
 |:---:|
-| <pre>round 1:  World{[], []}                          -> wants [Entries "."]<br>round 2:  World{[], [. listed]}                  -> wants [Entries "./bolt", Entries "./core", ...]<br>...       (one round per level of the tree)<br>round k:  World{[], [every dir listed]}          -> wants [Text a.bend, ..., Text SPEC.md, Text bolt.bend, ...]<br>round k+1: World{[], [... every text read]}     -> wants []  ->  plan(w) = Plan{lines, exit}</pre> |
+| <pre>round 1:  World{[], []}                          -> wants [Entries "."]<br>round 2:  World{[], [. listed]}                  -> wants [Entries "./bolt", Entries "./core", ...]<br>...       (one round per level of the tree)<br>round k:  World{[], [every dir listed]}          -> wants [Contents a.bend, ..., Contents SPEC.md, Contents bolt.bend, ...]<br>round k+1: World{[], [... every text read]}     -> wants []  ->  plan(w) = Plan{lines, exit}</pre> |
 | Caption: With files named, the walk rounds are skipped and round 1 asks for the texts. |
 
 `wants(w)` is cheap: it re-runs the walk as a fold over the listings the World has, and never parses a file. `plan(w)` parses and lints once. The planner is a total function of the World: on a World missing an answer it needs, `plan` treats it as `Unread` (a `read` finding for a source, the defaults for a bolt.bend), but the interpreter only calls `plan` once `wants` is empty, and a law ties the two (below). The loop is the interpreter's, runs under fuel (100000 plus 2 rounds, the walk's bound plus the two read rounds), and each round adds at least one answer, since `wants` never asks what the World already answers.

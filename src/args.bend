@@ -4,10 +4,10 @@
 # those files. `help` is shake's usage page, and `--help` asks for the same
 # page (`line`). IO.args gives the program as invoked first, then its
 # arguments (bend 2.0.32); `argv` drops the program. A compiled binary passes
-# its arguments through; the runtime takes only its own out of the line
-# (`--threads`, `--gpu`, `--gpu-build`, `--bend-help`), wherever they stand,
-# and the first `--`, which hands even those to the program. `--help` reaches
-# the program (bend 2.0.29).
+# its whole line through except its runtime options, which stand between
+# `+RTS` and `-RTS` (bend 2.0.38): `--threads` and `--gpu` outside that
+# bracket reach the program, and `--RTS` hands everything after it to the
+# program. `--help` reaches the program (bend 2.0.29).
 # `out` is every decision the line makes, as data: what to print, where, and
 # the exit code, or the subcommand to run and its files. main only does it.
 # Only shake's interface (main.bend) is read here; what `parse` answers for a

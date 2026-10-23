@@ -70,13 +70,13 @@ def main() -> IO(Unit):
     located : String <- Snap.exec(["node", "tests/locate.js", "bin/bolt.bin"])
     eq_str("the extension finds bolt with no symlink to help it",
       Snap.text(located), "ok\n")
-    helped : String <- Snap.exec(["bin/bolt.bin", "--gpu", "off", "help"])
+    helped : String <- Snap.exec(["bin/bolt.bin", "+RTS", "--gpu", "off", "-RTS", "help"])
     eq_str("bolt help prints usage", Snap.code(helped), "0")
-    many : String <- Snap.exec(["bin/bolt.bin", "--gpu", "off",
+    many : String <- Snap.exec(["bin/bolt.bin", "+RTS", "--gpu", "off", "-RTS",
       "src/lsp/fixtures/proven/LAWS.bend",
       "src/lsp/fixtures/proven/PROOF.bend"])
     eq_str("bolt lints the files it is given", Snap.text(many), "clean\n")
-    checked : String <- Snap.exec(["bin/bolt.bin", "--gpu", "off", "check",
+    checked : String <- Snap.exec(["bin/bolt.bin", "+RTS", "--gpu", "off", "-RTS", "check",
       "src/lsp/fixtures/proven/LAWS.bend",
       "src/lsp/fixtures/proven/PROOF.bend"])
     eq_str("bolt check takes every leftover file", Snap.text(checked), "clean\n")

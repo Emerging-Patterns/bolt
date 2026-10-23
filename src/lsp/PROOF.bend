@@ -28,11 +28,6 @@ import ../syntax/bind.bend as Bind
 import ../syntax/outline.bend as Outline
 import ../syntax/word.bend as Word
 
-# String.eq's last step (bend 2.0.33 dropped Base's String.eq.fin): whether a
-# comparison's result is EQ. String.eq(a, b) unfolds to eq_fin(String.cmp(a, b))
-def eq_fin(rr: (String & String) & Cmp) -> Bool:
-  Cmp.is_eq(Pair.snd(String & String, Cmp, rr))
-
 # small facts
 # -----------
 
@@ -1447,18 +1442,8 @@ def pub.weq_refl(n, a):
           %e : {Word.cmp.fin(b, b, _) == EQ{} : Cmp}
           pub.bcmp(b)
 
-# a compare that went on past equal first characters answers as the rest's
-law pub.rec:
-  for -h1: Char
-  for -h2: Char
-  for rr: (String & String) & Cmp
-  {eq_fin(String.cmp.rec(h1, h2, rr)) == eq_fin(rr) : Bool}
-
-def pub.rec(_h1, _h2, rr):
-  ((_a, _b), _c) = rr
-  {==}
-
-# a string is equal to itself
+# a string is equal to itself (String.eq walks with String.order.go since
+# bend 2.0.37)
 law pub.seq_refl:
   for s: String
   {String.eq(s, s) == True{} : Bool}
@@ -1469,9 +1454,8 @@ def pub.seq_refl(s):
       {==}
     case SCon{Chr{U32{+w}}, +t}:
       e = Equal.sym(Cmp, Word.cmp(32n, w, w), EQ{}, pub.weq_refl(32n, w))
-      %e : {eq_fin(String.cmp.fin(t, t, ((Chr{U32{w}}, Chr{U32{w}}), _))) == True{} : Bool}
-      Equal.trans(Bool, eq_fin(String.cmp.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t))),
-        String.eq(t, t), True{}, pub.rec(Chr{U32{w}}, Chr{U32{w}}, String.cmp(t, t)), pub.seq_refl(t))
+      %e : {Cmp.is_eq(String.order.go(t, t, _)) == True{} : Bool}
+      pub.seq_refl(t)
 
 # the document just put at the head of the list is the one a lookup of its
 # URI finds: its errors
@@ -2406,13 +2390,33 @@ law nav.offers_contains:
   for xs: List<&2, String>
   {Enc.offers(Enc.cells(Ezjson.arr(Proto.strings(xs)))) == List.contains(~String, ~String.eq, xs, "utf-32") : Bool}
 
+# Bool.or is List.contains's step (List.any.if, bend 2.0.37) on a rest already
+# computed
+law nav.or_if:
+  for b: Bool
+  for -r: Bool
+  {Bool.or(b, r) == List.any.if(_u => r, b) : Bool}
+
+def nav.or_if(b, _r):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
 def nav.offers_contains(xs):
   match xs:
     case Nil{}:
       {==}
     case Con{x, t}:
-      Equal.cong(Bool, Bool, r => Bool.or(String.eq(x, "utf-32"), r), Enc.offers(Enc.cells(Ezjson.arr(Proto.strings(t)))),
-        List.contains(~String, ~String.eq, t, "utf-32"), nav.offers_contains(t))
+      Equal.trans(Bool,
+        Bool.or(String.eq(x, "utf-32"), Enc.offers(Enc.cells(Ezjson.arr(Proto.strings(t))))),
+        Bool.or(String.eq(x, "utf-32"), List.contains(~String, ~String.eq, t, "utf-32")),
+        List.any.if(_u => List.contains(~String, ~String.eq, t, "utf-32"), String.eq(x, "utf-32")),
+        Equal.cong(Bool, Bool, r => Bool.or(String.eq(x, "utf-32"), r),
+          Enc.offers(Enc.cells(Ezjson.arr(Proto.strings(t)))),
+          List.contains(~String, ~String.eq, t, "utf-32"), nav.offers_contains(t)),
+        nav.or_if(String.eq(x, "utf-32"), List.contains(~String, ~String.eq, t, "utf-32")))
 
 def Laws.enc_negotiated(xs):
   Equal.cong(Bool, Enc.Enc, Enc.chosen, Enc.offers(Enc.cells(Ezjson.arr(Proto.strings(xs)))),
