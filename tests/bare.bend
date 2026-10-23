@@ -28,9 +28,9 @@ def eq_str(name: String, got: String, want: String) -> IO(Unit):
 def shake.hash() -> String:
   "0xa383b26a5a0ef35663b3615d7aedf9e3"
 
-# the 0x name ez computed for ezjson v1.1.0
+# the 0x name ez computed for ezjson v1.2.0
 def ezjson.hash() -> String:
-  "0x81c67699424929b5c44cd8577e18117f"
+  "0xa81e161008ecc2f297c0a3065cb9b188"
 
 # the 0x name ez computed for snap v1.3.0
 def snap.hash() -> String:
@@ -48,7 +48,7 @@ def main() -> IO(Unit):
       ".scratch/snap", ".scratch/lib"])
     _cl : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v0.6.0",
       "https://github.com/Emerging-Patterns/shake.git", ".scratch/shake"])
-    _cj : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v1.1.0",
+    _cj : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v1.2.0",
       "https://github.com/Emerging-Patterns/ezjson.git", ".scratch/ezjson"])
     _cs : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v1.3.0",
       "https://github.com/Emerging-Patterns/snap.git", ".scratch/snap"])

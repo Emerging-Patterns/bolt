@@ -6,8 +6,8 @@
 # server.bend's pub.* decision, pure over what the IO gave it, so those laws
 # quantify over every text, every checker result and every file system.
 import Base
-import 0x81c67699424929b5c44cd8577e18117f/main.bend as Ezjson
-import 0x81c67699424929b5c44cd8577e18117f/src/value.bend as J
+import 0xa81e161008ecc2f297c0a3065cb9b188/main.bend as Ezjson
+import 0xa81e161008ecc2f297c0a3065cb9b188/src/value.bend as J
 import ./frame.bend as Frame
 import ./server.bend as Server
 import ./docs.bend as Docs

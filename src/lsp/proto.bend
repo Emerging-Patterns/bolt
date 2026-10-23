@@ -1,7 +1,7 @@
 # lsp/proto: the messages the server sends, and the little it reads of a URI.
 import Base
-import 0x81c67699424929b5c44cd8577e18117f/main.bend as Ezjson
-import 0x81c67699424929b5c44cd8577e18117f/src/value.bend as J
+import 0xa81e161008ecc2f297c0a3065cb9b188/main.bend as Ezjson
+import 0xa81e161008ecc2f297c0a3065cb9b188/src/value.bend as J
 import ./frame.bend as Frame
 import ./report.bend as Rep
 import ../syntax/outline.bend as Outline
