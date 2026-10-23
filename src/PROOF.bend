@@ -1556,15 +1556,13 @@ def Laws.nearest_grades(world, path):
     cfg4.find(Plan.conf.dirs(Plan.inputs(world)), world, Config.dir_of(path)),
     cfg4.first(Config.chain(Config.home(W.cwd.of(world), Config.dir_of(path))), world))
 
-# The command line (BOLT-CLI)
-# ---------------------------
-# shake is read through its interface only: what `parse` answers for an argv
-# is shake's guarantee (BOLT-TRUST-8), and the laws naming an argv take it as
-# their premises. So each proof rewrites the parse to the answer its premises
-# give, then reads that answer back through Args.out, which is bolt's code.
+# False is not True. shake proves the same two lemmas for its walker
+# (wk.false_true, wk.true_false in its src/walk.bend), but bolt reads shake
+# through main.bend only (BOLT-TRUST-8), which does not export them, and
+# bolt's own proofs below use them, so bolt keeps its copies.
 
 # Unit for False, Empty for True: a motive that tells them apart
-def cli.false_ty(bb: Bool) -> Type:
+def bool.false_ty(bb: Bool) -> Type:
   match bb:
     case False{}:
       Unit
@@ -1572,21 +1570,28 @@ def cli.false_ty(bb: Bool) -> Type:
       Empty
 
 # False is never True
-law cli.false_true:
+law bool.false_true:
   for e: {False{} == True{} : Bool}
   Empty
 
-def cli.false_true(e):
-  %e : cli.false_ty(_)
+def bool.false_true(e):
+  %e : bool.false_ty(_)
   Unit{}
 
 # True is never False
-law cli.true_false:
+law bool.true_false:
   for e: {True{} == False{} : Bool}
   Empty
 
-def cli.true_false(e):
-  cli.false_true(Equal.sym(Bool, True{}, False{}, e))
+def bool.true_false(e):
+  bool.false_true(Equal.sym(Bool, True{}, False{}, e))
+
+# The command line (BOLT-CLI)
+# ---------------------------
+# shake is read through its interface only: what `parse` answers for an argv
+# is shake's guarantee (BOLT-TRUST-8), and the laws naming an argv take it as
+# their premises. So each proof rewrites the parse to the answer its premises
+# give, then reads that answer back through Args.out, which is bolt's code.
 
 def Laws.cli_files(mm, ss, h):
   e = Equal.sym(Maybe<&2, Shake.Matched>, Shake.at(mm, Shake.path_of(mm)), Some{ss}, h)
@@ -1909,10 +1914,10 @@ def chk.untagged(ran, killed, names, text, h):
   match ran killed:
     case True{} _k:
       Empty.absurd({Checker.answer.tag(True{}, _k, names, text) == Checker.Unrun{} : Checker.Answer},
-        cli.true_false(h))
+        bool.true_false(h))
     case False{} True{}:
       Empty.absurd({Checker.answer.tag(False{}, True{}, names, text) == Checker.Unrun{} : Checker.Answer},
-        cli.true_false(h))
+        bool.true_false(h))
     case False{} False{}:
       {==}
 
@@ -1958,7 +1963,7 @@ def mk.split.at(cc, tt, rr, bb, hh, ih):
     case True{}:
       Empty.absurd({String.split.fin(cc, String.split(String.append(tt, SCon{'\n', rr}), '\n'), True{})
           == SCon{cc, tt} <> String.split(rr, '\n') : List<&2, String>},
-        cli.true_false(Equal.trans(Bool, True{}, String.contains.if(tt, "\n", String.starts_with(tt,
+        bool.true_false(Equal.trans(Bool, True{}, String.contains.if(tt, "\n", String.starts_with(tt,
           SNil{})), False{},
           Equal.sym(Bool, String.contains.if(tt, "\n", String.starts_with(tt, SNil{})), True{},
             Equal.cong(Bool, Bool, xx => String.contains.if(tt, "\n", xx), String.starts_with(tt, SNil{}),
@@ -2522,10 +2527,10 @@ def mk.push.at(aa, bb, text, msg, ea, eb):
       {==}
     case False{} True{}:
       Empty.absurd({Bool.pick(List<&2, String>, True{}, msg, text <> msg) == text <> msg : List<&2, String>},
-        cli.true_false(eb))
+        bool.true_false(eb))
     case True{} _bb:
       Empty.absurd({Bool.pick(List<&2, String>, True{}, msg, text <> msg) == text <> msg : List<&2, String>},
-        cli.true_false(ea))
+        bool.true_false(ea))
 
 # a message line joins the message
 law mk.push:
@@ -2726,7 +2731,7 @@ def mk.flush.pick(bb, eb, yes, no):
       {==}
     case True{}:
       Empty.absurd({Bool.pick(List<&2, Rep.Raw>, False{}, yes, no) == yes : List<&2, Rep.Raw>},
-        cli.true_false(eb))
+        bool.true_false(eb))
 
 # the parser's message text, equal to the one said, flushed
 law mk.flush.at:
@@ -3106,7 +3111,7 @@ def mk.import.at(bb, eb, path, name, vv, body):
         vv)) ++ ":1: error: "
           ++ Check.message(Bool.pick(String, True{}, body, "in " ++ name ++ ":\n" ++ body))]
         == [path ++ ":1:1: error: " ++ Check.message("in " ++ name ++ ":\n" ++ body)] : List<&2, String>},
-        cli.true_false(eb))
+        bool.true_false(eb))
 
 def Laws.check_import_first(names, path, parts, name, span, note, other, flat, fits):
   Equal.trans(List<&2, String>,
@@ -3143,12 +3148,12 @@ def mk.own.at(bb, eb, cc, ec, path, name, vv, body):
       Empty.absurd({[path ++ ":" ++ U32.show(Bool.pick(U32, Bool.or(False{}, True{}), 1, vv)) ++ ":1: error: "
           ++ Check.message(Bool.pick(String, True{}, body, "in " ++ name ++ ":\n" ++ body))]
         == [path ++ ":" ++ U32.show(vv) ++ ":1: error: " ++ Check.message(body)] : List<&2, String>},
-        cli.true_false(ec))
+        bool.true_false(ec))
     case False{} _cc:
       Empty.absurd({[path ++ ":" ++ U32.show(Bool.pick(U32, Bool.or(True{}, _cc), 1, vv)) ++ ":1: error: "
           ++ Check.message(Bool.pick(String, False{}, body, "in " ++ name ++ ":\n" ++ body))]
         == [path ++ ":" ++ U32.show(vv) ++ ":1: error: " ++ Check.message(body)] : List<&2, String>},
-        cli.false_true(eb))
+        bool.false_true(eb))
 
 def Laws.check_own_marked(names, path, parts, name, span, note, own, some, flat, fits):
   Equal.trans(List<&2, String>,

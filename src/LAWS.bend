@@ -1058,9 +1058,11 @@ law nearest_grades:
     : Config.Config}
 
 # The command line (BOLT-CLI). shake parses argv against bolt's spec, and
-# what it answers for a given argv is shake's guarantee, proved in shake at
-# the pinned version: bolt trusts those rows (BOLT-TRUST-8) and never
-# unfolds shake's parser, reading it only through its interface. Args.out
+# what it answers for a given argv is shake's guarantee, proved in shake's
+# own gate at the pinned version (v0.6.0, where no row is pending): bolt
+# cites those rows, trusts only that gate and SHAKE-TRUST-2 (BOLT-TRUST-8),
+# and never unfolds shake's parser or re-proves its walker, reading it only
+# through its interface. Args.out
 # decides what the parse does, and main only does it (BOLT-TRUST-9): a Stop
 # prints its text to its stream and exits with its code, and a Go runs its
 # subcommand over the files, which then exits as that command decides
