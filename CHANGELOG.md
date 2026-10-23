@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.16.0](https://github.com/Emerging-Patterns/bolt/compare/v1.15.0...v1.16.0) (2026-10-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* bolt needs Bend 2.0.38. Runtime options go between +RTS and -RTS: `bolt --gpu off ...` is now an unknown option, write `bolt +RTS --gpu off -RTS ...`. A plain `--` reaches bolt as end-of-options.
+
+### Bug Fixes
+
+* port bolt to Bend 2.0.38, shake v0.6.0 and snap v1.3.0 ([#236](https://github.com/Emerging-Patterns/bolt/issues/236)) ([1e2a1eb](https://github.com/Emerging-Patterns/bolt/commit/1e2a1eb0e566fad3f12695f2b69dc37e6ea39b2d))
+
 ## [1.15.0](https://github.com/Emerging-Patterns/bolt/compare/v1.14.0...v1.15.0) (2026-09-30)
 
 
