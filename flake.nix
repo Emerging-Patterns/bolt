@@ -3,19 +3,16 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   # bendlang/bend's flake at the commit that packages 2.0.38 (the v2.0.38 tag
-  # may still package 2.0.37): bolt builds on it, lints itself with the bolt it
-  # builds, and checks.proofs runs every PROOF.bend on it
+  # may still package 2.0.37): bolt and ez build on it, bolt lints itself with
+  # the bolt it builds, and checks.proofs runs every PROOF.bend on it
   inputs.bend = {
     url = "github:bendlang/bend/042e797ebd1cfc060603e2682879909fe86fa8c2";
     inputs.nixpkgs.follows = "nixpkgs";
   };
-  # ez stays on the bend its own flake.lock records (2.0.36) until it releases
-  # on 2.0.38: it does not check on 2.0.38 yet. The tooling pass puts
-  # `inputs.bend.follows = "bend"` and ez.mkProofs back then.
   inputs.ez = {
     url = "github:Emerging-Patterns/ez";
     inputs.nixpkgs.follows = "nixpkgs";
-    inputs.bend.url = "github:bendlang/bend/eebc18cd04daeade06c3f68c3c96c1faefd3462f";
+    inputs.bend.follows = "bend";
   };
 
   outputs = { self, nixpkgs, ... }@inputs:
@@ -23,6 +20,7 @@
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
       ez = inputs.ez.lib.${system};
+      ezBin = inputs.ez.packages.${system}.default;
       bend = inputs.bend.packages.${system}.default;
       bend-cc = ez.bend-cc;
       rawRev = self.shortRev or (self.dirtyShortRev or "");
@@ -55,27 +53,14 @@
         '';
       });
       # the proof gate: every PROOF.bend on this flake's bend, each passing
-      # only on a first line of ALL PROOFS CHECK. A shell loop until ez
-      # releases on 2.0.38 and ez.mkProofs runs on it (the tooling pass).
-      proofs = pkgs.runCommand "bolt-proofs" {
-        nativeBuildInputs = [ bend ];
-        BEND_LIB = ez.bendLib ./ez.lock.toml;
-      } ''
-        export HOME=$TMPDIR
-        cp -r ${self} src && chmod -R u+w src && cd src
-        for p in $(find . -name PROOF.bend -not -path './.ez/*' | sort); do
-          first=$(cd "$(dirname "$p")" && bend "$(basename "$p")" | head -n 1)
-          echo "$p: $first"
-          [ "$first" = "ALL PROOFS CHECK" ] || exit 1
-        done
-        touch $out
-      '';
+      # only on a first line of ALL PROOFS CHECK
+      proofs = ez.mkProofs { ez = ezBin; src = self; };
       # bolt, built from this tree, over this tree: exit 1 on any error
       lint = ez.mkLint { inherit bolt; src = self; };
     in {
       packages.${system} = {
         inherit bolt bend bend-cc;
-        ez = inputs.ez.packages.${system}.default;
+        ez = ezBin;
         default = bolt;
       };
       checks.${system} = { inherit bolt proofs lint; };
