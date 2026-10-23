@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.0](https://github.com/Emerging-Patterns/bolt/compare/v1.17.0...v1.18.0) (2026-10-23)
+
+
+### Bug Fixes
+
+* **deps:** ezjson v1.2.0 ([#245](https://github.com/Emerging-Patterns/bolt/issues/245)) ([25b1dba](https://github.com/Emerging-Patterns/bolt/commit/25b1dba44b13bff58a2daa3ac700a32e56ec4adc))
+
 ## [1.17.0](https://github.com/Emerging-Patterns/bolt/compare/v1.16.0...v1.17.0) (2026-10-23)
 
 
