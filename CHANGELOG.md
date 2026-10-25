@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.19.0](https://github.com/Emerging-Patterns/bolt/compare/v1.18.0...v1.19.0) (2026-10-25)
+
+
+### Features
+
+* **nix:** build and check on x86_64-linux, aarch64-linux and aarch64-darwin ([#249](https://github.com/Emerging-Patterns/bolt/issues/249)) ([dcd0b1c](https://github.com/Emerging-Patterns/bolt/commit/dcd0b1c5fc01baf4e094a2322074c4c320151b61))
+
 ## [1.18.0](https://github.com/Emerging-Patterns/bolt/compare/v1.17.0...v1.18.0) (2026-10-23)
 
 

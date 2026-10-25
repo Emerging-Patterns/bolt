@@ -33,7 +33,7 @@
           boltPkg = ez.mkPackage {
             inherit bend;
             src = self;
-            version = "1.18.0"; # x-release-please-version
+            version = "1.19.0"; # x-release-please-version
             # the runtime's options go between +RTS and -RTS (bend 2.0.38)
             wrapFlags = [ "+RTS" "--gpu" "off" "-RTS" ];
             meta = {
