@@ -18,7 +18,7 @@
 # it, and it is the slow one, because the compile it drives is a whole build of
 # bolt.
 import Base
-import 0xead4c7939c9eaca8d47da53b4496b731/main.bend as Snap
+import 0x8e26a6f8c31689519e618374376ee3dd/main.bend as Snap
 
 # `ok name` when the two strings are equal, `FAIL name` when they are not
 def eq_str(name: String, got: String, want: String) -> IO(Unit):
@@ -32,9 +32,9 @@ def shake.hash() -> String:
 def ezjson.hash() -> String:
   "0xa81e161008ecc2f297c0a3065cb9b188"
 
-# the 0x name ez computed for snap v1.3.0
+# the 0x name ez computed for snap v1.4.0
 def snap.hash() -> String:
-  "0xead4c7939c9eaca8d47da53b4496b731"
+  "0x8e26a6f8c31689519e618374376ee3dd"
 
 # the build, with ez taken out of the environment. BEND_LIB is the
 # checkouts this test laid out, not ez's.
