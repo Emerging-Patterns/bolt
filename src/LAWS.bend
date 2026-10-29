@@ -12,6 +12,7 @@ import ./rules/digest.bend as Digest
 import ./rules/laws/law.bend as Law
 import ./rules/laws/unsafe.bend as Unsafe
 import ./rules/laws/trace.bend as Trace
+import ./rules/imports.bend as Imports
 import ./lint/world.bend as W
 import ./lint/plan.bend as Plan
 import ./noqa.bend as Noqa
@@ -445,16 +446,224 @@ law setting_reports:
   for +world: W.World
   {Plan.settings(world) == settings_found(world) : List<&2, F.Finding>}
 
+# Packages (BOLT-SCOPE-6, BOLT-SCOPE-7). A package root other than `.` is a
+# directory the walk reads whose listing names a main.bend; `coverage` and
+# `trace` run on each package's files alone, `unsafe` on every file. A
+# directory is named as Digest.dir names one: normalized, with its slash, and
+# `` for `.`.
+
+# whether a listing names a main.bend
+def names_main(es: List<&2, String>) -> Bool:
+  match es:
+    case Nil{}:
+      False{}
+    case Con{e, rest}:
+      Bool.or(String.eq(e, "main.bend"), names_main(rest))
+
+# the directories, in order, that are package roots: every one but `.`
+# whose listing names a main.bend
+def main_dirs(+world: W.World, ds: List<&2, String>) -> List<&2, String>:
+  match ds:
+    case Nil{}:
+      []
+    case Con{+d, rest}:
+      +more = main_dirs(world, rest)
+      Bool.pick(List<&2, String>, Bool.and(Bool.not(String.eq(d, ".")), names_main(W.listing(world, d))), d <> more,
+        more)
+
+# LAW: over files named on the line, `.` is the only package root
+# BOLT-SCOPE-6
+law roots_named:
+  for +world: W.World
+  for -p: String
+  for -rest: List<&2, String>
+  for h: {W.paths.of(world) == p <> rest : List<&2, String>}
+  {Plan.roots(world) == [] : List<&2, String>}
+
+# LAW: over the whole tree, the package roots but `.` are the directories the
+# walk reads whose listing names a main.bend, in the order it reads them
+# BOLT-SCOPE-6
+law roots_whole:
+  for +world: W.World
+  for h: {W.paths.of(world) == [] : List<&2, String>}
+  {Plan.roots(world) == main_dirs(world, Plan.walk.read(Plan.tree(world))) : List<&2, String>}
+
+# whether a directory is among the roots
+def listed(rs: List<&2, String>, +dd: String) -> Bool:
+  match rs:
+    case Nil{}:
+      False{}
+    case Con{r, rest}:
+      Bool.or(String.eq(r, dd), listed(rest, dd))
+
+# the first of the directories that is a root, or `` (the package `.`)
+def nearest(us: List<&2, String>, +rs: List<&2, String>) -> String:
+  match us:
+    case Nil{}:
+      ""
+    case Con{+u, rest}:
+      +more = nearest(rest, rs)
+      Bool.pick(String, listed(rs, u), u, more)
+
+# LAW: a file's package is the first of its directory and each parent,
+# nearest first, that is a package root, and `.` when none is
+# BOLT-SCOPE-6
+law package_nearest:
+  for +rs: List<&2, String>
+  for +dir: String
+  {Rules.owner(rs, dir) == nearest(Rules.ups(dir), rs) : String}
+
+# each package root as the project rules take it: its directory, and its
+# SPEC.md, `<root>/SPEC.md`, with what the World read there
+def pkgs(+world: W.World, rs: List<&2, String>) -> List<&2, Rules.Package>:
+  match rs:
+    case Nil{}:
+      []
+    case Con{+r, rest}:
+      Rules.Package{Imports.dir_of(r ++ "/SPEC.md"), r ++ "/SPEC.md", W.text(world, r ++ "/SPEC.md")}
+        <> pkgs(world, rest)
+
+# LAW: a package root's SPEC.md is `<root>/SPEC.md`, as the World read it
+# BOLT-SCOPE-6
+law package_spec:
+  for +world: W.World
+  for +rs: List<&2, String>
+  {Plan.packages(rs, world) == pkgs(world, rs) : List<&2, Rules.Package>}
+
+# the files of one package, in order
+def part(ds: List<&2, Digest.Digest>, +rs: List<&2, String>, +pkg: String) -> List<&2, Digest.Digest>:
+  match ds:
+    case Nil{}:
+      []
+    case Con{Digest.Digest{path, norm, +dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+      +more = part(rest, rs, pkg)
+      Bool.pick(List<&2, Digest.Digest>, String.eq(nearest(Rules.ups(dir), rs), pkg),
+        Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws} <> more, more)
+
+# `coverage` on the files of each package but `.`
+def covered(ps: List<&2, Rules.Package>, +ds: List<&2, Digest.Digest>, +rs: List<&2, String>) -> List<&2, F.Finding>:
+  match ps:
+    case Nil{}:
+      []
+    case Con{Rules.Package{+dir, _at, _spec}, rest}:
+      List.append(&2, F.Finding, Law.check(part(ds, rs, dir)), covered(rest, ds, rs))
+
+# `trace` on the files of each package but `.`, against its own SPEC.md
+def traced(
+  ps: List<&2, Rules.Package>,
+  +ds: List<&2, Digest.Digest>,
+  +rs: List<&2, String>,
+  +whole: Bool
+) -> List<&2, F.Finding>:
+  match ps:
+    case Nil{}:
+      []
+    case Con{Rules.Package{+dir, +at, spec}, rest}:
+      List.append(&2, F.Finding, Rules.trace.nested(spec, whole, dir, at, part(ds, rs, dir)),
+        traced(rest, ds, rs, whole))
+
+# the project rules' findings: `coverage` on each package's files, `.` first,
+# then `unsafe` on every file, then `trace` on each package's files
+def packed(
+  srcs: List<&2, Src.Src>,
+  +whole: Bool,
+  spec: Maybe<&2, String>,
+  +ps: List<&2, Rules.Package>
+) -> List<&2, F.Finding>:
+  +ds = Digest.all(srcs)
+  +rs = Rules.roots(ps)
+  List.concat(&2, F.Finding, [Law.check(part(ds, rs, "")), covered(ps, ds, rs), Unsafe.check(ds),
+    Rules.trace.top(part(ds, rs, ""), whole, spec), traced(ps, ds, rs, whole)])
+
+# LAW: `coverage` and `trace` see the digests of one package's files at a
+# time, `trace` with that package's SPEC.md, and `unsafe` sees every file's
+# BOLT-SCOPE-2
+# BOLT-SCOPE-3
+# BOLT-LAW-1
+# BOLT-LAW-5
+law packages_scoped:
+  for +srcs: List<&2, Src.Src>
+  for +whole: Bool
+  for +spec: Maybe<&2, String>
+  for +ps: List<&2, Rules.Package>
+  {Rules.project(srcs, whole, spec, ps) == packed(srcs, whole, spec, ps) : List<&2, F.Finding>}
+
+# LAW: when `.` is the only package root and the run holds a file, the
+# project findings are coverage, unsafe and trace over every file's digest,
+# trace against SPEC.md: a repo with one package is linted as before
+# BOLT-SCOPE-7
+law one_package:
+  for +s: Src.Src
+  for +ss: List<&2, Src.Src>
+  for +whole: Bool
+  for +spec: Maybe<&2, String>
+  {Rules.project(s <> ss, whole, spec, [])
+    == List.concat(&2, F.Finding, [Law.check(Digest.all(s <> ss)), Unsafe.check(Digest.all(s <> ss)),
+      Trace.check(whole, spec, Digest.all(s <> ss))])
+    : List<&2, F.Finding>}
+
+# LAW: a file at `<root>/<rest>` is named in the root's SPEC.md as `<rest>`
+# BOLT-LAW-5
+law trace_rebased:
+  for +pkg: String
+  for +rest: String
+  {Rules.rebase.one(pkg, pkg ++ rest) == rest : String}
+
+# LAW: a `trace` finding in SPEC.md is moved to the package's SPEC.md
+# BOLT-LAW-5
+law trace_repathed:
+  for +at: String
+  for +line: U32
+  for +col: U32
+  for +len: U32
+  for +rule: String
+  for +msg: String
+  for +fs: List<&2, F.Finding>
+  {Rules.repath(F.Finding{"SPEC.md", line, col, len, rule, msg} <> fs, at)
+    == F.Finding{at, line, col, len, rule, msg} <> Rules.repath(fs, at)
+    : List<&2, F.Finding>}
+
+# LAW: a `trace` finding on a law stays at the law's file
+# BOLT-LAW-5
+law trace_kept:
+  for +at: String
+  for +path: String
+  for +line: U32
+  for +col: U32
+  for +len: U32
+  for +rule: String
+  for +msg: String
+  for +fs: List<&2, F.Finding>
+  for h: {String.eq(path, "SPEC.md") == False{} : Bool}
+  {Rules.repath(F.Finding{path, line, col, len, rule, msg} <> fs, at)
+    == F.Finding{path, line, col, len, rule, msg} <> Rules.repath(fs, at)
+    : List<&2, F.Finding>}
+
+# LAW: the package `.` holding no file, with no SPEC.md read, is not traced
+# BOLT-LAW-5
+law trace_top_unread:
+  for +whole: Bool
+  {Rules.trace.top([], whole, None{}) == [] : List<&2, F.Finding>}
+
+# LAW: a package other than `.` with no SPEC.md read is not traced
+# BOLT-LAW-5
+law trace_nested_unread:
+  for +whole: Bool
+  for +pkg: String
+  for +at: String
+  for +ds: List<&2, Digest.Digest>
+  {Rules.trace.nested(None{}, whole, pkg, at, ds) == [] : List<&2, F.Finding>}
+
 # every finding of a run, ungraded: the read failures, then each source's
 # per-file findings, each rule seeing that one source, then `setting`'s,
-# seeing each bolt.bend grading reads, then coverage, unsafe and trace, each
-# seeing the digests of every source in the run (trace also whether the run
-# is the whole tree, and SPEC.md's text)
+# seeing each bolt.bend grading reads, then the project rules over every
+# source in the run, by package (trace also told whether the run is the whole
+# tree, SPEC.md's text, and each other package root's)
 def in_scope(+world: W.World) -> List<&2, F.Finding>:
   +ps = Plan.inputs(world)
-  +ds = Digest.all(parsed_all(world, ps))
-  List.concat(&2, F.Finding, [unread_all(world, ps), on_all(world, ps), settings_found(world), Law.check(ds),
-    Unsafe.check(ds), Trace.check(List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"), ds)])
+  List.concat(&2, F.Finding, [unread_all(world, ps), on_all(world, ps), settings_found(world),
+    packed(parsed_all(world, ps), List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"),
+      pkgs(world, Plan.roots(world)))])
 
 # LAW: the planner's findings are the read failures, then the per-file rules
 # on each source's Src alone, then `setting` on each bolt.bend grading reads,
@@ -899,11 +1108,6 @@ law walk_files:
 # file's defs and types only when the file is under law. This law says, over
 # the digests the planner hands the project rules, which files those are.
 
-# the digests the planner hands the project rules: one for each source of the
-# run it could read
-def handed(+world: W.World) -> List<&2, Digest.Digest>:
-  Digest.all(Plan.srcs_of(Plan.gots(Plan.inputs(world), world)))
-
 # whether some file of the run is a LAWS.bend
 def has_laws(ds: List<&2, Digest.Digest>) -> Bool:
   match ds:
@@ -947,15 +1151,13 @@ def coverage_of(on: Bool, ds: List<&2, Digest.Digest>, cl: List<&2, String>) -> 
     case False{}:
       []
 
-# LAW: when the files in the run include a LAWS.bend, every file in the run
-# that is not exempt is under law, graded against what every law of the run
+# LAW: when a package's files include a LAWS.bend, every one of them that is
+# not exempt is under law, graded against what every law of the package
 # reaches (rules/laws/law.bend); otherwise none is
 # BOLT-SCOPE-3
 law under_law_all:
-  for +world: W.World
-  {Law.check(handed(world))
-    == coverage_of(has_laws(handed(world)), handed(world), Law.reached(Law.graph(handed(world))))
-    : List<&2, F.Finding>}
+  for +ds: List<&2, Digest.Digest>
+  {Law.check(ds) == coverage_of(has_laws(ds), ds, Law.reached(Law.graph(ds))) : List<&2, F.Finding>}
 
 # Where a finding is graded (BOLT-CFG-4). The planner grades a finding by the
 # config of its path's directory (plan.bend, config.at), from a table it builds
