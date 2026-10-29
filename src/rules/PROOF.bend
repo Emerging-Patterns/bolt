@@ -10976,14 +10976,58 @@ def transcong.let(sk):
     case Tree.SLet{}: {==}
     case Tree.STerm{}: {==}
 
+# the rule's `=` / `<-` leaf is the law's
+law transcong.binds:
+  for nn: Tree.Node
+  {Transcong.binds(nn) == Laws.transcong.binds(nn) : Bool}
+
+def transcong.binds(nn):
+  match nn:
+    case Tree.Leaf{tok}:
+      match tok:
+        case Lex.Tok{k, t, l, c}:
+          match k:
+          case Lex.TName{}: {==}
+          case Lex.TUpper{}: {==}
+          case Lex.TDotted{}: {==}
+          case Lex.TWild{}: {==}
+          case Lex.TKey{}: {==}
+          case Lex.TNum{}: {==}
+          case Lex.TStr{}: {==}
+          case Lex.TChar{}: {==}
+          case Lex.TComment{}: {==}
+          case Lex.TSpace{}: {==}
+          case Lex.TNewline{}: {==}
+          case Lex.TOp{}: {==}
+          case Lex.TColon{}: {==}
+          case Lex.TEq{}: {==}
+          case Lex.TBind{}: {==}
+          case Lex.TArrow{}: {==}
+          case Lex.TLam{}: {==}
+          case Lex.TAll{}: {==}
+          case Lex.TAmp{}: {==}
+          case Lex.TOpen{}: {==}
+          case Lex.TClose{}: {==}
+          case Lex.TComma{}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+    case Tree.NCons{x, y}: {==}
+
 def Laws.transcong_walk_counts(nn, top, path):
   match nn:
     case Tree.NCons{+h, +rest}:
+      +tr = Bool.and(top, Bool.not(Transcong.binds(h)))
+      %transcong.binds(h) : {List.length(&2, F.Finding, List.concat(&2, F.Finding,
+        [Bool.pick(List<&2, F.Finding>, top, Transcong.site(h, rest, path), []), Transcong.walk(h, True{}, path),
+          Transcong.walk(rest, tr, path)]))
+        == Nat.add(Bool.pick(Nat, Bool.and(top, Laws.transcong.at(h, rest)), 1n, 0n),
+          Nat.add(Laws.transcong.count(h, True{}), Laws.transcong.count(rest, Bool.and(top, Bool.not(_))))) : Nat}
       table.three(Bool.pick(List<&2, F.Finding>, top, Transcong.site(h, rest, path), []),
-        Transcong.walk(h, True{}, path), Transcong.walk(rest, top, path),
+        Transcong.walk(h, True{}, path), Transcong.walk(rest, tr, path),
         Bool.pick(Nat, Bool.and(top, Laws.transcong.at(h, rest)), 1n, 0n),
-        Laws.transcong.count(h, True{}), Laws.transcong.count(rest, top), transcong.gate(top, h, rest, path),
-        Laws.transcong_walk_counts(h, True{}, path), Laws.transcong_walk_counts(rest, top, path))
+        Laws.transcong.count(h, True{}), Laws.transcong.count(rest, tr), transcong.gate(top, h, rest, path),
+        Laws.transcong_walk_counts(h, True{}, path), Laws.transcong_walk_counts(rest, tr, path))
     case Tree.Group{o, +kids, cl}:
       Laws.transcong_walk_counts(kids, True{}, path)
     case Tree.Stmt{+sk, +kids, +body}:
@@ -25278,6 +25322,44 @@ def inert.transcong.site(hh, rest, path):
     case Tree.NNil{}: {==}
     case Tree.NCons{x, y}: {==}
 
+# a `=` or `<-` leaf reads as it did: the kind is kept
+law inert.transcong.binds:
+  for hh: Tree.Node
+  {Transcong.binds(Laws.inert.node(hh)) == Transcong.binds(hh) : Bool}
+
+def inert.transcong.binds(hh):
+  match hh:
+    case Tree.Leaf{tok}:
+      match tok:
+        case Lex.Tok{k, t, l, c}:
+          match k:
+            case Lex.TName{}: {==}
+            case Lex.TUpper{}: {==}
+            case Lex.TDotted{}: {==}
+            case Lex.TWild{}: {==}
+            case Lex.TKey{}: {==}
+            case Lex.TNum{}: {==}
+            case Lex.TStr{}: {==}
+            case Lex.TChar{}: {==}
+            case Lex.TComment{}: {==}
+            case Lex.TSpace{}: {==}
+            case Lex.TNewline{}: {==}
+            case Lex.TOp{}: {==}
+            case Lex.TColon{}: {==}
+            case Lex.TEq{}: {==}
+            case Lex.TBind{}: {==}
+            case Lex.TArrow{}: {==}
+            case Lex.TLam{}: {==}
+            case Lex.TAll{}: {==}
+            case Lex.TAmp{}: {==}
+            case Lex.TOpen{}: {==}
+            case Lex.TClose{}: {==}
+            case Lex.TComma{}: {==}
+    case Tree.Group{x, y, z}: {==}
+    case Tree.Stmt{x, y, z}: {==}
+    case Tree.NNil{}: {==}
+    case Tree.NCons{x, y}: {==}
+
 # the walk reads a node as it did
 law inert.transcong.walk:
   for nn: Tree.Node
@@ -25289,15 +25371,19 @@ def inert.transcong.walk(nn, top, path):
   match nn:
     case Tree.NCons{+h, +rest}:
       +lhs = Transcong.walk(Laws.inert.node(Tree.NCons{h, rest}), top, path)
+      +tr = Bool.and(top, Bool.not(Transcong.binds(h)))
       %inert.transcong.site(h, rest, path) : {lhs == List.concat(&2, F.Finding, [Bool.pick(List<&2, F.Finding>, top, _,
           []),
-        Transcong.walk(h, True{}, path), Transcong.walk(rest, top, path)]) : List<&2, F.Finding>}
+        Transcong.walk(h, True{}, path), Transcong.walk(rest, tr, path)]) : List<&2, F.Finding>}
       %inert.transcong.walk(h, True{}, path) : {lhs == List.concat(&2, F.Finding, [Bool.pick(List<&2, F.Finding>, top,
-        Transcong.site(Laws.inert.node(h), Laws.inert.node(rest), path), []), _, Transcong.walk(rest, top,
+        Transcong.site(Laws.inert.node(h), Laws.inert.node(rest), path), []), _, Transcong.walk(rest, tr,
             path)]) : List<&2, F.Finding>}
-      %inert.transcong.walk(rest, top, path) : {lhs == List.concat(&2, F.Finding, [Bool.pick(List<&2, F.Finding>, top,
+      %inert.transcong.walk(rest, tr, path) : {lhs == List.concat(&2, F.Finding, [Bool.pick(List<&2, F.Finding>, top,
         Transcong.site(Laws.inert.node(h), Laws.inert.node(rest), path), []), Transcong.walk(Laws.inert.node(h), True{},
             path), _]) : List<&2, F.Finding>}
+      %inert.transcong.binds(h) : {lhs == List.concat(&2, F.Finding, [Bool.pick(List<&2, F.Finding>, top,
+        Transcong.site(Laws.inert.node(h), Laws.inert.node(rest), path), []), Transcong.walk(Laws.inert.node(h), True{},
+            path), Transcong.walk(Laws.inert.node(rest), Bool.and(top, Bool.not(_)), path)]) : List<&2, F.Finding>}
       {==}
     case Tree.Group{o, +kids, cl}:
       inert.transcong.walk(kids, True{}, path)

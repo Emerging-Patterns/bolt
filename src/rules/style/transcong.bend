@@ -16,8 +16,12 @@
 # or the sixth of which is exactly a leaf of a name kind whose text is
 # `Equal.cong` and a group opened by `(` (the kids end right after the group
 # or go on with a comma); not among the own nodes of a let statement (a `=`
-# or `<-` among its tokens, as src/syntax/tree.bend reads it), and found at
-# any depth otherwise, under statements and inside groups. One finding for
+# or `<-` among its tokens, as src/syntax/tree.bend reads it) and not after
+# a `=` or `<-` leaf earlier in its own chain (a let inside a group, as in a
+# lambda's body written in an argument, which the tree keeps as one chain
+# rather than statements: the rest of that chain is the let's value, or code
+# after it the rule leaves alone), and found at any depth otherwise, under
+# statements and inside groups. One finding for
 # each, on the `Equal.trans` leaf. The rule reads the shape, not the types:
 # a motive that `_` cannot mark (a cong under a binder of the lambda's own,
 # or a chain whose middle term is not the cong's) is still reported. Laws
@@ -126,6 +130,16 @@ def site(hh: Tree.Node, rest: Tree.Node, +path: String) -> List<&2, F.Finding>:
     case _other:
       []
 
+# is the node a `=` or `<-` leaf, a let's?
+def binds(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.Leaf{Lex.Tok{Lex.TEq{}, _t, _l, _c}}:
+      True{}
+    case Tree.Leaf{Lex.Tok{Lex.TBind{}, _t, _l, _c}}:
+      True{}
+    case _other:
+      False{}
+
 # is the statement a let?
 def is_let(sk: Tree.StmtKind) -> Bool:
   match sk:
@@ -135,13 +149,13 @@ def is_let(sk: Tree.StmtKind) -> Bool:
       False{}
 
 # every site under the node, at any depth; top: the node is not among a
-# let's own nodes
+# let's own nodes, nor after a `=` or `<-` leaf in its chain
 def walk(nn: Tree.Node, +top: Bool, +path: String) -> List<&2, F.Finding>:
   match nn:
     case Tree.NCons{+h, +rest}:
       +here = site(h, rest, path)
       List.concat(&2, F.Finding, [Bool.pick(List<&2, F.Finding>, top, here, []), walk(h, True{}, path),
-        walk(rest, top, path)])
+        walk(rest, Bool.and(top, Bool.not(binds(h))), path)])
     case Tree.Group{_o, kids, _cl}:
       walk(kids, True{}, path)
     case Tree.Stmt{sk, kids, body}:

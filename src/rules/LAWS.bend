@@ -2578,7 +2578,7 @@ law thunk_counts:
 # (six arguments), the fifth or sixth of which opens with a name leaf
 # spelling `Equal.cong` and a `(` group and ends right after it (the kids end
 # or go on with a comma). Sites are counted at any depth, except among the
-# own nodes of a let statement.
+# own nodes of a let statement and after a `=` or `<-` leaf in the chain.
 
 # is the node a name leaf spelling the text?
 def transcong.name(nn: Tree.Node, +tt: String) -> Bool:
@@ -2665,6 +2665,24 @@ def transcong.at(hh: Tree.Node, rest: Tree.Node) -> Bool:
     case other:
       False{}
 
+# is the token kind the lexer gives `=` or `<-`?
+def transcong.bind_kind(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TEq{}:
+      True{}
+    case Lex.TBind{}:
+      True{}
+    case other:
+      False{}
+
+# is the node a `=` or `<-` leaf?
+def transcong.binds(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.Leaf{Lex.Tok{k, t, l, c}}:
+      transcong.bind_kind(k)
+    case other:
+      False{}
+
 # is the statement a let?
 def transcong.let(sk: Tree.StmtKind) -> Bool:
   match sk:
@@ -2674,12 +2692,12 @@ def transcong.let(sk: Tree.StmtKind) -> Bool:
       False{}
 
 # how many sites the node holds, at any depth; top: the node is not among a
-# let's own nodes
+# let's own nodes, nor after a `=` or `<-` leaf in its chain
 def transcong.count(nn: Tree.Node, +top: Bool) -> Nat:
   match nn:
     case Tree.NCons{+h, +rest}:
       Nat.add(Bool.pick(Nat, Bool.and(top, transcong.at(h, rest)), 1n, 0n),
-        Nat.add(transcong.count(h, True{}), transcong.count(rest, top)))
+        Nat.add(transcong.count(h, True{}), transcong.count(rest, Bool.and(top, Bool.not(transcong.binds(h))))))
     case Tree.Group{o, kids, cl}:
       transcong.count(kids, True{})
     case Tree.Stmt{sk, kids, body}:
@@ -2688,8 +2706,8 @@ def transcong.count(nn: Tree.Node, +top: Bool) -> Nat:
       0n
 
 # LAW: over any node, transcong reports one finding for each Equal.trans an
-# Equal.cong feeds as its fifth or sixth argument, outside a let's own nodes,
-# and none for anything else
+# Equal.cong feeds as its fifth or sixth argument, outside a let's own nodes
+# and after no `=` or `<-` in its chain, and none for anything else
 # BOLT-RULE-S006
 law transcong_walk_counts:
   for nn: Tree.Node
