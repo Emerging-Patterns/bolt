@@ -12,8 +12,11 @@
 # `type Shape` with `Sq{..}`); a use of another def of its module does not
 # reach it, and a type reaches nothing. Out of scope: helper defs (dotted
 # names; a dotted type is graded, and a helper still carries the reach to
-# what it calls), tests, and the law files themselves -- decided by the name
-# and the file's path, never by what the file's text mentions. IO is no
+# what it calls), defs that are proofs (Calls.proof: one that returns a
+# proof or is written with no type, so it fills a law; the digest drops
+# them, so they are not graded and carry no reach), tests, and the law files
+# themselves -- decided by the name, the signature and the file's path,
+# never by what the file's text mentions. IO is no
 # exemption: a law can quantify over an IO value or state an IO equality, so
 # a def returning `IO(..)` is graded like any other, and so is every pure def
 # beside it. `main` is a def: a law that names it covers it. The rule reads

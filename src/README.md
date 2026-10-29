@@ -441,7 +441,8 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   returns `IO(..)` is graded like any other (a law can state an IO equality
   or quantify over an IO value), and so is every pure def in a module that
   also does IO, or that says "IO" in a comment. What is out of scope is
-  decided by the def's name and the file's path, never by the file's text.
+  decided by the def's name, its signature and the file's path, never by
+  the file's text.
   A law names a def when
   it is a quantified law in a LAWS.bend and its binders or statement use the
   def, through the law file's import alias (`Nav.text_of` in
@@ -455,8 +456,11 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   constructors (`M.Sq{nn}` covers `type Shape` with `Sq{..}`); naming
   another def of its module does not cover it, and a type reaches nothing.
   Out of scope: helper defs (dotted names; they still carry the reach to
-  what they call), tests, and the law files (their defs carry it too); a
-  dotted type is graded. `main` is a def: a law that names it covers it. A
+  what they call), defs that are proofs (one whose signature returns a
+  proof, `-> {a == b : T}`, or one written with no type, which is how Bend
+  fills the law of its name: the law states its property; such a def is not
+  graded and carries no reach), tests, and the law files (their defs carry
+  the reach); a dotted type is graded. `main` is a def: a law that names it covers it. A
   project without a LAWS.bend is not under law.
 
 ## One binary

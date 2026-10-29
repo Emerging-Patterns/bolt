@@ -28099,16 +28099,82 @@ def reach.calls_eq(us, all, file):
           Digest.called(rest, Digest.aliases(all, file), file), Laws.reach.calls(rest, all, file),
           reach.calls_eq(rest, all, file)))
 
+# a def's name joins the digest's proofs as it joins reach.proofs
+law reach.proof_push:
+  for mm: Maybe<&2, String>
+  for +kids: Tree.Node
+  for body: Tree.Node
+  for ds: List<&2, Calls.Def>
+  for ss: List<&2, String>
+  for e: {Digest.proofs(ds) == ss : List<&2, String>}
+  {Digest.proofs(Calls.defs.push(mm, kids, body, ds)) == Laws.reach.proof(mm, Calls.proof(kids), ss)
+    : List<&2, String>}
+
+def reach.proof_push(mm, kids, body, ds, _ss, e):
+  match mm:
+    case None{}:
+      e
+    case Some{nn}:
+      %e : {Digest.proofs(Calls.Def{nn, kids, body} <> ds)
+        == Bool.pick(List<&2, String>, Calls.proof(kids), nn <> _, _) : List<&2, String>}
+      {==}
+
+# the digest's proofs are reach.proofs
+law reach.proofs_eq:
+  for root: Tree.Node
+  {Digest.proofs(Calls.defs(root)) == Laws.reach.proofs(root) : List<&2, String>}
+
+def reach.proofs_eq(root):
+  match root:
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{o, gk, cl}:
+      {==}
+    case Tree.Stmt{kind, sk, sb}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Leaf{tok}:
+          reach.proofs_eq(rest)
+        case Tree.Group{o, gk, cl}:
+          reach.proofs_eq(rest)
+        case Tree.Stmt{kind, +kids, b}:
+          match kind:
+            case Tree.SDef{}:
+              reach.proof_push(Bind.declared(kids), kids, b, Calls.defs(rest), Laws.reach.proofs(rest),
+                reach.proofs_eq(rest))
+            case Tree.SType{}:
+              reach.proofs_eq(rest)
+            case Tree.SLaw{}:
+              reach.proofs_eq(rest)
+            case Tree.SImport{}:
+              reach.proofs_eq(rest)
+            case Tree.SCase{}:
+              reach.proofs_eq(rest)
+            case Tree.SFor{}:
+              reach.proofs_eq(rest)
+            case Tree.SLet{}:
+              reach.proofs_eq(rest)
+            case Tree.STerm{}:
+              reach.proofs_eq(rest)
+        case Tree.NNil{}:
+          reach.proofs_eq(rest)
+        case Tree.NCons{nh, nt}:
+          reach.proofs_eq(rest)
+
 # the digest's defs and types, with their calls, are reach.tops
 law reach.tops_eq:
   for items: List<&2, Outline.Item>
   for +all: List<&2, Outline.Item>
   for +us: List<&2, Bind.Use>
   for +file: String
-  {Digest.ranged(items, us, Digest.aliases(all, file), file) == Laws.reach.tops(items, all, us, file)
+  for +ps: List<&2, String>
+  {Digest.ranged(items, us, Digest.aliases(all, file), file, ps) == Laws.reach.tops(items, all, us, file, ps)
     : List<&2, Digest.Top>}
 
-def reach.tops_eq(items, all, us, file):
+def reach.tops_eq(items, all, us, file, ps):
   match items:
     case Nil{}:
       {==}
@@ -28117,67 +28183,72 @@ def reach.tops_eq(items, all, us, file):
         case Outline.IDef{}:
           +as = Digest.aliases(all, file)
           +nx = Digest.next_line(rest)
+          +hit = Imports.has(ps, name)
           %reach.past_eq(us, rest) :
-            {Digest.ranged(Outline.Item{Outline.IDef{}, name, line, sig, doc, path} <> rest, us, as, file)
-              == Digest.Top{Outline.IDef{}, name, line, [],
-                Laws.reach.calls(Laws.reach.upto(us, Laws.reach.next(rest)), all, file)}
-                <> Laws.reach.tops(rest, all, _, file) : List<&2, Digest.Top>}
+            {Digest.ranged(Outline.Item{Outline.IDef{}, name, line, sig, doc, path} <> rest, us, as, file, ps)
+              == Bool.pick(List<&2, Digest.Top>, hit, Laws.reach.tops(rest, all, _, file, ps),
+                Digest.Top{Outline.IDef{}, name, line, [],
+                  Laws.reach.calls(Laws.reach.upto(us, Laws.reach.next(rest)), all, file)}
+                  <> Laws.reach.tops(rest, all, _, file, ps)) : List<&2, Digest.Top>}
           %reach.upto_eq(us, rest) :
-            {Digest.ranged(Outline.Item{Outline.IDef{}, name, line, sig, doc, path} <> rest, us, as, file)
-              == Digest.Top{Outline.IDef{}, name, line, [], Laws.reach.calls(_, all, file)}
-                <> Laws.reach.tops(rest, all, Digest.past(us, nx), file) : List<&2, Digest.Top>}
+            {Digest.ranged(Outline.Item{Outline.IDef{}, name, line, sig, doc, path} <> rest, us, as, file, ps)
+              == Bool.pick(List<&2, Digest.Top>, hit, Laws.reach.tops(rest, all, Digest.past(us, nx), file, ps),
+                Digest.Top{Outline.IDef{}, name, line, [], Laws.reach.calls(_, all, file)}
+                  <> Laws.reach.tops(rest, all, Digest.past(us, nx), file, ps)) : List<&2, Digest.Top>}
           %reach.calls_eq(Digest.upto(us, nx), all, file) :
-            {Digest.ranged(Outline.Item{Outline.IDef{}, name, line, sig, doc, path} <> rest, us, as, file)
-              == Digest.Top{Outline.IDef{}, name, line, [], _} <> Laws.reach.tops(rest, all, Digest.past(us, nx), file)
-              : List<&2, Digest.Top>}
-          %reach.tops_eq(rest, all, Digest.past(us, nx), file) :
-            {Digest.ranged(Outline.Item{Outline.IDef{}, name, line, sig, doc, path} <> rest, us, as, file)
-              == Digest.Top{Outline.IDef{}, name, line, [], Digest.called(Digest.upto(us, nx), as, file)} <> _
+            {Digest.ranged(Outline.Item{Outline.IDef{}, name, line, sig, doc, path} <> rest, us, as, file, ps)
+              == Bool.pick(List<&2, Digest.Top>, hit, Laws.reach.tops(rest, all, Digest.past(us, nx), file, ps),
+                Digest.Top{Outline.IDef{}, name, line, [], _}
+                  <> Laws.reach.tops(rest, all, Digest.past(us, nx), file, ps)) : List<&2, Digest.Top>}
+          %reach.tops_eq(rest, all, Digest.past(us, nx), file, ps) :
+            {Digest.ranged(Outline.Item{Outline.IDef{}, name, line, sig, doc, path} <> rest, us, as, file, ps)
+              == Bool.pick(List<&2, Digest.Top>, hit, _,
+                Digest.Top{Outline.IDef{}, name, line, [], Digest.called(Digest.upto(us, nx), as, file)} <> _)
               : List<&2, Digest.Top>}
           {==}
         case Outline.IType{}:
           +as = Digest.aliases(all, file)
           +nx = Digest.next_line(rest)
           %reach.past_eq(us, rest) :
-            {Digest.ranged(Outline.Item{Outline.IType{}, name, line, sig, doc, path} <> rest, us, as, file)
+            {Digest.ranged(Outline.Item{Outline.IType{}, name, line, sig, doc, path} <> rest, us, as, file, ps)
               == Digest.Top{Outline.IType{}, name, line, Laws.coverage.ctors_of(rest),
                 Laws.reach.calls(Laws.reach.upto(us, Laws.reach.next(rest)), all, file)}
-                <> Laws.reach.tops(rest, all, _, file) : List<&2, Digest.Top>}
+                <> Laws.reach.tops(rest, all, _, file, ps) : List<&2, Digest.Top>}
           %reach.upto_eq(us, rest) :
-            {Digest.ranged(Outline.Item{Outline.IType{}, name, line, sig, doc, path} <> rest, us, as, file)
+            {Digest.ranged(Outline.Item{Outline.IType{}, name, line, sig, doc, path} <> rest, us, as, file, ps)
               == Digest.Top{Outline.IType{}, name, line, Laws.coverage.ctors_of(rest), Laws.reach.calls(_, all, file)}
-                <> Laws.reach.tops(rest, all, Digest.past(us, nx), file) : List<&2, Digest.Top>}
+                <> Laws.reach.tops(rest, all, Digest.past(us, nx), file, ps) : List<&2, Digest.Top>}
           %reach.calls_eq(Digest.upto(us, nx), all, file) :
-            {Digest.ranged(Outline.Item{Outline.IType{}, name, line, sig, doc, path} <> rest, us, as, file)
+            {Digest.ranged(Outline.Item{Outline.IType{}, name, line, sig, doc, path} <> rest, us, as, file, ps)
               == Digest.Top{Outline.IType{}, name, line, Laws.coverage.ctors_of(rest), _}
-                <> Laws.reach.tops(rest, all, Digest.past(us, nx), file) : List<&2, Digest.Top>}
+                <> Laws.reach.tops(rest, all, Digest.past(us, nx), file, ps) : List<&2, Digest.Top>}
           %coverage.d_ctors(rest) :
-            {Digest.ranged(Outline.Item{Outline.IType{}, name, line, sig, doc, path} <> rest, us, as, file)
+            {Digest.ranged(Outline.Item{Outline.IType{}, name, line, sig, doc, path} <> rest, us, as, file, ps)
               == Digest.Top{Outline.IType{}, name, line, _, Digest.called(Digest.upto(us, nx), as, file)}
-                <> Laws.reach.tops(rest, all, Digest.past(us, nx), file) : List<&2, Digest.Top>}
-          %reach.tops_eq(rest, all, Digest.past(us, nx), file) :
-            {Digest.ranged(Outline.Item{Outline.IType{}, name, line, sig, doc, path} <> rest, us, as, file)
+                <> Laws.reach.tops(rest, all, Digest.past(us, nx), file, ps) : List<&2, Digest.Top>}
+          %reach.tops_eq(rest, all, Digest.past(us, nx), file, ps) :
+            {Digest.ranged(Outline.Item{Outline.IType{}, name, line, sig, doc, path} <> rest, us, as, file, ps)
               == Digest.Top{Outline.IType{}, name, line, Digest.ctors(rest),
                 Digest.called(Digest.upto(us, nx), as, file)}
                 <> _ : List<&2, Digest.Top>}
           {==}
         case Outline.ICtor{}:
-          reach.tops_eq(rest, all, us, file)
+          reach.tops_eq(rest, all, us, file, ps)
         case Outline.IImport{}:
           %reach.past_eq(us, rest) :
             {Digest.ranged(Outline.Item{Outline.IImport{}, name, line, sig, doc, path} <> rest, us,
-              Digest.aliases(all, file), file) == Laws.reach.tops(rest, all, _, file) : List<&2, Digest.Top>}
-          reach.tops_eq(rest, all, Digest.past(us, Digest.next_line(rest)), file)
+              Digest.aliases(all, file), file, ps) == Laws.reach.tops(rest, all, _, file, ps) : List<&2, Digest.Top>}
+          reach.tops_eq(rest, all, Digest.past(us, Digest.next_line(rest)), file, ps)
         case Outline.ILaw{}:
           %reach.past_eq(us, rest) :
             {Digest.ranged(Outline.Item{Outline.ILaw{}, name, line, sig, doc, path} <> rest, us,
-              Digest.aliases(all, file), file) == Laws.reach.tops(rest, all, _, file) : List<&2, Digest.Top>}
-          reach.tops_eq(rest, all, Digest.past(us, Digest.next_line(rest)), file)
+              Digest.aliases(all, file), file, ps) == Laws.reach.tops(rest, all, _, file, ps) : List<&2, Digest.Top>}
+          reach.tops_eq(rest, all, Digest.past(us, Digest.next_line(rest)), file, ps)
         case Outline.ILocal{}:
           %reach.past_eq(us, rest) :
             {Digest.ranged(Outline.Item{Outline.ILocal{}, name, line, sig, doc, path} <> rest, us,
-              Digest.aliases(all, file), file) == Laws.reach.tops(rest, all, _, file) : List<&2, Digest.Top>}
-          reach.tops_eq(rest, all, Digest.past(us, Digest.next_line(rest)), file)
+              Digest.aliases(all, file), file, ps) == Laws.reach.tops(rest, all, _, file, ps) : List<&2, Digest.Top>}
+          reach.tops_eq(rest, all, Digest.past(us, Digest.next_line(rest)), file, ps)
 
 # the digest's uses are coverage.uses
 law reach.uses_eq:
@@ -28191,13 +28262,19 @@ def reach.uses_eq(bb):
 
 def Laws.reach_digest(path, text, toks, tree, bound, items):
   +pp = Imports.norm(path)
+  %reach.proofs_eq(tree) :
+    {Laws.coverage.view(Digest.of(Src.Src{path, text, toks, tree, bound, items}))
+      == Laws.CoverageView{pp, Paths.is_laws(path), Bool.or(Paths.is_law_file(pp), Paths.is_test(pp)),
+        Laws.reach.tops(items, items, Laws.coverage.uses(bound), pp, _),
+        Bool.pick(List<&2, Digest.Mention>, Paths.is_laws(path),
+          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, pp), [])} : Laws.CoverageView}
   %reach.uses_eq(bound) :
     {Laws.coverage.view(Digest.of(Src.Src{path, text, toks, tree, bound, items}))
       == Laws.CoverageView{pp, Paths.is_laws(path), Bool.or(Paths.is_law_file(pp), Paths.is_test(pp)),
-        Laws.reach.tops(items, items, _, pp),
+        Laws.reach.tops(items, items, _, pp, Digest.proofs(Calls.defs(tree))),
         Bool.pick(List<&2, Digest.Mention>, Paths.is_laws(path),
           Laws.coverage.said(Laws.coverage.uses(bound), tree, items, pp), [])} : Laws.CoverageView}
-  %reach.tops_eq(items, items, Digest.uses.of(bound), pp) :
+  %reach.tops_eq(items, items, Digest.uses.of(bound), pp, Digest.proofs(Calls.defs(tree))) :
     {Laws.coverage.view(Digest.of(Src.Src{path, text, toks, tree, bound, items}))
       == Laws.CoverageView{pp, Paths.is_laws(path), Bool.or(Paths.is_law_file(pp), Paths.is_test(pp)), _,
         Bool.pick(List<&2, Digest.Mention>, Paths.is_laws(path),
@@ -28205,7 +28282,8 @@ def Laws.reach_digest(path, text, toks, tree, bound, items):
   %coverage.d_stated(Paths.is_laws(path), tree, bound, items, pp) :
     {Laws.coverage.view(Digest.of(Src.Src{path, text, toks, tree, bound, items}))
       == Laws.CoverageView{pp, Paths.is_laws(path), Bool.or(Paths.is_law_file(pp), Paths.is_test(pp)),
-        Digest.ranged(items, Digest.uses.of(bound), Digest.aliases(items, pp), pp), _} : Laws.CoverageView}
+        Digest.ranged(items, Digest.uses.of(bound), Digest.aliases(items, pp), pp, Digest.proofs(Calls.defs(tree))), _}
+        : Laws.CoverageView}
   {==}
 
 def Laws.reach_binder(path, text):
