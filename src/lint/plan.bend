@@ -24,6 +24,7 @@ import ./world.bend as W
 import ../finding.bend as F
 import ../src.bend as Src
 import ../rules.bend as Rules
+import ../rules/imports.bend as Imports
 import ../config.bend as Config
 import ../noqa.bend as Noqa
 import ../rules/style/noqa.bend as NoqaRule
@@ -185,6 +186,54 @@ def uniq(ps: List<&2, String>, +seen: List<&2, String>) -> List<&2, String>:
       +more = uniq(rest, p <> seen)
       Bool.pick(List<&2, String>, dup, more, p <> more)
 
+# ---------------------------------------------------------------------------
+# the packages (BOLT-SCOPE-6): every directory the walk reads but `.` whose
+# listing names a main.bend, in the order the walk reads them; none when files
+# were named
+
+# the directories the walk read that hold a main.bend, `.` left out
+def roots.of(ds: List<&2, String>, +world: W.World) -> List<&2, String>:
+  match ds:
+    case Nil{}:
+      Nil{}
+    case Con{+d, rest}:
+      +more = roots.of(rest, world)
+      +root = Bool.and(Bool.not(String.eq(d, ".")), seen.has(W.listing(world, d), "main.bend"))
+      Bool.pick(List<&2, String>, root, d <> more, more)
+
+# the package roots but `.`, as the walk names them (`./w3c`)
+def roots.named(paths: List<&2, String>, +world: W.World) -> List<&2, String>:
+  match paths:
+    case Nil{}:
+      roots.of(walk.read(tree(world)), world)
+    case Con{_p, _rest}:
+      Nil{}
+
+# the package roots but `.`
+def roots(+world: W.World) -> List<&2, String>:
+  roots.named(W.paths.of(world), world)
+
+# the SPEC.md of a package root
+def spec.at(+root: String) -> String:
+  root ++ "/SPEC.md"
+
+# the SPEC.md of each package root
+def specs(rs: List<&2, String>) -> List<&2, String>:
+  match rs:
+    case Nil{}:
+      Nil{}
+    case Con{r, rest}:
+      spec.at(r) <> specs(rest)
+
+# each package root as the project rules take it: its directory as a digest
+# names one, its SPEC.md's path and what the World holds for it
+def packages(rs: List<&2, String>, +world: W.World) -> List<&2, Rules.Package>:
+  match rs:
+    case Nil{}:
+      Nil{}
+    case Con{+r, rest}:
+      Rules.Package{Imports.dir_of(spec.at(r)), spec.at(r), W.text(world, spec.at(r))} <> packages(rest, world)
+
 # the directory of each path
 def dirs.of(ps: List<&2, String>) -> List<&2, String>:
   match ps:
@@ -241,11 +290,12 @@ def lists.named(paths: List<&2, String>, +world: W.World) -> List<&2, W.Ask>:
 def lists(+world: W.World) -> List<&2, W.Ask>:
   lists.named(W.paths.of(world), world)
 
-# the texts the plan reads: each source, SPEC.md, and every bolt.bend
-# candidate of their directories, each once
+# the texts the plan reads: each source, SPEC.md, the SPEC.md of every other
+# package root, and every bolt.bend candidate of their directories, each once
 def texts(+world: W.World) -> List<&2, W.Ask>:
   +ps = inputs(world)
-  asks.texts(uniq(List.concat(&2, String, [ps, ["SPEC.md"], conf.cands(conf.dirs(ps), world)]), []))
+  asks.texts(uniq(List.concat(&2, String, [ps, ["SPEC.md"], specs(roots(world)), conf.cands(conf.dirs(ps), world)]),
+    []))
 
 # every question the plan reads the World through: the listings, then the
 # texts
@@ -360,11 +410,12 @@ def settings(+world: W.World) -> List<&2, F.Finding>:
 # every finding of every rule, ungraded, from the sources and what the World
 # answers for them: the read failures, the per-file findings of each source,
 # then `setting`'s over each bolt.bend grading reads, then the project rules'
-# over every source, told whether the run is the whole tree, and SPEC.md's
-# text
+# over every source, told whether the run is the whole tree, SPEC.md's text
+# and the other packages
 def found.at(+world: W.World, +gs: List<&2, Got>, +ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
   List.concat(&2, F.Finding, [unread(gs), per_file(ss), settings(world),
-    Rules.project(ss, List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"))])
+    Rules.project(ss, List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"),
+      packages(roots(world), world))])
 
 # every finding of every rule, ungraded
 def found(+world: W.World) -> List<&2, F.Finding>:

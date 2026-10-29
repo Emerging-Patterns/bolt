@@ -106,7 +106,8 @@ Design specs and plans are not kept in this repo; they live under
   with `_`;
   a project with a LAWS.bend has every def named by a quantified law or
   reached from one through calls (BOLT-LAW-1), IO included.
-  Helpers (dotted names), tests, and the law files themselves are out of
+  Helpers (dotted names), defs that are proofs (returning `{a == b : T}`,
+  or written with no type), tests, and the law files themselves are out of
   scope.
 - A module's header says whether it is pure (GPU-safe) or an effect
   (CPU event loop only). Only pure code may sit under a `!` call.

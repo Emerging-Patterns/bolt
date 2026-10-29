@@ -1,6 +1,7 @@
-# rule trace (project-wide, opt-in): SPEC.md and the laws agree. SPEC.md,
-# read from the directory bolt runs in, lists requirements in tables whose
-# header is exactly `| ID | Requirement | Level | Status | Law |`, and trust
+# rule trace (project-wide, opt-in): SPEC.md and the laws agree. It runs once
+# for each package (src/rules.bend), over that package's files and its own
+# SPEC.md, and reads paths as relative to that SPEC.md. SPEC.md lists
+# requirements in tables whose header is exactly `| ID | Requirement | Level | Status | Law |`, and trust
 # rows in tables headed `| ID | Assumption | Why it is trusted |`. An ID is
 # uppercase letters and digits in two or more segments joined by `-`
 # (`BOLT-CFG-1`); a law proves one when a line of its comment block is exactly

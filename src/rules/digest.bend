@@ -17,6 +17,7 @@ import ./imports.bend as Imports
 import ./laws/closed.bend as Closed
 import ../paths.bend as Paths
 import ./correctness/foreign.bend as Foreign
+import ./calls.bend as Calls
 
 # what a file holds
 # -----------------
@@ -204,31 +205,45 @@ def called(us: List<&2, Bind.Use>, +as: List<&2, Alias>, +file: String) -> List<
     case Con{Bind.Use{n, l, c, tt}, rest}:
       target(tt, as, file, called(rest, as, file))
 
-# the top-level defs and types, by name and line: what the coverage rule
-# grades. The uses are read in order, once: each item but a constructor
-# takes those before the next such item's line, and a def or a type keeps
-# what they name (a def's calls)
+# the names of the top-level defs that are proofs (Calls.proof: one that
+# returns a proof, or one written with no type, which is how Bend fills the
+# law named f). The law states their property, so the coverage rule neither
+# grades them nor walks through them
+def proofs(ds: List<&2, Calls.Def>) -> List<&2, String>:
+  match ds:
+    case Nil{}:
+      Nil{}
+    case Con{Calls.Def{name, +sig, body}, rest}:
+      +more = proofs(rest)
+      Bool.pick(List<&2, String>, Calls.proof(sig), name <> more, more)
+
+# the top-level defs and types, by name and line, less the defs that are
+# proofs (ps): what the coverage rule grades. The uses are read in order,
+# once: each item but a constructor takes those before the next such item's
+# line, and a def or a type keeps what they name (a def's calls)
 def ranged(
   items: List<&2, Outline.Item>,
   +us: List<&2, Bind.Use>,
   +as: List<&2, Alias>,
-  +file: String
+  +file: String,
+  +ps: List<&2, String>
 ) -> List<&2, Top>:
   match items:
     case Nil{}:
       Nil{}
     case Con{Outline.Item{Outline.ICtor{}, name, line, sig, doc, path}, rest}:
-      ranged(rest, us, as, file)
-    case Con{Outline.Item{Outline.IDef{}, name, line, sig, doc, path}, +rest}:
+      ranged(rest, us, as, file, ps)
+    case Con{Outline.Item{Outline.IDef{}, +name, line, sig, doc, path}, +rest}:
       +nx = next_line(rest)
       cs = called(upto(us, nx), as, file)
-      Top{Outline.IDef{}, name, line, [], cs} <> ranged(rest, past(us, nx), as, file)
+      +more = ranged(rest, past(us, nx), as, file, ps)
+      Bool.pick(List<&2, Top>, Imports.has(ps, name), more, Top{Outline.IDef{}, name, line, [], cs} <> more)
     case Con{Outline.Item{Outline.IType{}, name, line, sig, doc, path}, +rest}:
       +nx = next_line(rest)
       Top{Outline.IType{}, name, line, ctors(rest), called(upto(us, nx), as, file)}
-        <> ranged(rest, past(us, nx), as, file)
+        <> ranged(rest, past(us, nx), as, file, ps)
     case Con{Outline.Item{kind, name, line, sig, doc, path}, +rest}:
-      ranged(rest, past(us, next_line(rest)), as, file)
+      ranged(rest, past(us, next_line(rest)), as, file, ps)
 
 # a law file or a test, by its path alone: not under law. Nothing the file's
 # text mentions exempts it; IO is not an exemption, since an IO equality is a
@@ -369,7 +384,8 @@ def of(s2: Src.Src) -> Digest:
   +p = Imports.norm(path)
   +as = aliases(items, p)
   Digest{path, p, Imports.dir_of(path), Paths.is_laws(path), Paths.is_law_file(path), is_exempt(p),
-    ranged(items, uses.of(bound), as, p), stated(Paths.is_laws(path), tree, bound, as, p), Imports.targets(items, p),
+    ranged(items, uses.of(bound), as, p, proofs(Calls.defs(tree))), stated(Paths.is_laws(path), tree, bound, as, p),
+    Imports.targets(items, p),
     List.append(&2, Unsafe, unsafe_defs(significant(toks)), foreign_defs(tree)),
     laws.in(Paths.is_laws(path), tree, items)}
 

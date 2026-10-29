@@ -128,8 +128,19 @@ Each rule is a module under `rules/<group>/` with `check(src) -> List<Finding>`,
 listed in `rules.bend`: the directory a rule sits in is the group it belongs
 to. Adding a rule is adding a file, a line in `rules.bend`, and a row in
 `codes.bend` (the stable code). A project rule has
-`check(ds) -> List<Finding>` instead and sees every file the linter read at
-once, as digests (`rules.bend`'s `project`).
+`check(ds) -> List<Finding>` instead and sees many files at once, as
+digests (`rules.bend`'s `project`).
+
+The project rules run per package (BOLT-SCOPE-6). Over the whole tree, a
+package root is `.` and every other directory the walk reads that holds a
+`main.bend`, and a file belongs to the nearest root at or above it.
+`coverage` and `trace` run on one package's files at a time, and `trace`
+against that package's `SPEC.md` (`<root>/SPEC.md`, Law entries relative
+to it). `unsafe` runs on every file. A nested package with no `SPEC.md` is
+not traced, and neither is `.` when it holds no file and has no `SPEC.md`.
+Over files named on the line, `.` is the only package. So a repo with
+nested packages, each with its own `SPEC.md` and laws, lints in one run
+from the top, and a law covers only defs of its own package.
 
 A rule is handed a [`Src`](src.bend), not the text: the path, the text, and
 the file's tokens, tree, binder and outline, each read once for the whole
@@ -412,8 +423,8 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   an equality (`{lhs == rhs : T}`, including `IO(T)`) or not, holds for the
   one input it names: a unit test the checker runs, not a guarantee.
   Nothing exempts one: quantify it, or delete it.
-- `trace` (project, opt-in) — `SPEC.md`, read from the directory bolt runs
-  in, and the laws agree, when bolt lints the whole tree (never over files
+- `trace` (project, opt-in) — each package's `SPEC.md` and the laws of that
+  package agree, when bolt lints the whole tree (never over files
   named on the line, which hold only some of the laws). A requirement table is headed exactly
   `| ID | Requirement | Level | Status | Law |` and a trust table
   `| ID | Assumption | Why it is trusted |`. An ID is uppercase letters and
@@ -435,14 +446,15 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   import path from the law file (`LAWS.bend -> mid.bend -> eff/io.bend`). Move
   the effect into a sibling module no law file imports and pass it in as a
   service. Hash imports (`import 0x.../path`) are not followed.
-- `coverage` (project) — in a project that states laws (a LAWS.bend among the
-  files bolt read), a def or a type that no law reaches. It is `coverage`, not `law`,
+- `coverage` (project) — in a package that states laws (a LAWS.bend among its
+  files), a def or a type that no law of the package reaches. It is `coverage`, not `law`,
   because `law` is a Bend keyword: `def law()` is no def, so a bolt.bend
   could never set it by name. IO is no exemption: a def that
   returns `IO(..)` is graded like any other (a law can state an IO equality
   or quantify over an IO value), and so is every pure def in a module that
   also does IO, or that says "IO" in a comment. What is out of scope is
-  decided by the def's name and the file's path, never by the file's text.
+  decided by the def's name, its signature and the file's path, never by
+  the file's text.
   A law names a def when
   it is a quantified law in a LAWS.bend and its binders or statement use the
   def, through the law file's import alias (`Nav.text_of` in
@@ -456,8 +468,11 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   constructors (`M.Sq{nn}` covers `type Shape` with `Sq{..}`); naming
   another def of its module does not cover it, and a type reaches nothing.
   Out of scope: helper defs (dotted names; they still carry the reach to
-  what they call), tests, and the law files (their defs carry it too); a
-  dotted type is graded. `main` is a def: a law that names it covers it. A
+  what they call), defs that are proofs (one whose signature returns a
+  proof, `-> {a == b : T}`, or one written with no type, which is how Bend
+  fills the law of its name: the law states its property; such a def is not
+  graded and carries no reach), tests, and the law files (their defs carry
+  the reach); a dotted type is graded. `main` is a def: a law that names it covers it. A
   project without a LAWS.bend is not under law.
 
 ## One binary

@@ -14,6 +14,8 @@ import ./rules/correctness/setting.bend as Setting
 import ./syntax/lex.bend as Lex
 import ./rules/digest.bend as Digest
 import ./rules/laws/law.bend as Law
+import ./rules/laws/unsafe.bend as Unsafe
+import ./rules/imports.bend as Imports
 import ./args.bend as Args
 import ./version.bend as Ver
 import ./build_rev.bend as Rev
@@ -764,14 +766,312 @@ def Laws.setting_reports(world):
   %u : {Plan.settings.at(Plan.gots(Plan.uniq(_, []), world)) == Laws.settings_found(world) : List<&2, F.Finding>}
   c011.at(Plan.uniq(Laws.graders_all(world, Plan.conf.dirs(Plan.inputs(world))), []), world)
 
+# Packages (BOLT-SCOPE-6, BOLT-SCOPE-7). The planner and the rules use the
+# lazy forms, the spec the strict ones; each lemma below takes the Bool
+# apart, as BOLT-LIB-1 does.
+
+# a lazy or is the strict or, its rest equal
+law pk.or:
+  for b: Bool
+  for -x: Bool
+  for -y: Bool
+  for ih: {x == y : Bool}
+  {Lazy.or_else(b, _u => x) == Bool.or(b, y) : Bool}
+
+def pk.or(b, _x, _y, ih):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      ih
+
+# a lazy stop is the strict pick, its rest equal
+law pk.stop:
+  for b: Bool
+  for +u: String
+  for -x: String
+  for -y: String
+  for ih: {x == y : String}
+  {Lazy.stop(String, b, u, _u => x) == Bool.pick(String, b, u, y) : String}
+
+def pk.stop(b, _u, _x, _y, ih):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      ih
+
+# the planner's search of a listing for main.bend is the spec's
+law pk.has:
+  for es: List<&2, String>
+  {Plan.seen.has(es, "main.bend") == Laws.names_main(es) : Bool}
+
+def pk.has(es):
+  match es:
+    case Nil{}:
+      {==}
+    case Con{+e, +tl}:
+      pk.or(String.eq(e, "main.bend"), Plan.seen.has(tl, "main.bend"), Laws.names_main(tl), pk.has(tl))
+
+# the planner's roots of the directories read are the spec's
+law pk.of:
+  for ds: List<&2, String>
+  for +world: W.World
+  {Plan.roots.of(ds, world) == Laws.main_dirs(world, ds) : List<&2, String>}
+
+def pk.of(ds, world):
+  match ds:
+    case Nil{}:
+      {==}
+    case Con{+d, +tl}:
+      a = pk.has(W.listing(world, d))
+      %a : {Bool.pick(List<&2, String>,
+          Bool.and(Bool.not(String.eq(d, ".")), Plan.seen.has(W.listing(world, d), "main.bend")),
+          d <> Plan.roots.of(tl, world), Plan.roots.of(tl, world))
+        == Bool.pick(List<&2, String>, Bool.and(Bool.not(String.eq(d, ".")), _),
+          d <> Laws.main_dirs(world, tl), Laws.main_dirs(world, tl))
+        : List<&2, String>}
+      e = pk.of(tl, world)
+      %e : {Bool.pick(List<&2, String>,
+          Bool.and(Bool.not(String.eq(d, ".")), Plan.seen.has(W.listing(world, d), "main.bend")),
+          d <> Plan.roots.of(tl, world), Plan.roots.of(tl, world))
+        == Bool.pick(List<&2, String>,
+          Bool.and(Bool.not(String.eq(d, ".")), Plan.seen.has(W.listing(world, d), "main.bend")), d <> _, _)
+        : List<&2, String>}
+      {==}
+
+def Laws.roots_named(world, p, rest, h):
+  e = Equal.sym(List<&2, String>, W.paths.of(world), p <> rest, h)
+  %e : {Plan.roots.named(_, world) == [] : List<&2, String>}
+  {==}
+
+def Laws.roots_whole(world, h):
+  e = Equal.sym(List<&2, String>, W.paths.of(world), [], h)
+  %e : {Plan.roots.named(_, world) == Laws.main_dirs(world, Plan.walk.read(Plan.tree(world))) : List<&2, String>}
+  pk.of(Plan.walk.read(Plan.tree(world)), world)
+
+# the rules' search of the roots is the spec's
+law pk.listed:
+  for rs: List<&2, String>
+  for +dd: String
+  {Rules.has(rs, dd) == Laws.listed(rs, dd) : Bool}
+
+def pk.listed(rs, dd):
+  match rs:
+    case Nil{}:
+      {==}
+    case Con{+r, +tl}:
+      pk.or(String.eq(r, dd), Rules.has(tl, dd), Laws.listed(tl, dd), pk.listed(tl, dd))
+
+# the rules' nearest root is the spec's
+law pk.owner:
+  for us: List<&2, String>
+  for +rs: List<&2, String>
+  {Rules.owner.go(us, rs) == Laws.nearest(us, rs) : String}
+
+def pk.owner(us, rs):
+  match us:
+    case Nil{}:
+      {==}
+    case Con{+u, +tl}:
+      a = pk.listed(rs, u)
+      %a : {Lazy.stop(String, Rules.has(rs, u), u, _u => Rules.owner.go(tl, rs))
+        == Bool.pick(String, _, u, Laws.nearest(tl, rs)) : String}
+      pk.stop(Rules.has(rs, u), u, Rules.owner.go(tl, rs), Laws.nearest(tl, rs), pk.owner(tl, rs))
+
+def Laws.package_nearest(rs, dir):
+  pk.owner(Rules.ups(dir), rs)
+
+def Laws.package_spec(world, rs):
+  match rs:
+    case Nil{}:
+      {==}
+    case Con{+r, +tl}:
+      Equal.cong(List<&2, Rules.Package>, List<&2, Rules.Package>,
+        xs => Rules.Package{Imports.dir_of(r ++ "/SPEC.md"), r ++ "/SPEC.md", W.text(world, r ++ "/SPEC.md")} <> xs,
+        Plan.packages(tl, world), Laws.pkgs(world, tl), Laws.package_spec(world, tl))
+
+# the rules' files of a package are the spec's
+law pk.members:
+  for ds: List<&2, Digest.Digest>
+  for +rs: List<&2, String>
+  for +pkg: String
+  {Rules.members(ds, rs, pkg) == Laws.part(ds, rs, pkg) : List<&2, Digest.Digest>}
+
+def pk.members(ds, rs, pkg):
+  match ds:
+    case Nil{}:
+      {==}
+    case Con{Digest.Digest{+path, +norm, +dir, +is_laws, +is_law_file, +exempt, +tops, +says, +deps, +unsafes, +laws},
+      +tl}:
+      a = Laws.package_nearest(rs, dir)
+      %a : {Bool.pick(List<&2, Digest.Digest>, String.eq(Rules.owner(rs, dir), pkg),
+          Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}
+            <> Rules.members(tl, rs, pkg), Rules.members(tl, rs, pkg))
+        == Bool.pick(List<&2, Digest.Digest>, String.eq(_, pkg),
+          Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}
+            <> Laws.part(tl, rs, pkg), Laws.part(tl, rs, pkg))
+        : List<&2, Digest.Digest>}
+      e = pk.members(tl, rs, pkg)
+      %e : {Bool.pick(List<&2, Digest.Digest>, String.eq(Rules.owner(rs, dir), pkg),
+          Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}
+            <> Rules.members(tl, rs, pkg), Rules.members(tl, rs, pkg))
+        == Bool.pick(List<&2, Digest.Digest>, String.eq(Rules.owner(rs, dir), pkg),
+          Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws} <> _, _)
+        : List<&2, Digest.Digest>}
+      {==}
+
+# the rules' coverage of the packages is the spec's
+law pk.covers:
+  for ps: List<&2, Rules.Package>
+  for +ds: List<&2, Digest.Digest>
+  for +rs: List<&2, String>
+  {Rules.covers(ps, ds, rs) == Laws.covered(ps, ds, rs) : List<&2, F.Finding>}
+
+def pk.covers(ps, ds, rs):
+  match ps:
+    case Nil{}:
+      {==}
+    case Con{Rules.Package{+dir, _at, _spec}, +tl}:
+      m = pk.members(ds, rs, dir)
+      %m : {List.append(&2, F.Finding, Law.check(Rules.members(ds, rs, dir)), Rules.covers(tl, ds, rs))
+        == List.append(&2, F.Finding, Law.check(_), Laws.covered(tl, ds, rs)) : List<&2, F.Finding>}
+      Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
+        xs => List.append(&2, F.Finding, Law.check(Rules.members(ds, rs, dir)), xs),
+        Rules.covers(tl, ds, rs), Laws.covered(tl, ds, rs), pk.covers(tl, ds, rs))
+
+# the rules' trace of the packages is the spec's
+law pk.traces:
+  for ps: List<&2, Rules.Package>
+  for +ds: List<&2, Digest.Digest>
+  for +rs: List<&2, String>
+  for +whole: Bool
+  {Rules.traces(ps, ds, rs, whole) == Laws.traced(ps, ds, rs, whole) : List<&2, F.Finding>}
+
+def pk.traces(ps, ds, rs, whole):
+  match ps:
+    case Nil{}:
+      {==}
+    case Con{Rules.Package{+dir, +at, +spec}, +tl}:
+      m = pk.members(ds, rs, dir)
+      %m : {List.append(&2, F.Finding, Rules.trace.nested(spec, whole, dir, at, Rules.members(ds, rs, dir)),
+          Rules.traces(tl, ds, rs, whole))
+        == List.append(&2, F.Finding, Rules.trace.nested(spec, whole, dir, at, _), Laws.traced(tl, ds, rs, whole))
+        : List<&2, F.Finding>}
+      Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
+        xs => List.append(&2, F.Finding, Rules.trace.nested(spec, whole, dir, at, Rules.members(ds, rs, dir)), xs),
+        Rules.traces(tl, ds, rs, whole), Laws.traced(tl, ds, rs, whole), pk.traces(tl, ds, rs, whole))
+
+def Laws.packages_scoped(srcs, whole, spec, ps):
+  a = Equal.cong(List<&2, Digest.Digest>, List<&2, F.Finding>,
+    mm => List.concat(&2, F.Finding, [Law.check(mm), Rules.covers(ps, Digest.all(srcs), Rules.roots(ps)),
+      Unsafe.check(Digest.all(srcs)), Rules.trace.top(mm, whole, spec),
+      Rules.traces(ps, Digest.all(srcs), Rules.roots(ps), whole)]),
+    Rules.members(Digest.all(srcs), Rules.roots(ps), ""), Laws.part(Digest.all(srcs), Rules.roots(ps), ""),
+    pk.members(Digest.all(srcs), Rules.roots(ps), ""))
+  b = Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
+    cc => List.concat(&2, F.Finding, [Law.check(Laws.part(Digest.all(srcs), Rules.roots(ps), "")), cc,
+      Unsafe.check(Digest.all(srcs)), Rules.trace.top(Laws.part(Digest.all(srcs), Rules.roots(ps), ""), whole, spec),
+      Rules.traces(ps, Digest.all(srcs), Rules.roots(ps), whole)]),
+    Rules.covers(ps, Digest.all(srcs), Rules.roots(ps)), Laws.covered(ps, Digest.all(srcs), Rules.roots(ps)),
+    pk.covers(ps, Digest.all(srcs), Rules.roots(ps)))
+  c = Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
+    tt => List.concat(&2, F.Finding, [Law.check(Laws.part(Digest.all(srcs), Rules.roots(ps), "")),
+      Laws.covered(ps, Digest.all(srcs), Rules.roots(ps)), Unsafe.check(Digest.all(srcs)),
+      Rules.trace.top(Laws.part(Digest.all(srcs), Rules.roots(ps), ""), whole, spec), tt]),
+    Rules.traces(ps, Digest.all(srcs), Rules.roots(ps), whole),
+    Laws.traced(ps, Digest.all(srcs), Rules.roots(ps), whole),
+    pk.traces(ps, Digest.all(srcs), Rules.roots(ps), whole))
+  Equal.trans(List<&2, F.Finding>, Rules.project(srcs, whole, spec, ps),
+    List.concat(&2, F.Finding, [Law.check(Laws.part(Digest.all(srcs), Rules.roots(ps), "")),
+      Laws.covered(ps, Digest.all(srcs), Rules.roots(ps)), Unsafe.check(Digest.all(srcs)),
+      Rules.trace.top(Laws.part(Digest.all(srcs), Rules.roots(ps), ""), whole, spec),
+      Rules.traces(ps, Digest.all(srcs), Rules.roots(ps), whole)]),
+    Laws.packed(srcs, whole, spec, ps),
+    Equal.trans(List<&2, F.Finding>, Rules.project(srcs, whole, spec, ps),
+      List.concat(&2, F.Finding, [Law.check(Laws.part(Digest.all(srcs), Rules.roots(ps), "")),
+        Rules.covers(ps, Digest.all(srcs), Rules.roots(ps)), Unsafe.check(Digest.all(srcs)),
+        Rules.trace.top(Laws.part(Digest.all(srcs), Rules.roots(ps), ""), whole, spec),
+        Rules.traces(ps, Digest.all(srcs), Rules.roots(ps), whole)]),
+      List.concat(&2, F.Finding, [Law.check(Laws.part(Digest.all(srcs), Rules.roots(ps), "")),
+        Laws.covered(ps, Digest.all(srcs), Rules.roots(ps)), Unsafe.check(Digest.all(srcs)),
+        Rules.trace.top(Laws.part(Digest.all(srcs), Rules.roots(ps), ""), whole, spec),
+        Rules.traces(ps, Digest.all(srcs), Rules.roots(ps), whole)]),
+      a, b),
+    c)
+
+# with no root but `.`, every directory's package is `.`
+law pk.go_none:
+  for us: List<&2, String>
+  {Rules.owner.go(us, []) == "" : String}
+
+def pk.go_none(us):
+  match us:
+    case Nil{}:
+      {==}
+    case Con{_u, +tl}:
+      pk.go_none(tl)
+
+# with no root but `.`, the package `.` holds every file
+law pk.none:
+  for ds: List<&2, Digest.Digest>
+  {Rules.members(ds, [], "") == ds : List<&2, Digest.Digest>}
+
+def pk.none(ds):
+  match ds:
+    case Nil{}:
+      {==}
+    case Con{Digest.Digest{+path, +norm, +dir, +is_laws, +is_law_file, +exempt, +tops, +says, +deps, +unsafes, +laws},
+      +tl}:
+      o = Equal.sym(String, Rules.owner.go(Rules.ups(dir), []), "", pk.go_none(Rules.ups(dir)))
+      %o : {Bool.pick(List<&2, Digest.Digest>, String.eq(_, ""),
+          Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}
+            <> Rules.members(tl, [], ""), Rules.members(tl, [], ""))
+        == Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws} <> tl
+        : List<&2, Digest.Digest>}
+      Equal.cong(List<&2, Digest.Digest>, List<&2, Digest.Digest>,
+        xs => Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws} <> xs,
+        Rules.members(tl, [], ""), tl, pk.none(tl))
+
+def Laws.one_package(s, ss, whole, spec):
+  Equal.cong(List<&2, Digest.Digest>, List<&2, F.Finding>,
+    mm => List.concat(&2, F.Finding, [Law.check(mm), [], Unsafe.check(Digest.all(s <> ss)),
+      Rules.trace.top(mm, whole, spec), []]),
+    Rules.members(Digest.all(s <> ss), [], ""), Digest.all(s <> ss), pk.none(Digest.all(s <> ss)))
+
+def Laws.trace_rebased(pkg, rest):
+  match pkg rest:
+    case SNil{} SNil{}:
+      {==}
+    case SNil{} SCon{_h, _t}:
+      {==}
+    case SCon{_h, t} _:
+      Laws.trace_rebased(t, rest)
+
+def Laws.trace_repathed(_at, _line, _col, _len, _rule, _msg, _fs):
+  {==}
+
+def Laws.trace_kept(at, path, line, col, len, rule, msg, fs, h):
+  e = Equal.sym(Bool, String.eq(path, "SPEC.md"), False{}, h)
+  %e : {F.Finding{Bool.pick(String, _, at, path), line, col, len, rule, msg} <> Rules.repath(fs, at)
+    == F.Finding{path, line, col, len, rule, msg} <> Rules.repath(fs, at) : List<&2, F.Finding>}
+  {==}
+
+def Laws.trace_top_unread(_whole):
+  {==}
+
+def Laws.trace_nested_unread(_whole, _pkg, _at, _ds):
+  {==}
+
 def Laws.scope_findings(world):
   n = Equal.sym(List<&2, F.Finding>,
     List.append(&2, F.Finding, Rules.project(Plan.srcs_of(Plan.gots(Plan.inputs(world), world)),
-      List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md")), []),
+      List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"),
+        Plan.packages(Plan.roots(world), world)), []),
     Rules.project(Plan.srcs_of(Plan.gots(Plan.inputs(world), world)),
-      List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md")),
+      List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"), Plan.packages(Plan.roots(world), world)),
     lint.app_nil(F.Finding, Rules.project(Plan.srcs_of(Plan.gots(Plan.inputs(world), world)),
-      List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"))))
+      List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"), Plan.packages(Plan.roots(world), world))))
   %n : {List.append(&2, F.Finding, Plan.unread(Plan.gots(Plan.inputs(world), world)),
       List.append(&2, F.Finding, Plan.per_file(Plan.srcs_of(Plan.gots(Plan.inputs(world), world))),
         List.append(&2, F.Finding, Plan.settings(world), _)))
@@ -782,27 +1082,57 @@ def Laws.scope_findings(world):
       List.append(&2, F.Finding, Plan.per_file(Plan.srcs_of(Plan.gots(Plan.inputs(world), world))),
         List.append(&2, F.Finding, Plan.settings(world),
           Rules.project(Plan.srcs_of(Plan.gots(Plan.inputs(world), world)),
-          List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md")))))
+          List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"),
+            Plan.packages(Plan.roots(world), world)))))
     == Laws.in_scope(world) : List<&2, F.Finding>}
   b = Equal.sym(List<&2, F.Finding>, Plan.per_file(Plan.srcs_of(Plan.gots(Plan.inputs(world), world))),
     Laws.on_all(world, Plan.inputs(world)), lint.on(Plan.inputs(world), world))
   %b : {List.append(&2, F.Finding, Laws.unread_all(world, Plan.inputs(world)),
       List.append(&2, F.Finding, _, List.append(&2, F.Finding, Plan.settings(world),
         Rules.project(Plan.srcs_of(Plan.gots(Plan.inputs(world), world)),
-          List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md")))))
+          List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"),
+            Plan.packages(Plan.roots(world), world)))))
     == Laws.in_scope(world) : List<&2, F.Finding>}
   t = Equal.sym(List<&2, F.Finding>, Plan.settings(world), Laws.settings_found(world), Laws.setting_reports(world))
   %t : {List.append(&2, F.Finding, Laws.unread_all(world, Plan.inputs(world)),
       List.append(&2, F.Finding, Laws.on_all(world, Plan.inputs(world)), List.append(&2, F.Finding, _,
         Rules.project(Plan.srcs_of(Plan.gots(Plan.inputs(world), world)),
-          List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md")))))
+          List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"),
+            Plan.packages(Plan.roots(world), world)))))
     == Laws.in_scope(world) : List<&2, F.Finding>}
   c = Equal.sym(List<&2, Src.Src>, Plan.srcs_of(Plan.gots(Plan.inputs(world), world)),
     Laws.parsed_all(world, Plan.inputs(world)), lint.parsed(Plan.inputs(world), world))
   %c : {List.append(&2, F.Finding, Laws.unread_all(world, Plan.inputs(world)),
       List.append(&2, F.Finding, Laws.on_all(world, Plan.inputs(world)),
         List.append(&2, F.Finding, Laws.settings_found(world),
-          Rules.project(_, List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md")))))
+          Rules.project(_, List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"),
+            Plan.packages(Plan.roots(world), world)))))
+    == Laws.in_scope(world) : List<&2, F.Finding>}
+  k = Equal.sym(List<&2, Rules.Package>, Plan.packages(Plan.roots(world), world), Laws.pkgs(world, Plan.roots(world)),
+    Laws.package_spec(world, Plan.roots(world)))
+  %k : {List.append(&2, F.Finding, Laws.unread_all(world, Plan.inputs(world)),
+      List.append(&2, F.Finding, Laws.on_all(world, Plan.inputs(world)),
+        List.append(&2, F.Finding, Laws.settings_found(world),
+          Rules.project(Laws.parsed_all(world, Plan.inputs(world)), List.is_empty(&2, String, W.paths.of(world)),
+            W.text(world, "SPEC.md"), _))))
+    == Laws.in_scope(world) : List<&2, F.Finding>}
+  q = Equal.sym(List<&2, F.Finding>,
+    Rules.project(Laws.parsed_all(world, Plan.inputs(world)), List.is_empty(&2, String, W.paths.of(world)),
+      W.text(world, "SPEC.md"), Laws.pkgs(world, Plan.roots(world))),
+    Laws.packed(Laws.parsed_all(world, Plan.inputs(world)), List.is_empty(&2, String, W.paths.of(world)),
+      W.text(world, "SPEC.md"), Laws.pkgs(world, Plan.roots(world))),
+    Laws.packages_scoped(Laws.parsed_all(world, Plan.inputs(world)), List.is_empty(&2, String, W.paths.of(world)),
+      W.text(world, "SPEC.md"), Laws.pkgs(world, Plan.roots(world))))
+  %q : {List.append(&2, F.Finding, Laws.unread_all(world, Plan.inputs(world)),
+      List.append(&2, F.Finding, Laws.on_all(world, Plan.inputs(world)),
+        List.append(&2, F.Finding, Laws.settings_found(world), _)))
+    == Laws.in_scope(world) : List<&2, F.Finding>}
+  z = lint.app_nil(F.Finding, Laws.packed(Laws.parsed_all(world, Plan.inputs(world)),
+    List.is_empty(&2, String, W.paths.of(world)),
+    W.text(world, "SPEC.md"), Laws.pkgs(world, Plan.roots(world))))
+  %z : {List.append(&2, F.Finding, Laws.unread_all(world, Plan.inputs(world)),
+      List.append(&2, F.Finding, Laws.on_all(world, Plan.inputs(world)),
+        List.append(&2, F.Finding, Laws.settings_found(world), _)))
     == Laws.in_scope(world) : List<&2, F.Finding>}
   {==}
 
@@ -1276,8 +1606,8 @@ def scope3.first(ds, all):
       +rest}:
       scope3.first.step(is_laws, all, dir, Law.law_dirs(rest), Laws.has_laws(rest), scope3.first(rest, all))
 
-def Laws.under_law_all(world):
-  scope3.first(Laws.handed(world), Laws.handed(world))
+def Laws.under_law_all(ds):
+  scope3.first(ds, ds)
 
 # Where a finding is graded (BOLT-CFG-4). The table lookup compares
 # directories with String.eq, so the proof needs String.eq to be sound: two

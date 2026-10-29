@@ -5349,35 +5349,59 @@ def reach.calls(us: List<&2, Bind.Use>, +all: List<&2, Outline.Item>, +file: Str
     case Con{Bind.Use{_n, _l, _c, tt}, rest}:
       List.append(&2, Digest.Mention, coverage.target(tt, all, file), reach.calls(rest, all, file))
 
-# the defs and types of the outline, each by name and line, a type with its
-# constructors, each with what the uses on its lines name. The uses are read
-# in order: each item but a constructor takes those before the next such
-# item's line
+# a def's name onto the others, when it has one and is a proof
+def reach.proof(mm: Maybe<&2, String>, is_proof: Bool, +more: List<&2, String>) -> List<&2, String>:
+  match mm:
+    case None{}:
+      more
+    case Some{name}:
+      Bool.pick(List<&2, String>, is_proof, name <> more, more)
+
+# the names of the tree's top-level defs that are proofs, as
+# BOLT-RULE-EXEMPT reads one (Calls.proof), in order
+def reach.proofs(root: Tree.Node) -> List<&2, String>:
+  match root:
+    case Tree.NCons{Tree.Stmt{Tree.SDef{}, +kids, _body}, rest}:
+      reach.proof(Bind.declared(kids), Calls.proof(kids), reach.proofs(rest))
+    case Tree.NCons{_h, rest}:
+      reach.proofs(rest)
+    case _other:
+      []
+
+# the defs and types of the outline, less the defs named in ps (the
+# proofs), each by name and line, a type with its constructors, each with
+# what the uses on its lines name. The uses are read in order: each item but
+# a constructor takes those before the next such item's line, a proof's
+# included
 def reach.tops(
   items: List<&2, Outline.Item>,
   +all: List<&2, Outline.Item>,
   +us: List<&2, Bind.Use>,
-  +file: String
+  +file: String,
+  +ps: List<&2, String>
 ) -> List<&2, Digest.Top>:
   match items:
     case Nil{}:
       []
-    case Con{Outline.Item{Outline.IDef{}, name, line, _sig, _doc, _path}, +rest}:
-      Digest.Top{Outline.IDef{}, name, line, [], reach.calls(reach.upto(us, reach.next(rest)), all, file)}
-        <> reach.tops(rest, all, reach.past(us, reach.next(rest)), file)
+    case Con{Outline.Item{Outline.IDef{}, +name, line, _sig, _doc, _path}, +rest}:
+      Bool.pick(List<&2, Digest.Top>, Imports.has(ps, name),
+        reach.tops(rest, all, reach.past(us, reach.next(rest)), file, ps),
+        Digest.Top{Outline.IDef{}, name, line, [], reach.calls(reach.upto(us, reach.next(rest)), all, file)}
+          <> reach.tops(rest, all, reach.past(us, reach.next(rest)), file, ps))
     case Con{Outline.Item{Outline.IType{}, name, line, _sig, _doc, _path}, +rest}:
       Digest.Top{Outline.IType{}, name, line, coverage.ctors_of(rest),
         reach.calls(reach.upto(us, reach.next(rest)), all, file)}
-        <> reach.tops(rest, all, reach.past(us, reach.next(rest)), file)
+        <> reach.tops(rest, all, reach.past(us, reach.next(rest)), file, ps)
     case Con{Outline.Item{Outline.ICtor{}, _name, _line, _sig, _doc, _path}, rest}:
-      reach.tops(rest, all, us, file)
+      reach.tops(rest, all, us, file, ps)
     case Con{Outline.Item{_kind, _name, _line, _sig, _doc, _path}, +rest}:
-      reach.tops(rest, all, reach.past(us, reach.next(rest)), file)
+      reach.tops(rest, all, reach.past(us, reach.next(rest)), file, ps)
 
 # LAW: whatever a file's text, tokens, tree, binding structure and outline,
 # its digest grades it at its normalized path, is a LAWS.bend by its path, is
 # let off exactly when that path is a law file or a test, lists the outline's
-# defs and types (a type with the constructors listed right after it), each
+# defs and types (a type with the constructors listed right after it) less
+# the defs that are proofs (reach.proofs of its tree), each
 # with what the binder resolved the uses on its lines to (reach.tops), and
 # names, when it is a LAWS.bend, exactly what the binder resolved each use on
 # a quantified law's statement to, through an import alias or in the file;
@@ -5393,7 +5417,7 @@ law reach_digest:
   {coverage.view(Digest.of(Src.Src{path, text, toks, tree, bound, items}))
     == CoverageView{Imports.norm(path), Paths.is_laws(path),
       Bool.or(Paths.is_law_file(Imports.norm(path)), Paths.is_test(Imports.norm(path))),
-      reach.tops(items, items, coverage.uses(bound), Imports.norm(path)),
+      reach.tops(items, items, coverage.uses(bound), Imports.norm(path), reach.proofs(tree)),
       Bool.pick(List<&2, Digest.Mention>, Paths.is_laws(path),
         coverage.said(coverage.uses(bound), tree, items, Imports.norm(path)), [])}
     : CoverageView}
@@ -5401,7 +5425,8 @@ law reach_digest:
 # LAW: read from its path and text as the linter reads every file, a file's
 # defs call, and its laws name, exactly what the binder (Bind.of_tree,
 # BOLT-SYN-5) resolves each use to: on the def's lines, and on a quantified
-# law's statement when the file is a LAWS.bend
+# law's statement when the file is a LAWS.bend; a def that is a proof is not
+# listed
 # BOLT-LAW-1
 law reach_binder:
   for +path: String
@@ -5410,7 +5435,8 @@ law reach_binder:
     == CoverageView{Imports.norm(path), Paths.is_laws(path),
       Bool.or(Paths.is_law_file(Imports.norm(path)), Paths.is_test(Imports.norm(path))),
       reach.tops(Outline.of_tokens(text, Lex.tokens(text)), Outline.of_tokens(text, Lex.tokens(text)),
-        coverage.uses(Bind.of_tree(Tree.parse(text), String.lines(text))), Imports.norm(path)),
+        coverage.uses(Bind.of_tree(Tree.parse(text), String.lines(text))), Imports.norm(path),
+        reach.proofs(Tree.parse(text))),
       Bool.pick(List<&2, Digest.Mention>, Paths.is_laws(path),
         coverage.said(coverage.uses(Bind.of_tree(Tree.parse(text), String.lines(text))), Tree.parse(text),
           Outline.of_tokens(text, Lex.tokens(text)), Imports.norm(path)), [])}
