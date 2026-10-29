@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.21.0](https://github.com/Emerging-Patterns/bolt/compare/v1.20.0...v1.21.0) (2026-10-29)
+
+
+### Features
+
+* **scope:** run coverage and trace per package ([#255](https://github.com/Emerging-Patterns/bolt/issues/255)) ([9374588](https://github.com/Emerging-Patterns/bolt/commit/9374588ee37d0cb54fa7662825827eff0ac77a6e))
+
 ## [1.20.0](https://github.com/Emerging-Patterns/bolt/compare/v1.19.0...v1.20.0) (2026-10-29)
 
 
