@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.20.0](https://github.com/Emerging-Patterns/bolt/compare/v1.19.0...v1.20.0) (2026-10-29)
+
+
+### Features
+
+* **rules:** transcong (S006, opt-in), an Equal.trans an Equal.cong feeds ([#253](https://github.com/Emerging-Patterns/bolt/issues/253)) ([786aaef](https://github.com/Emerging-Patterns/bolt/commit/786aaef0599568a3d0e0ef11c31787e91f5a3816))
+
 ## [1.19.0](https://github.com/Emerging-Patterns/bolt/compare/v1.18.0...v1.19.0) (2026-10-25)
 
 
