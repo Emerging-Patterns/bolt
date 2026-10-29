@@ -52,7 +52,7 @@ unset group has its default. The groups:
 |---------------|----------------------------------------------------------------------------------|---------|
 | `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign` `setting` | error   |
 | `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` `fromrev` (`scan`, `thunk`: opt-in) | warn    |
-| `style`       | `doc` `space` `wrap` `param` `noqa`                                              | warn    |
+| `style`       | `doc` `space` `wrap` `param` `noqa` (`transcong`: opt-in)                          | warn    |
 | `laws`        | `coverage` `closed` `unsafe` (`trace`: opt-in)                                   | warn    |
 | `pedantic`    | `tail`                                                                           | off     |
 
@@ -71,7 +71,7 @@ The stable codes, assigned once (do not renumber):
 | C009 | `chars` | U009 | `hoist` | L004 | retired |
 | C010 | `foreign` | U010 | `ring` | L005 | `trace` |
 | C011 | `setting` | U011 | `rewalk` | P001 | `tail` |
-| | | U012 | `unit` | | |
+| | | U012 | `unit` | S006 | `transcong` |
 | | | U013 | `scan` | | |
 | | | U014 | retired | | |
 | | | U015 | `thunk` | | |
@@ -87,7 +87,8 @@ reader already drops the program, and it could not tell one that does from
 one that does not. U014 is never reused either. `trace` is opt-in:
 it is in `laws`, but no group setting reaches it; only `def trace()` in a
 bolt.bend turns it on. `scan` and `thunk` are opt-in the same way, in `suspicious`: only
-`def scan()` or `def thunk()` turns each on. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
+`def scan()` or `def thunk()` turns each on, and `transcong`, in `style`, only by
+`def transcong()`. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
 read, never linted. A setting whose name is no rule's slug and no group
 sets nothing, so `setting` (C011) reports it. Without one, the defaults apply. This repo's
 [bolt.bend](../bolt.bend) sets every group to error: the gate must see

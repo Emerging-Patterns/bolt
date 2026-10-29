@@ -316,7 +316,9 @@ def Laws.slug_finds_row(n):
       {==}
     case 33n:
       {==}
-    case 34n+_p:
+    case 34n:
+      {==}
+    case 35n+_p:
       {==}
 
 # the same arms, looked up by code
@@ -390,7 +392,9 @@ def Laws.code_finds_row(n):
       {==}
     case 33n:
       {==}
-    case 34n+_p:
+    case 34n:
+      {==}
+    case 35n+_p:
       {==}
 
 def Laws.shown(_path, _line, _col, _len, _rule, _msg, _level):

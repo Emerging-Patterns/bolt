@@ -25,6 +25,7 @@ import ./rules/correctness/hole.bend as Hole
 import ./rules/style/space.bend as Space
 import ./rules/style/wrap.bend as Wrap
 import ./rules/style/param.bend as Param
+import ./rules/style/transcong.bend as Transcong
 import ./rules/correctness/pick.bend as Pick
 import ./rules/laws/law.bend as Law
 import ./rules/suspicious/strict.bend as Strict
@@ -97,7 +98,8 @@ def on.rules(+ss: Src.Src) -> List<&2, F.Finding>:
     Arms.check(ss),
     Foreign.check(ss),
     Fuel.check(ss),
-    Closed.check(ss)])
+    Closed.check(ss),
+    Transcong.check(ss)])
 
 # every rule's findings on a file read once, each at that file
 def on(+ss: Src.Src) -> List<&2, F.Finding>:
