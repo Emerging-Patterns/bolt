@@ -29,6 +29,7 @@ import ./suspicious/table.bend as Table
 import ./suspicious/unit.bend as UnitRule
 import ./suspicious/fromrev.bend as Fromrev
 import ./suspicious/thunk.bend as Thunk
+import ./style/transcong.bend as Transcong
 import ./suspicious/scan.bend as Scan
 import ./correctness/chars.bend as Chars
 import ./correctness/strings.bend as Strings
@@ -2572,6 +2573,143 @@ law thunk_counts:
   {List.length(&2, F.Finding, Thunk.check(Src.Src{path, text, toks, tree, bound, items}))
     == thunk.defs(Calls.defs(tree), path) : Nat}
 
+# transcong (BOLT-RULE-S006). A site is a name leaf spelling `Equal.trans`,
+# then a group opened by `(` whose kids hold five comma leaves of their own
+# (six arguments), the fifth or sixth of which opens with a name leaf
+# spelling `Equal.cong` and a `(` group and ends right after it (the kids end
+# or go on with a comma). Sites are counted at any depth, except among the
+# own nodes of a let statement.
+
+# is the node a name leaf spelling the text?
+def transcong.name(nn: Tree.Node, +tt: String) -> Bool:
+  match nn:
+    case Tree.Leaf{Lex.Tok{k, t, l, c}}:
+      Bool.and(Lex.is_name(k), String.eq(t, tt))
+    case other:
+      False{}
+
+# is the node a group opened by `(`?
+def transcong.open(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.Group{Lex.Tok{k, o, l, c}, kids, cl}:
+      String.eq(o, "(")
+    case other:
+      False{}
+
+# is the node a comma leaf?
+def transcong.comma(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.Leaf{Lex.Tok{k, t, l, c}}:
+      Lex.is_comma(k)
+    case other:
+      False{}
+
+# is the chain over, or does it go on with a comma?
+def transcong.last(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.NCons{h, t}:
+      transcong.comma(h)
+    case other:
+      True{}
+
+# a `(` group, then the argument's end
+def transcong.call(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.NCons{g, after}:
+      Bool.and(transcong.open(g), transcong.last(after))
+    case other:
+      False{}
+
+# does the chain open an argument that is exactly an `Equal.cong` call?
+def transcong.cong(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.NCons{h, t}:
+      Bool.and(transcong.name(h, "Equal.cong"), transcong.call(t))
+    case other:
+      False{}
+
+# how many comma leaves the chain holds among its own nodes
+def transcong.commas(nn: Tree.Node) -> Nat:
+  match nn:
+    case Tree.NCons{h, t}:
+      Nat.add(Bool.pick(Nat, transcong.comma(h), 1n, 0n), transcong.commas(t))
+    case other:
+      0n
+
+# does an argument the fifth or the sixth, from here on, open with an
+# `Equal.cong` call? nc: commas so far; fresh: one opens here; seen: one did
+def transcong.fed(nn: Tree.Node, +nc: Nat, +fresh: Bool, +seen: Bool) -> Bool:
+  match nn:
+    case Tree.NCons{+h, +t}:
+      transcong.fed(t, Nat.add(nc, Bool.pick(Nat, transcong.comma(h), 1n, 0n)), transcong.comma(h),
+        Bool.or(seen, Bool.and(fresh, Bool.and(Bool.or(Nat.is_eq(nc, 4n), Nat.is_eq(nc, 5n)),
+          transcong.cong(Tree.NCons{h, t})))))
+    case other:
+      seen
+
+# past the `Equal.trans` leaf: a `(` group of six arguments, the fifth or
+# the sixth an `Equal.cong` call
+def transcong.args(nn: Tree.Node) -> Bool:
+  match nn:
+    case Tree.NCons{Tree.Group{Lex.Tok{k, o, l, c}, +kids, cl}, after}:
+      Bool.and(String.eq(o, "("),
+        Bool.and(Nat.is_eq(transcong.commas(kids), 5n), transcong.fed(kids, 0n, True{}, False{})))
+    case other:
+      False{}
+
+# do the node and the chain after it open a site?
+def transcong.at(hh: Tree.Node, rest: Tree.Node) -> Bool:
+  match hh:
+    case Tree.Leaf{Lex.Tok{k, t, l, c}}:
+      Bool.and(Bool.and(Lex.is_name(k), String.eq(t, "Equal.trans")), transcong.args(rest))
+    case other:
+      False{}
+
+# is the statement a let?
+def transcong.let(sk: Tree.StmtKind) -> Bool:
+  match sk:
+    case Tree.SLet{}:
+      True{}
+    case other:
+      False{}
+
+# how many sites the node holds, at any depth; top: the node is not among a
+# let's own nodes
+def transcong.count(nn: Tree.Node, +top: Bool) -> Nat:
+  match nn:
+    case Tree.NCons{+h, +rest}:
+      Nat.add(Bool.pick(Nat, Bool.and(top, transcong.at(h, rest)), 1n, 0n),
+        Nat.add(transcong.count(h, True{}), transcong.count(rest, top)))
+    case Tree.Group{o, kids, cl}:
+      transcong.count(kids, True{})
+    case Tree.Stmt{sk, kids, body}:
+      Nat.add(transcong.count(kids, Bool.not(transcong.let(sk))), transcong.count(body, True{}))
+    case other:
+      0n
+
+# LAW: over any node, transcong reports one finding for each Equal.trans an
+# Equal.cong feeds as its fifth or sixth argument, outside a let's own nodes,
+# and none for anything else
+# BOLT-RULE-S006
+law transcong_walk_counts:
+  for nn: Tree.Node
+  for +top: Bool
+  for +path: String
+  {List.length(&2, F.Finding, Transcong.walk(nn, top, path)) == transcong.count(nn, top) : Nat}
+
+# LAW: transcong reports exactly those over a file's whole tree, law files and
+# proof files included
+# BOLT-RULE-S006
+law transcong_counts:
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  {List.length(&2, F.Finding, Transcong.check(Src.Src{path, text, toks, tree, bound, items}))
+    == transcong.count(tree, True{}) : Nat}
+
 # scan (BOLT-RULE-U013). Outside a law file the rule walks each def of the
 # file that calls itself (Calls.calls) and is not a proof, its body hot, as
 # hoist does: a `=>` token makes the rest of its chain cold, a case's pattern
@@ -4899,6 +5037,28 @@ law inert_thunk:
   for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
   {Thunk.check(Src.Src{path, text, toks, tree, bound, items})
     == Thunk.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# LAW: transcong reads what no string says: two sources as the lexer makes them
+# whose trees read the same with strings cut have the same findings
+# BOLT-RULE-INERT
+# BOLT-RULE-S006
+law inert_transcong:
+  for +path: String
+  for text: String
+  for +tree: Tree.Node
+  for toks: List<&2, Lex.Tok>
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for text2: String
+  for +tree2: Tree.Node
+  for toks2: List<&2, Lex.Tok>
+  for bound2: Bind.Bound
+  for items2: List<&2, Outline.Item>
+  for +ok: {inert.ok(tree) == True{} : Bool}
+  for +ok2: {inert.ok(tree2) == True{} : Bool}
+  for e: {inert.node(tree) == inert.node(tree2) : Tree.Node}
+  {Transcong.check(Src.Src{path, text, toks, tree, bound, items})
+    == Transcong.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
 
 # LAW: eager reads what no string says: two sources as the lexer makes them
 # whose trees read the same with strings cut have the same findings
