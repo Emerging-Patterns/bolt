@@ -165,6 +165,14 @@ reaches, is code, even when a law imports it to state laws about it. So a
 `LAWS.bend` of nothing but `import ./laws/<Name>.bend` lines makes those
 files law files, and a proof may state lemma laws of its own.
 
+The walk is over the whole tree under the working directory, even over files
+named on the line: bolt reads every `.bend` file there for its imports
+(lexed, never parsed) and lints only the files named. So a file named beside
+a `LAWS.bend` that imports it is still code when a `main.bend` the run does
+not name imports it, and a file under `laws/` named without its `LAWS.bend`
+is still a law file. The editor reads the open file alone, so there a file
+has only the role its name gives it.
+
 A rule is handed a [`Src`](src.bend), not the text: the path, the text, and
 the file's tokens, tree, binder and outline, each read once for the whole
 set. A tree parse of a 156 KB file costs 1.5 s here, so twenty rules that
