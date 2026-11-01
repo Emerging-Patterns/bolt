@@ -13,8 +13,9 @@
 # goes to its stream, and a code exits as it says: src/stop.bend's say and
 # leave, which main.bend calls.
 #
-# The reasoning behind each guarantee is in docs/rfc/bolt-spec.md, which
-# names them by the requirement IDs they had before laws/.
+# The reasoning behind each guarantee is in docs/rfc/bolt-spec.md. It names
+# the guarantees by the requirement IDs of docs/SPEC.md, the table these files
+# replaced.
 import Base
 import ./laws/LeaveCode.bend as LeaveCode
 import ./laws/LeaveZero.bend as LeaveZero

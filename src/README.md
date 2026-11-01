@@ -85,7 +85,7 @@ asks for it. L004 was `quantify`, the opt-in strict mode of `closed`;
 a check on `IO.args()` readers, retired before its first release: every
 reader already drops the program, and it could not tell one that does from
 one that does not. U014 is never reused either. L005 was `trace`, which
-held a SPEC.md table and the laws' ID tags to each other; a guarantee is
+held a SPEC.md table (now docs/SPEC.md) and the laws' ID tags to each other; a guarantee is
 named by its law file now, and L005 is never reused. `scan` and `thunk` are
 opt-in: they are in `suspicious`, but no group setting reaches them; only
 `def scan()` or `def thunk()` turns each on, and `transcong`, in `style`, only by
