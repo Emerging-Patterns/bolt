@@ -1,24 +1,134 @@
-# bolt: the proofs of LAWS.bend. `bend PROOF.bend` is the gate.
+# The proofs: proofs/<name>.bend proves laws/<name>.bend. The gate:
+# `bend PROOF.bend` prints exactly `ALL PROOFS CHECK` as its first line.
 import Base
-import ./src/stop.bend as Stop
-import ./src/args.bend as Args
 import ./LAWS.bend as Laws
-
-def Laws.say_line(_text):
-  {==}
-
-def Laws.say_page(_text):
-  {==}
-
-def Laws.say_err(_text):
-  {==}
-
-def Laws.leave_zero(code, h):
-  e = Equal.sym(Bool, U32.is_eq(code, 0), True{}, h)
-  %e : {Stop.leave.at(_, code) == IO.pure(Unit, Unit{}) : IO(Unit)}
-  {==}
-
-def Laws.leave_code(code, h):
-  e = Equal.sym(Bool, U32.is_eq(code, 0), False{}, h)
-  %e : {Stop.leave.at(_, code) == IO.die(Unit, code, "") : IO(Unit)}
-  {==}
+import ./proofs/LeaveCode.bend as PLeaveCode
+import ./proofs/LeaveZero.bend as PLeaveZero
+import ./proofs/SayErr.bend as PSayErr
+import ./proofs/SayLine.bend as PSayLine
+import ./proofs/SayPage.bend as PSayPage
+import ./proofs/CheckPrintsBendErrors.bend as PCheckPrintsBendErrors
+import ./proofs/CliAcceptsDocumentedForms.bend as PCliAcceptsDocumentedForms
+import ./proofs/CliDashHelp.bend as PCliDashHelp
+import ./proofs/CliReadsArgumentsAfterProgram.bend as PCliReadsArgumentsAfterProgram
+import ./proofs/CliVersion.bend as PCliVersion
+import ./proofs/CliVersionExits.bend as PCliVersionExits
+import ./proofs/CliVersionPrintsRelease.bend as PCliVersionPrintsRelease
+import ./proofs/ConfigGradingDropsOff.bend as PConfigGradingDropsOff
+import ./proofs/ConfigGroupDefaultsHold.bend as PConfigGroupDefaultsHold
+import ./proofs/ConfigLevelsResolve.bend as PConfigLevelsResolve
+import ./proofs/ConfigNearestFileGrades.bend as PConfigNearestFileGrades
+import ./proofs/ConfigOptInStartsOff.bend as PConfigOptInStartsOff
+import ./proofs/ConfigUnknownLevelIsError.bend as PConfigUnknownLevelIsError
+import ./proofs/ConfigUnknownSettingsFound.bend as PConfigUnknownSettingsFound
+import ./proofs/ExitOnError.bend as PExitOnError
+import ./proofs/LastLineSummary.bend as PLastLineSummary
+import ./proofs/LevelOwn.bend as PLevelOwn
+import ./proofs/LinesInOrder.bend as PLinesInOrder
+import ./proofs/NoqaBare.bend as PNoqaBare
+import ./proofs/NoqaBareText.bend as PNoqaBareText
+import ./proofs/NoqaReportsStaleComments.bend as PNoqaReportsStaleComments
+import ./proofs/NoqaSilencesNamedFindings.bend as PNoqaSilencesNamedFindings
+import ./proofs/OutputCodesMapOneToOne.bend as POutputCodesMapOneToOne
+import ./proofs/OutputFindingFormatHolds.bend as POutputFindingFormatHolds
+import ./proofs/OutputUnreadablePathReported.bend as POutputUnreadablePathReported
+import ./proofs/PackageDirs.bend as PPackageDirs
+import ./proofs/PackagesScoped.bend as PPackagesScoped
+import ./proofs/ScopeConfigIsNeverLinted.bend as PScopeConfigIsNeverLinted
+import ./proofs/ScopeLawsGovernPackage.bend as PScopeLawsGovernPackage
+import ./proofs/ScopePackageRootsFound.bend as PScopePackageRootsFound
+import ./proofs/ScopeProjectRulesRunOnRoot.bend as PScopeProjectRulesRunOnRoot
+import ./proofs/ScopeRulesSeeTheirInputs.bend as PScopeRulesSeeTheirInputs
+import ./proofs/ScopeWalksWholeTree.bend as PScopeWalksWholeTree
+import ./proofs/SettingReportsUnknownNames.bend as PSettingReportsUnknownNames
+import ./proofs/UnknownExact.bend as PUnknownExact
+import ./proofs/WalkBfs.bend as PWalkBfs
+import ./proofs/WantsTie.bend as PWantsTie
+import ./proofs/ArmsReportCoveredNatArms.bend as PArmsReportCoveredNatArms
+import ./proofs/CharsReportManyCharArms.bend as PCharsReportManyCharArms
+import ./proofs/ClosedReportsBinderlessLaws.bend as PClosedReportsBinderlessLaws
+import ./proofs/CodeRulesIgnoreCommentsAndStrings.bend as PCodeRulesIgnoreCommentsAndStrings
+import ./proofs/ConcatEither.bend as PConcatEither
+import ./proofs/ConcatPush.bend as PConcatPush
+import ./proofs/ConcatReportsAppendingRecursion.bend as PConcatReportsAppendingRecursion
+import ./proofs/ConcatViaName.bend as PConcatViaName
+import ./proofs/DocReportsUndocumentedItems.bend as PDocReportsUndocumentedItems
+import ./proofs/EagerReportsLoopsInPick.bend as PEagerReportsLoopsInPick
+import ./proofs/EscapeReportsNulBeforeDigit.bend as PEscapeReportsNulBeforeDigit
+import ./proofs/ExemptPathsYieldNoFindings.bend as PExemptPathsYieldNoFindings
+import ./proofs/ForeignReportsMissingBackend.bend as PForeignReportsMissingBackend
+import ./proofs/FromrevExempt.bend as PFromrevExempt
+import ./proofs/FromrevReportsReversedStringBuild.bend as PFromrevReportsReversedStringBuild
+import ./proofs/FuelReportsLiteralBudgets.bend as PFuelReportsLiteralBudgets
+import ./proofs/HoistReportsTablesInLoops.bend as PHoistReportsTablesInLoops
+import ./proofs/HoleReportsEachTodo.bend as PHoleReportsEachTodo
+import ./proofs/IndexReportsGetsInRecursion.bend as PIndexReportsGetsInRecursion
+import ./proofs/InertFromrev.bend as PInertFromrev
+import ./proofs/InertTranscong.bend as PInertTranscong
+import ./proofs/LawNamesEveryItem.bend as PLawNamesEveryItem
+import ./proofs/ParamReportsShortNames.bend as PParamReportsShortNames
+import ./proofs/PickReportsSelfCalls.bend as PPickReportsSelfCalls
+import ./proofs/PutReportsMapPutCalls.bend as PPutReportsMapPutCalls
+import ./proofs/RewalkReportsRepeatedWalks.bend as PRewalkReportsRepeatedWalks
+import ./proofs/RingReportsDropAppendRotation.bend as PRingReportsDropAppendRotation
+import ./proofs/RoleClosed.bend as PRoleClosed
+import ./proofs/RoleClosedExempt.bend as PRoleClosedExempt
+import ./proofs/RoleConcat.bend as PRoleConcat
+import ./proofs/RoleDoc.bend as PRoleDoc
+import ./proofs/RoleDocExempt.bend as PRoleDocExempt
+import ./proofs/RoleEager.bend as PRoleEager
+import ./proofs/RoleFromrev.bend as PRoleFromrev
+import ./proofs/RoleFromrevExempt.bend as PRoleFromrevExempt
+import ./proofs/RoleHoist.bend as PRoleHoist
+import ./proofs/RoleHole.bend as PRoleHole
+import ./proofs/RoleHoleExempt.bend as PRoleHoleExempt
+import ./proofs/RoleIndex.bend as PRoleIndex
+import ./proofs/RoleLawFileNamed.bend as PRoleLawFileNamed
+import ./proofs/RoleLawsNamed.bend as PRoleLawsNamed
+import ./proofs/RoleNamedFirst.bend as PRoleNamedFirst
+import ./proofs/RoleParam.bend as PRoleParam
+import ./proofs/RoleParamExempt.bend as PRoleParamExempt
+import ./proofs/RolePick.bend as PRolePick
+import ./proofs/RoleProofNamed.bend as PRoleProofNamed
+import ./proofs/RoleReached.bend as PRoleReached
+import ./proofs/RoleRewalk.bend as PRoleRewalk
+import ./proofs/RoleRing.bend as PRoleRing
+import ./proofs/RoleScan.bend as PRoleScan
+import ./proofs/RoleScanExempt.bend as PRoleScanExempt
+import ./proofs/RoleStrict.bend as PRoleStrict
+import ./proofs/RoleTable.bend as PRoleTable
+import ./proofs/RoleTail.bend as PRoleTail
+import ./proofs/RoleThunk.bend as PRoleThunk
+import ./proofs/RoleUnit.bend as PRoleUnit
+import ./proofs/ScanReportsCarriedArgumentWalks.bend as PScanReportsCarriedArgumentWalks
+import ./proofs/ScopeExemptionsFollowPaths.bend as PScopeExemptionsFollowPaths
+import ./proofs/SpaceReportsBlanksAndWidth.bend as PSpaceReportsBlanksAndWidth
+import ./proofs/StrictReportsEagerSelfCalls.bend as PStrictReportsEagerSelfCalls
+import ./proofs/StringsReportLongLiteralArms.bend as PStringsReportLongLiteralArms
+import ./proofs/TableReportsFixedTableAccess.bend as PTableReportsFixedTableAccess
+import ./proofs/TailReportsNonTailCalls.bend as PTailReportsNonTailCalls
+import ./proofs/ThunkReportsIgnoredSelfCallLambdas.bend as PThunkReportsIgnoredSelfCallLambdas
+import ./proofs/TranscongReportsTransCongChains.bend as PTranscongReportsTransCongChains
+import ./proofs/TwiceReportsRepeatedListLiteral.bend as PTwiceReportsRepeatedListLiteral
+import ./proofs/UnitReportsMultiplyByOne.bend as PUnitReportsMultiplyByOne
+import ./proofs/UnsafeReportsReachableForeignDefs.bend as PUnsafeReportsReachableForeignDefs
+import ./proofs/UnusedReportsDeadBinders.bend as PUnusedReportsDeadBinders
+import ./proofs/WrapReportsBrokenHeaderShape.bend as PWrapReportsBrokenHeaderShape
+import ./proofs/LspAnswersEachRequestOnce.bend as PLspAnswersEachRequestOnce
+import ./proofs/LspCheckerNeverRunsMain.bend as PLspCheckerNeverRunsMain
+import ./proofs/LspDiagnosticsMatchCli.bend as PLspDiagnosticsMatchCli
+import ./proofs/LspFramesCountBytes.bend as PLspFramesCountBytes
+import ./proofs/LspNavigationUsesBinder.bend as PLspNavigationUsesBinder
+import ./proofs/LspPositionsUseNegotiatedEncoding.bend as PLspPositionsUseNegotiatedEncoding
+import ./proofs/LspPublishesOnDocumentEvents.bend as PLspPublishesOnDocumentEvents
+import ./proofs/LspUnitsMatchCharsBelowAstral.bend as PLspUnitsMatchCharsBelowAstral
+import ./proofs/ArrowTerm.bend as PArrowTerm
+import ./proofs/AttributeDef.bend as PAttributeDef
+import ./proofs/BinderResolvesInnermostFirst.bend as PBinderResolvesInnermostFirst
+import ./proofs/LexPositionsAreZeroBased.bend as PLexPositionsAreZeroBased
+import ./proofs/LexRoundTripsText.bend as PLexRoundTripsText
+import ./proofs/MarkedArrowTerm.bend as PMarkedArrowTerm
+import ./proofs/OutlineListsTopLevelItems.bend as POutlineListsTopLevelItems
+import ./proofs/TreeKeepsEveryToken.bend as PTreeKeepsEveryToken
+import ./proofs/EitherIsPick.bend as PEitherIsPick
+import ./proofs/LazyMatchesEagerCombinators.bend as PLazyMatchesEagerCombinators

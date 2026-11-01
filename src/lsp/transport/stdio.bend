@@ -1,6 +1,10 @@
 # transport/stdio: LSP's base protocol over stdin and stdout. Reads bytes (a
 # read may end inside a UTF-8 char, and Content-Length counts bytes), keeps
 # what is past the current message in buf.
+#
+# Trusted, not proved: the transport effect (fd.c, fd.js) delivers stdin bytes
+# in order and writes stdout bytes whole; it is foreign code over descriptors
+# 0 and 1.
 import Base
 import ./service.bend as S
 import ../frame.bend as Frame

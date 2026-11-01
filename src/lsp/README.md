@@ -41,27 +41,27 @@ The loop never imports it, so `LAWS.bend`'s proofs load no foreign code (bend
 
 The pure parts: `frame.bend` (framing, UTF-8 both ways — Content-Length counts
 bytes and a read may end inside a char, so the transport reads bytes and
-decodes itself; the length is kept as its decimal digits, so `LAWS.bend`
-proves BOLT-LSP-1 over every body: the count is the body's UTF-8 bytes, every
+decodes itself; the length is kept as its decimal digits, so
+`laws/LspFramesCountBytes.bend` proves it over every body: the count is the body's UTF-8 bytes, every
 proper prefix of a message waits, and a message cuts back to its body),
 `report.bend` (the checker's text to diagnostics),
 `proto.bend` (the JSON the server sends; URI to path), `docs.bend` (the open
 documents, the loop's state), `path.bend`, and `nav.bend`: a use is answered
-as [syntax](../syntax/)'s binder resolves it (BOLT-SYN-5): a binder of the
+as [syntax](../syntax/)'s binder resolves it (`laws/BinderResolvesInnermostFirst.bend`): a binder of the
 document, else an item of the document (`def Lib.f` wins over the import
 `Lib`), else `rest` in the file behind the import `Alias` of `Alias.rest`,
-else Base (BOLT-LSP-6 in `LAWS.bend`). Items come from [syntax](../syntax/)'s outline,
+else Base (`laws/LspNavigationUsesBinder.bend`). Items come from [syntax](../syntax/)'s outline,
 so navigation works in files that do not check, and sees unsaved edits.
 
 ## What the checker gives
 
 - `bend <path> --check-only` checks the file and its imports and never runs
   `main`. The server must not execute the file being edited. Which runs the
-  checker makes is data (`checker/argv.bend`), so `LAWS.bend` proves every
-  one carries `--check-only` (BOLT-LSP-5); that bend honours the flag is
-  BOLT-TRUST-5, and `tests/checker.bend` runs a live `bend --check-only`.
+  checker makes is data (`checker/argv.bend`), so
+  `laws/LspCheckerNeverRunsMain.bend` proves every one carries `--check-only`;
+  that bend honours the flag is trusted (`src/lsp/report.bend`), and `tests/checker.bend` runs a live `bend --check-only`.
 - The report is text for people, parsed from bend's output
-  (BOLT-TRUST-5 in SPEC.md): an update that changes the format breaks it.
+  (trusted in `src/lsp/report.bend`): an update that changes the format breaks it.
 - A `LAWS.bend` alone always has open laws, since `PROOF.bend` beside it fills
   them: its TODOs are reported only while that `PROOF.bend` does not check clean.
 - One error per run, a line and no columns: a diagnostic covers its line. An
@@ -77,15 +77,15 @@ text the editor shows: findings follow every edit, and each publish carries
 the checker's last errors with the linter's current findings. The bolt.bend
 candidates are the CLI's for the same path and working directory, so the
 findings are exactly what `bolt <path>` grades for that file and text
-(BOLT-LSP-2, `LAWS.bend` `lint_is_cli`). What open, change, save and close
+(`laws/LspDiagnosticsMatchCli.bend`). What open, change, save and close
 publish is decided by server.bend's `pub.*`, pure over the checker's errors and
-the texts the files hold, and `LAWS.bend` states it (BOLT-LSP-4).
+the texts the files hold, and `laws/LspPublishesOnDocumentEvents.bend` states it.
 
 Positions follow LSP 3.17's `positionEncoding`: initialize answers `utf-32`
 when the client offers it and `utf-16` otherwise, and `enc.bend` converts
 every character offset read or sent between bolt's code-point columns and
 the negotiated encoding (a char past U+FFFF is two UTF-16 units). On a line
-with no such char the two agree (BOLT-LSP-8 in `LAWS.bend`), so a document
+with no such char the two agree (`laws/LspUnitsMatchCharsBelowAstral.bend`), so a document
 with none converts as utf-32 and never looks a line up.
 
 Completion offers what could finish the name being typed: `Alias.pre` from the

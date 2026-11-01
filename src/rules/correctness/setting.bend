@@ -5,15 +5,15 @@
 # its group's level, and a retired name (`def quantify()`, `def shadow()`)
 # does nothing at all. Rename it to the rule or group it meant, or delete it.
 #
-# A bolt.bend is read, never linted (BOLT-SCOPE-5), so this is not a per-file
+# A bolt.bend is read, never linted (laws/ScopeConfigIsNeverLinted.bend), so this is not a per-file
 # rule: the planner (src/lint/plan.bend) runs it once over each bolt.bend
 # that grades a directory of the run, the first of that directory's
-# candidates it read (BOLT-CFG-4), and reports each unknown setting at that
+# candidates it read (laws/ConfigNearestFileGrades.bend), and reports each unknown setting at that
 # bolt.bend's path and the line of its `def`, in file order, after the
 # per-file findings and before the project rules'. It is graded by the
 # bolt.bend it reports on, like any rule (`def setting() -> String: "off"`
 # turns it off there). A noqa comment in a bolt.bend silences nothing, since
-# the file is never read for marks. The editor does not run it (BOLT-LSP-4).
+# the file is never read for marks. The editor does not run it (laws/LspPublishesOnDocumentEvents.bend).
 import Base
 import ../../finding.bend as F
 import ../../config.bend as Config

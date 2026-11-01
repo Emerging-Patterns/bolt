@@ -8,7 +8,8 @@
 # ask. Then it prints the planner's lines and exits with its status. It
 # decides nothing: which files are linted, which bolt.bend grades each
 # finding, and what is printed are the planner's. That it answers and prints
-# faithfully is BOLT-TRUST-9.
+# faithfully is trusted, not proved: it is kept small enough to review line
+# by line, as is every interpreter here (src/check.bend, src/lsp/server.bend).
 import Base
 import ./lint/world.bend as W
 import ./lint/plan.bend as Plan

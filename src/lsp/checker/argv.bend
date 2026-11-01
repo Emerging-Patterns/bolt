@@ -1,8 +1,8 @@
 # checker/argv: the runs of bend the real checker makes, as data. Pure: the
 # effect (bend.bend) only performs them, so LAWS.bend states over every path
 # and every first report that each run carries `--check-only`, the flag that
-# makes bend check the file and never run its main (BOLT-LSP-5; that bend
-# honours it is BOLT-TRUST-5).
+# makes bend check the file and never run its main (laws/LspCheckerNeverRunsMain.bend; that bend
+# honours it is trusted in src/lsp/report.bend).
 import Base
 import ../../paths.bend as Paths
 import ../report.bend as Rep

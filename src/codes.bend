@@ -5,6 +5,9 @@
 # (L004 was `quantify`, now `closed` itself; C001 was `shadow` and U005 was
 # `nat`, whose failures bend 2.0.25 no longer has; U014 was `argv`, retired
 # before its first release, since every reader already drops the program).
+#
+# No law can say this, since it is about versions: a released code is never
+# renumbered or reused, which review of this table keeps.
 import Base
 import ./lazy/lazy.bend as Lazy
 
@@ -48,7 +51,6 @@ def table() -> List<&2, Entry>:
     Entry{"coverage", "L001", "laws"},
     Entry{"closed", "L002", "laws"},
     Entry{"unsafe", "L003", "laws"},
-    Entry{"trace", "L005", "laws"},
     Entry{"tail", "P001", "pedantic"}]
 
 # this row is the slug

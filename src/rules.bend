@@ -2,7 +2,7 @@
 # rules/<group>/ with `check(src) -> List<Finding>`, run over each file read
 # once (src/src.bend); a project rule has `check(ds) -> List<Finding>` and
 # sees many files at once, as the digests of rules/digest.bend: `coverage`
-# and `trace` one package's files, `unsafe` every file (`project` below). The directory
+# one package's files, `unsafe` every file (`project` below). The directory
 # names the group, and codes.bend says it again for the config.
 # Adding one is adding it here and a row in codes.bend. One rule is not
 # listed here, `noqa` (rules/style/noqa.bend): it reads the other rules'
@@ -18,6 +18,7 @@ import Base
 import ./finding.bend as F
 import ./codes.bend as Codes
 import ./src.bend as Src
+import ./role.bend as Role
 import ./rules/digest.bend as Digest
 import ./rules/imports.bend as Imports
 import ./lazy/lazy.bend as Lazy
@@ -53,7 +54,6 @@ import ./rules/correctness/arms.bend as Arms
 import ./rules/correctness/foreign.bend as Foreign
 import ./rules/suspicious/fuel.bend as Fuel
 import ./rules/laws/closed.bend as Closed
-import ./rules/laws/trace.bend as Trace
 import ./rules/laws/unsafe.bend as Unsafe
 
 # the file a Src was read from
@@ -70,29 +70,32 @@ def on.at(+path: String, fs: List<&2, F.Finding>) -> List<&2, F.Finding>:
     case Con{F.Finding{_path, line, col, len, rule, msg}, rest}:
       F.Finding{path, line, col, len, rule, msg} <> on.at(path, rest)
 
-# every rule's findings on a file read once, as each rule gives them
-def on.rules(+ss: Src.Src) -> List<&2, F.Finding>:
+# every per-file rule on a file, told its role (src/role.bend): the rules a
+# law or proof file changes (doc, hole, param, scan, fromrev, closed) read
+# the role, never the path, and the cost rules check nothing in a law or
+# proof file
+def on.rules.role(+rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
   List.concat(&2, F.Finding, [
-    Doc.check(ss),
+    Doc.check.role(rr, ss),
     Unused.check(ss),
-    Hole.check(ss),
+    Hole.check.role(rr, ss),
     Space.check(ss),
     Wrap.check(ss),
-    Param.check(ss),
-    Pick.check(ss),
-    Strict.check(ss),
-    Eager.check(ss),
-    Tail.check(ss),
-    Concat.check(ss),
-    Index.check(ss),
-    Table.check(ss),
-    Hoist.check(ss),
-    Ring.check(ss),
-    Rewalk.check(ss),
-    Unit.check(ss),
-    Scan.check(ss),
-    Thunk.check(ss),
-    Fromrev.check(ss),
+    Param.check.role(rr, ss),
+    Role.skip(rr, _u => Pick.check(ss)),
+    Role.skip(rr, _u => Strict.check(ss)),
+    Role.skip(rr, _u => Eager.check(ss)),
+    Role.skip(rr, _u => Tail.check(ss)),
+    Role.skip(rr, _u => Concat.check(ss)),
+    Role.skip(rr, _u => Index.check(ss)),
+    Role.skip(rr, _u => Table.check(ss)),
+    Role.skip(rr, _u => Hoist.check(ss)),
+    Role.skip(rr, _u => Ring.check(ss)),
+    Role.skip(rr, _u => Rewalk.check(ss)),
+    Role.skip(rr, _u => Unit.check(ss)),
+    Scan.check.role(rr, ss),
+    Role.skip(rr, _u => Thunk.check(ss)),
+    Fromrev.check.role(rr, ss),
     Put.check(ss),
     Escape.check(ss),
     Strings.check(ss),
@@ -101,35 +104,31 @@ def on.rules(+ss: Src.Src) -> List<&2, F.Finding>:
     Arms.check(ss),
     Foreign.check(ss),
     Fuel.check(ss),
-    Closed.check(ss),
+    Closed.check.role(rr, ss),
     Transcong.check(ss)])
+
+# every rule's findings on a file read once, as each rule gives them, its
+# role read from its name
+def on.rules(+ss: Src.Src) -> List<&2, F.Finding>:
+  on.rules.role(Role.of_path(on.path(ss)), ss)
 
 # every rule's findings on a file read once, each at that file
 def on(+ss: Src.Src) -> List<&2, F.Finding>:
   on.at(on.path(ss), on.rules(ss))
 
+# every rule's findings on a file read once, told its role, each at that file
+def on.role(+rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
+  on.at(on.path(ss), on.rules.role(rr, ss))
+
 # every rule's findings on a file
 def all(+path: String, +text: String) -> List<&2, F.Finding>:
   on(Src.of(path, text))
 
-# Packages (BOLT-SCOPE-6). A package root other than `.` is a directory
+# Packages (laws/ScopePackageRootsFound.bend). A package root other than `.` is a directory
 # holding a main.bend; a file belongs to the nearest root at or above it, and
-# `coverage` and `trace` run on each package's files alone. A directory is
+# `coverage` runs on each package's files alone. A directory is
 # named here as Digest.dir names one: normalized, with its slash (`w3c/`),
 # and `` for `.`.
-
-# a package root other than `.`: its directory, the path its SPEC.md is read
-# at (`./w3c/SPEC.md`), and that SPEC.md's text (None when there is none)
-type Package is Data:
-  Package{dir: String, at: String, spec: Maybe<&2, String>}
-
-# the directory of each package
-def roots(ps: List<&2, Package>) -> List<&2, String>:
-  match ps:
-    case Nil{}:
-      Nil{}
-    case Con{Package{dir, _at, _spec}, rest}:
-      dir <> roots(rest)
 
 # whether a directory is among the directories
 def has(ds: List<&2, String>, +dd: String) -> Bool:
@@ -173,95 +172,21 @@ def members(ds: List<&2, Digest.Digest>, +roots: List<&2, String>, +pkg: String)
       Bool.pick(List<&2, Digest.Digest>, String.eq(owner(roots, dir), pkg),
         Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws} <> more, more)
 
-# a normalized path relative to a package's directory: every file of a
-# package is under its directory, so this drops the directory
-def rebase.one(pkg: String, norm: String) -> String:
-  String.drop(norm, String.length(pkg))
-
-# a package's files with their normalized paths relative to its directory,
-# as its SPEC.md's Law entries name them
-def rebase(ds: List<&2, Digest.Digest>, +pkg: String) -> List<&2, Digest.Digest>:
-  match ds:
-    case Nil{}:
-      Nil{}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
-      Digest.Digest{path, rebase.one(pkg, norm), dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}
-        <> rebase(rest, pkg)
-
-# `trace`'s findings in SPEC.md moved to the package's SPEC.md
-def repath(fs: List<&2, F.Finding>, +at: String) -> List<&2, F.Finding>:
-  match fs:
-    case Nil{}:
-      Nil{}
-    case Con{F.Finding{+path, line, col, len, rule, msg}, rest}:
-      F.Finding{Bool.pick(String, String.eq(path, "SPEC.md"), at, path), line, col, len, rule, msg}
-        <> repath(rest, at)
-
-# `trace` on the package `.`: its files against SPEC.md, and nothing when it
-# holds no file and SPEC.md was not read
-def trace.top(top: List<&2, Digest.Digest>, whole: Bool, spec: Maybe<&2, String>) -> List<&2, F.Finding>:
-  match top:
-    case Con{d, rest}:
-      Trace.check(whole, spec, d <> rest)
-    case Nil{}:
-      match spec:
-        case None{}:
-          Nil{}
-        case Some{text}:
-          Trace.check(whole, Some{text}, [])
-
-# `trace` on another package: its files against its own SPEC.md, the Law
-# entries relative to it and its findings at it; nothing when it has none
-def trace.nested(
-  spec: Maybe<&2, String>,
-  whole: Bool,
-  +pkg: String,
-  +at: String,
-  ds: List<&2, Digest.Digest>
-) -> List<&2, F.Finding>:
-  match spec:
-    case None{}:
-      Nil{}
-    case Some{text}:
-      repath(Trace.check(whole, Some{text}, rebase(ds, pkg)), at)
-
 # `coverage` on each package but `.`
-def covers(ps: List<&2, Package>, +ds: List<&2, Digest.Digest>, +roots: List<&2, String>) -> List<&2, F.Finding>:
-  match ps:
+def covers(rs: List<&2, String>, +ds: List<&2, Digest.Digest>, +roots: List<&2, String>) -> List<&2, F.Finding>:
+  match rs:
     case Nil{}:
       Nil{}
-    case Con{Package{+dir, _at, _spec}, rest}:
+    case Con{+dir, rest}:
       List.append(&2, F.Finding, Law.check(members(ds, roots, dir)), covers(rest, ds, roots))
 
-# `trace` on each package but `.`
-def traces(
-  ps: List<&2, Package>,
-  +ds: List<&2, Digest.Digest>,
-  +roots: List<&2, String>,
-  +whole: Bool
-) -> List<&2, F.Finding>:
-  match ps:
-    case Nil{}:
-      Nil{}
-    case Con{Package{+dir, +at, spec}, rest}:
-      List.append(&2, F.Finding, trace.nested(spec, whole, dir, at, members(ds, roots, dir)),
-        traces(rest, ds, roots, whole))
-
-# every project rule's findings on the files, SPEC.md's text (None when there
-# is none) and the packages but `.`: each file is read down to its digest once
-# (rules/digest.bend); `coverage` and `trace` run on each package's files,
+# every project rule's findings on the files and the package roots but `.`
+# (each a directory as Digest.dir names one): each file is read down to its
+# digest once (rules/digest.bend); `coverage` runs on each package's files,
 # `.` first, and `unsafe` on every file
-def project(
-  srcs: List<&2, Src.Src>,
-  +whole: Bool,
-  spec: Maybe<&2, String>,
-  +ps: List<&2, Package>
-) -> List<&2, F.Finding>:
-  +ds = Digest.all(srcs)
-  +rs = roots(ps)
-  +top = members(ds, rs, "")
-  List.concat(&2, F.Finding, [Law.check(top), covers(ps, ds, rs), Unsafe.check(ds), trace.top(top, whole, spec),
-    traces(ps, ds, rs, whole)])
+def project(+srcs: List<&2, Src.Src>, +rs: List<&2, String>) -> List<&2, F.Finding>:
+  +ds = Digest.all.role(Role.marks(srcs), srcs)
+  List.concat(&2, F.Finding, [Law.check(members(ds, rs, "")), covers(rs, ds, rs), Unsafe.check(ds)])
 
 # the group a rule is in; an unknown slug grades with correctness
 def group(+rule: String) -> String:

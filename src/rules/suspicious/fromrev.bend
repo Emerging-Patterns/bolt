@@ -13,6 +13,7 @@
 import Base
 import ../../src.bend as Src
 import ../../paths.bend as Paths
+import ../../role.bend as Role
 import ../../lazy/lazy.bend as Lazy
 import ../../finding.bend as F
 import ../../syntax/lex.bend as Lex
@@ -47,3 +48,9 @@ def walk(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
 def check(ss: Src.Src) -> List<&2, F.Finding>:
   Src.Src{+path, text, toks, tree, bound, items} = ss
   Lazy.stop(List<&2, F.Finding>, Paths.is_law_file(path), [], _u => walk(T.sig(toks), path))
+
+# the rule, told the file's role (src/role.bend): a law or proof file is
+# skipped
+def check.role(rr: Role.Role, ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = ss
+  Lazy.stop(List<&2, F.Finding>, Role.is_law_file(rr), [], _u => walk(T.sig(toks), path))

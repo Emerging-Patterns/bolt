@@ -4,7 +4,8 @@
 # `utf-32` gets exactly those, and any other gets UTF-16 code units, where a
 # char outside the Basic Multilingual Plane counts 2. Every position the
 # server reads goes through `into`, and every one it sends through `out`
-# (proto.bend's position, semantic.bend's tokens).
+# (proto.bend's position, semantic.bend's tokens). ezjson v1.2.0, pinned by
+# hash, is trusted to parse and print JSON correctly; it proves that itself.
 import Base
 import ../lazy/lazy.bend as Lazy
 import 0xa81e161008ecc2f297c0a3065cb9b188/main.bend as Ezjson

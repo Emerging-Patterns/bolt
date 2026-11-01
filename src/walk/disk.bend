@@ -9,6 +9,11 @@
 # lists one directory: its names, one a line, a directory's name ending in
 # "/"; one (cwd.c, cwd.js) that names the working directory; and Base's
 # File, which tells a directory from a file.
+#
+# Trusted, not proved: the listing effect returns a directory's entries,
+# marking directories with `/`, the OS tells the truth when `is_dir` asks
+# whether a path is a folder, and the file read returns a file's text. They
+# are foreign code, and the planner takes their answers as given.
 import Base
 
 # every name directly in the directory, one a line

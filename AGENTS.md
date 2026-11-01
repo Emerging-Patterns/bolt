@@ -7,24 +7,25 @@ writing Bend. Then this.
 ## Hard rule
 
 If Bend can state it as a quantified law (a `for` or `exs` binder, IO
-values included), it goes in `LAWS.bend` / `PROOF.bend`. A law with no
+values included), it goes in a law file under `laws/` and its proof under
+`proofs/`. A law with no
 binder is a unit test the checker runs, not a guarantee: `closed` reports
-it, and it does not go in at all (SPEC.md, docs/rfc/bolt-spec.md).
+it, and it does not go in at all (docs/rfc/bolt-spec.md).
 
 `tests/*.bend` and `#|` exist only for claims Bend cannot prove:
 host/integration (bend, nix, node, disk, process). The stay list is
 `tests/bare.bend` and `src/lsp/tests/checker.bend`, plus companions
 (`src/lsp/tests/spawn.js`, `tests/locate.js`). A test
-is never evidence for a SPEC.md requirement: what one cannot prove is a
-Trusted row, not a test (the lazy branches skipping their thunk is
-BOLT-LIB-2).
+is never evidence for a guarantee: what one cannot prove is said on the
+code that assumes it, not tested (the lazy branches skipping their thunk is
+trusted in src/lazy/lazy.bend).
 
-A `#|` equality for a proveable claim is a bug. A directory with
-`LAWS.bend` and `PROOF.bend` is complete. Do not add `tests/`.
+A `#|` equality for a proveable claim is a bug. The root `LAWS.bend` and
+`PROOF.bend` are complete. Do not add `tests/`.
 
 ## Repo rules
 
-- A `LAWS.bend` is human-owned: do not edit it to make a proof pass. Every
+- A law file is human-owned: do not edit it to make a proof pass. Every
   law is quantified; `closed` reports one that is not.
 - Every `PROOF.bend` in the tree is gated (`bend PROOF.bend` prints `ALL
   PROOFS CHECK`), so a fixture holding a proof meant to fail cannot live here.
@@ -90,11 +91,14 @@ Design specs and plans are not kept in this repo; they live under
 
 ## Conventions
 
-- New proveable behavior is a law in `LAWS.bend`, then a filling in
-  `PROOF.bend`. Watch `bend PROOF.bend` fail, then prove.
-- `SPEC.md` lists every guaranteed behavior by ID. A quantified law that
-  proves one carries `# <ID>` on its own line directly above its `law` line,
-  and the row moves from `pending` to `proved` in the same change.
+- Each guarantee is one file, `laws/<Name>.bend`: its prose on top, its
+  quantified laws under it. `proofs/<Name>.bend` fills them. `LAWS.bend` and
+  `PROOF.bend` only import those files; the name is the guarantee's identity.
+  Definitions several law files share go in `laws/defs/`, lemmas several
+  proofs share in `proofs/lemmas/`, each named for what it holds. A guarantee
+  proved only in part says so in its prose.
+- New proveable behavior is a new law file, then its proof. Watch
+  `bend PROOF.bend` fail, then prove.
 - `bolt` (src/README.md) runs at the end of the gate, every rule an error
   by the root bolt.bend: keep it clean. The binary the gate lints with is the
   one `tests/bare.bend` has just built from this tree, never whatever `bolt`
@@ -105,7 +109,7 @@ Design specs and plans are not kept in this repo; they live under
   named `x.go` ride on x's); a parameter that is there to be ignored starts
   with `_`;
   a project with a LAWS.bend has every def named by a quantified law or
-  reached from one through calls (BOLT-LAW-1), IO included.
+  reached from one through calls (laws/LawNamesEveryItem.bend), IO included.
   Helpers (dotted names), defs that are proofs (returning `{a == b : T}`,
   or written with no type), tests, and the law files themselves are out of
   scope.
@@ -131,7 +135,7 @@ Design specs and plans are not kept in this repo; they live under
 - User code may not call a law before its def is filled, so Base's mutually
   recursive arm/go lemma shape does not work here. Give the arm the induction
   hypothesis as a parameter, and erase its other arguments (`for -at`) so the
-  caller can still recurse on them (see src/syntax/PROOF.bend, ol.weq.arm).
+  caller can still recurse on them (see proofs/OutlineListsTopLevelItems.bend, ol.weq.arm).
 - `match` takes parameters and pattern-bound variables only, in binder order;
   to branch on a computed value, pass it to a helper (see `answer.tag` in
   src/lsp/checker/answer.bend).

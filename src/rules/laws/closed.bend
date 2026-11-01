@@ -6,6 +6,7 @@
 # to it.
 import Base
 import ../../paths.bend as Paths
+import ../../role.bend as Role
 import ../../src.bend as Src
 import ../../finding.bend as F
 import ../../syntax/tree.bend as Tree
@@ -47,3 +48,8 @@ def check.go(root: Tree.Node, +path: String) -> List<&2, F.Finding>:
 def check(ss: Src.Src) -> List<&2, F.Finding>:
   Src.Src{+path, text, toks, tree, bound, items} = ss
   Lazy.stop(List<&2, F.Finding>, Bool.not(Paths.is_laws(path)), [], _u => check.go(tree, path))
+
+# the rule, told the file's role (src/role.bend): only a law file is checked
+def check.role(rr: Role.Role, ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = ss
+  Lazy.stop(List<&2, F.Finding>, Bool.not(Role.is_laws(rr)), [], _u => check.go(tree, path))

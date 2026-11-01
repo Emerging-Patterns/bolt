@@ -103,7 +103,7 @@ def check_all(~ck: Checker.Checker, paths: List<&2, String>) -> IO(List<&2, Run>
         more : List<&2, Run> <- check_all(~ck, rest)
         return run_of(path, aa) <> more
 
-# what out decided, done (BOLT-TRUST-9): its lines printed, then its code
+# what out decided, done (trusted in src/lint.bend): its lines printed, then its code
 def perform(oo: Out) -> IO(Unit):  # noqa: L001 IO driver
   Out{lines, code} = oo
   do IO<Unit>:

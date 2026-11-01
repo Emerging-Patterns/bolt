@@ -7,6 +7,11 @@
 # There are no columns, so a diagnostic covers its whole line. An error in an
 # import cannot be placed in this file: it lands on line 0, naming its home.
 # Which errors are this file's is read against the file's own keys (mine).
+#
+# Trusted, not proved: `bend <file> --check-only` never runs `main`, and
+# prints its report in the shape read here, naming a def in `Location:` the
+# way checker/names.bend builds its names. bend is a separate program, and the
+# format has drifted once already (`report_import`).
 import Base
 import ../lazy/lazy.bend as Lazy
 

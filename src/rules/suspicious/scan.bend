@@ -26,6 +26,7 @@
 import Base
 import ../../src.bend as Src
 import ../../paths.bend as Paths
+import ../../role.bend as Role
 import ../../finding.bend as F
 import ../../syntax/lex.bend as Lex
 import ../../syntax/tree.bend as Tree
@@ -338,3 +339,9 @@ def check.on(+ds: List<&2, Calls.Def>, +path: String) -> List<&2, F.Finding>:
 def check(ss: Src.Src) -> List<&2, F.Finding>:
   Src.Src{+path, text, toks, tree, bound, items} = ss
   Lazy.stop(List<&2, F.Finding>, Paths.is_law_file(path), [], _u => check.on(Calls.defs(tree), path))
+
+# the rule, told the file's role (src/role.bend): a law or proof file is
+# skipped whole
+def check.role(rr: Role.Role, ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = ss
+  Lazy.stop(List<&2, F.Finding>, Role.is_law_file(rr), [], _u => check.on(Calls.defs(tree), path))

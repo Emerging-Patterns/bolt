@@ -16,6 +16,7 @@ import ../lazy/lazy.bend as Lazy
 import ./imports.bend as Imports
 import ./laws/closed.bend as Closed
 import ../paths.bend as Paths
+import ../role.bend as Role
 import ./correctness/foreign.bend as Foreign
 import ./calls.bend as Calls
 
@@ -389,13 +390,32 @@ def of(s2: Src.Src) -> Digest:
     List.append(&2, Unsafe, unsafe_defs(significant(toks)), foreign_defs(tree)),
     laws.in(Paths.is_laws(path), tree, items)}
 
-# every file the linter read, in one pass, in order
-def all(ss: List<&2, Src.Src>) -> List<&2, Digest>:
+# one parsed file read down to its digest, told its role (src/role.bend): a
+# law file states the laws that cover defs, and a law or proof file is exempt
+def of.role(+rr: Role.Role, s2: Src.Src) -> Digest:
+  Src.Src{+path, text, toks, +tree, +bound, +items} = s2
+  +p = Imports.norm(path)
+  +as = aliases(items, p)
+  +laws = Role.is_laws(rr)
+  Digest{path, p, Imports.dir_of(path), laws, Role.is_law_file(rr), Bool.or(Role.is_law_file(rr), Paths.is_test(p)),
+    ranged(items, uses.of(bound), as, p, proofs(Calls.defs(tree))), stated(laws, tree, bound, as, p),
+    Imports.targets(items, p),
+    List.append(&2, Unsafe, unsafe_defs(significant(toks)), foreign_defs(tree)),
+    laws.in(laws, tree, items)}
+
+# one parsed file's digest, told its role among the marks (src/role.bend)
+def of.marked(+ms: List<&2, Role.Mark>, s2: Src.Src) -> Digest:
+  Src.Src{+path, text, toks, tree, bound, items} = s2
+  of.role(Role.of(ms, path), Src.Src{path, text, toks, tree, bound, items})
+
+# every file the linter read, each with its role among the marks, in one
+# pass, in order
+def all.role(+ms: List<&2, Role.Mark>, ss: List<&2, Src.Src>) -> List<&2, Digest>:
   match ss:
     case Nil{}:
       Nil{}
     case Con{s, rest}:
-      of(s) <> all(rest)
+      of.marked(ms, s) <> all.role(ms, rest)
 
 # the import graph of the files, built once for every closure taken over it
 def edges(ds: List<&2, Digest>) -> List<&2, Imports.Edge>:
