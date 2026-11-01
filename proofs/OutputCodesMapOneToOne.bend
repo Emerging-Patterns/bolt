@@ -2,7 +2,7 @@
 import Base
 import ../laws/OutputCodesMapOneToOne.bend as Laws
 
-# one arm per row of the code table (34), each checked by evaluation, and one
+# one arm per row of the code table (35), each checked by evaluation, and one
 # past its end, where both sides are none: a new rule is a new arm here
 def Laws.slug_finds_row(n):
   match n:
@@ -76,7 +76,9 @@ def Laws.slug_finds_row(n):
       {==}
     case 34n:
       {==}
-    case 35n+_p:
+    case 35n:
+      {==}
+    case 36n+_p:
       {==}
 
 # the same arms, looked up by code
@@ -152,5 +154,7 @@ def Laws.code_finds_row(n):
       {==}
     case 34n:
       {==}
-    case 35n+_p:
+    case 35n:
+      {==}
+    case 36n+_p:
       {==}

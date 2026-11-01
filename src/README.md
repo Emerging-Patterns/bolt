@@ -51,7 +51,7 @@ unset group has its default. The groups:
 | group         | rules                                                                            | default |
 |---------------|----------------------------------------------------------------------------------|---------|
 | `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign` `setting` | error   |
-| `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` `fromrev` (`scan`, `thunk`: opt-in) | warn    |
+| `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` `fromrev` `prefix` (`scan`, `thunk`: opt-in) | warn    |
 | `style`       | `doc` `space` `wrap` `param` `noqa` (`transcong`: opt-in)                          | warn    |
 | `laws`        | `coverage` `closed` `unsafe`                                                     | warn    |
 | `pedantic`    | `tail`                                                                           | off     |
@@ -76,6 +76,7 @@ The stable codes, assigned once (do not renumber):
 | | | U014 | retired | | |
 | | | U015 | `thunk` | | |
 | | | U016 | `fromrev` | | |
+| | | U017 | `prefix` | | |
 
 Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic.
 
@@ -381,6 +382,21 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   and at 50k the two-pass form overflows). Anything between the four tokens,
   another `(` included, is not the shape, and neither is `List.reverse.go`.
   A law file or a proof file is exempt.
+- `prefix` — `String.eq(String.take(s, 4n), "ERR ")`, either argument order:
+  among the significant tokens, a dotted `String.eq`, `(`, `String.take`,
+  `(`, the argument `s` (every token up to the first comma outside the
+  brackets it opens, so a call such as `String.drop(m, 4n)` is one
+  argument), a Nat literal `k`, `)`, `,`, a string literal and `)` (or
+  `String.eq`, `(`, the literal, `,`, then the take and `)`), one finding on
+  `String.eq`, and only when `k` is the literal's length (an escape, `\n`
+  or `\u{1B}`, counts as one char), written as decimal digits and `n`. The
+  take copies `k` chars into a new String only to compare them;
+  `String.starts_with(s, "ERR ")` (Base) walks `s` in place and gives the
+  same answer for every `s`, `False` when `s` is shorter (bend 2.0.28, 1M
+  calls: native 1.14 s against 1.00 s, JS 1.68 s against 1.40 s). A take of
+  another length is a different bug and is left alone, and so is a
+  qualified or aliased name and a non-literal on the other side. A law file
+  or a proof file is exempt.
 - `put` — `Map.put`. It is Base's internal helper: at a leaf it keeps the old
   key and replaces the value without comparing, so a new key silently
   overwrites another entry. `Map.set` compares. A file that defines

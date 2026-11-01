@@ -150,4 +150,11 @@ import ./laws/MarkedArrowTerm.bend as MarkedArrowTerm
 import ./laws/OutlineListsTopLevelItems.bend as OutlineListsTopLevelItems
 import ./laws/TreeKeepsEveryToken.bend as TreeKeepsEveryToken
 import ./laws/EitherIsPick.bend as EitherIsPick
+import ./laws/InertPrefix.bend as InertPrefix
 import ./laws/LazyMatchesEagerCombinators.bend as LazyMatchesEagerCombinators
+import ./laws/PrefixExempt.bend as PrefixExempt
+import ./laws/PrefixReportsMatchingLength.bend as PrefixReportsMatchingLength
+import ./laws/PrefixReportsTakeComparedToLiteral.bend as PrefixReportsTakeComparedToLiteral
+import ./laws/PrefixSkipsOtherLengths.bend as PrefixSkipsOtherLengths
+import ./laws/RolePrefix.bend as RolePrefix
+import ./laws/RolePrefixExempt.bend as RolePrefixExempt

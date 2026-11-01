@@ -1,6 +1,8 @@
 # For every rule whose pattern is code (all but `escape`, `strings`, `chars`,
-# `space`, `twice`, `foreign`, `noqa` and `rewalk`), changing the contents of
-# a comment or string literal does not change the findings.
+# `space`, `twice`, `foreign`, `noqa`, `rewalk` and `prefix`, which reads a
+# string literal's length: laws/InertPrefix.bend says what it ignores),
+# changing the contents of a comment or string literal does not change the
+# findings.
 #
 # also rests on: laws/InertFromrev.bend, laws/InertTranscong.bend
 import Base

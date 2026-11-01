@@ -6,7 +6,7 @@
 # among its parameters and no `->`, as `def f(x, y):`), which is how Bend
 # fills the law named f; their "reports exactly" rows are read with that skip.
 #
-# also rests on: laws/FromrevExempt.bend
+# also rests on: laws/FromrevExempt.bend, laws/PrefixExempt.bend
 import Base
 import ../src/syntax/lex.bend as Lex
 import ../src/finding.bend as F
