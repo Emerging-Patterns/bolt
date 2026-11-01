@@ -14,6 +14,20 @@
 # a binder), a capitalized one (TUpper: a constructor before `{`, a type, or
 # a binder), `_` (TWild), and the operators that bind: `:` `=` `<-` `->` `=>`
 # `@` `&`.
+#
+# Trusted, not proved: this lexer, the tree and the outline read a file as
+# bend does, for the constructs the rules depend on; bolt cannot call bend's
+# parser from Bend. Checked against bend 2.0.25: a string literal runs across
+# newlines to its closing quote, and the outline reads no line that starts
+# inside one; a `>` inside `(..)`, `[..]` or `{..}` within `<..>` is an
+# operator and does not close the angle group; names are ASCII in both. One
+# divergence remains: bend accepts a char literal holding a raw newline, which
+# this lexer ends at its line's end. One difference is decided: a line
+# indented deeper, outside brackets, is a child statement in bolt's tree,
+# where bend reads one expression; on a continued `++`, `<>` or boolean or, a
+# let value, a lambda body and a call argument, `tail`, `strict`, `concat`,
+# `unused` and `param` report what they report on one line, and `wrap` reports
+# a header whose `-> T:` sits on the next line.
 import Base
 import ../rchars.bend as Rchars
 import ../lazy/lazy.bend as Lazy

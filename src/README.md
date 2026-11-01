@@ -53,7 +53,7 @@ unset group has its default. The groups:
 | `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign` `setting` | error   |
 | `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` `fromrev` (`scan`, `thunk`: opt-in) | warn    |
 | `style`       | `doc` `space` `wrap` `param` `noqa` (`transcong`: opt-in)                          | warn    |
-| `laws`        | `coverage` `closed` `unsafe` (`trace`: opt-in)                                   | warn    |
+| `laws`        | `coverage` `closed` `unsafe`                                                     | warn    |
 | `pedantic`    | `tail`                                                                           | off     |
 
 The stable codes, assigned once (do not renumber):
@@ -69,7 +69,7 @@ The stable codes, assigned once (do not renumber):
 | C007 | `twice` | U007 | `index` | L002 | `closed` |
 | C008 | `strings` | U008 | `table` | L003 | `unsafe` |
 | C009 | `chars` | U009 | `hoist` | L004 | retired |
-| C010 | `foreign` | U010 | `ring` | L005 | `trace` |
+| C010 | `foreign` | U010 | `ring` | L005 | retired |
 | C011 | `setting` | U011 | `rewalk` | P001 | `tail` |
 | | | U012 | `unit` | S006 | `transcong` |
 | | | U013 | `scan` | | |
@@ -84,9 +84,10 @@ asks for it. L004 was `quantify`, the opt-in strict mode of `closed`;
 `closed` is strict itself now, and L004 is never reused. U014 was `argv`,
 a check on `IO.args()` readers, retired before its first release: every
 reader already drops the program, and it could not tell one that does from
-one that does not. U014 is never reused either. `trace` is opt-in:
-it is in `laws`, but no group setting reaches it; only `def trace()` in a
-bolt.bend turns it on. `scan` and `thunk` are opt-in the same way, in `suspicious`: only
+one that does not. U014 is never reused either. L005 was `trace`, which
+held a SPEC.md table and the laws' ID tags to each other; a guarantee is
+named by its law file now, and L005 is never reused. `scan` and `thunk` are
+opt-in: they are in `suspicious`, but no group setting reaches them; only
 `def scan()` or `def thunk()` turns each on, and `transcong`, in `style`, only by
 `def transcong()`. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
 read, never linted. A setting whose name is no rule's slug and no group
@@ -108,7 +109,7 @@ commas (spaces around them allowed), then any text. Codes are the stable
 ids above, case-sensitive, and a comment may name several
 (`# noqa: U002, U003`). Only a real comment counts, as the lexer reads it:
 `noqa` inside a string literal is text. The filter runs once every rule has
-run, the project rules (`coverage`, `unsafe`, `trace`) included, and a
+run, the project rules (`coverage`, `unsafe`) included, and a
 silenced finding is neither printed nor counted, so it changes neither the
 summary nor the exit code. No rule reads the comments: what each rule finds
 is the same with or without them. The editor applies the same filter.
@@ -131,16 +132,21 @@ to. Adding a rule is adding a file, a line in `rules.bend`, and a row in
 `check(ds) -> List<Finding>` instead and sees many files at once, as
 digests (`rules.bend`'s `project`).
 
-The project rules run per package (BOLT-SCOPE-6). Over the whole tree, a
-package root is `.` and every other directory the walk reads that holds a
-`main.bend`, and a file belongs to the nearest root at or above it.
-`coverage` and `trace` run on one package's files at a time, and `trace`
-against that package's `SPEC.md` (`<root>/SPEC.md`, Law entries relative
-to it). `unsafe` runs on every file. A nested package with no `SPEC.md` is
-not traced, and neither is `.` when it holds no file and has no `SPEC.md`.
-Over files named on the line, `.` is the only package. So a repo with
-nested packages, each with its own `SPEC.md` and laws, lints in one run
-from the top, and a law covers only defs of its own package.
+The project rules run per package (laws/PackagesScoped.bend). Over the
+whole tree, a package root is `.` and every other directory the walk reads
+that holds a `main.bend`, and a file belongs to the nearest root at or above
+it. `coverage` runs on one package's files at a time; `unsafe` runs on every
+file. Over files named on the line, `.` is the only package. So a repo with
+nested packages, each with its own laws, lints in one run from the top, and
+a law covers only defs of its own package.
+
+Rules read a file's role from the imports, never from where it sits. A law
+file is a `LAWS.bend` or a file one reaches through relative imports; a
+proof file is a `PROOF.bend` or a file only a `PROOF.bend` reaches. A file a
+package's `main.bend` reaches, or one no `LAWS.bend` or `PROOF.bend`
+reaches, is code, even when a law imports it to state laws about it. So a
+`LAWS.bend` of nothing but `import ./laws/<Name>.bend` lines makes those
+files law files, and a proof may state lemma laws of its own.
 
 A rule is handed a [`Src`](src.bend), not the text: the path, the text, and
 the file's tokens, tree, binder and outline, each read once for the whole
@@ -165,7 +171,7 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   it: column-0 `#` lines with no blank line before the item, or before a run
   of column-0 `@` lines (`@unsafe`) right above it. A block of bare `#` lines
   counts. Helpers (dotted names like `show.go`) ride on their
-  parent's, `main` needs none, PROOF.bend fills laws that LAWS.bend
+  parent's, `main` needs none, a proof file fills laws that a law file
   documents, and a test (under `tests/`) is documented by its header and its
   check names.
 - `unused` — a name bound by a let, a do-bind, a lambda or as a parameter is
@@ -179,8 +185,8 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   "N TODOs found." (under `SOME PROOFS FAIL`, exit 1):
   `?` and then `TODO`, with spaces, newlines or comments allowed between
   (`?TODO`, `? TODO`). `?todo` and `?TODO_later` are other names, a type
-  error to bend, and are not reported. LAWS.bend is exempt: its laws are open
-  claims by convention, filled by PROOF.bend.
+  error to bend, and are not reported. A law file is exempt: its laws are open
+  claims by convention, filled by a proof file.
 - `space` — trailing whitespace, a tab, or a line over 120 wide. Width counts
   a string literal as two characters: a long fixture or message does not make
   a line hard to read, code does. A comment counts at its full width. `#|`
@@ -206,7 +212,7 @@ parameters and no `->`), which is how Bend fills the law named `f`.
 - `param` — a parameter name shorter than 2 characters. A single uppercase
   letter is a type parameter (`A`, `T`), and a bare parameter or one typed
   `Quant` is a quantity. Locals, patterns and a law's `for` names are not
-  parameters. A PROOF.bend's parameters are the names its law bound.
+  parameters. A proof file's parameters are the names its law bound.
 - `noqa` — a noqa comment that silences nothing (see "Suppressing a
   finding"): a bare `# noqa`, or a code it names that no finding of its file
   on its line has, an unknown code included, one finding per code, at the
@@ -353,7 +359,7 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   times: native 0.35 s against 0.17 s; JS at 20k chars 4.6 s against 3.1 s,
   and at 50k the two-pass form overflows). Anything between the four tokens,
   another `(` included, is not the shape, and neither is `List.reverse.go`.
-  A LAWS.bend or a PROOF.bend is exempt.
+  A law file or a proof file is exempt.
 - `put` — `Map.put`. It is Base's internal helper: at a leaf it keeps the old
   key and replaces the value without comparing, so a new key silently
   overwrites another entry. `Map.set` compares. A file that defines
@@ -394,7 +400,7 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   or `shadow`): grading only looks names up, so it sets nothing, and the
   typo fails open. It is reported once for each bolt.bend that grades a
   file of the run, at that bolt.bend's path and the setting's `def` line,
-  after the per-file findings and before `coverage`, `unsafe` and `trace`.
+  after the per-file findings and before `coverage` and `unsafe`.
   It is graded by that bolt.bend like any rule (`def setting() -> String:
   "off"` there turns it off). A bolt.bend is read, not linted, so a noqa
   comment in one silences nothing. bolt runs it; the editor does not.
@@ -419,23 +425,10 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   ~64K elements elsewhere). Carry an accumulator. The test is on that
   parameter's type alone, never on whether the self-call shrinks it.
   Everything inside a `Bool.pick(..)` is skipped.
-- `closed` — a law in a LAWS.bend with no `for`/`exs` binder. A closed law,
+- `closed` — a law in a law file with no `for`/`exs` binder. A closed law,
   an equality (`{lhs == rhs : T}`, including `IO(T)`) or not, holds for the
   one input it names: a unit test the checker runs, not a guarantee.
   Nothing exempts one: quantify it, or delete it.
-- `trace` (project, opt-in) — each package's `SPEC.md` and the laws of that
-  package agree, when bolt lints the whole tree (never over files
-  named on the line, which hold only some of the laws). A requirement table is headed exactly
-  `| ID | Requirement | Level | Status | Law |` and a trust table
-  `| ID | Assumption | Why it is trusted |`. An ID is uppercase letters and
-  digits in two or more `-` segments (`BOLT-CFG-1`). A law proves one when
-  a line of its comment block is exactly that ID. A pending row may name
-  laws that prove part of it; they are checked as a proved row's are. A
-  finding is a row that is not well formed, an ID listed twice, a proved row
-  with an empty Law cell, a Trusted row with a Law cell, a Proved row's
-  (proved or pending) `<path> <law>` entry that is missing, has no binder or
-  lacks the tag, a Trusted row with no trust row, and a tag SPEC.md does not
-  list as a Proved row, proved or pending.
 - `unsafe` (project) — an `@unsafe def` or a foreign def (a body of only
   `import "./x.c"` / `import "./x.js"` lines) that a LAWS.bend or PROOF.bend
   reaches through its relative imports, over the files bolt read. Since bend
@@ -456,11 +449,11 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   decided by the def's name, its signature and the file's path, never by
   the file's text.
   A law names a def when
-  it is a quantified law in a LAWS.bend and its binders or statement use the
-  def, through the law file's import alias (`Nav.text_of` in
-  `lsp/LAWS.bend` names `text_of` of `lsp/nav.bend`) or in the law's own file. A
-  closed law, a law's own name, and a law outside a LAWS.bend (PROOF.bend's
-  lemmas included) name nothing. A law reaches a def it names, and every def
+  it is a quantified law in a law file and its binders or statement use the
+  def, through the law file's import alias (`Nav.text_of` in a law file that
+  imports `src/lsp/nav.bend` as `Nav` names its `text_of`) or in the law's own
+  file. A closed law, a law's own name, and a law outside a law file (a proof
+  file's lemmas included) name nothing. A law reaches a def it names, and every def
   a reached def calls: a use on that def's lines, in its file or behind an
   import alias of a file in the run, so a helper that a law exercises only
   through its caller is covered, and one no law reaches is not. A type is

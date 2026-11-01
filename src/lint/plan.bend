@@ -8,8 +8,8 @@
 # With no files named, the planner walks the tree under `.` as a fold over the
 # World's listings: a directory not listed yet reads as empty and is asked
 # for, so each round of the loop lists one more level of the tree. Once every
-# directory the walk reads is listed, it asks for the text of each source, of
-# SPEC.md, and of every bolt.bend candidate of their directories, each once.
+# directory the walk reads is listed, it asks for the text of each source and
+# of every bolt.bend candidate of their directories, each once.
 # A directory's candidates are taken once it is resolved against the World's
 # working directory (Config.home), so a relative path is graded by the same
 # bolt.bend wherever bolt runs from.
@@ -123,7 +123,7 @@ def walk(
 
 # how many directories the walk reads at most; past it the walk stops,
 # silently. A literal, not `U32.to_nat(100000)`: the checker keeps a literal
-# whole and steps it one at a time, so BOLT-SCOPE-1's law can name the bound,
+# whole and steps it one at a time, so laws/ScopeWalksWholeTree.bend's law can name the bound,
 # where it would expand the call in unary and overflow. The compiler emits
 # the same `U32.to_nat` for either.
 def limit() -> Nat:
@@ -188,7 +188,7 @@ def uniq(ps: List<&2, String>, +seen: List<&2, String>) -> List<&2, String>:
       Bool.pick(List<&2, String>, dup, more, p <> more)
 
 # ---------------------------------------------------------------------------
-# the packages (BOLT-SCOPE-6): every directory the walk reads but `.` whose
+# the packages (laws/ScopePackageRootsFound.bend): every directory the walk reads but `.` whose
 # listing names a main.bend, in the order the walk reads them; none when files
 # were named
 
@@ -214,26 +214,14 @@ def roots.named(paths: List<&2, String>, +world: W.World) -> List<&2, String>:
 def roots(+world: W.World) -> List<&2, String>:
   roots.named(W.paths.of(world), world)
 
-# the SPEC.md of a package root
-def spec.at(+root: String) -> String:
-  root ++ "/SPEC.md"
-
-# the SPEC.md of each package root
-def specs(rs: List<&2, String>) -> List<&2, String>:
+# each package root as the project rules take it: its directory as a digest
+# names one (`w3c/`)
+def packages(rs: List<&2, String>) -> List<&2, String>:
   match rs:
     case Nil{}:
       Nil{}
     case Con{r, rest}:
-      spec.at(r) <> specs(rest)
-
-# each package root as the project rules take it: its directory as a digest
-# names one, its SPEC.md's path and what the World holds for it
-def packages(rs: List<&2, String>, +world: W.World) -> List<&2, Rules.Package>:
-  match rs:
-    case Nil{}:
-      Nil{}
-    case Con{+r, rest}:
-      Rules.Package{Imports.dir_of(spec.at(r)), spec.at(r), W.text(world, spec.at(r))} <> packages(rest, world)
+      Imports.dir_of(r ++ "/main.bend") <> packages(rest)
 
 # the directory of each path
 def dirs.of(ps: List<&2, String>) -> List<&2, String>:
@@ -243,10 +231,10 @@ def dirs.of(ps: List<&2, String>) -> List<&2, String>:
     case Con{p, rest}:
       Config.dir_of(p) <> dirs.of(rest)
 
-# the directory of every source and of SPEC.md, each once: every finding's
-# path is a source's or SPEC.md, so these are the directories grading needs
+# the directory of every source, each once: every finding's path is a
+# source's, so these are the directories grading needs
 def conf.dirs(+ps: List<&2, String>) -> List<&2, String>:
-  uniq(dirs.of(List.append(&2, String, ps, ["SPEC.md"])), [])
+  uniq(dirs.of(ps), [])
 
 # the bolt.bend candidates of a directory as a path names it, nearest first:
 # the directory resolved against the working directory, then each parent up to
@@ -291,11 +279,11 @@ def lists.named(paths: List<&2, String>, +world: W.World) -> List<&2, W.Ask>:
 def lists(+world: W.World) -> List<&2, W.Ask>:
   lists.named(W.paths.of(world), world)
 
-# the texts the plan reads: each source, SPEC.md, the SPEC.md of every other
-# package root, and every bolt.bend candidate of their directories, each once
+# the texts the plan reads: each source and every bolt.bend candidate of their
+# directories, each once
 def texts(+world: W.World) -> List<&2, W.Ask>:
   +ps = inputs(world)
-  asks.texts(uniq(List.concat(&2, String, [ps, ["SPEC.md"], specs(roots(world)), conf.cands(conf.dirs(ps), world)]),
+  asks.texts(uniq(List.concat(&2, String, [ps, conf.cands(conf.dirs(ps), world)]),
     []))
 
 # every question the plan reads the World through: the listings, then the
@@ -419,12 +407,10 @@ def settings(+world: W.World) -> List<&2, F.Finding>:
 # every finding of every rule, ungraded, from the sources and what the World
 # answers for them: the read failures, the per-file findings of each source,
 # then `setting`'s over each bolt.bend grading reads, then the project rules'
-# over every source, told whether the run is the whole tree, SPEC.md's text
-# and the other packages
+# over every source and the other packages
 def found.at(+world: W.World, +gs: List<&2, Got>, +ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
   List.concat(&2, F.Finding, [unread(gs), per_file(ss), settings(world),
-    Rules.project(ss, List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"),
-      packages(roots(world), world))])
+    Rules.project(ss, packages(roots(world)))])
 
 # every finding of every rule, ungraded
 def found(+world: W.World) -> List<&2, F.Finding>:

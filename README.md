@@ -175,9 +175,10 @@ host/integration test on the JS lane and the native lane against the `#|`
 trailer the file ends in, caps each `bend` at `EZ_CAP` gigabytes, and caches
 a lane on the content of everything it reads, so a second run over an
 unchanged tree is seconds. There is no shell script in this repo. If Bend
-can state a claim as a quantified law, it goes in `LAWS.bend` /
-`PROOF.bend`; a law with no binder is a `closed` finding. `tests/*.bend` / `#|` exist only for claims
-Bend cannot prove.
+can state a claim as a quantified law, it goes in a file under `laws/` and
+its proof under `proofs/`, which `LAWS.bend` and `PROOF.bend` import; a law
+with no binder is a `closed` finding. `tests/*.bend` / `#|` exist only for
+claims Bend cannot prove.
 
 ez is a convenience, not a requirement: it buys the ledger above, the cache and
 the caps. bolt itself has no dependency on it, and `tests/bare.bend` proves that

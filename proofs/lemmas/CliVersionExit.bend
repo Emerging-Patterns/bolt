@@ -1,0 +1,16 @@
+# the version form of the command line exits
+import Base
+import ../../src/args.bend as Args
+import ../../src/version.bend as Ver
+import ../../src/build_rev.bend as Rev
+import 0xa383b26a5a0ef35663b3615d7aedf9e3/main.bend as Shake
+import ../../laws/CliVersionExits.bend as L1
+
+def L1.cli_version_exits(av, mm, h, h_ver):
+  e = Equal.sym(Result<&2, &2, Shake.ParseErr, Shake.Matched>, Args.parse(av), Done{mm}, h)
+  %e : {Args.out(_)
+    == Args.Stop{Args.Line{}, "bolt " ++ Args.version.at(Ver.text(), Rev.text()), 0} : Args.Out}
+  v = Equal.sym(Bool, Shake.on(mm, "version"), True{}, h_ver)
+  %v : {Args.out.run(_, mm)
+    == Args.Stop{Args.Line{}, "bolt " ++ Args.version.at(Ver.text(), Rev.text()), 0} : Args.Out}
+  {==}

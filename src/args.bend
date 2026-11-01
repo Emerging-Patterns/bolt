@@ -11,7 +11,11 @@
 # `out` is every decision the line makes, as data: what to print, where, and
 # the exit code, or the subcommand to run and its files. main only does it.
 # Only shake's interface (main.bend) is read here; what `parse` answers for a
-# given argv is shake's guarantee (SPEC.md BOLT-TRUST-8), not bolt's.
+# given argv is shake's guarantee, not bolt's: shake v0.6.0, pinned by hash,
+# proves it in its own gate, and the laws naming an argv take shake's answer as
+# a premise and prove what bolt does with it. Of shake's assumptions bolt
+# trusts one: the words a compiled bolt's argv holds are the runtime's (its
+# options, between `+RTS` and `-RTS`, never reach it), which no law reaches.
 import Base
 import 0xa383b26a5a0ef35663b3615d7aedf9e3/main.bend as Shake
 import ./version.bend as Ver

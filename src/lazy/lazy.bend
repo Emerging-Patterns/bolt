@@ -8,6 +8,11 @@
 # recurse: a thunk around a search's own recursive step allocates a closure
 # and leaves the loop on every step, where carrying the test as a Bool into
 # the next call keeps it a loop (the `thunk` rule, U015).
+#
+# No law can say that a branch is not taken, since a law states what a term
+# equals, not what evaluation skipped: each form here matches on the Bool
+# before it applies the thunk, and laws/LazyMatchesEagerCombinators.bend proves the
+# values agree with the strict forms.
 import Base
 
 # `a` when c, else what rest gives: the early exit of a search
