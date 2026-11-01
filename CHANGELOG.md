@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.27.0](https://github.com/Emerging-Patterns/bolt/compare/v1.26.0...v1.27.0) (2026-11-01)
+
+
+### Features
+
+* **rules:** empty (U018), a kept length compared to zero is is_empty ([22835b9](https://github.com/Emerging-Patterns/bolt/commit/22835b95370e594df901a1e038847d7be45eb03f))
+
 ## [1.26.0](https://github.com/Emerging-Patterns/bolt/compare/v1.25.0...v1.26.0) (2026-11-01)
 
 
