@@ -68,6 +68,7 @@ import ./proofs/InertTranscong.bend as PInertTranscong
 import ./proofs/LawNamesEveryItem.bend as PLawNamesEveryItem
 import ./proofs/ParamReportsShortNames.bend as PParamReportsShortNames
 import ./proofs/PickReportsSelfCalls.bend as PPickReportsSelfCalls
+import ./proofs/PickReportsBoundSearches.bend as PPickReportsBoundSearches
 import ./proofs/PutReportsMapPutCalls.bend as PPutReportsMapPutCalls
 import ./proofs/RewalkReportsRepeatedWalks.bend as PRewalkReportsRepeatedWalks
 import ./proofs/RingReportsDropAppendRotation.bend as PRingReportsDropAppendRotation

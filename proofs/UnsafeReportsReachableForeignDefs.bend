@@ -7,6 +7,7 @@ import ../src/rules/digest.bend as Digest
 import ../laws/UnsafeReportsReachableForeignDefs.bend as Laws
 import ../laws/defs/Unsafe.bend as D1
 import ./lemmas/ImportClosure.bend as M1
+import ./lemmas/CarriedSearch.bend as CS
 
 # unsafe (laws/UnsafeReportsReachableForeignDefs.bend)
 
@@ -22,7 +23,7 @@ def unsafe.reacher(ls, all, pp):
   match ls:
     case Nil{}:
       {==}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+    case Con{Digest.Digest{+path, +norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, +rest}:
       match is_law_file:
         case True{}:
           %unsafe.reacher(rest, all, pp) :
@@ -31,7 +32,8 @@ def unsafe.reacher(ls, all, pp):
                 List.length(&2, Digest.Digest, all)), pp)
               == Bool.pick(Maybe<&2, String>, Imports.has(D1.unsafe.closure(all, norm), pp), Some{path}, _)
               : Maybe<&2, String>}
-          {==}
+          CS.cs.reacher(path, D1.unsafe.closure(all, norm), Unsafe.reaches(rest, Digest.edges(all),
+            Imports.paths(Digest.edges(all)), List.length(&2, Digest.Digest, all)), pp)
         case False{}:
           unsafe.reacher(rest, all, pp)
 

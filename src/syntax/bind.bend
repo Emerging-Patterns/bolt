@@ -183,14 +183,22 @@ def aliases(root: Tree.Node, +acc: List<&2, String>) -> List<&2, String>:
 # resolution
 # ----------
 
-# the innermost binder of a name in an environment
-def find(env: List<&2, Bind>, +name: String) -> Maybe<&2, Bind>:
+# the innermost binder of a name in an environment; hit: the binder before
+# env was the name, so the search stops there
+def find.go(env: List<&2, Bind>, +name: String, hit: Maybe<&2, Bind>) -> Maybe<&2, Bind>:
   match env:
     case Nil{}:
-      None{}
+      hit
     case Con{Bind{+n, l, c, k, note}, t}:
-      +more = find(t, name)
-      Bool.pick(Maybe<&2, Bind>, String.eq(n, name), Some{Bind{n, l, c, k, note}}, more)
+      match hit:
+        case Some{x}:
+          Some{x}
+        case None{}:
+          find.go(t, name, Bool.pick(Maybe<&2, Bind>, String.eq(n, name), Some{Bind{n, l, c, k, note}}, None{}))
+
+# the innermost binder of a name in an environment
+def find(env: List<&2, Bind>, +name: String) -> Maybe<&2, Bind>:
+  find.go(env, name, None{})
 
 def head_of.go(cs: List<&2, Char>) -> List<&2, Char>:
   match cs:
@@ -895,23 +903,42 @@ def covers(+l2: U32, +c2: U32, +name: String, +line: U32, +col: U32) -> Bool:
   +end = (c2 + U32.from_nat(String.length(name)) : U32)
   Bool.and(U32.is_eq(l2, line), Bool.and(U32.is_le(c2, col), U32.is_lt(col, end)))
 
-# the binder whose name covers a position
-def bind_at(binds: List<&2, Bind>, +line: U32, +col: U32) -> Maybe<&2, Site>:
+# the binder whose name covers a position; hit: the one before binds did,
+# so the search stops there
+def bind_at.go(binds: List<&2, Bind>, +line: U32, +col: U32, hit: Maybe<&2, Site>) -> Maybe<&2, Site>:
   match binds:
     case Nil{}:
-      None{}
+      hit
     case Con{Bind{+name, +l, +c, kind, note}, rest}:
-      +more = bind_at(rest, line, col)
-      Bool.pick(Maybe<&2, Site>, covers(l, c, name, line, col), Some{SBind{Bind{name, l, c, kind, note}}}, more)
+      match hit:
+        case Some{x}:
+          Some{x}
+        case None{}:
+          bind_at.go(rest, line, col,
+            Bool.pick(Maybe<&2, Site>, covers(l, c, name, line, col), Some{SBind{Bind{name, l, c, kind, note}}},
+              None{}))
+
+# the binder whose name covers a position
+def bind_at(binds: List<&2, Bind>, +line: U32, +col: U32) -> Maybe<&2, Site>:
+  bind_at.go(binds, line, col, None{})
+
+# the use whose name covers a position; hit: the one before uses did, so the
+# search stops there
+def use_at.go(uses: List<&2, Use>, +line: U32, +col: U32, hit: Maybe<&2, Site>) -> Maybe<&2, Site>:
+  match uses:
+    case Nil{}:
+      hit
+    case Con{Use{+name, +l, +c, tg}, rest}:
+      match hit:
+        case Some{x}:
+          Some{x}
+        case None{}:
+          use_at.go(rest, line, col,
+            Bool.pick(Maybe<&2, Site>, covers(l, c, name, line, col), Some{SUse{Use{name, l, c, tg}}}, None{}))
 
 # the use whose name covers a position
 def use_at(uses: List<&2, Use>, +line: U32, +col: U32) -> Maybe<&2, Site>:
-  match uses:
-    case Nil{}:
-      None{}
-    case Con{Use{+name, +l, +c, tg}, rest}:
-      +more = use_at(rest, line, col)
-      Bool.pick(Maybe<&2, Site>, covers(l, c, name, line, col), Some{SUse{Use{name, l, c, tg}}}, more)
+  use_at.go(uses, line, col, None{})
 
 def at.or(mm: Maybe<&2, Site>, uses: List<&2, Use>, line: U32, col: U32) -> Maybe<&2, Site>:
   match mm:
@@ -925,15 +952,23 @@ def at(bb: Bound, +line: U32, +col: U32) -> Maybe<&2, Site>:
   Bound{binds, uses, scopes} = bb
   at.or(bind_at(binds, line, col), uses, line, col)
 
-# the binder at a position (a use's target, or the binder itself)
-def binder(binds: List<&2, Bind>, +line: U32, +col: U32) -> Maybe<&2, Bind>:
+# the binder at a position (a use's target, or the binder itself); hit: the
+# one before binds was, so the search stops there
+def binder.go(binds: List<&2, Bind>, +line: U32, +col: U32, hit: Maybe<&2, Bind>) -> Maybe<&2, Bind>:
   match binds:
     case Nil{}:
-      None{}
+      hit
     case Con{Bind{name, +l, +c, kind, note}, rest}:
-      +more = binder(rest, line, col)
-      +here = Bool.and(U32.is_eq(l, line), U32.is_eq(c, col))
-      Bool.pick(Maybe<&2, Bind>, here, Some{Bind{name, l, c, kind, note}}, more)
+      match hit:
+        case Some{x}:
+          Some{x}
+        case None{}:
+          +here = Bool.and(U32.is_eq(l, line), U32.is_eq(c, col))
+          binder.go(rest, line, col, Bool.pick(Maybe<&2, Bind>, here, Some{Bind{name, l, c, kind, note}}, None{}))
+
+# the binder at a position (a use's target, or the binder itself)
+def binder(binds: List<&2, Bind>, +line: U32, +col: U32) -> Maybe<&2, Bind>:
+  binder.go(binds, line, col, None{})
 
 # the names in scope at a line: those of the statement on it, else of the
 # nearest statement above

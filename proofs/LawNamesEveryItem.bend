@@ -16,6 +16,7 @@ import ../src/rules/digest.bend as Digest
 import ../laws/LawNamesEveryItem.bend as Laws
 import ../laws/UnsafeReportsReachableForeignDefs.bend as L1
 import ./lemmas/ImportClosure.bend as M1
+import ./lemmas/CarriedSearch.bend as CS
 
 # coverage (laws/LawNamesEveryItem.bend)
 
@@ -73,10 +74,17 @@ def coverage.d_alias(items, name, from):
     case Con{Outline.Item{kk, +nm, line, sig, doc, +path}, +rest}:
       match kk:
         case Outline.IImport{}:
-          Equal.cong(Maybe<&2, String>, Maybe<&2, String>,
-            mm => Bool.pick(Maybe<&2, String>, String.eq(nm, name), Some{Imports.resolve(from, path)}, mm),
-            Digest.alias_path(Digest.aliases(rest, from), name), Laws.coverage.alias(rest, name, from),
-            coverage.d_alias(rest, name, from))
+          Equal.trans(Maybe<&2, String>,
+            Digest.alias_path(Digest.Alias{nm, Imports.resolve(from, path)} <> Digest.aliases(rest, from), name),
+            Bool.pick(Maybe<&2, String>, String.eq(nm, name), Some{Imports.resolve(from, path)},
+              Digest.alias_path(Digest.aliases(rest, from), name)),
+            Bool.pick(Maybe<&2, String>, String.eq(nm, name), Some{Imports.resolve(from, path)},
+              Laws.coverage.alias(rest, name, from)),
+            CS.cs.alias_path(nm, Imports.resolve(from, path), Digest.aliases(rest, from), name),
+            Equal.cong(Maybe<&2, String>, Maybe<&2, String>,
+              mm => Bool.pick(Maybe<&2, String>, String.eq(nm, name), Some{Imports.resolve(from, path)}, mm),
+              Digest.alias_path(Digest.aliases(rest, from), name), Laws.coverage.alias(rest, name, from),
+              coverage.d_alias(rest, name, from)))
         case Outline.IDef{}:
           coverage.d_alias(rest, name, from)
         case Outline.ILaw{}:

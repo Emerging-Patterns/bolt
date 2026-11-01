@@ -33,6 +33,7 @@ import ../laws/CodeRulesIgnoreCommentsAndStrings.bend as Laws
 import ../laws/defs/InertText.bend as D1
 import ./lemmas/InertTextFacts.bend as M1
 import ./lemmas/UnusedBinderPick.bend as M2
+import ./lemmas/CarriedSearch.bend as CS
 
 # a Bool whose negation holds is False
 law inert.not_true:
@@ -1163,9 +1164,20 @@ def inert.params.of(sig):
   match sig:
     case Tree.NCons{h, +rest}:
       match h:
-        case Tree.Group{o, +kids, cl}:
+        case Tree.Group{o, +kids, +cl}:
           match o:
-            case Lex.Tok{k, +ot, l, c}:
+            case Lex.Tok{+k, +ot, +l, +c}:
+              %Equal.sym(Tree.Node,
+                Calls.params.of(Tree.NCons{Tree.Group{Lex.Tok{k, ot, l, c}, D1.inert.node(kids), cl},
+                  D1.inert.node(rest)}),
+                Bool.pick(Tree.Node, String.eq(ot, "("), D1.inert.node(kids),
+                Calls.params.of(D1.inert.node(rest))), CS.cs.params.of(k, ot, l, c, D1.inert.node(kids), cl,
+                D1.inert.node(rest))) : {_ == D1.inert.node(Calls.params.of(Tree.NCons{Tree.Group{Lex.Tok{k, ot, l, c},
+                kids, cl}, rest})) : Tree.Node}
+              %Equal.sym(Tree.Node, Calls.params.of(Tree.NCons{Tree.Group{Lex.Tok{k, ot, l, c}, kids, cl}, rest}),
+                Bool.pick(Tree.Node, String.eq(ot, "("), kids, Calls.params.of(rest)), CS.cs.params.of(k, ot, l, c,
+                kids, cl, rest)) : {Bool.pick(Tree.Node, String.eq(ot, "("), D1.inert.node(kids),
+                Calls.params.of(D1.inert.node(rest))) == D1.inert.node(_) : Tree.Node}
               %Equal.sym(Tree.Node, Calls.params.of(D1.inert.node(rest)), D1.inert.node(Calls.params.of(rest)),
                 inert.params.of(rest)) : {Bool.pick(Tree.Node, String.eq(ot, "("), D1.inert.node(kids), _)
                   == D1.inert.node(Bool.pick(Tree.Node, String.eq(ot, "("), kids, Calls.params.of(rest))) : Tree.Node}
@@ -1384,11 +1396,19 @@ def inert.type_head(pp, after):
     case Tree.NCons{+h, +rest}:
       +lhs = Calls.type_head(D1.inert.node(Tree.NCons{h, rest}), after)
       +c1 = Calls.kind.leaf(~Calls.kind.colon, D1.inert.node(h))
+      %Equal.sym(String, Calls.type_head(Tree.NCons{h, rest}, after), Bool.pick(String,
+        Bool.and(after, Calls.kind.leaf(~Calls.kind.upper, h)), Calls.leaf.text(h), Calls.type_head(rest,
+        Bool.or(after, Calls.kind.leaf(~Calls.kind.colon, h)))), CS.cs.type_head(h, rest, after)) : {lhs == _ : String}
       %inert.colon(h) : {lhs == Bool.pick(String, Bool.and(after, Calls.kind.leaf(~Calls.kind.upper, h)),
         Calls.leaf.text(h), Calls.type_head(rest, Bool.or(after, _))) : String}
       %inert.type_head(rest, Bool.or(after, c1)) : {lhs == Bool.pick(String,
         Bool.and(after, Calls.kind.leaf(~Calls.kind.upper, h)), Calls.leaf.text(h), _) : String}
-      inert.head_leaf(h, after, Calls.type_head(D1.inert.node(rest), Bool.or(after, c1)))
+      Equal.trans(String, lhs, Bool.pick(String, Bool.and(after, Calls.kind.leaf(~Calls.kind.upper, D1.inert.node(h))),
+        Calls.leaf.text(D1.inert.node(h)), Calls.type_head(D1.inert.node(rest), Bool.or(after, c1))),
+        Bool.pick(String, Bool.and(after, Calls.kind.leaf(~Calls.kind.upper, h)), Calls.leaf.text(h),
+          Calls.type_head(D1.inert.node(rest), Bool.or(after, c1))),
+        CS.cs.type_head(D1.inert.node(h), D1.inert.node(rest), after),
+        inert.head_leaf(h, after, Calls.type_head(D1.inert.node(rest), Bool.or(after, c1))))
     case Tree.Leaf{tok}: {==}
     case Tree.Group{o, gk, cl}: {==}
     case Tree.Stmt{sk, sks, sb}: {==}

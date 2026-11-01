@@ -136,16 +136,32 @@ def calls(nn: Tree.Node, +name: String) -> Bool:
     case other:
       False{}
 
+# the kids of a signature's first `(` group: the parameters; hit: a group
+# before sig was one, so the search stops there
+def params.of.go(sig: Tree.Node, hit: Maybe<&2, Tree.Node>) -> Tree.Node:
+  match sig:
+    case Tree.NCons{Tree.Group{Lex.Tok{k, +o, l, c}, kids, close}, rest}:
+      match hit:
+        case Some{x}:
+          x
+        case None{}:
+          params.of.go(rest, Bool.pick(Maybe<&2, Tree.Node>, String.eq(o, "("), Some{kids}, None{}))
+    case Tree.NCons{h, rest}:
+      match hit:
+        case Some{x}:
+          x
+        case None{}:
+          params.of.go(rest, None{})
+    case other:
+      match hit:
+        case Some{x}:
+          x
+        case None{}:
+          Tree.NNil{}
+
 # the kids of a signature's first `(` group: the parameters
 def params.of(sig: Tree.Node) -> Tree.Node:
-  match sig:
-    case Tree.NCons{Tree.Group{Lex.Tok{k, +o, l, c}, +kids, close}, rest}:
-      +more = params.of(rest)
-      Bool.pick(Tree.Node, String.eq(o, "("), kids, more)
-    case Tree.NCons{h, rest}:
-      params.of(rest)
-    case other:
-      Tree.NNil{}
+  params.of.go(sig, None{})
 
 # a def's parameters, each its chain up to a comma (`+xs: List<&2, U32>`)
 def params(sig: Tree.Node) -> List<&2, Tree.Node>:
@@ -197,15 +213,28 @@ def is_live.sign(pp: Tree.Node) -> Bool:
 def is_live(+pp: Tree.Node) -> Bool:
   Bool.and(Bool.not(is_live.sign(pp)), has_colon(pp))
 
+# the head of a parameter's type: the first capitalized name after the
+# colon, "" for none; hit: a name before pp was it, so the search stops there
+def type_head.go(pp: Tree.Node, +after: Bool, hit: Maybe<&2, String>) -> String:
+  match pp:
+    case Tree.NCons{+h, rest}:
+      match hit:
+        case Some{s}:
+          s
+        case None{}:
+          type_head.go(rest, Bool.or(after, kind.leaf(~kind.colon, h)),
+            Bool.pick(Maybe<&2, String>, Bool.and(after, kind.leaf(~kind.upper, h)), Some{leaf.text(h)}, None{}))
+    case other:
+      match hit:
+        case Some{s}:
+          s
+        case None{}:
+          ""
+
 # the head of a parameter's type: the first capitalized name after the colon
 # (`List` in `+xs: +List<A>`), "" for none
 def type_head(pp: Tree.Node, +after: Bool) -> String:
-  match pp:
-    case Tree.NCons{+h, rest}:
-      +more = type_head(rest, Bool.or(after, kind.leaf(~kind.colon, h)))
-      Bool.pick(String, Bool.and(after, kind.leaf(~kind.upper, h)), leaf.text(h), more)
-    case other:
-      ""
+  type_head.go(pp, after, None{})
 
 def walked.go(ps: List<&2, Tree.Node>, found: Maybe<&2, String>) -> String:
   match ps found:
