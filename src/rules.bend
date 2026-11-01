@@ -41,6 +41,7 @@ import ./rules/pedantic/rewalk.bend as Rewalk
 import ./rules/suspicious/thunk.bend as Thunk
 import ./rules/suspicious/fromrev.bend as Fromrev
 import ./rules/suspicious/prefix.bend as Prefix
+import ./rules/suspicious/empty.bend as Empty
 import ./rules/correctness/put.bend as Put
 import ./rules/correctness/escape.bend as Escape
 import ./rules/perf/strings.bend as Strings
@@ -66,9 +67,9 @@ def on.at(+path: String, fs: List<&2, F.Finding>) -> List<&2, F.Finding>:
       F.Finding{path, line, col, len, rule, msg} <> on.at(path, rest)
 
 # every per-file rule on a file, told its role (src/role.bend): the rules a
-# law or proof file changes (doc, hole, param, fromrev, prefix, closed) read
-# the role, never the path, and the cost rules check nothing in a law or
-# proof file
+# law or proof file changes (doc, hole, param, fromrev, prefix, empty, closed)
+# read the role, never the path, and the cost rules check nothing in a law
+# or proof file
 def on.rules.role(+rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
   List.concat(&2, F.Finding, [
     Doc.check.role(rr, ss),
@@ -89,6 +90,7 @@ def on.rules.role(+rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
     Role.skip(rr, _u => Thunk.check(ss)),
     Fromrev.check.role(rr, ss),
     Prefix.check.role(rr, ss),
+    Empty.check.role(rr, ss),
     Put.check(ss),
     Escape.check(ss),
     Strings.check(ss),

@@ -148,3 +148,10 @@ import ./laws/PrefixReportsTakeComparedToLiteral.bend as PrefixReportsTakeCompar
 import ./laws/PrefixSkipsOtherLengths.bend as PrefixSkipsOtherLengths
 import ./laws/RolePrefix.bend as RolePrefix
 import ./laws/RolePrefixExempt.bend as RolePrefixExempt
+import ./laws/EmptyExempt.bend as EmptyExempt
+import ./laws/EmptyReportsKeptTest.bend as EmptyReportsKeptTest
+import ./laws/EmptySkipsUnkeptTest.bend as EmptySkipsUnkeptTest
+import ./laws/RoleEmpty.bend as RoleEmpty
+import ./laws/RoleEmptyExempt.bend as RoleEmptyExempt
+import ./laws/InertEmpty.bend as InertEmpty
+import ./laws/EmptySkipsProofs.bend as EmptySkipsProofs
