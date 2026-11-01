@@ -100,10 +100,10 @@ def on.rules.role(+rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
     Closed.check.role(rr, ss),
     Transcong.check(ss)])
 
-# every rule's findings on a file read once, as each rule gives them, its
-# role read from its name
+# every rule's findings on a file read once, as each rule gives them, told
+# its own role (by its name, else by what it holds: src/role.bend)
 def on.rules(+ss: Src.Src) -> List<&2, F.Finding>:
-  on.rules.role(Role.of_path(on.path(ss)), ss)
+  on.rules.role(Role.own(ss), ss)
 
 # every rule's findings on a file read once, each at that file
 def on(+ss: Src.Src) -> List<&2, F.Finding>:

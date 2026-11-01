@@ -87,6 +87,7 @@ import ./proofs/RoleIndex.bend as PRoleIndex
 import ./proofs/RoleLawFileNamed.bend as PRoleLawFileNamed
 import ./proofs/RoleLawsNamed.bend as PRoleLawsNamed
 import ./proofs/RoleNamedFirst.bend as PRoleNamedFirst
+import ./proofs/RoleOwn.bend as PRoleOwn
 import ./proofs/RoleParam.bend as PRoleParam
 import ./proofs/RoleParamExempt.bend as PRoleParamExempt
 import ./proofs/RolePick.bend as PRolePick

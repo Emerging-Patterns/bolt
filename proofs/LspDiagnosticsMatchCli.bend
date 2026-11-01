@@ -8,13 +8,9 @@ import ../src/rules.bend as Rules
 import ../src/lint/world.bend as W
 import ../src/lint/plan.bend as Plan
 import ../src/src.bend as Src
-import ../src/role.bend as Role
-import ../src/rules/imports.bend as Imports
 import ../src/noqa.bend as Noqa
 import ../src/rules/style/noqa.bend as NoqaRule
 import ../src/syntax/lex.bend as Lex
-import ../src/paths.bend as Paths
-import ../src/syntax/outline.bend as Outline
 import ../laws/LspDiagnosticsMatchCli.bend as Laws
 import ./lemmas/PublishComparisons.bend as M1
 
@@ -86,18 +82,6 @@ def pub.find_head(d, rest, world):
     == Plan.conf.near(world, d) : Config.Config}
   {==}
 
-# `bolt <path>` runs over that path alone, unless it is a bolt.bend
-law pub.cli.named:
-  for +world: W.World
-  for +path: String
-  for h: {W.paths.of(world) == [path] : List<&2, String>}
-  {Plan.inputs(world) == Plan.sources([path]) : List<&2, String>}
-
-def pub.cli.named(world, path, h):
-  e = Equal.sym(List<&2, String>, W.paths.of(world), [path], h)
-  %e : {Plan.sources(Plan.files.named(_, world)) == Plan.sources([path]) : List<&2, String>}
-  {==}
-
 # findings put at a path are graded by the CLI as by the config nearest it
 law pub.grade_near:
   for +world: W.World
@@ -129,43 +113,12 @@ law pub.gs:
   for +text: String
   {Rules.graded(Config.nearest(Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world)), Rules.all(path, text))
     == Plan.grade(Plan.confs.at(Plan.conf.dirs([path]), world), world,
-      Plan.per_file(Plan.srcs_of([Plan.Got{path, Some{text}}])))
+      Plan.per_file.run([path], Plan.srcs_of([Plan.Got{path, Some{text}}])))
     : List<&2, F.Graded>}
 
-# a run of one file gives it its role by name: a LAWS.bend or PROOF.bend
-# keeps it, and any other file is reached by no law, so it is neither
-law pub.role_one:
-  for +named: Role.Role
-  for +nn: String
-  for deps: List<&2, String>
-  for +entry: Bool
-  {Role.role.of(named, Role.of.norm(Role.marks.of([Role.Fact{nn, deps, named, entry}],
-      Role.reach([Role.Fact{nn, deps, named, entry}], Role.roots([Role.Fact{nn, deps, named, entry}])),
-      Role.reach([Role.Fact{nn, deps, named, entry}], Role.lawful([Role.Fact{nn, deps, named, entry}])),
-      Role.reach([Role.Fact{nn, deps, named, entry}], Role.code([Role.Fact{nn, deps, named, entry}],
-        Role.reach([Role.Fact{nn, deps, named, entry}], Role.roots([Role.Fact{nn, deps, named, entry}]))))), nn))
-    == named : Role.Role}
-
-def pub.role_one(named, _nn, _deps, _entry):
-  match named:
-    case Role.Plain{}:
-      {==}
-    case Role.Laws{}:
-      {==}
-    case Role.Proof{}:
-      {==}
-
 def pub.gs(world, path, text):
-  +s = Src.of(path, text)
-  +r = Equal.cong(Role.Role, List<&2, F.Finding>, z => List.append(&2, F.Finding, Rules.on.role(z, s), []),
-    Role.of(Role.marks([s]), path), Role.of_path(path),
-    pub.role_one(Role.of_path(path), Imports.norm(path),
-      Imports.targets(Outline.of_tokens(text, Lex.tokens(text)), Imports.norm(path)),
-      String.eq(Paths.base(path), "main.bend")))
-  a = Equal.sym(List<&2, F.Finding>, Plan.per_file(Plan.srcs_of([Plan.Got{path, Some{text}}])), Rules.all(path, text),
-    Equal.trans(List<&2, F.Finding>, Plan.per_file(Plan.srcs_of([Plan.Got{path, Some{text}}])),
-      List.append(&2, F.Finding, Rules.all(path, text), []), Rules.all(path, text), r,
-      pub.app_nil(F.Finding, Rules.all(path, text))))
+  a = Equal.sym(List<&2, F.Finding>, Plan.per_file.run([path], Plan.srcs_of([Plan.Got{path, Some{text}}])),
+    Rules.all(path, text), pub.app_nil(F.Finding, Rules.all(path, text)))
   %a : {Rules.graded(Config.nearest(Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world)),
       Rules.all(path, text))
     == Plan.grade(Plan.confs.at(Plan.conf.dirs([path]), world), world, _)
@@ -216,7 +169,7 @@ law pub.cli.case:
   {Server.pub.lint(path, text, Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world))
     == Plan.after(Noqa.of_srcs(Plan.srcs_of(Plan.gots(Bool.pick(List<&2, String>, bb, [], [path]), world))), False{},
       Plan.grade(Plan.confs.at(Plan.conf.dirs(Bool.pick(List<&2, String>, bb, [], [path])), world), world,
-        Plan.per_file(Plan.srcs_of(Plan.gots(Bool.pick(List<&2, String>, bb, [], [path]), world)))),
+        Plan.per_file.run([path], Plan.srcs_of(Plan.gots(Bool.pick(List<&2, String>, bb, [], [path]), world)))),
       fs => Plan.grade(Plan.confs.at(Plan.conf.dirs(Bool.pick(List<&2, String>, bb, [], [path])), world), world, fs))
     : List<&2, F.Graded>}
 
@@ -240,7 +193,7 @@ def pub.cli.case(bb, world, path, text, hc, ht):
             fs => Rules.graded(Config.nearest(Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world)), fs)))
         == Plan.after(Noqa.of_srcs(Plan.srcs_of(Plan.gots([path], world))), False{},
           Plan.grade(Plan.confs.at(Plan.conf.dirs([path]), world), world,
-            Plan.per_file(Plan.srcs_of(Plan.gots([path], world)))),
+            Plan.per_file.run([path], Plan.srcs_of(Plan.gots([path], world)))),
           fs => Plan.grade(Plan.confs.at(Plan.conf.dirs([path]), world), world, fs))
         : List<&2, F.Graded>}
       t = Equal.sym(Maybe<&2, String>, W.text(world, path), Some{text}, ht)
@@ -250,7 +203,7 @@ def pub.cli.case(bb, world, path, text, hc, ht):
             fs => Rules.graded(Config.nearest(Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world)), fs))
         == Plan.after(Noqa.of_srcs(Plan.srcs_of([Plan.Got{path, _}])), False{},
           Plan.grade(Plan.confs.at(Plan.conf.dirs([path]), world), world,
-            Plan.per_file(Plan.srcs_of([Plan.Got{path, _}]))),
+            Plan.per_file.run([path], Plan.srcs_of([Plan.Got{path, _}]))),
           fs => Plan.grade(Plan.confs.at(Plan.conf.dirs([path]), world), world, fs))
         : List<&2, F.Graded>}
       g = pub.gs(world, path, text)
@@ -279,10 +232,11 @@ def pub.cli.case(bb, world, path, text, hc, ht):
             Rules.all(path, text))))
 
 def Laws.lint_is_cli(world, path, text, h, ht):
-  n = Equal.sym(List<&2, String>, Plan.inputs(world), Plan.sources([path]), pub.cli.named(world, path, h))
-  %n : {Server.pub.lint(path, text, Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world))
-    == Plan.after(Noqa.of_srcs(Plan.srcs_of(Plan.gots(_, world))), False{},
-      Plan.grade(Plan.confs.at(Plan.conf.dirs(_), world), world, Plan.per_file(Plan.srcs_of(Plan.gots(_, world)))),
-      fs => Plan.grade(Plan.confs.at(Plan.conf.dirs(_), world), world, fs))
+  q = Equal.sym(List<&2, String>, W.paths.of(world), [path], h)
+  %q : {Server.pub.lint(path, text, Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world))
+    == Plan.after(Noqa.of_srcs(Plan.srcs_of(Plan.gots(Plan.sources(Plan.files.named(_, world)), world))), False{},
+      Plan.grade(Plan.confs.at(Plan.conf.dirs(Plan.sources(Plan.files.named(_, world))), world), world,
+        Plan.per_file.run(_, Plan.srcs_of(Plan.gots(Plan.sources(Plan.files.named(_, world)), world)))),
+      fs => Plan.grade(Plan.confs.at(Plan.conf.dirs(Plan.sources(Plan.files.named(_, world))), world), world, fs))
     : List<&2, F.Graded>}
   pub.cli.case(Plan.is_config(path), world, path, text, {==}, ht)
