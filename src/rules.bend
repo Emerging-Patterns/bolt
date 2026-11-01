@@ -18,6 +18,7 @@ import Base
 import ./finding.bend as F
 import ./codes.bend as Codes
 import ./src.bend as Src
+import ./role.bend as Role
 import ./rules/digest.bend as Digest
 import ./rules/imports.bend as Imports
 import ./lazy/lazy.bend as Lazy
@@ -70,29 +71,32 @@ def on.at(+path: String, fs: List<&2, F.Finding>) -> List<&2, F.Finding>:
     case Con{F.Finding{_path, line, col, len, rule, msg}, rest}:
       F.Finding{path, line, col, len, rule, msg} <> on.at(path, rest)
 
-# every rule's findings on a file read once, as each rule gives them
-def on.rules(+ss: Src.Src) -> List<&2, F.Finding>:
+# every per-file rule on a file, told its role (src/role.bend): the rules a
+# law or proof file changes (doc, hole, param, scan, fromrev, closed) read
+# the role, never the path, and the cost rules check nothing in a law or
+# proof file
+def on.rules.role(+rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
   List.concat(&2, F.Finding, [
-    Doc.check(ss),
+    Doc.check.role(rr, ss),
     Unused.check(ss),
-    Hole.check(ss),
+    Hole.check.role(rr, ss),
     Space.check(ss),
     Wrap.check(ss),
-    Param.check(ss),
-    Pick.check(ss),
-    Strict.check(ss),
-    Eager.check(ss),
-    Tail.check(ss),
-    Concat.check(ss),
-    Index.check(ss),
-    Table.check(ss),
-    Hoist.check(ss),
-    Ring.check(ss),
-    Rewalk.check(ss),
-    Unit.check(ss),
-    Scan.check(ss),
-    Thunk.check(ss),
-    Fromrev.check(ss),
+    Param.check.role(rr, ss),
+    Role.skip(rr, _u => Pick.check(ss)),
+    Role.skip(rr, _u => Strict.check(ss)),
+    Role.skip(rr, _u => Eager.check(ss)),
+    Role.skip(rr, _u => Tail.check(ss)),
+    Role.skip(rr, _u => Concat.check(ss)),
+    Role.skip(rr, _u => Index.check(ss)),
+    Role.skip(rr, _u => Table.check(ss)),
+    Role.skip(rr, _u => Hoist.check(ss)),
+    Role.skip(rr, _u => Ring.check(ss)),
+    Role.skip(rr, _u => Rewalk.check(ss)),
+    Role.skip(rr, _u => Unit.check(ss)),
+    Scan.check.role(rr, ss),
+    Role.skip(rr, _u => Thunk.check(ss)),
+    Fromrev.check.role(rr, ss),
     Put.check(ss),
     Escape.check(ss),
     Strings.check(ss),
@@ -101,12 +105,21 @@ def on.rules(+ss: Src.Src) -> List<&2, F.Finding>:
     Arms.check(ss),
     Foreign.check(ss),
     Fuel.check(ss),
-    Closed.check(ss),
+    Closed.check.role(rr, ss),
     Transcong.check(ss)])
+
+# every rule's findings on a file read once, as each rule gives them, its
+# role read from its name
+def on.rules(+ss: Src.Src) -> List<&2, F.Finding>:
+  on.rules.role(Role.of_path(on.path(ss)), ss)
 
 # every rule's findings on a file read once, each at that file
 def on(+ss: Src.Src) -> List<&2, F.Finding>:
   on.at(on.path(ss), on.rules(ss))
+
+# every rule's findings on a file read once, told its role, each at that file
+def on.role(+rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
+  on.at(on.path(ss), on.rules.role(rr, ss))
 
 # every rule's findings on a file
 def all(+path: String, +text: String) -> List<&2, F.Finding>:
@@ -252,12 +265,12 @@ def traces(
 # (rules/digest.bend); `coverage` and `trace` run on each package's files,
 # `.` first, and `unsafe` on every file
 def project(
-  srcs: List<&2, Src.Src>,
+  +srcs: List<&2, Src.Src>,
   +whole: Bool,
   spec: Maybe<&2, String>,
   +ps: List<&2, Package>
 ) -> List<&2, F.Finding>:
-  +ds = Digest.all(srcs)
+  +ds = Digest.all.role(Role.marks(srcs), srcs)
   +rs = roots(ps)
   +top = members(ds, rs, "")
   List.concat(&2, F.Finding, [Law.check(top), covers(ps, ds, rs), Unsafe.check(ds), trace.top(top, whole, spec),

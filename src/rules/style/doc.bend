@@ -13,6 +13,7 @@ import ../../finding.bend as F
 import ../../syntax/outline.bend as Outline
 import ../../lazy/lazy.bend as Lazy
 import ../../paths.bend as Paths
+import ../../role.bend as Role
 import ../../syntax/lex.bend as Lex
 
 # does an item of this kind need a comment?
@@ -89,4 +90,10 @@ def lines(text: String, toks: List<&2, Lex.Tok>) -> List<&2, String>:
 def check(ss: Src.Src) -> List<&2, F.Finding>:
   Src.Src{+path, text, toks, tree, bound, items} = ss
   Lazy.stop(List<&2, F.Finding>, Bool.or(Paths.is_proof(path), Paths.is_test(path)),
+    [], _u => check.go(items, path, lines(text, toks)))
+
+# the rule, told the file's role (src/role.bend): a proof file is skipped
+def check.role(rr: Role.Role, ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{+path, text, toks, tree, bound, items} = ss
+  Lazy.stop(List<&2, F.Finding>, Bool.or(Role.is_proof(rr), Paths.is_test(path)),
     [], _u => check.go(items, path, lines(text, toks)))

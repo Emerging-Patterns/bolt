@@ -13,6 +13,9 @@ import ../rules.bend as Rules
 import ../lint/world.bend as W
 import ../lint/plan.bend as Plan
 import ../src.bend as Src
+import ../role.bend as Role
+import ../rules/imports.bend as Imports
+import ../syntax/tree.bend as Tree
 import ../noqa.bend as Noqa
 import ../rules/style/noqa.bend as NoqaRule
 import ../syntax/lex.bend as Lex
@@ -1672,9 +1675,41 @@ law pub.gs:
       Plan.per_file(Plan.srcs_of([Plan.Got{path, Some{text}}])))
     : List<&2, F.Graded>}
 
+# a run of one file gives it its role by name: a LAWS.bend or PROOF.bend
+# keeps it, and any other file is reached by no law, so it is neither
+law pub.role_one:
+  for +named: Role.Role
+  for +nn: String
+  for deps: List<&2, String>
+  for reach: Role.Role
+  for +entry: Bool
+  {Role.role.of(named, Role.of.norm(Role.marks.of([Role.Fact{nn, deps, named, reach, entry}],
+      Role.reach([Role.Fact{nn, deps, named, reach, entry}], Role.roots([Role.Fact{nn, deps, named, reach, entry}])),
+      Role.reach([Role.Fact{nn, deps, named, reach, entry}], Role.code([Role.Fact{nn, deps, named, reach, entry}],
+        Role.reach([Role.Fact{nn, deps, named, reach, entry}],
+          Role.roots([Role.Fact{nn, deps, named, reach, entry}]))))), nn))
+    == named : Role.Role}
+
+def pub.role_one(named, _nn, _deps, _reach, _entry):
+  match named:
+    case Role.Plain{}:
+      {==}
+    case Role.Laws{}:
+      {==}
+    case Role.Proof{}:
+      {==}
+
 def pub.gs(world, path, text):
-  a = Equal.sym(List<&2, F.Finding>, List.append(&2, F.Finding, Rules.all(path, text), []), Rules.all(path, text),
-    pub.app_nil(F.Finding, Rules.all(path, text)))
+  +s = Src.of(path, text)
+  +r = Equal.cong(Role.Role, List<&2, F.Finding>, z => List.append(&2, F.Finding, Rules.on.role(z, s), []),
+    Role.of(Role.marks([s]), path), Role.of_path(path),
+    pub.role_one(Role.of_path(path), Imports.norm(path),
+      Imports.targets(Outline.of_tokens(text, Lex.tokens(text)), Imports.norm(path)),
+      Role.reached(Role.declares(Tree.of_tokens(Lex.tokens(text)))), String.eq(Paths.base(path), "main.bend")))
+  a = Equal.sym(List<&2, F.Finding>, Plan.per_file(Plan.srcs_of([Plan.Got{path, Some{text}}])), Rules.all(path, text),
+    Equal.trans(List<&2, F.Finding>, Plan.per_file(Plan.srcs_of([Plan.Got{path, Some{text}}])),
+      List.append(&2, F.Finding, Rules.all(path, text), []), Rules.all(path, text), r,
+      pub.app_nil(F.Finding, Rules.all(path, text))))
   %a : {Rules.graded(Config.nearest(Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world)),
       Rules.all(path, text))
     == Plan.grade(Plan.confs.at(Plan.conf.dirs([path]), world), world, _)

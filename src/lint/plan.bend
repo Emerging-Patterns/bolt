@@ -23,6 +23,7 @@ import ../lazy/lazy.bend as Lazy
 import ./world.bend as W
 import ../finding.bend as F
 import ../src.bend as Src
+import ../role.bend as Role
 import ../rules.bend as Rules
 import ../rules/imports.bend as Imports
 import ../config.bend as Config
@@ -359,13 +360,21 @@ def srcs_of(gs: List<&2, Got>) -> List<&2, Src.Src>:
     case Con{Got{path, Some{text}}, rest}:
       Src.of(path, text) <> srcs_of(rest)
 
-# every source's findings from the per-file rules
-def per_file(ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
+# every source's findings from the per-file rules, each told its role among
+# the marks (src/role.bend)
+def per_file.role(+ms: List<&2, Role.Mark>, ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
   match ss:
     case Nil{}:
       Nil{}
     case Con{s, rest}:
-      List.concat(&2, F.Finding, [Rules.on(s), per_file(rest)])
+      Src.Src{+path, text, toks, tree, bound, items} = s
+      List.concat(&2, F.Finding, [Rules.on.role(Role.of(ms, path), Src.Src{path, text, toks, tree, bound, items}),
+        per_file.role(ms, rest)])
+
+# every source's findings from the per-file rules: a file a LAWS.bend or a
+# PROOF.bend imports is a law or proof file to them as those are
+def per_file(+ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
+  per_file.role(Role.marks(ss), ss)
 
 # the path of the first candidate the World holds a text for, as a list of
 # one; none when it holds none

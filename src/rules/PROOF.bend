@@ -7,6 +7,7 @@ import ./correctness/escape.bend as Esc
 import ./style/param.bend as Param
 import ../syntax/bind.bend as Bind
 import ../paths.bend as Paths
+import ../role.bend as Role
 import ../lazy/lazy.bend as Lazy
 import ./correctness/put.bend as Put
 import ./correctness/hole.bend as Hole
@@ -14708,6 +14709,7 @@ def Laws.scope_closed(path, text, toks, tree, bound, items, text2, toks2, tree2,
   scope.same(Closed.check(Src.Src{path, text, toks, tree, bound, items}),
     Closed.check(Src.Src{path, text2, toks2, tree2, bound2, items2}),
     scope.closed(path, tree, e), scope.closed(path, tree2, e))
+
 
 # trace
 # -----
@@ -35062,3 +35064,233 @@ def Laws.inert_scan(path, _text, tree, _toks, _bound, _items, _text2, tree2, _to
     inert.lift(z => Lazy.stop(List<&2, F.Finding>, Paths.is_law_file(path), [], _u => Scan.check.on(z, path)), tree2,
       inert.scan.gated(Calls.defs(tree2), path, inert.dok.of(tree2, ok2))),
     e)
+
+# roles
+# -----
+
+# a role picked by name is a law file exactly when the first test held
+law role.pick_laws:
+  for a: Bool
+  for b: Bool
+  {Role.is_laws(Bool.pick(Role.Role, a, Role.Laws{}, Bool.pick(Role.Role, b, Role.Proof{}, Role.Plain{}))) == a : Bool}
+
+def role.pick_laws(a, b):
+  match a b:
+    case True{} True{}:
+      {==}
+    case True{} False{}:
+      {==}
+    case False{} True{}:
+      {==}
+    case False{} False{}:
+      {==}
+
+# a role picked by name is a law or proof file exactly when either test held
+law role.pick_law_file:
+  for a: Bool
+  for b: Bool
+  {Role.is_law_file(Bool.pick(Role.Role, a, Role.Laws{}, Bool.pick(Role.Role, b, Role.Proof{}, Role.Plain{})))
+    == Bool.or(a, b) : Bool}
+
+def role.pick_law_file(a, b):
+  match a b:
+    case True{} True{}:
+      {==}
+    case True{} False{}:
+      {==}
+    case False{} True{}:
+      {==}
+    case False{} False{}:
+      {==}
+
+# a role picked by name is a proof file exactly when the second test held,
+# when the second holding rules out the first
+law role.pick_proof:
+  for a: Bool
+  for b: Bool
+  for hb: {b == True{} : Bool} -> {a == False{} : Bool}
+  {Role.is_proof(Bool.pick(Role.Role, a, Role.Laws{}, Bool.pick(Role.Role, b, Role.Proof{}, Role.Plain{}))) == b : Bool}
+
+def role.pick_proof(a, b, hb):
+  match a b:
+    case True{} True{}:
+      Empty.absurd({Role.is_proof(Role.Laws{}) == True{} : Bool},
+        unsafe.false_true(Equal.sym(Bool, True{}, False{}, hb({==}))))
+    case True{} False{}:
+      {==}
+    case False{} True{}:
+      {==}
+    case False{} False{}:
+      {==}
+
+# a PROOF.bend is not a LAWS.bend
+law role.excl:
+  for +path: String
+  for hb: {Paths.is_proof(path) == True{} : Bool}
+  {Paths.is_laws(path) == False{} : Bool}
+
+def role.excl(path, hb):
+  eb = Equal.sym(String, Paths.base(path), "PROOF.bend", unsafe.seq(Paths.base(path), "PROOF.bend", hb))
+  %eb : {String.eq(_, "LAWS.bend") == False{} : Bool}
+  {==}
+
+def Laws.role_laws_named(path):
+  role.pick_laws(Paths.is_laws(path), Paths.is_proof(path))
+
+def Laws.role_proof_named(path):
+  role.pick_proof(Paths.is_laws(path), Paths.is_proof(path), h => role.excl(path, h))
+
+def Laws.role_law_file_named(path):
+  role.pick_law_file(Paths.is_laws(path), Paths.is_proof(path))
+
+def Laws.role_named_first(named, reach, e):
+  s = Equal.sym(Bool, Role.is_law_file(named), True{}, e)
+  %s : {Bool.pick(Role.Role, _, named, reach) == named : Role.Role}
+  {==}
+
+def Laws.role_reached(named, reach, e):
+  s = Equal.sym(Bool, Role.is_law_file(named), False{}, e)
+  %s : {Bool.pick(Role.Role, _, named, reach) == reach : Role.Role}
+  {==}
+
+def Laws.role_hole(path, _text, toks, _tree, _bound, _items):
+  Equal.cong(Bool, List<&2, F.Finding>,
+    z => Lazy.stop(List<&2, F.Finding>, z, [], _u => Hole.check.go(toks, path)),
+    Role.is_laws(Role.of_path(path)), Paths.is_laws(path),
+    Laws.role_laws_named(path))
+
+def Laws.role_closed(path, _text, _toks, tree, _bound, _items):
+  Equal.cong(Bool, List<&2, F.Finding>,
+    z => Lazy.stop(List<&2, F.Finding>, Bool.not(z), [], _u => Closed.check.go(tree, path)),
+    Role.is_laws(Role.of_path(path)), Paths.is_laws(path),
+    Laws.role_laws_named(path))
+
+def Laws.role_param(path, _text, _toks, _tree, bound, _items):
+  match bound:
+    case Bind.Bound{binds, _uses, _scopes}:
+      Equal.cong(Bool, List<&2, F.Finding>,
+        z => Lazy.stop(List<&2, F.Finding>, z, [], _u => Param.check.go(binds, path)),
+        Role.is_proof(Role.of_path(path)), Paths.is_proof(path), Laws.role_proof_named(path))
+
+def Laws.role_doc(path, text, toks, _tree, _bound, items):
+  Equal.cong(Bool, List<&2, F.Finding>,
+    z => Lazy.stop(List<&2, F.Finding>, Bool.or(z, Paths.is_test(path)), [],
+    _u => Doc.check.go(items, path, Doc.lines(text, toks))), Role.is_proof(Role.of_path(path)), Paths.is_proof(path),
+    Laws.role_proof_named(path))
+
+def Laws.role_fromrev(path, _text, toks, _tree, _bound, _items):
+  Equal.cong(Bool, List<&2, F.Finding>,
+    z => Lazy.stop(List<&2, F.Finding>, z, [], _u => Fromrev.walk(T.sig(toks), path)),
+    Role.is_law_file(Role.of_path(path)), Paths.is_law_file(path),
+    Laws.role_law_file_named(path))
+
+def Laws.role_scan(path, _text, _toks, tree, _bound, _items):
+  Equal.cong(Bool, List<&2, F.Finding>,
+    z => Lazy.stop(List<&2, F.Finding>, z, [], _u => Scan.check.on(Calls.defs(tree), path)),
+    Role.is_law_file(Role.of_path(path)), Paths.is_law_file(path),
+    Laws.role_law_file_named(path))
+
+def Laws.role_hole_exempt(rr, e, path, _text, toks, _tree, _bound, _items):
+  ex.stop(Role.is_laws(rr), e, _u => Hole.check.go(toks, path))
+
+def Laws.role_closed_exempt(rr, e, path, _text, _toks, tree, _bound, _items):
+  s = Equal.sym(Bool, Role.is_laws(rr), False{}, e)
+  %s : {Lazy.stop(List<&2, F.Finding>, Bool.not(_), [], _u => Closed.check.go(tree, path))
+    == Nil{} : List<&2, F.Finding>}
+  {==}
+
+def Laws.role_param_exempt(rr, e, path, _text, _toks, _tree, bound, _items):
+  match bound:
+    case Bind.Bound{binds, _uses, _scopes}:
+      ex.stop(Role.is_proof(rr), e, _u => Param.check.go(binds, path))
+
+def Laws.role_doc_exempt(rr, e, path, text, toks, _tree, _bound, items):
+  s = Equal.sym(Bool, Role.is_proof(rr), True{}, e)
+  %s : {Lazy.stop(List<&2, F.Finding>, Bool.or(_, Paths.is_test(path)), [],
+      _u => Doc.check.go(items, path, Doc.lines(text, toks)))
+    == Nil{} : List<&2, F.Finding>}
+  {==}
+
+def Laws.role_fromrev_exempt(rr, e, path, _text, toks, _tree, _bound, _items):
+  ex.stop(Role.is_law_file(rr), e, _u => Fromrev.walk(T.sig(toks), path))
+
+def Laws.role_scan_exempt(rr, e, path, _text, _toks, tree, _bound, _items):
+  ex.stop(Role.is_law_file(rr), e, _u => Scan.check.on(Calls.defs(tree), path))
+
+# a test that stops on True gives the rest exactly when the rest is empty
+# whenever the test holds
+law role.skip_b:
+  for b: Bool
+  for -run: Unit -> List<&2, F.Finding>
+  for ex: {b == True{} : Bool} -> {run(Unit{}) == Nil{} : List<&2, F.Finding>}
+  {Lazy.stop(List<&2, F.Finding>, b, [], run) == run(Unit{}) : List<&2, F.Finding>}
+
+def role.skip_b(b, run, ex):
+  match b:
+    case True{}:
+      Equal.sym(List<&2, F.Finding>, run(Unit{}), Nil{}, ex({==}))
+    case False{}:
+      {==}
+
+# a rule that finds nothing in a LAWS.bend or PROOF.bend finds the same told
+# the file's role by its name
+law role.skip_named:
+  for +path: String
+  for -run: Unit -> List<&2, F.Finding>
+  for ex: {Paths.is_law_file(path) == True{} : Bool} -> {run(Unit{}) == Nil{} : List<&2, F.Finding>}
+  {Role.skip(Role.of_path(path), run) == run(Unit{}) : List<&2, F.Finding>}
+
+def role.skip_named(path, run, ex):
+  Equal.trans(List<&2, F.Finding>, Role.skip(Role.of_path(path), run),
+    Lazy.stop(List<&2, F.Finding>, Paths.is_law_file(path), [], run), run(Unit{}),
+    Equal.cong(Bool, List<&2, F.Finding>, z => Lazy.stop(List<&2, F.Finding>, z, [], run),
+      Role.is_law_file(Role.of_path(path)), Paths.is_law_file(path), Laws.role_law_file_named(path)),
+    role.skip_b(Paths.is_law_file(path), run, ex))
+
+def Laws.role_pick(path, text, toks, tree, bound, items):
+  role.skip_named(path, _u => Pick.check(Src.Src{path, text, toks, tree, bound, items}),
+    e => Laws.pick_exempt(path, text, toks, tree, bound, items, e))
+
+def Laws.role_tail(path, text, toks, tree, bound, items):
+  role.skip_named(path, _u => Tail.check(Src.Src{path, text, toks, tree, bound, items}),
+    e => Laws.tail_exempt(path, text, toks, tree, bound, items, e))
+
+def Laws.role_concat(path, text, toks, tree, bound, items):
+  role.skip_named(path, _u => Concat.check(Src.Src{path, text, toks, tree, bound, items}),
+    e => Laws.concat_exempt(path, text, toks, tree, bound, items, e))
+
+def Laws.role_eager(path, text, toks, tree, bound, items):
+  role.skip_named(path, _u => Eager.check(Src.Src{path, text, toks, tree, bound, items}),
+    e => Laws.eager_exempt(path, text, toks, tree, bound, items, e))
+
+def Laws.role_rewalk(path, text, toks, tree, bound, items):
+  role.skip_named(path, _u => Rewalk.check(Src.Src{path, text, toks, tree, bound, items}),
+    e => Laws.rewalk_exempt(path, text, toks, tree, bound, items, e))
+
+def Laws.role_strict(path, text, toks, tree, bound, items):
+  role.skip_named(path, _u => Strict.check(Src.Src{path, text, toks, tree, bound, items}),
+    e => Laws.strict_exempt(path, text, toks, tree, bound, items, e))
+
+def Laws.role_hoist(path, text, toks, tree, bound, items):
+  role.skip_named(path, _u => Hoist.check(Src.Src{path, text, toks, tree, bound, items}),
+    e => Laws.hoist_exempt(path, text, toks, tree, bound, items, e))
+
+def Laws.role_index(path, text, toks, tree, bound, items):
+  role.skip_named(path, _u => Index.check(Src.Src{path, text, toks, tree, bound, items}),
+    e => Laws.index_exempt(path, text, toks, tree, bound, items, e))
+
+def Laws.role_ring(path, text, toks, tree, bound, items):
+  role.skip_named(path, _u => Ring.check(Src.Src{path, text, toks, tree, bound, items}),
+    e => Laws.ring_exempt(path, text, toks, tree, bound, items, e))
+
+def Laws.role_table(path, text, toks, tree, bound, items):
+  role.skip_named(path, _u => Table.check(Src.Src{path, text, toks, tree, bound, items}),
+    e => Laws.table_exempt(path, text, toks, tree, bound, items, e))
+
+def Laws.role_unit(path, text, toks, tree, bound, items):
+  role.skip_named(path, _u => UnitRule.check(Src.Src{path, text, toks, tree, bound, items}),
+    e => Laws.unit_exempt(path, text, toks, tree, bound, items, e))
+
+def Laws.role_thunk(path, text, toks, tree, bound, items):
+  role.skip_named(path, _u => Thunk.check(Src.Src{path, text, toks, tree, bound, items}),
+    e => Laws.thunk_exempt(path, text, toks, tree, bound, items, e))

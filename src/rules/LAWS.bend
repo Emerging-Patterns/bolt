@@ -9,6 +9,7 @@ import ./correctness/hole.bend as Hole
 import ./style/param.bend as Param
 import ../syntax/bind.bend as Bind
 import ../paths.bend as Paths
+import ../role.bend as Role
 import ./laws/trace.bend as Trace
 import ./digest.bend as Digest
 import ./style/space.bend as Space
@@ -4022,6 +4023,323 @@ law scope_closed:
   for +e: {Paths.is_laws(path) == False{} : Bool}
   {Closed.check(Src.Src{path, text, toks, tree, bound, items})
     == Closed.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+
+# Roles. The rules that skip or check law and proof files read
+# a file's role (src/role.bend), never its path: told a role, each is the
+# rule it was, and a file's role by its name is what its path said
+# ---------------------------------------------------------------------------
+
+# LAW: by its name, a file is a law file exactly when it is a LAWS.bend
+law role_laws_named:
+  for +path: String
+  {Role.is_laws(Role.of_path(path)) == Paths.is_laws(path) : Bool}
+
+# LAW: by its name, a file is a proof file exactly when it is a PROOF.bend
+law role_proof_named:
+  for +path: String
+  {Role.is_proof(Role.of_path(path)) == Paths.is_proof(path) : Bool}
+
+# LAW: by its name, a file is a law or proof file exactly when it is a
+# LAWS.bend or a PROOF.bend
+law role_law_file_named:
+  for +path: String
+  {Role.is_law_file(Role.of_path(path)) == Paths.is_law_file(path) : Bool}
+
+# LAW: a LAWS.bend or a PROOF.bend keeps its role by name, whatever it holds
+law role_named_first:
+  for +named: Role.Role
+  for reach: Role.Role
+  for e: {Role.is_law_file(named) == True{} : Bool}
+  {Role.role.of(named, reach) == named : Role.Role}
+
+# LAW: any other file has the role it has once reached
+law role_reached:
+  for +named: Role.Role
+  for reach: Role.Role
+  for e: {Role.is_law_file(named) == False{} : Bool}
+  {Role.role.of(named, reach) == reach : Role.Role}
+
+# LAW: hole told a file's role by its name finds what hole finds
+law role_hole:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Hole.check.role(Role.of_path(path), Src.Src{path, text, toks, tree, bound, items})
+    == Hole.check(Src.Src{path, text, toks, tree, bound, items}) : List<&2, F.Finding>}
+
+# LAW: closed told a file's role by its name finds what closed finds
+law role_closed:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Closed.check.role(Role.of_path(path), Src.Src{path, text, toks, tree, bound, items})
+    == Closed.check(Src.Src{path, text, toks, tree, bound, items}) : List<&2, F.Finding>}
+
+# LAW: param told a file's role by its name finds what param finds
+law role_param:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Param.check.role(Role.of_path(path), Src.Src{path, text, toks, tree, bound, items})
+    == Param.check(Src.Src{path, text, toks, tree, bound, items}) : List<&2, F.Finding>}
+
+# LAW: doc told a file's role by its name finds what doc finds
+law role_doc:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Doc.check.role(Role.of_path(path), Src.Src{path, text, toks, tree, bound, items})
+    == Doc.check(Src.Src{path, text, toks, tree, bound, items}) : List<&2, F.Finding>}
+
+# LAW: fromrev told a file's role by its name finds what fromrev finds
+law role_fromrev:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Fromrev.check.role(Role.of_path(path), Src.Src{path, text, toks, tree, bound, items})
+    == Fromrev.check(Src.Src{path, text, toks, tree, bound, items}) : List<&2, F.Finding>}
+
+# LAW: scan told a file's role by its name finds what scan finds
+law role_scan:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Scan.check.role(Role.of_path(path), Src.Src{path, text, toks, tree, bound, items})
+    == Scan.check(Src.Src{path, text, toks, tree, bound, items}) : List<&2, F.Finding>}
+
+# LAW: pick, which checks nothing in a law or proof file, told a file's role
+# by its name finds what pick finds
+law role_pick:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Role.skip(Role.of_path(path), _u => Pick.check(Src.Src{path, text, toks, tree, bound, items}))
+    == Pick.check(Src.Src{path, text, toks, tree, bound, items}) : List<&2, F.Finding>}
+
+# LAW: tail, which checks nothing in a law or proof file, told a file's role
+# by its name finds what tail finds
+law role_tail:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Role.skip(Role.of_path(path), _u => Tail.check(Src.Src{path, text, toks, tree, bound, items}))
+    == Tail.check(Src.Src{path, text, toks, tree, bound, items}) : List<&2, F.Finding>}
+
+# LAW: concat, which checks nothing in a law or proof file, told a file's role
+# by its name finds what concat finds
+law role_concat:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Role.skip(Role.of_path(path), _u => Concat.check(Src.Src{path, text, toks, tree, bound, items}))
+    == Concat.check(Src.Src{path, text, toks, tree, bound, items}) : List<&2, F.Finding>}
+
+# LAW: eager, which checks nothing in a law or proof file, told a file's role
+# by its name finds what eager finds
+law role_eager:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Role.skip(Role.of_path(path), _u => Eager.check(Src.Src{path, text, toks, tree, bound, items}))
+    == Eager.check(Src.Src{path, text, toks, tree, bound, items}) : List<&2, F.Finding>}
+
+# LAW: rewalk, which checks nothing in a law or proof file, told a file's role
+# by its name finds what rewalk finds
+law role_rewalk:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Role.skip(Role.of_path(path), _u => Rewalk.check(Src.Src{path, text, toks, tree, bound, items}))
+    == Rewalk.check(Src.Src{path, text, toks, tree, bound, items}) : List<&2, F.Finding>}
+
+# LAW: strict, which checks nothing in a law or proof file, told a file's role
+# by its name finds what strict finds
+law role_strict:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Role.skip(Role.of_path(path), _u => Strict.check(Src.Src{path, text, toks, tree, bound, items}))
+    == Strict.check(Src.Src{path, text, toks, tree, bound, items}) : List<&2, F.Finding>}
+
+# LAW: hoist, which checks nothing in a law or proof file, told a file's role
+# by its name finds what hoist finds
+law role_hoist:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Role.skip(Role.of_path(path), _u => Hoist.check(Src.Src{path, text, toks, tree, bound, items}))
+    == Hoist.check(Src.Src{path, text, toks, tree, bound, items}) : List<&2, F.Finding>}
+
+# LAW: index, which checks nothing in a law or proof file, told a file's role
+# by its name finds what index finds
+law role_index:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Role.skip(Role.of_path(path), _u => Index.check(Src.Src{path, text, toks, tree, bound, items}))
+    == Index.check(Src.Src{path, text, toks, tree, bound, items}) : List<&2, F.Finding>}
+
+# LAW: ring, which checks nothing in a law or proof file, told a file's role
+# by its name finds what ring finds
+law role_ring:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Role.skip(Role.of_path(path), _u => Ring.check(Src.Src{path, text, toks, tree, bound, items}))
+    == Ring.check(Src.Src{path, text, toks, tree, bound, items}) : List<&2, F.Finding>}
+
+# LAW: table, which checks nothing in a law or proof file, told a file's role
+# by its name finds what table finds
+law role_table:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Role.skip(Role.of_path(path), _u => Table.check(Src.Src{path, text, toks, tree, bound, items}))
+    == Table.check(Src.Src{path, text, toks, tree, bound, items}) : List<&2, F.Finding>}
+
+# LAW: unit, which checks nothing in a law or proof file, told a file's role
+# by its name finds what unit finds
+law role_unit:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Role.skip(Role.of_path(path), _u => UnitRule.check(Src.Src{path, text, toks, tree, bound, items}))
+    == UnitRule.check(Src.Src{path, text, toks, tree, bound, items}) : List<&2, F.Finding>}
+
+# LAW: thunk, which checks nothing in a law or proof file, told a file's role
+# by its name finds what thunk finds
+law role_thunk:
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Role.skip(Role.of_path(path), _u => Thunk.check(Src.Src{path, text, toks, tree, bound, items}))
+    == Thunk.check(Src.Src{path, text, toks, tree, bound, items}) : List<&2, F.Finding>}
+
+# LAW: hole reports nothing in a law file, whatever the source holds
+law role_hole_exempt:
+  for rr: Role.Role
+  for e: {Role.is_laws(rr) == True{} : Bool}
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Hole.check.role(rr, Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: closed reports nothing in a file that is not a law file, whatever the source holds
+law role_closed_exempt:
+  for rr: Role.Role
+  for e: {Role.is_laws(rr) == False{} : Bool}
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Closed.check.role(rr, Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: param reports nothing in a proof file, whatever the source holds
+law role_param_exempt:
+  for rr: Role.Role
+  for e: {Role.is_proof(rr) == True{} : Bool}
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Param.check.role(rr, Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: doc reports nothing in a proof file, whatever the source holds
+law role_doc_exempt:
+  for rr: Role.Role
+  for e: {Role.is_proof(rr) == True{} : Bool}
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Doc.check.role(rr, Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: fromrev reports nothing in a law or proof file, whatever the source holds
+law role_fromrev_exempt:
+  for rr: Role.Role
+  for e: {Role.is_law_file(rr) == True{} : Bool}
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Fromrev.check.role(rr, Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+
+# LAW: scan reports nothing in a law or proof file, whatever the source holds
+law role_scan_exempt:
+  for rr: Role.Role
+  for e: {Role.is_law_file(rr) == True{} : Bool}
+  for +path: String
+  for +text: String
+  for +toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Scan.check.role(rr, Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
 
 # trace: a reading of SPEC.md and a count of its defects, written apart from
 # the rule (src/rules/laws/trace.bend), in file order and without its

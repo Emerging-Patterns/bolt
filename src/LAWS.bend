@@ -8,6 +8,7 @@ import ./rules.bend as Rules
 import ./codes.bend as Codes
 import ./lazy/lazy.bend as Lazy
 import ./src.bend as Src
+import ./role.bend as Role
 import ./rules/digest.bend as Digest
 import ./rules/laws/law.bend as Law
 import ./rules/laws/unsafe.bend as Unsafe
@@ -347,21 +348,23 @@ def parsed_all(+world: W.World, ps: List<&2, String>) -> List<&2, Src.Src>:
     case Con{+p, rest}:
       List.append(&2, Src.Src, parsed_at(p, W.text(world, p)), parsed_all(world, rest))
 
-# the per-file rules on one source alone
-def on_at(+path: String, mm: Maybe<&2, String>) -> List<&2, F.Finding>:
+# the per-file rules on one source, told its role among the marks
+# (src/role.bend)
+def on_at(+ms: List<&2, Role.Mark>, +path: String, mm: Maybe<&2, String>) -> List<&2, F.Finding>:
   match mm:
     case None{}:
       []
     case Some{text}:
-      Rules.on(Src.of(path, text))
+      Rules.on.role(Role.of(ms, path), Src.of(path, text))
 
-# the per-file rules on each source alone, in file-list order
-def on_all(+world: W.World, ps: List<&2, String>) -> List<&2, F.Finding>:
+# the per-file rules on each source, each told its role among the marks, in
+# file-list order
+def on_all(+ms: List<&2, Role.Mark>, +world: W.World, ps: List<&2, String>) -> List<&2, F.Finding>:
   match ps:
     case Nil{}:
       []
     case Con{+p, rest}:
-      List.append(&2, F.Finding, on_at(p, W.text(world, p)), on_all(world, rest))
+      List.append(&2, F.Finding, on_at(ms, p, W.text(world, p)), on_all(ms, world, rest))
 
 # the path of the first of the paths the World read a text for, as a list of
 # one; none when it read none
@@ -565,12 +568,12 @@ def traced(
 # the project rules' findings: `coverage` on each package's files, `.` first,
 # then `unsafe` on every file, then `trace` on each package's files
 def packed(
-  srcs: List<&2, Src.Src>,
+  +srcs: List<&2, Src.Src>,
   +whole: Bool,
   spec: Maybe<&2, String>,
   +ps: List<&2, Rules.Package>
 ) -> List<&2, F.Finding>:
-  +ds = Digest.all(srcs)
+  +ds = Digest.all.role(Role.marks(srcs), srcs)
   +rs = Rules.roots(ps)
   List.concat(&2, F.Finding, [Law.check(part(ds, rs, "")), covered(ps, ds, rs), Unsafe.check(ds),
     Rules.trace.top(part(ds, rs, ""), whole, spec), traced(ps, ds, rs, whole)])
@@ -598,8 +601,9 @@ law one_package:
   for +whole: Bool
   for +spec: Maybe<&2, String>
   {Rules.project(s <> ss, whole, spec, [])
-    == List.concat(&2, F.Finding, [Law.check(Digest.all(s <> ss)), Unsafe.check(Digest.all(s <> ss)),
-      Trace.check(whole, spec, Digest.all(s <> ss))])
+    == List.concat(&2, F.Finding, [Law.check(Digest.all.role(Role.marks(s <> ss), s <> ss)),
+      Unsafe.check(Digest.all.role(Role.marks(s <> ss), s <> ss)),
+      Trace.check(whole, spec, Digest.all.role(Role.marks(s <> ss), s <> ss))])
     : List<&2, F.Finding>}
 
 # LAW: a file at `<root>/<rest>` is named in the root's SPEC.md as `<rest>`
@@ -655,18 +659,20 @@ law trace_nested_unread:
   {Rules.trace.nested(None{}, whole, pkg, at, ds) == [] : List<&2, F.Finding>}
 
 # every finding of a run, ungraded: the read failures, then each source's
-# per-file findings, each rule seeing that one source, then `setting`'s,
+# per-file findings, each rule seeing that one source and its role among the
+# run's law and proof files (src/role.bend), then `setting`'s,
 # seeing each bolt.bend grading reads, then the project rules over every
 # source in the run, by package (trace also told whether the run is the whole
 # tree, SPEC.md's text, and each other package root's)
 def in_scope(+world: W.World) -> List<&2, F.Finding>:
   +ps = Plan.inputs(world)
-  List.concat(&2, F.Finding, [unread_all(world, ps), on_all(world, ps), settings_found(world),
+  List.concat(&2, F.Finding, [unread_all(world, ps), on_all(Role.marks(Plan.srcs_of(Plan.gots(ps, world))), world, ps),
+    settings_found(world),
     packed(parsed_all(world, ps), List.is_empty(&2, String, W.paths.of(world)), W.text(world, "SPEC.md"),
       pkgs(world, Plan.roots(world)))])
 
 # LAW: the planner's findings are the read failures, then the per-file rules
-# on each source's Src alone, then `setting` on each bolt.bend grading reads,
+# on each source's Src and role, then `setting` on each bolt.bend grading reads,
 # then the project rules on the digests of every source in the run, and
 # nothing else
 # BOLT-SCOPE-2
