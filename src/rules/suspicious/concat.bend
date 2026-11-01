@@ -11,6 +11,17 @@
 # three times the render; rootagi's JSON stringify). Prepend (`x <> acc`)
 # and reverse once at the end, build with `h <> go(t)`, or gather pieces and
 # join them once.
+#
+# The same append passed on through a continuation is the same loop one hop
+# removed (`cont`): an argument of a call of a function-typed parameter
+# (`rest(file, List.append(&2, U32, acc, b <> t))`, where rest is
+# `fl => a => slurp(f, fl, a)`) that appends onto any parameter of the def,
+# read the same way (in place, in parentheses, or a lone name through its
+# let). A `+` parameter the body reads more than once is left alone: it
+# builds a value it also uses elsewhere (`path ++ "/" ++ name`), not an
+# accumulator. Prepend each chunk and reverse once at the end; the
+# accumulator's type changes along the chain (ez's slurp, native: 14.75 s ->
+# 0.36 s at 16 MB).
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
@@ -233,3 +244,140 @@ def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Fi
 def check(ss: Src.Src) -> List<&2, F.Finding>:
   Src.Src{path, text, toks, tree, bound, items} = ss
   check.go(Calls.defs(tree), path, [])
+
+# ---------------------------------------------------------------------------
+# through a continuation: `rest(file, List.append(.., acc, ..))`, where rest
+# is a function-typed parameter (`fl => a => slurp(f, fl, a)`), grows acc the
+# same way a self-call does, one hop removed
+
+# does a parameter's chain open with `+`?
+def plus(pp: Tree.Node) -> Bool:
+  match pp:
+    case Tree.NCons{+h, rest}:
+      Bool.and(Calls.kind.leaf(~Calls.kind.oper, h), String.eq(Calls.leaf.text(h), "+"))
+    case other:
+      False{}
+
+# how many times a plain name is read under the node
+def uses(nn: Tree.Node, +name: String) -> Nat:
+  match nn:
+    case Tree.NCons{h, rest}:
+      Nat.add(uses(h, name), uses(rest, name))
+    case Tree.Group{open, kids, close}:
+      uses(kids, name)
+    case Tree.Stmt{kind, kids, body}:
+      Nat.add(uses(kids, name), uses(body, name))
+    case Tree.Leaf{Lex.Tok{Lex.TName{}, +t, l, c}}:
+      Bool.pick(Nat, String.eq(t, name), 1n, 0n)
+    case other:
+      0n
+
+# past the first read: a second one drops a `+` parameter
+def keep.again(+isplus: Bool, more: Nat) -> Bool:
+  match more:
+    case 0n:
+      True{}
+    case 1n+m:
+      Bool.not(isplus)
+
+# may an append onto the parameter be reported? Any parameter but a `+` one
+# the body reads more than once: that one builds a value it also uses
+# elsewhere (`path ++ "/" ++ name`), not an accumulator
+def keep(+isplus: Bool, count: Nat) -> Bool:
+  match count:
+    case 0n:
+      True{}
+    case 1n+more:
+      keep.again(isplus, more)
+
+def accs.go(ps: List<&2, Tree.Node>, +body: Tree.Node, +acc: List<&2, String>) -> List<&2, String>:
+  match ps:
+    case Nil{}:
+      acc
+    case Con{+p, rest}:
+      +nm = Calls.param_name(p)
+      accs.go(rest, body, Bool.pick(List<&2, String>, keep(plus(p), uses(body, nm)), nm <> acc, acc))
+
+# the parameters an append onto may be reported
+def accs(sig: Tree.Node, +body: Tree.Node) -> List<&2, String>:
+  accs.go(Calls.params(sig), body, [])
+
+def conts.go(ps: List<&2, Tree.Node>, +acc: List<&2, String>) -> List<&2, String>:
+  match ps:
+    case Nil{}:
+      acc
+    case Con{+p, rest}:
+      conts.go(rest, Bool.pick(List<&2, String>, Calls.has_arrow(p), Calls.param_name(p) <> acc, acc))
+
+# the function-typed parameters, `rest: File -> List<&2, U32> -> IO(..)`: the
+# continuations a call may pass an accumulator through
+def conts(sig: Tree.Node) -> List<&2, String>:
+  conts.go(Calls.params(sig), [])
+
+# a finding when the name is one of the reportable parameters
+def hit.cont(
+  mm: Maybe<&2, Lex.Tok>,
+  +accs: List<&2, String>,
+  +path: String,
+  +acc: List<&2, F.Finding>
+) -> List<&2, F.Finding>:
+  match mm:
+    case None{}:
+      acc
+    case Some{Lex.Tok{k, +t, l, c}}:
+      Bool.pick(List<&2, F.Finding>, List.contains(~String, ~String.eq, accs, t),
+        F.Finding{path, l, c, U32.from_nat(String.length(t)), "concat",
+          t ++ " is appended to and passed on through a continuation, which copies it on every step and makes the loop quadratic; prepend each chunk and reverse once at the end."} <> acc,
+        acc)
+
+# the findings on a continuation call's arguments
+def hits.cont(
+  as: List<&2, Tree.Node>,
+  +accs: List<&2, String>,
+  +lets: List<&2, Let>,
+  +path: String,
+  acc: List<&2, F.Finding>
+) -> List<&2, F.Finding>:
+  match as:
+    case Nil{}:
+      List.reverse(&2, F.Finding, acc)
+    case Con{+a, rest}:
+      hits.cont(rest, accs, lets, path, hit.cont(seen(a, lets), accs, path, acc))
+
+# every continuation call's arguments, with the lets in scope
+def cwalk(
+  nn: Tree.Node,
+  +conts: List<&2, String>,
+  +accs: List<&2, String>,
+  +lets: List<&2, Let>,
+  +path: String
+) -> List<&2, F.Finding>:
+  match nn:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
+      +me = Bool.and(String.eq(o, "("), List.contains(~String, ~String.eq, conts, t))
+      List.concat(&2, F.Finding, [
+        Lazy.stop(List<&2, F.Finding>, Bool.not(me), [], _u => hits.cont(Calls.args(kids), accs, lets, path, [])),
+        cwalk(kids, conts, accs, lets, path), cwalk(rest, conts, accs, lets, path)])
+    case Tree.NCons{Tree.Group{open, kids, close}, rest}:
+      List.concat(&2, F.Finding, [cwalk(kids, conts, accs, lets, path), cwalk(rest, conts, accs, lets, path)])
+    case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
+      List.concat(&2, F.Finding, [cwalk(kids, conts, accs, lets, path), cwalk(body, conts, accs, lets, path),
+        cwalk(rest, conts, accs, after(kind, kids, lets), path)])
+    case Tree.NCons{h, rest}:
+      cwalk(rest, conts, accs, lets, path)
+    case other:
+      Nil{}
+
+def cont.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Finding>>) -> List<&2, F.Finding>:
+  match ds:
+    case Nil{}:
+      List.concat(&2, F.Finding, List.reverse(&2, List<&2, F.Finding>, acc))
+    case Con{Calls.Def{name, +sig, +body}, rest}:
+      cont.go(rest, path,
+        Lazy.stop(List<&2, F.Finding>, Calls.exempt(path, sig), [],
+          _u => cwalk(body, conts(sig), accs(sig, body), [], path)) <> acc)
+
+# the rule's other half: appends passed on through a continuation
+def cont(ss: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = ss
+  cont.go(Calls.defs(tree), path, [])

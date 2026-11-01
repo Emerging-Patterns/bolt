@@ -66,6 +66,7 @@ import ./laws/CodeRulesIgnoreCommentsAndStrings.bend as CodeRulesIgnoreCommentsA
 import ./laws/ConcatEither.bend as ConcatEither
 import ./laws/ConcatPush.bend as ConcatPush
 import ./laws/ConcatReportsAppendingRecursion.bend as ConcatReportsAppendingRecursion
+import ./laws/ConcatReportsContinuationAppend.bend as ConcatReportsContinuationAppend
 import ./laws/ConcatViaName.bend as ConcatViaName
 import ./laws/DocReportsUndocumentedItems.bend as DocReportsUndocumentedItems
 import ./laws/EagerReportsLoopsInPick.bend as EagerReportsLoopsInPick
@@ -78,6 +79,7 @@ import ./laws/FuelReportsLiteralBudgets.bend as FuelReportsLiteralBudgets
 import ./laws/HoistReportsTablesInLoops.bend as HoistReportsTablesInLoops
 import ./laws/HoleReportsEachTodo.bend as HoleReportsEachTodo
 import ./laws/IndexReportsGetsInRecursion.bend as IndexReportsGetsInRecursion
+import ./laws/InertConcatCont.bend as InertConcatCont
 import ./laws/InertFromrev.bend as InertFromrev
 import ./laws/InertTranscong.bend as InertTranscong
 import ./laws/LawNamesEveryItem.bend as LawNamesEveryItem
@@ -117,6 +119,7 @@ import ./laws/RoleTail.bend as RoleTail
 import ./laws/RoleThunk.bend as RoleThunk
 import ./laws/RoleUnit.bend as RoleUnit
 import ./laws/ScanReportsCarriedArgumentWalks.bend as ScanReportsCarriedArgumentWalks
+import ./laws/ScopeConcatCont.bend as ScopeConcatCont
 import ./laws/ScopeExemptionsFollowPaths.bend as ScopeExemptionsFollowPaths
 import ./laws/SpaceReportsBlanksAndWidth.bend as SpaceReportsBlanksAndWidth
 import ./laws/StrictReportsEagerSelfCalls.bend as StrictReportsEagerSelfCalls

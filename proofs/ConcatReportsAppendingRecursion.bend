@@ -13,53 +13,6 @@ import ./lemmas/Nat.bend as M2
 import ./lemmas/Pick.bend as M3
 import ./lemmas/UnsafeStringCompare.bend as M4
 
-# a list reversed onto another is as long as both
-law concat.rev:
-  for xs: List<&2, F.Finding>
-  for ys: List<&2, F.Finding>
-  {List.length(&2, F.Finding, List.reverse.go(&2, F.Finding, xs, ys))
-    == Nat.add(List.length(&2, F.Finding, xs), List.length(&2, F.Finding, ys)) : Nat}
-
-def concat.rev(xs, ys):
-  match xs:
-    case Nil{}:
-      {==}
-    case Con{+h, +t}:
-      Equal.trans(Nat, List.length(&2, F.Finding, List.reverse.go(&2, F.Finding, t, h <> ys)),
-        Nat.add(List.length(&2, F.Finding, t), 1n+List.length(&2, F.Finding, ys)),
-        1n+Nat.add(List.length(&2, F.Finding, t), List.length(&2, F.Finding, ys)),
-        concat.rev(t, h <> ys), M1.concat.succ(List.length(&2, F.Finding, t), List.length(&2, F.Finding, ys)))
-
-# a stop on `not b` runs its thunk exactly when b holds
-law concat.stop:
-  for b: Bool
-  for -more: List<&2, F.Finding>
-  for -m: Nat
-  for ih: {List.length(&2, F.Finding, more) == m : Nat}
-  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Bool.not(b), [], _u => more))
-    == Bool.pick(Nat, b, m, 0n) : Nat}
-
-def concat.stop(b, _more, _m, ih):
-  match b:
-    case True{}:
-      ih
-    case False{}:
-      {==}
-
-# a finding in front when the flag holds, counted on either side of a sum
-law concat.bump:
-  for b: Bool
-  for +l: Nat
-  for +m: Nat
-  {Nat.add(Bool.pick(Nat, b, 1n+l, l), m) == Nat.add(l, Bool.pick(Nat, b, 1n+m, m)) : Nat}
-
-def concat.bump(b, l, m):
-  match b:
-    case True{}:
-      Equal.sym(Nat, Nat.add(l, 1n+m), 1n+Nat.add(l, m), M1.concat.succ(l, m))
-    case False{}:
-      {==}
-
 # hit adds one finding exactly when the argument appends onto its slot
 law concat.hit:
   for mm: Maybe<&2, Lex.Tok>
@@ -119,7 +72,7 @@ def concat.arg(a, rest, slot, ps, lets, path, acc, ih):
         Bool.pick(Nat, Laws.concat.is(Concat.seen(a, lets), slot), 1n+List.length(&2, F.Finding, acc),
           List.length(&2, F.Finding, acc)),
         concat.hit(Concat.seen(a, lets), slot, path, acc)),
-      concat.bump(Laws.concat.is(Concat.seen(a, lets), slot), List.length(&2, F.Finding, acc),
+      M1.concat.bump(Laws.concat.is(Concat.seen(a, lets), slot), List.length(&2, F.Finding, acc),
         Laws.concat.slots(rest, ps, lets))))
 
 # hits adds to its accumulator one finding for each argument that appends
@@ -136,7 +89,7 @@ law concat.hits:
 def concat.hits(as, params, lets, path, acc):
   match as:
     case Nil{}:
-      concat.rev(acc, Nil{})
+      M1.concat.rev(acc, Nil{})
     case Con{+a, +rest}:
       match params:
         case Nil{}:
@@ -177,7 +130,7 @@ def concat.call(tok, open, kids, _cl, rest, name, params, lets, path, ik, ir):
         Bool.pick(Nat, Bool.and(String.eq(o, "("), String.eq(t, name)),
           Laws.concat.slots(Calls.args(kids), params, lets), 0n),
         Laws.concat.count(kids, name, params, lets), Laws.concat.count(rest, name, params, lets),
-        concat.stop(Bool.and(String.eq(o, "("), String.eq(t, name)),
+        M1.concat.stop(Bool.and(String.eq(o, "("), String.eq(t, name)),
           Concat.hits(Calls.args(kids), params, lets, path, []),
           Laws.concat.slots(Calls.args(kids), params, lets), concat.hits(Calls.args(kids), params, lets, path, [])),
         ik, ir)

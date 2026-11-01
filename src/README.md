@@ -276,7 +276,14 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   reads the nearest `q = ..` / `+q = ..` before the call in its block or an
   enclosing one, so a later let of the name shadows it and a let in another
   case arm is not seen. Typed and destructuring lets, do-binds and pattern
-  binders are not followed.
+  binders are not followed. The same append passed through a continuation
+  is reported too: an argument of a call of a function-typed parameter
+  (`rest(file, List.append(&2, U32, acc, b <> t))`, where `rest` is
+  `fl => a => slurp(f, fl, a)`) that appends onto any parameter of the def,
+  read the same way. A `+` parameter the body reads more than once is left
+  alone (`path ++ "/" ++ name` builds a value used elsewhere, not an
+  accumulator). Prepend each chunk and reverse once at the end (ez's slurp,
+  native: 14.75 s -> 0.36 s at 16 MB).
 - `index` — `List.get`/`String.get` at a computed index inside a def that
   calls itself: the list is walked again each step. Walk the cells instead
   (one sort phase went 39 s -> 0.9 s). A get anywhere in the def is
