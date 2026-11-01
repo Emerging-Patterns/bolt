@@ -364,28 +364,6 @@ def per_file.role(+ms: List<&2, Role.Mark>, ss: List<&2, Src.Src>) -> List<&2, F
 def per_file(+ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
   per_file.role(Role.marks(ss), ss)
 
-# every source's findings from the per-file rules, each told its own role
-# (src/role.bend's own: by its name, else by what it holds), as the editor
-# tells it
-def per_file.own(ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
-  match ss:
-    case Nil{}:
-      Nil{}
-    case Con{s, rest}:
-      List.append(&2, F.Finding, Rules.on(s), per_file.own(rest))
-
-# every source's findings from the per-file rules in a run: over the whole
-# tree (no paths named), each told its role among the marks, the import walk
-# over every package's files; over files named on the line, each told its
-# own role, since the code that imports a file, a package's main.bend, may
-# not be in the run, and a walk without it would take that code for laws
-def per_file.run(paths: List<&2, String>, +ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
-  match paths:
-    case Nil{}:
-      per_file(ss)
-    case Con{_p, _rest}:
-      per_file.own(ss)
-
 # the path of the first candidate the World holds a text for, as a list of
 # one; none when it holds none
 def conf.first(gs: List<&2, Got>) -> List<&2, String>:
@@ -431,7 +409,7 @@ def settings(+world: W.World) -> List<&2, F.Finding>:
 # then `setting`'s over each bolt.bend grading reads, then the project rules'
 # over every source and the other packages
 def found.at(+world: W.World, +gs: List<&2, Got>, +ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
-  List.concat(&2, F.Finding, [unread(gs), per_file.run(W.paths.of(world), ss), settings(world),
+  List.concat(&2, F.Finding, [unread(gs), per_file(ss), settings(world),
     Rules.project(ss, packages(roots(world)))])
 
 # every finding of every rule, ungraded

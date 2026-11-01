@@ -65,34 +65,6 @@ def on_all(+ms: List<&2, Role.Mark>, +world: W.World, ps: List<&2, String>) -> L
     case Con{+p, rest}:
       List.append(&2, F.Finding, on_at(ms, p, W.text(world, p)), on_all(ms, world, rest))
 
-# the per-file rules on one source, told its own role (src/role.bend), when
-# the World holds a text for it
-def own_at(+path: String, mm: Maybe<&2, String>) -> List<&2, F.Finding>:
-  match mm:
-    case None{}:
-      []
-    case Some{text}:
-      Rules.on(Src.of(path, text))
-
-# the per-file rules on each source, each told its own role, in file-list
-# order
-def own_all(+world: W.World, ps: List<&2, String>) -> List<&2, F.Finding>:
-  match ps:
-    case Nil{}:
-      []
-    case Con{+p, rest}:
-      List.append(&2, F.Finding, own_at(p, W.text(world, p)), own_all(world, rest))
-
-# the per-file rules on each source of a run: over the whole tree (no paths
-# named) each told its role among the marks of every source; over files
-# named on the line each told its own role, with no walk
-def on_run(named: List<&2, String>, +world: W.World, +ps: List<&2, String>) -> List<&2, F.Finding>:
-  match named:
-    case Nil{}:
-      on_all(Role.marks(Plan.srcs_of(Plan.gots(ps, world))), world, ps)
-    case Con{_n, _rest}:
-      own_all(world, ps)
-
 # the path of the first of the paths the World read a text for, as a list of
 # one; none when it read none
 def read_first.at(+path: String, mm: Maybe<&2, W.Answer>, more: List<&2, String>) -> List<&2, String>:
@@ -177,13 +149,13 @@ def pkgs(rs: List<&2, String>) -> List<&2, String>:
       Imports.dir_of(r ++ "/main.bend") <> pkgs(rest)
 
 # every finding of a run, ungraded: the read failures, then each source's
-# per-file findings, each rule seeing that one source and its role (on_run),
-# then `setting`'s,
+# per-file findings, each rule seeing that one source and its role among the
+# run's law and proof files (src/role.bend), then `setting`'s,
 # seeing each bolt.bend grading reads, then the project rules over every
 # source in the run, by package
 def in_scope(+world: W.World) -> List<&2, F.Finding>:
   +ps = Plan.inputs(world)
-  List.concat(&2, F.Finding, [unread_all(world, ps), on_run(W.paths.of(world), world, ps),
+  List.concat(&2, F.Finding, [unread_all(world, ps), on_all(Role.marks(Plan.srcs_of(Plan.gots(ps, world))), world, ps),
     settings_found(world),
     D2.packed(parsed_all(world, ps), pkgs(Plan.roots(world)))])
 

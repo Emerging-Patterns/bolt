@@ -157,24 +157,13 @@ it. `coverage` runs on one package's files at a time. Over files named on the li
 nested packages, each with its own laws, lints in one run from the top, and
 a law covers only defs of its own package.
 
-Rules read a file's role from its name, what it holds and the imports,
-never from where it sits. A file's own role is by its name, a `LAWS.bend`
-or a `PROOF.bend`, else by what it holds: a file that fills a law (a def
-that is a proof: it returns one, or is written with no type) is a proof
-file, one that states a law and fills none a law file, but a package's
-`main.bend` is code whatever it holds. Over the whole tree the imports
-widen that: a file a law file reaches through relative imports is a law
-file, one only proof files reach a proof file, and a file that imports a
-law file is on the laws' side too (a proof of imports alone). A file a
-package's `main.bend` reaches, or one the laws do not reach, is code, even
-when a law imports it to state laws about it, laws of its own and all. So a
+Rules read a file's role from the imports, never from where it sits. A law
+file is a `LAWS.bend` or a file one reaches through relative imports; a
+proof file is a `PROOF.bend` or a file only a `PROOF.bend` reaches. A file a
+package's `main.bend` reaches, or one no `LAWS.bend` or `PROOF.bend`
+reaches, is code, even when a law imports it to state laws about it. So a
 `LAWS.bend` of nothing but `import ./laws/<Name>.bend` lines makes those
-files law files, one guarantee per file under `laws/` and `proofs/` reads
-right with no `LAWS.bend` at all, and a proof may state lemma laws of its
-own. Over files named on the line, and in the editor, each file has its own
-role and the imports are not walked: the code that imports a file may not be
-in the run, and a walk without it would take that code for laws and hide
-its findings.
+files law files, and a proof may state lemma laws of its own.
 
 A rule is handed a [`Src`](src.bend), not the text: the path, the text, and
 the file's tokens, tree, binder and outline, each read once for the whole

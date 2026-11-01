@@ -17,8 +17,7 @@ import ../src/noqa.bend as Noqa
 def pub.cli(+world: W.World) -> List<&2, F.Graded>:
   +ss = Plan.srcs_of(Plan.gots(Plan.inputs(world), world))
   +cs = Plan.confs(world)
-  Plan.after(Noqa.of_srcs(ss), False{}, Plan.grade(cs, world, Plan.per_file.run(W.paths.of(world), ss)),
-    fs => Plan.grade(cs, world, fs))
+  Plan.after(Noqa.of_srcs(ss), False{}, Plan.grade(cs, world, Plan.per_file(ss)), fs => Plan.grade(cs, world, fs))
 
 # LAW: an open document's lint is the CLI's: over every file system and
 # working directory (a World), for a document at a path whose text the CLI
