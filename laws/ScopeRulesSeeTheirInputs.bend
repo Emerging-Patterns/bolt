@@ -1,6 +1,5 @@
 # A per-file rule sees one file's `Src`; `coverage` sees the digests of one
-# package's files (laws/ScopePackageRootsFound.bend) at a time; `unsafe` sees
-# the digests of every file in the run; `setting` sees the text of each
+# package's files (laws/ScopePackageRootsFound.bend) at a time; `setting` sees the text of each
 # bolt.bend grading reads; and nothing else.
 #
 # also rests on: laws/PackagesScoped.bend

@@ -4,7 +4,7 @@ import ../src/finding.bend as F
 import ../src/syntax/bind.bend as Bind
 import ../src/lazy/lazy.bend as Lazy
 import ../src/syntax/tree.bend as Tree
-import ../src/rules/correctness/foreign.bend as Foreign
+import ../src/rules/pedantic/foreign.bend as Foreign
 import ../laws/ForeignReportsMissingBackend.bend as Laws
 
 # foreign (laws/ForeignReportsMissingBackend.bend): the rule's lanes are the law's imports and

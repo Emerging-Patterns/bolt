@@ -1,21 +1,17 @@
-# rule table: `List.get` or `List.set` at a computed index inside a def that
-# calls itself, when the list is a fixed table: a literal, an array, or
-# `List.replicate` / `Array.new` / `List.range` with a constant count, written
-# inline, defined beside the loop, or held by the let of that name in scope.
-# The index walks that table on every step. Keep it in an Array. A let reaches
-# the statements after it and the blocks under them, not a sibling case arm,
-# and a later let of the name to anything else ends it. A literal index (a
-# fixed slot, including 0 and 1), a growing or data-dependent list, a one-shot
-# outside the recursion, and `List.head` / `List.tail` do not run. `index`
-# leaves a table this rule owns, so one call is one finding. Laws and proofs
-# do not run (a def with no type at all fills a law: it is a proof).
+# src/rules/table: what a fixed table is, for `index`. A fixed table is a
+# literal list, an array, or `List.replicate` / `Array.new` / `List.range`
+# with a constant count, written inline, defined beside the loop, or held by
+# the let of that name in scope; a let reaches the statements after it and
+# the blocks under them, not a sibling case arm, and a later let of the name
+# to anything else ends it. `index` leaves a get of one alone. This was the
+# `table` rule (U008), retired: it had no public hits; `hit` still builds the
+# finding that rule gave, which `index` reads only as "a fixed table". Pure.
 import Base
-import ../../src.bend as Src
-import ../../finding.bend as F
-import ../../syntax/lex.bend as Lex
-import ../../syntax/tree.bend as Tree
-import ../calls.bend as Calls
-import ../../lazy/lazy.bend as Lazy
+import ../finding.bend as F
+import ../syntax/lex.bend as Lex
+import ../syntax/tree.bend as Tree
+import ./calls.bend as Calls
+import ../lazy/lazy.bend as Lazy
 
 # is the chain exactly one number?
 def literal(nn: Tree.Node) -> Bool:
@@ -254,39 +250,3 @@ def hit(
   +fire = Bool.and(op, Bool.and(Bool.not(literal(Calls.arg(as, 3n))), owns(Calls.arg(as, 2n), fixed)))
   Bool.pick(List<&2, F.Finding>, fire,
     [cite(get, path, line, col, U32.from_nat(String.length(tt)))], [])
-
-# every fixed-table get or set
-def walk(nn: Tree.Node, +path: String, +fixed: List<&2, String>) -> List<&2, F.Finding>:
-  match nn:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
-      +own = hit(String.eq(o, "("), t, kids, fixed, path, l, c)
-      List.concat(&2, F.Finding, [own, walk(kids, path, fixed), walk(rest, path, fixed)])
-    case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
-      List.concat(&2, F.Finding, [walk(kids, path, fixed), walk(rest, path, fixed)])
-    case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
-      List.concat(&2, F.Finding, [walk(kids, path, fixed), walk(body, path, fixed), walk(rest, path, fixed)])
-    case Tree.NCons{h, rest}:
-      walk(rest, path, fixed)
-    case other:
-      Nil{}
-
-def check.go(
-  ds: List<&2, Calls.Def>,
-  +mods: List<&2, String>,
-  +path: String,
-  acc: List<&2, List<&2, F.Finding>>
-) -> List<&2, F.Finding>:
-  match ds:
-    case Nil{}:
-      List.concat(&2, F.Finding, List.reverse(&2, List<&2, F.Finding>, acc))
-    case Con{Calls.Def{+name, +sig, +body}, rest}:
-      check.go(rest, mods, path,
-        Lazy.stop(List<&2, F.Finding>,
-          Bool.not(Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))), [],
-          _u => walk(body, path, scope(body, mods))) <> acc)
-
-# the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
-  +ds = Calls.defs(tree)
-  check.go(ds, modules(ds, []), path, [])

@@ -14,7 +14,7 @@ import ../src/rules/laws/law.bend as Coverage
 import ../src/rules/imports.bend as Imports
 import ../src/rules/digest.bend as Digest
 import ../laws/LawNamesEveryItem.bend as Laws
-import ../laws/UnsafeReportsReachableForeignDefs.bend as L1
+import ../laws/ImportReachIsClosed.bend as L1
 import ./lemmas/ImportClosure.bend as M1
 import ./lemmas/CarriedSearch.bend as CS
 
@@ -368,17 +368,17 @@ def reach.files_eq(fs, cl):
   match fs:
     case Nil{}:
       {==}
-    case Con{Digest.Digest{+path, +norm, dir, is_laws, is_law_file, exempt, +tops, says, deps, unsafes, laws}, +rest}:
+    case Con{Digest.Digest{+path, +norm, dir, is_laws, is_law_file, exempt, +tops, says, deps, laws}, +rest}:
       match exempt:
         case True{}:
           reach.files_eq(rest, cl)
         case False{}:
           %reach.files_eq(rest, cl) :
-            {Coverage.check.go(Digest.Digest{path, norm, dir, is_laws, is_law_file, False{}, tops, says, deps, unsafes,
+            {Coverage.check.go(Digest.Digest{path, norm, dir, is_laws, is_law_file, False{}, tops, says, deps,
               laws} <> rest, cl)
               == List.append(&2, F.Finding, Laws.reach.gaps(tops, cl, norm, path), _) : List<&2, F.Finding>}
           %reach.gaps_eq(tops, cl, norm, path) :
-            {Coverage.check.go(Digest.Digest{path, norm, dir, is_laws, is_law_file, False{}, tops, says, deps, unsafes,
+            {Coverage.check.go(Digest.Digest{path, norm, dir, is_laws, is_law_file, False{}, tops, says, deps,
               laws} <> rest, cl)
               == List.append(&2, F.Finding, _, Coverage.check.go(rest, cl)) : List<&2, F.Finding>}
           {==}
@@ -395,7 +395,7 @@ def reach.first(fs, ds):
   match ds:
     case Nil{}:
       {==}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, +rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, +rest}:
       match is_laws:
         case True{}:
           {==}
@@ -424,7 +424,7 @@ def reach.named_eq(ds):
   match ds:
     case Nil{}:
       {==}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, +says, deps, unsafes, laws}, +rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, +says, deps, laws}, +rest}:
       match is_laws:
         case True{}:
           Equal.cong(List<&2, Digest.Mention>, List<&2, Digest.Mention>,
@@ -499,7 +499,7 @@ def reach.items_eq(ds):
   match ds:
     case Nil{}:
       {==}
-    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, +tops, says, deps, unsafes, laws}, +rest}:
+    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, +tops, says, deps, laws}, +rest}:
       Equal.trans(List<&2, Imports.Edge>, Digest.edges(Laws.reach.nodes(tops, norm, Laws.reach.items(rest))),
         Coverage.nodes(tops, norm, Digest.edges(Laws.reach.items(rest))),
         Coverage.nodes(tops, norm, Coverage.graph.items(rest)),
@@ -533,7 +533,7 @@ def reach.len_edges(ds):
   match ds:
     case Nil{}:
       {==}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, +rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, +rest}:
       Equal.cong(Nat, Nat, n => 1n+n, List.length(&2, Imports.Edge, Digest.edges(rest)),
         List.length(&2, Digest.Digest, rest), reach.len_edges(rest))
 

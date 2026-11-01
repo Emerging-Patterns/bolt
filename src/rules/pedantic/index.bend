@@ -7,8 +7,8 @@
 # (`List.get(.., xs, 0n)`, `5000n`) is exempt, as are laws and proofs (a def
 # with no type at all fills a law: it is a proof). A
 # `List.get` on a fixed table (a literal, a sized array, a constant
-# `List.replicate`) is `table`'s finding instead, so the two rules do not
-# both report that call. `String.get` is never `table`'s: it stays here. A
+# `List.replicate`: src/rules/table.bend) is left alone; `String.get` always
+# stays here. A
 # get that is the def's own self-call is exempt: the step of a def named
 # `List.get` or `String.get` itself (Base's), which walks one cell per call.
 import Base
@@ -18,7 +18,7 @@ import ../../syntax/lex.bend as Lex
 import ../../syntax/tree.bend as Tree
 import ../calls.bend as Calls
 import ../../lazy/lazy.bend as Lazy
-import ./table.bend as Table
+import ../table.bend as Table
 
 # is the chain exactly one number?
 def literal(nn: Tree.Node) -> Bool:
@@ -28,7 +28,7 @@ def literal(nn: Tree.Node) -> Bool:
     case other:
       False{}
 
-# a fixed table is reported by `table`, not here
+# a fixed table (src/rules/table.bend) is left alone
 def held(+list: Bool, coll: Tree.Node, +fixed: List<&2, String>) -> Bool:
   match list:
     case False{}:

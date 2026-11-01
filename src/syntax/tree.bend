@@ -65,17 +65,6 @@ def first(nn: Node) -> Maybe<&2, Lex.Tok>:
     case NCons{h, t}:
       first(h)
 
-def text.of(mm: Maybe<&2, Lex.Tok>) -> String:
-  match mm:
-    case None{}:
-      ""
-    case Some{Lex.Tok{k, t, l, c}}:
-      t
-
-# the text of a node's first token ("" for none)
-def text(nn: Node) -> String:
-  text.of(first(nn))
-
 def line.of(mm: Maybe<&2, Lex.Tok>) -> U32:
   match mm:
     case None{}:

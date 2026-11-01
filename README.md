@@ -154,8 +154,10 @@ def space() -> String:
 ```
 
 The groups are `correctness` (`hole`, `pick`, `put`; error by default),
-`suspicious` (`unused`), `style` (`doc`, `space`, `wrap`, `param`) and `laws` (`coverage`), the
-rest warn by default. Every rule, and the config in full, is in
+`suspicious` (`unused`), `perf` (`strings`, `chars`), `style` (`doc`, `space`,
+`wrap`, `param`) and `laws`, the rest warn by default, and `pedantic` (`tail`,
+`strict`, `index`), off by default. The laws rules, `coverage` and `closed`,
+are opt-in: a project that keeps laws turns each on by name. Every rule, and the config in full, is in
 [src/README.md](src/README.md).
 
 ## Develop

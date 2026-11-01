@@ -20,18 +20,13 @@ import ../src/rules/correctness/pick.bend as Pick
 import ../src/rules/pedantic/tail.bend as Tail
 import ../src/rules/suspicious/concat.bend as Concat
 import ../src/rules/suspicious/eager.bend as Eager
-import ../src/rules/suspicious/strict.bend as Strict
-import ../src/rules/suspicious/hoist.bend as Hoist
-import ../src/rules/suspicious/index.bend as Index
-import ../src/rules/suspicious/ring.bend as Ring
-import ../src/rules/suspicious/table.bend as Table
-import ../src/rules/suspicious/unit.bend as UnitRule
+import ../src/rules/pedantic/strict.bend as Strict
+import ../src/rules/pedantic/index.bend as Index
 import ../src/rules/suspicious/thunk.bend as Thunk
-import ../src/rules/suspicious/scan.bend as Scan
 import ../src/rules/tokens.bend as T
 import ../src/rules/correctness/arms.bend as Arms
 import ../src/rules/suspicious/unused.bend as Unused
-import ../src/rules/suspicious/fuel.bend as FuelRule
+import ../src/rules/pedantic/fuel.bend as FuelRule
 import ../src/rules/style/wrap.bend as Wrap
 import ./defs/InertText.bend as D1
 
@@ -220,27 +215,6 @@ law inert_param:
   for e: {inert.binds(b1) == inert.binds(b2) : List<&2, Bind.Bind>}
   {Param.check.on(b1, path) == Param.check.on(b2, path) : List<&2, F.Finding>}
 
-# LAW: table reads what no string says: two sources as the lexer makes them
-# whose trees read the same with strings cut have the same findings (a
-# string's text is only ever compared with a call's or a table's name)
-law inert_table:
-  for +path: String
-  for text: String
-  for +tree: Tree.Node
-  for toks: List<&2, Lex.Tok>
-  for bound: Bind.Bound
-  for items: List<&2, Outline.Item>
-  for text2: String
-  for +tree2: Tree.Node
-  for toks2: List<&2, Lex.Tok>
-  for bound2: Bind.Bound
-  for items2: List<&2, Outline.Item>
-  for +ok: {D1.inert.ok(tree) == True{} : Bool}
-  for +ok2: {D1.inert.ok(tree2) == True{} : Bool}
-  for e: {D1.inert.node(tree) == D1.inert.node(tree2) : Tree.Node}
-  {Table.check(Src.Src{path, text, toks, tree, bound, items})
-    == Table.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
-
 # LAW: index reads what no string says: two sources as the lexer makes them
 # whose trees read the same with strings cut have the same findings
 law inert_index:
@@ -280,26 +254,6 @@ law inert_concat:
   for e: {D1.inert.node(tree) == D1.inert.node(tree2) : Tree.Node}
   {Concat.check(Src.Src{path, text, toks, tree, bound, items})
     == Concat.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
-
-# LAW: unit reads what no string says: two sources as the lexer makes them
-# whose trees read the same with strings cut have the same findings
-law inert_unit:
-  for +path: String
-  for text: String
-  for +tree: Tree.Node
-  for toks: List<&2, Lex.Tok>
-  for bound: Bind.Bound
-  for items: List<&2, Outline.Item>
-  for text2: String
-  for +tree2: Tree.Node
-  for toks2: List<&2, Lex.Tok>
-  for bound2: Bind.Bound
-  for items2: List<&2, Outline.Item>
-  for +ok: {D1.inert.ok(tree) == True{} : Bool}
-  for +ok2: {D1.inert.ok(tree2) == True{} : Bool}
-  for e: {D1.inert.node(tree) == D1.inert.node(tree2) : Tree.Node}
-  {UnitRule.check(Src.Src{path, text, toks, tree, bound, items})
-    == UnitRule.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
 
 # LAW: thunk reads what no string says: two sources as the lexer makes them
 # whose trees read the same with strings cut have the same findings
@@ -361,26 +315,6 @@ law inert_fuel:
   {FuelRule.check(Src.Src{path, text, toks, tree, bound, items})
     == FuelRule.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
 
-# LAW: ring reads what no string says: two sources as the lexer makes them
-# whose trees read the same with strings cut have the same findings
-law inert_ring:
-  for +path: String
-  for text: String
-  for +tree: Tree.Node
-  for toks: List<&2, Lex.Tok>
-  for bound: Bind.Bound
-  for items: List<&2, Outline.Item>
-  for text2: String
-  for +tree2: Tree.Node
-  for toks2: List<&2, Lex.Tok>
-  for bound2: Bind.Bound
-  for items2: List<&2, Outline.Item>
-  for +ok: {D1.inert.ok(tree) == True{} : Bool}
-  for +ok2: {D1.inert.ok(tree2) == True{} : Bool}
-  for e: {D1.inert.node(tree) == D1.inert.node(tree2) : Tree.Node}
-  {Ring.check(Src.Src{path, text, toks, tree, bound, items})
-    == Ring.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
-
 # LAW: arms reads what no string says: two sources as the lexer makes them
 # whose trees read the same with strings cut have the same findings
 law inert_arms:
@@ -439,48 +373,6 @@ law inert_unused:
   {Unused.check(Src.Src{path, text, toks, tree, Bind.Bound{binds, uses, scopes}, items})
     == Unused.check(Src.Src{path, text2, toks2, tree2, Bind.Bound{binds2, uses, scopes2}, items2})
     : List<&2, F.Finding>}
-
-# LAW: hoist reads what no string says: two sources as the lexer makes them
-# whose trees read the same with strings cut have the same findings (a
-# string's text is only ever compared with a name, a keyword or a mark)
-law inert_hoist:
-  for +path: String
-  for text: String
-  for +tree: Tree.Node
-  for toks: List<&2, Lex.Tok>
-  for bound: Bind.Bound
-  for items: List<&2, Outline.Item>
-  for text2: String
-  for +tree2: Tree.Node
-  for toks2: List<&2, Lex.Tok>
-  for bound2: Bind.Bound
-  for items2: List<&2, Outline.Item>
-  for +ok: {D1.inert.ok(tree) == True{} : Bool}
-  for +ok2: {D1.inert.ok(tree2) == True{} : Bool}
-  for e: {D1.inert.node(tree) == D1.inert.node(tree2) : Tree.Node}
-  {Hoist.check(Src.Src{path, text, toks, tree, bound, items})
-    == Hoist.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
-
-# LAW: scan reads what no comment or string says: two sources as the lexer
-# makes them whose trees read the same with comments and strings cut have
-# the same findings
-law inert_scan:
-  for +path: String
-  for text: String
-  for +tree: Tree.Node
-  for toks: List<&2, Lex.Tok>
-  for bound: Bind.Bound
-  for items: List<&2, Outline.Item>
-  for text2: String
-  for +tree2: Tree.Node
-  for toks2: List<&2, Lex.Tok>
-  for bound2: Bind.Bound
-  for items2: List<&2, Outline.Item>
-  for +ok: {D1.inert.ok(tree) == True{} : Bool}
-  for +ok2: {D1.inert.ok(tree2) == True{} : Bool}
-  for e: {D1.inert.node(tree) == D1.inert.node(tree2) : Tree.Node}
-  {Scan.check(Src.Src{path, text, toks, tree, bound, items})
-    == Scan.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
 
 # the tokens of each item's header, with comments and strings cut
 def inert.sigs(its: List<&2, Outline.Item>) -> List<&2, List<&2, Lex.Tok>>:

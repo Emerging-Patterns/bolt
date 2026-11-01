@@ -5,15 +5,15 @@ import ../src/finding.bend as F
 import ../src/lazy/lazy.bend as Lazy
 import ../src/syntax/tree.bend as Tree
 import ../src/rules/calls.bend as Calls
-import ../src/rules/suspicious/index.bend as Index
-import ../src/rules/suspicious/table.bend as Table
+import ../src/rules/pedantic/index.bend as Index
+import ../src/rules/table.bend as Table
 import ../laws/IndexReportsGetsInRecursion.bend as Laws
 import ./lemmas/MatchStatementCounts.bend as M1
 import ./lemmas/Nat.bend as M2
 
 # The recursion rule, index: its literal test is the law's, its fire test is
-# the law's (a List.get held by a fixed table is exactly one `table`
-# reports), each call adds what the law counts, and the def walk joins the
+# the law's (a List.get held by a fixed table is exactly one
+# src/rules/table.bend calls one), each call adds what the law counts, and the def walk joins the
 # per-def lists into their sum.
 
 # the rule's literal test is the law's

@@ -12,8 +12,7 @@ import ./defs/ScopeWalkFiles.bend as D1
 
 # Packages (laws/ScopePackageRootsFound.bend, laws/ScopeProjectRulesRunOnRoot.bend). A package root other than `.` is a
 # directory the walk reads whose listing names a main.bend; `coverage` runs
-# on each package's files alone, `unsafe` on every file. A
-# directory is named as Digest.dir names one: normalized, with its slash, and
+# on each package's files alone. A directory is named as Digest.dir names one: normalized, with its slash, and
 # `` for `.`.
 
 # whether a listing names a main.bend

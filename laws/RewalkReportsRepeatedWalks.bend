@@ -15,7 +15,7 @@ import ../src/syntax/bind.bend as Bind
 import ../src/src.bend as Src
 import ../src/syntax/tree.bend as Tree
 import ../src/syntax/outline.bend as Outline
-import ../src/rules/suspicious/rewalk.bend as Rewalk
+import ../src/rules/pedantic/rewalk.bend as Rewalk
 import ../src/rules/calls.bend as Calls
 
 # The recursion rule, rewalk (laws/RewalkReportsRepeatedWalks.bend). It reads each def of the file

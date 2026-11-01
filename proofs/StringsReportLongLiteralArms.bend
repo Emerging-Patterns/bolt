@@ -5,7 +5,7 @@ import ../src/finding.bend as F
 import ../src/rules/tokens.bend as T
 import ../src/syntax/tree.bend as Tree
 import ../src/rules/correctness/pick.bend as Pick
-import ../src/rules/correctness/strings.bend as Strings
+import ../src/rules/perf/strings.bend as Strings
 import ../laws/StringsReportLongLiteralArms.bend as Laws
 import ../laws/defs/MatchArmRules.bend as D1
 import ./lemmas/MatchStatementCounts.bend as M1
