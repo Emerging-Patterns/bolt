@@ -1,5 +1,3 @@
-# part of: laws/OutputSummaryAndExitStatus.bend,
-# laws/NoqaSilencesNamedFindings.bend
 import Base
 import ../src/lint/world.bend as W
 import ../src/lint/plan.bend as Plan

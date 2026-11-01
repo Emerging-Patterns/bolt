@@ -1,5 +1,3 @@
-# part of: laws/ConfigUnknownSettingsFound.bend,
-# laws/SettingReportsUnknownNames.bend
 import Base
 import ../src/config.bend as Config
 import ../src/codes.bend as Codes

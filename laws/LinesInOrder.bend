@@ -1,4 +1,3 @@
-# part of: laws/OutputOrderIsFixed.bend, laws/NoqaSilencesNamedFindings.bend
 import Base
 import ../src/finding.bend as F
 import ../src/rules.bend as Rules

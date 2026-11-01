@@ -1,5 +1,3 @@
-# part of: laws/CodeRulesIgnoreCommentsAndStrings.bend,
-# laws/TranscongReportsTransCongChains.bend
 import Base
 import ../src/syntax/lex.bend as Lex
 import ../src/finding.bend as F

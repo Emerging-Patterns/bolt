@@ -1,5 +1,3 @@
-# part of: laws/OutputSummaryAndExitStatus.bend,
-# laws/NoqaSilencesNamedFindings.bend
 import Base
 import ../src/config.bend as Config
 import ../src/finding.bend as F

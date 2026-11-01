@@ -1,5 +1,3 @@
-# part of: laws/LawNamesEveryItem.bend, laws/ScopeRulesSeeTheirInputs.bend,
-# laws/ScopeLawsGovernPackage.bend
 import Base
 import ../src/finding.bend as F
 import ../src/rules.bend as Rules

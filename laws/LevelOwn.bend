@@ -1,4 +1,3 @@
-# part of: laws/ConfigLevelsResolve.bend, laws/ConfigOptInStartsOff.bend
 import Base
 import ../src/config.bend as Config
 

@@ -1,5 +1,3 @@
-# part of: laws/CliAcceptsDocumentedForms.bend,
-# laws/CliVersionPrintsRelease.bend
 import Base
 import ../src/args.bend as Args
 import ../src/version.bend as Ver

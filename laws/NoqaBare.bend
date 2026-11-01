@@ -1,5 +1,3 @@
-# part of: laws/NoqaSilencesNamedFindings.bend,
-# laws/NoqaReportsStaleComments.bend
 import Base
 import ../src/noqa.bend as Noqa
 import ./defs/NoqaSpacing.bend as D1

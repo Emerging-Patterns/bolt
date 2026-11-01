@@ -1,5 +1,3 @@
-# part of: laws/ExemptPathsYieldNoFindings.bend,
-# laws/FromrevReportsReversedStringBuild.bend
 import Base
 import ../src/syntax/lex.bend as Lex
 import ../src/finding.bend as F

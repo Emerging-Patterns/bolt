@@ -1,5 +1,3 @@
-# part of: laws/CliAcceptsDocumentedForms.bend,
-# laws/CliReadsArgumentsAfterProgram.bend
 import Base
 import ../src/args.bend as Args
 import 0xa383b26a5a0ef35663b3615d7aedf9e3/main.bend as Shake
