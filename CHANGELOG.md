@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.0](https://github.com/Emerging-Patterns/bolt/compare/v1.24.0...v1.25.0) (2026-11-01)
+
+
+### Features
+
+* **rules:** prefix (U017), a take compared to a literal is starts_with ([#265](https://github.com/Emerging-Patterns/bolt/issues/265)) ([20d9de9](https://github.com/Emerging-Patterns/bolt/commit/20d9de9b339887d4ef39b5ca882aeb6aa11a8dc5)), closes [#260](https://github.com/Emerging-Patterns/bolt/issues/260)
+
 ## [1.24.0](https://github.com/Emerging-Patterns/bolt/compare/v1.23.0...v1.24.0) (2026-11-01)
 
 
