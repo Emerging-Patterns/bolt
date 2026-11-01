@@ -135,4 +135,11 @@ import ./proofs/MarkedArrowTerm.bend as PMarkedArrowTerm
 import ./proofs/OutlineListsTopLevelItems.bend as POutlineListsTopLevelItems
 import ./proofs/TreeKeepsEveryToken.bend as PTreeKeepsEveryToken
 import ./proofs/EitherIsPick.bend as PEitherIsPick
+import ./proofs/InertPrefix.bend as PInertPrefix
 import ./proofs/LazyMatchesEagerCombinators.bend as PLazyMatchesEagerCombinators
+import ./proofs/PrefixExempt.bend as PPrefixExempt
+import ./proofs/PrefixReportsMatchingLength.bend as PPrefixReportsMatchingLength
+import ./proofs/PrefixReportsTakeComparedToLiteral.bend as PPrefixReportsTakeComparedToLiteral
+import ./proofs/PrefixSkipsOtherLengths.bend as PPrefixSkipsOtherLengths
+import ./proofs/RolePrefix.bend as PRolePrefix
+import ./proofs/RolePrefixExempt.bend as PRolePrefixExempt
