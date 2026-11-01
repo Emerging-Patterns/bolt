@@ -1,5 +1,8 @@
 # files/disk: the real file system. Reads bytes and decodes them itself, as a
-# chunk may end inside a UTF-8 char.
+# chunk may end inside a UTF-8 char. The slurp's acc holds the bytes read so
+# far last first: each chunk is pushed onto its front and the whole is
+# reversed once at the end, since appending a chunk copied everything read
+# before it (concat).
 import Base
 import ./service.bend as S
 import ../frame.bend as Frame
@@ -8,7 +11,7 @@ import ../../walk/disk.bend as WalkDisk
 def slurp.end(file: File, acc: List<&2, U32>) -> IO(Maybe<&2, String>):
   do IO<Maybe<&2, String>>:
     File.close(file)
-    return Some{Frame.decode(acc)}
+    return Some{Frame.decode(List.reverse(&2, U32, acc))}
 
 def slurp.cut(
   bytes: List<&2, U32>,
@@ -20,7 +23,7 @@ def slurp.cut(
     case Nil{}:
       slurp.end(file, acc)
     case Con{b, t}:
-      rest(file, List.append(&2, U32, acc, b <> t))
+      rest(file, List.reverse.go(&2, U32, b <> t, acc))
 
 def slurp.more(
   rr: Result<&1, &1, U32 & String, List<&2, U32>>,

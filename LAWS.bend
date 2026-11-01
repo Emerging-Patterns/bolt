@@ -66,6 +66,7 @@ import ./laws/CodeRulesIgnoreCommentsAndStrings.bend as CodeRulesIgnoreCommentsA
 import ./laws/ConcatEither.bend as ConcatEither
 import ./laws/ConcatPush.bend as ConcatPush
 import ./laws/ConcatReportsAppendingRecursion.bend as ConcatReportsAppendingRecursion
+import ./laws/ConcatReportsContinuationAppend.bend as ConcatReportsContinuationAppend
 import ./laws/ConcatViaName.bend as ConcatViaName
 import ./laws/DocReportsUndocumentedItems.bend as DocReportsUndocumentedItems
 import ./laws/EagerReportsLoopsInPick.bend as EagerReportsLoopsInPick

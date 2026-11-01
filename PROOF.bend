@@ -51,6 +51,7 @@ import ./proofs/CodeRulesIgnoreCommentsAndStrings.bend as PCodeRulesIgnoreCommen
 import ./proofs/ConcatEither.bend as PConcatEither
 import ./proofs/ConcatPush.bend as PConcatPush
 import ./proofs/ConcatReportsAppendingRecursion.bend as PConcatReportsAppendingRecursion
+import ./proofs/ConcatReportsContinuationAppend.bend as PConcatReportsContinuationAppend
 import ./proofs/ConcatViaName.bend as PConcatViaName
 import ./proofs/DocReportsUndocumentedItems.bend as PDocReportsUndocumentedItems
 import ./proofs/EagerReportsLoopsInPick.bend as PEagerReportsLoopsInPick

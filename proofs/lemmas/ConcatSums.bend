@@ -1,13 +1,16 @@
 # addition and join-length facts for the concat rule's counts
 import Base
 import ../../src/finding.bend as F
+import ../../src/lazy/lazy.bend as Lazy
 import ../../src/rules/correctness/pick.bend as Pick
 import ./Pick.bend as M1
 
 # concat (laws/ConcatReportsAppendingRecursion.bend). The walk joins each self-call's hits, its group's
 # and what follows, so the count adds them; the hits and the def walk build
 # their lists on an accumulator reversed at the end, so the count carries the
-# accumulator's length (or the sum of its lists' lengths) along.
+# accumulator's length (or the sum of its lists' lengths) along. Both halves,
+# the self-call's and the continuation's
+# (laws/ConcatReportsContinuationAppend.bend), share these.
 
 # a plus (1 plus b) is 1 plus (a plus b)
 law concat.succ:
@@ -169,3 +172,50 @@ def concat.move(x, y, s, f, e):
     Equal.trans(Nat, Nat.add(Nat.add(x, s), f), Nat.add(x, Nat.add(s, f)), Nat.add(s, Nat.add(x, f)),
       concat.assoc(x, s, f), concat.swap(x, s, f)),
     Equal.cong(Nat, Nat, n => Nat.add(s, Nat.add(n, f)), x, y, e))
+
+# a list reversed onto another is as long as both
+law concat.rev:
+  for xs: List<&2, F.Finding>
+  for ys: List<&2, F.Finding>
+  {List.length(&2, F.Finding, List.reverse.go(&2, F.Finding, xs, ys))
+    == Nat.add(List.length(&2, F.Finding, xs), List.length(&2, F.Finding, ys)) : Nat}
+
+def concat.rev(xs, ys):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{+h, +t}:
+      Equal.trans(Nat, List.length(&2, F.Finding, List.reverse.go(&2, F.Finding, t, h <> ys)),
+        Nat.add(List.length(&2, F.Finding, t), 1n+List.length(&2, F.Finding, ys)),
+        1n+Nat.add(List.length(&2, F.Finding, t), List.length(&2, F.Finding, ys)),
+        concat.rev(t, h <> ys), concat.succ(List.length(&2, F.Finding, t), List.length(&2, F.Finding, ys)))
+
+# a stop on `not b` runs its thunk exactly when b holds
+law concat.stop:
+  for b: Bool
+  for -more: List<&2, F.Finding>
+  for -m: Nat
+  for ih: {List.length(&2, F.Finding, more) == m : Nat}
+  {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Bool.not(b), [], _u => more))
+    == Bool.pick(Nat, b, m, 0n) : Nat}
+
+def concat.stop(b, _more, _m, ih):
+  match b:
+    case True{}:
+      ih
+    case False{}:
+      {==}
+
+# a finding in front when the flag holds, counted on either side of a sum
+law concat.bump:
+  for b: Bool
+  for +l: Nat
+  for +m: Nat
+  {Nat.add(Bool.pick(Nat, b, 1n+l, l), m) == Nat.add(l, Bool.pick(Nat, b, 1n+m, m)) : Nat}
+
+def concat.bump(b, l, m):
+  match b:
+    case True{}:
+      Equal.sym(Nat, Nat.add(l, 1n+m), 1n+Nat.add(l, m), concat.succ(l, m))
+    case False{}:
+      {==}

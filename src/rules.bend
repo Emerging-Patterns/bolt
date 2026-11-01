@@ -88,6 +88,7 @@ def on.rules.role(+rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
     Role.skip(rr, _u => Eager.check(ss)),
     Role.skip(rr, _u => Tail.check(ss)),
     Role.skip(rr, _u => Concat.check(ss)),
+    Role.skip(rr, _u => Concat.cont(ss)),
     Role.skip(rr, _u => Index.check(ss)),
     Role.skip(rr, _u => Table.check(ss)),
     Role.skip(rr, _u => Hoist.check(ss)),
