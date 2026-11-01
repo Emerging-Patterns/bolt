@@ -6,7 +6,7 @@ import ../src/lazy/lazy.bend as Lazy
 import ../src/syntax/tree.bend as Tree
 import ../src/rules/calls.bend as Calls
 import ../src/rules/correctness/pick.bend as Pick
-import ../src/rules/suspicious/rewalk.bend as Rewalk
+import ../src/rules/pedantic/rewalk.bend as Rewalk
 import ../laws/RewalkReportsRepeatedWalks.bend as Laws
 import ./lemmas/Pick.bend as M1
 

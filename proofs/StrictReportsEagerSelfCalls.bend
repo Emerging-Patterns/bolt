@@ -6,7 +6,7 @@ import ../src/lazy/lazy.bend as Lazy
 import ../src/syntax/tree.bend as Tree
 import ../src/rules/calls.bend as Calls
 import ../src/rules/correctness/pick.bend as Pick
-import ../src/rules/suspicious/strict.bend as Strict
+import ../src/rules/pedantic/strict.bend as Strict
 import ../laws/StrictReportsEagerSelfCalls.bend as Laws
 import ./lemmas/Nat.bend as M1
 import ./lemmas/Pick.bend as M2

@@ -150,12 +150,14 @@ def pkgs(rs: List<&2, String>) -> List<&2, String>:
 
 # every finding of a run, ungraded: the read failures, then each source's
 # per-file findings, each rule seeing that one source and its role among the
-# run's law and proof files (src/role.bend), then `setting`'s,
+# law and proof files (src/role.bend) of the run, or of the whole tree when
+# files were named (Plan.marks.run), then `setting`'s,
 # seeing each bolt.bend grading reads, then the project rules over every
 # source in the run, by package
 def in_scope(+world: W.World) -> List<&2, F.Finding>:
   +ps = Plan.inputs(world)
-  List.concat(&2, F.Finding, [unread_all(world, ps), on_all(Role.marks(Plan.srcs_of(Plan.gots(ps, world))), world, ps),
+  List.concat(&2, F.Finding, [unread_all(world, ps),
+    on_all(Plan.marks.run(W.paths.of(world), world, Plan.srcs_of(Plan.gots(ps, world))), world, ps),
     settings_found(world),
     D2.packed(parsed_all(world, ps), pkgs(Plan.roots(world)))])
 

@@ -4,7 +4,6 @@ import ../src/finding.bend as F
 import ../src/paths.bend as Paths
 import ../src/lazy/lazy.bend as Lazy
 import ../src/rules/calls.bend as Calls
-import ../src/rules/suspicious/scan.bend as Scan
 import ../laws/ExemptPathsYieldNoFindings.bend as Laws
 import ./lemmas/LawFileExemptions.bend as M1
 
@@ -32,9 +31,3 @@ def Laws.untyped_exempt(path, sig, e):
 
 # scan
 # ----
-
-def Laws.scan_exempt(path, _text, _toks, tree, _bound, _items, e):
-  %Equal.sym(Bool, Paths.is_law_file(path), True{}, e) : {Lazy.stop(List<&2, F.Finding>, _, [],
-    _u => Scan.check.on(Calls.defs(tree), path)) == Nil{}
-    : List<&2, F.Finding>}
-  {==}

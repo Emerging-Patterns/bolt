@@ -4,7 +4,13 @@
 # of src/README.md: do not renumber a rule, and do not reuse a retired code
 # (L004 was `quantify`, now `closed` itself; C001 was `shadow` and U005 was
 # `nat`, whose failures bend 2.0.25 no longer has; U014 was `argv`, retired
-# before its first release, since every reader already drops the program).
+# before its first release, since every reader already drops the program;
+# U008 `table`, U009 `hoist`, U010 `ring`, U012 `unit` and U013 `scan` were
+# retired for want of real hits, and L003 `unsafe` since bend 2.0.32 reports
+# an unsafe def a proof reaches itself). A code names the rule, not its
+# group: a rule that moves keeps its code (`strings` and `chars` are `perf`,
+# `foreign` and the cost rules `fuel`, `index`, `strict` and `rewalk` are
+# `pedantic`).
 #
 # No law can say this, since it is about versions: a released code is never
 # renumbered or reused, which review of this table keeps.
@@ -24,26 +30,16 @@ def table() -> List<&2, Entry>:
     Entry{"arms", "C005", "correctness"},
     Entry{"escape", "C006", "correctness"},
     Entry{"twice", "C007", "correctness"},
-    Entry{"strings", "C008", "correctness"},
-    Entry{"chars", "C009", "correctness"},
-    Entry{"foreign", "C010", "correctness"},
     Entry{"setting", "C011", "correctness"},
     Entry{"unused", "U001", "suspicious"},
-    Entry{"strict", "U002", "suspicious"},
     Entry{"eager", "U003", "suspicious"},
     Entry{"concat", "U004", "suspicious"},
-    Entry{"fuel", "U006", "suspicious"},
-    Entry{"index", "U007", "suspicious"},
-    Entry{"table", "U008", "suspicious"},
-    Entry{"hoist", "U009", "suspicious"},
-    Entry{"ring", "U010", "suspicious"},
-    Entry{"rewalk", "U011", "suspicious"},
-    Entry{"unit", "U012", "suspicious"},
-    Entry{"scan", "U013", "suspicious"},
     Entry{"thunk", "U015", "suspicious"},
     Entry{"fromrev", "U016", "suspicious"},
     Entry{"prefix", "U017", "suspicious"},
     Entry{"empty", "U018", "suspicious"},
+    Entry{"strings", "C008", "perf"},
+    Entry{"chars", "C009", "perf"},
     Entry{"doc", "S001", "style"},
     Entry{"space", "S002", "style"},
     Entry{"wrap", "S003", "style"},
@@ -52,7 +48,11 @@ def table() -> List<&2, Entry>:
     Entry{"transcong", "S006", "style"},
     Entry{"coverage", "L001", "laws"},
     Entry{"closed", "L002", "laws"},
-    Entry{"unsafe", "L003", "laws"},
+    Entry{"foreign", "C010", "pedantic"},
+    Entry{"strict", "U002", "pedantic"},
+    Entry{"fuel", "U006", "pedantic"},
+    Entry{"index", "U007", "pedantic"},
+    Entry{"rewalk", "U011", "pedantic"},
     Entry{"tail", "P001", "pedantic"}]
 
 # this row is the slug

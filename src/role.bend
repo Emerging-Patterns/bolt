@@ -14,6 +14,8 @@ import ./paths.bend as Paths
 import ./src.bend as Src
 import ./lazy/lazy.bend as Lazy
 import ./rules/imports.bend as Imports
+import ./syntax/lex.bend as Lex
+import ./syntax/outline.bend as Outline
 import ./finding.bend as F
 
 # what a file is to the laws
@@ -73,6 +75,13 @@ def fact(ss: Src.Src) -> Fact:
   Src.Src{+path, _text, _toks, _tree, _bound, items} = ss
   +nn = Imports.norm(path)
   Fact{nn, Imports.targets(items, nn), of_path(path), String.eq(Paths.base(path), "main.bend")}
+
+# a file's fact read from its text alone: lexed and outlined for its imports,
+# never parsed, so a file read only for its place in the graph costs little
+def fact.text(+path: String, +text: String) -> Fact:
+  +nn = Imports.norm(path)
+  Fact{nn, Imports.targets(Outline.of_tokens(text, Lex.tokens(text)), nn), of_path(path),
+    String.eq(Paths.base(path), "main.bend")}
 
 # every file's fact, in order
 def facts(ss: List<&2, Src.Src>) -> List<&2, Fact>:
@@ -157,13 +166,17 @@ def marks.of(
       Bool.pick(List<&2, Mark>, Bool.and(Imports.has(laws, norm), Bool.not(Imports.has(code, norm))),
         Mark{norm, role.of(named, reached(Imports.has(lawful, norm)))} <> more, more)
 
+# the role of every file on the laws' side of a graph given as facts
+def marks.facts(+fs: List<&2, Fact>) -> List<&2, Mark>:
+  +ls = reach(fs, roots(fs))
+  marks.of(fs, ls, reach(fs, lawful(fs)), reach(fs, code(fs, ls)))
+
 # the role of every file on the laws' side. Both walks are the one every
 # project rule takes over imports (src/rules/imports.bend), each from all its
 # roots at once
 def marks(ss: List<&2, Src.Src>) -> List<&2, Mark>:
-  +fs = facts(ss)
-  +ls = reach(fs, roots(fs))
-  marks.of(fs, ls, reach(fs, lawful(fs)), reach(fs, code(fs, ls)))
+  marks.facts(facts(ss))
+
 
 # a normalized path's role among the marks: neither when it is not marked
 def of.norm(ms: List<&2, Mark>, +nn: String) -> Role:

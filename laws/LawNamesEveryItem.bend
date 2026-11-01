@@ -24,7 +24,6 @@ import ../src/syntax/outline.bend as Outline
 import ../src/rules/calls.bend as Calls
 import ../src/rules/laws/closed.bend as Closed
 import ../src/rules/laws/law.bend as Coverage
-import ../src/rules/laws/unsafe.bend as Unsafe
 import ../src/rules/imports.bend as Imports
 import ./defs/Unsafe.bend as D1
 
@@ -39,7 +38,7 @@ def coverage.lawful(ds: List<&2, Digest.Digest>) -> Bool:
   match ds:
     case Nil{}:
       False{}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, rest}:
       Bool.or(is_laws, coverage.lawful(rest))
 
 # coverage's reading of a file (laws/LawNamesEveryItem.bend). reach_digest and reach_binder,
@@ -133,7 +132,7 @@ type CoverageView is Data:
 # a digest as the coverage rule reads it
 def coverage.view(dd: Digest.Digest) -> CoverageView:
   match dd:
-    case Digest.Digest{_path, norm, _dir, is_laws, _is_law_file, exempt, tops, says, _deps, _unsafes, _laws}:
+    case Digest.Digest{_path, norm, _dir, is_laws, _is_law_file, exempt, tops, says, _deps, _laws}:
       CoverageView{norm, is_laws, exempt, tops, says}
 
 # coverage by reach (laws/LawNamesEveryItem.bend). A def is covered when a quantified law of
@@ -141,7 +140,7 @@ def coverage.view(dd: Digest.Digest) -> CoverageView:
 # items that holds what the laws name and every call of each def in it. A
 # type is covered when that set holds it or one of its constructors: a law or
 # a covered def names it, and a type calls nothing. The set is stated over a
-# graph written as digests, so the unsafe laws' spec of a closure (the least
+# graph written as digests, so the closure laws' spec of a closure (the least
 # list that holds its start and is shut, unsafe.shut) is the same spec here:
 # each node is a digest whose path is an item's key and whose imports are
 # what the item leads to. An item's key is its name, a space and its file's
@@ -165,7 +164,7 @@ def reach.keys(ms: List<&2, Digest.Mention>) -> List<&2, String>:
 
 # a node: a digest with only a key and what it leads to
 def reach.node(+kk: String, to: List<&2, String>) -> Digest.Digest:
-  Digest.Digest{kk, kk, "", False{}, False{}, True{}, [], [], to, [], []}
+  Digest.Digest{kk, kk, "", False{}, False{}, True{}, [], [], to, []}
 
 # each constructor as a node that leads nowhere, onto the others
 def reach.ctors(cs: List<&2, String>, +pp: String, more: List<&2, Digest.Digest>) -> List<&2, Digest.Digest>:
@@ -193,7 +192,7 @@ def reach.items(ds: List<&2, Digest.Digest>) -> List<&2, Digest.Digest>:
   match ds:
     case Nil{}:
       []
-    case Con{Digest.Digest{_path, norm, _dir, _is_laws, _is_law_file, _exempt, tops, _says, _deps, _unsafes, _laws},
+    case Con{Digest.Digest{_path, norm, _dir, _is_laws, _is_law_file, _exempt, tops, _says, _deps, _laws},
       rest}:
       reach.nodes(tops, norm, reach.items(rest))
 
@@ -202,7 +201,7 @@ def reach.named(ds: List<&2, Digest.Digest>) -> List<&2, Digest.Mention>:
   match ds:
     case Nil{}:
       []
-    case Con{Digest.Digest{_path, _norm, _dir, is_laws, _is_law_file, _exempt, _tops, says, _deps, _unsafes, _laws},
+    case Con{Digest.Digest{_path, _norm, _dir, is_laws, _is_law_file, _exempt, _tops, says, _deps, _laws},
       rest}:
       +more = reach.named(rest)
       Bool.pick(List<&2, Digest.Mention>, is_laws, List.append(&2, Digest.Mention, says, more), more)
@@ -248,7 +247,7 @@ def reach.files(fs: List<&2, Digest.Digest>, +cl: List<&2, String>) -> List<&2, 
   match fs:
     case Nil{}:
       []
-    case Con{Digest.Digest{path, norm, _dir, _is_laws, _is_law_file, exempt, tops, _says, _deps, _unsafes, _laws},
+    case Con{Digest.Digest{path, norm, _dir, _is_laws, _is_law_file, exempt, tops, _says, _deps, _laws},
       rest}:
       match exempt:
         case True{}:

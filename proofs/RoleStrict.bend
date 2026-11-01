@@ -1,7 +1,7 @@
 # proofs of laws/RoleStrict.bend
 import Base
 import ../src/src.bend as Src
-import ../src/rules/suspicious/strict.bend as Strict
+import ../src/rules/pedantic/strict.bend as Strict
 import ../laws/ExemptPathsYieldNoFindings.bend as L1
 import ../laws/RoleStrict.bend as Laws
 import ./lemmas/LawFileExemptions.bend as M1

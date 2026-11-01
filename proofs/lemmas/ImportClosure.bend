@@ -1,10 +1,9 @@
 # the fast closure walk, lookups and early stops equal the spec walk
 import Base
 import ../../src/lazy/lazy.bend as Lazy
-import ../../src/rules/laws/unsafe.bend as Unsafe
 import ../../src/rules/imports.bend as Imports
 import ../../src/rules/digest.bend as Digest
-import ../../laws/UnsafeReportsReachableForeignDefs.bend as L1
+import ../../laws/ImportReachIsClosed.bend as L1
 import ../../laws/defs/Unsafe.bend as D1
 import ./RoleProofPicked.bend as M1
 import ./UnsafeStringCompare.bend as M2
@@ -394,7 +393,7 @@ def unsafe.deps_imports(ds, pp):
   match ds:
     case Nil{}:
       {==}
-    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, +deps, unsafes, laws}, +rest}:
+    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, +deps, laws}, +rest}:
       %Equal.sym(List<&2, String>, Imports.deps.spec(Digest.edges(rest), pp), D1.unsafe.imports(rest, pp),
           unsafe.deps_imports(rest, pp)) :
         {Bool.pick(List<&2, String>, String.eq(norm, pp), deps, _)
@@ -411,7 +410,7 @@ def unsafe.read_paths(ds, pp):
   match ds:
     case Nil{}:
       {==}
-    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, +rest}:
+    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, +rest}:
       %Equal.sym(Bool, Imports.has(norm <> Imports.paths(Digest.edges(rest)), pp),
           Bool.or(String.eq(norm, pp), Imports.has(Imports.paths(Digest.edges(rest)), pp)),
           unsafe.has_con(norm, Imports.paths(Digest.edges(rest)), pp)) :
@@ -430,7 +429,7 @@ def unsafe.len_paths(ds):
   match ds:
     case Nil{}:
       {==}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, +rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, +rest}:
       Equal.cong(Nat, Nat, n => 1n+n, List.length(&2, String, Imports.paths(Digest.edges(rest))),
         List.length(&2, Digest.Digest, rest), unsafe.len_paths(rest))
 
@@ -1689,7 +1688,7 @@ def unsafe.unread_imports(ds, pp, h):
   match ds:
     case Nil{}:
       {==}
-    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, +rest}:
+    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, +rest}:
       unsafe.unread_imports.at(deps, D1.unsafe.imports(rest, pp), D1.unsafe.read(rest, pp), String.eq(norm, pp), h,
         z => unsafe.unread_imports(rest, pp, z))
 

@@ -3,7 +3,10 @@
 # in (transport/, files/, checker/answer.bend's Checker; checker/bend.bend's
 # service is the real checker). The open documents are the
 # loop's state. The checker runs on open and save, against the file on disk;
-# the linter on every open, change and save, on the text the editor shows.
+# the linter on every open, change and save, on the text the editor shows,
+# each file told the role the imports of the tree give it, read as `bolt
+# <path>` reads them (src/lint/plan.bend's graph) on open and save and kept
+# for the changes between.
 import Base
 import 0xa81e161008ecc2f297c0a3065cb9b188/main.bend as Ezjson
 import 0xa81e161008ecc2f297c0a3065cb9b188/src/value.bend as J
@@ -15,6 +18,9 @@ import ../rules.bend as Lint
 import ../finding.bend as Finding
 import ../config.bend as Config
 import ../lint/plan.bend as Plan
+import ../lint/world.bend as W
+import ../role.bend as Role
+import ../src.bend as Src
 import ../noqa.bend as Noqa
 import ./transport/service.bend as T
 import ./checker/answer.bend as C
@@ -223,16 +229,27 @@ def pub.note(cc: Enc.Cols, uri: String, ds: List<&2, Rep.Diag>, gs: List<&2, Fin
 def pub.cands(cwd: String, path: String) -> List<&2, String>:
   Config.chain(Config.home(cwd, Config.dir_of(path)))
 
-# the linter's findings on the text the editor shows, at the levels the
-# nearest bolt.bend read gives them, less what the text's noqa comments
+# the linter's findings on the text the editor shows, each rule told the
+# file's role among the marks, at the levels the nearest bolt.bend read gives
+# them, less what the text's noqa comments
 # silence, then the `noqa` rule's, which judges no project rule's code (the
 # editor runs none); none for a bolt.bend, which is bolt's configuration,
 # not source
-def pub.lint(+path: String, +text: String, rs: List<&2, Maybe<&2, String>>) -> List<&2, Finding.Graded>:
+def pub.lint(
+  +path: String,
+  +text: String,
+  rs: List<&2, Maybe<&2, String>>,
+  ms: List<&2, Role.Mark>
+) -> List<&2, Finding.Graded>:
   +cfg = Config.nearest(rs)
   Bool.pick(List<&2, Finding.Graded>, Plan.is_config(path), [],
-    Plan.after([Noqa.file(path, Lex.tokens(text))], False{}, Lint.graded(cfg, Lint.all(path, text)),
-      fs => Lint.graded(cfg, fs)))
+    Plan.after([Noqa.file(path, Lex.tokens(text))], False{},
+      Lint.graded(cfg, Lint.on.role(Role.of(ms, path), Src.of(path, text))), fs => Lint.graded(cfg, fs)))
+
+# the role marks `bolt <path>` reads from a World: the imports of every file
+# of the tree (Plan.graph), each file read for its imports alone
+def pub.marks(+world: W.World) -> List<&2, Role.Mark>:
+  Plan.marks.named(world)
 
 # open or save: the checker's errors with the lint of the text, the errors
 # kept for the changes after
@@ -242,9 +259,11 @@ def pub.checked(
   +text: String,
   +ds: List<&2, Rep.Diag>,
   rs: List<&2, Maybe<&2, String>>,
+  +ms: List<&2, Role.Mark>,
   +docs: List<&2, Docs.Doc>
 ) -> Work:
-  noted([pub.note(Enc.cols(ee, text), uri, ds, pub.lint(Proto.path(uri), text, rs))], Docs.set_errors(docs, uri, ds))
+  noted([pub.note(Enc.cols(ee, text), uri, ds, pub.lint(Proto.path(uri), text, rs, ms))],
+    Docs.set_checked(docs, uri, ds, ms))
 
 # open: the document's text kept, then published with the checker's errors
 def pub.open(
@@ -253,9 +272,10 @@ def pub.open(
   +text: String,
   ds: List<&2, Rep.Diag>,
   rs: List<&2, Maybe<&2, String>>,
+  +ms: List<&2, Role.Mark>,
   +docs: List<&2, Docs.Doc>
 ) -> Work:
-  pub.checked(ee, uri, text, ds, rs, Docs.set(docs, uri, text))
+  pub.checked(ee, uri, text, ds, rs, ms, Docs.set(docs, uri, text))
 
 # save: the text the editor shows published with the checker's new errors
 def pub.save(
@@ -263,12 +283,13 @@ def pub.save(
   +uri: String,
   ds: List<&2, Rep.Diag>,
   rs: List<&2, Maybe<&2, String>>,
+  +ms: List<&2, Role.Mark>,
   +docs: List<&2, Docs.Doc>
 ) -> Work:
-  pub.checked(ee, uri, Maybe.default(&2, String, Docs.get(docs, uri), ""), ds, rs, docs)
+  pub.checked(ee, uri, Maybe.default(&2, String, Docs.get(docs, uri), ""), ds, rs, ms, docs)
 
 # change: the new text kept, and its lint published with the checker's last
-# errors
+# errors and the marks read with them
 def pub.change(
   ee: Enc.Enc,
   +uri: String,
@@ -276,8 +297,8 @@ def pub.change(
   rs: List<&2, Maybe<&2, String>>,
   +docs: List<&2, Docs.Doc>
 ) -> Work:
-  noted([pub.note(Enc.cols(ee, text), uri, Docs.errors(docs, uri), pub.lint(Proto.path(uri), text, rs))],
-    Docs.set(docs, uri, text))
+  noted([pub.note(Enc.cols(ee, text), uri, Docs.errors(docs, uri),
+    pub.lint(Proto.path(uri), text, rs, Docs.marks(docs, uri)))], Docs.set(docs, uri, text))
 
 # close: the document forgotten, and an empty list published
 def pub.close(ee: Enc.Enc, +uri: String, docs: List<&2, Docs.Doc>) -> Work:
@@ -288,6 +309,76 @@ def pub.configs(~fs: F.Files, +uri: String) -> IO(List<&2, Maybe<&2, String>>):
   do IO<List<&2, Maybe<&2, String>>>:
     cwd : String <- F.cwd(fs)
     F.read_all(~fs, pub.cands(cwd, Proto.path(uri)))
+
+# a file's text as an answer
+def pub.read.answer(mm: Maybe<&2, String>) -> W.Answer:
+  match mm:
+    case None{}:
+      W.Unread{}
+    case Some{text}:
+      W.Read{text}
+
+# one question of the planner's, answered from the files: a directory's
+# entries, or a file's text (a directory reads as no text)
+def pub.answer(~fs: F.Files, ask: W.Ask) -> IO(W.Answer):
+  match ask:
+    case W.Entries{dir}:
+      do IO<W.Answer>:
+        es : List<&2, String> <- F.entries(fs, dir)
+        return W.Listed{es}
+    case W.Contents{path}:
+      do IO<W.Answer>:
+        mm : Maybe<&2, String> <- F.read(fs, path)
+        return pub.read.answer(mm)
+
+# every question answered, in order
+def pub.answers(~fs: F.Files, asks: List<&2, W.Ask>) -> IO(List<&2, W.Reply>):
+  match asks:
+    case Nil{}:
+      IO.pure(List<&2, W.Reply>, [])
+    case Con{+a, rest}:
+      do IO<List<&2, W.Reply>>:
+        r : W.Answer <- pub.answer(~fs, a)
+        more : List<&2, W.Reply> <- pub.answers(~fs, rest)
+        return W.Reply{a, r} <> more
+
+# the World with more answers in it
+def pub.world.more(world: W.World, rs: List<&2, W.Reply>) -> W.World:
+  W.World{paths, cwd, replies} = world
+  W.World{paths, cwd, List.append(&2, W.Reply, replies, rs)}
+
+# the planner's questions answered and the World gone round again, or the
+# World as it is once the planner asks none
+def pub.world.step(
+  ~fs: F.Files,
+  asks: List<&2, W.Ask>,
+  +world: W.World,
+  go: W.World -> IO(W.World)
+) -> IO(W.World):
+  match asks:
+    case Nil{}:
+      IO.pure(W.World, world)
+    case Con{a, rest}:
+      do IO<W.World>:
+        rs : List<&2, W.Reply> <- pub.answers(~fs, a <> rest)
+        go(pub.world.more(world, rs))
+
+# the World `bolt <path>` reads, gathered as src/lint.bend gathers it: the
+# planner's questions answered until it asks none, under the same fuel
+def pub.world.go(~fs: F.Files, fuel: Nat, +world: W.World) -> IO(W.World):
+  match fuel:
+    case 0n:
+      IO.pure(W.World, world)
+    case 1n+f:
+      pub.world.step(~fs, Plan.wants(world), world, ww => pub.world.go(~fs, f, ww))
+
+# the role marks the tree's imports give a document, as `bolt <path>` reads
+# them
+def pub.seen(~fs: F.Files, +uri: String) -> IO(List<&2, Role.Mark>):
+  do IO<List<&2, Role.Mark>>:
+    cwd : String <- F.cwd(fs)
+    ww : W.World <- pub.world.go(~fs, Nat.add(Plan.limit(), 2n), W.World{[Proto.path(uri)], cwd, []})
+    return pub.marks(ww)
 
 # open, on the checker's run on the file on disk
 def pub.opened(
@@ -301,14 +392,16 @@ def pub.opened(
   do IO<Work>:
     aa : C.Answer <- C.check(ck, Proto.path(uri))
     rs : List<&2, Maybe<&2, String>> <- pub.configs(~fs, uri)
-    return pub.open(ee, uri, text, C.errors(aa), rs, docs)
+    ms : List<&2, Role.Mark> <- pub.seen(~fs, uri)
+    return pub.open(ee, uri, text, C.errors(aa), rs, ms, docs)
 
 # save, on the checker's run on the file on disk
 def pub.saved(~fs: F.Files, ~ck: C.Checker, ee: Enc.Enc, +uri: String, docs: List<&2, Docs.Doc>) -> IO(Work):
   do IO<Work>:
     aa : C.Answer <- C.check(ck, Proto.path(uri))
     rs : List<&2, Maybe<&2, String>> <- pub.configs(~fs, uri)
-    return pub.save(ee, uri, C.errors(aa), rs, docs)
+    ms : List<&2, Role.Mark> <- pub.seen(~fs, uri)
+    return pub.save(ee, uri, C.errors(aa), rs, ms, docs)
 
 # change: the linter only
 def pub.changed(~fs: F.Files, ee: Enc.Enc, +uri: String, text: String, docs: List<&2, Docs.Doc>) -> IO(Work):

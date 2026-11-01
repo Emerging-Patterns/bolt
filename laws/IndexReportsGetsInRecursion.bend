@@ -1,6 +1,6 @@
 # `index` reports exactly a `List.get` or `String.get` at a non-literal index
-# anywhere in a recursive def, except a `List.get` on a fixed table that
-# `table` reports and a get that is the def's own self-call (the def is named
+# anywhere in a recursive def, except a `List.get` on a fixed table
+# (src/rules/table.bend) and a get that is the def's own self-call (the def is named
 # `List.get` or `String.get`).
 import Base
 import ../src/syntax/lex.bend as Lex
@@ -9,16 +9,16 @@ import ../src/syntax/bind.bend as Bind
 import ../src/src.bend as Src
 import ../src/syntax/tree.bend as Tree
 import ../src/syntax/outline.bend as Outline
-import ../src/rules/suspicious/index.bend as Index
-import ../src/rules/suspicious/table.bend as Table
+import ../src/rules/pedantic/index.bend as Index
+import ../src/rules/table.bend as Table
 import ../src/rules/calls.bend as Calls
 
 # The recursion rule, index. It reads each def of the file whose body calls
 # its own name and that is not a law or a proof, and every call in that body
 # at any depth: a name token, then a group. A `String.get(..)` whose index
 # (argument 1) is not one number token is a finding. So is a `List.get(..)`
-# whose index (argument 3) is not one number token, unless `table` reports
-# that same call: its fixed-table test, over the tables it finds in that def.
+# whose index (argument 3) is not one number token, unless src/rules/table.bend
+# calls it a get on a fixed table, over the tables it finds in that def.
 # A call whose name is the def's own (a def named `List.get` or `String.get`
 # stepping to itself) is neither.
 
@@ -32,7 +32,8 @@ def index.lit(nn: Tree.Node) -> Bool:
 
 # does a call report, given whether its name is List.get (list) or
 # String.get (sget), whether its group opens with `(` (ob), its arguments,
-# and what `table` reports for it?
+# and what src/rules/table.bend makes of it (a finding when it is a fixed
+# table's)?
 def index.fires(list: Bool, +ob: Bool, +sget: Bool, +as: List<&2, Tree.Node>, table: List<&2, F.Finding>) -> Bool:
   match list:
     case True{}:
@@ -61,7 +62,7 @@ def index.site(
       0n
 
 # how many calls at any depth of the node index reports, fixed the tables
-# `table` sees, in the def named self
+# src/rules/table.bend sees, in the def named self
 def index.count(nn: Tree.Node, +path: String, +fixed: List<&2, String>, +self: String) -> Nat:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, +rest}:
@@ -77,7 +78,7 @@ def index.count(nn: Tree.Node, +path: String, +fixed: List<&2, String>, +self: S
       0n
 
 # how many calls index reports over the defs: those in each def that calls
-# itself and is not a law or a proof, with the fixed tables `table` sees in it
+# itself and is not a law or a proof, with the fixed tables it holds
 def index.total(ds: List<&2, Calls.Def>, +mods: List<&2, String>, +path: String) -> Nat:
   match ds:
     case Nil{}:
@@ -89,7 +90,7 @@ def index.total(ds: List<&2, Calls.Def>, +mods: List<&2, String>, +path: String)
 # LAW: index reports one finding for each `List.get(..)` or `String.get(..)`
 # at an index that is not one number token, anywhere in a def that calls
 # itself (a base arm included) and is not a law or a proof, except a
-# `List.get` that `table` reports as a get on a fixed table and a get that is
+# `List.get` on a fixed table (src/rules/table.bend) and a get that is
 # the def's own self-call (in a def named `List.get` or `String.get`); none
 # for anything else
 law index_counts:

@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.26.0](https://github.com/Emerging-Patterns/bolt/compare/v1.25.0...v1.26.0) (2026-11-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* **rules:** `table`, `hoist`, `ring`, `unit`, `scan` and `unsafe` are removed; a bolt.bend that still sets one gets a `setting` finding (C011). `strings`, `chars` and `foreign` are no longer errors by default, `strict`, `fuel`, `index`, `rewalk` and `foreign` are off unless `pedantic` (or the rule) is set, and `coverage` and `closed` are off unless set by name: a project that relied on them must add `def coverage()` / `def closed()`.
+
+### Features
+
+* **rules:** regroup, demote and retire rules after the audit ([#267](https://github.com/Emerging-Patterns/bolt/issues/267)) ([ca72d74](https://github.com/Emerging-Patterns/bolt/commit/ca72d74cc8c6e06234d839eacf6e4de4503a265c))
+
 ## [1.25.0](https://github.com/Emerging-Patterns/bolt/compare/v1.24.0...v1.25.0) (2026-11-01)
 
 

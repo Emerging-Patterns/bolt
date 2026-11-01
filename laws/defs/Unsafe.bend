@@ -19,13 +19,11 @@ def share(kk: Lex.TokKind, +tt: String) -> U32:
 def over(+width: U32, +more: Nat) -> Nat:
   Bool.pick(Nat, U32.is_gt(width, 120), 1n+more, more)
 
-# unsafe (laws/UnsafeReportsReachableForeignDefs.bend). Over every list of digests, as coverage's laws are.
-# A digest records a file's relative imports (normalized, `deps`) and its
-# `@unsafe def`s and foreign defs (a def whose body is only imports of `.c`
-# or `.js` files); the import graph is theirs, and the closure a law file
+# Reach (laws/ImportReachIsClosed.bend), over every list of digests, as
+# coverage's laws are. A digest records a file's relative imports
+# (normalized, `deps`); the import graph is theirs, and the closure a file
 # reaches over it is Imports.closure.go's, the walk every project rule
-# shares. A finding names the import path from the law file to the def's
-# file, a shortest one, as Imports.trail walks it.
+# shares.
 
 # every file of the digests the file at from reaches by relative imports,
 # itself first, as the closure walk takes it
@@ -46,7 +44,7 @@ def unsafe.imports(ds: List<&2, Digest.Digest>, +pp: String) -> List<&2, String>
   match ds:
     case Nil{}:
       Nil{}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, rest}:
       +more = unsafe.imports(rest, pp)
       Bool.pick(List<&2, String>, String.eq(norm, pp), deps, more)
 
@@ -55,7 +53,7 @@ def unsafe.read(ds: List<&2, Digest.Digest>, +pp: String) -> Bool:
   match ds:
     case Nil{}:
       False{}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, rest}:
       +more = unsafe.read(rest, pp)
       Bool.or(String.eq(norm, pp), more)
 
