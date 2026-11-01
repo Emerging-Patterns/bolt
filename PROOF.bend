@@ -64,6 +64,7 @@ import ./proofs/FuelReportsLiteralBudgets.bend as PFuelReportsLiteralBudgets
 import ./proofs/HoistReportsTablesInLoops.bend as PHoistReportsTablesInLoops
 import ./proofs/HoleReportsEachTodo.bend as PHoleReportsEachTodo
 import ./proofs/IndexReportsGetsInRecursion.bend as PIndexReportsGetsInRecursion
+import ./proofs/InertConcatCont.bend as PInertConcatCont
 import ./proofs/InertFromrev.bend as PInertFromrev
 import ./proofs/InertTranscong.bend as PInertTranscong
 import ./proofs/LawNamesEveryItem.bend as PLawNamesEveryItem
@@ -103,6 +104,7 @@ import ./proofs/RoleTail.bend as PRoleTail
 import ./proofs/RoleThunk.bend as PRoleThunk
 import ./proofs/RoleUnit.bend as PRoleUnit
 import ./proofs/ScanReportsCarriedArgumentWalks.bend as PScanReportsCarriedArgumentWalks
+import ./proofs/ScopeConcatCont.bend as PScopeConcatCont
 import ./proofs/ScopeExemptionsFollowPaths.bend as PScopeExemptionsFollowPaths
 import ./proofs/SpaceReportsBlanksAndWidth.bend as PSpaceReportsBlanksAndWidth
 import ./proofs/StrictReportsEagerSelfCalls.bend as PStrictReportsEagerSelfCalls
