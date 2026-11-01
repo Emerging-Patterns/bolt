@@ -4,7 +4,8 @@
 # changing the contents of a comment or string literal does not change the
 # findings.
 #
-# also rests on: laws/InertFromrev.bend, laws/InertTranscong.bend
+# also rests on: laws/InertFromrev.bend, laws/InertTranscong.bend,
+# laws/InertEmpty.bend
 import Base
 import ../src/syntax/lex.bend as Lex
 import ../src/finding.bend as F

@@ -143,3 +143,10 @@ import ./proofs/PrefixReportsTakeComparedToLiteral.bend as PPrefixReportsTakeCom
 import ./proofs/PrefixSkipsOtherLengths.bend as PPrefixSkipsOtherLengths
 import ./proofs/RolePrefix.bend as PRolePrefix
 import ./proofs/RolePrefixExempt.bend as PRolePrefixExempt
+import ./proofs/EmptyExempt.bend as PEmptyExempt
+import ./proofs/EmptyReportsKeptTest.bend as PEmptyReportsKeptTest
+import ./proofs/EmptySkipsUnkeptTest.bend as PEmptySkipsUnkeptTest
+import ./proofs/RoleEmpty.bend as PRoleEmpty
+import ./proofs/RoleEmptyExempt.bend as PRoleEmptyExempt
+import ./proofs/InertEmpty.bend as PInertEmpty
+import ./proofs/EmptySkipsProofs.bend as PEmptySkipsProofs

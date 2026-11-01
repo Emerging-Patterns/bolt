@@ -51,7 +51,7 @@ unset group has its default. The groups:
 | group         | rules                                                                            | default |
 |---------------|----------------------------------------------------------------------------------|---------|
 | `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign` `setting` | error   |
-| `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` `fromrev` `prefix` (`scan`, `thunk`: opt-in) | warn    |
+| `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` `fromrev` `prefix` `empty` (`scan`, `thunk`: opt-in) | warn    |
 | `style`       | `doc` `space` `wrap` `param` `noqa` (`transcong`: opt-in)                          | warn    |
 | `laws`        | `coverage` `closed` `unsafe`                                                     | warn    |
 | `pedantic`    | `tail`                                                                           | off     |
@@ -77,6 +77,7 @@ The stable codes, assigned once (do not renumber):
 | | | U015 | `thunk` | | |
 | | | U016 | `fromrev` | | |
 | | | U017 | `prefix` | | |
+| | | U018 | `empty` | | |
 
 Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic.
 
@@ -397,6 +398,26 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   another length is a different bug and is left alone, and so is a
   qualified or aliased name and a non-literal on the other side. A law file
   or a proof file is exempt.
+- `empty` — `Nat.is_eq(List.length(.., x), 0n)` or
+  `Nat.is_eq(String.length(x), 0n)` as an argument (right after a `(`, `[`,
+  `{` or `,`), x a plain name read again after it in the same group: among
+  the significant tokens, a dotted `Nat.is_eq`, `(`, then a dotted
+  `List.length`, `(`, tokens up to its matching `)` whose last two are `,`
+  and x, or a dotted `String.length`, `(`, x and `)`; then `,`, `0n` and
+  `)`; then x as a plain name before the bracket that closes the group.
+  One finding on `Nat.is_eq`. Base's lengths count every cell (and are not
+  tail calls); `List.is_empty(.., x)` and `String.is_empty(x)` take the same
+  arguments, look at one cell and give the same Bool. Only a kept x is
+  reported, because only then does the fix pay on both lanes: the native
+  lane frees a list the program never walked more slowly than it walks one,
+  so where the test is x's last use the walk is the cheaper way to free it
+  (bend 2.0.38, a 0-1000 char String: kept 1.57x faster native and 1.31x
+  JS; dropped 0.27x native, 1.65x JS). A test whose group reads no x after
+  it, one that reads x only before it, and one outside any group (`v =
+  Nat.is_eq(..)`) are left alone. A law file or a proof file is exempt, and
+  so is a `law` and a def that is a proof (`def f(x):`, or one that returns
+  `-> {..}`) in any file: from its keyword to the next `def`, `type` or
+  `import`.
 - `put` — `Map.put`. It is Base's internal helper: at a leaf it keeps the old
   key and replaces the value without comparing, so a new key silently
   overwrites another entry. `Map.set` compares. A file that defines
