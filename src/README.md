@@ -169,11 +169,14 @@ The walk is over the whole tree under the working directory, even over files
 named on the line: bolt reads every `.bend` file there for its imports
 (lexed, never parsed), and each named file the walk does not find (one
 outside the working directory), each file once, and lints only the files
-named. So a file named beside
+named. A path is matched to its file however it is spelled (`a.bend`,
+`./a.bend`, or absolute under the working directory). So a file named beside
 a `LAWS.bend` that imports it is still code when a `main.bend` the run does
 not name imports it, and a file under `laws/` named without its `LAWS.bend`
-is still a law file. The editor reads the open file alone, so there a file
-has only the role its name gives it.
+is still a law file. The editor reads the same graph as `bolt <path>` when a
+document is opened or saved, from the directory it runs in, and keeps those
+roles for the edits in between (laws/LspKeepsRoleMarks.bend), so a change
+that adds or drops an import changes a file's role at the next save.
 
 A rule is handed a [`Src`](src.bend), not the text: the path, the text, and
 the file's tokens, tree, binder and outline, each read once for the whole

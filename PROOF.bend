@@ -114,6 +114,7 @@ import ./proofs/LspFramesCountBytes.bend as PLspFramesCountBytes
 import ./proofs/LspNavigationUsesBinder.bend as PLspNavigationUsesBinder
 import ./proofs/LspPositionsUseNegotiatedEncoding.bend as PLspPositionsUseNegotiatedEncoding
 import ./proofs/LspPublishesOnDocumentEvents.bend as PLspPublishesOnDocumentEvents
+import ./proofs/LspKeepsRoleMarks.bend as PLspKeepsRoleMarks
 import ./proofs/LspUnitsMatchCharsBelowAstral.bend as PLspUnitsMatchCharsBelowAstral
 import ./proofs/ArrowTerm.bend as PArrowTerm
 import ./proofs/AttributeDef.bend as PAttributeDef

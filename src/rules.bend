@@ -100,22 +100,9 @@ def on.rules.role(+rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
     Closed.check.role(rr, ss),
     Transcong.check(ss)])
 
-# every rule's findings on a file read once, as each rule gives them, its
-# role read from its name
-def on.rules(+ss: Src.Src) -> List<&2, F.Finding>:
-  on.rules.role(Role.of_path(on.path(ss)), ss)
-
-# every rule's findings on a file read once, each at that file
-def on(+ss: Src.Src) -> List<&2, F.Finding>:
-  on.at(on.path(ss), on.rules(ss))
-
 # every rule's findings on a file read once, told its role, each at that file
 def on.role(+rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
   on.at(on.path(ss), on.rules.role(rr, ss))
-
-# every rule's findings on a file
-def all(+path: String, +text: String) -> List<&2, F.Finding>:
-  on(Src.of(path, text))
 
 # Packages (laws/ScopePackageRootsFound.bend). A package root other than `.` is a directory
 # holding a main.bend; a file belongs to the nearest root at or above it, and

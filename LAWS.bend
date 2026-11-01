@@ -129,6 +129,7 @@ import ./laws/LspFramesCountBytes.bend as LspFramesCountBytes
 import ./laws/LspNavigationUsesBinder.bend as LspNavigationUsesBinder
 import ./laws/LspPositionsUseNegotiatedEncoding.bend as LspPositionsUseNegotiatedEncoding
 import ./laws/LspPublishesOnDocumentEvents.bend as LspPublishesOnDocumentEvents
+import ./laws/LspKeepsRoleMarks.bend as LspKeepsRoleMarks
 import ./laws/LspUnitsMatchCharsBelowAstral.bend as LspUnitsMatchCharsBelowAstral
 import ./laws/ArrowTerm.bend as ArrowTerm
 import ./laws/AttributeDef.bend as AttributeDef

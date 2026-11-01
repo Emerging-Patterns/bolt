@@ -85,6 +85,10 @@ def base_path(_u: Unit) -> IO(String):  # noqa: L001 disk effect
 def cwd(_u: Unit) -> IO(String):  # noqa: L001 disk effect
   WalkDisk.cwd()
 
+# a directory's entries, as the lint's walk lists them
+def entries(dir: String) -> IO(List<&2, String>):  # noqa: L001 disk effect
+  WalkDisk.entries(dir)
+
 # the real file system
 def new() -> S.Files:  # noqa: L001 effect record
-  S.Files{read, base_path, cwd}
+  S.Files{read, base_path, cwd, entries}

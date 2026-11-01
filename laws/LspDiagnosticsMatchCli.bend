@@ -1,16 +1,15 @@
 # Diagnostics for an open document equal the CLI's per-file findings for that
 # file and text under the same bolt.bend, less what its noqa comments silence
 # (laws/NoqaSilencesNamedFindings.bend), then `noqa`'s findings on them, which judge no project rule's
-# code, for a file whose role the tree's imports leave at its name's. The
-# editor reads one file and not the imports of the tree around it, so a file
-# a LAWS.bend reaches, a law file to `bolt <path>`, is linted as code there.
+# code. The editor is told the roles the imports of the tree give the files,
+# read as `bolt <path>` reads them, so a file a LAWS.bend reaches is a law
+# file in both.
 import Base
 import ../src/lsp/server.bend as Server
 import ../src/finding.bend as F
 import ../src/lint/world.bend as W
 import ../src/lint/plan.bend as Plan
 import ../src/noqa.bend as Noqa
-import ../src/role.bend as Role
 
 # the CLI's per-file findings in a run, graded the CLI's way: each source's
 # per-file rules, each finding at the level the bolt.bend nearest its path
@@ -31,16 +30,14 @@ def pub.cli(+world: W.World) -> List<&2, F.Graded>:
 # directory, are exactly what `bolt <path>` grades as that file's per-file
 # findings, the same noqa comments silencing the same findings and `noqa`
 # reporting what the CLI reports but for a project rule's code, which the
-# editor cannot judge (none for a bolt.bend, which neither lints), whenever
-# the imports of the tree (the graph `bolt <path>` reads its roles from) give
-# the document no role but the one its name gives it
+# editor cannot judge (none for a bolt.bend, which neither lints), the editor
+# told the role marks the imports of the tree give the files, as `bolt
+# <path>` reads them from that same file system and directory
 law lint_is_cli:
   for +world: W.World
   for +path: String
   for +text: String
   for h: {W.paths.of(world) == [path] : List<&2, String>}
   for ht: {W.text(world, path) == Some{text} : Maybe<&2, String>}
-  for hr: {Role.of(Role.marks.facts(Plan.facts.of(Plan.gots(Plan.graph(world), world))), path) == Role.of_path(path)
-    : Role.Role}
-  {Server.pub.lint(path, text, Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world)) == pub.cli(world)
-    : List<&2, F.Graded>}
+  {Server.pub.lint(path, text, Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world), Server.pub.marks(world))
+    == pub.cli(world) : List<&2, F.Graded>}

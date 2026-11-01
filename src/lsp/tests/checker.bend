@@ -5,6 +5,10 @@
 # check clean, and `unproven/` has none at all, which is the same verdict.
 # A fixture holding an *incomplete* PROOF.bend cannot live in this tree: the
 # gate checks every PROOF.bend it finds, and that one is meant to fail.
+# Each open reads every file of the tree for its imports (the roles `bolt
+# <path>` gives it), and this tree holds proofs past the JS lane's stack, so
+# the test runs native only:
+# lanes: native
 import Base
 import ../server.bend as Server
 import ../transport/script.bend as Script
