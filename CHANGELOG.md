@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.22.0](https://github.com/Emerging-Patterns/bolt/compare/v1.21.0...v1.22.0) (2026-11-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* the `trace` rule (L005) is removed and its code retired. A bolt.bend that still has `def trace()` gets a `setting` finding (C011) for an unknown setting; delete it.
+
+### Features
+
+* one guarantee per file under laws/ and proofs/; drop trace and SPEC.md ([#257](https://github.com/Emerging-Patterns/bolt/issues/257)) ([48c08fe](https://github.com/Emerging-Patterns/bolt/commit/48c08fef206caa15aeeeeca0ed68d32364dde790))
+
 ## [1.21.0](https://github.com/Emerging-Patterns/bolt/compare/v1.20.0...v1.21.0) (2026-10-29)
 
 
