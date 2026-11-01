@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.0](https://github.com/Emerging-Patterns/bolt/compare/v1.22.0...v1.23.0) (2026-11-01)
+
+
+### Features
+
+* **rules:** pick reports a search bound above its pick ([#261](https://github.com/Emerging-Patterns/bolt/issues/261)) ([7ecc841](https://github.com/Emerging-Patterns/bolt/commit/7ecc841e88f490a2f873fbb1a35711b6d2f590a5)), closes [#199](https://github.com/Emerging-Patterns/bolt/issues/199)
+
 ## [1.22.0](https://github.com/Emerging-Patterns/bolt/compare/v1.21.0...v1.22.0) (2026-11-01)
 
 
