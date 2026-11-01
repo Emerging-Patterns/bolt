@@ -1131,13 +1131,15 @@ def Laws.space_counts(path, text, toks, tree, bound, items):
   Equal.trans(Nat,
     List.length(&2, F.Finding, Space.check(Src.Src{path, text, toks, tree, bound, items})),
     Nat.add(List.length(&2, F.Finding, Space.check.go(String.lines(text), path, 0)),
-      List.length(&2, F.Finding, Space.widths(toks, path, 0, 0))),
-    Nat.add(Laws.space_count(String.lines(text)), Laws.wide_count(toks, 0)),
-    esc.app(Space.check.go(String.lines(text), path, 0), Space.widths(toks, path, 0, 0)),
+      List.length(&2, F.Finding, Space.widths(Space.unimported(toks, True{}, False{}), path, 0, 0))),
+    Nat.add(Laws.space_count(String.lines(text)), Laws.wide_count(Space.unimported(toks, True{}, False{}), 0)),
+    esc.app(Space.check.go(String.lines(text), path, 0),
+      Space.widths(Space.unimported(toks, True{}, False{}), path, 0, 0)),
     esc.add(List.length(&2, F.Finding, Space.check.go(String.lines(text), path, 0)),
-      Laws.space_count(String.lines(text)), List.length(&2, F.Finding, Space.widths(toks, path, 0, 0)),
-      Laws.wide_count(toks, 0), Laws.space_line_counts(String.lines(text), path, 0),
-      Laws.space_width_counts(toks, path, 0, 0)))
+      Laws.space_count(String.lines(text)),
+      List.length(&2, F.Finding, Space.widths(Space.unimported(toks, True{}, False{}), path, 0, 0)),
+      Laws.wide_count(Space.unimported(toks, True{}, False{}), 0), Laws.space_line_counts(String.lines(text), path, 0),
+      Laws.space_width_counts(Space.unimported(toks, True{}, False{}), path, 0, 0)))
 
 # The header exemptions (BOLT-RULE-EXEMPT). A rule that stops on its path
 # stops with Nil; one that walks the file's defs stops on every def of a law

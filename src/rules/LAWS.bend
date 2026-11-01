@@ -408,7 +408,8 @@ law space_width_counts:
   {List.length(&2, F.Finding, Space.widths(toks, path, nn, acc)) == wide_count(toks, acc) : Nat}
 
 # LAW: space reports exactly those two: the lines of the text with trailing
-# whitespace or a tab, then the lines of the tokens over 120 columns
+# whitespace or a tab, then the lines of the tokens over 120 columns, an
+# import line counting as nothing
 # BOLT-RULE-S002
 law space_counts:
   for +path: String
@@ -418,7 +419,7 @@ law space_counts:
   for bound: Bind.Bound
   for items: List<&2, Outline.Item>
   {List.length(&2, F.Finding, Space.check(Src.Src{path, text, toks, tree, bound, items}))
-    == Nat.add(space_count(String.lines(text)), wide_count(toks, 0)) : Nat}
+    == Nat.add(space_count(String.lines(text)), wide_count(Space.unimported(toks, True{}, False{}), 0)) : Nat}
 
 # The header exemptions. A per-file rule whose header exempts a path (a law
 # file, a proof, a test) returns no findings on it, for every source: any
