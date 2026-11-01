@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.0](https://github.com/Emerging-Patterns/bolt/compare/v1.23.0...v1.24.0) (2026-11-01)
+
+
+### Features
+
+* **rules:** concat sees an append passed through a continuation ([#262](https://github.com/Emerging-Patterns/bolt/issues/262)) ([c1d1e17](https://github.com/Emerging-Patterns/bolt/commit/c1d1e171861c47724a1aed44b6884e5feeb31f7e))
+
 ## [1.23.0](https://github.com/Emerging-Patterns/bolt/compare/v1.22.0...v1.23.0) (2026-11-01)
 
 
