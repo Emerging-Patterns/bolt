@@ -166,12 +166,31 @@ def sources(ps: List<&2, String>) -> List<&2, String>:
 def inputs(+world: W.World) -> List<&2, String>:
   sources(files(world))
 
-# the files a run reads its roles from: its sources, then every source the
-# walk of the tree finds. A file's role follows the imports, and the file
-# that makes a named file code, a package's main.bend that imports it, may
-# be named or not
+# each path normalized (src/rules/imports.bend)
+def norms(ps: List<&2, String>) -> List<&2, String>:
+  match ps:
+    case Nil{}:
+      Nil{}
+    case Con{p, rest}:
+      Imports.norm(p) <> norms(rest)
+
+# the paths whose normalized form is not among the normalized paths seen
+def unseen(ps: List<&2, String>, +seen: List<&2, String>) -> List<&2, String>:
+  match ps:
+    case Nil{}:
+      Nil{}
+    case Con{+p, rest}:
+      +more = unseen(rest, seen)
+      Bool.pick(List<&2, String>, Imports.has(seen, Imports.norm(p)), more, p <> more)
+
+# the files a run reads its roles from: every source the walk of the tree
+# finds, then each source of the run the walk does not find (one named
+# outside the working directory), so each file is read once. A file's role
+# follows the imports, and the file that makes a named file code, a
+# package's main.bend that imports it, may be named or not
 def graph(+world: W.World) -> List<&2, String>:
-  List.append(&2, String, inputs(world), sources(walk.found(tree(world))))
+  +found = sources(walk.found(tree(world)))
+  List.append(&2, String, found, unseen(inputs(world), norms(found)))
 
 # ---------------------------------------------------------------------------
 # what the plan reads

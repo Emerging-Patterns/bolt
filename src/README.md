@@ -167,7 +167,9 @@ files law files, and a proof may state lemma laws of its own.
 
 The walk is over the whole tree under the working directory, even over files
 named on the line: bolt reads every `.bend` file there for its imports
-(lexed, never parsed) and lints only the files named. So a file named beside
+(lexed, never parsed), and each named file the walk does not find (one
+outside the working directory), each file once, and lints only the files
+named. So a file named beside
 a `LAWS.bend` that imports it is still code when a `main.bend` the run does
 not name imports it, and a file under `laws/` named without its `LAWS.bend`
 is still a law file. The editor reads the open file alone, so there a file
