@@ -468,6 +468,37 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   the reach); a dotted type is graded. `main` is a def: a law that names it covers it. A
   project without a LAWS.bend is not under law.
 
+## Proposing a rule
+
+A new rule, or a widening of one (judged on the hits it adds), is measured
+against public Bend 2 code other than bolt's own tree, such as the repos
+[awesome-bend](https://github.com/777genius/awesome-bend) lists. It ships
+when it meets all of these:
+
+1. **Seen.** The shape occurs at 5 or more sites across 2 or more
+   independent repos. The issue's own example does not count.
+2. **Precise.** A prototype matcher over that code, every hit (or 30 at
+   random) read by hand, is 95% or more true positives, and each
+   false-positive class has an exclusion bolt can test from tokens. A rule
+   that needs types or data sizes bolt does not have fails here.
+3. **Legal fix.** The suggested fix is mechanical, type-checks and keeps
+   behavior on every true positive, and the message names it, not just the
+   smell. Where bolt cannot tell from tokens that the fix is legal, the rule
+   does not suggest it.
+4. **Faster, for a perf rule.** The fix, applied to a real hit on a
+   realistic input, is clearly faster on at least one lane (JS or native),
+   repeatably and beyond noise, and no measured hit is slower on either.
+5. **New.** Neither the Bend checker nor another rule already reports it.
+
+A public commit that rewrites a real instance into the fix strengthens the
+case, but its absence is not held against a rule: most Bend code is written
+with agents, and a shape nobody's agent flags stays unfixed whether or not
+it is a defect.
+
+A rule is on by default only at near-zero false positives; anything less
+certain starts opt-in or in `pedantic`. A shipped rule that projects often
+`# noqa` is demoted or reworked.
+
 ## One binary
 
 `bolt` is also `bolt check file..` (the checker, `bend`, on each file, its
