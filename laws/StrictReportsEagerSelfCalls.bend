@@ -9,7 +9,7 @@ import ../src/syntax/bind.bend as Bind
 import ../src/src.bend as Src
 import ../src/syntax/tree.bend as Tree
 import ../src/syntax/outline.bend as Outline
-import ../src/rules/suspicious/strict.bend as Strict
+import ../src/rules/pedantic/strict.bend as Strict
 import ../src/rules/calls.bend as Calls
 
 # does the chain, up to its first top-level comma or `=>`, hold a `&&` or

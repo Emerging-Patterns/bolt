@@ -6,7 +6,6 @@ import ../../src/syntax/lex.bend as Lex
 import ../../src/syntax/tree.bend as Tree
 import ../../src/config.bend as Config
 import ../../src/rules/digest.bend as Digest
-import ../../src/rules/laws/unsafe.bend as Unsafe
 import ../../src/rules/imports.bend as Imports
 import ../../src/rules/calls.bend as Calls
 import ../../src/syntax/bind.bend as Bind
@@ -101,51 +100,6 @@ law cs.alias_path:
 
 def cs.alias_path(n, p, as, name):
   cs.alias_path.pick(String.eq(n, name), as, name, p)
-
-# a hit carried into reacher's walk is its answer
-law cs.reacher.some:
-  for rs: List<&2, Unsafe.Reach>
-  for +pp: String
-  for +x: String
-  {Unsafe.reacher.go(rs, pp, Some{x}) == Some{x} : Maybe<&2, String>}
-
-def cs.reacher.some(rs, _pp, _x):
-  match rs:
-    case Nil{}:
-      {==}
-    case Con{h, r}:
-      match h:
-        case Unsafe.Reach{o, ps}:
-          {==}
-
-# reacher's walk past a test: the pick it stands for
-law cs.reacher.pick:
-  for b: Bool
-  for +rs: List<&2, Unsafe.Reach>
-  for +pp: String
-  for +o: String
-  {Unsafe.reacher.go(rs, pp, Bool.pick(Maybe<&2, String>, b, Some{o}, None{}))
-    == Bool.pick(Maybe<&2, String>, b, Some{o}, Unsafe.reacher.go(rs, pp, None{})) : Maybe<&2, String>}
-
-def cs.reacher.pick(b, rs, pp, o):
-  match b:
-    case True{}:
-      cs.reacher.some(rs, pp, o)
-    case False{}:
-      {==}
-
-# reacher on a law file's reach: the file when its closure has the path, else
-# the rest's
-law cs.reacher:
-  for +o: String
-  for +ps: List<&2, String>
-  for +rs: List<&2, Unsafe.Reach>
-  for +pp: String
-  {Unsafe.reacher(Unsafe.Reach{o, ps} <> rs, pp)
-    == Bool.pick(Maybe<&2, String>, Imports.has(ps, pp), Some{o}, Unsafe.reacher(rs, pp)) : Maybe<&2, String>}
-
-def cs.reacher(o, ps, rs, pp):
-  cs.reacher.pick(Imports.has(ps, pp), rs, pp, o)
 
 # a hit carried into find's walk is its answer
 law cs.find.some:

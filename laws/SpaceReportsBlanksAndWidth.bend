@@ -10,7 +10,6 @@ import ../src/rules/style/space.bend as Space
 import ../src/src.bend as Src
 import ../src/syntax/tree.bend as Tree
 import ../src/syntax/outline.bend as Outline
-import ../src/rules/laws/unsafe.bend as Unsafe
 import ./defs/Unsafe.bend as D1
 
 # True when the line's last char is whitespace

@@ -6,7 +6,7 @@ import ../src/role.bend as Role
 import ../src/src.bend as Src
 import ../src/syntax/tree.bend as Tree
 import ../src/syntax/outline.bend as Outline
-import ../src/rules/suspicious/index.bend as Index
+import ../src/rules/pedantic/index.bend as Index
 
 # LAW: index, which checks nothing in a law or proof file, told a file's role
 # by its name finds what index finds

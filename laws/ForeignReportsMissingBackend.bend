@@ -8,7 +8,7 @@ import ../src/syntax/bind.bend as Bind
 import ../src/src.bend as Src
 import ../src/syntax/tree.bend as Tree
 import ../src/syntax/outline.bend as Outline
-import ../src/rules/correctness/foreign.bend as Foreign
+import ../src/rules/pedantic/foreign.bend as Foreign
 
 # foreign (laws/ForeignReportsMissingBackend.bend). Over the file's top-level statements the rule
 # reports each def whose body is one import or more and nothing else (a

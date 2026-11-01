@@ -9,7 +9,8 @@ writing Bend. Then this.
 If Bend can state it as a quantified law (a `for` or `exs` binder, IO
 values included), it goes in a law file under `laws/` and its proof under
 `proofs/`. A law with no
-binder is a unit test the checker runs, not a guarantee: `closed` reports
+binder is a unit test the checker runs, not a guarantee: `closed` (opt-in,
+on in this repo's bolt.bend) reports
 it, and it does not go in at all (docs/rfc/bolt-spec.md).
 
 `tests/*.bend` and `#|` exist only for claims Bend cannot prove:
@@ -174,7 +175,7 @@ Design specs and plans are not kept in this repo; they live under
   it) stay right for expensive work that does not recurse. The same goes for
   any expensive expression in a branch: a scan of the whole token list inside
   a per-token pick runs for every token (bind's notes were 20 s that way,
-  20 ms as one pass). `bolt`'s `strict` rule catches the Bool.and/or shape.
+  20 ms as one pass). `bolt`'s `strict` rule (pedantic) catches the Bool.and/or shape.
 - A destructure or a `match` needs a variable, never a call:
   `Out{a, b} = f(x)` is "a match cannot scrutinize a computed value"; bind the
   call first, or take it apart in a helper that receives it as a parameter.

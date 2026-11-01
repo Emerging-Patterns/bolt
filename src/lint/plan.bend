@@ -166,6 +166,40 @@ def sources(ps: List<&2, String>) -> List<&2, String>:
 def inputs(+world: W.World) -> List<&2, String>:
   sources(files(world))
 
+# a path as the one file it names wherever it is spelled from: resolved
+# against the working directory when relative, then normalized
+# (src/rules/imports.bend), so `a.bend`, `./a.bend` and `/w/a.bend` run
+# from `/w` are one
+def abs(+cwd: String, +path: String) -> String:
+  Imports.norm(Bool.pick(String, String.starts_with(path, "/"), path, cwd ++ "/" ++ path))
+
+# each path resolved (abs)
+def norms(ps: List<&2, String>, +cwd: String) -> List<&2, String>:
+  match ps:
+    case Nil{}:
+      Nil{}
+    case Con{p, rest}:
+      abs(cwd, p) <> norms(rest, cwd)
+
+# the paths that resolve to none of the paths seen
+def unseen(ps: List<&2, String>, +cwd: String, +seen: List<&2, String>) -> List<&2, String>:
+  match ps:
+    case Nil{}:
+      Nil{}
+    case Con{+p, rest}:
+      +more = unseen(rest, cwd, seen)
+      Bool.pick(List<&2, String>, Imports.has(seen, abs(cwd, p)), more, p <> more)
+
+# the files a run reads its roles from: every source the walk of the tree
+# finds, then each source of the run the walk does not find (one named
+# outside the working directory), so each file is read once. A file's role
+# follows the imports, and the file that makes a named file code, a
+# package's main.bend that imports it, may be named or not
+def graph(+world: W.World) -> List<&2, String>:
+  +found = sources(walk.found(tree(world)))
+  +cwd = W.cwd.of(world)
+  List.append(&2, String, found, unseen(inputs(world), cwd, norms(found, cwd)))
+
 # ---------------------------------------------------------------------------
 # what the plan reads
 
@@ -266,24 +300,17 @@ def asks.texts(ps: List<&2, String>) -> List<&2, W.Ask>:
     case Con{p, rest}:
       W.Contents{p} <> asks.texts(rest)
 
-# the directories the walk lists: every one it reads, none when files were
-# named
-def lists.named(paths: List<&2, String>, +world: W.World) -> List<&2, W.Ask>:
-  match paths:
-    case Nil{}:
-      asks.entries(walk.read(tree(world)))
-    case Con{_p, _rest}:
-      Nil{}
-
-# the listings the plan reads
+# the listings the plan reads: every directory the walk of the tree reads,
+# whether files were named or not, since a named file's role is read from the
+# imports of the whole tree (graph)
 def lists(+world: W.World) -> List<&2, W.Ask>:
-  lists.named(W.paths.of(world), world)
+  asks.entries(walk.read(tree(world)))
 
-# the texts the plan reads: each source and every bolt.bend candidate of their
-# directories, each once
+# the texts the plan reads: each source, every file of the graph, and every
+# bolt.bend candidate of the sources' directories, each once
 def texts(+world: W.World) -> List<&2, W.Ask>:
   +ps = inputs(world)
-  asks.texts(uniq(List.concat(&2, String, [ps, conf.cands(conf.dirs(ps), world)]),
+  asks.texts(uniq(List.concat(&2, String, [ps, graph(world), conf.cands(conf.dirs(ps), world)]),
     []))
 
 # every question the plan reads the World through: the listings, then the
@@ -359,10 +386,43 @@ def per_file.role(+ms: List<&2, Role.Mark>, ss: List<&2, Src.Src>) -> List<&2, F
       List.concat(&2, F.Finding, [Rules.on.role(Role.of(ms, path), Src.Src{path, text, toks, tree, bound, items}),
         per_file.role(ms, rest)])
 
-# every source's findings from the per-file rules: a file a LAWS.bend or a
-# PROOF.bend imports is a law or proof file to them as those are
-def per_file(+ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
-  per_file.role(Role.marks(ss), ss)
+# the facts (src/role.bend) of each file the World read, from its text, each
+# at its path resolved against the working directory (abs)
+def facts.of(gs: List<&2, Got>, +cwd: String) -> List<&2, Role.Fact>:
+  match gs:
+    case Nil{}:
+      Nil{}
+    case Con{Got{_path, None{}}, rest}:
+      facts.of(rest, cwd)
+    case Con{Got{path, Some{text}}, rest}:
+      Role.fact.text(abs(cwd, path), text) <> facts.of(rest, cwd)
+
+# each path's mark as the path is spelled: its role among marks taken over
+# resolved paths (abs), neither when it has none there
+def marks.key(ps: List<&2, String>, +cwd: String, +ms: List<&2, Role.Mark>) -> List<&2, Role.Mark>:
+  match ps:
+    case Nil{}:
+      Nil{}
+    case Con{+p, rest}:
+      Role.Mark{Imports.norm(p), Role.of.norm(ms, abs(cwd, p))} <> marks.key(rest, cwd, ms)
+
+# the marks of a run over files named on the line: every file of the graph
+# read for its imports, the walk taken over their resolved paths, and each
+# named file's role looked up there as it is named
+def marks.named(+world: W.World) -> List<&2, Role.Mark>:
+  +cwd = W.cwd.of(world)
+  marks.key(inputs(world), cwd, Role.marks.facts(facts.of(gots(graph(world), world), cwd)))
+
+# the marks a run's roles are read from: over the whole tree, the sources'
+# own; over files named on the line, the graph's, every file of the tree
+# read for its imports, so the main.bend that imports a named file makes it
+# code even when it is not named
+def marks.run(paths: List<&2, String>, +world: W.World, +ss: List<&2, Src.Src>) -> List<&2, Role.Mark>:
+  match paths:
+    case Nil{}:
+      Role.marks(ss)
+    case Con{_p, _rest}:
+      marks.named(world)
 
 # the path of the first candidate the World holds a text for, as a list of
 # one; none when it holds none
@@ -409,7 +469,7 @@ def settings(+world: W.World) -> List<&2, F.Finding>:
 # then `setting`'s over each bolt.bend grading reads, then the project rules'
 # over every source and the other packages
 def found.at(+world: W.World, +gs: List<&2, Got>, +ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
-  List.concat(&2, F.Finding, [unread(gs), per_file(ss), settings(world),
+  List.concat(&2, F.Finding, [unread(gs), per_file.role(marks.run(W.paths.of(world), world, ss), ss), settings(world),
     Rules.project(ss, packages(roots(world)))])
 
 # every finding of every rule, ungraded

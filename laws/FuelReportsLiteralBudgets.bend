@@ -14,7 +14,7 @@ import ../src/syntax/tree.bend as Tree
 import ../src/syntax/outline.bend as Outline
 import ../src/rules/calls.bend as Calls
 import ../src/rules/tokens.bend as T
-import ../src/rules/suspicious/fuel.bend as FuelRule
+import ../src/rules/pedantic/fuel.bend as FuelRule
 
 # fuel (laws/FuelReportsLiteralBudgets.bend). The rule lists the file's fuel parameters: for each
 # def of the file (Calls.defs) that returns no effect, each parameter

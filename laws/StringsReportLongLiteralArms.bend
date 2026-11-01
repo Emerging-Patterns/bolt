@@ -7,7 +7,7 @@ import ../src/syntax/bind.bend as Bind
 import ../src/src.bend as Src
 import ../src/syntax/tree.bend as Tree
 import ../src/syntax/outline.bend as Outline
-import ../src/rules/correctness/strings.bend as Strings
+import ../src/rules/perf/strings.bend as Strings
 import ./defs/MatchArmRules.bend as D1
 
 # the chars between the quotes of the string a case statement's first match

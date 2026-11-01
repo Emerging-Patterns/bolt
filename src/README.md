@@ -48,13 +48,14 @@ def space() -> String:
 A group sets every rule in it; a rule set by name wins over its group; an
 unset group has its default. The groups:
 
-| group         | rules                                                                            | default |
-|---------------|----------------------------------------------------------------------------------|---------|
-| `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `strings` `chars` `foreign` `setting` | error   |
-| `suspicious`  | `unused` `strict` `eager` `concat` `fuel` `index` `table` `hoist` `ring` `rewalk` `unit` `fromrev` `prefix` (`scan`, `thunk`: opt-in) | warn    |
-| `style`       | `doc` `space` `wrap` `param` `noqa` (`transcong`: opt-in)                          | warn    |
-| `laws`        | `coverage` `closed` `unsafe`                                                     | warn    |
-| `pedantic`    | `tail`                                                                           | off     |
+| group         | rules                                                                  | default |
+|---------------|------------------------------------------------------------------------|---------|
+| `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `setting`                  | error   |
+| `suspicious`  | `unused` `eager` `concat` `fromrev` `prefix` (`thunk`: opt-in)         | warn    |
+| `perf`        | `strings` `chars`                                                      | warn    |
+| `style`       | `doc` `space` `wrap` `param` `noqa` (`transcong`: opt-in)              | warn    |
+| `laws`        | (`coverage`, `closed`: opt-in)                                         | warn    |
+| `pedantic`    | `foreign` `strict` `fuel` `index` `rewalk` `tail`                      | off     |
 
 The stable codes, assigned once (do not renumber):
 
@@ -65,20 +66,26 @@ The stable codes, assigned once (do not renumber):
 | C003 | `pick` | U003 | `eager` | S003 | `wrap` |
 | C004 | `put` | U004 | `concat` | S004 | `param` |
 | C005 | `arms` | U005 | retired | S005 | `noqa` |
-| C006 | `escape` | U006 | `fuel` | L001 | `coverage` |
-| C007 | `twice` | U007 | `index` | L002 | `closed` |
-| C008 | `strings` | U008 | `table` | L003 | `unsafe` |
-| C009 | `chars` | U009 | `hoist` | L004 | retired |
-| C010 | `foreign` | U010 | `ring` | L005 | retired |
-| C011 | `setting` | U011 | `rewalk` | P001 | `tail` |
-| | | U012 | `unit` | S006 | `transcong` |
-| | | U013 | `scan` | | |
+| C006 | `escape` | U006 | `fuel` | S006 | `transcong` |
+| C007 | `twice` | U007 | `index` | L001 | `coverage` |
+| C008 | `strings` | U008 | retired | L002 | `closed` |
+| C009 | `chars` | U009 | retired | L003 | retired |
+| C010 | `foreign` | U010 | retired | L004 | retired |
+| C011 | `setting` | U011 | `rewalk` | L005 | retired |
+| | | U012 | retired | P001 | `tail` |
+| | | U013 | retired | | |
 | | | U014 | retired | | |
 | | | U015 | `thunk` | | |
 | | | U016 | `fromrev` | | |
 | | | U017 | `prefix` | | |
 
-Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic.
+Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic,
+for the group a rule had when its code was assigned. A code names the rule,
+not its group, so a rule that moves keeps it: `strings` and `chars` (C008,
+C009) are `perf`, what is slow but never wrong; `foreign` (C010), `strict`
+(U002), `fuel` (U006), `index` (U007) and `rewalk` (U011) are `pedantic`,
+where too few of their findings were defects, or their fix was slower, to
+report by default.
 
 `pedantic` is advice that is noisy on idiomatic code: off until a project
 asks for it. L004 was `quantify`, the opt-in strict mode of `closed`;
@@ -87,14 +94,24 @@ a check on `IO.args()` readers, retired before its first release: every
 reader already drops the program, and it could not tell one that does from
 one that does not. U014 is never reused either. L005 was `trace`, which
 held a SPEC.md table (now docs/SPEC.md) and the laws' ID tags to each other; a guarantee is
-named by its law file now, and L005 is never reused. `scan` and `thunk` are
-opt-in: they are in `suspicious`, but no group setting reaches them; only
-`def scan()` or `def thunk()` turns each on, and `transcong`, in `style`, only by
-`def transcong()`. An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
+named by its law file now, and L005 is never reused. U008 `table`, U009
+`hoist`, U010 `ring`, U012 `unit` and U013 `scan` were retired when an audit
+of public Bend found none or few of their findings real (`index` still
+leaves a get on a fixed table alone, src/rules/table.bend). L003 `unsafe`
+was retired since bend 2.0.32 itself fails a proof that reaches an
+`@unsafe` or foreign def. None of these codes is reused. A bolt.bend that
+still sets one of them gets a `setting` finding (C011); delete the def.
+
+`thunk` and `transcong` are opt-in: they are in their groups, but no group
+setting reaches them; only `def thunk()` or `def transcong()` turns each on.
+So are `coverage` and `closed`: what every def must be named by a law, and
+whether a law with no binder is allowed, are a project's policy, not a
+defect, so a project that keeps laws turns them on by name (`def
+coverage() -> String: "warn"`). An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
 read, never linted. A setting whose name is no rule's slug and no group
 sets nothing, so `setting` (C011) reports it. Without one, the defaults apply. This repo's
-[bolt.bend](../bolt.bend) sets every group to error: the gate must see
-`clean`.
+[bolt.bend](../bolt.bend) sets every group to error and turns the opt-in
+laws rules on: the gate must see `clean`.
 
 ## Suppressing a finding
 
@@ -110,7 +127,7 @@ commas (spaces around them allowed), then any text. Codes are the stable
 ids above, case-sensitive, and a comment may name several
 (`# noqa: U002, U003`). Only a real comment counts, as the lexer reads it:
 `noqa` inside a string literal is text. The filter runs once every rule has
-run, the project rules (`coverage`, `unsafe`) included, and a
+run, the project rule (`coverage`) included, and a
 silenced finding is neither printed nor counted, so it changes neither the
 summary nor the exit code. No rule reads the comments: what each rule finds
 is the same with or without them. The editor applies the same filter.
@@ -136,8 +153,7 @@ digests (`rules.bend`'s `project`).
 The project rules run per package (laws/PackagesScoped.bend). Over the
 whole tree, a package root is `.` and every other directory the walk reads
 that holds a `main.bend`, and a file belongs to the nearest root at or above
-it. `coverage` runs on one package's files at a time; `unsafe` runs on every
-file. Over files named on the line, `.` is the only package. So a repo with
+it. `coverage` runs on one package's files at a time. Over files named on the line, `.` is the only package. So a repo with
 nested packages, each with its own laws, lints in one run from the top, and
 a law covers only defs of its own package.
 
@@ -149,6 +165,19 @@ reaches, is code, even when a law imports it to state laws about it. So a
 `LAWS.bend` of nothing but `import ./laws/<Name>.bend` lines makes those
 files law files, and a proof may state lemma laws of its own.
 
+The walk is over the whole tree under the working directory, even over files
+named on the line: bolt reads every `.bend` file there for its imports
+(lexed, never parsed), and each named file the walk does not find (one
+outside the working directory), each file once, and lints only the files
+named. A path is matched to its file however it is spelled (`a.bend`,
+`./a.bend`, or absolute under the working directory). So a file named beside
+a `LAWS.bend` that imports it is still code when a `main.bend` the run does
+not name imports it, and a file under `laws/` named without its `LAWS.bend`
+is still a law file. The editor reads the same graph as `bolt <path>` when a
+document is opened or saved, from the directory it runs in, and keeps those
+roles for the edits in between (laws/LspKeepsRoleMarks.bend), so a change
+that adds or drops an import changes a file's role at the next save.
+
 A rule is handed a [`Src`](src.bend), not the text: the path, the text, and
 the file's tokens, tree, binder and outline, each read once for the whole
 set. A tree parse of a 156 KB file costs 1.5 s here, so twenty rules that
@@ -158,12 +187,11 @@ its phases use the whole list several times, and a `+` reuse copies what it
 is given, so handing them the parsed `Src` duplicated every tree (100 files
 cost 362 s, growing faster than the count; 28 s now). The digest carries
 only what those rules ask: the paths, the top-level defs and types, what the
-laws name, the imports and the `@unsafe` defs.
+laws name, the imports and the laws.
 What the rules share, `rules/calls.bend` (the recursion rules),
 `rules/tokens.bend`, `rules/imports.bend` and `rules/digest.bend`, sits
 beside the groups. The cost rules built on `rules/calls.bend` (`pick`,
-`strict`, `eager`, `tail`, `concat`, `index`, `table`, `hoist`, `ring`,
-`rewalk`, `unit`, `scan`, `thunk`) skip what never runs: a law file, a proof file, and a def
+`strict`, `eager`, `tail`, `concat`, `index`, `rewalk`, `thunk`) skip what never runs: a law file, a proof file, and a def
 that is a proof wherever it is, one that returns a proof (`-> {a == b : T}`)
 or one written with no type at all (`def f(x, y):`, no `:` among its
 parameters and no `->`), which is how Bend fills the law named `f`.
@@ -245,7 +273,7 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   thunk (`Lazy.stop(T, hit, x, _u => go(rest))`) stops early but leaves the
   loop on every step, and measured slower. Law files, proof files and defs
   that are proofs (they return a proof, or have no type) are exempt.
-- `strict` — a self-call inside `Bool.and`/`Bool.or`, or either side of
+- `strict` (pedantic) — a self-call inside `Bool.and`/`Bool.or`, or either side of
   `&&`/`||`, matched by exactly those texts (a qualified `Base.Bool.or` is not
   seen). They are functions too: both sides always run, so there is no
   short-circuit (a game's overlap test went 31 -> 55 fps once the call moved
@@ -285,61 +313,20 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   alone (`path ++ "/" ++ name` builds a value used elsewhere, not an
   accumulator). Prepend each chunk and reverse once at the end (ez's slurp,
   native: 14.75 s -> 0.36 s at 16 MB).
-- `index` — `List.get`/`String.get` at a computed index inside a def that
+- `index` (pedantic) — `List.get`/`String.get` at a computed index inside a def that
   calls itself: the list is walked again each step. Walk the cells instead
   (one sort phase went 39 s -> 0.9 s). A get anywhere in the def is
   reported, one in a base arm that runs once included. A literal index of
-  any size is exempt. A `List.get` on a fixed table is `table`'s; a
-  `String.get` always stays here. A get that is the def's own self-call (the
+  any size is exempt, and so is a `List.get` on a fixed table (a literal, a
+  sized array, or `List.replicate` / `Array.new` / `List.range` with a
+  constant count: src/rules/table.bend); a `String.get` always stays here. A get that is the def's own self-call (the
   step of a def named `List.get` or `String.get`, as Base's are) is exempt.
-- `table` — `List.get` or `List.set` at a computed index inside a def that
-  calls itself, when the list is a fixed table (a literal, a sized array, or
-  `List.replicate` / `Array.new` / `List.range` with a constant count),
-  inline, as a table def of the file, or held by the let of that name in
-  scope. A let reaches the statements after it, not a sibling case arm, and a
-  later let of the name to anything else ends it. Keep it in an `Array`. A
-  literal index, a growing list, and a data-dependent length stay with
-  `index` or stay quiet, so one call is one finding.
-- `hoist` — a list or array of more than eight constants, or a call that
-  builds one from inputs that do not change, sits inside a def that calls
-  itself and is then indexed. The build runs again on every step. Build it
-  once, outside the recursion. A call builds one when it is a Base
-  constructor (`List.replicate`, `Array.new`, ...) or a def of the file whose
-  body is itself a fixed table of more than eight cells; a def whose body is
-  not in the file does not count. Eight cells or fewer, and a build whose
-  arguments depend on the step, are left alone.
-- `ring` — a self-call replaces a binder with a drop of a constant count and
-  an append (`List.drop` / `List.tail` / `String.drop` / `String.tail`, then
-  `List.append` / `String.append` / `++`), passed back in that binder's own
-  parameter position. Each step copies the window. Keep it in an `Array` and
-  advance an index. A list the def matches as input (any scrutinee of a
-  match), a window dropped into another parameter's slot, and a one-shot trim
-  are left alone.
-- `rewalk` — one straight piece of a def calls the same walk twice on the
+- `rewalk` (pedantic) — one straight piece of a def calls the same walk twice on the
   same argument, and one result is used only for a single value (one index,
   one field, or a let read only that way) while the other result is kept
   whole. Take the value from that other result. A let of a name the
   argument uses between the two calls makes them different walks, and so
   does a different case arm.
-- `unit` — a multiply or divide by the literal `1`, `1n` or `1.0` on a
-  step that recurses, either as `*` / `/` or as `Nat.mul` / `U32.mul` /
-  `F32.mul` (and `.div`, only when the divisor is one). Drop the operation.
-  Any other factor or divisor is left alone, and so is a base case: a case
-  arm that does not call the def. Only a `case` arm can be a base case, so a
-  `Bool.pick` branch beside a self-call is still the step, and so is a lambda
-  body inside it. One finding per operation: `Nat.mul(1n, 1n)` is one.
-- `scan` (opt-in) — a def that calls itself and, on the same step, hands a
-  parameter it carries unchanged (every self-call passes it back as the same
-  lone name in its own position) to a walk: a Base list search
-  (`List.contains`, `List.find`, `List.filter`, `List.length`, `List.any`,
-  `List.all`, `List.foldl`, `List.foldr`), or a def of the file that walks
-  that argument (the one it shrinks, unless a `Nat` or a `String`, or one it
-  passes to a walk). Every step walks the list again, O(|A| * |B|). Index it
-  once outside the loop, or merge two sorted walks. A literal table or an
-  expression in that argument, a lambda's body, a case arm that does not
-  recurse, a Base walk that rebuilds the list (`List.map`, `List.append`),
-  and a def of another module are left alone. One finding per call, on its
-  callee.
 - `thunk` (opt-in) — a lambda whose body is exactly a self-call and whose
   parameter the call does not read, passed as the one lambda of a call: a
   `Unit -> T` thunk such as `Lazy.or_else(hit, _u => go(rest, k))`. The
@@ -403,12 +390,12 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   `Map.put` (`def Map.put`, Base's own source) is exempt.
 - `escape` — `\0` then a digit in a literal (`"\033"`). Bend has no octal
   escape: that is NUL followed by the digits. Write `\u{1B}`.
-- `strings` — a `match` over string-literal arms totalling more than 64
+- `strings` (perf) — a `match` over string-literal arms totalling more than 64
   characters: compile time and memory blow up with the characters (45 chars
   cost 0.8 s and 0.35 GB here, 480 chars 12 s and 4.8 GB). Map the string to
   a sum type once. Only the first match column is read, and a literal with no
   closing quote is not counted.
-- `chars` — a `match` with more than eight character-literal arms
+- `chars` (perf) — a `match` with more than eight character-literal arms
   (`case '.':`). `Char` is `Chr{code: U32}`, so each arm is a U32 literal
   inside a constructor pattern, and the C backend pays about 90 MB for one
   (eighteen arms cost 1.57 GB and 8.3 s here, 0.10 GB and 0.7 s once
@@ -428,7 +415,7 @@ parameters and no `->`), which is how Bend fills the law named `f`.
 - `arms` — a later `Nat` arm that an earlier `kn+p` already matches, so it is
   unreachable. `Succ{p}` and `Succ{_}` count as `1n+p`. The checker takes it silently and the answer is wrong: put the
   narrow arms first.
-- `foreign` — a foreign def with a `.c` body and no `.js` body, or the
+- `foreign` (pedantic) — a foreign def with a `.c` body and no `.js` body, or the
   reverse: the missing lane cannot run it. A file headed `# lanes: native`
   needs no `.js`: that exact line must be one of the comment lines before the
   file's first non-comment line.
@@ -437,11 +424,11 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   or `shadow`): grading only looks names up, so it sets nothing, and the
   typo fails open. It is reported once for each bolt.bend that grades a
   file of the run, at that bolt.bend's path and the setting's `def` line,
-  after the per-file findings and before `coverage` and `unsafe`.
+  after the per-file findings and before `coverage`'s.
   It is graded by that bolt.bend like any rule (`def setting() -> String:
   "off"` there turns it off). A bolt.bend is read, not linted, so a noqa
   comment in one silences nothing. bolt runs it; the editor does not.
-- `fuel` — a `Nat` literal (digits, then `n`), or `U32.to_nat` of a U32
+- `fuel` (pedantic) — a `Nat` literal (digits, then `n`), or `U32.to_nat` of a U32
   literal (`U32.to_nat(100000)`), passed in a call, `name(..)`, to a fuel
   parameter of a def of the same file. A fuel parameter is known by its name
   alone, the one before its colon: `fuel`, `gas`, `steps` or `budget`, or
@@ -462,21 +449,11 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   ~64K elements elsewhere). Carry an accumulator. The test is on that
   parameter's type alone, never on whether the self-call shrinks it.
   Everything inside a `Bool.pick(..)` is skipped.
-- `closed` — a law in a law file with no `for`/`exs` binder. A closed law,
+- `closed` (opt-in) — a law in a law file with no `for`/`exs` binder. A closed law,
   an equality (`{lhs == rhs : T}`, including `IO(T)`) or not, holds for the
   one input it names: a unit test the checker runs, not a guarantee.
   Nothing exempts one: quantify it, or delete it.
-- `unsafe` (project) — an `@unsafe def` or a foreign def (a body of only
-  `import "./x.c"` / `import "./x.js"` lines) that a LAWS.bend or PROOF.bend
-  reaches through its relative imports, over the files bolt read. Since bend
-  2.0.32 such a proof fails: bend prints `SOME PROOFS FAIL`, then `Error: N
-  defs rely on unsafe or foreign code:` and a `- name` list, and exits 1
-  (2.0.34), every def of every imported module counted. That list names the
-  defs, not the import that brought the effect in; the finding names the
-  import path from the law file (`LAWS.bend -> mid.bend -> eff/io.bend`). Move
-  the effect into a sibling module no law file imports and pass it in as a
-  service. Hash imports (`import 0x.../path`) are not followed.
-- `coverage` (project) — in a package that states laws (a LAWS.bend among its
+- `coverage` (project, opt-in) — in a package that states laws (a LAWS.bend among its
   files), a def or a type that no law of the package reaches. It is `coverage`, not `law`,
   because `law` is a Bend keyword: `def law()` is no def, so a bolt.bend
   could never set it by name. IO is no exemption: a def that
@@ -531,6 +508,11 @@ A public commit that rewrites a real instance into the fix strengthens the
 case, but its absence is not held against a rule: most Bend code is written
 with agents, and a shape nobody's agent flags stays unfixed whether or not
 it is a defect.
+
+A guard is the one exception to **Seen**: a rule whose shape is rare but
+whose miss is a silently wrong result that `bend` never reports (`arms`,
+`escape`, `setting`) may ship on fewer sites, as long as it is **Precise**,
+its fix is legal, and it is **New**.
 
 A rule is on by default only at near-zero false positives; anything less
 certain starts opt-in or in `pedantic`. A shipped rule that projects often

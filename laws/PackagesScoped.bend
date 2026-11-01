@@ -4,8 +4,7 @@ import ../src/rules.bend as Rules
 import ../src/src.bend as Src
 import ./defs/ScopeWalkFiles.bend as D1
 
-# LAW: `coverage` sees the digests of one package's files at a time, and
-# `unsafe` sees every file's
+# LAW: `coverage` sees the digests of one package's files at a time
 law packages_scoped:
   for +srcs: List<&2, Src.Src>
   for +rs: List<&2, String>

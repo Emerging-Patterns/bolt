@@ -50,7 +50,7 @@ def named(ds: List<&2, Digest.Digest>) -> List<&2, Digest.Mention>:
   match ds:
     case Nil{}:
       Nil{}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, rest}:
       named.put(is_laws, says, named(rest))
 
 # the graph
@@ -95,7 +95,7 @@ def graph.items(ds: List<&2, Digest.Digest>) -> List<&2, Imports.Edge>:
   match ds:
     case Nil{}:
       Nil{}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, rest}:
       nodes(tops, norm, graph.items(rest))
 
 # the graph: the empty key first, leading to what the laws name, then the
@@ -119,7 +119,7 @@ def law_dirs(ds: List<&2, Digest.Digest>) -> List<&2, String>:
   match ds:
     case Nil{}:
       Nil{}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, rest}:
       +more = law_dirs(rest)
       Bool.pick(List<&2, String>, is_laws, dir <> more, more)
 
@@ -146,7 +146,7 @@ def check.go(ds: List<&2, Digest.Digest>, +cl: List<&2, String>) -> List<&2, F.F
   match ds:
     case Nil{}:
       Nil{}
-    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}, rest}:
+    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, rest}:
       +more = check.go(rest, cl)
       Lazy.stop(List<&2, F.Finding>, exempt, more,
         _u => List.append(&2, F.Finding, gaps(tops, cl, norm, path), more))

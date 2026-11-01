@@ -12,3 +12,8 @@ on:
 jobs:
   check:
     uses: Emerging-Patterns/actions/.github/workflows/nix-flake-check.yml@5b0aa4f0eaee72662e06479ecebcfd15e9762fe7
+    with:
+      # the shared default still names macos-14, which GitHub retires on
+      # 2026-11-02 and fails in brownouts before then (no runner is assigned);
+      # macos-15 is arm64 too, so aarch64-darwin is still checked
+      runners: '["ubuntu-latest", "ubuntu-24.04-arm", "macos-15"]'

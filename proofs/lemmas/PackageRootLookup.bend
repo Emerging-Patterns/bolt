@@ -6,7 +6,6 @@ import ../../src/rules.bend as Rules
 import ../../src/role.bend as Role
 import ../../src/rules/digest.bend as Digest
 import ../../src/rules/laws/law.bend as Law
-import ../../src/rules/laws/unsafe.bend as Unsafe
 import ../../laws/PackagesScoped.bend as L1
 import ../../laws/ScopePackageRootsFound.bend as L2
 import ../../laws/defs/ScopeWalkFiles.bend as D1
@@ -89,22 +88,22 @@ def pk.members(ds, rs, pkg):
   match ds:
     case Nil{}:
       {==}
-    case Con{Digest.Digest{+path, +norm, +dir, +is_laws, +is_law_file, +exempt, +tops, +says, +deps, +unsafes, +laws},
+    case Con{Digest.Digest{+path, +norm, +dir, +is_laws, +is_law_file, +exempt, +tops, +says, +deps, +laws},
       +tl}:
       a = L2.package_nearest(rs, dir)
       %a : {Bool.pick(List<&2, Digest.Digest>, String.eq(Rules.owner(rs, dir), pkg),
-          Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}
+          Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}
             <> Rules.members(tl, rs, pkg), Rules.members(tl, rs, pkg))
         == Bool.pick(List<&2, Digest.Digest>, String.eq(_, pkg),
-          Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}
+          Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}
             <> D1.part(tl, rs, pkg), D1.part(tl, rs, pkg))
         : List<&2, Digest.Digest>}
       e = pk.members(tl, rs, pkg)
       %e : {Bool.pick(List<&2, Digest.Digest>, String.eq(Rules.owner(rs, dir), pkg),
-          Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws}
+          Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}
             <> Rules.members(tl, rs, pkg), Rules.members(tl, rs, pkg))
         == Bool.pick(List<&2, Digest.Digest>, String.eq(Rules.owner(rs, dir), pkg),
-          Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, unsafes, laws} <> _, _)
+          Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws} <> _, _)
         : List<&2, Digest.Digest>}
       {==}
 
@@ -130,11 +129,11 @@ def pk.covers(ps, ds, rs):
 def L1.packages_scoped(srcs, rs):
   +ds = Digest.all.role(Role.marks(srcs), srcs)
   a = Equal.cong(List<&2, Digest.Digest>, List<&2, F.Finding>,
-    mm => List.concat(&2, F.Finding, [Law.check(mm), Rules.covers(rs, ds, rs), Unsafe.check(ds)]),
+    mm => List.concat(&2, F.Finding, [Law.check(mm), Rules.covers(rs, ds, rs)]),
     Rules.members(ds, rs, ""), D1.part(ds, rs, ""), pk.members(ds, rs, ""))
   b = Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
-    cc => List.concat(&2, F.Finding, [Law.check(D1.part(ds, rs, "")), cc, Unsafe.check(ds)]),
+    cc => List.concat(&2, F.Finding, [Law.check(D1.part(ds, rs, "")), cc]),
     Rules.covers(rs, ds, rs), D1.covered(rs, ds, rs), pk.covers(rs, ds, rs))
   Equal.trans(List<&2, F.Finding>, Rules.project(srcs, rs),
-    List.concat(&2, F.Finding, [Law.check(D1.part(ds, rs, "")), Rules.covers(rs, ds, rs), Unsafe.check(ds)]),
+    List.concat(&2, F.Finding, [Law.check(D1.part(ds, rs, "")), Rules.covers(rs, ds, rs)]),
     D1.packed(srcs, rs), a, b)

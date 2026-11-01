@@ -14,13 +14,10 @@ import ../../src/rules/correctness/pick.bend as Pick
 import ../../src/rules/pedantic/tail.bend as Tail
 import ../../src/rules/suspicious/concat.bend as Concat
 import ../../src/rules/suspicious/eager.bend as Eager
-import ../../src/rules/suspicious/rewalk.bend as Rewalk
-import ../../src/rules/suspicious/strict.bend as Strict
-import ../../src/rules/suspicious/hoist.bend as Hoist
-import ../../src/rules/suspicious/index.bend as Index
-import ../../src/rules/suspicious/ring.bend as Ring
-import ../../src/rules/suspicious/table.bend as Table
-import ../../src/rules/suspicious/unit.bend as UnitRule
+import ../../src/rules/pedantic/rewalk.bend as Rewalk
+import ../../src/rules/pedantic/strict.bend as Strict
+import ../../src/rules/pedantic/index.bend as Index
+import ../../src/rules/table.bend as Table
 import ../../src/rules/suspicious/thunk.bend as Thunk
 import ../../laws/ExemptPathsYieldNoFindings.bend as L1
 import ../../laws/RoleLawFileNamed.bend as L2
@@ -261,30 +258,6 @@ def ex.strict(ds, path, n, e):
 def L1.strict_exempt(path, _text, _toks, tree, _bound, _items, e):
   ex.strict(Calls.defs(tree), path, 0n, e)
 
-# hoist's def walk gathers nothing in a law file
-law ex.hoist:
-  for ds: List<&2, Calls.Def>
-  for +wide: List<&2, String>
-  for +path: String
-  for +n: Nat
-  for +e: {Paths.is_law_file(path) == True{} : Bool}
-  {Hoist.check.go(ds, wide, path, ex.rep(n)) == Nil{} : List<&2, F.Finding>}
-
-def ex.hoist(ds, wide, path, n, e):
-  match ds:
-    case Nil{}:
-      ex.flat(n, Nil{})
-    case Con{Calls.Def{+name, +sig, +body}, rest}:
-      ex.push(
-        Bool.not(Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))),
-        ex.guard(Calls.calls(body, name), path, sig, e),
-        _u => Hoist.walk(body, name, wide, Hoist.carried(sig, body, name), path, True{}), n,
-        v => Hoist.check.go(rest, wide, path, v), ex.hoist(rest, wide, path, 1n+n, e))
-
-def L1.hoist_exempt(path, _text, _toks, tree, _bound, _items, e):
-  +ds = Calls.defs(tree)
-  ex.hoist(ds, Hoist.wide_defs(ds, Nil{}), path, 0n, e)
-
 # index's def walk gathers nothing in a law file
 law ex.index:
   for ds: List<&2, Calls.Def>
@@ -308,74 +281,6 @@ def ex.index(ds, mods, path, n, e):
 def L1.index_exempt(path, _text, _toks, tree, _bound, _items, e):
   +ds = Calls.defs(tree)
   ex.index(ds, Table.modules(ds, Nil{}), path, 0n, e)
-
-# ring's def walk gathers nothing in a law file
-law ex.ring:
-  for ds: List<&2, Calls.Def>
-  for +path: String
-  for +n: Nat
-  for +e: {Paths.is_law_file(path) == True{} : Bool}
-  {Ring.check.go(ds, path, ex.rep(n)) == Nil{} : List<&2, F.Finding>}
-
-def ex.ring(ds, path, n, e):
-  match ds:
-    case Nil{}:
-      ex.flat(n, Nil{})
-    case Con{Calls.Def{+name, +sig, +body}, rest}:
-      ex.push(
-        Bool.not(Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))),
-        ex.guard(Calls.calls(body, name), path, sig, e),
-        _u => Ring.walk(body, name, Calls.names(sig), path, Ring.windows(sig, body)), n,
-        v => Ring.check.go(rest, path, v), ex.ring(rest, path, 1n+n, e))
-
-def L1.ring_exempt(path, _text, _toks, tree, _bound, _items, e):
-  ex.ring(Calls.defs(tree), path, 0n, e)
-
-# table's def walk gathers nothing in a law file
-law ex.table:
-  for ds: List<&2, Calls.Def>
-  for +mods: List<&2, String>
-  for +path: String
-  for +n: Nat
-  for +e: {Paths.is_law_file(path) == True{} : Bool}
-  {Table.check.go(ds, mods, path, ex.rep(n)) == Nil{} : List<&2, F.Finding>}
-
-def ex.table(ds, mods, path, n, e):
-  match ds:
-    case Nil{}:
-      ex.flat(n, Nil{})
-    case Con{Calls.Def{+name, +sig, +body}, rest}:
-      ex.push(
-        Bool.not(Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))),
-        ex.guard(Calls.calls(body, name), path, sig, e),
-        _u => Table.walk(body, path, Table.scope(body, mods)), n,
-        v => Table.check.go(rest, mods, path, v), ex.table(rest, mods, path, 1n+n, e))
-
-def L1.table_exempt(path, _text, _toks, tree, _bound, _items, e):
-  +ds = Calls.defs(tree)
-  ex.table(ds, Table.modules(ds, Nil{}), path, 0n, e)
-
-# unit's def walk gathers nothing in a law file
-law ex.unit:
-  for ds: List<&2, Calls.Def>
-  for +path: String
-  for +n: Nat
-  for +e: {Paths.is_law_file(path) == True{} : Bool}
-  {UnitRule.check.go(ds, path, ex.rep(n)) == Nil{} : List<&2, F.Finding>}
-
-def ex.unit(ds, path, n, e):
-  match ds:
-    case Nil{}:
-      ex.flat(n, Nil{})
-    case Con{Calls.Def{+name, +sig, +body}, rest}:
-      ex.push(
-        Bool.not(Bool.and(Calls.calls(body, name), Bool.not(Calls.exempt(path, sig)))),
-        ex.guard(Calls.calls(body, name), path, sig, e),
-        _u => UnitRule.walk(body, None{}, name, path, True{}), n,
-        v => UnitRule.check.go(rest, path, v), ex.unit(rest, path, 1n+n, e))
-
-def L1.unit_exempt(path, _text, _toks, tree, _bound, _items, e):
-  ex.unit(Calls.defs(tree), path, 0n, e)
 
 # thunk's def walk gathers nothing in a law file
 law ex.thunk:

@@ -12,13 +12,9 @@ import ../src/rules/correctness/pick.bend as Pick
 import ../src/rules/pedantic/tail.bend as Tail
 import ../src/rules/suspicious/concat.bend as Concat
 import ../src/rules/suspicious/eager.bend as Eager
-import ../src/rules/suspicious/rewalk.bend as Rewalk
-import ../src/rules/suspicious/strict.bend as Strict
-import ../src/rules/suspicious/hoist.bend as Hoist
-import ../src/rules/suspicious/index.bend as Index
-import ../src/rules/suspicious/ring.bend as Ring
-import ../src/rules/suspicious/table.bend as Table
-import ../src/rules/suspicious/unit.bend as UnitRule
+import ../src/rules/pedantic/rewalk.bend as Rewalk
+import ../src/rules/pedantic/strict.bend as Strict
+import ../src/rules/pedantic/index.bend as Index
 import ../src/rules/laws/closed.bend as Closed
 import ../src/rules/suspicious/thunk.bend as Thunk
 import ../laws/ExemptPathsYieldNoFindings.bend as L1
@@ -82,66 +78,36 @@ def Laws.scope_law_file(path, text, toks, tree, bound, items, text2, toks2, tree
   scope.con(Pick.check(s), Pick.check(t),
     L1.pick_exempt(path, text, toks, tree, bound, items, e),
     L1.pick_exempt(path, text2, toks2, tree2, bound2, items2, e),
-    [Tail.check(s), Concat.check(s), Eager.check(s), Rewalk.check(s), Strict.check(s),
-      Hoist.check(s), Index.check(s), Ring.check(s), Table.check(s), UnitRule.check(s), Thunk.check(s)],
-    [Tail.check(t), Concat.check(t), Eager.check(t), Rewalk.check(t), Strict.check(t),
-      Hoist.check(t), Index.check(t), Ring.check(t), Table.check(t), UnitRule.check(t), Thunk.check(t)],
+    [Tail.check(s), Concat.check(s), Eager.check(s), Rewalk.check(s), Strict.check(s), Index.check(s), Thunk.check(s)],
+    [Tail.check(t), Concat.check(t), Eager.check(t), Rewalk.check(t), Strict.check(t), Index.check(t), Thunk.check(t)],
   scope.con(Tail.check(s), Tail.check(t),
     L1.tail_exempt(path, text, toks, tree, bound, items, e),
     L1.tail_exempt(path, text2, toks2, tree2, bound2, items2, e),
-    [Concat.check(s), Eager.check(s), Rewalk.check(s), Strict.check(s), Hoist.check(s),
-      Index.check(s), Ring.check(s), Table.check(s), UnitRule.check(s), Thunk.check(s)],
-    [Concat.check(t), Eager.check(t), Rewalk.check(t), Strict.check(t), Hoist.check(t),
-      Index.check(t), Ring.check(t), Table.check(t), UnitRule.check(t), Thunk.check(t)],
+    [Concat.check(s), Eager.check(s), Rewalk.check(s), Strict.check(s), Index.check(s), Thunk.check(s)],
+    [Concat.check(t), Eager.check(t), Rewalk.check(t), Strict.check(t), Index.check(t), Thunk.check(t)],
   scope.con(Concat.check(s), Concat.check(t),
     L1.concat_exempt(path, text, toks, tree, bound, items, e),
     L1.concat_exempt(path, text2, toks2, tree2, bound2, items2, e),
-    [Eager.check(s), Rewalk.check(s), Strict.check(s), Hoist.check(s), Index.check(s),
-      Ring.check(s), Table.check(s), UnitRule.check(s), Thunk.check(s)],
-    [Eager.check(t), Rewalk.check(t), Strict.check(t), Hoist.check(t), Index.check(t),
-      Ring.check(t), Table.check(t), UnitRule.check(t), Thunk.check(t)],
+    [Eager.check(s), Rewalk.check(s), Strict.check(s), Index.check(s), Thunk.check(s)],
+    [Eager.check(t), Rewalk.check(t), Strict.check(t), Index.check(t), Thunk.check(t)],
   scope.con(Eager.check(s), Eager.check(t),
     L1.eager_exempt(path, text, toks, tree, bound, items, e),
     L1.eager_exempt(path, text2, toks2, tree2, bound2, items2, e),
-    [Rewalk.check(s), Strict.check(s), Hoist.check(s), Index.check(s), Ring.check(s),
-      Table.check(s), UnitRule.check(s), Thunk.check(s)],
-    [Rewalk.check(t), Strict.check(t), Hoist.check(t), Index.check(t), Ring.check(t),
-      Table.check(t), UnitRule.check(t), Thunk.check(t)],
+    [Rewalk.check(s), Strict.check(s), Index.check(s), Thunk.check(s)],
+    [Rewalk.check(t), Strict.check(t), Index.check(t), Thunk.check(t)],
   scope.con(Rewalk.check(s), Rewalk.check(t),
     L1.rewalk_exempt(path, text, toks, tree, bound, items, e),
     L1.rewalk_exempt(path, text2, toks2, tree2, bound2, items2, e),
-    [Strict.check(s), Hoist.check(s), Index.check(s), Ring.check(s), Table.check(s),
-      UnitRule.check(s), Thunk.check(s)],
-    [Strict.check(t), Hoist.check(t), Index.check(t), Ring.check(t), Table.check(t),
-      UnitRule.check(t), Thunk.check(t)],
+    [Strict.check(s), Index.check(s), Thunk.check(s)],
+    [Strict.check(t), Index.check(t), Thunk.check(t)],
   scope.con(Strict.check(s), Strict.check(t),
     L1.strict_exempt(path, text, toks, tree, bound, items, e),
     L1.strict_exempt(path, text2, toks2, tree2, bound2, items2, e),
-    [Hoist.check(s), Index.check(s), Ring.check(s), Table.check(s), UnitRule.check(s), Thunk.check(s)],
-    [Hoist.check(t), Index.check(t), Ring.check(t), Table.check(t), UnitRule.check(t), Thunk.check(t)],
-  scope.con(Hoist.check(s), Hoist.check(t),
-    L1.hoist_exempt(path, text, toks, tree, bound, items, e),
-    L1.hoist_exempt(path, text2, toks2, tree2, bound2, items2, e),
-    [Index.check(s), Ring.check(s), Table.check(s), UnitRule.check(s), Thunk.check(s)],
-    [Index.check(t), Ring.check(t), Table.check(t), UnitRule.check(t), Thunk.check(t)],
+    [Index.check(s), Thunk.check(s)],
+    [Index.check(t), Thunk.check(t)],
   scope.con(Index.check(s), Index.check(t),
     L1.index_exempt(path, text, toks, tree, bound, items, e),
     L1.index_exempt(path, text2, toks2, tree2, bound2, items2, e),
-    [Ring.check(s), Table.check(s), UnitRule.check(s), Thunk.check(s)],
-    [Ring.check(t), Table.check(t), UnitRule.check(t), Thunk.check(t)],
-  scope.con(Ring.check(s), Ring.check(t),
-    L1.ring_exempt(path, text, toks, tree, bound, items, e),
-    L1.ring_exempt(path, text2, toks2, tree2, bound2, items2, e),
-    [Table.check(s), UnitRule.check(s), Thunk.check(s)],
-    [Table.check(t), UnitRule.check(t), Thunk.check(t)],
-  scope.con(Table.check(s), Table.check(t),
-    L1.table_exempt(path, text, toks, tree, bound, items, e),
-    L1.table_exempt(path, text2, toks2, tree2, bound2, items2, e),
-    [UnitRule.check(s), Thunk.check(s)],
-    [UnitRule.check(t), Thunk.check(t)],
-  scope.con(UnitRule.check(s), UnitRule.check(t),
-    L1.unit_exempt(path, text, toks, tree, bound, items, e),
-    L1.unit_exempt(path, text2, toks2, tree2, bound2, items2, e),
     [Thunk.check(s)],
     [Thunk.check(t)],
   scope.con(Thunk.check(s), Thunk.check(t),
@@ -149,7 +115,7 @@ def Laws.scope_law_file(path, text, toks, tree, bound, items, text2, toks2, tree
     L1.thunk_exempt(path, text2, toks2, tree2, bound2, items2, e),
     Nil{},
     Nil{},
-  {==}))))))))))))
+  {==}))))))))
 
 # closed reports nothing outside a LAWS.bend
 law scope.closed:

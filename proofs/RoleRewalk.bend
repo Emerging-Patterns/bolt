@@ -1,7 +1,7 @@
 # proofs of laws/RoleRewalk.bend
 import Base
 import ../src/src.bend as Src
-import ../src/rules/suspicious/rewalk.bend as Rewalk
+import ../src/rules/pedantic/rewalk.bend as Rewalk
 import ../laws/ExemptPathsYieldNoFindings.bend as L1
 import ../laws/RoleRewalk.bend as Laws
 import ./lemmas/LawFileExemptions.bend as M1

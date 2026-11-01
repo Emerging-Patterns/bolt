@@ -6,7 +6,7 @@ import ../src/role.bend as Role
 import ../src/src.bend as Src
 import ../src/syntax/tree.bend as Tree
 import ../src/syntax/outline.bend as Outline
-import ../src/rules/suspicious/strict.bend as Strict
+import ../src/rules/pedantic/strict.bend as Strict
 
 # LAW: strict, which checks nothing in a law or proof file, told a file's role
 # by its name finds what strict finds
