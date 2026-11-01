@@ -259,14 +259,22 @@ def nearest(rs: List<&2, Maybe<&2, String>>) -> Config:
 # levels
 # ------
 
-# the level a name is set to, when it is
-def set_level(sets: List<&2, LevelSet>, +name: String) -> Maybe<&2, Level>:
+# the level a name is set to, when it is; hit: the setting before sets
+# named it, so the search stops there
+def set_level.go(sets: List<&2, LevelSet>, +name: String, hit: Maybe<&2, Level>) -> Maybe<&2, Level>:
   match sets:
     case Nil{}:
-      None{}
+      hit
     case Con{LevelSet{+n, l}, rest}:
-      +more = set_level(rest, name)
-      Bool.pick(Maybe<&2, Level>, String.eq(n, name), Some{l}, more)
+      match hit:
+        case Some{x}:
+          Some{x}
+        case None{}:
+          set_level.go(rest, name, Bool.pick(Maybe<&2, Level>, String.eq(n, name), Some{l}, None{}))
+
+# the level a name is set to, when it is: the first setting that names it
+def set_level(sets: List<&2, LevelSet>, +name: String) -> Maybe<&2, Level>:
+  set_level.go(sets, name, None{})
 
 # a group's level when nothing sets it
 def default(+group: String) -> Level:

@@ -71,14 +71,22 @@ def aliases(items: List<&2, Outline.Item>, +from: String) -> List<&2, Alias>:
     case Con{other, rest}:
       aliases(rest, from)
 
-# the path an alias names, when it is one
-def alias_path(as: List<&2, Alias>, +name: String) -> Maybe<&2, String>:
+# the path an alias names, when it is one; hit: the alias before as was
+# the name, so the search stops there
+def alias_path.go(as: List<&2, Alias>, +name: String, hit: Maybe<&2, String>) -> Maybe<&2, String>:
   match as:
     case Nil{}:
-      None{}
+      hit
     case Con{Alias{+n, p}, rest}:
-      +more = alias_path(rest, name)
-      Bool.pick(Maybe<&2, String>, String.eq(n, name), Some{p}, more)
+      match hit:
+        case Some{x}:
+          Some{x}
+        case None{}:
+          alias_path.go(rest, name, Bool.pick(Maybe<&2, String>, String.eq(n, name), Some{p}, None{}))
+
+# the path an alias names, when it is one: the first alias of the name
+def alias_path(as: List<&2, Alias>, +name: String) -> Maybe<&2, String>:
+  alias_path.go(as, name, None{})
 
 # the lines a quantified law's statement spans: from its header's first token
 # to its body's last

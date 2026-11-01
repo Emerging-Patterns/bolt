@@ -6,6 +6,7 @@ import ../src/lazy/lazy.bend as Lazy
 import ../src/syntax/bind.bend as Bind
 import ../laws/BinderResolvesInnermostFirst.bend as Laws
 import ./lemmas/LexAndTreeFacts.bend as M1
+import ./lemmas/CarriedSearch.bend as CS
 
 # the binder's resolution (laws/BinderResolvesInnermostFirst.bend)
 # ------------------------------------
@@ -39,6 +40,10 @@ def rs.find(env, name):
     case Nil{}:
       {==}
     case Con{Bind.Bind{+n, +l, +c, +k, +note}, +t}:
+      %Equal.sym(Maybe<&2, Bind.Bind>, Bind.find(Bind.Bind{n, l, c, k, note} <> t, name),
+        Bool.pick(Maybe<&2, Bind.Bind>, String.eq(n, name), Some{Bind.Bind{n, l, c, k, note}}, Bind.find(t, name)),
+        CS.cs.find(n, l, c, k, note, t, name)) :
+        {_ == List.head(&2, Bind.Bind, Laws.res.all(Bind.Bind{n, l, c, k, note} <> t, name)) : Maybe<&2, Bind.Bind>}
       rs.find.arm(String.eq(n, name), Bind.Bind{n, l, c, k, note}, Bind.find(t, name), Laws.res.all(t, name),
         rs.find(t, name))
 

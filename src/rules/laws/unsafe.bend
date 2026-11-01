@@ -41,14 +41,22 @@ def reaches(
       +more = reaches(rest, es, read, fuel)
       Bool.pick(List<&2, Reach>, is_law_file, Reach{path, Imports.closure.go(es, read, fuel, norm)} <> more, more)
 
-# the first law file that reaches the path
-def reacher(rs: List<&2, Reach>, +pp: String) -> Maybe<&2, String>:
+# the first law file that reaches the path; hit: the one before rs did, so
+# the search stops there
+def reacher.go(rs: List<&2, Reach>, +pp: String, hit: Maybe<&2, String>) -> Maybe<&2, String>:
   match rs:
     case Nil{}:
-      None{}
+      hit
     case Con{Reach{origin, ps}, rest}:
-      +more = reacher(rest, pp)
-      Bool.pick(Maybe<&2, String>, Imports.has(ps, pp), Some{origin}, more)
+      match hit:
+        case Some{x}:
+          Some{x}
+        case None{}:
+          reacher.go(rest, pp, Bool.pick(Maybe<&2, String>, Imports.has(ps, pp), Some{origin}, None{}))
+
+# the first law file that reaches the path
+def reacher(rs: List<&2, Reach>, +pp: String) -> Maybe<&2, String>:
+  reacher.go(rs, pp, None{})
 
 # what a def reached from a law file along the import path via is, and what
 # to do about it

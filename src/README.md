@@ -227,9 +227,23 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   (`+more = go(rest)`) and pick between `x <> more` and `more`, or hand a
   helper that matches on the Bool. A self-call is the def's name followed by
   `(..)`, so a parameter named like the def is not one. A pick nested in a
-  branch of one already reported is not reported again. Law files, proof
-  files and defs that are proofs (they return a proof, or have no type) are
-  exempt.
+  branch of one already reported is not reported again. A search that binds
+  its recursion above the pick (`+more = go(rest)`, then
+  `Bool.pick(T, hit, x, more)`) is reported too, at the let: the walk runs
+  even when the head is the answer (ez's `text.at`: native 8.81 s, 4.15 s
+  once it stopped). That is a let `x = name(..)` or `+x = name(..)` of the
+  self-call alone, where the first statement after it in the same chain that
+  reads x is a `Bool.pick(..)` alone whose condition and then branch do not
+  read x and whose else branch does. A filter reads x in both branches and
+  is not reported; nor is a do-bind (`x <- ..`), a let and a pick in
+  different case arms, or a self-call that holds a `Bool.pick` on the pick's
+  own condition (it makes the call cheap on purpose). When the else branch
+  is x alone, carry the test as a Bool into the next call
+  (`go(rest, k, test(h))`) and `match hit` first, as `strict` says; else
+  match on the condition in a helper that takes it as a parameter. A `Lazy`
+  thunk (`Lazy.stop(T, hit, x, _u => go(rest))`) stops early but leaves the
+  loop on every step, and measured slower. Law files, proof files and defs
+  that are proofs (they return a proof, or have no type) are exempt.
 - `strict` — a self-call inside `Bool.and`/`Bool.or`, or either side of
   `&&`/`||`, matched by exactly those texts (a qualified `Base.Bool.or` is not
   seen). They are functions too: both sides always run, so there is no

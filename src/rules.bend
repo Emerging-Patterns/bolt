@@ -83,6 +83,7 @@ def on.rules.role(+rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
     Wrap.check(ss),
     Param.check.role(rr, ss),
     Role.skip(rr, _u => Pick.check(ss)),
+    Role.skip(rr, _u => Pick.search(ss)),
     Role.skip(rr, _u => Strict.check(ss)),
     Role.skip(rr, _u => Eager.check(ss)),
     Role.skip(rr, _u => Tail.check(ss)),

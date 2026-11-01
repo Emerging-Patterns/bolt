@@ -83,6 +83,7 @@ import ./laws/InertTranscong.bend as InertTranscong
 import ./laws/LawNamesEveryItem.bend as LawNamesEveryItem
 import ./laws/ParamReportsShortNames.bend as ParamReportsShortNames
 import ./laws/PickReportsSelfCalls.bend as PickReportsSelfCalls
+import ./laws/PickReportsBoundSearches.bend as PickReportsBoundSearches
 import ./laws/PutReportsMapPutCalls.bend as PutReportsMapPutCalls
 import ./laws/RewalkReportsRepeatedWalks.bend as RewalkReportsRepeatedWalks
 import ./laws/RingReportsDropAppendRotation.bend as RingReportsDropAppendRotation

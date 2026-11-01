@@ -80,7 +80,7 @@ def deps.spec(es: List<&2, Edge>, +pp: String) -> List<&2, String>:
     case Nil{}:
       Nil{}
     case Con{Edge{+ep, ds}, rest}:
-      +more = deps.spec(rest, pp)
+      +more = deps.spec(rest, pp)  # noqa: C003 the spec deps.first is proven against; only walk.spec runs it
       Bool.pick(List<&2, String>, String.eq(ep, pp), ds, more)
 
 # the files of ds that were read and are not yet seen, each once: the spec
