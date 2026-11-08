@@ -2,11 +2,11 @@
   description = "bolt: a linter, checker and language server for Bend 2";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-  # bendlang/bend's flake at the commit that packages 2.0.38 (the v2.0.38 tag
-  # may still package 2.0.37): bolt and ez build on it, bolt lints itself with
+  # bendlang/bend's flake at the commit that packages 2.0.40 (the v2.0.40 tag
+  # may still package 2.0.39): bolt and ez build on it, bolt lints itself with
   # the bolt it builds, and checks.proofs runs every PROOF.bend on it
   inputs.bend = {
-    url = "github:bendlang/bend/042e797ebd1cfc060603e2682879909fe86fa8c2";
+    url = "github:bendlang/bend/222de9901d4e3551c2b347da02e02a10098a28b2";
     inputs.nixpkgs.follows = "nixpkgs";
   };
   inputs.ez = {
