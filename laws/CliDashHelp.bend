@@ -1,6 +1,6 @@
 import Base
 import ../src/args.bend as Args
-import 0xa383b26a5a0ef35663b3615d7aedf9e3/main.bend as Shake
+import shake@0.6.0.0/main.bend as Shake
 
 # LAW: a line that asks for `--help` prints the usage of the command path it
 # asks about to stdout and exits 0, the page `bolt help` prints for that

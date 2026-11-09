@@ -8,8 +8,8 @@
 # <path>` reads them (src/lint/plan.bend's graph) on open and save and kept
 # for the changes between.
 import Base
-import 0xa81e161008ecc2f297c0a3065cb9b188/main.bend as Ezjson
-import 0xa81e161008ecc2f297c0a3065cb9b188/src/value.bend as J
+import ezjson@1.2.0.0/main.bend as Ezjson
+import ezjson@1.2.0.0/src/value.bend as J
 import ./proto.bend as Proto
 import ./docs.bend as Docs
 import ./nav.bend as Nav

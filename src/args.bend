@@ -17,7 +17,7 @@
 # trusts one: the words a compiled bolt's argv holds are the runtime's (its
 # options, between `+RTS` and `-RTS`, never reach it), which no law reaches.
 import Base
-import 0xa383b26a5a0ef35663b3615d7aedf9e3/main.bend as Shake
+import shake@0.6.0.0/main.bend as Shake
 import ./version.bend as Ver
 import ./build_rev.bend as Rev
 import ./lazy/lazy.bend as Lazy
