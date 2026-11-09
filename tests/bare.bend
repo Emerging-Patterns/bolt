@@ -1,10 +1,11 @@
 # bolt from nothing: the binary people run, built by `bend` and nothing else.
 #
-# `bend main.bend -o bin/bolt.bin` is the entire build. shake,
-# ezjson and snap are git-backed ledger deps, so this test clones those
-# pinned revs and lays them out as BEND_LIB itself -- no ez, no nix. `ez` is a
-# convenience over that one line and never a prerequisite, in either
-# direction: a project that depends on bolt needs no ez either.
+# `bend main.bend -o bin/bolt.bin` is the entire build. shake, ezjson and
+# snap are imported by hub name (`shake@0.6.0.0/...`), so bend fetches them
+# from the hub itself: this test runs it with an empty HOME and no BEND_LIB --
+# no ez, no nix, no clones. `ez` is a convenience over that one line and never
+# a prerequisite, in either direction: a project that depends on bolt needs no
+# ez either.
 #
 # The binary it leaves behind is the one the three checks after it need, and
 # none can be answered without it: the server has to be spawned by node, over
@@ -18,48 +19,22 @@
 # it, and it is the slow one, because the compile it drives is a whole build of
 # bolt.
 import Base
-import 0x8e26a6f8c31689519e618374376ee3dd/main.bend as Snap
+import snap@1.4.0.0/main.bend as Snap
 
 # `ok name` when the two strings are equal, `FAIL name` when they are not
 def eq_str(name: String, got: String, want: String) -> IO(Unit):
   IO.print(Bool.pick(String, String.eq(got, want), "ok ", "FAIL ") ++ name)
 
-# the 0x name ez computed for shake v0.6.0
-def shake.hash() -> String:
-  "0xa383b26a5a0ef35663b3615d7aedf9e3"
-
-# the 0x name ez computed for ezjson v1.2.0
-def ezjson.hash() -> String:
-  "0xa81e161008ecc2f297c0a3065cb9b188"
-
-# the 0x name ez computed for snap v1.4.0
-def snap.hash() -> String:
-  "0x8e26a6f8c31689519e618374376ee3dd"
-
-# the build, with ez taken out of the environment. BEND_LIB is the
-# checkouts this test laid out, not ez's.
+# the build, with ez taken out of the environment: no BEND_LIB, and a HOME
+# with nothing in it, so every named import comes from the hub
 def bare() -> List<&2, String>:
-  ["env", "-u", "EZ_ROOT", "BEND_LIB=.scratch/lib", "bend", "main.bend",
-    "-o", "bin/bolt.bin"]
+  ["env", "-u", "EZ_ROOT", "-u", "BEND_LIB", "HOME=.scratch/home", "bend",
+    "main.bend", "-o", "bin/bolt.bin"]
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    _wd : String <- Snap.exec(["rm", "-rf", ".scratch/shake", ".scratch/ezjson",
-      ".scratch/snap", ".scratch/lib"])
-    _cl : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v0.6.0",
-      "https://github.com/Emerging-Patterns/shake.git", ".scratch/shake"])
-    _cj : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v1.2.0",
-      "https://github.com/Emerging-Patterns/ezjson.git", ".scratch/ezjson"])
-    _cs : String <- Snap.exec(["git", "clone", "--depth", "1", "--branch", "v1.3.0",
-      "https://github.com/Emerging-Patterns/snap.git", ".scratch/snap"])
-    _mk : String <- Snap.exec(["mkdir", "-p", ".scratch/lib/" ++ shake.hash(),
-      ".scratch/lib/" ++ ezjson.hash(), ".scratch/lib/" ++ snap.hash()])
-    _cp : String <- Snap.exec(["cp", "-r", ".scratch/shake/main.bend",
-      ".scratch/shake/src", ".scratch/lib/" ++ shake.hash() ++ "/"])
-    _cj2 : String <- Snap.exec(["cp", "-r", ".scratch/ezjson/main.bend",
-      ".scratch/ezjson/src", ".scratch/lib/" ++ ezjson.hash() ++ "/"])
-    _cs2 : String <- Snap.exec(["cp", "-r", ".scratch/snap/main.bend",
-      ".scratch/snap/src", ".scratch/lib/" ++ snap.hash() ++ "/"])
+    _wd : String <- Snap.exec(["rm", "-rf", ".scratch/home"])
+    _hm : String <- Snap.exec(["mkdir", "-p", ".scratch/home"])
     _bin : String <- Snap.exec(["mkdir", "-p", "bin"])
     built : String <- Snap.exec(bare())
     eq_str("bolt builds with bare bend and no ez",
