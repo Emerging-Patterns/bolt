@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.0](https://github.com/Emerging-Patterns/bolt/compare/v1.27.0...v1.28.0) (2026-11-09)
+
+
+### Bug Fixes
+
+* **deps:** import ezjson, shake and snap by hub name ([#273](https://github.com/Emerging-Patterns/bolt/issues/273)) ([c42e41d](https://github.com/Emerging-Patterns/bolt/commit/c42e41dcd13f8a5f9fcc2bc4578690eb7b554a62))
+
 ## [1.27.0](https://github.com/Emerging-Patterns/bolt/compare/v1.26.0...v1.27.0) (2026-11-01)
 
 
