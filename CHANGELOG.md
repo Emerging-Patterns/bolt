@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.29.0](https://github.com/Emerging-Patterns/bolt/compare/v1.28.0...v1.29.0) (2026-11-11)
+
+
+### Features
+
+* **rules:** arms reports an arm an earlier arm of its match covers ([#275](https://github.com/Emerging-Patterns/bolt/issues/275)) ([d3d2f02](https://github.com/Emerging-Patterns/bolt/commit/d3d2f02bf094864cc113ee565863e48692a46392))
+
 ## [1.28.0](https://github.com/Emerging-Patterns/bolt/compare/v1.27.0...v1.28.0) (2026-11-09)
 
 
