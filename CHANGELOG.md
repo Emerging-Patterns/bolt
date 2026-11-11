@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.33.0](https://github.com/Emerging-Patterns/bolt/compare/v1.32.0...v1.33.0) (2026-11-11)
+
+
+### Performance Improvements
+
+* **rules:** unused's index of the uses is exact, so no binder scans them ([#288](https://github.com/Emerging-Patterns/bolt/issues/288)) ([caf696f](https://github.com/Emerging-Patterns/bolt/commit/caf696f97c2aca97c812e131ebc5309f7929ce26))
+
 ## [1.32.0](https://github.com/Emerging-Patterns/bolt/compare/v1.31.0...v1.32.0) (2026-11-11)
 
 
