@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.32.0](https://github.com/Emerging-Patterns/bolt/compare/v1.31.0...v1.32.0) (2026-11-11)
+
+
+### Performance Improvements
+
+* **bind:** an index of the file's items, proved to answer as the scan does ([#284](https://github.com/Emerging-Patterns/bolt/issues/284)) ([82a4fa8](https://github.com/Emerging-Patterns/bolt/commit/82a4fa8c107eb8a183c59ae4706f7cdfd6661061))
+
 ## [1.31.0](https://github.com/Emerging-Patterns/bolt/compare/v1.30.0...v1.31.0) (2026-11-11)
 
 
