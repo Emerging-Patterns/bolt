@@ -97,6 +97,7 @@ def on.rules.role(+rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
     Chars.check(ss),
     Twice.check(ss),
     Arms.check(ss),
+    Arms.cover(ss),
     Foreign.check(ss),
     Fuel.check(ss),
     Closed.check.role(rr, ss),

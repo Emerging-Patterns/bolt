@@ -1,5 +1,7 @@
-# `arms` reports exactly, in a single-scrutinee match, a Nat arm already
-# covered by an earlier `kn+p`, `Succ{p}` or `Succ{_}` arm.
+# `arms`' Nat check reports exactly, in a single-scrutinee match, a Nat arm
+# already covered by an earlier `kn+p`, `Succ{p}` or `Succ{_}` arm. Its cover
+# check, which reports every other covered arm, is
+# laws/ArmsReportCoveredArms.bend.
 import Base
 import ../src/syntax/lex.bend as Lex
 import ../src/finding.bend as F

@@ -60,6 +60,7 @@ import ./laws/UnknownExact.bend as UnknownExact
 import ./laws/WalkBfs.bend as WalkBfs
 import ./laws/WantsTie.bend as WantsTie
 import ./laws/ArmsReportCoveredNatArms.bend as ArmsReportCoveredNatArms
+import ./laws/ArmsReportCoveredArms.bend as ArmsReportCoveredArms
 import ./laws/CharsReportManyCharArms.bend as CharsReportManyCharArms
 import ./laws/ClosedReportsBinderlessLaws.bend as ClosedReportsBinderlessLaws
 import ./laws/CodeRulesIgnoreCommentsAndStrings.bend as CodeRulesIgnoreCommentsAndStrings
@@ -154,4 +155,5 @@ import ./laws/EmptySkipsUnkeptTest.bend as EmptySkipsUnkeptTest
 import ./laws/RoleEmpty.bend as RoleEmpty
 import ./laws/RoleEmptyExempt.bend as RoleEmptyExempt
 import ./laws/InertEmpty.bend as InertEmpty
+import ./laws/InertArmsCover.bend as InertArmsCover
 import ./laws/EmptySkipsProofs.bend as EmptySkipsProofs
