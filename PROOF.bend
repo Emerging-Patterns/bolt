@@ -142,3 +142,9 @@ import ./proofs/RoleEmptyExempt.bend as PRoleEmptyExempt
 import ./proofs/InertEmpty.bend as PInertEmpty
 import ./proofs/InertArmsCover.bend as PInertArmsCover
 import ./proofs/EmptySkipsProofs.bend as PEmptySkipsProofs
+import ./proofs/BlankReportsEmptyLiteralTest.bend as PBlankReportsEmptyLiteralTest
+import ./proofs/BlankSkipsProofs.bend as PBlankSkipsProofs
+import ./proofs/BlankExempt.bend as PBlankExempt
+import ./proofs/RoleBlank.bend as PRoleBlank
+import ./proofs/RoleBlankExempt.bend as PRoleBlankExempt
+import ./proofs/InertBlank.bend as PInertBlank

@@ -53,7 +53,7 @@ unset group has its default. The groups:
 | `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `setting`                  | error   |
 | `suspicious`  | `unused` `eager` `concat` `fromrev` `prefix` `empty` (`thunk`: opt-in) | warn    |
 | `perf`        | `strings` `chars`                                                      | warn    |
-| `style`       | `doc` `space` `wrap` `param` `noqa` (`transcong`: opt-in)              | warn    |
+| `style`       | `doc` `space` `wrap` `param` `noqa` `blank` (`transcong`: opt-in)      | warn    |
 | `laws`        | (`coverage`, `closed`: opt-in)                                         | warn    |
 | `pedantic`    | `foreign` `strict` `fuel` `index` `rewalk` `tail`                      | off     |
 
@@ -73,7 +73,7 @@ The stable codes, assigned once (do not renumber):
 | C010 | `foreign` | U010 | retired | L004 | retired |
 | C011 | `setting` | U011 | `rewalk` | L005 | retired |
 | | | U012 | retired | P001 | `tail` |
-| | | U013 | retired | | |
+| | | U013 | retired | S007 | `blank` |
 | | | U014 | retired | | |
 | | | U015 | `thunk` | | |
 | | | U016 | `fromrev` | | |
@@ -405,6 +405,21 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   so is a `law` and a def that is a proof (`def f(x):`, or one that returns
   `-> {..}`) in any file: from its keyword to the next `def`, `type` or
   `import`.
+- `blank` — `String.eq(x, "")` or `String.eq("", x)`, x a plain name:
+  among the significant tokens, a dotted `String.eq`, `(`, x, `,`, the
+  string literal `""` and `)` (or the two arguments the other way round),
+  right after one another. One finding on `String.eq`. The test asks
+  whether x is empty; `String.is_empty(x)` (Base) says so and gives the
+  same Bool for every x. Its case is the plainer word, not speed (bend
+  2.0.40, 2M tests: the same on the native lane, and 0.136 s against
+  0.094 s on JS when the test is x's only use; no case slower). Only a
+  plain name is read: where the other argument is a call
+  (`String.eq(lines(""), "")`), the `""` is as often the value a test
+  expects, beside rows that expect `"a"`, as a question of emptiness. A
+  literal of anything else (`String.eq(x, " ")`) and a qualified or
+  aliased `eq` are left alone too. A law file or a proof file is exempt,
+  and so is a `law` and a def that is a proof (`def f(x):`, or one that
+  returns `-> {..}`) in any file: a law states the test as it means it.
 - `put` — `Map.put`. It is Base's internal helper: at a leaf it keeps the old
   key and replaces the value without comparing, so a new key silently
   overwrites another entry. `Map.set` compares. A file that defines
