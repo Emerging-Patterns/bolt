@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.30.0](https://github.com/Emerging-Patterns/bolt/compare/v1.29.0...v1.30.0) (2026-11-11)
+
+
+### Features
+
+* **rules:** blank (S007), a named String compared to "" is is_empty ([#278](https://github.com/Emerging-Patterns/bolt/issues/278)) ([e73cf47](https://github.com/Emerging-Patterns/bolt/commit/e73cf47a941d6640cf0221c35a545c263b3c7233))
+
 ## [1.29.0](https://github.com/Emerging-Patterns/bolt/compare/v1.28.0...v1.29.0) (2026-11-11)
 
 
