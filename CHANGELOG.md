@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.0](https://github.com/Emerging-Patterns/bolt/compare/v1.33.0...v1.34.0) (2026-11-11)
+
+
+### Performance Improvements
+
+* **rules:** param reads a binder's note only for a short parameter ([#290](https://github.com/Emerging-Patterns/bolt/issues/290)) ([cd46684](https://github.com/Emerging-Patterns/bolt/commit/cd4668428c09a51a5df1c58790c19e7cf4464728))
+
 ## [1.33.0](https://github.com/Emerging-Patterns/bolt/compare/v1.32.0...v1.33.0) (2026-11-11)
 
 
