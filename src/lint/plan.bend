@@ -533,6 +533,33 @@ def grade(+cs: List<&2, Conf>, +world: W.World, fs: List<&2, F.Finding>) -> List
       cfg = config.at(cs, world, path)
       List.append(&2, F.Graded, Rules.graded(cfg, [F.Finding{path, line, col, len, rule, msg}]), grade(cs, world, rest))
 
+# every source's findings from the per-file rules its directory's config
+# does not set off, each told its role among the marks
+def per_file.live(
+  +cs: List<&2, Conf>,
+  +world: W.World,
+  +ms: List<&2, Role.Mark>,
+  ss: List<&2, Src.Src>
+) -> List<&2, F.Finding>:
+  match ss:
+    case Nil{}:
+      Nil{}
+    case Con{s, rest}:
+      Src.Src{+path, text, toks, tree, bound, items} = s
+      List.concat(&2, F.Finding, [Rules.on.role.live(config.at(cs, world, path), Role.of(ms, path),
+        Src.Src{path, text, toks, tree, bound, items}), per_file.live(cs, world, ms, rest)])
+
+# every finding of every rule that can be graded on, ungraded: found.at, a
+# per-file rule its file's config sets off not run
+def found.live(
+  +cs: List<&2, Conf>,
+  +world: W.World,
+  +gs: List<&2, Got>,
+  +ss: List<&2, Src.Src>
+) -> List<&2, F.Finding>:
+  List.concat(&2, F.Finding, [unread(gs), per_file.live(cs, world, marks.run(W.paths.of(world), world, ss), ss),
+    settings(world), Rules.project(ss, packages(roots(world)))])
+
 # ---------------------------------------------------------------------------
 # silencing, then the `noqa` rule
 
@@ -564,6 +591,15 @@ def final(+world: W.World) -> List<&2, F.Graded>:
   +cs = confs(world)
   after(Noqa.of_srcs(ss), List.is_empty(&2, String, W.paths.of(world)), grade(cs, world, found.at(world, gs, ss)),
     fs => grade(cs, world, fs))
+
+# final, a per-file rule its file's config sets off not run: the same graded
+# findings (laws/OffRulesAreNotRun.bend)
+def final.live(+world: W.World) -> List<&2, F.Graded>:
+  +gs = gots(inputs(world), world)
+  +ss = srcs_of(gs)
+  +cs = confs(world)
+  after(Noqa.of_srcs(ss), List.is_empty(&2, String, W.paths.of(world)),
+    grade(cs, world, found.live(cs, world, gs, ss)), fs => grade(cs, world, fs))
 
 # ---------------------------------------------------------------------------
 # the plan
@@ -633,5 +669,5 @@ def show_all(gs: List<&2, F.Graded>) -> List<&2, String>:
 # `bolt` over a World: every graded finding no mark silences as a line, then
 # `noqa`'s, then the summary of those, and exit 1 exactly when one is an error
 def plan(+world: W.World) -> Plan:
-  +gs = final(world)
+  +gs = final.live(world)
   Plan{List.append(&2, String, show_all(gs), [summary(gs)]), Bool.pick(U32, has_error(gs), 1, 0)}

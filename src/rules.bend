@@ -66,42 +66,166 @@ def on.at(+path: String, fs: List<&2, F.Finding>) -> List<&2, F.Finding>:
     case Con{F.Finding{_path, line, col, len, rule, msg}, rest}:
       F.Finding{path, line, col, len, rule, msg} <> on.at(path, rest)
 
-# every per-file rule on a file, told its role (src/role.bend): the rules a
+# which check a per-file rule's entry runs: one a check, a rule with two
+# checks (pick, concat, arms) having two
+type Which is Data:
+  WDoc{}
+  WUnused{}
+  WHole{}
+  WSpace{}
+  WWrap{}
+  WParam{}
+  WPick{}
+  WSearch{}
+  WStrict{}
+  WEager{}
+  WTail{}
+  WConcat{}
+  WCont{}
+  WIndex{}
+  WRewalk{}
+  WThunk{}
+  WFromrev{}
+  WPrefix{}
+  WEmpty{}
+  WBlank{}
+  WPut{}
+  WEscape{}
+  WStrings{}
+  WChars{}
+  WArms{}
+  WCover{}
+  WForeign{}
+  WFuel{}
+  WClosed{}
+  WTranscong{}
+
+# one per-file rule of the list: its slug, and the check to run
+type Run is Data:
+  Run{slug: String, which: Which}
+
+# a check's findings on a file, told its role (src/role.bend): the rules a
 # law or proof file changes (doc, hole, param, fromrev, prefix, empty, blank,
 # closed) read the role, never the path, and the cost rules check nothing in
 # a law or proof file
+def on.run(ww: Which, +rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
+  match ww:
+    case WDoc{}:
+      Doc.check.role(rr, ss)
+    case WUnused{}:
+      Unused.check(ss)
+    case WHole{}:
+      Hole.check.role(rr, ss)
+    case WSpace{}:
+      Space.check(ss)
+    case WWrap{}:
+      Wrap.check(ss)
+    case WParam{}:
+      Param.check.role(rr, ss)
+    case WPick{}:
+      Role.skip(rr, _u => Pick.check(ss))
+    case WSearch{}:
+      Role.skip(rr, _u => Pick.search(ss))
+    case WStrict{}:
+      Role.skip(rr, _u => Strict.check(ss))
+    case WEager{}:
+      Role.skip(rr, _u => Eager.check(ss))
+    case WTail{}:
+      Role.skip(rr, _u => Tail.check(ss))
+    case WConcat{}:
+      Role.skip(rr, _u => Concat.check(ss))
+    case WCont{}:
+      Role.skip(rr, _u => Concat.cont(ss))
+    case WIndex{}:
+      Role.skip(rr, _u => Index.check(ss))
+    case WRewalk{}:
+      Role.skip(rr, _u => Rewalk.check(ss))
+    case WThunk{}:
+      Role.skip(rr, _u => Thunk.check(ss))
+    case WFromrev{}:
+      Fromrev.check.role(rr, ss)
+    case WPrefix{}:
+      Prefix.check.role(rr, ss)
+    case WEmpty{}:
+      Empty.check.role(rr, ss)
+    case WBlank{}:
+      Blank.check.role(rr, ss)
+    case WPut{}:
+      Put.check(ss)
+    case WEscape{}:
+      Escape.check(ss)
+    case WStrings{}:
+      Strings.check(ss)
+    case WChars{}:
+      Chars.check(ss)
+    case WArms{}:
+      Arms.check(ss)
+    case WCover{}:
+      Arms.cover(ss)
+    case WForeign{}:
+      Foreign.check(ss)
+    case WFuel{}:
+      Fuel.check(ss)
+    case WClosed{}:
+      Closed.check.role(rr, ss)
+    case WTranscong{}:
+      Transcong.check(ss)
+
+# every per-file rule's entry, in the order their findings come
+def on.table() -> List<&2, Run>:
+  [
+    Run{"doc", WDoc{}},
+    Run{"unused", WUnused{}},
+    Run{"hole", WHole{}},
+    Run{"space", WSpace{}},
+    Run{"wrap", WWrap{}},
+    Run{"param", WParam{}},
+    Run{"pick", WPick{}},
+    Run{"pick", WSearch{}},
+    Run{"strict", WStrict{}},
+    Run{"eager", WEager{}},
+    Run{"tail", WTail{}},
+    Run{"concat", WConcat{}},
+    Run{"concat", WCont{}},
+    Run{"index", WIndex{}},
+    Run{"rewalk", WRewalk{}},
+    Run{"thunk", WThunk{}},
+    Run{"fromrev", WFromrev{}},
+    Run{"prefix", WPrefix{}},
+    Run{"empty", WEmpty{}},
+    Run{"blank", WBlank{}},
+    Run{"put", WPut{}},
+    Run{"escape", WEscape{}},
+    Run{"strings", WStrings{}},
+    Run{"chars", WChars{}},
+    Run{"arms", WArms{}},
+    Run{"arms", WCover{}},
+    Run{"foreign", WForeign{}},
+    Run{"fuel", WFuel{}},
+    Run{"closed", WClosed{}},
+    Run{"transcong", WTranscong{}}]
+
+# findings named for a rule: each one's `rule` is the slug, so a rule's
+# findings are its own by construction, as on.at makes them its file's
+def on.slug(+slug: String, fs: List<&2, F.Finding>) -> List<&2, F.Finding>:
+  match fs:
+    case Nil{}:
+      Nil{}
+    case Con{F.Finding{path, line, col, len, _rule, msg}, rest}:
+      F.Finding{path, line, col, len, slug, msg} <> on.slug(slug, rest)
+
+# every entry of a table run on a file, its findings named for its rule, in
+# order
+def on.all(rs: List<&2, Run>, +rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
+  match rs:
+    case Nil{}:
+      Nil{}
+    case Con{Run{+slug, ww}, rest}:
+      List.append(&2, F.Finding, on.slug(slug, on.run(ww, rr, ss)), on.all(rest, rr, ss))
+
+# every per-file rule's findings on a file, told its role
 def on.rules.role(+rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
-  List.concat(&2, F.Finding, [
-    Doc.check.role(rr, ss),
-    Unused.check(ss),
-    Hole.check.role(rr, ss),
-    Space.check(ss),
-    Wrap.check(ss),
-    Param.check.role(rr, ss),
-    Role.skip(rr, _u => Pick.check(ss)),
-    Role.skip(rr, _u => Pick.search(ss)),
-    Role.skip(rr, _u => Strict.check(ss)),
-    Role.skip(rr, _u => Eager.check(ss)),
-    Role.skip(rr, _u => Tail.check(ss)),
-    Role.skip(rr, _u => Concat.check(ss)),
-    Role.skip(rr, _u => Concat.cont(ss)),
-    Role.skip(rr, _u => Index.check(ss)),
-    Role.skip(rr, _u => Rewalk.check(ss)),
-    Role.skip(rr, _u => Thunk.check(ss)),
-    Fromrev.check.role(rr, ss),
-    Prefix.check.role(rr, ss),
-    Empty.check.role(rr, ss),
-    Blank.check.role(rr, ss),
-    Put.check(ss),
-    Escape.check(ss),
-    Strings.check(ss),
-    Chars.check(ss),
-    Arms.check(ss),
-    Arms.cover(ss),
-    Foreign.check(ss),
-    Fuel.check(ss),
-    Closed.check.role(rr, ss),
-    Transcong.check(ss)])
+  on.all(on.table(), rr, ss)
 
 # every rule's findings on a file read once, told its role, each at that file
 def on.role(+rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
@@ -187,3 +311,32 @@ def graded(+cfg: Config.Config, fs: List<&2, F.Finding>) -> List<&2, F.Graded>:
       +l = Config.level(cfg, group(rule), rule)
       Bool.pick(List<&2, F.Graded>, Config.is_off(l), more,
         F.Graded{l, F.Finding{path, line, col, len, rule, msg}} <> more)
+
+# is a rule off under a config?
+def on.off(cfg: Config.Config, +slug: String) -> Bool:
+  Config.is_off(Config.level(cfg, group(slug), slug))
+
+# an entry's findings, named for its rule, unless the rule is off: then the
+# check is not run
+def on.gate(off: Bool, slug: String, ww: Which, rr: Role.Role, ss: Src.Src) -> List<&2, F.Finding>:
+  match off:
+    case True{}:
+      Nil{}
+    case False{}:
+      on.slug(slug, on.run(ww, rr, ss))
+
+# every entry of a table a config does not set off, run on a file, in order.
+# Grading drops an off rule's findings, so not running it changes nothing
+# graded (laws/OffRulesAreNotRun.bend), and the rules off by default
+# (pedantic, the opt-in ones) were a tenth to a sixth of a run
+def on.live(rs: List<&2, Run>, +cfg: Config.Config, +rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
+  match rs:
+    case Nil{}:
+      Nil{}
+    case Con{Run{+slug, ww}, rest}:
+      List.append(&2, F.Finding, on.gate(on.off(cfg, slug), slug, ww, rr, ss), on.live(rest, cfg, rr, ss))
+
+# the findings on a file of every rule its config does not set off, each at
+# that file
+def on.role.live(+cfg: Config.Config, +rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
+  on.at(on.path(ss), on.live(on.table(), cfg, rr, ss))
