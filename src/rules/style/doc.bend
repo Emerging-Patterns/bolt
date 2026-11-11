@@ -74,6 +74,117 @@ def check.go(items: List<&2, Outline.Item>, +path: String, +lines: List<&2, Stri
         Lazy.and_then(Bool.and(needs(k), Bool.not(exempt(name))), _u => Bool.not(check.above(lines, line))),
         F.Finding{path, line, 0, 0, "doc", what(k) ++ " " ++ name ++ " has no comment above it."} <> more, more)
 
+# The flags of a file's lines. check.above reads the lines from the top for
+# each item, which is the items times the lines (412 s on a generated file
+# of 42,691 items). The flags hold, for every line, whether a comment block
+# ends right above it, read off in one pass down the file; an item's line is
+# then looked up. A binary trie on the low bits of the line number, a leaf
+# holding the lines that reach it with their flags. It answers as
+# check.above does, for any lines and any line asked
+# (laws/DocFlagsAnswerAsLines.bend).
+
+# a line and whether a comment block ends right above it
+type Cell is Data:
+  Cell{line: U32, ok: Bool}
+
+# the flags, by the low bits of the line
+type Flags is Data:
+  FNone{}
+  FLeaf{cells: List<&2, Cell>}
+  FNode{lo: Flags, hi: Flags}
+
+# how many bits of a line the flags branch on
+def flags.depth() -> Nat:
+  20n
+
+# the cells at a leaf, none elsewhere
+def flags.cells(fl: Flags) -> List<&2, Cell>:
+  match fl:
+    case FNone{}:
+      Nil{}
+    case FLeaf{cells}:
+      cells
+    case FNode{_lo, _hi}:
+      Nil{}
+
+# the low half for a set bit, the high half else
+def flags.pick(bb: Bool, lo: Flags, hi: Flags) -> Flags:
+  match bb:
+    case True{}:
+      lo
+    case False{}:
+      hi
+
+# the half of a node a bit goes down, empty elsewhere
+def flags.near(bb: Bool, fl: Flags) -> Flags:
+  match fl:
+    case FNode{lo, hi}:
+      flags.pick(bb, lo, hi)
+    case other:
+      FNone{}
+
+# a node whose half down a bit is sub, and the other half far
+def flags.join(bb: Bool, sub: Flags, far: Flags) -> Flags:
+  match bb:
+    case True{}:
+      FNode{sub, far}
+    case False{}:
+      FNode{far, sub}
+
+# the flags with one more cell, down the low bits of its line, in front of
+# what its leaf held
+def flags.put(dd: Nat, +kk: U32, +fl: Flags, cell: Cell) -> Flags:
+  match dd:
+    case 0n:
+      FLeaf{cell <> flags.cells(fl)}
+    case 1n+p:
+      flags.join(U32.is_even(kk), flags.put(p, U32.shr(kk), flags.near(U32.is_even(kk), fl), cell),
+        flags.near(Bool.not(U32.is_even(kk)), fl))
+
+# the flag of the first cell at a line among these; none there is no flag
+def flags.find(cs: List<&2, Cell>, +nn: U32) -> Bool:
+  match cs:
+    case Nil{}:
+      False{}
+    case Con{Cell{ll, ok}, rest}:
+      Lazy.stop(Bool, U32.is_eq(ll, nn), ok, _u => flags.find(rest, nn))
+
+# the flag at a line, down the low bits of a line
+def flags.at(dd: Nat, +kk: U32, fl: Flags, +nn: U32) -> Bool:
+  match dd:
+    case 0n:
+      flags.find(flags.cells(fl), nn)
+    case 1n+p:
+      flags.at(p, U32.shr(kk), flags.near(U32.is_even(kk), fl), nn)
+
+# the flags of these lines, the first of them line ii, read down from ok.
+# Each line is put in after the lines below it, so a line number met again
+# (past the U32's end) never hides the first
+def flags.build(lines: List<&2, String>, +ii: U32, +ok: Bool) -> Flags:
+  match lines:
+    case Nil{}:
+      flags.put(flags.depth(), ii, FNone{}, Cell{ii, ok})
+    case Con{hh, tt}:
+      flags.put(flags.depth(), ii, flags.build(tt, U32.inc(ii), check.after(hh, ok)), Cell{ii, ok})
+
+# the flags of a file's lines
+def flags(lines: List<&2, String>) -> Flags:
+  flags.build(lines, 0, False{})
+
+# does a comment block end right above line nn? The flags' answer
+def above.at(fl: Flags, +nn: U32) -> Bool:
+  flags.at(flags.depth(), nn, fl, nn)
+
+def check.fast(items: List<&2, Outline.Item>, +path: String, +fl: Flags) -> List<&2, F.Finding>:
+  match items:
+    case Nil{}:
+      Nil{}
+    case Con{Outline.Item{+k, +name, +line, _sig, _doc, _p}, rest}:
+      +more = check.fast(rest, path, fl)
+      Bool.pick(List<&2, F.Finding>,
+        Lazy.and_then(Bool.and(needs(k), Bool.not(exempt(name))), _u => Bool.not(above.at(fl, line))),
+        F.Finding{path, line, 0, 0, "doc", what(k) ++ " " ++ name ++ " has no comment above it."} <> more, more)
+
 def lines.go(ls: List<&2, String>, +ins: List<&2, Bool>) -> List<&2, String>:
   match ls:
     case Nil{}:
@@ -90,10 +201,10 @@ def lines(text: String, toks: List<&2, Lex.Tok>) -> List<&2, String>:
 def check(ss: Src.Src) -> List<&2, F.Finding>:
   Src.Src{+path, text, toks, tree, bound, items} = ss
   Lazy.stop(List<&2, F.Finding>, Bool.or(Paths.is_proof(path), Paths.is_test(path)),
-    [], _u => check.go(items, path, lines(text, toks)))
+    [], _u => check.fast(items, path, flags(lines(text, toks))))
 
 # the rule, told the file's role (src/role.bend): a proof file is skipped
 def check.role(rr: Role.Role, ss: Src.Src) -> List<&2, F.Finding>:
   Src.Src{+path, text, toks, tree, bound, items} = ss
   Lazy.stop(List<&2, F.Finding>, Bool.or(Role.is_proof(rr), Paths.is_test(path)),
-    [], _u => check.go(items, path, lines(text, toks)))
+    [], _u => check.fast(items, path, flags(lines(text, toks))))
