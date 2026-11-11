@@ -120,7 +120,6 @@ import ./laws/StringsReportLongLiteralArms.bend as StringsReportLongLiteralArms
 import ./laws/TailReportsNonTailCalls.bend as TailReportsNonTailCalls
 import ./laws/ThunkReportsIgnoredSelfCallLambdas.bend as ThunkReportsIgnoredSelfCallLambdas
 import ./laws/TranscongReportsTransCongChains.bend as TranscongReportsTransCongChains
-import ./laws/TwiceReportsRepeatedListLiteral.bend as TwiceReportsRepeatedListLiteral
 import ./laws/UnusedReportsDeadBinders.bend as UnusedReportsDeadBinders
 import ./laws/WrapReportsBrokenHeaderShape.bend as WrapReportsBrokenHeaderShape
 import ./laws/LspAnswersEachRequestOnce.bend as LspAnswersEachRequestOnce

@@ -7,7 +7,7 @@
 # case arm is a different path, and two narrow reads are left alone. A walk is
 # a def of this file that loops, or a Base walk (`List.map` and the like).
 # Laws and proofs do not run (a def with no type at all fills a law: it is a
-# proof). This is not `twice`, which is duplicate literals in a list pattern.
+# proof).
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F

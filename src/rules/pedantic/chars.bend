@@ -1,10 +1,16 @@
 # rule chars: a `match` with more than eight character-literal arms
 # (`case '.':`). `Char` is `Chr{code: U32}`, so such an arm is a U32 literal
-# inside a constructor pattern, and bend's C backend pays for each one out of
-# all proportion to its size -- about 90 MB, and the cost compounds through
-# every def downstream of the one holding them (eighteen arms cost 1.57 GB
-# and 8.3 s here, 0.10 GB and 0.7 s once rewritten). It is the literals, not
-# the arms: a match over eighteen constructors costs nothing measurable.
+# inside a constructor pattern, and bend's C backend pays for each one in
+# build memory, a cost that compounds through the defs downstream of the one
+# holding them. It was out of all proportion once (bend 2.0.16: about 90 MB
+# an arm; the eighteen of bolt's lexer cost 1.57 GB and 8.3 s, 0.10 GB and
+# 0.7 s once rewritten) and is modest now (bend 2.0.40: bolt builds in 1.3
+# to 1.4 GB with those eighteen arms against 1.1 GB without, in the same 33
+# to 35 s, and runs as fast; a lone match of eighteen costs 12 MB), which is
+# why the rule is pedantic: a match on char literals is the plain way to
+# write it, and the rewrite buys a fifth of the build's memory. It is the
+# literals, not the arms: a match over eighteen constructors costs nothing
+# measurable.
 #
 # Compare `Char.to_u32(c)` instead. Bind the fallback above the comparisons
 # so it is a value, not a call, or bolt's own `eager` rule fires on it; and
@@ -47,7 +53,7 @@ def tally(body: Tree.Node, +nn: U32) -> U32:
 def report(+nn: U32, +path: String, +ll: U32, +cc: U32) -> List<&2, F.Finding>:
   Bool.pick(List<&2, F.Finding>, U32.is_gt(nn, 8),
     [F.Finding{path, ll, cc, 5, "chars", "This match has " ++ U32.show(nn)
-      ++ " character-literal cases, over the limit of 8, which blows up compile time and memory; compare Char.to_u32(c) instead."}],
+      ++ " character-literal cases, over the limit of 8; each costs build memory, and comparing Char.to_u32(c) costs none."}],
     [])
 
 # a statement: a match is tallied

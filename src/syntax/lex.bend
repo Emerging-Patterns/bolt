@@ -99,8 +99,9 @@ type St is Data:
 # the class of a code point, given the class any other character would get.
 # Written as comparisons rather than as `case '.':` arms: a character literal
 # in a pattern is a U32 literal inside a constructor pattern, and bend's C
-# backend pays about 90 MB for each one -- these eighteen cost 1.57 GB as
-# literal arms and 0.10 GB written this way.
+# backend pays for each one in build memory -- these eighteen cost 1.57 GB
+# as literal arms and 0.10 GB written this way on bend 2.0.16, and a fifth
+# of bolt's build (1.3 to 1.4 GB against 1.1 GB) on 2.0.40.
 def classify.go(+xx: U32, other: Class) -> Class:
   Bool.pick(Class, U32.is_eq(xx, 46), CDot{},  # '.'
   Bool.pick(Class, U32.is_eq(xx, 34), CQuote{},  # '"'

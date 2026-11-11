@@ -7,7 +7,7 @@ import ../src/syntax/bind.bend as Bind
 import ../src/src.bend as Src
 import ../src/syntax/tree.bend as Tree
 import ../src/syntax/outline.bend as Outline
-import ../src/rules/perf/chars.bend as Chars
+import ../src/rules/pedantic/chars.bend as Chars
 import ./defs/MatchArmRules.bend as D1
 
 # one when a case statement's first match column opens with a char literal,

@@ -3,12 +3,15 @@
 # source `bolt(group:slug)`. Numbers are assigned once, in the group order
 # of src/README.md: do not renumber a rule, and do not reuse a retired code
 # (L004 was `quantify`, now `closed` itself; C001 was `shadow` and U005 was
-# `nat`, whose failures bend 2.0.25 no longer has; U014 was `argv`, retired
-# before its first release, since every reader already drops the program;
+# `nat`, whose failures bend 2.0.25 no longer has; C007 was `twice`, a list
+# pattern opening with one literal twice, on which the checker hung through
+# bend 2.0.28 and does not from 2.0.38, the oldest bend bolt runs on; U014
+# was `argv`, retired before its first release, since every reader already
+# drops the program;
 # U008 `table`, U009 `hoist`, U010 `ring`, U012 `unit` and U013 `scan` were
 # retired for want of real hits, and L003 `unsafe` since bend 2.0.32 reports
 # an unsafe def a proof reaches itself). A code names the rule, not its
-# group: a rule that moves keeps its code (`strings` and `chars` are `perf`,
+# group: a rule that moves keeps its code (`strings` is `perf`; `chars`,
 # `foreign` and the cost rules `fuel`, `index`, `strict` and `rewalk` are
 # `pedantic`).
 #
@@ -29,7 +32,6 @@ def table() -> List<&2, Entry>:
     Entry{"put", "C004", "correctness"},
     Entry{"arms", "C005", "correctness"},
     Entry{"escape", "C006", "correctness"},
-    Entry{"twice", "C007", "correctness"},
     Entry{"setting", "C011", "correctness"},
     Entry{"unused", "U001", "suspicious"},
     Entry{"eager", "U003", "suspicious"},
@@ -39,7 +41,6 @@ def table() -> List<&2, Entry>:
     Entry{"prefix", "U017", "suspicious"},
     Entry{"empty", "U018", "suspicious"},
     Entry{"strings", "C008", "perf"},
-    Entry{"chars", "C009", "perf"},
     Entry{"doc", "S001", "style"},
     Entry{"space", "S002", "style"},
     Entry{"wrap", "S003", "style"},
@@ -49,6 +50,7 @@ def table() -> List<&2, Entry>:
     Entry{"blank", "S007", "style"},
     Entry{"coverage", "L001", "laws"},
     Entry{"closed", "L002", "laws"},
+    Entry{"chars", "C009", "pedantic"},
     Entry{"foreign", "C010", "pedantic"},
     Entry{"strict", "U002", "pedantic"},
     Entry{"fuel", "U006", "pedantic"},

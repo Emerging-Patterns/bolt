@@ -50,12 +50,12 @@ unset group has its default. The groups:
 
 | group         | rules                                                                  | default |
 |---------------|------------------------------------------------------------------------|---------|
-| `correctness` | `hole` `pick` `put` `arms` `escape` `twice` `setting`                  | error   |
+| `correctness` | `hole` `pick` `put` `arms` `escape` `setting`                          | error   |
 | `suspicious`  | `unused` `eager` `concat` `fromrev` `prefix` `empty` (`thunk`: opt-in) | warn    |
-| `perf`        | `strings` `chars`                                                      | warn    |
+| `perf`        | `strings`                                                              | warn    |
 | `style`       | `doc` `space` `wrap` `param` `noqa` `blank` (`transcong`: opt-in)      | warn    |
 | `laws`        | (`coverage`, `closed`: opt-in)                                         | warn    |
-| `pedantic`    | `foreign` `strict` `fuel` `index` `rewalk` `tail`                      | off     |
+| `pedantic`    | `chars` `foreign` `strict` `fuel` `index` `rewalk` `tail`              | off     |
 
 The stable codes, assigned once (do not renumber):
 
@@ -67,7 +67,7 @@ The stable codes, assigned once (do not renumber):
 | C004 | `put` | U004 | `concat` | S004 | `param` |
 | C005 | `arms` | U005 | retired | S005 | `noqa` |
 | C006 | `escape` | U006 | `fuel` | S006 | `transcong` |
-| C007 | `twice` | U007 | `index` | L001 | `coverage` |
+| C007 | retired | U007 | `index` | L001 | `coverage` |
 | C008 | `strings` | U008 | retired | L002 | `closed` |
 | C009 | `chars` | U009 | retired | L003 | retired |
 | C010 | `foreign` | U010 | retired | L004 | retired |
@@ -82,11 +82,12 @@ The stable codes, assigned once (do not renumber):
 
 Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic,
 for the group a rule had when its code was assigned. A code names the rule,
-not its group, so a rule that moves keeps it: `strings` and `chars` (C008,
-C009) are `perf`, what is slow but never wrong; `foreign` (C010), `strict`
+not its group, so a rule that moves keeps it: `strings` (C008) is `perf`,
+what is slow but never wrong; `chars` (C009), `foreign` (C010), `strict`
 (U002), `fuel` (U006), `index` (U007) and `rewalk` (U011) are `pedantic`,
-where too few of their findings were defects, or their fix was slower, to
-report by default.
+where too few of their findings were defects, their fix was slower, or (for
+`chars`, on bend 2.0.40) what the fix saves became too little, to report by
+default.
 
 `pedantic` is advice that is noisy on idiomatic code: off until a project
 asks for it. L004 was `quantify`, the opt-in strict mode of `closed`;
@@ -100,7 +101,11 @@ named by its law file now, and L005 is never reused. U008 `table`, U009
 of public Bend found none or few of their findings real (`index` still
 leaves a get on a fixed table alone, src/rules/table.bend). L003 `unsafe`
 was retired since bend 2.0.32 itself fails a proof that reaches an
-`@unsafe` or foreign def. None of these codes is reused. A bolt.bend that
+`@unsafe` or foreign def. C007 `twice`, a list pattern opening with the same
+literal twice in a def that calls itself (`case 10 <> 10 <> ..`), was
+retired when the hang it guarded against was gone: bend 2.0.28 still hangs
+on it, bend 2.0.38, the oldest bolt runs on, and 2.0.40 check it at once and
+run it right on both lanes. None of these codes is reused. A bolt.bend that
 still sets one of them gets a `setting` finding (C011); delete the def.
 
 `thunk` and `transcong` are opt-in: they are in their groups, but no group
@@ -427,27 +432,30 @@ parameters and no `->`), which is how Bend fills the law named `f`.
 - `escape` — `\0` then a digit in a literal (`"\033"`). Bend has no octal
   escape: that is NUL followed by the digits. Write `\u{1B}`.
 - `strings` (perf) — a `match` over string-literal arms totalling more than 64
-  characters: compile time and memory blow up with the characters (45 chars
-  cost 0.8 s and 0.35 GB here, 480 chars 12 s and 4.8 GB). Map the string to
-  a sum type once. Only the first match column is read, and a literal with no
-  closing quote is not counted.
-- `chars` (perf) — a `match` with more than eight character-literal arms
+  characters: the time and memory of a check and of a build grow with the
+  characters (bend 2.0.40, a native build: 45 chars cost 0.9 s and 0.20 GB,
+  100 cost 1.3 s and 0.28 GB, 480 cost 7.8 s and 1.1 GB, 1,000 cost 13.7 s
+  and 1.8 GB; the same strings compared with `String.eq` cost 0.6 to 0.7 s
+  and 0.13 GB at every size). Map the string to a sum type once. Only the
+  first match column is read, and a literal with no closing quote is not
+  counted.
+- `chars` (pedantic) — a `match` with more than eight character-literal arms
   (`case '.':`). `Char` is `Chr{code: U32}`, so each arm is a U32 literal
-  inside a constructor pattern, and the C backend pays about 90 MB for one
-  (eighteen arms cost 1.57 GB and 8.3 s here, 0.10 GB and 0.7 s once
-  rewritten), compounding through every def downstream. It is the literals,
-  not the arms: a match over eighteen constructors costs nothing measurable.
-  Compare `Char.to_u32(c)` instead. Bind the fallback above the comparisons
-  so `eager` does not fire on it, and take `+c: Char`, since the code point
-  and the fallback both consume it. Where the arms carry linear values, leave
-  the match alone: a cascade would break linearity and do every branch's
-  work. Only the first match column is read, and only an arm whose pattern
-  opens with a character literal counts (`case Con{'x', t}:` does not).
-- `twice` — a case pattern that opens with the same literal twice
-  (`case 10 <> 10 <> ..`) in a recursive def: the checker hangs. Match one
-  element a step. A def is recursive when its body calls it (`name(..)`); a
-  parameter named like the def is not a call. Only the first match column is
-  read.
+  inside a constructor pattern, and the C backend pays for it in build
+  memory, compounding through the defs downstream. The cost was out of all
+  proportion on bend 2.0.16 (about 90 MB an arm: eighteen cost 1.57 GB and
+  8.3 s here, 0.10 GB and 0.7 s once rewritten) and is modest on 2.0.40
+  (bolt builds in 1.3 to 1.4 GB with its lexer's eighteen arms against
+  1.1 GB without, in the same 33 to 35 s, and runs as fast; a lone match of
+  eighteen costs 12 MB), so the rule is advice for a project short of build
+  memory, off by default. It is the literals, not the arms: a match over
+  eighteen constructors costs nothing measurable. Compare `Char.to_u32(c)`
+  instead. Bind the fallback above the comparisons so `eager` does not fire
+  on it, and take `+c: Char`, since the code point and the fallback both
+  consume it. Where the arms carry linear values, leave the match alone: a
+  cascade would break linearity and do every branch's work. Only the first
+  match column is read, and only an arm whose pattern opens with a
+  character literal counts (`case Con{'x', t}:` does not).
 - `arms` — a case arm that an arm above it in the same match already
   matches, so it never runs. The checker takes it silently and the match
   answers with the arm above: put the narrow arms first, or delete the one

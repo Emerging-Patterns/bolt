@@ -5,7 +5,7 @@ import ../src/finding.bend as F
 import ../src/rules/tokens.bend as T
 import ../src/syntax/tree.bend as Tree
 import ../src/rules/correctness/pick.bend as Pick
-import ../src/rules/perf/chars.bend as Chars
+import ../src/rules/pedantic/chars.bend as Chars
 import ../laws/CharsReportManyCharArms.bend as Laws
 import ../laws/defs/MatchArmRules.bend as D1
 import ./lemmas/MatchStatementCounts.bend as M1
@@ -174,8 +174,8 @@ def chars.stmt(kids, body, path):
     Bool.pick(Nat, Bool.and(D1.chars.is_match(kids), U32.is_gt(Laws.chars.arms(body, 0), 8)), 1n, 0n),
     M1.chars.gate(T.keyword(kids, "match"), Chars.report(n, path, Tree.line(kids), Tree.col(kids)), U32.is_gt(n, 8),
       M2.chars.one(U32.is_gt(n, 8), F.Finding{path, Tree.line(kids), Tree.col(kids), 5, "chars",
-        "This match has " ++ U32.show(n) ++ " character-literal cases, over the limit of 8, which blows up compile time"
-        ++ " and memory; compare Char.to_u32(c) instead."})),
+        "This match has " ++ U32.show(n) ++ " character-literal cases, over the limit of 8; each costs build memory,"
+        ++ " and comparing Char.to_u32(c) costs none."})),
     Equal.trans(Nat,
       Bool.pick(Nat, Bool.and(T.keyword(kids, "match"), U32.is_gt(n, 8)), 1n, 0n),
       Bool.pick(Nat, Bool.and(D1.chars.is_match(kids), U32.is_gt(n, 8)), 1n, 0n),

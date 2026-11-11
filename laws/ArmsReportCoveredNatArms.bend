@@ -12,7 +12,7 @@ import ../src/syntax/outline.bend as Outline
 import ../src/rules/tokens.bend as T
 import ../src/rules/correctness/arms.bend as Arms
 
-# The match rules arms and twice read a case statement's pattern: its tokens
+# The match rule arms reads a case statement's pattern: its tokens
 # after `case` in the tree (T.pattern), the first match column first.
 
 # a name or `_`: what `Succ{..}` or `kn+` binds when the arm matches every Nat from there up

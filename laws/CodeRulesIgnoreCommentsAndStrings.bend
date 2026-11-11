@@ -1,7 +1,7 @@
 # For every rule whose pattern is code (all but `escape`, `strings`, `chars`,
-# `space`, `twice`, `foreign`, `noqa`, `rewalk`, and `prefix` and `blank`,
-# which read a string literal's length and whether it is `""`:
-# laws/InertPrefix.bend and laws/InertBlank.bend say what they ignore),
+# `space`, `foreign`, `noqa`, `rewalk`, and `prefix` and `blank`, which read
+# a string literal's length and whether it is `""`: laws/InertPrefix.bend
+# and laws/InertBlank.bend say what they ignore),
 # changing the contents of a comment or string literal does not change the
 # findings.
 #
