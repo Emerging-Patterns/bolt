@@ -10,10 +10,12 @@ import ../laws/UnusedReportsDeadBinders.bend as Laws
 import ./lemmas/Nat.bend as M1
 import ./lemmas/UnusedBinderPick.bend as M2
 import ./lemmas/UnusedEarlyOr.bend as M3
+import ./lemmas/BinderIndex.bend as M4
+import ./lemmas/InertTextFacts.bend as M5
 
 # The binding rule, unused: the rule's foreign lines are the law's header
-# lines, its kind test and use search are the law's, and each binder adds the
-# finding the law counts.
+# lines, its kind test is the law's, its index of the uses answers as the
+# law's search of them does, and each binder adds the finding the law counts.
 
 # the lines of some tokens onto acc are those lines, then acc
 law unused.lines:
@@ -200,29 +202,6 @@ def unused.foreign(root):
         case Tree.NCons{nh, nt}:
           unused.foreign(rest)
 
-# the rule's use search is the law's
-law unused.used:
-  for uses: List<&2, Bind.Use>
-  for +line: U32
-  for +col: U32
-  {Unused.used(uses, line, col) == Laws.unused.seen(uses, line, col) : Bool}
-
-def unused.used(uses, line, col):
-  match uses:
-    case Nil{}:
-      {==}
-    case Con{Bind.Use{n, l, c, tg}, +rest}:
-      match tg:
-        case Bind.TLocal{+tl, +tc}:
-          M3.unused.or(Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col)), Unused.used(rest, line, col),
-            Laws.unused.seen(rest, line, col), unused.used(rest, line, col))
-        case Bind.TItem{nm}:
-          unused.used(rest, line, col)
-        case Bind.TQual{a, nm}:
-          unused.used(rest, line, col)
-        case Bind.TFree{}:
-          unused.used(rest, line, col)
-
 # the rule's kind test is the law's
 law unused.kind:
   for kk: Bind.BindKind
@@ -252,48 +231,6 @@ def unused.kind(kk, _note, _line, _fl):
     case Bind.KTypeVar{}:
       {==}
 
-# an `or` of a Bool with itself is that Bool
-law unused.or_self:
-  for a: Bool
-  {Bool.or(a, a) == a : Bool}
-
-def unused.or_self(a):
-  match a:
-    case True{}:
-      {==}
-    case False{}:
-      {==}
-
-# a stop at the first True, against the `or` it stops early on, adds nothing
-law unused.or_absorb:
-  for e: Bool
-  for a: Bool
-  {Bool.or(Lazy.or_else(e, _u => a), Bool.or(e, a)) == Bool.or(e, a) : Bool}
-
-def unused.or_absorb(e, a):
-  match e:
-    case True{}:
-      {==}
-    case False{}:
-      unused.or_self(a)
-
-# a hit already on the right adds nothing on the left
-law unused.or_again:
-  for g: Bool
-  for e: Bool
-  {Bool.or(g, Bool.or(e, g)) == Bool.or(e, g) : Bool}
-
-def unused.or_again(g, e):
-  match g:
-    case True{}:
-      match e:
-        case True{}:
-          {==}
-        case False{}:
-          {==}
-    case False{}:
-      {==}
-
 # nothing is found in the empty index, whatever the path
 law unused.none:
   for qq: List<&2, Bool>
@@ -312,174 +249,122 @@ def unused.none(qq, line, col):
         case False{}:
           unused.none(r, line, col)
 
-# a hit in the index after a cell goes in is that cell, or a hit before it:
-# the index is sound, whatever the two paths
-law unused.put:
-  for pp: List<&2, Bool>
-  for +qq: List<&2, Bool>
+# one level of the index: a lookup that goes down bit b2 past a put that went
+# down bit b1 reads the put's half when the bits agree, and the half the put
+# left alone when they do not
+law unused.level:
+  for b1: Bool
+  for b2: Bool
+  for -sub: Unused.Hits
+  for -hh: Unused.Hits
+  for -rest: Bool
+  for -mm: Bool
+  for -fs: Unused.Hits -> Bool
+  for ih: {fs(sub) == Bool.or(Bool.and(rest, mm), fs(Unused.hits.near(b1, hh))) : Bool}
+  {fs(Unused.hits.near(b2, Unused.hits.join(b1, sub, Unused.hits.near(Bool.not(b1), hh))))
+    == Bool.or(Bool.and(Bool.and(M4.ix.bit(b1, b2), rest), mm), fs(Unused.hits.near(b2, hh))) : Bool}
+
+def unused.level(b1, b2, _sub, _hh, _rest, _mm, _fs, ih):
+  match b1 b2:
+    case True{} True{}:
+      ih
+    case True{} False{}:
+      {==}
+    case False{} True{}:
+      {==}
+    case False{} False{}:
+      ih
+
+# a lookup after a cell goes in: that cell, when the two lines agree in the
+# bits walked and it is the binder asked for, or what was found before
+law unused.at:
+  for dd: Nat
+  for +k1: U32
+  for +k2: U32
   for +hh: Unused.Hits
   for +l1: U32
   for +c1: U32
   for +l2: U32
   for +c2: U32
-  {Bool.or(Unused.find(qq, Unused.put(pp, hh, Unused.Cell{l1, c1}), l2, c2),
-      Bool.or(Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)), Unused.find(qq, hh, l2, c2)))
-    == Bool.or(Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)), Unused.find(qq, hh, l2, c2)) : Bool}
+  {Unused.find(Unused.path(dd, k2), Unused.put(Unused.path(dd, k1), hh, Unused.Cell{l1, c1}), l2, c2)
+    == Bool.or(Bool.and(M4.ix.bits(dd, k1, k2), Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2))),
+      Unused.find(Unused.path(dd, k2), hh, l2, c2)) : Bool}
 
-def unused.put(pp, qq, hh, l1, c1, l2, c2):
-  match pp:
-    case Nil{}:
-      match qq:
-        case Nil{}:
-          unused.or_absorb(Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)),
-            Unused.hits.any(Unused.hits.cells(hh), l2, c2))
-        case Con{b2, r2}:
-          match b2:
-            case True{}:
-              %Equal.sym(Bool, Unused.find(r2, Unused.HNone{}, l2, c2), False{}, unused.none(r2, l2, c2)) :
-                {Bool.or(_, Bool.or(Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)),
-                Unused.find(r2, Unused.hits.lo(hh), l2, c2)))
-                == Bool.or(Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)),
-                  Unused.find(r2, Unused.hits.lo(hh), l2, c2)) : Bool}
-              {==}
-            case False{}:
-              %Equal.sym(Bool, Unused.find(r2, Unused.HNone{}, l2, c2), False{}, unused.none(r2, l2, c2)) :
-                {Bool.or(_, Bool.or(Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)),
-                Unused.find(r2, Unused.hits.hi(hh), l2, c2)))
-                == Bool.or(Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)),
-                  Unused.find(r2, Unused.hits.hi(hh), l2, c2)) : Bool}
-              {==}
-    case Con{b1, r1}:
-      match b1:
-        case True{}:
-          match qq:
-            case Nil{}:
-              {==}
-            case Con{b2, r2}:
-              match b2:
-                case True{}:
-                  unused.put(r1, r2, Unused.hits.lo(hh), l1, c1, l2, c2)
-                case False{}:
-                  unused.or_again(Unused.find(r2, Unused.hits.hi(hh), l2, c2),
-                    Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)))
-        case False{}:
-          match qq:
-            case Nil{}:
-              {==}
-            case Con{b2, r2}:
-              match b2:
-                case True{}:
-                  unused.or_again(Unused.find(r2, Unused.hits.lo(hh), l2, c2),
-                    Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)))
-                case False{}:
-                  unused.put(r1, r2, Unused.hits.hi(hh), l1, c1, l2, c2)
+def unused.at(dd, k1, k2, hh, l1, c1, l2, c2):
+  match dd:
+    case 0n:
+      M3.unused.or(Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)), Unused.hits.any(Unused.hits.cells(hh), l2, c2),
+        Unused.hits.any(Unused.hits.cells(hh), l2, c2), {==})
+    case 1n+p:
+      unused.level(U32.is_even(k1), U32.is_even(k2),
+        Unused.put(Unused.path(p, U32.shr(k1)), Unused.hits.near(U32.is_even(k1), hh), Unused.Cell{l1, c1}), hh,
+        M4.ix.bits(p, U32.shr(k1), U32.shr(k2)), Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)),
+        x => Unused.find(Unused.path(p, U32.shr(k2)), x, l2, c2),
+        unused.at(p, U32.shr(k1), U32.shr(k2), Unused.hits.near(U32.is_even(k1), hh), l1, c1, l2, c2))
 
-# Unit for True, Empty for False
-def unused.true_ty(bb: Bool) -> Type:
-  match bb:
-    case True{}:
-      Unit
-    case False{}:
-      Empty
+# a cell that is the binder asked for went down the way the lookup walks:
+# its line is the line asked, so the two agree in every bit
+law unused.alike:
+  for +l1: U32
+  for +l2: U32
+  for -c1: U32
+  for -c2: U32
+  for e: {Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)) == True{} : Bool}
+  {M4.ix.bits(Unused.depth(), l1, l2) == True{} : Bool}
 
-# True is never False
-law unused.true_false:
-  for e: {True{} == False{} : Bool}
-  Empty
+def unused.alike(l1, l2, c1, c2, e):
+  %M5.inert.u32_eq(l1, l2, M4.ix.is_eq(U32.cmp(l1, l2), M5.inert.and_l(U32.is_eq(l1, l2), U32.is_eq(c1, c2), e))) :
+    {M4.ix.bits(Unused.depth(), l1, _) == True{} : Bool}
+  M4.ix.bits_refl(Unused.depth(), l1)
 
-def unused.true_false(e):
-  %e : unused.true_ty(_)
-  Unit{}
-
-# one more cell keeps an index sound: a hit after it is the new cell, or a
-# hit before it, which the uses already had
-law unused.step:
-  for e: Bool
-  for fp: Bool
-  for f: Bool
-  for s: Bool
-  for h1: {Bool.or(fp, Bool.or(e, f)) == Bool.or(e, f) : Bool}
-  for h2: {Bool.or(f, s) == s : Bool}
-  {Bool.or(fp, Bool.or(e, s)) == Bool.or(e, s) : Bool}
-
-def unused.step(e, fp, f, s, h1, h2):
-  match e:
-    case True{}:
-      match fp:
-        case True{}:
-          {==}
-        case False{}:
-          {==}
-    case False{}:
-      match fp:
-        case True{}:
-          match f:
-            case True{}:
-              h2
-            case False{}:
-              Empty.absurd({True{} == s : Bool}, unused.true_false(h1))
-        case False{}:
-          {==}
-
-# the index of the uses is sound: anything found in it, down any path, is a
-# use's target
-law unused.index:
+# the index of the uses is exact: a lookup down a binder's own line finds it
+# exactly when a use resolves to it
+law unused.exact:
   for uses: List<&2, Bind.Use>
-  for +qq: List<&2, Bool>
   for +line: U32
   for +col: U32
-  {Bool.or(Unused.find(qq, Unused.index(uses), line, col), Laws.unused.seen(uses, line, col))
+  {Unused.find(Unused.path(Unused.depth(), line), Unused.index(uses), line, col)
     == Laws.unused.seen(uses, line, col) : Bool}
 
-def unused.index(uses, qq, line, col):
+def unused.exact(uses, line, col):
   match uses:
     case Nil{}:
-      %Equal.sym(Bool, Unused.find(qq, Unused.HNone{}, line, col), False{}, unused.none(qq, line, col)) :
-        {Bool.or(_, False{}) == False{} : Bool}
-      {==}
+      unused.none(Unused.path(Unused.depth(), line), line, col)
     case Con{Bind.Use{n, l, c, tg}, +rest}:
       match tg:
         case Bind.TLocal{+tl, +tc}:
-          unused.step(Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col)),
-            Unused.find(qq, Unused.put(Unused.path(Unused.depth(), tl), Unused.index(rest), Unused.Cell{tl, tc}),
-              line, col),
-            Unused.find(qq, Unused.index(rest), line, col), Laws.unused.seen(rest, line, col),
-            unused.put(Unused.path(Unused.depth(), tl), qq, Unused.index(rest), tl, tc, line, col),
-            unused.index(rest, qq, line, col))
+          +mm = Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col))
+          +fr = Unused.find(Unused.path(Unused.depth(), line), Unused.index(rest), line, col)
+          Equal.trans(Bool,
+            Unused.find(Unused.path(Unused.depth(), line),
+              Unused.put(Unused.path(Unused.depth(), tl), Unused.index(rest), Unused.Cell{tl, tc}), line, col),
+            Bool.or(Bool.and(M4.ix.bits(Unused.depth(), tl, line), mm), fr),
+            Bool.or(mm, Laws.unused.seen(rest, line, col)),
+            unused.at(Unused.depth(), tl, line, Unused.index(rest), tl, tc, line, col),
+            Equal.trans(Bool,
+              Bool.or(Bool.and(M4.ix.bits(Unused.depth(), tl, line), mm), fr),
+              Bool.or(mm, fr),
+              Bool.or(mm, Laws.unused.seen(rest, line, col)),
+              Equal.cong(Bool, Bool, z => Bool.or(z, fr), Bool.and(M4.ix.bits(Unused.depth(), tl, line), mm), mm,
+                M4.ix.guard(M4.ix.bits(Unused.depth(), tl, line), mm, e => unused.alike(tl, line, tc, col, e))),
+              Equal.cong(Bool, Bool, z => Bool.or(mm, z), fr, Laws.unused.seen(rest, line, col),
+                unused.exact(rest, line, col))))
         case Bind.TItem{nm}:
-          unused.index(rest, qq, line, col)
+          unused.exact(rest, line, col)
         case Bind.TQual{a, nm}:
-          unused.index(rest, qq, line, col)
+          unused.exact(rest, line, col)
         case Bind.TFree{}:
-          unused.index(rest, qq, line, col)
+          unused.exact(rest, line, col)
 
-# a sound hit, else the scan, is the scan
-law unused.fast:
-  for f: Bool
-  for -u: Bool
-  for -s: Bool
-  for hu: {u == s : Bool}
-  for hs: {Bool.or(f, s) == s : Bool}
-  {Lazy.or_else(f, _u => u) == s : Bool}
-
-def unused.fast(f, _u, _s, hu, hs):
-  match f:
-    case True{}:
-      hs
-    case False{}:
-      hu
-
-# the rule's use search, through the index of the uses, is the law's
+# the rule's use search, the index of the uses, is the law's
 law unused.seen:
   for +uses: List<&2, Bind.Use>
   for +line: U32
   for +col: U32
-  {Unused.seen(Unused.index(uses), uses, line, col) == Laws.unused.seen(uses, line, col) : Bool}
+  {Unused.seen(Unused.index(uses), line, col) == Laws.unused.seen(uses, line, col) : Bool}
 
 def unused.seen(uses, line, col):
-  unused.fast(Unused.find(Unused.path(Unused.depth(), line), Unused.index(uses), line, col),
-    Unused.used(uses, line, col), Laws.unused.seen(uses, line, col), unused.used(uses, line, col),
-    unused.index(uses, Unused.path(Unused.depth(), line), line, col))
+  unused.exact(uses, line, col)
 
 # a stop at the first False is Bool.and
 law unused.and:
@@ -504,12 +389,12 @@ law unused.hit:
   for +uses: List<&2, Bind.Use>
   for +fl: List<&2, U32>
   {Lazy.and_then(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
-      _u => Bool.not(Unused.seen(Unused.index(uses), uses, line, col)))
+      _u => Bool.not(Unused.seen(Unused.index(uses), line, col)))
     == Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
       Bool.not(Laws.unused.seen(uses, line, col))) : Bool}
 
 def unused.hit(kk, name, note, line, col, uses, fl):
-  +sr = Unused.seen(Unused.index(uses), uses, line, col)
+  +sr = Unused.seen(Unused.index(uses), line, col)
   Equal.trans(Bool,
     Lazy.and_then(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
       _u => Bool.not(sr)),
@@ -540,7 +425,7 @@ law unused.go:
   for +uses: List<&2, Bind.Use>
   for +fl: List<&2, U32>
   for +path: String
-  {List.length(&2, F.Finding, Unused.check.go(binds, Unused.index(uses), uses, fl, path))
+  {List.length(&2, F.Finding, Unused.check.go(binds, Unused.index(uses), fl, path))
     == Laws.unused.count(binds, uses, fl) : Nat}
 
 def unused.go(binds, uses, fl, path):
@@ -550,15 +435,15 @@ def unused.go(binds, uses, fl, path):
     case Con{Bind.Bind{+name, +line, +col, +kk, +note}, +rest}:
       +m = Laws.unused.count(rest, uses, fl)
       +b = Lazy.and_then(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
-        _u => Bool.not(Unused.seen(Unused.index(uses), uses, line, col)))
+        _u => Bool.not(Unused.seen(Unused.index(uses), line, col)))
       Equal.trans(Nat,
         List.length(&2, F.Finding,
-          Unused.check.go(Bind.Bind{name, line, col, kk, note} <> rest, Unused.index(uses), uses, fl, path)),
+          Unused.check.go(Bind.Bind{name, line, col, kk, note} <> rest, Unused.index(uses), fl, path)),
         Bool.pick(Nat, b, 1n+m, m),
         Laws.unused.count(Bind.Bind{name, line, col, kk, note} <> rest, uses, fl),
         M1.nat.pick(b, F.Finding{path, line, col, U32.from_nat(String.length(name)), "unused",
             Unused.what(kk) ++ " " ++ name ++ " is never used."},
-          Unused.check.go(rest, Unused.index(uses), uses, fl, path), m, unused.go(rest, uses, fl, path)),
+          Unused.check.go(rest, Unused.index(uses), fl, path), m, unused.go(rest, uses, fl, path)),
         Equal.cong(Bool, Nat, z => Bool.pick(Nat, z, 1n+m, m), b,
           Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
             Bool.not(Laws.unused.seen(uses, line, col))),
@@ -566,7 +451,7 @@ def unused.go(binds, uses, fl, path):
 
 def Laws.unused_counts(path, _text, _toks, tree, binds, uses, _scopes, _items):
   Equal.trans(Nat,
-    List.length(&2, F.Finding, Unused.check.go(binds, Unused.index(uses), uses, Unused.foreign(tree), path)),
+    List.length(&2, F.Finding, Unused.check.go(binds, Unused.index(uses), Unused.foreign(tree), path)),
     Laws.unused.count(binds, uses, Unused.foreign(tree)),
     Laws.unused.count(binds, uses, Laws.unused.headers(tree)),
     unused.go(binds, uses, Unused.foreign(tree), path),
