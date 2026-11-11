@@ -134,6 +134,7 @@ import ./laws/LspUnitsMatchCharsBelowAstral.bend as LspUnitsMatchCharsBelowAstra
 import ./laws/ArrowTerm.bend as ArrowTerm
 import ./laws/AttributeDef.bend as AttributeDef
 import ./laws/BinderResolvesInnermostFirst.bend as BinderResolvesInnermostFirst
+import ./laws/BinderIndexFindsItems.bend as BinderIndexFindsItems
 import ./laws/LexPositionsAreZeroBased.bend as LexPositionsAreZeroBased
 import ./laws/LexRoundTripsText.bend as LexRoundTripsText
 import ./laws/MarkedArrowTerm.bend as MarkedArrowTerm
