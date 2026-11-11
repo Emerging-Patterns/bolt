@@ -46,8 +46,7 @@ import ./rules/style/blank.bend as Blank
 import ./rules/correctness/put.bend as Put
 import ./rules/correctness/escape.bend as Escape
 import ./rules/perf/strings.bend as Strings
-import ./rules/perf/chars.bend as Chars
-import ./rules/correctness/twice.bend as Twice
+import ./rules/pedantic/chars.bend as Chars
 import ./rules/correctness/arms.bend as Arms
 import ./rules/pedantic/foreign.bend as Foreign
 import ./rules/pedantic/fuel.bend as Fuel
@@ -97,7 +96,6 @@ def on.rules.role(+rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
     Escape.check(ss),
     Strings.check(ss),
     Chars.check(ss),
-    Twice.check(ss),
     Arms.check(ss),
     Arms.cover(ss),
     Foreign.check(ss),

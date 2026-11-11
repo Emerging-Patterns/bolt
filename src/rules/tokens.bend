@@ -1,6 +1,6 @@
-# src/rules/tokens: helpers the token rules share (put, escape, nat, strings,
-# twice, arms): significant tokens, literal kinds, Nat literals, case
-# patterns, and a name's uses under a node.
+# src/rules/tokens: helpers the token rules share (put, escape, strings,
+# chars, arms): significant tokens, Nat literals, case patterns, and a name's
+# uses under a node.
 import Base
 import ../lazy/lazy.bend as Lazy
 import ../syntax/lex.bend as Lex
@@ -41,18 +41,6 @@ def code.toks(ts: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
 # code, as the lexer reads it
 def code(+tt: String) -> String:
   Lex.text(code.toks(Lex.tokens(tt)))
-
-# a number, a char or a string literal?
-def is_lit(kk: Lex.TokKind) -> Bool:
-  match kk:
-    case Lex.TNum{}:
-      True{}
-    case Lex.TChar{}:
-      True{}
-    case Lex.TStr{}:
-      True{}
-    case other:
-      False{}
 
 # digits, then one final `n`: a Nat literal's chars
 def nat_ok(cs: List<&2, Char>) -> Bool:

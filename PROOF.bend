@@ -105,7 +105,6 @@ import ./proofs/StringsReportLongLiteralArms.bend as PStringsReportLongLiteralAr
 import ./proofs/TailReportsNonTailCalls.bend as PTailReportsNonTailCalls
 import ./proofs/ThunkReportsIgnoredSelfCallLambdas.bend as PThunkReportsIgnoredSelfCallLambdas
 import ./proofs/TranscongReportsTransCongChains.bend as PTranscongReportsTransCongChains
-import ./proofs/TwiceReportsRepeatedListLiteral.bend as PTwiceReportsRepeatedListLiteral
 import ./proofs/UnusedReportsDeadBinders.bend as PUnusedReportsDeadBinders
 import ./proofs/WrapReportsBrokenHeaderShape.bend as PWrapReportsBrokenHeaderShape
 import ./proofs/LspAnswersEachRequestOnce.bend as PLspAnswersEachRequestOnce

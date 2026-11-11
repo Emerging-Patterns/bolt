@@ -1,8 +1,12 @@
 # rule strings: a `match` whose arms are string literals (`case "foo":`) with
 # more than 64 literal characters in all. Each string arm lowers into nested
-# per-char tests, and the checker's time and memory grow with the characters
-# (bend 2.0.16: 45 characters take 0.8 s and 0.35 GB, 100 take 2 s and 1 GB,
-# 480 take 12 s and 4.8 GB; pi-bend BEND-001/016 was 16 long event names).
+# per-char tests, and the time and memory of a check and of a build grow
+# with the characters (bend 2.0.40, a native build: 45 characters take 0.9 s
+# and 0.20 GB, 100 take 1.3 s and 0.28 GB, 480 take 7.8 s and 1.1 GB, 1,000
+# take 13.7 s and 1.8 GB, where the same strings compared with String.eq
+# take 0.6 to 0.7 s and 0.13 GB at every size; the check alone is 2.6 s and
+# 0.49 GB at 480. On bend 2.0.16 the check at 480 was 12 s and 4.8 GB;
+# pi-bend BEND-001/016 was 16 long event names).
 # The number of arms barely matters, so only the characters count. Classify
 # the string once through a lookup table into a sum type, and match on that.
 # Only a case's first match column is read: string literals in a later

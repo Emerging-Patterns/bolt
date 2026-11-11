@@ -128,7 +128,7 @@ def tail.stop(b, _more, _m, ih):
     case False{}:
       {==}
 
-# The match rules (laws/ArmsReportCoveredNatArms.bend, laws/TwiceReportsRepeatedListLiteral.bend). A rule reads a case
+# The match rules (laws/ArmsReportCoveredNatArms.bend, laws/CharsReportManyCharArms.bend). A rule reads a case
 # pattern through nested patterns, so each proof below takes the tree apart one
 # constructor at a time, every constructor named, until the rule's match and
 # the law's both reduce.
