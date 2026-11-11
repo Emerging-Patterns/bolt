@@ -340,6 +340,51 @@ def rewalk.here_eq(o, r2, t, kids, bs, l, c, self, lp):
     U32.from_nat(String.length(t)), self, lp), Tree.show(kids) ++ Rewalk.stamp(Rewalk.names(kids, []), bs, l, c),
     Tree.show(kids) ++ Laws.rewalk.stamp(Laws.rewalk.names(kids, []), bs, l, c), rewalk.args_eq(kids, bs, l, c))
 
+# a site whose arguments are read only when it is one is the site built
+# from them
+law rewalk.at_some:
+  for mm: Maybe<&2, Rewalk.How>
+  for +t: String
+  for +kids: Tree.Node
+  for +bs: List<&2, Rewalk.Bind>
+  for +l: U32
+  for +c: U32
+  for +len: U32
+  {Rewalk.site_at(mm, t, kids, bs, l, c, len)
+    == Rewalk.site_list(mm, t, Tree.show(kids) ++ Rewalk.stamp(Rewalk.names(kids, []), bs, l, c), l, c, len)
+    : List<&2, Rewalk.Site>}
+
+def rewalk.at_some(mm, _t, _kids, _bs, _l, _c, _len):
+  match mm:
+    case None{}:
+      {==}
+    case Some{how}:
+      {==}
+
+# a call's own site, its arguments read only when it is one, is the site
+# open_site gives for them
+law rewalk.at_eq:
+  for open: Bool
+  for +idx: Bool
+  for +t: String
+  for +kids: Tree.Node
+  for +bs: List<&2, Rewalk.Bind>
+  for +l: U32
+  for +c: U32
+  for +len: U32
+  for +self: String
+  for +lp: List<&2, String>
+  {Rewalk.open_at(open, idx, t, kids, bs, l, c, len, self, lp)
+    == Rewalk.open_site(open, idx, t, Tree.show(kids) ++ Rewalk.stamp(Rewalk.names(kids, []), bs, l, c), l, c, len,
+      self, lp) : List<&2, Rewalk.Site>}
+
+def rewalk.at_eq(open, idx, t, kids, bs, l, c, len, self, lp):
+  match open:
+    case False{}:
+      {==}
+    case True{}:
+      rewalk.at_some(Rewalk.site_how(Rewalk.expensive(t, self, lp), idx), t, kids, bs, l, c, len)
+
 # a statement's sites: its own tokens, its body, then what follows
 law rewalk.gather_stmt:
   for +kids: Tree.Node
@@ -374,15 +419,25 @@ def rewalk.gather_eq(nn, self, lp, bs):
                       match open:
                         case Lex.Tok{ok, +o, ol, oc}:
                           rewalk.cat3(Rewalk.Site,
-                            Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t, Tree.show(kids)
-                              ++ Rewalk.stamp(Rewalk.names(kids, []), bs, l, c), l, c, U32.from_nat(String.length(t)),
-                              self, lp),
+                            Rewalk.open_at(String.eq(o, "("), Rewalk.indexed(r2), t, kids, bs, l, c,
+                              U32.from_nat(String.length(t)), self, lp),
                             Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t, Tree.show(kids)
                               ++ Laws.rewalk.stamp(Laws.rewalk.names(kids, []), bs, l, c), l, c,
                               U32.from_nat(String.length(t)), self, lp),
                             Rewalk.gather(kids, self, lp, bs), Laws.rewalk.gather(kids, self, lp, bs),
                             Rewalk.gather(r2, self, lp, bs), Laws.rewalk.gather(r2, self, lp, bs),
-                            rewalk.here_eq(o, r2, t, kids, bs, l, c, self, lp),
+                            Equal.trans(List<&2, Rewalk.Site>,
+                              Rewalk.open_at(String.eq(o, "("), Rewalk.indexed(r2), t, kids, bs, l, c,
+                                U32.from_nat(String.length(t)), self, lp),
+                              Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t, Tree.show(kids)
+                                ++ Rewalk.stamp(Rewalk.names(kids, []), bs, l, c), l, c,
+                                U32.from_nat(String.length(t)), self, lp),
+                              Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t, Tree.show(kids)
+                                ++ Laws.rewalk.stamp(Laws.rewalk.names(kids, []), bs, l, c), l, c,
+                                U32.from_nat(String.length(t)), self, lp),
+                              rewalk.at_eq(String.eq(o, "("), Rewalk.indexed(r2), t, kids, bs, l, c,
+                                U32.from_nat(String.length(t)), self, lp),
+                              rewalk.here_eq(o, r2, t, kids, bs, l, c, self, lp)),
                             rewalk.gather_eq(kids, self, lp, bs), rewalk.gather_eq(r2, self, lp, bs))
                     case Tree.Leaf{x}:
                       rewalk.gather_eq(rest, self, lp, bs)
