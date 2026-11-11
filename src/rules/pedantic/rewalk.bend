@@ -555,14 +555,52 @@ def stamp(ns: List<&2, String>, +bs: List<&2, Bind>, +line: U32, +col: U32) -> S
     case Con{+nm, rest}:
       "|" ++ nm ++ "=" ++ U32.show(count(bs, nm, line, col)) ++ stamp(rest, bs, line, col)
 
+# the call as a site, when it is one, its arguments read only then: their
+# text and which let of each name they read. Read for every token before a
+# bracket, they cost a walk of everything under it, and a literal nested a
+# thousand deep (a generated `Con{.., Con{.., ..}}`) was shown whole at each
+# level: 9.4 s for 800 lines of one
+def site_at(
+  mm: Maybe<&2, How>,
+  +name: String,
+  +kids: Tree.Node,
+  bs: List<&2, Bind>,
+  +line: U32,
+  +col: U32,
+  len: U32
+) -> List<&2, Site>:
+  match mm:
+    case None{}:
+      Nil{}
+    case Some{how}:
+      [Site{name, Tree.show(kids) ++ stamp(names(kids, []), bs, line, col), line, col, len, how}]
+
+# one site when this application is an expensive call, as open_site gives
+# it, its arguments read only then
+def open_at(
+  open: Bool,
+  indexed: Bool,
+  +tt: String,
+  kids: Tree.Node,
+  bs: List<&2, Bind>,
+  line: U32,
+  col: U32,
+  len: U32,
+  self: String,
+  lp: List<&2, String>
+) -> List<&2, Site>:
+  match open:
+    case False{}:
+      Nil{}
+    case True{}:
+      site_at(site_how(expensive(tt, self, lp), indexed), tt, kids, bs, line, col, len)
+
 # every expensive call, wide unless the call is indexed on the spot; its
 # arguments are their text and which let of each name they read
 def gather(nn: Tree.Node, +self: String, +lp: List<&2, String>, +bs: List<&2, Bind>) -> List<&2, Site>:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, +rest}}:
-      +args = Tree.show(kids) ++ stamp(names(kids, []), bs, l, c)
-      +here = open_site(String.eq(o, "("), indexed(rest), t, args, l, c,
-        U32.from_nat(String.length(t)), self, lp)
+      +here = open_at(String.eq(o, "("), indexed(rest), t, kids, bs, l, c, U32.from_nat(String.length(t)), self, lp)
       List.concat(&2, Site, [here, gather(kids, self, lp, bs), gather(rest, self, lp, bs)])
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
       List.concat(&2, Site, [gather(kids, self, lp, bs), gather(rest, self, lp, bs)])
