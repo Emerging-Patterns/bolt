@@ -5,7 +5,7 @@
 # findings.
 #
 # also rests on: laws/InertFromrev.bend, laws/InertTranscong.bend,
-# laws/InertEmpty.bend
+# laws/InertEmpty.bend, laws/InertArmsCover.bend
 import Base
 import ../src/syntax/lex.bend as Lex
 import ../src/finding.bend as F

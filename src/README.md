@@ -433,9 +433,31 @@ parameters and no `->`), which is how Bend fills the law named `f`.
   element a step. A def is recursive when its body calls it (`name(..)`); a
   parameter named like the def is not a call. Only the first match column is
   read.
-- `arms` — a later `Nat` arm that an earlier `kn+p` already matches, so it is
-  unreachable. `Succ{p}` and `Succ{_}` count as `1n+p`. The checker takes it silently and the answer is wrong: put the
-  narrow arms first.
+- `arms` — a case arm that an arm above it in the same match already
+  matches, so it never runs. The checker takes it silently and the match
+  answers with the arm above: put the narrow arms first, or delete the one
+  that cannot run. Two checks, one finding an arm. The Nat check: a later
+  `Nat` arm that an earlier `kn+p` already matches (`Succ{p}` and `Succ{_}`
+  count as `1n+p`), in a single-scrutinee match. The cover check, in a
+  match of any number of scrutinees: an arm whose pattern an earlier one
+  covers, reading both part for part, where a binder of the earlier (a
+  plain name or `_`, a `+` before it dropped) stands for a whole item of
+  the later (a binder, a literal, a constructor with its `{..}`, a group,
+  `kn+p`) and, when no `<>` follows the binder, for every `<> item` after
+  it too. So it reports any arm under a lone binder (`case other:` then
+  `case Con{h, t}:`), the same literal or constructor twice (`case 139:`
+  in a table of opcodes, `case True{}:`), one shape under other names
+  (`case Some{x}:` then `case Some{y}:`; two six-item `a <> .. <> Nil{}`
+  patterns, each meant for its own mode), and `case h <> t:` above a
+  longer list pattern. The message names the line of the arm above. An
+  inline body (`case 139: 1`) is not part of the pattern. What it cannot
+  read is not judged: a string literal is never the same as another, so
+  `case "ab":` twice is not reported (what a string says changes no
+  finding), a pattern holding any other operator (`"GET " ++ rest`) or an
+  angle bracket covers nothing, `[a, b]` and `a <> b <> Nil{}` are
+  different shapes, and a redundant `(x)` is not a binder. It never asks
+  whether the arms above together cover an arm, only whether one of them
+  does.
 - `foreign` (pedantic) — a foreign def with a `.c` body and no `.js` body, or the
   reverse: the missing lane cannot run it. A file headed `# lanes: native`
   needs no `.js`: that exact line must be one of the comment lines before the

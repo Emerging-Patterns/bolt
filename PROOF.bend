@@ -45,6 +45,7 @@ import ./proofs/UnknownExact.bend as PUnknownExact
 import ./proofs/WalkBfs.bend as PWalkBfs
 import ./proofs/WantsTie.bend as PWantsTie
 import ./proofs/ArmsReportCoveredNatArms.bend as PArmsReportCoveredNatArms
+import ./proofs/ArmsReportCoveredArms.bend as PArmsReportCoveredArms
 import ./proofs/CharsReportManyCharArms.bend as PCharsReportManyCharArms
 import ./proofs/ClosedReportsBinderlessLaws.bend as PClosedReportsBinderlessLaws
 import ./proofs/CodeRulesIgnoreCommentsAndStrings.bend as PCodeRulesIgnoreCommentsAndStrings
@@ -139,4 +140,5 @@ import ./proofs/EmptySkipsUnkeptTest.bend as PEmptySkipsUnkeptTest
 import ./proofs/RoleEmpty.bend as PRoleEmpty
 import ./proofs/RoleEmptyExempt.bend as PRoleEmptyExempt
 import ./proofs/InertEmpty.bend as PInertEmpty
+import ./proofs/InertArmsCover.bend as PInertArmsCover
 import ./proofs/EmptySkipsProofs.bend as PEmptySkipsProofs
