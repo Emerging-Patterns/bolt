@@ -7024,7 +7024,6 @@ def inert.unused.rep(kk: Bind.BindKind, +note: String, +line: U32, +fl: List<&2,
 def inert.unused.go(
   binds: List<&2, Bind.Bind>,
   +hh: Unused.Hits,
-  +uses: List<&2, Bind.Use>,
   +fl: List<&2, U32>,
   +path: String
 ) -> List<&2, F.Finding>:
@@ -7032,9 +7031,9 @@ def inert.unused.go(
     case Nil{}:
       Nil{}
     case Con{Bind.Bind{+name, +line, +col, +kind, +note}, rest}:
-      +more = inert.unused.go(rest, hh, uses, fl, path)
+      +more = inert.unused.go(rest, hh, fl, path)
       +hit = Bool.and(inert.unused.rep(kind, note, line, fl), Bool.not(String.starts_with(name, "_")))
-      Bool.pick(List<&2, F.Finding>, Lazy.and_then(hit, _u => Bool.not(Unused.seen(hh, uses, line, col))),
+      Bool.pick(List<&2, F.Finding>, Lazy.and_then(hit, _u => Bool.not(Unused.seen(hh, line, col))),
         F.Finding{path, line, col, U32.from_nat(String.length(name)), "unused",
           Unused.what(kind) ++ " " ++ name ++ " is never used."} <> more, more)
 
@@ -7079,26 +7078,25 @@ def inert.unused.one(kind, note, line, fl):
 law inert.unused.via:
   for binds: List<&2, Bind.Bind>
   for +hh: Unused.Hits
-  for +uses: List<&2, Bind.Use>
   for +fl: List<&2, U32>
   for +path: String
-  {Unused.check.go(binds, hh, uses, fl, path) == inert.unused.go(Laws.inert.ubinds(binds), hh, uses, fl, path)
+  {Unused.check.go(binds, hh, fl, path) == inert.unused.go(Laws.inert.ubinds(binds), hh, fl, path)
     : List<&2, F.Finding>}
 
-def inert.unused.via(binds, hh, uses, fl, path):
+def inert.unused.via(binds, hh, fl, path):
   match binds:
     case Nil{}: {==}
     case Con{Bind.Bind{+name, +line, +col, +kind, +note}, +rest}:
-      +mo = Unused.check.go(rest, hh, uses, fl, path)
+      +mo = Unused.check.go(rest, hh, fl, path)
       +x = {F.Finding{path, line, col, U32.from_nat(String.length(name)), "unused",
         Unused.what(kind) ++ " " ++ name ++ " is never used."} : F.Finding}
-      +lhs = Unused.check.go(Con{Bind.Bind{name, line, col, kind, note}, rest}, hh, uses, fl, path)
-      %inert.unused.via(rest, hh, uses, fl, path) : {lhs == Bool.pick(List<&2, F.Finding>, Lazy.and_then(Bool.and(
+      +lhs = Unused.check.go(Con{Bind.Bind{name, line, col, kind, note}, rest}, hh, fl, path)
+      %inert.unused.via(rest, hh, fl, path) : {lhs == Bool.pick(List<&2, F.Finding>, Lazy.and_then(Bool.and(
         inert.unused.rep(kind, Bool.pick(String, String.starts_with(note, "-"), "-", ""), line, fl),
-          Bool.not(String.starts_with(name, "_"))), _u => Bool.not(Unused.seen(hh, uses, line, col))), x <> _, _)
+          Bool.not(String.starts_with(name, "_"))), _u => Bool.not(Unused.seen(hh, line, col))), x <> _, _)
           : List<&2, F.Finding>}
       %inert.unused.one(kind, note, line, fl) : {lhs == Bool.pick(List<&2, F.Finding>, Lazy.and_then(Bool.and(_,
-        Bool.not(String.starts_with(name, "_"))), _u => Bool.not(Unused.seen(hh, uses, line, col))), x <> mo, mo)
+        Bool.not(String.starts_with(name, "_"))), _u => Bool.not(Unused.seen(hh, line, col))), x <> mo, mo)
           : List<&2, F.Finding>}
       {==}
 
@@ -7109,15 +7107,14 @@ law inert.unused.cong:
   for -f1: List<&2, U32>
   for -f2: List<&2, U32>
   for +hh: Unused.Hits
-  for +uses: List<&2, Bind.Use>
   for +path: String
   for e1: {x1 == x2 : List<&2, Bind.Bind>}
   for e2: {f1 == f2 : List<&2, U32>}
-  {inert.unused.go(x1, hh, uses, f1, path) == inert.unused.go(x2, hh, uses, f2, path) : List<&2, F.Finding>}
+  {inert.unused.go(x1, hh, f1, path) == inert.unused.go(x2, hh, f2, path) : List<&2, F.Finding>}
 
-def inert.unused.cong(x1, _x2, f1, f2, hh, uses, path, e1, e2):
-  %e1 : {inert.unused.go(x1, hh, uses, f1, path) == inert.unused.go(_, hh, uses, f2, path) : List<&2, F.Finding>}
-  %e2 : {inert.unused.go(x1, hh, uses, f1, path) == inert.unused.go(x1, hh, uses, _, path) : List<&2, F.Finding>}
+def inert.unused.cong(x1, _x2, f1, f2, hh, path, e1, e2):
+  %e1 : {inert.unused.go(x1, hh, f1, path) == inert.unused.go(_, hh, f2, path) : List<&2, F.Finding>}
+  %e2 : {inert.unused.go(x1, hh, f1, path) == inert.unused.go(x1, hh, _, path) : List<&2, F.Finding>}
   {==}
 
 def Laws.inert_unused(
@@ -7146,14 +7143,14 @@ def Laws.inert_unused(
       Equal.cong(Tree.Node, List<&2, U32>, z => Unused.foreign(z), D1.inert.node(tree), D1.inert.node(tree2), et),
       inert.unused.foreign(tree2)))
   +hh = Unused.index(uses)
-  Equal.trans(List<&2, F.Finding>, Unused.check.go(binds, hh, uses, f1, path),
-    inert.unused.go(Laws.inert.ubinds(binds), hh, uses, f1, path), Unused.check.go(binds2, hh, uses, f2, path),
-    inert.unused.via(binds, hh, uses, f1, path),
-    Equal.trans(List<&2, F.Finding>, inert.unused.go(Laws.inert.ubinds(binds), hh, uses, f1, path),
-      inert.unused.go(Laws.inert.ubinds(binds2), hh, uses, f2, path), Unused.check.go(binds2, hh, uses, f2, path),
-      inert.unused.cong(Laws.inert.ubinds(binds), Laws.inert.ubinds(binds2), f1, f2, hh, uses, path, eb, ef),
-      Equal.sym(List<&2, F.Finding>, Unused.check.go(binds2, hh, uses, f2, path),
-        inert.unused.go(Laws.inert.ubinds(binds2), hh, uses, f2, path), inert.unused.via(binds2, hh, uses, f2, path))))
+  Equal.trans(List<&2, F.Finding>, Unused.check.go(binds, hh, f1, path),
+    inert.unused.go(Laws.inert.ubinds(binds), hh, f1, path), Unused.check.go(binds2, hh, f2, path),
+    inert.unused.via(binds, hh, f1, path),
+    Equal.trans(List<&2, F.Finding>, inert.unused.go(Laws.inert.ubinds(binds), hh, f1, path),
+      inert.unused.go(Laws.inert.ubinds(binds2), hh, f2, path), Unused.check.go(binds2, hh, f2, path),
+      inert.unused.cong(Laws.inert.ubinds(binds), Laws.inert.ubinds(binds2), f1, f2, hh, path, eb, ef),
+      Equal.sym(List<&2, F.Finding>, Unused.check.go(binds2, hh, f2, path),
+        inert.unused.go(Laws.inert.ubinds(binds2), hh, f2, path), inert.unused.via(binds2, hh, f2, path))))
 
 # Inert text, hoist (laws/CodeRulesIgnoreCommentsAndStrings.bend): a def's self-calls, its carried
 # parameters, the tables it builds and the names it indexes, each read the

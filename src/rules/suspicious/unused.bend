@@ -94,16 +94,6 @@ def reportable(kk: Bind.BindKind, +note: String, +line: U32, +foreign_lines: Lis
     case other:
       False{}
 
-# is the binder at (line, col) the target of any use?
-def used(uses: List<&2, Bind.Use>, +line: U32, +col: U32) -> Bool:
-  match uses:
-    case Nil{}:
-      False{}
-    case Con{Bind.Use{n, l, c, Bind.TLocal{+tl, +tc}}, rest}:
-      Lazy.or_else(Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col)), _u => used(rest, line, col))
-    case Con{other, rest}:
-      used(rest, line, col)
-
 # a binder's kind, for the message
 def what(kk: Bind.BindKind) -> String:
   match kk:
@@ -117,9 +107,12 @@ type Cell is Data:
   Cell{line: U32, col: U32}
 
 # the targets of the uses, as a binary trie on the low bits of each target's
-# line, a leaf holding the cells that reach it. A hit in it is a use; a miss
-# is checked against the uses themselves (seen), so the index only has to be
-# sound, never complete, and a lookup is a walk down, not a scan of every use
+# line, a leaf holding the cells that reach it. It holds every use that
+# resolves to a binder of the file and nothing else, so a lookup, a walk
+# down to one leaf, answers for the uses themselves: a hit is a use and a
+# miss is none (the proof of laws/UnusedReportsDeadBinders.bend). A miss
+# used to be checked by a scan of every use, which made a file's unused
+# binders times its uses: a 2.2 MB proof file spent 32 s there
 type Hits is Data:
   HNone{}
   HLeaf{cells: List<&2, Cell>}
@@ -227,32 +220,26 @@ def index(uses: List<&2, Bind.Use>) -> Hits:
     case Con{Bind.Use{_n, _l, _c, tg}, rest}:
       index.one(tg, index(rest))
 
-# is the binder at (line, col) the target of any use? The index answers a
-# hit at once; only a miss reads the uses
-def seen(hh: Hits, +uses: List<&2, Bind.Use>, +line: U32, +col: U32) -> Bool:
-  Lazy.or_else(find(path(depth(), line), hh, line, col), _u => used(uses, line, col))
+# is the binder at (line, col) the target of any use? The index of the uses
+# answers
+def seen(hh: Hits, +line: U32, +col: U32) -> Bool:
+  find(path(depth(), line), hh, line, col)
 
-def check.go(
-  binds: List<&2, Bind.Bind>,
-  +hh: Hits,
-  +uses: List<&2, Bind.Use>,
-  +fl: List<&2, U32>,
-  +path: String
-) -> List<&2, F.Finding>:
+def check.go(binds: List<&2, Bind.Bind>, +hh: Hits, +fl: List<&2, U32>, +path: String) -> List<&2, F.Finding>:
   match binds:
     case Nil{}:
       Nil{}
     case Con{Bind.Bind{+name, +line, +col, +kind, note}, rest}:
-      +more = check.go(rest, hh, uses, fl, path)
+      +more = check.go(rest, hh, fl, path)
       +shown = reportable(kind, note, line, fl)
       +hit = Bool.and(shown, Bool.not(String.starts_with(name, "_")))
-      Bool.pick(List<&2, F.Finding>, Lazy.and_then(hit, _u => Bool.not(seen(hh, uses, line, col))),
+      Bool.pick(List<&2, F.Finding>, Lazy.and_then(hit, _u => Bool.not(seen(hh, line, col))),
         F.Finding{path, line, col, U32.from_nat(String.length(name)), "unused",
           what(kind) ++ " " ++ name ++ " is never used."} <> more, more)
 
 def check.on(bb: Bind.Bound, fl: List<&2, U32>, path: String) -> List<&2, F.Finding>:
-  Bind.Bound{binds, +uses, scopes} = bb
-  check.go(binds, index(uses), uses, fl, path)
+  Bind.Bound{binds, uses, scopes} = bb
+  check.go(binds, index(uses), fl, path)
 
 # the rule
 def check(ss: Src.Src) -> List<&2, F.Finding>:
