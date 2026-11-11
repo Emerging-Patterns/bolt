@@ -46,13 +46,17 @@ def check.is_param(kk: Bind.BindKind) -> Bool:
 def check.allowed(+nm: String, +note: String) -> Bool:
   Bool.or(check.upper(nm), check.quant(note))
 
+# every short parameter among the binders. A binder's note is read only for
+# a parameter with a short name: a local's note is its whole line, and
+# lexing that for every binder cost 4 s on a file of 36 KB lines
 def check.go(binds: List<&2, Bind.Bind>, +path: String) -> List<&2, F.Finding>:
   match binds:
     case Nil{}:
       Nil{}
     case Con{Bind.Bind{+nm, +line, +col, +kind, +note}, rest}:
       +more = check.go(rest, path)
-      +hit = Bool.and(check.is_param(kind), Bool.and(check.short(nm), Bool.not(check.allowed(nm, note))))
+      +hit = Lazy.and_then(check.is_param(kind),
+        _u => Lazy.and_then(check.short(nm), _v => Bool.not(check.allowed(nm, note))))
       Bool.pick(List<&2, F.Finding>, hit,
         F.Finding{path, line, col, U32.from_nat(String.length(nm)), "param",
           "Parameter " ++ nm ++ " is too short; use at least 2 characters."} <> more, more)

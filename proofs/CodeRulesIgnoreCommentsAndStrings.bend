@@ -2245,8 +2245,8 @@ def inert.param.go(binds: List<&2, Bind.Bind>, +path: String) -> List<&2, F.Find
     case Con{Bind.Bind{+nm, +line, +col, +kind, +cn}, rest}:
       +more = inert.param.go(rest, path)
       +quant = Bool.or(Bool.not(String.contains(cn, ":")), String.ends_with(cn, ": Quant"))
-      Bool.pick(List<&2, F.Finding>, Bool.and(Param.check.is_param(kind), Bool.and(Param.check.short(nm),
-        Bool.not(Bool.or(Param.check.upper(nm), quant)))),
+      Bool.pick(List<&2, F.Finding>, Lazy.and_then(Param.check.is_param(kind),
+        _u => Lazy.and_then(Param.check.short(nm), _v => Bool.not(Bool.or(Param.check.upper(nm), quant)))),
         F.Finding{path, line, col, U32.from_nat(String.length(nm)), "param",
           "Parameter " ++ nm ++ " is too short; use at least 2 characters."} <> more, more)
 
@@ -2262,9 +2262,9 @@ def inert.param.walk(binds, path):
     case Con{Bind.Bind{+nm, +line, +col, +kind, +note}, +rest}:
       %inert.param.walk(rest, path) : {inert.param.go(Laws.inert.binds(Bind.Bind{nm, line, col, kind, note} <> rest),
         path)
-        == Bool.pick(List<&2, F.Finding>, Bool.and(Param.check.is_param(kind), Bool.and(Param.check.short(nm),
-          Bool.not(Param.check.allowed(nm,
-            note)))), F.Finding{path, line, col, U32.from_nat(String.length(nm)), "param",
+        == Bool.pick(List<&2, F.Finding>, Lazy.and_then(Param.check.is_param(kind),
+          _u => Lazy.and_then(Param.check.short(nm), _v => Bool.not(Param.check.allowed(nm, note)))),
+          F.Finding{path, line, col, U32.from_nat(String.length(nm)), "param",
             "Parameter " ++ nm ++ " is too short; use at least 2 characters."} <> _, _) : List<&2, F.Finding>}
       {==}
 
