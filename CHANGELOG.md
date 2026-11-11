@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.35.0](https://github.com/Emerging-Patterns/bolt/compare/v1.34.0...v1.35.0) (2026-11-11)
+
+
+### Performance Improvements
+
+* **lint:** a per-file rule its file's config sets off is not run ([#292](https://github.com/Emerging-Patterns/bolt/issues/292)) ([5c30d50](https://github.com/Emerging-Patterns/bolt/commit/5c30d50754f751b1955d6480b6c32e9004adabf6)), closes [#286](https://github.com/Emerging-Patterns/bolt/issues/286)
+
 ## [1.34.0](https://github.com/Emerging-Patterns/bolt/compare/v1.33.0...v1.34.0) (2026-11-11)
 
 
