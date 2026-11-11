@@ -6,7 +6,7 @@
 # fills the law named f; their "reports exactly" rows are read with that skip.
 #
 # also rests on: laws/FromrevExempt.bend, laws/PrefixExempt.bend,
-# laws/EmptyExempt.bend
+# laws/EmptyExempt.bend, laws/BlankExempt.bend
 import Base
 import ../src/syntax/lex.bend as Lex
 import ../src/finding.bend as F

@@ -157,3 +157,9 @@ import ./laws/RoleEmptyExempt.bend as RoleEmptyExempt
 import ./laws/InertEmpty.bend as InertEmpty
 import ./laws/InertArmsCover.bend as InertArmsCover
 import ./laws/EmptySkipsProofs.bend as EmptySkipsProofs
+import ./laws/BlankReportsEmptyLiteralTest.bend as BlankReportsEmptyLiteralTest
+import ./laws/BlankSkipsProofs.bend as BlankSkipsProofs
+import ./laws/BlankExempt.bend as BlankExempt
+import ./laws/RoleBlank.bend as RoleBlank
+import ./laws/RoleBlankExempt.bend as RoleBlankExempt
+import ./laws/InertBlank.bend as InertBlank
