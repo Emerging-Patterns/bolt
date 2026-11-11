@@ -520,9 +520,15 @@ when it meets all of these:
    behavior on every true positive, and the message names it, not just the
    smell. Where bolt cannot tell from tokens that the fix is legal, the rule
    does not suggest it.
-4. **Faster, for a perf rule.** The fix, applied to a real hit on a
-   realistic input, is clearly faster on at least one lane (JS or native),
-   repeatably and beyond noise, and no measured hit is slower on either.
+4. **Faster, only for a perf-shaped rule.** A rule is perf-shaped when
+   its message says the code is slow or costly, in time or memory, at run
+   or at build, whatever group it sits in (`concat`, `prefix` and `empty`
+   are, though they are `suspicious`). For such a rule the fix, applied to
+   a real hit on a realistic input, is clearly faster on at least one lane
+   (JS or native), repeatably and beyond noise, and no measured hit is
+   slower on either. No other rule is measured: one whose case is a wrong
+   answer, a failure, or the same thing said more plainly stands on the
+   other four, and is not turned down for being no faster.
 5. **New.** Neither the Bend checker nor another rule already reports it.
 
 A public commit that rewrites a real instance into the fix strengthens the
