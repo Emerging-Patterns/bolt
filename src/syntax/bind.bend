@@ -245,19 +245,115 @@ def has_item(names: List<&2, String>, +name: String) -> Bool:
     case Con{hh, rest}:
       Lazy.or_else(same(hh, name), _u => has_item(rest, name))
 
-# the names an environment holds, and the file's items and aliases
+# The index of a file's items. Every use no binder holds asks whether its
+# name is an item, and a scan of the items for each one is the uses times
+# the items: a file of 6,500 items spent 14.5 s there and 0.1 s on all the
+# rest of its binding. The index is a binary trie on the low bits of a
+# number folded from the name's chars, a leaf holding the names that reach
+# it; a lookup walks down by the asked name's number and scans that one
+# leaf. It answers as the scan does (laws/BinderIndexFindsItems.bend).
+type Index is Data:
+  XNone{}
+  XLeaf{names: List<&2, String>}
+  XNode{lo: Index, hi: Index}
+
+# how many bits of a name's number the index branches on
+def index.depth() -> Nat:
+  12n
+
+# a name's number: its chars folded, each onto 31 times the number so far
+def key.go(name: String, +acc: U32) -> U32:
+  match name:
+    case SNil{}:
+      acc
+    case SCon{Chr{x}, rest}:
+      key.go(rest, (acc * 31 + x : U32))
+
+# a name's number
+def key(name: String) -> U32:
+  key.go(name, 7)
+
+# the names at a leaf, none elsewhere
+def index.names(ix: Index) -> List<&2, String>:
+  match ix:
+    case XNone{}:
+      Nil{}
+    case XLeaf{names}:
+      names
+    case XNode{_lo, _hi}:
+      Nil{}
+
+# the low half for a set bit, the high half else
+def index.pick(bb: Bool, lo: Index, hi: Index) -> Index:
+  match bb:
+    case True{}:
+      lo
+    case False{}:
+      hi
+
+# the half of a node a bit goes down, empty elsewhere
+def index.near(bb: Bool, ix: Index) -> Index:
+  match ix:
+    case XNode{lo, hi}:
+      index.pick(bb, lo, hi)
+    case other:
+      XNone{}
+
+# a node whose half down a bit is sub, and the other half far
+def index.join(bb: Bool, sub: Index, far: Index) -> Index:
+  match bb:
+    case True{}:
+      XNode{sub, far}
+    case False{}:
+      XNode{far, sub}
+
+# the index with one more name, down the low bits of its number
+def index.put(dd: Nat, +kk: U32, +ix: Index, name: String) -> Index:
+  match dd:
+    case 0n:
+      XLeaf{name <> index.names(ix)}
+    case 1n+p:
+      index.join(U32.is_even(kk), index.put(p, U32.shr(kk), index.near(U32.is_even(kk), ix), name),
+        index.near(Bool.not(U32.is_even(kk)), ix))
+
+# is the name at the end of its number's way down the index?
+def index.has(dd: Nat, +kk: U32, ix: Index, +name: String) -> Bool:
+  match dd:
+    case 0n:
+      has_item(index.names(ix), name)
+    case 1n+p:
+      index.has(p, U32.shr(kk), index.near(U32.is_even(kk), ix), name)
+
+# the index of these names
+def index(names: List<&2, String>) -> Index:
+  match names:
+    case Nil{}:
+      XNone{}
+    case Con{+nm, rest}:
+      index.put(index.depth(), key(nm), index(rest), nm)
+
+# is the name among the names the index was built from?
+def indexed(ix: Index, +name: String) -> Bool:
+  index.has(index.depth(), key(name), ix, name)
+
+# the names an environment holds: the file's items, its aliases, and the
+# index of the items, which is what a lookup reads
 type Names is Data:
-  Names{items: List<&2, String>, aliases: List<&2, String>}
+  Names{items: List<&2, String>, aliases: List<&2, String>, index: Index}
+
+# the names of a file from its items and aliases
+def names_of(+its: List<&2, String>, als: List<&2, String>) -> Names:
+  Names{its, als, index(its)}
 
 def resolve.local(mm: Maybe<&2, Bind>, +name: String, ns: Names) -> Target:
   match mm:
     case Some{Bind{n, l, c, k, note}}:
       TLocal{l, c}
     case None{}:
-      Names{its, als} = ns
+      Names{its, als, ix} = ns
       +cs = String.to_list(name)
       +head = head_of(cs)
-      Bool.pick(Target, has_item(its, name), TItem{name},
+      Bool.pick(Target, indexed(ix, name), TItem{name},
         Lazy.stop(Target, Bool.not(Bool.and(String.contains(name, "."), has(als, head))), TFree{},
           _u => TQual{head, rest_of(cs)}))
 
@@ -884,7 +980,7 @@ def finish(oo: Out, lines: List<&2, String>) -> Bound:
 
 # the binding structure of a parsed source
 def of_tree(+root: Tree.Node, lines: List<&2, String>) -> Bound:
-  finish(out_of(walk(root, MBlock{}, [], Names{items(root, []), aliases(root, [])}, Out{[], [], []})), lines)
+  finish(out_of(walk(root, MBlock{}, [], names_of(items(root, []), aliases(root, [])), Out{[], [], []})), lines)
 
 # the binding structure of a source
 def bound(+source: String) -> Bound:

@@ -64,13 +64,15 @@ def res.spec(env: List<&2, Bind.Bind>, +name: String, its: List<&2, String>, als
 
 # LAW: the binder resolves a name to the innermost binder of it, else an
 # item of the file, else an alias qualifier, else free: whatever the
-# environment, the name, the items and the aliases
+# environment, the name, the items and the aliases. The binder asks the
+# index of the items, which answers as a scan of them does
+# (laws/BinderIndexFindsItems.bend)
 law resolves:
   for +env: List<&2, Bind.Bind>
   for +name: String
   for +its: List<&2, String>
   for +als: List<&2, String>
-  {Bind.resolve(env, name, Bind.Names{its, als}) == res.spec(env, name, its, als) : Bind.Target}
+  {Bind.resolve(env, name, Bind.Names{its, als, Bind.index(its)}) == res.spec(env, name, its, als) : Bind.Target}
 
 # LAW: the walk records each use it reads with that target, and changes
 # neither the environment nor anything else it has gathered
@@ -84,7 +86,7 @@ law uses:
   for +binds: List<&2, Bind.Bind>
   for +us: List<&2, Bind.Use>
   for +scopes: List<&2, Bind.Scope>
-  {Bind.use(name, line, col, env, Bind.Names{its, als}, Bind.Out{binds, us, scopes})
+  {Bind.use(name, line, col, env, Bind.Names{its, als, Bind.index(its)}, Bind.Out{binds, us, scopes})
     == Bind.W{env, Bind.Out{binds, Bind.Use{name, line, col, res.spec(env, name, its, als)} <> us, scopes}} : Bind.W}
 
 # the environment the walk threads (laws/BinderResolvesInnermostFirst.bend): what makes the first binder

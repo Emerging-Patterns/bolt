@@ -7,6 +7,8 @@ import ../src/syntax/bind.bend as Bind
 import ../laws/BinderResolvesInnermostFirst.bend as Laws
 import ./lemmas/LexAndTreeFacts.bend as M1
 import ./lemmas/CarriedSearch.bend as CS
+import ../laws/BinderIndexFindsItems.bend as L1
+import ./lemmas/BinderIndex.bend as M2
 
 # the binder's resolution (laws/BinderResolvesInnermostFirst.bend)
 # ------------------------------------
@@ -324,18 +326,30 @@ def rs.code(+name: String, als: List<&2, String>) -> Bind.Target:
   Lazy.stop(Bind.Target, Bool.not(Bool.and(String.contains(name, "."), Bind.has(als, head))), Bind.TFree{},
     _u => Bind.TQual{head, Bind.rest_of(cs)})
 
+# the binder's index of the items is List.contains over them
+law rs.indexed:
+  for +its: List<&2, String>
+  for +name: String
+  {Bind.indexed(Bind.index(its), name) == List.contains(~String, ~String.eq, its, name) : Bool}
+
+def rs.indexed(its, name):
+  Equal.trans(Bool, Bind.indexed(Bind.index(its), name), Bind.has_item(its, name),
+    List.contains(~String, ~String.eq, its, name), L1.index_finds(its, name), rs.items(its, name))
+
 # a name no binder holds: an item, else what its dot and alias make of it
 law rs.none:
   for +name: String
   for +its: List<&2, String>
   for +als: List<&2, String>
-  {Bind.resolve.local(None{}, name, Bind.Names{its, als}) == Laws.res.found(None{}, name, its, als) : Bind.Target}
+  {Bind.resolve.local(None{}, name, Bind.Names{its, als, Bind.index(its)})
+    == Laws.res.found(None{}, name, its, als) : Bind.Target}
 
 def rs.none(name, its, als):
-  %rs.items(its, name) : {Bind.resolve.local(None{}, name, Bind.Names{its, als})
+  %rs.indexed(its, name) : {Bind.resolve.local(None{}, name, Bind.Names{its, als, Bind.index(its)})
     == Bool.pick(Bind.Target, _, Bind.TItem{name}, Laws.res.qual(Laws.res.after(name), Laws.res.before(name), als))
     : Bind.Target}
-  Equal.cong(Bind.Target, Bind.Target, x => Bool.pick(Bind.Target, Bind.has_item(its, name), Bind.TItem{name}, x),
+  Equal.cong(Bind.Target, Bind.Target,
+    x => Bool.pick(Bind.Target, Bind.indexed(Bind.index(its), name), Bind.TItem{name}, x),
     rs.code(name, als),
     Laws.res.qual(Laws.res.after(name), Laws.res.before(name), als),
     Equal.trans(Bind.Target,
@@ -353,7 +367,8 @@ law rs.local:
   for +name: String
   for +its: List<&2, String>
   for +als: List<&2, String>
-  {Bind.resolve.local(mm, name, Bind.Names{its, als}) == Laws.res.found(mm, name, its, als) : Bind.Target}
+  {Bind.resolve.local(mm, name, Bind.Names{its, als, Bind.index(its)}) == Laws.res.found(mm, name, its, als)
+    : Bind.Target}
 
 def rs.local(mm, name, its, als):
   match mm:
@@ -365,13 +380,14 @@ def rs.local(mm, name, its, als):
 def Laws.resolves(env, name, its, als):
   %Equal.sym(Maybe<&2, Bind.Bind>, Bind.find(env, name), List.head(&2, Bind.Bind, Laws.res.all(env, name)),
       rs.find(env, name))
-    : {Bind.resolve.local(_, name, Bind.Names{its, als}) == Laws.res.spec(env, name, its, als) : Bind.Target}
+    : {Bind.resolve.local(_, name, Bind.Names{its, als, Bind.index(its)}) == Laws.res.spec(env, name, its, als)
+      : Bind.Target}
   rs.local(List.head(&2, Bind.Bind, Laws.res.all(env, name)), name, its, als)
 
 def Laws.uses(name, line, col, env, its, als, binds, us, scopes):
   Equal.cong(Bind.Target, Bind.W,
     x => Bind.W{env, Bind.Out{binds, Bind.Use{name, line, col, x} <> us, scopes}},
-    Bind.resolve(env, name, Bind.Names{its, als}), Laws.res.spec(env, name, its, als),
+    Bind.resolve(env, name, Bind.Names{its, als, Bind.index(its)}), Laws.res.spec(env, name, its, als),
     Laws.resolves(env, name, its, als))
 
 # the environment the walk threads (laws/BinderResolvesInnermostFirst.bend)
