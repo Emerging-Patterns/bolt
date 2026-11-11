@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.31.0](https://github.com/Emerging-Patterns/bolt/compare/v1.30.0...v1.31.0) (2026-11-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* **rules:** `twice` is removed; a bolt.bend that still sets it gets a `setting` finding (C011). `chars` is off unless `pedantic` or `def chars()` is set: a project that relied on its warning must turn it on.
+
+### Features
+
+* **rules:** retire twice and demote chars, their premises re-measured on bend 2.0.40 ([#280](https://github.com/Emerging-Patterns/bolt/issues/280)) ([6167ff7](https://github.com/Emerging-Patterns/bolt/commit/6167ff77ea6274037a5b3c92938a0b969677f483))
+
+
+### Performance Improvements
+
+* **rules:** rewalk reads a call's arguments only when it is a site ([#282](https://github.com/Emerging-Patterns/bolt/issues/282)) ([1d0a345](https://github.com/Emerging-Patterns/bolt/commit/1d0a34558dbe0ad34c8653b579e6b87499700c1e))
+
 ## [1.30.0](https://github.com/Emerging-Patterns/bolt/compare/v1.29.0...v1.30.0) (2026-11-11)
 
 
