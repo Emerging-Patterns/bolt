@@ -60,6 +60,8 @@ import ./laws/SettingReportsUnknownNames.bend as SettingReportsUnknownNames
 import ./laws/UnknownExact.bend as UnknownExact
 import ./laws/WalkBfs.bend as WalkBfs
 import ./laws/WantsTie.bend as WantsTie
+import ./laws/UniqKeepsFirstOccurrences.bend as UniqKeepsFirstOccurrences
+import ./laws/UnansweredAreOpenQuestions.bend as UnansweredAreOpenQuestions
 import ./laws/ArmsReportCoveredNatArms.bend as ArmsReportCoveredNatArms
 import ./laws/ArmsReportCoveredArms.bend as ArmsReportCoveredArms
 import ./laws/CharsReportManyCharArms.bend as CharsReportManyCharArms

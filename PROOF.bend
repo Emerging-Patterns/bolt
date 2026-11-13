@@ -45,6 +45,8 @@ import ./proofs/SettingReportsUnknownNames.bend as PSettingReportsUnknownNames
 import ./proofs/UnknownExact.bend as PUnknownExact
 import ./proofs/WalkBfs.bend as PWalkBfs
 import ./proofs/WantsTie.bend as PWantsTie
+import ./proofs/UniqKeepsFirstOccurrences.bend as PUniqKeepsFirstOccurrences
+import ./proofs/UnansweredAreOpenQuestions.bend as PUnansweredAreOpenQuestions
 import ./proofs/ArmsReportCoveredNatArms.bend as PArmsReportCoveredNatArms
 import ./proofs/ArmsReportCoveredArms.bend as PArmsReportCoveredArms
 import ./proofs/CharsReportManyCharArms.bend as PCharsReportManyCharArms
