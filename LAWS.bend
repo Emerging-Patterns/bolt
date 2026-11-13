@@ -109,6 +109,7 @@ import ./laws/RoleParamExempt.bend as RoleParamExempt
 import ./laws/RolePick.bend as RolePick
 import ./laws/RoleProofNamed.bend as RoleProofNamed
 import ./laws/RoleReached.bend as RoleReached
+import ./laws/RoleFollowsImports.bend as RoleFollowsImports
 import ./laws/RoleRewalk.bend as RoleRewalk
 import ./laws/RoleStrict.bend as RoleStrict
 import ./laws/RoleTail.bend as RoleTail
