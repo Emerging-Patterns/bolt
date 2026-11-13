@@ -25,6 +25,7 @@ import ../src/rules/calls.bend as Calls
 import ../src/rules/laws/closed.bend as Closed
 import ../src/rules/laws/law.bend as Coverage
 import ../src/rules/imports.bend as Imports
+import ../src/role.bend as Role
 import ./defs/Unsafe.bend as D1
 
 # coverage (laws/LawNamesEveryItem.bend). The rule reads the digests of the files in the run
@@ -411,6 +412,51 @@ law reach_digest:
       Bool.pick(List<&2, Digest.Mention>, Paths.is_laws(path),
         coverage.said(coverage.uses(bound), tree, items, Imports.norm(path)), [])}
     : CoverageView}
+
+# LAW: the linter does not read a file's role off its path: it tells the
+# digest the role the file has among the files of the run (src/role.bend).
+# That digest, whatever the role and whatever the file's text, tokens, tree,
+# binding structure and outline, holds the path as given, the normalized path
+# it is graded at and its directory; is a LAWS.bend exactly when the role is
+# a law file's and a law or proof file exactly when the role says so; is let
+# off exactly when the role is a law or proof file's or the normalized path
+# is a test; lists the outline's defs and types less the defs that are
+# proofs, each with what the binder resolved the uses on its lines to
+# (reach.tops, as reach_digest reads them); names what the quantified laws'
+# statements name exactly when the role is a law file's; and holds the files
+# the outline imports and, for a law file's role, the tree's laws. No field
+# is left to the code alone
+law reach_digest_role:
+  for +rr: Role.Role
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for +tree: Tree.Node
+  for +bound: Bind.Bound
+  for +items: List<&2, Outline.Item>
+  {Digest.of.role(rr, Src.Src{path, text, toks, tree, bound, items})
+    == Digest.Digest{path, Imports.norm(path), Imports.dir_of(path), Role.is_laws(rr), Role.is_law_file(rr),
+      Bool.or(Role.is_law_file(rr), Paths.is_test(Imports.norm(path))),
+      reach.tops(items, items, coverage.uses(bound), Imports.norm(path), reach.proofs(tree)),
+      Bool.pick(List<&2, Digest.Mention>, Role.is_laws(rr),
+        coverage.said(coverage.uses(bound), tree, items, Imports.norm(path)), []),
+      Imports.targets(items, Imports.norm(path)), Digest.laws.in(Role.is_laws(rr), tree, items)}
+    : Digest.Digest}
+
+# LAW: over the files of a run, each file's digest is told the role the
+# run's marks give its path (Role.of), file by file, in order
+law reach_digest_marks:
+  for +ms: List<&2, Role.Mark>
+  for +path: String
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  for tree: Tree.Node
+  for bound: Bind.Bound
+  for items: List<&2, Outline.Item>
+  for ss: List<&2, Src.Src>
+  {Digest.all.role(ms, Src.Src{path, text, toks, tree, bound, items} <> ss)
+    == Digest.of.role(Role.of(ms, path), Src.Src{path, text, toks, tree, bound, items}) <> Digest.all.role(ms, ss)
+    : List<&2, Digest.Digest>}
 
 # LAW: read from its path and text as the linter reads every file, a file's
 # defs call, and its laws name, exactly what the binder (Bind.of_tree,
