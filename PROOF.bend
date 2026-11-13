@@ -44,6 +44,7 @@ import ./proofs/NamedFilesTakeTreeRoles.bend as PNamedFilesTakeTreeRoles
 import ./proofs/PlannerAsksEachPathOnce.bend as PPlannerAsksEachPathOnce
 import ./proofs/ConfigReadsSettings.bend as PConfigReadsSettings
 import ./proofs/TokenKindsNamed.bend as PTokenKindsNamed
+import ./proofs/RulesNamedInCodeTable.bend as PRulesNamedInCodeTable
 import ./proofs/BinderReadsBindingForms.bend as PBinderReadsBindingForms
 import ./proofs/BinderFindsPositions.bend as PBinderFindsPositions
 import ./proofs/OutlineLooksUpItems.bend as POutlineLooksUpItems
