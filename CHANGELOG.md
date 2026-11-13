@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.44.0](https://github.com/Emerging-Patterns/bolt/compare/v1.43.0...v1.44.0) (2026-11-13)
+
+
+### Performance Improvements
+
+* **rules:** walk imports through indexes of the edges, the files seen and the files read ([#334](https://github.com/Emerging-Patterns/bolt/issues/334)) ([3cb25e5](https://github.com/Emerging-Patterns/bolt/commit/3cb25e517b2733dd61c68da692b085e7db6163ad))
+
 ## [1.43.0](https://github.com/Emerging-Patterns/bolt/compare/v1.42.0...v1.43.0) (2026-11-13)
 
 
