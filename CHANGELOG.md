@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.52.0](https://github.com/Emerging-Patterns/bolt/compare/v1.51.0...v1.52.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **cli:** exit non-zero without writing a blank line to stderr ([#352](https://github.com/Emerging-Patterns/bolt/issues/352)) ([7dcfbc6](https://github.com/Emerging-Patterns/bolt/commit/7dcfbc6152a44612c0a8cd6d6f491246ae531f01))
+
 ## [1.51.0](https://github.com/Emerging-Patterns/bolt/compare/v1.50.0...v1.51.0) (2026-11-13)
 
 
