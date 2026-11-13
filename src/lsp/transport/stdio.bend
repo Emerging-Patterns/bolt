@@ -1,6 +1,9 @@
 # transport/stdio: LSP's base protocol over stdin and stdout. Reads bytes (a
 # read may end inside a UTF-8 char, and Content-Length counts bytes), keeps
-# what is past the current message in buf.
+# what is past the current message in buf. A read asks for exactly what the
+# message in hand lacks (Frame.next): File.read_bytes waits until it has all
+# it was asked for (bend 2.0.40), so asking for more than the editor has sent
+# is a server that never answers.
 #
 # Trusted, not proved: the transport effect (fd.c, fd.js) delivers stdin bytes
 # in order and writes stdout bytes whole; it is foreign code over descriptors
@@ -49,21 +52,61 @@ def recv.read(
   (inp, r) = got
   recv.fed(r, inp, out, buf, rest)
 
-# a whole message is cut off the buffer; short of one, read and look again
+def recv.lined(
+  rr: Result<&1, &1, U32 & String, String>,
+  inp: File,
+  out: File,
+  buf: List<&2, U32>,
+  rest: Stdio -> IO(Stdio & Maybe<&2, String>)
+) -> IO(Stdio & Maybe<&2, String>):
+  match rr:
+    case Fail{e}:
+      IO.pure(Stdio & Maybe<&2, String>, (Stdio{inp, out, []}, None{}))
+    case Done{line}:
+      recv.grown(Frame.encode(line), inp, out, buf, rest)
+
+def recv.line(
+  got: File & Result<&1, &1, U32 & String, String>,
+  out: File,
+  buf: List<&2, U32>,
+  rest: Stdio -> IO(Stdio & Maybe<&2, String>)
+) -> IO(Stdio & Maybe<&2, String>):
+  (inp, r) = got
+  recv.lined(r, inp, out, buf, rest)
+
+# what the buffer lacks, read: a header line, or the bytes the body is short
+# of, never more than the message in hand
+def recv.more(
+  nn: Frame.Next,
+  inp: File,
+  out: File,
+  buf: List<&2, U32>,
+  rest: Stdio -> IO(Stdio & Maybe<&2, String>)
+) -> IO(Stdio & Maybe<&2, String>):
+  match nn:
+    case Frame.Line{}:
+      do IO<Stdio & Maybe<&2, String>>:
+        got : File & Result<&1, &1, U32 & String, String> <- File.read_line(inp, 4096)
+        recv.line(got, out, buf, rest)
+    case Frame.Bytes{count}:
+      do IO<Stdio & Maybe<&2, String>>:
+        got : File & Result<&1, &1, U32 & String, List<&2, U32>> <- File.read_bytes(inp, count)
+        recv.read(got, out, buf, rest)
+
+# a whole message is cut off the buffer; short of one, read what it lacks and
+# look again
 def recv.on(
   cc: Frame.Cut,
   inp: File,
   out: File,
-  buf: List<&2, U32>,
+  +buf: List<&2, U32>,
   rest: Stdio -> IO(Stdio & Maybe<&2, String>)
 ) -> IO(Stdio & Maybe<&2, String>):
   match cc:
     case Frame.Whole{body, left}:
       IO.pure(Stdio & Maybe<&2, String>, (Stdio{inp, out, left}, Some{Frame.decode(body)}))
     case Frame.More{}:
-      do IO<Stdio & Maybe<&2, String>>:
-        got : File & Result<&1, &1, U32 & String, List<&2, U32>> <- File.read_bytes(inp, 65536)
-        recv.read(got, out, buf, rest)
+      recv.more(Frame.next(buf), inp, out, buf, rest)
 
 def recv.loop(fuel: Nat, h2: Stdio) -> IO(Stdio & Maybe<&2, String>):
   match fuel:

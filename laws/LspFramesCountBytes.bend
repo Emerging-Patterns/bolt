@@ -102,3 +102,79 @@ law frame_waits:
   for kk: Nat
   for h: {Nat.is_lt(kk, List.length(&2, U32, wire(s))) == True{} : Bool}
   {Frame.cut(List.take(&2, U32, wire(s), kk)) == Frame.More{} : Frame.Cut}
+
+# What the transport reads next (Frame.next). bend's File.read_bytes waits
+# until it has all it was asked for, so a server that asks for more than the
+# message in hand waits for bytes the editor will not send until it has its
+# answer. The transport therefore asks for a header line while the header
+# block has not ended, and after that for what the body still lacks, held to
+# 65536 a read and never none.
+
+# LAW: while the header block has not ended, the next read is a line
+law next_reads_a_header_line:
+  for buf: List<&2, U32>
+  for e: {Frame.header(buf, [], [Frame.D0{}]) == Frame.NoHead{} : Frame.Head}
+  {Frame.next(buf) == Frame.Line{} : Frame.Next}
+
+# LAW: once it has, the next read is the bytes the body lacks: its
+# Content-Length less the bytes held past the header, held to 65536, and one
+# when that is none
+law next_reads_what_the_body_lacks:
+  for buf: List<&2, U32>
+  for len: List<&2, Frame.Digit>
+  for rest: List<&2, U32>
+  for e: {Frame.header(buf, [], [Frame.D0{}]) == Frame.Head{len, rest} : Frame.Head}
+  {Frame.next(buf) == Frame.Bytes{Frame.at_least_one(Frame.count.held(Frame.lack(rest, len)))} : Frame.Next}
+
+# LAW: each byte held takes one off what the body lacks
+law lack_takes_each_byte:
+  for h: U32
+  for t: List<&2, U32>
+  for ds: List<&2, Frame.Digit>
+  {Frame.lack(h <> t, ds) == Frame.lack(t, Frame.untick(ds)) : List<&2, Frame.Digit>}
+
+# LAW: with no byte held, the body lacks all of its count
+law lack_of_none_held:
+  for ds: List<&2, Frame.Digit>
+  {Frame.lack(Nil{}, ds) == ds : List<&2, Frame.Digit>}
+
+# LAW: a digit's value is its char's code less the code of `0`
+law digit_value_is_its_char:
+  for dd: Frame.Digit
+  {(Frame.digit.value(dd) + 48 : U32) == Frame.digit.code(dd) : U32}
+
+# LAW: a number past 65536 is held to it
+law held_caps:
+  for +nn: U32
+  for e: {U32.is_gt(nn, 65536) == True{} : Bool}
+  {Frame.held(nn) == 65536 : U32}
+
+# LAW: any other number is itself
+law held_keeps:
+  for +nn: U32
+  for e: {U32.is_gt(nn, 65536) == False{} : Bool}
+  {Frame.held(nn) == nn : U32}
+
+# LAW: a count is read least significant digit first, each digit plus ten
+# times the rest, held at every step
+law count_held_by_digits:
+  for d: Frame.Digit
+  for t: List<&2, Frame.Digit>
+  {Frame.count.held(d <> t) == Frame.held((Frame.digit.value(d) + 10 * Frame.count.held(t) : U32)) : U32}
+
+# LAW: a count of one digit is that digit's value
+law count_held_one_digit:
+  for d: Frame.Digit
+  {Frame.count.held(d <> Nil{}) == Frame.digit.value(d) : U32}
+
+# LAW: a read never asks for no bytes: none is asked as one
+law at_least_one_of_none:
+  for +nn: U32
+  for e: {U32.is_eq(nn, 0) == True{} : Bool}
+  {Frame.at_least_one(nn) == 1 : U32}
+
+# LAW: any other number of bytes is asked as it is
+law at_least_one_keeps:
+  for +nn: U32
+  for e: {U32.is_eq(nn, 0) == False{} : Bool}
+  {Frame.at_least_one(nn) == nn : U32}

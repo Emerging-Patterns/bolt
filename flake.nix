@@ -60,13 +60,46 @@
           proofs = ez.mkProofs { ez = ezBin; src = self; };
           # bolt, built from this tree, over this tree: exit 1 on any error
           lint = ez.mkLint { inherit bolt; src = self; };
+          # the packaged bolt as an editor starts it: spawned by node over
+          # sockets (src/lsp/tests/spawn.js), found and started the way the
+          # extension finds it (tests/locate.js), and the server over the
+          # real checker (src/lsp/tests/checker.bend). A server that builds
+          # and proves can still never answer: bolt's did not, from the bend
+          # 2.0.40 pin until this check existed
+          # src/lsp/tests/checker.bend as a binary: interpreted, it overflows
+          # the stack reading this tree's larger proofs, so it runs native
+          checkerTest = ez.mkPackage {
+            inherit bend;
+            src = self;
+            pname = "bolt-checker-test";
+            version = "0";
+            entry = "src/lsp/tests/checker.bend";
+            wrapFlags = [ "+RTS" "--gpu" "off" "-RTS" ];
+          };
+          lsp = pkgs.runCommand "bolt-lsp" { nativeBuildInputs = [ pkgs.nodejs ]; } ''
+            cp -r ${self} tree
+            chmod -R u+w tree
+            cd tree
+            export HOME=$TMPDIR
+            # tests/locate.js also looks for the checkout's own build
+            mkdir -p bin
+            ln -s ${bolt}/bin/bolt bin/bolt.bin
+            node src/lsp/tests/spawn.js bin/bolt.bin
+            node tests/locate.js bin/bolt.bin
+            # the server over the real checker, against the lines the test
+            # file ends in
+            grep '^#|' src/lsp/tests/checker.bend | sed 's/^#|//' > want.txt
+            ${checkerTest}/bin/bolt-checker-test > got.txt
+            diff want.txt got.txt
+            touch $out
+          '';
         in {
           packages = {
             inherit bolt bend bend-cc;
             ez = ezBin;
             default = bolt;
           };
-          checks = { inherit bolt proofs lint; };
+          checks = { inherit bolt proofs lint lsp; };
           apps.default = { type = "app"; program = "${bolt}/bin/bolt"; };
           devShells.default = ez.mkShell {
             packages = [ bend bend-cc pkgs.nodejs pkgs.git ];

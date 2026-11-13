@@ -42,6 +42,16 @@ setTimeout(() => fail("timed out"), 20000);
     params: { textDocument: { uri }, position: { line: 3, character: 5 } } });
   const hover = (await recv()).result;
   if (!hover || !hover.contents.value.includes("def f(xx: U32) -> String:")) fail("hover: " + JSON.stringify(hover));
+  // a document longer than one read (65536 bytes), with chars of two, three
+  // and four bytes: the server must ask for the body in parts and never for
+  // more than the message holds, or it waits for bytes that are not coming
+  const big = "file://" + path.join(__dirname, "..", "fixtures", "long.bend");
+  const text = "import Base\n\n" + ("# é€😀 " + "x".repeat(70) + "\n").repeat(3000);
+  if (Buffer.byteLength(text) < 3 * 65536) fail("the long document is not long");
+  send({ jsonrpc: "2.0", method: "textDocument/didOpen", params: { textDocument: { uri: big, text } } });
+  const long = await recv();
+  if (long.method !== "textDocument/publishDiagnostics" || long.params.uri !== big)
+    fail("long document: " + JSON.stringify(long).slice(0, 200));
   send({ jsonrpc: "2.0", id: 3, method: "shutdown" });
   await recv();
   send({ jsonrpc: "2.0", method: "exit" });
