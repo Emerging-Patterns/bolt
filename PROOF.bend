@@ -54,6 +54,7 @@ import ./proofs/RulesReadSignaturesAndLiterals.bend as PRulesReadSignaturesAndLi
 import ./proofs/FindingsSayWhereAndWhat.bend as PFindingsSayWhereAndWhat
 import ./proofs/RulesReadTokensAndChains.bend as PRulesReadTokensAndChains
 import ./proofs/RewalkReadsNarrowAndWide.bend as PRewalkReadsNarrowAndWide
+import ./proofs/LspRepliesListEveryEntry.bend as PLspRepliesListEveryEntry
 import ./proofs/ScopeProjectRulesRunOnRoot.bend as PScopeProjectRulesRunOnRoot
 import ./proofs/ScopeRulesSeeTheirInputs.bend as PScopeRulesSeeTheirInputs
 import ./proofs/ScopeWalksWholeTree.bend as PScopeWalksWholeTree

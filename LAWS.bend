@@ -69,6 +69,7 @@ import ./laws/RulesReadSignaturesAndLiterals.bend as RulesReadSignaturesAndLiter
 import ./laws/FindingsSayWhereAndWhat.bend as FindingsSayWhereAndWhat
 import ./laws/RulesReadTokensAndChains.bend as RulesReadTokensAndChains
 import ./laws/RewalkReadsNarrowAndWide.bend as RewalkReadsNarrowAndWide
+import ./laws/LspRepliesListEveryEntry.bend as LspRepliesListEveryEntry
 import ./laws/ScopeProjectRulesRunOnRoot.bend as ScopeProjectRulesRunOnRoot
 import ./laws/ScopeRulesSeeTheirInputs.bend as ScopeRulesSeeTheirInputs
 import ./laws/ScopeWalksWholeTree.bend as ScopeWalksWholeTree
