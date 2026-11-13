@@ -3,6 +3,8 @@ import Base
 import ../src/lint/world.bend as W
 import ../src/lint/plan.bend as Plan
 import ../laws/WantsTie.bend as Laws
+import ../laws/UnansweredAreOpenQuestions.bend as L1
+import ./UnansweredAreOpenQuestions.bend as PU
 
 # `and` regroups
 law lint.and_assoc:
@@ -53,19 +55,31 @@ def lint.all_open.step(bb, _a, _more, _opn, ih):
     case False{}:
       {==}
 
-# a World answers every question exactly when none is left unanswered
-law lint.all_open:
+# a World answers every question exactly when the law's walk
+# (laws/UnansweredAreOpenQuestions.bend) leaves none open
+law lint.all_spec:
   for xs: List<&2, W.Ask>
   for +world: W.World
-  {Laws.answered_all(world, xs) == List.is_empty(&2, W.Ask, Plan.unanswered(xs, world)) : Bool}
+  {Laws.answered_all(world, xs) == List.is_empty(&2, W.Ask, L1.open(xs, world)) : Bool}
 
-def lint.all_open(xs, world):
+def lint.all_spec(xs, world):
   match xs:
     case Nil{}:
       {==}
     case Con{+a, +tl}:
-      lint.all_open.step(W.answered(world, a), a, Laws.answered_all(world, tl), Plan.unanswered(tl, world),
-        lint.all_open(tl, world))
+      lint.all_open.step(W.answered(world, a), a, Laws.answered_all(world, tl), L1.open(tl, world),
+        lint.all_spec(tl, world))
+
+# a World answers every question exactly when none is left unanswered
+law lint.all_open:
+  for +xs: List<&2, W.Ask>
+  for +world: W.World
+  {Laws.answered_all(world, xs) == List.is_empty(&2, W.Ask, Plan.unanswered(xs, world)) : Bool}
+
+def lint.all_open(xs, world):
+  %Equal.sym(List<&2, W.Ask>, Plan.unanswered(xs, world), L1.open(xs, world), L1.unanswered_open(xs, world)) :
+    {Laws.answered_all(world, xs) == List.is_empty(&2, W.Ask, _) : Bool}
+  lint.all_spec(xs, world)
 
 # wants is empty exactly when no listing and no text is open
 law lint.tie_pick:
