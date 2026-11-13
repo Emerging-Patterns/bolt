@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.50.0](https://github.com/Emerging-Patterns/bolt/compare/v1.49.0...v1.50.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **foreign:** find a foreign def's lanes under a wrapped header ([#348](https://github.com/Emerging-Patterns/bolt/issues/348)) ([2c7bc35](https://github.com/Emerging-Patterns/bolt/commit/2c7bc3560d3e29c0509512ff82509a03685ecda5))
+* **syntax:** read writes chained in one term, `(a[i] <- v)[j] <- w`, as a term ([#349](https://github.com/Emerging-Patterns/bolt/issues/349)) ([e721ea2](https://github.com/Emerging-Patterns/bolt/commit/e721ea22bb75b0108b9e0a7f2632776ea441b8b5))
+
 ## [1.49.0](https://github.com/Emerging-Patterns/bolt/compare/v1.48.0...v1.49.0) (2026-11-13)
 
 
