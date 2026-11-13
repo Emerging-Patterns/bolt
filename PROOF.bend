@@ -38,6 +38,11 @@ import ./proofs/PackagesScoped.bend as PPackagesScoped
 import ./proofs/ScopeConfigIsNeverLinted.bend as PScopeConfigIsNeverLinted
 import ./proofs/ScopeLawsGovernPackage.bend as PScopeLawsGovernPackage
 import ./proofs/ScopePackageRootsFound.bend as PScopePackageRootsFound
+import ./proofs/ImportPathsResolve.bend as PImportPathsResolve
+import ./proofs/PathsNameFiles.bend as PPathsNameFiles
+import ./proofs/NamedFilesTakeTreeRoles.bend as PNamedFilesTakeTreeRoles
+import ./proofs/PlannerAsksEachPathOnce.bend as PPlannerAsksEachPathOnce
+import ./proofs/ConfigReadsSettings.bend as PConfigReadsSettings
 import ./proofs/ScopeProjectRulesRunOnRoot.bend as PScopeProjectRulesRunOnRoot
 import ./proofs/ScopeRulesSeeTheirInputs.bend as PScopeRulesSeeTheirInputs
 import ./proofs/ScopeWalksWholeTree.bend as PScopeWalksWholeTree

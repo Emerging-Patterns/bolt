@@ -50,3 +50,31 @@ law cli_help_cmd:
   for h_cmd: {Args.is_cmd(cc) == True{} : Bool}
   for h_not: {String.eq(cc, "--help") == False{} : Bool}
   {Args.help_path(cc <> ws) == [cc] : List<&2, String>}
+
+# LAW: every word after the program is kept, in order
+law cli_args_kept:
+  for s: String
+  for t: List<&1, String>
+  {Args.widen(s <> t) == s <> Args.widen(t) : List<&2, String>}
+
+# LAW: the subcommands are `lint`, `check` and `lsp`, and no other word
+law cli_commands_named:
+  for +ww: String
+  {Args.is_cmd(ww) == Bool.or(String.eq(ww, "lint"), Bool.or(String.eq(ww, "check"), String.eq(ww, "lsp")))
+    : Bool}
+
+# LAW: a word that is neither `--` nor `--help` is passed over in looking
+# for `--help`
+law cli_help_passes_words:
+  for +ww: String
+  for rest: List<&2, String>
+  for e1: {String.eq(ww, "--") == False{} : Bool}
+  for e2: {String.eq(ww, "--help") == False{} : Bool}
+  {Args.asks_help(ww <> rest) == Args.asks_help(rest) : Bool}
+
+# LAW: a line of one such word does not ask for help
+law cli_help_needs_flag:
+  for +ww: String
+  for e1: {String.eq(ww, "--") == False{} : Bool}
+  for e2: {String.eq(ww, "--help") == False{} : Bool}
+  {Args.asks_help(ww <> Nil{}) == False{} : Bool}
