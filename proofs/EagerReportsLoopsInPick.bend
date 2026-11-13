@@ -11,6 +11,7 @@ import ../laws/EagerReportsLoopsInPick.bend as Laws
 import ./lemmas/ConcatSums.bend as M1
 import ./lemmas/Nat.bend as M2
 import ./lemmas/Pick.bend as M3
+import ./lemmas/LoopSetIndex.bend as LP
 
 # eager (laws/EagerReportsLoopsInPick.bend). The walk reports a hot call in front of its
 # group's findings and the rest's, so the count adds one before adding
@@ -209,3 +210,55 @@ def Laws.eager_plain(kk, hot, seg, keep, e):
       {==}
     case Lex.TClose{}:
       {==}
+
+# a lazy or is the plain or, the rest of the search being the law's
+law eager.or_else:
+  for b: Bool
+  for -x: Bool
+  for -y: Bool
+  for ih: {x == y : Bool}
+  {Lazy.or_else(b, _u => x) == Bool.or(b, y) : Bool}
+
+def eager.or_else(b, _x, _y, ih):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      ih
+
+# the rule's search of the set is the law's
+law eager.any_eq:
+  for cs: List<&2, String>
+  for +set: List<&2, String>
+  {Eager.loops.any(cs, set) == Laws.eager.any(cs, set) : Bool}
+
+def eager.any_eq(cs, set):
+  match cs:
+    case Nil{}:
+      {==}
+    case Con{+c, +t}:
+      eager.or_else(List.contains(~String, ~String.eq, set, c), Eager.loops.any(t, set), Laws.eager.any(t, set),
+        eager.any_eq(t, set))
+
+# the rule's walk that carries the names gathers the law's looping defs
+law eager.loops_eq:
+  for ds: List<&2, Calls.Def>
+  for +acc: List<&2, String>
+  {Eager.loops.go(ds, acc) == Laws.eager.loops(ds, acc) : List<&2, String>}
+
+def eager.loops_eq(ds, acc):
+  match ds:
+    case Nil{}:
+      {==}
+    case Con{Calls.Def{+name, +sig, +body}, +rest}:
+      +cs = Eager.called(body)
+      +self = List.contains(~String, ~String.eq, cs, name)
+      %eager.any_eq(cs, acc) :
+        {Eager.loops.go(Calls.Def{name, sig, body} <> rest, acc)
+          == Laws.eager.loops(rest, Bool.pick(List<&2, String>, Bool.or(self, _), name <> acc, acc))
+          : List<&2, String>}
+      eager.loops_eq(rest, Bool.pick(List<&2, String>, Bool.or(self, Eager.loops.any(cs, acc)), name <> acc, acc))
+
+def Laws.eager_loops_named(ds):
+  Equal.trans(List<&2, String>, Eager.loops(ds), Eager.loops.go(ds, []), Laws.eager.loops(ds, []),
+    LP.lp.eager.all(ds), eager.loops_eq(ds, []))
