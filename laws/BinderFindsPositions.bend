@@ -4,8 +4,11 @@
 # its first column up to, and not including, the column past its last char,
 # on its own line. The binder at a position is the first binder that starts
 # exactly there. A binder's sites are its own position and then the position
-# of every use that resolves to it, in the order of the uses. Positions are
-# ordered by line, then by column.
+# of every use that resolves to it, in the order of the uses. An item's
+# sites are every declaration of an item or a constructor by its name, then
+# every use that resolves to an item by its name, each in order. A name not
+# of the file has as its sites every use of that name that does not resolve
+# to a local binder. Positions are ordered by line, then by column.
 import Base
 import ../src/syntax/bind.bend as Bind
 
@@ -14,6 +17,26 @@ import ../src/syntax/bind.bend as Bind
 def positions.is_local(tt: Bind.Target) -> Bool:
   match tt:
     case Bind.TLocal{_l, _c}:
+      True{}
+    case _other:
+      False{}
+
+# does a binder declare an item or a constructor? Law vocabulary: bolt never
+# calls it
+def positions.is_item(kk: Bind.BindKind) -> Bool:
+  match kk:
+    case Bind.KItem{}:
+      True{}
+    case Bind.KCtor{}:
+      True{}
+    case _other:
+      False{}
+
+# does a use resolve to an item of the file? Law vocabulary: bolt never
+# calls it
+def positions.is_item_use(tt: Bind.Target) -> Bool:
+  match tt:
+    case Bind.TItem{_n}:
       True{}
     case _other:
       False{}
@@ -140,3 +163,100 @@ law sites_start_at_the_binder:
   for +col: U32
   {Bind.sites(Bind.Bound{binds, uses, scopes}, line, col) == Bind.Pos{line, col} <> Bind.sites.go(uses, line, col)
     : List<&2, Bind.Pos>}
+
+# LAW: an item or constructor declared by the name is one of the item's
+# sites, at its own position, in the order of the binders
+law item_sites_take_named_items:
+  for +n: String
+  for +l: U32
+  for +c: U32
+  for kind: Bind.BindKind
+  for note: String
+  for rest: List<&2, Bind.Bind>
+  for +name: String
+  for e: {positions.is_item(kind) == True{} : Bool}
+  {Bind.item_sites.binds(Bind.Bind{n, l, c, kind, note} <> rest, name)
+    == Bool.pick(List<&2, Bind.Pos>, String.eq(n, name),
+      Bind.Pos{l, c} <> Bind.item_sites.binds(rest, name), Bind.item_sites.binds(rest, name)) : List<&2, Bind.Pos>}
+
+# LAW: any other binder (a parameter, a local, a field..) is no item's site
+law item_sites_skip_other_binds:
+  for n: String
+  for l: U32
+  for c: U32
+  for kind: Bind.BindKind
+  for note: String
+  for rest: List<&2, Bind.Bind>
+  for +name: String
+  for e: {positions.is_item(kind) == False{} : Bool}
+  {Bind.item_sites.binds(Bind.Bind{n, l, c, kind, note} <> rest, name) == Bind.item_sites.binds(rest, name)
+    : List<&2, Bind.Pos>}
+
+# LAW: a use that resolves to the item by its name is one of its sites, at
+# the use's own position, in the order of the uses
+law item_sites_take_named_uses:
+  for n: String
+  for +l: U32
+  for +c: U32
+  for +t: String
+  for rest: List<&2, Bind.Use>
+  for +name: String
+  {Bind.item_sites.uses(Bind.Use{n, l, c, Bind.TItem{t}} <> rest, name)
+    == Bool.pick(List<&2, Bind.Pos>, String.eq(t, name),
+      Bind.Pos{l, c} <> Bind.item_sites.uses(rest, name), Bind.item_sites.uses(rest, name)) : List<&2, Bind.Pos>}
+
+# LAW: a use that resolves to anything but an item is no item's site
+law item_sites_skip_other_uses:
+  for n: String
+  for l: U32
+  for c: U32
+  for tt: Bind.Target
+  for rest: List<&2, Bind.Use>
+  for +name: String
+  for e: {positions.is_item_use(tt) == False{} : Bool}
+  {Bind.item_sites.uses(Bind.Use{n, l, c, tt} <> rest, name) == Bind.item_sites.uses(rest, name)
+    : List<&2, Bind.Pos>}
+
+# LAW: an item's sites are its declarations, then its uses
+law item_sites_binds_then_uses:
+  for binds: List<&2, Bind.Bind>
+  for uses: List<&2, Bind.Use>
+  for scopes: List<&2, Bind.Scope>
+  for +name: String
+  {Bind.item_sites(Bind.Bound{binds, uses, scopes}, name)
+    == List.append(&2, Bind.Pos, Bind.item_sites.binds(binds, name), Bind.item_sites.uses(uses, name))
+    : List<&2, Bind.Pos>}
+
+# LAW: a use that resolves to a local binder is no foreign name's site
+law named_sites_skip_local_uses:
+  for n: String
+  for l: U32
+  for c: U32
+  for tl: U32
+  for tc: U32
+  for rest: List<&2, Bind.Use>
+  for +name: String
+  {Bind.named_sites.go(Bind.Use{n, l, c, Bind.TLocal{tl, tc}} <> rest, name) == Bind.named_sites.go(rest, name)
+    : List<&2, Bind.Pos>}
+
+# LAW: any other use of the name is one of its sites, at the use's own
+# position, in the order of the uses
+law named_sites_take_named_uses:
+  for +n: String
+  for +l: U32
+  for +c: U32
+  for tt: Bind.Target
+  for rest: List<&2, Bind.Use>
+  for +name: String
+  for e: {positions.is_local(tt) == False{} : Bool}
+  {Bind.named_sites.go(Bind.Use{n, l, c, tt} <> rest, name)
+    == Bool.pick(List<&2, Bind.Pos>, String.eq(n, name),
+      Bind.Pos{l, c} <> Bind.named_sites.go(rest, name), Bind.named_sites.go(rest, name)) : List<&2, Bind.Pos>}
+
+# LAW: a foreign name's sites are read off the uses alone
+law named_sites_read_uses:
+  for binds: List<&2, Bind.Bind>
+  for uses: List<&2, Bind.Use>
+  for scopes: List<&2, Bind.Scope>
+  for +name: String
+  {Bind.named_sites(Bind.Bound{binds, uses, scopes}, name) == Bind.named_sites.go(uses, name) : List<&2, Bind.Pos>}

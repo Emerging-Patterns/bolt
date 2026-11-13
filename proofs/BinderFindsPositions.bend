@@ -50,3 +50,106 @@ def Laws.sites_skip_other_uses(name, l, c, tt, rest, line, col, e):
 
 def Laws.sites_start_at_the_binder(_binds, _uses, _scopes, _line, _col):
   {==}
+
+def Laws.item_sites_take_named_items(n, l, c, kind, note, rest, name, e):
+  match kind:
+    case Bind.KItem{}:
+      {==}
+    case Bind.KCtor{}:
+      {==}
+    case Bind.KParam{}:
+      Empty.absurd({Bind.item_sites.binds(Bind.Bind{n, l, c, Bind.KParam{}, note} <> rest, name)
+        == Bool.pick(List<&2, Bind.Pos>, String.eq(n, name),
+          Bind.Pos{l, c} <> Bind.item_sites.binds(rest, name), Bind.item_sites.binds(rest, name)) : List<&2, Bind.Pos>},
+        M1.false_true(e))
+    case Bind.KTypeParam{}:
+      Empty.absurd({Bind.item_sites.binds(Bind.Bind{n, l, c, Bind.KTypeParam{}, note} <> rest, name)
+        == Bool.pick(List<&2, Bind.Pos>, String.eq(n, name),
+          Bind.Pos{l, c} <> Bind.item_sites.binds(rest, name), Bind.item_sites.binds(rest, name)) : List<&2, Bind.Pos>},
+        M1.false_true(e))
+    case Bind.KField{}:
+      Empty.absurd({Bind.item_sites.binds(Bind.Bind{n, l, c, Bind.KField{}, note} <> rest, name)
+        == Bool.pick(List<&2, Bind.Pos>, String.eq(n, name),
+          Bind.Pos{l, c} <> Bind.item_sites.binds(rest, name), Bind.item_sites.binds(rest, name)) : List<&2, Bind.Pos>},
+        M1.false_true(e))
+    case Bind.KLocal{}:
+      Empty.absurd({Bind.item_sites.binds(Bind.Bind{n, l, c, Bind.KLocal{}, note} <> rest, name)
+        == Bool.pick(List<&2, Bind.Pos>, String.eq(n, name),
+          Bind.Pos{l, c} <> Bind.item_sites.binds(rest, name), Bind.item_sites.binds(rest, name)) : List<&2, Bind.Pos>},
+        M1.false_true(e))
+    case Bind.KPat{}:
+      Empty.absurd({Bind.item_sites.binds(Bind.Bind{n, l, c, Bind.KPat{}, note} <> rest, name)
+        == Bool.pick(List<&2, Bind.Pos>, String.eq(n, name),
+          Bind.Pos{l, c} <> Bind.item_sites.binds(rest, name), Bind.item_sites.binds(rest, name)) : List<&2, Bind.Pos>},
+        M1.false_true(e))
+    case Bind.KFor{}:
+      Empty.absurd({Bind.item_sites.binds(Bind.Bind{n, l, c, Bind.KFor{}, note} <> rest, name)
+        == Bool.pick(List<&2, Bind.Pos>, String.eq(n, name),
+          Bind.Pos{l, c} <> Bind.item_sites.binds(rest, name), Bind.item_sites.binds(rest, name)) : List<&2, Bind.Pos>},
+        M1.false_true(e))
+    case Bind.KTypeVar{}:
+      Empty.absurd({Bind.item_sites.binds(Bind.Bind{n, l, c, Bind.KTypeVar{}, note} <> rest, name)
+        == Bool.pick(List<&2, Bind.Pos>, String.eq(n, name),
+          Bind.Pos{l, c} <> Bind.item_sites.binds(rest, name), Bind.item_sites.binds(rest, name)) : List<&2, Bind.Pos>},
+        M1.false_true(e))
+
+def Laws.item_sites_skip_other_binds(n, l, c, kind, note, rest, name, e):
+  match kind:
+    case Bind.KItem{}:
+      Empty.absurd({Bind.item_sites.binds(Bind.Bind{n, l, c, Bind.KItem{}, note} <> rest, name)
+        == Bind.item_sites.binds(rest, name) : List<&2, Bind.Pos>}, M1.true_false(e))
+    case Bind.KCtor{}:
+      Empty.absurd({Bind.item_sites.binds(Bind.Bind{n, l, c, Bind.KCtor{}, note} <> rest, name)
+        == Bind.item_sites.binds(rest, name) : List<&2, Bind.Pos>}, M1.true_false(e))
+    case Bind.KParam{}:
+      {==}
+    case Bind.KTypeParam{}:
+      {==}
+    case Bind.KField{}:
+      {==}
+    case Bind.KLocal{}:
+      {==}
+    case Bind.KPat{}:
+      {==}
+    case Bind.KFor{}:
+      {==}
+    case Bind.KTypeVar{}:
+      {==}
+
+def Laws.item_sites_take_named_uses(_n, _l, _c, _t, _rest, _name):
+  {==}
+
+def Laws.item_sites_skip_other_uses(n, l, c, tt, rest, name, e):
+  match tt:
+    case Bind.TLocal{_tl, _tc}:
+      {==}
+    case Bind.TItem{t}:
+      Empty.absurd({Bind.item_sites.uses(Bind.Use{n, l, c, Bind.TItem{t}} <> rest, name)
+        == Bind.item_sites.uses(rest, name) : List<&2, Bind.Pos>}, M1.true_false(e))
+    case Bind.TQual{_a, _n}:
+      {==}
+    case Bind.TFree{}:
+      {==}
+
+def Laws.item_sites_binds_then_uses(_binds, _uses, _scopes, _name):
+  {==}
+
+def Laws.named_sites_skip_local_uses(_n, _l, _c, _tl, _tc, _rest, _name):
+  {==}
+
+def Laws.named_sites_take_named_uses(n, l, c, tt, rest, name, e):
+  match tt:
+    case Bind.TLocal{tl, tc}:
+      Empty.absurd({Bind.named_sites.go(Bind.Use{n, l, c, Bind.TLocal{tl, tc}} <> rest, name)
+        == Bool.pick(List<&2, Bind.Pos>, String.eq(n, name),
+          Bind.Pos{l, c} <> Bind.named_sites.go(rest, name), Bind.named_sites.go(rest, name)) : List<&2, Bind.Pos>},
+        M1.true_false(e))
+    case Bind.TItem{_t}:
+      {==}
+    case Bind.TQual{_a, _t}:
+      {==}
+    case Bind.TFree{}:
+      {==}
+
+def Laws.named_sites_read_uses(_binds, _uses, _scopes, _name):
+  {==}
