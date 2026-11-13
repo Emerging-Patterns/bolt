@@ -68,6 +68,7 @@ import ./laws/WordFindsNameAtCursor.bend as WordFindsNameAtCursor
 import ./laws/RulesReadSignaturesAndLiterals.bend as RulesReadSignaturesAndLiterals
 import ./laws/FindingsSayWhereAndWhat.bend as FindingsSayWhereAndWhat
 import ./laws/RulesReadTokensAndChains.bend as RulesReadTokensAndChains
+import ./laws/RewalkReadsNarrowAndWide.bend as RewalkReadsNarrowAndWide
 import ./laws/ScopeProjectRulesRunOnRoot.bend as ScopeProjectRulesRunOnRoot
 import ./laws/ScopeRulesSeeTheirInputs.bend as ScopeRulesSeeTheirInputs
 import ./laws/ScopeWalksWholeTree.bend as ScopeWalksWholeTree
