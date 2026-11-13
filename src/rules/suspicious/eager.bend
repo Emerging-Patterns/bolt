@@ -27,6 +27,7 @@ import ../../syntax/lex.bend as Lex
 import ../../syntax/tree.bend as Tree
 import ../../lazy/lazy.bend as Lazy
 import ../calls.bend as Calls
+import ../../syntax/bind.bend as Bind
 
 # every name a node calls, `f(..)`, at any depth
 def called(nn: Tree.Node) -> List<&2, String>:
@@ -44,12 +45,12 @@ def called(nn: Tree.Node) -> List<&2, String>:
       Nil{}
 
 # does the list hold a name the set has?
-def any_of(cs: List<&2, String>, +set: List<&2, String>) -> Bool:
+def loops.any(cs: List<&2, String>, +set: List<&2, String>) -> Bool:
   match cs:
     case Nil{}:
       False{}
     case Con{c, t}:
-      Lazy.or_else(List.contains(~String, ~String.eq, set, c), _u => any_of(t, set))
+      Lazy.or_else(List.contains(~String, ~String.eq, set, c), _u => loops.any(t, set))
 
 def loops.go(ds: List<&2, Calls.Def>, +acc: List<&2, String>) -> List<&2, String>:
   match ds:
@@ -57,14 +58,38 @@ def loops.go(ds: List<&2, Calls.Def>, +acc: List<&2, String>) -> List<&2, String
       acc
     case Con{Calls.Def{+name, sig, body}, rest}:
       +cs = called(body)
-      +deep = Bool.or(List.contains(~String, ~String.eq, cs, name), any_of(cs, acc))
+      +deep = Bool.or(List.contains(~String, ~String.eq, cs, name), loops.any(cs, acc))
       loops.go(rest, Bool.pick(List<&2, String>, deep, name <> acc, acc))
+
+# does the list hold a name the index has? loops.any, asked of the index of a
+# set where loops.any asks the set
+def any_in(cs: List<&2, String>, +ix: Bind.Index) -> Bool:
+  match cs:
+    case Nil{}:
+      False{}
+    case Con{+c, t}:
+      Lazy.or_else(Bind.indexed(ix, c), _u => any_in(t, ix))
+
+# loops.go, carrying the binder's index of the names gathered so far beside
+# them (ax is Bind.index of acc, a name put in as it joins). loops.go asks the
+# list for every call of every def, the calls times the looping defs: 6 s on
+# a generated file of 21,344 defs, 0.1 s through the index. The two gather the
+# same names (proofs/lemmas/LoopSetIndex.bend)
+def loops.fast(ds: List<&2, Calls.Def>, +acc: List<&2, String>, +ax: Bind.Index) -> List<&2, String>:
+  match ds:
+    case Nil{}:
+      acc
+    case Con{Calls.Def{+name, sig, body}, rest}:
+      +cs = called(body)
+      +deep = Bool.or(List.contains(~String, ~String.eq, cs, name), any_in(cs, ax))
+      loops.fast(rest, Bool.pick(List<&2, String>, deep, name <> acc, acc),
+        Bool.pick(Bind.Index, deep, Bind.index.put(Bind.index.depth(), Bind.key(name), ax, name), ax))
 
 # the defs of the file that loop: one that calls itself, or that reaches one
 # that does (a def is defined above its use and there is no mutual recursion,
 # so one pass down the file settles it)
 def loops(ds: List<&2, Calls.Def>) -> List<&2, String>:
-  loops.go(ds, [])
+  loops.fast(ds, [], Bind.XNone{})
 
 # the hot a leaf leaves behind: a `=>` clears it for the lambda's body; a
 # comma of a pick's own group moves to its next argument, hot from the third

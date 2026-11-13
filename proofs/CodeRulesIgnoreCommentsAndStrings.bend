@@ -32,6 +32,7 @@ import ./lemmas/UnusedBinderPick.bend as M2
 import ./lemmas/CarriedSearch.bend as CS
 import ../laws/DocFlagsAnswerAsLines.bend as DF
 import ./lemmas/DocFlags.bend as DFP
+import ./lemmas/LoopSetIndex.bend as LP
 
 # a Bool whose negation holds is False
 law inert.not_true:
@@ -5387,14 +5388,14 @@ law inert.eager.any_of:
   for cs: List<&2, String>
   for +set: List<&2, String>
   for +ep: {inert.plains(set) == True{} : Bool}
-  {Eager.any_of(inert.mks(cs), set) == Eager.any_of(cs, set) : Bool}
+  {Eager.loops.any(inert.mks(cs), set) == Eager.loops.any(cs, set) : Bool}
 
 def inert.eager.any_of(cs, set, ep):
   match cs:
     case Nil{}: {==}
     case Con{+c, +t}:
       inert.or_else(List.contains(~String, ~String.eq, set, inert.mk(c)), List.contains(~String, ~String.eq, set, c),
-        Eager.any_of(inert.mks(t), set), Eager.any_of(t, set),
+        Eager.loops.any(inert.mks(t), set), Eager.loops.any(t, set),
         inert.contains_keep(set, D1.inert.marked(c), c, inert.fits_mk(c), ep), inert.eager.any_of(t, set, ep))
 
 # a name joins the unmarked ones or not
@@ -5423,18 +5424,18 @@ law inert.eager.deep:
   for +eb: {D1.inert.ok(body) == True{} : Bool}
   for +ea: {inert.plains(acc) == True{} : Bool}
   {Bool.or(List.contains(~String, ~String.eq, Eager.called(D1.inert.node(body)), name),
-    Eager.any_of(Eager.called(D1.inert.node(body)), acc))
-    == Bool.or(List.contains(~String, ~String.eq, Eager.called(body), name), Eager.any_of(Eager.called(body), acc))
+    Eager.loops.any(Eager.called(D1.inert.node(body)), acc))
+    == Bool.or(List.contains(~String, ~String.eq, Eager.called(body), name), Eager.loops.any(Eager.called(body), acc))
     : Bool}
 
 def inert.eager.deep(name, body, acc, en, eb, ea):
   +cs = Eager.called(body)
   +lhs = Bool.or(List.contains(~String, ~String.eq, Eager.called(D1.inert.node(body)), name),
-    Eager.any_of(Eager.called(D1.inert.node(body)), acc))
-  %inert.contains_mks(cs, name, en) : {lhs == Bool.or(_, Eager.any_of(cs, acc)) : Bool}
+    Eager.loops.any(Eager.called(D1.inert.node(body)), acc))
+  %inert.contains_mks(cs, name, en) : {lhs == Bool.or(_, Eager.loops.any(cs, acc)) : Bool}
   %inert.eager.any_of(cs, acc, ea) : {lhs == Bool.or(List.contains(~String, ~String.eq, inert.mks(cs), name), _)
     : Bool}
-  %inert.eager.called(body, eb) : {lhs == Bool.or(List.contains(~String, ~String.eq, _, name), Eager.any_of(_, acc))
+  %inert.eager.called(body, eb) : {lhs == Bool.or(List.contains(~String, ~String.eq, _, name), Eager.loops.any(_, acc))
     : Bool}
   {==}
 
@@ -5452,7 +5453,7 @@ def inert.eager.loops(ds, acc, e, ea):
     case Con{Calls.Def{+name, +sig, +body}, +rest}:
       +en = inert.dok.head(name, sig, body, rest, e)
       +ib = D1.inert.node(body)
-      +di = Bool.or(List.contains(~String, ~String.eq, Eager.called(ib), name), Eager.any_of(Eager.called(ib), acc))
+      +di = Bool.or(List.contains(~String, ~String.eq, Eager.called(ib), name), Eager.loops.any(Eager.called(ib), acc))
       +nx = Bool.pick(List<&2, String>, di, name <> acc, acc)
       %inert.eager.deep(name, body, acc, en, inert.dok.body(name, sig, body, rest, e), ea) : {Eager.loops.go(
         inert.defs(rest), nx) == Eager.loops.go(rest, Bool.pick(List<&2, String>, _, name <> acc, acc))
@@ -5472,7 +5473,7 @@ def inert.eager.loops_plain(ds, acc, e, ea):
     case Nil{}: ea
     case Con{Calls.Def{+name, +sig, +body}, +rest}:
       +cs = Eager.called(body)
-      +di = Bool.or(List.contains(~String, ~String.eq, cs, name), Eager.any_of(cs, acc))
+      +di = Bool.or(List.contains(~String, ~String.eq, cs, name), Eager.loops.any(cs, acc))
       inert.eager.loops_plain(rest, Bool.pick(List<&2, String>, di, name <> acc, acc), inert.dok.rest(name, sig, body,
         rest, e), inert.plains_pick(di, name, acc, inert.dok.head(name, sig, body, rest, e), ea))
 
@@ -5768,9 +5769,16 @@ law inert.eager.all:
     == Eager.check.go(ds, Eager.loops(ds), path, []) : List<&2, F.Finding>}
 
 def inert.eager.all(ds, path, e):
-  %inert.eager.loops(ds, [], e, {==}) : {Eager.check.go(inert.defs(ds), Eager.loops(inert.defs(ds)), path, [])
+  +di = inert.defs(ds)
+  %Equal.sym(List<&2, String>, Eager.loops(di), Eager.loops.go(di, []), LP.lp.eager.all(di)) :
+    {Eager.check.go(inert.defs(ds), _, path, []) == Eager.check.go(ds, Eager.loops(ds), path, [])
+      : List<&2, F.Finding>}
+  %Equal.sym(List<&2, String>, Eager.loops(ds), Eager.loops.go(ds, []), LP.lp.eager.all(ds)) :
+    {Eager.check.go(inert.defs(ds), Eager.loops.go(inert.defs(ds), []), path, []) == Eager.check.go(ds, _, path, [])
+      : List<&2, F.Finding>}
+  %inert.eager.loops(ds, [], e, {==}) : {Eager.check.go(inert.defs(ds), Eager.loops.go(inert.defs(ds), []), path, [])
     == Eager.check.go(ds, _, path, []) : List<&2, F.Finding>}
-  inert.eager.go(ds, Eager.loops(inert.defs(ds)), path, [], Equal.trans(Bool,
+  inert.eager.go(ds, Eager.loops.go(inert.defs(ds), []), path, [], Equal.trans(Bool,
     inert.plains(Eager.loops.go(inert.defs(ds), [])), inert.plains(Eager.loops.go(ds, [])), True{},
     Equal.cong(List<&2, String>, Bool, z => inert.plains(z),
       Eager.loops.go(inert.defs(ds), []), Eager.loops.go(ds, []), inert.eager.loops(ds, [], e, {==})),
