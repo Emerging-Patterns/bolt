@@ -1,69 +1,90 @@
-# files/disk: the real file system. Reads bytes and decodes them itself, as a
-# chunk may end inside a UTF-8 char. The slurp's acc holds the bytes read so
-# far last first: each chunk is pushed onto its front and the whole is
-# reversed once at the end, since appending a chunk copied everything read
-# before it (concat).
+# files/disk: the real file system. A file is read as one text of its size,
+# so no read ends inside a UTF-8 char; anything past that size (a file that
+# grew) is read on, a megabyte at a time. Each byte that is not UTF-8 reads
+# as one char.
 import Base
 import ./service.bend as S
-import ../frame.bend as Frame
 import ../../walk/disk.bend as WalkDisk
 
-def slurp.end(file: File, acc: List<&2, U32>) -> IO(Maybe<&2, String>):
+# the texts read, last first, as one text; the file closed
+def whole.end(file: File, acc: List<&2, String>) -> IO(Maybe<&2, String>):
   do IO<Maybe<&2, String>>:
     File.close(file)
-    return Some{Frame.decode(List.reverse(&2, U32, acc))}
+    return Some{String.join(List.reverse(&2, String, acc), "")}
 
-def slurp.cut(
-  bytes: List<&2, U32>,
+# an empty read is the end; anything else is one more text
+def whole.more(
+  done: Bool,
+  tt: String,
   file: File,
-  acc: List<&2, U32>,
-  rest: File -> List<&2, U32> -> IO(Maybe<&2, String>)
+  acc: List<&2, String>,
+  rest: File -> List<&2, String> -> IO(Maybe<&2, String>)
 ) -> IO(Maybe<&2, String>):
-  match bytes:
-    case Nil{}:
-      slurp.end(file, acc)
-    case Con{b, t}:
-      rest(file, List.reverse.go(&2, U32, b <> t, acc))
+  match done:
+    case True{}:
+      whole.end(file, acc)
+    case False{}:
+      rest(file, tt <> acc)
 
-def slurp.more(
-  rr: Result<&1, &1, U32 & String, List<&2, U32>>,
+# a read's text kept, or the end at a failed read
+def whole.got(
+  rr: Result<&1, &1, U32 & String, String>,
   file: File,
-  acc: List<&2, U32>,
-  rest: File -> List<&2, U32> -> IO(Maybe<&2, String>)
+  acc: List<&2, String>,
+  rest: File -> List<&2, String> -> IO(Maybe<&2, String>)
 ) -> IO(Maybe<&2, String>):
   match rr:
     case Fail{e}:
-      slurp.end(file, acc)
-    case Done{bytes}:
-      slurp.cut(bytes, file, acc, rest)
+      whole.end(file, acc)
+    case Done{+tt}:
+      whole.more(String.is_empty(tt), tt, file, acc, rest)
 
-def slurp.next(
-  got: File & Result<&1, &1, U32 & String, List<&2, U32>>,
-  acc: List<&2, U32>,
-  rest: File -> List<&2, U32> -> IO(Maybe<&2, String>)
+# a read and the file it leaves
+def whole.next(
+  got: File & Result<&1, &1, U32 & String, String>,
+  acc: List<&2, String>,
+  rest: File -> List<&2, String> -> IO(Maybe<&2, String>)
 ) -> IO(Maybe<&2, String>):
   (file, r) = got
-  slurp.more(r, file, acc, rest)
+  whole.got(r, file, acc, rest)
 
-# the whole file, read in chunks until one is empty, or the fuel is
-def slurp(fuel: Nat, file: File, acc: List<&2, U32>) -> IO(Maybe<&2, String>):  # noqa: L001 disk effect
+# what is left of the file, a megabyte a read, until a read is empty or the
+# fuel is spent
+def whole.rest(fuel: Nat, file: File, acc: List<&2, String>) -> IO(Maybe<&2, String>):
   match fuel:
     case 0n:
-      slurp.end(file, acc)
+      whole.end(file, acc)
     case 1n+f:
       do IO<Maybe<&2, String>>:
-        got : File & Result<&1, &1, U32 & String, List<&2, U32>> <- File.read_bytes(file, 65536)
-        slurp.next(got, acc, fl => a => slurp(f, fl, a))
+        got : File & Result<&1, &1, U32 & String, String> <- File.read(file, 1048576)
+        whole.next(got, acc, fl => a => whole.rest(f, fl, a))
+
+# a size, or none known
+def whole.size(rr: Result<&1, &1, U32 & String, U32>) -> U32:
+  match rr:
+    case Fail{e}:
+      0
+    case Done{n}:
+      n
+
+# the file read as one text of its size, then whatever more it holds
+def whole.sized(got: File & Result<&1, &1, U32 & String, U32>) -> IO(Maybe<&2, String>):
+  (file, r) = got
+  do IO<Maybe<&2, String>>:
+    first : File & Result<&1, &1, U32 & String, String> <- File.read(file, whole.size(r))
+    whole.next(first, [], fl => a => whole.rest(U32.to_nat(100000), fl, a))
 
 def read.opened(rr: Result<&1, &1, U32 & String, File>) -> IO(Maybe<&2, String>):
   match rr:
     case Fail{e}:
       IO.pure(Maybe<&2, String>, None{})
     case Done{file}:
-      slurp(U32.to_nat(100000), file, [])
+      do IO<Maybe<&2, String>>:
+        got : File & Result<&1, &1, U32 & String, U32> <- File.size(file)
+        whole.sized(got)
 
 # a file's text, or None when it cannot be opened
-def read(path: String) -> IO(Maybe<&2, String>):  # noqa: L001 disk effect
+def read(path: String) -> IO(Maybe<&2, String>):
   do IO<Maybe<&2, String>>:
     r : Result<&1, &1, U32 & String, File> <- File.open(path, "r")
     read.opened(r)
@@ -76,17 +97,17 @@ def base_path.of(rr: Result<&1, &1, U32 & String, String>) -> IO(String):
       IO.pure(String, home ++ "/.bend/current/bend2/base.bend")
 
 # Base, where bend's installer puts it
-def base_path(_u: Unit) -> IO(String):  # noqa: L001 disk effect
+def base_path(_u: Unit) -> IO(String):
   do IO<String>:
     r : Result<&1, &1, U32 & String, String> <- IO.get_env("HOME")
     base_path.of(r)
 
 # the working directory, as the lint's walk names it
-def cwd(_u: Unit) -> IO(String):  # noqa: L001 disk effect
+def cwd(_u: Unit) -> IO(String):
   WalkDisk.cwd()
 
 # a directory's entries, as the lint's walk lists them
-def entries(dir: String) -> IO(List<&2, String>):  # noqa: L001 disk effect
+def entries(dir: String) -> IO(List<&2, String>):
   WalkDisk.entries(dir)
 
 # the real file system
