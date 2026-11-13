@@ -37,3 +37,18 @@ def Laws.marks_run_named(_p, _rest, _world, _ss):
 
 def Laws.marks_run_whole_tree(_world, _ss):
   {==}
+
+def Laws.unseen_drops_seen(p, rest, cwd, seen, e):
+  %Equal.sym(Bool, Imports.has(seen, Plan.abs(cwd, p)), True{}, e) :
+    {Bool.pick(List<&2, String>, _, Plan.unseen(rest, cwd, seen), p <> Plan.unseen(rest, cwd, seen))
+      == Plan.unseen(rest, cwd, seen) : List<&2, String>}
+  {==}
+
+def Laws.unseen_keeps_new(p, rest, cwd, seen, e):
+  %Equal.sym(Bool, Imports.has(seen, Plan.abs(cwd, p)), False{}, e) :
+    {Bool.pick(List<&2, String>, _, Plan.unseen(rest, cwd, seen), p <> Plan.unseen(rest, cwd, seen))
+      == p <> Plan.unseen(rest, cwd, seen) : List<&2, String>}
+  {==}
+
+def Laws.graph_found_then_named(_world):
+  {==}
