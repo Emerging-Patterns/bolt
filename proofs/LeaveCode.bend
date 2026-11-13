@@ -5,5 +5,5 @@ import ../laws/LeaveCode.bend as Laws
 
 def Laws.leave_code(code, h):
   e = Equal.sym(Bool, U32.is_eq(code, 0), False{}, h)
-  %e : {Stop.leave.at(_, code) == IO.die(Unit, code, "") : IO(Unit)}
+  %e : {Stop.leave.at(_, code) == IO.exit(code) : IO(Unit)}
   {==}

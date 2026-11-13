@@ -19,8 +19,10 @@ def leave.at(zero: Bool, code: U32) -> IO(Unit):
     case True{}:
       IO.pure(Unit, Unit{})
     case False{}:
-      IO.die(Unit, code, "")
+      IO.exit(code)
 
-# exit with a code: 0 falls through, any other ends the run with it
+# exit with a code: 0 falls through, any other ends the run with it, and
+# writes nothing (`IO.exit`; an `IO.die` with an empty message still puts a
+# newline on stderr)
 def leave(+code: U32) -> IO(Unit):
   leave.at(U32.is_eq(code, 0), code)
