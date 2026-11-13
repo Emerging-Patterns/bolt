@@ -114,7 +114,7 @@ def L1.hole_exempt(path, _text, toks, _tree, _bound, _items, e):
 
 def L1.doc_exempt(path, text, toks, _tree, _bound, items, e):
   ex.stop(Bool.or(Paths.is_proof(path), Paths.is_test(path)), e,
-    _u => Doc.check.go(items, path, Doc.lines(text, toks)))
+    _u => Doc.check.fast(items, path, Doc.flags(Doc.lines(text, toks))))
 
 def L1.param_exempt(path, _text, _toks, _tree, bound, _items, e):
   match bound:

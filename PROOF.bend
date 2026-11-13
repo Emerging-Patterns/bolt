@@ -121,6 +121,7 @@ import ./proofs/ArrowTerm.bend as PArrowTerm
 import ./proofs/AttributeDef.bend as PAttributeDef
 import ./proofs/BinderResolvesInnermostFirst.bend as PBinderResolvesInnermostFirst
 import ./proofs/BinderIndexFindsItems.bend as PBinderIndexFindsItems
+import ./proofs/DocFlagsAnswerAsLines.bend as PDocFlagsAnswerAsLines
 import ./proofs/LexPositionsAreZeroBased.bend as PLexPositionsAreZeroBased
 import ./proofs/LexRoundTripsText.bend as PLexRoundTripsText
 import ./proofs/MarkedArrowTerm.bend as PMarkedArrowTerm

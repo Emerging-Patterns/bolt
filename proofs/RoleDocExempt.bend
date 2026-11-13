@@ -10,6 +10,6 @@ import ../laws/RoleDocExempt.bend as Laws
 def Laws.role_doc_exempt(rr, e, path, text, toks, _tree, _bound, items):
   s = Equal.sym(Bool, Role.is_proof(rr), True{}, e)
   %s : {Lazy.stop(List<&2, F.Finding>, Bool.or(_, Paths.is_test(path)), [],
-      _u => Doc.check.go(items, path, Doc.lines(text, toks)))
+      _u => Doc.check.fast(items, path, Doc.flags(Doc.lines(text, toks))))
     == Nil{} : List<&2, F.Finding>}
   {==}

@@ -7,9 +7,11 @@ import ../src/syntax/outline.bend as Outline
 import ../src/rules/style/doc.bend as Doc
 import ../src/rules/correctness/pick.bend as Pick
 import ../laws/DocReportsUndocumentedItems.bend as Laws
+import ../laws/DocFlagsAnswerAsLines.bend as L1
 import ./lemmas/HoleEarlyAnd.bend as M1
 import ./lemmas/Nat.bend as M2
 import ./lemmas/Pick.bend as M3
+import ./lemmas/DocFlags.bend as M4
 
 # doc (laws/DocReportsUndocumentedItems.bend): the rule's early exits are the law's plain picks and
 # ands, so an item adds a finding exactly when the law calls it bare.
@@ -136,5 +138,11 @@ def Laws.doc_walk_counts(items, path, lines):
           doc.item(kk, name, line, sig, doc, pp, rest, path, lines, Laws.doc_walk_counts(rest, path, lines))
 
 def Laws.doc_counts(path, text, toks, _tree, _bound, items):
-  M3.param.stop(Bool.or(Paths.is_proof(path), Paths.is_test(path)), Doc.check.go(items, path, Doc.lines(text, toks)),
-    Laws.doc.count(items, Doc.lines(text, toks)), Laws.doc_walk_counts(items, path, Doc.lines(text, toks)))
+  +ls = Doc.lines(text, toks)
+  +fast = Doc.check.fast(items, path, Doc.flags(ls))
+  +slow = Doc.check.go(items, path, ls)
+  M3.param.stop(Bool.or(Paths.is_proof(path), Paths.is_test(path)), fast, Laws.doc.count(items, ls),
+    Equal.trans(Nat, List.length(&2, F.Finding, fast), List.length(&2, F.Finding, slow), Laws.doc.count(items, ls),
+      Equal.cong(List<&2, F.Finding>, Nat, z => List.length(&2, F.Finding, z), fast, slow,
+        L1.fast_is_go(items, path, ls)),
+      Laws.doc_walk_counts(items, path, ls)))
