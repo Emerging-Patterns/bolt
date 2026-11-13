@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.46.0](https://github.com/Emerging-Patterns/bolt/compare/v1.45.0...v1.46.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **files:** read a file whole, so a broken UTF-8 char cannot swallow the next line ([#339](https://github.com/Emerging-Patterns/bolt/issues/339)) ([0c90d59](https://github.com/Emerging-Patterns/bolt/commit/0c90d599099feff918b85f54be86a080f28f7547))
+
 ## [1.45.0](https://github.com/Emerging-Patterns/bolt/compare/v1.44.0...v1.45.0) (2026-11-13)
 
 
