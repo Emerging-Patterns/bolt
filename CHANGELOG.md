@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.40.0](https://github.com/Emerging-Patterns/bolt/compare/v1.39.0...v1.40.0) (2026-11-13)
+
+
+### Performance Improvements
+
+* **lint:** wants asks indexes of the paths met and the questions answered ([#305](https://github.com/Emerging-Patterns/bolt/issues/305)) ([20207c6](https://github.com/Emerging-Patterns/bolt/commit/20207c64bbd5912f748c4ea067a2f209eedc3bbf))
+
 ## [1.39.0](https://github.com/Emerging-Patterns/bolt/compare/v1.38.0...v1.39.0) (2026-11-13)
 
 
