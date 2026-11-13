@@ -143,6 +143,7 @@ import ./proofs/LspKeepsRoleMarks.bend as PLspKeepsRoleMarks
 import ./proofs/LspUnitsMatchCharsBelowAstral.bend as PLspUnitsMatchCharsBelowAstral
 import ./proofs/ArrowTerm.bend as PArrowTerm
 import ./proofs/TypedStepBindsNothing.bend as PTypedStepBindsNothing
+import ./proofs/ArrayWriteReadsItsArray.bend as PArrayWriteReadsItsArray
 import ./proofs/AttributeDef.bend as PAttributeDef
 import ./proofs/BinderResolvesInnermostFirst.bend as PBinderResolvesInnermostFirst
 import ./proofs/BinderIndexFindsItems.bend as PBinderIndexFindsItems
