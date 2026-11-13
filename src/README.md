@@ -200,7 +200,13 @@ beside the groups. The cost rules built on `rules/calls.bend` (`pick`,
 `strict`, `eager`, `tail`, `concat`, `index`, `rewalk`, `thunk`) skip what never runs: a law file, a proof file, and a def
 that is a proof wherever it is, one that returns a proof (`-> {a == b : T}`)
 or one written with no type at all (`def f(x, y):`, no `:` among its
-parameters and no `->`), which is how Bend fills the law named `f`.
+parameters and no `->`), which is how Bend fills the law named `f`. A def's
+signature is its whole header, through the `:` that ends it: one wrapped
+outside a bracket (`def lemma(xs: A)` then `-> {a == b : T}:`, or the `->`
+ending the first line and the type on the next) is read the same as one
+written on a line, so a wrapped proof is a proof to these rules and to
+`coverage`, and a wrapped return type is never read as the body's first
+statement.
 
 - `doc` — every top-level def, type and law has a comment block right above
   it: column-0 `#` lines with no blank line before the item, or before a run

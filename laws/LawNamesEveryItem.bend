@@ -9,9 +9,10 @@
 # or one of its constructors. A def that is a proof (one whose signature
 # returns a proof, `-> {a == b : T}`, or one written with no type at all, as
 # laws/ExemptPathsYieldNoFindings.bend reads it) is neither graded nor an item the reach passes
-# through: it is how Bend fills a law, so the law states its property.
+# through: it is how Bend fills a law, so the law states its property. Its
+# signature is its whole header, wrapped over lines or not.
 #
-# also rests on: laws/PackagesScoped.bend
+# also rests on: laws/PackagesScoped.bend, laws/DefSignatureRunsToItsColon.bend
 import Base
 import ../src/syntax/lex.bend as Lex
 import ../src/finding.bend as F
@@ -350,11 +351,12 @@ def reach.proof(mm: Maybe<&2, String>, is_proof: Bool, +more: List<&2, String>) 
       Bool.pick(List<&2, String>, is_proof, name <> more, more)
 
 # the names of the tree's top-level defs that are proofs, as
-# laws/ExemptPathsYieldNoFindings.bend reads one (Calls.proof), in order
+# laws/ExemptPathsYieldNoFindings.bend reads one (Calls.proof) off its whole
+# header, wrapped or not (laws/DefSignatureRunsToItsColon.bend), in order
 def reach.proofs(root: Tree.Node) -> List<&2, String>:
   match root:
-    case Tree.NCons{Tree.Stmt{Tree.SDef{}, +kids, _body}, rest}:
-      reach.proof(Bind.declared(kids), Calls.proof(kids), reach.proofs(rest))
+    case Tree.NCons{Tree.Stmt{Tree.SDef{}, +kids, body}, rest}:
+      reach.proof(Bind.declared(kids), Calls.proof(Calls.header(kids, body)), reach.proofs(rest))
     case Tree.NCons{_h, rest}:
       reach.proofs(rest)
     case _other:

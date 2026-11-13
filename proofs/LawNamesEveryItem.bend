@@ -750,11 +750,11 @@ def reach.proofs_eq(root):
           reach.proofs_eq(rest)
         case Tree.Group{o, gk, cl}:
           reach.proofs_eq(rest)
-        case Tree.Stmt{kind, +kids, b}:
+        case Tree.Stmt{kind, +kids, +b}:
           match kind:
             case Tree.SDef{}:
-              reach.proof_push(Bind.declared(kids), kids, b, Calls.defs(rest), Laws.reach.proofs(rest),
-                reach.proofs_eq(rest))
+              reach.proof_push(Bind.declared(kids), Calls.header(kids, b), Calls.under(kids, b), Calls.defs(rest),
+                Laws.reach.proofs(rest), reach.proofs_eq(rest))
             case Tree.SType{}:
               reach.proofs_eq(rest)
             case Tree.SLaw{}:

@@ -569,6 +569,444 @@ def inert.plain.declared(kids, e):
     case Tree.Stmt{sk, sks, sb}: {==}
     case Tree.NNil{}: {==}
 
+# a wrapped header read that way
+# ------------------------------
+
+# a leaf is a `:` read that way exactly when it is one: its kind is kept
+law inert.colon_leaf:
+  for hh: Tree.Node
+  {Calls.kind.leaf(~Calls.kind.colon, D1.inert.node(hh)) == Calls.kind.leaf(~Calls.kind.colon, hh) : Bool}
+
+def inert.colon_leaf(hh):
+  match hh:
+    case Tree.Leaf{tok}:
+      match tok:
+        case Lex.Tok{k, t, l, c}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+    case Tree.NCons{x, y}: {==}
+
+# a chain read that way holds a `:` exactly when it does
+law inert.has_colon:
+  for pp: Tree.Node
+  {Calls.has_colon(D1.inert.node(pp)) == Calls.has_colon(pp) : Bool}
+
+def inert.has_colon(pp):
+  match pp:
+    case Tree.NCons{+h, +rest}:
+      %Equal.sym(Bool, Calls.kind.leaf(~Calls.kind.colon, D1.inert.node(h)), Calls.kind.leaf(~Calls.kind.colon, h),
+        inert.colon_leaf(h)) :
+        {Lazy.or_else(_, _u => Calls.has_colon(D1.inert.node(rest)))
+          == Lazy.or_else(Calls.kind.leaf(~Calls.kind.colon, h), _u => Calls.has_colon(rest)) : Bool}
+      Equal.cong(Bool, Bool, z => Lazy.or_else(Calls.kind.leaf(~Calls.kind.colon, h), _u => z),
+        Calls.has_colon(D1.inert.node(rest)), Calls.has_colon(rest), inert.has_colon(rest))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# two chains read that way and joined are their join read that way
+law inert.join:
+  for aa: Tree.Node
+  for +bb: Tree.Node
+  {Calls.join(D1.inert.node(aa), D1.inert.node(bb)) == D1.inert.node(Calls.join(aa, bb)) : Tree.Node}
+
+def inert.join(aa, bb):
+  match aa:
+    case Tree.NCons{+h, t}:
+      Equal.cong(Tree.Node, Tree.Node, z => Tree.NCons{D1.inert.node(h), z},
+        Calls.join(D1.inert.node(t), D1.inert.node(bb)), D1.inert.node(Calls.join(t, bb)), inert.join(t, bb))
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# two chains whose leaves fit join into one whose leaves fit
+law inert.ok.join:
+  for aa: Tree.Node
+  for +bb: Tree.Node
+  for +ea: {D1.inert.ok(aa) == True{} : Bool}
+  for +eb: {D1.inert.ok(bb) == True{} : Bool}
+  {D1.inert.ok(Calls.join(aa, bb)) == True{} : Bool}
+
+def inert.ok.join(aa, bb, ea, eb):
+  match aa:
+    case Tree.NCons{+h, +t}:
+      M1.inert.and_both(D1.inert.ok(h), D1.inert.ok(Calls.join(t, bb)),
+        M1.inert.and_l(D1.inert.ok(h), D1.inert.ok(t), ea),
+        inert.ok.join(t, bb, M1.inert.and_r(D1.inert.ok(h), D1.inert.ok(t), ea), eb))
+    case Tree.Leaf{tok}: eb
+    case Tree.Group{o, gk, cl}: eb
+    case Tree.Stmt{sk, sks, sb}: eb
+    case Tree.NNil{}: eb
+
+# the lines a header wrapped onto and the body they leave, each read that way
+def inert.wrapm(mw: Maybe<&2, Calls.Wrap>) -> Maybe<&2, Calls.Wrap>:
+  match mw:
+    case None{}: None{}
+    case Some{Calls.Wrap{sig, body}}: Some{Calls.Wrap{D1.inert.node(sig), D1.inert.node(body)}}
+
+# the leaves of those lines and of that body fit
+def inert.wok(mw: Maybe<&2, Calls.Wrap>) -> Bool:
+  match mw:
+    case None{}: True{}
+    case Some{Calls.Wrap{sig, body}}: Bool.and(D1.inert.ok(sig), D1.inert.ok(body))
+
+# a line before the lines found commutes with reading them that way
+law inert.wrap.more:
+  for +kids: Tree.Node
+  for mw: Maybe<&2, Calls.Wrap>
+  {Calls.wrap.more(D1.inert.node(kids), inert.wrapm(mw)) == inert.wrapm(Calls.wrap.more(kids, mw))
+    : Maybe<&2, Calls.Wrap>}
+
+def inert.wrap.more(kids, mw):
+  match mw:
+    case None{}: {==}
+    case Some{w}:
+      match w:
+        case Calls.Wrap{+sig, +body}:
+          Equal.cong(Tree.Node, Maybe<&2, Calls.Wrap>, z => Some{Calls.Wrap{z, D1.inert.node(body)}},
+            Calls.join(D1.inert.node(kids), D1.inert.node(sig)), D1.inert.node(Calls.join(kids, sig)),
+            inert.join(kids, sig))
+
+# a line before lines that fit fits with them
+law inert.wok.more:
+  for +kids: Tree.Node
+  for mw: Maybe<&2, Calls.Wrap>
+  for +ek: {D1.inert.ok(kids) == True{} : Bool}
+  for +ew: {inert.wok(mw) == True{} : Bool}
+  {inert.wok(Calls.wrap.more(kids, mw)) == True{} : Bool}
+
+def inert.wok.more(kids, mw, ek, ew):
+  match mw:
+    case None{}: {==}
+    case Some{w}:
+      match w:
+        case Calls.Wrap{+sig, +body}:
+          M1.inert.and_both(D1.inert.ok(Calls.join(kids, sig)), D1.inert.ok(body),
+            inert.ok.join(kids, sig, ek, M1.inert.and_l(D1.inert.ok(sig), D1.inert.ok(body), ew)),
+            M1.inert.and_r(D1.inert.ok(sig), D1.inert.ok(body), ew))
+
+# the step of wrap at a statement with nothing under it, whatever its `:` test says
+law inert.wrap.flat:
+  for cc: Bool
+  for +kids: Tree.Node
+  for +rest: Tree.Node
+  for +mw: Maybe<&2, Calls.Wrap>
+  {Lazy.stop(Maybe<&2, Calls.Wrap>, cc, Some{Calls.Wrap{D1.inert.node(kids), D1.inert.node(rest)}},
+    _u => Calls.wrap.more(D1.inert.node(kids), inert.wrapm(mw)))
+    == inert.wrapm(Lazy.stop(Maybe<&2, Calls.Wrap>, cc, Some{Calls.Wrap{kids, rest}},
+      _u => Calls.wrap.more(kids, mw))) : Maybe<&2, Calls.Wrap>}
+
+def inert.wrap.flat(cc, kids, _rest, mw):
+  match cc:
+    case True{}: {==}
+    case False{}: inert.wrap.more(kids, mw)
+
+# the step of wrap at a statement with statements under it, whatever its `:` test says
+law inert.wrap.deep:
+  for cc: Bool
+  for +kids: Tree.Node
+  for +below: Tree.Node
+  for +rest: Tree.Node
+  {Lazy.stop(Maybe<&2, Calls.Wrap>, Bool.not(cc), None{},
+    _u => Some{Calls.Wrap{D1.inert.node(kids), Calls.join(D1.inert.node(below), D1.inert.node(rest))}})
+    == inert.wrapm(Lazy.stop(Maybe<&2, Calls.Wrap>, Bool.not(cc), None{},
+      _u => Some{Calls.Wrap{kids, Calls.join(below, rest)}})) : Maybe<&2, Calls.Wrap>}
+
+def inert.wrap.deep(cc, kids, below, rest):
+  match cc:
+    case False{}: {==}
+    case True{}:
+      Equal.cong(Tree.Node, Maybe<&2, Calls.Wrap>, z => Some{Calls.Wrap{D1.inert.node(kids), z}},
+        Calls.join(D1.inert.node(below), D1.inert.node(rest)), D1.inert.node(Calls.join(below, rest)),
+        inert.join(below, rest))
+
+# the lines a header wrapped onto, found in a tree read that way, are the
+# ones found in the tree, read that way
+law inert.wrap:
+  for body: Tree.Node
+  {Calls.wrap(D1.inert.node(body)) == inert.wrapm(Calls.wrap(body)) : Maybe<&2, Calls.Wrap>}
+
+def inert.wrap(body):
+  match body:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Stmt{sk, +kids, below}:
+          match below:
+            case Tree.NNil{}:
+              %Equal.sym(Bool, Calls.has_colon(D1.inert.node(kids)), Calls.has_colon(kids), inert.has_colon(kids)) :
+                {Lazy.stop(Maybe<&2, Calls.Wrap>, _, Some{Calls.Wrap{D1.inert.node(kids), D1.inert.node(rest)}},
+                  _u => Calls.wrap.more(D1.inert.node(kids), Calls.wrap(D1.inert.node(rest))))
+                  == inert.wrapm(Calls.wrap(Tree.NCons{Tree.Stmt{sk, kids, Tree.NNil{}}, rest}))
+                  : Maybe<&2, Calls.Wrap>}
+              %Equal.sym(Maybe<&2, Calls.Wrap>, Calls.wrap(D1.inert.node(rest)), inert.wrapm(Calls.wrap(rest)),
+                inert.wrap(rest)) :
+                {Lazy.stop(Maybe<&2, Calls.Wrap>, Calls.has_colon(kids),
+                  Some{Calls.Wrap{D1.inert.node(kids), D1.inert.node(rest)}},
+                  _u => Calls.wrap.more(D1.inert.node(kids), _))
+                  == inert.wrapm(Calls.wrap(Tree.NCons{Tree.Stmt{sk, kids, Tree.NNil{}}, rest}))
+                  : Maybe<&2, Calls.Wrap>}
+              inert.wrap.flat(Calls.has_colon(kids), kids, rest, Calls.wrap(rest))
+            case Tree.Leaf{tok}:
+              %Equal.sym(Bool, Calls.has_colon(D1.inert.node(kids)), Calls.has_colon(kids), inert.has_colon(kids)) :
+                {Lazy.stop(Maybe<&2, Calls.Wrap>, Bool.not(_), None{},
+                  _u => Some{Calls.Wrap{D1.inert.node(kids),
+                    Calls.join(D1.inert.node(Tree.Leaf{tok}), D1.inert.node(rest))}})
+                  == inert.wrapm(Calls.wrap(Tree.NCons{Tree.Stmt{sk, kids, Tree.Leaf{tok}}, rest}))
+                  : Maybe<&2, Calls.Wrap>}
+              inert.wrap.deep(Calls.has_colon(kids), kids, Tree.Leaf{tok}, rest)
+            case Tree.Group{o, gk, cl}:
+              %Equal.sym(Bool, Calls.has_colon(D1.inert.node(kids)), Calls.has_colon(kids), inert.has_colon(kids)) :
+                {Lazy.stop(Maybe<&2, Calls.Wrap>, Bool.not(_), None{},
+                  _u => Some{Calls.Wrap{D1.inert.node(kids),
+                    Calls.join(D1.inert.node(Tree.Group{o, gk, cl}), D1.inert.node(rest))}})
+                  == inert.wrapm(Calls.wrap(Tree.NCons{Tree.Stmt{sk, kids, Tree.Group{o, gk, cl}}, rest}))
+                  : Maybe<&2, Calls.Wrap>}
+              inert.wrap.deep(Calls.has_colon(kids), kids, Tree.Group{o, gk, cl}, rest)
+            case Tree.Stmt{bk, bks, bb}:
+              %Equal.sym(Bool, Calls.has_colon(D1.inert.node(kids)), Calls.has_colon(kids), inert.has_colon(kids)) :
+                {Lazy.stop(Maybe<&2, Calls.Wrap>, Bool.not(_), None{},
+                  _u => Some{Calls.Wrap{D1.inert.node(kids),
+                    Calls.join(D1.inert.node(Tree.Stmt{bk, bks, bb}), D1.inert.node(rest))}})
+                  == inert.wrapm(Calls.wrap(Tree.NCons{Tree.Stmt{sk, kids, Tree.Stmt{bk, bks, bb}}, rest}))
+                  : Maybe<&2, Calls.Wrap>}
+              inert.wrap.deep(Calls.has_colon(kids), kids, Tree.Stmt{bk, bks, bb}, rest)
+            case Tree.NCons{x, y}:
+              %Equal.sym(Bool, Calls.has_colon(D1.inert.node(kids)), Calls.has_colon(kids), inert.has_colon(kids)) :
+                {Lazy.stop(Maybe<&2, Calls.Wrap>, Bool.not(_), None{},
+                  _u => Some{Calls.Wrap{D1.inert.node(kids),
+                    Calls.join(D1.inert.node(Tree.NCons{x, y}), D1.inert.node(rest))}})
+                  == inert.wrapm(Calls.wrap(Tree.NCons{Tree.Stmt{sk, kids, Tree.NCons{x, y}}, rest}))
+                  : Maybe<&2, Calls.Wrap>}
+              inert.wrap.deep(Calls.has_colon(kids), kids, Tree.NCons{x, y}, rest)
+        case Tree.Leaf{tok}: {==}
+        case Tree.Group{o, gk, cl}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# the step of wrap at a statement with nothing under it keeps leaves that fit
+law inert.wok.flat:
+  for cc: Bool
+  for +kids: Tree.Node
+  for +rest: Tree.Node
+  for +mw: Maybe<&2, Calls.Wrap>
+  for +ek: {D1.inert.ok(kids) == True{} : Bool}
+  for +er: {D1.inert.ok(rest) == True{} : Bool}
+  for +ew: {inert.wok(mw) == True{} : Bool}
+  {inert.wok(Lazy.stop(Maybe<&2, Calls.Wrap>, cc, Some{Calls.Wrap{kids, rest}},
+    _u => Calls.wrap.more(kids, mw))) == True{} : Bool}
+
+def inert.wok.flat(cc, kids, rest, mw, ek, er, ew):
+  match cc:
+    case True{}: M1.inert.and_both(D1.inert.ok(kids), D1.inert.ok(rest), ek, er)
+    case False{}: inert.wok.more(kids, mw, ek, ew)
+
+# the step of wrap at a statement with statements under it keeps leaves that fit
+law inert.wok.deep:
+  for cc: Bool
+  for +kids: Tree.Node
+  for +below: Tree.Node
+  for +rest: Tree.Node
+  for +ek: {D1.inert.ok(kids) == True{} : Bool}
+  for +eb: {D1.inert.ok(below) == True{} : Bool}
+  for +er: {D1.inert.ok(rest) == True{} : Bool}
+  {inert.wok(Lazy.stop(Maybe<&2, Calls.Wrap>, Bool.not(cc), None{},
+    _u => Some{Calls.Wrap{kids, Calls.join(below, rest)}})) == True{} : Bool}
+
+def inert.wok.deep(cc, kids, below, rest, ek, eb, er):
+  match cc:
+    case False{}: {==}
+    case True{}:
+      M1.inert.and_both(D1.inert.ok(kids), D1.inert.ok(Calls.join(below, rest)), ek,
+        inert.ok.join(below, rest, eb, er))
+
+# the lines a header wrapped onto, and the body they leave, fit when the
+# statements they were found in do
+law inert.wok.wrap:
+  for body: Tree.Node
+  for +e: {D1.inert.ok(body) == True{} : Bool}
+  {inert.wok(Calls.wrap(body)) == True{} : Bool}
+
+def inert.wok.wrap(body, e):
+  match body:
+    case Tree.NCons{h, +rest}:
+      match h:
+        case Tree.Stmt{sk, +kids, below}:
+          match below:
+            case Tree.NNil{}:
+              +er = M1.inert.and_r(Bool.and(D1.inert.ok(kids), True{}), D1.inert.ok(rest), e)
+              inert.wok.flat(Calls.has_colon(kids), kids, rest, Calls.wrap(rest),
+                M1.inert.and_l(D1.inert.ok(kids), True{},
+                  M1.inert.and_l(Bool.and(D1.inert.ok(kids), True{}), D1.inert.ok(rest), e)),
+                er, inert.wok.wrap(rest, er))
+            case Tree.Leaf{+tok}:
+              +es = M1.inert.and_l(Bool.and(D1.inert.ok(kids), D1.inert.ok(Tree.Leaf{tok})), D1.inert.ok(rest), e)
+              inert.wok.deep(Calls.has_colon(kids), kids, Tree.Leaf{tok}, rest,
+                M1.inert.and_l(D1.inert.ok(kids), D1.inert.ok(Tree.Leaf{tok}), es),
+                M1.inert.and_r(D1.inert.ok(kids), D1.inert.ok(Tree.Leaf{tok}), es),
+                M1.inert.and_r(Bool.and(D1.inert.ok(kids), D1.inert.ok(Tree.Leaf{tok})), D1.inert.ok(rest), e))
+            case Tree.Group{+o, +gk, +cl}:
+              +es = M1.inert.and_l(Bool.and(D1.inert.ok(kids), D1.inert.ok(Tree.Group{o, gk, cl})),
+                D1.inert.ok(rest), e)
+              inert.wok.deep(Calls.has_colon(kids), kids, Tree.Group{o, gk, cl}, rest,
+                M1.inert.and_l(D1.inert.ok(kids), D1.inert.ok(Tree.Group{o, gk, cl}), es),
+                M1.inert.and_r(D1.inert.ok(kids), D1.inert.ok(Tree.Group{o, gk, cl}), es),
+                M1.inert.and_r(Bool.and(D1.inert.ok(kids), D1.inert.ok(Tree.Group{o, gk, cl})), D1.inert.ok(rest), e))
+            case Tree.Stmt{+bk, +bks, +bb}:
+              +es = M1.inert.and_l(Bool.and(D1.inert.ok(kids), D1.inert.ok(Tree.Stmt{bk, bks, bb})),
+                D1.inert.ok(rest), e)
+              inert.wok.deep(Calls.has_colon(kids), kids, Tree.Stmt{bk, bks, bb}, rest,
+                M1.inert.and_l(D1.inert.ok(kids), D1.inert.ok(Tree.Stmt{bk, bks, bb}), es),
+                M1.inert.and_r(D1.inert.ok(kids), D1.inert.ok(Tree.Stmt{bk, bks, bb}), es),
+                M1.inert.and_r(Bool.and(D1.inert.ok(kids), D1.inert.ok(Tree.Stmt{bk, bks, bb})), D1.inert.ok(rest), e))
+            case Tree.NCons{+x, +y}:
+              +es = M1.inert.and_l(Bool.and(D1.inert.ok(kids), D1.inert.ok(Tree.NCons{x, y})),
+                D1.inert.ok(rest), e)
+              inert.wok.deep(Calls.has_colon(kids), kids, Tree.NCons{x, y}, rest,
+                M1.inert.and_l(D1.inert.ok(kids), D1.inert.ok(Tree.NCons{x, y}), es),
+                M1.inert.and_r(D1.inert.ok(kids), D1.inert.ok(Tree.NCons{x, y}), es),
+                M1.inert.and_r(Bool.and(D1.inert.ok(kids), D1.inert.ok(Tree.NCons{x, y})), D1.inert.ok(rest), e))
+        case Tree.Leaf{tok}: {==}
+        case Tree.Group{o, gk, cl}: {==}
+        case Tree.NNil{}: {==}
+        case Tree.NCons{x, y}: {==}
+    case Tree.Leaf{tok}: {==}
+    case Tree.Group{o, gk, cl}: {==}
+    case Tree.Stmt{sk, sks, sb}: {==}
+    case Tree.NNil{}: {==}
+
+# a header read off lines read that way, whatever its `:` test says
+law inert.header.at:
+  for cc: Bool
+  for +kids: Tree.Node
+  for mw: Maybe<&2, Calls.Wrap>
+  {Lazy.stop(Tree.Node, cc, D1.inert.node(kids), _u => Calls.header.of(D1.inert.node(kids), inert.wrapm(mw)))
+    == D1.inert.node(Lazy.stop(Tree.Node, cc, kids, _u => Calls.header.of(kids, mw))) : Tree.Node}
+
+def inert.header.at(cc, kids, mw):
+  match cc:
+    case True{}: {==}
+    case False{}:
+      match mw:
+        case None{}: {==}
+        case Some{w}:
+          match w:
+            case Calls.Wrap{+sig, body}: inert.join(kids, sig)
+
+# a def's signature in a tree read that way is its signature, read that way
+law inert.header:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  {Calls.header(D1.inert.node(kids), D1.inert.node(body)) == D1.inert.node(Calls.header(kids, body)) : Tree.Node}
+
+def inert.header(kids, body):
+  %Equal.sym(Bool, Calls.has_colon(D1.inert.node(kids)), Calls.has_colon(kids), inert.has_colon(kids)) :
+    {Lazy.stop(Tree.Node, _, D1.inert.node(kids),
+      _u => Calls.header.of(D1.inert.node(kids), Calls.wrap(D1.inert.node(body))))
+      == D1.inert.node(Calls.header(kids, body)) : Tree.Node}
+  %Equal.sym(Maybe<&2, Calls.Wrap>, Calls.wrap(D1.inert.node(body)), inert.wrapm(Calls.wrap(body)),
+    inert.wrap(body)) :
+    {Lazy.stop(Tree.Node, Calls.has_colon(kids), D1.inert.node(kids),
+      _u => Calls.header.of(D1.inert.node(kids), _))
+      == D1.inert.node(Calls.header(kids, body)) : Tree.Node}
+  inert.header.at(Calls.has_colon(kids), kids, Calls.wrap(body))
+
+# a body read off lines read that way, whatever the header's `:` test says
+law inert.under.at:
+  for cc: Bool
+  for +body: Tree.Node
+  for mw: Maybe<&2, Calls.Wrap>
+  {Lazy.stop(Tree.Node, cc, D1.inert.node(body), _u => Calls.under.of(D1.inert.node(body), inert.wrapm(mw)))
+    == D1.inert.node(Lazy.stop(Tree.Node, cc, body, _u => Calls.under.of(body, mw))) : Tree.Node}
+
+def inert.under.at(cc, _body, mw):
+  match cc:
+    case True{}: {==}
+    case False{}:
+      match mw:
+        case None{}: {==}
+        case Some{w}:
+          match w:
+            case Calls.Wrap{sig, left}: {==}
+
+# a def's body in a tree read that way is its body, read that way
+law inert.under:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  {Calls.under(D1.inert.node(kids), D1.inert.node(body)) == D1.inert.node(Calls.under(kids, body)) : Tree.Node}
+
+def inert.under(kids, body):
+  %Equal.sym(Bool, Calls.has_colon(D1.inert.node(kids)), Calls.has_colon(kids), inert.has_colon(kids)) :
+    {Lazy.stop(Tree.Node, _, D1.inert.node(body),
+      _u => Calls.under.of(D1.inert.node(body), Calls.wrap(D1.inert.node(body))))
+      == D1.inert.node(Calls.under(kids, body)) : Tree.Node}
+  %Equal.sym(Maybe<&2, Calls.Wrap>, Calls.wrap(D1.inert.node(body)), inert.wrapm(Calls.wrap(body)),
+    inert.wrap(body)) :
+    {Lazy.stop(Tree.Node, Calls.has_colon(kids), D1.inert.node(body),
+      _u => Calls.under.of(D1.inert.node(body), _))
+      == D1.inert.node(Calls.under(kids, body)) : Tree.Node}
+  inert.under.at(Calls.has_colon(kids), body, Calls.wrap(body))
+
+# a signature read off lines that fit fits, whatever its `:` test says
+law inert.ok.header.at:
+  for cc: Bool
+  for +kids: Tree.Node
+  for mw: Maybe<&2, Calls.Wrap>
+  for +ek: {D1.inert.ok(kids) == True{} : Bool}
+  for +ew: {inert.wok(mw) == True{} : Bool}
+  {D1.inert.ok(Lazy.stop(Tree.Node, cc, kids, _u => Calls.header.of(kids, mw))) == True{} : Bool}
+
+def inert.ok.header.at(cc, kids, mw, ek, ew):
+  match cc:
+    case True{}: ek
+    case False{}:
+      match mw:
+        case None{}: ek
+        case Some{w}:
+          match w:
+            case Calls.Wrap{+sig, +body}:
+              inert.ok.join(kids, sig, ek, M1.inert.and_l(D1.inert.ok(sig), D1.inert.ok(body), ew))
+
+# a body read off lines that fit fits, whatever the header's `:` test says
+law inert.ok.under.at:
+  for cc: Bool
+  for +body: Tree.Node
+  for mw: Maybe<&2, Calls.Wrap>
+  for +eb: {D1.inert.ok(body) == True{} : Bool}
+  for +ew: {inert.wok(mw) == True{} : Bool}
+  {D1.inert.ok(Lazy.stop(Tree.Node, cc, body, _u => Calls.under.of(body, mw))) == True{} : Bool}
+
+def inert.ok.under.at(cc, _body, mw, eb, ew):
+  match cc:
+    case True{}: eb
+    case False{}:
+      match mw:
+        case None{}: eb
+        case Some{w}:
+          match w:
+            case Calls.Wrap{+sig, +left}: M1.inert.and_r(D1.inert.ok(sig), D1.inert.ok(left), ew)
+
+# a def's signature and body fit when its own line and the statements under
+# it do
+law inert.ok.head:
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for +es: {Bool.and(D1.inert.ok(kids), D1.inert.ok(body)) == True{} : Bool}
+  {Bool.and(D1.inert.ok(Calls.header(kids, body)), D1.inert.ok(Calls.under(kids, body))) == True{} : Bool}
+
+def inert.ok.head(kids, body, es):
+  +eb = M1.inert.and_r(D1.inert.ok(kids), D1.inert.ok(body), es)
+  M1.inert.and_both(D1.inert.ok(Calls.header(kids, body)), D1.inert.ok(Calls.under(kids, body)),
+    inert.ok.header.at(Calls.has_colon(kids), kids, Calls.wrap(body),
+      M1.inert.and_l(D1.inert.ok(kids), D1.inert.ok(body), es), inert.wok.wrap(body, eb)),
+    inert.ok.under.at(Calls.has_colon(kids), body, Calls.wrap(body), eb, inert.wok.wrap(body, eb)))
+
 # pushing a def commutes with reading the defs that way
 law inert.defs.push:
   for mm: Maybe<&2, String>
@@ -618,15 +1056,30 @@ def inert.defs.of(root):
             case Tree.SDef{}:
               %Equal.sym(Maybe<&2, String>, Bind.declared(D1.inert.node(kids)), Bind.declared(kids),
                 inert.declared(kids)) :
-                {Calls.defs.push(_, D1.inert.node(kids), D1.inert.node(body), Calls.defs(D1.inert.node(rest)))
-                  == inert.defs(Calls.defs.push(Bind.declared(kids), kids, body,
-                    Calls.defs(rest))) : List<&2, Calls.Def>}
+                {Calls.defs.push(_, Calls.header(D1.inert.node(kids), D1.inert.node(body)),
+                  Calls.under(D1.inert.node(kids), D1.inert.node(body)), Calls.defs(D1.inert.node(rest)))
+                  == inert.defs(Calls.defs.push(Bind.declared(kids), Calls.header(kids, body),
+                    Calls.under(kids, body), Calls.defs(rest))) : List<&2, Calls.Def>}
+              %Equal.sym(Tree.Node, Calls.header(D1.inert.node(kids), D1.inert.node(body)),
+                D1.inert.node(Calls.header(kids, body)), inert.header(kids, body)) :
+                {Calls.defs.push(Bind.declared(kids), _,
+                  Calls.under(D1.inert.node(kids), D1.inert.node(body)), Calls.defs(D1.inert.node(rest)))
+                  == inert.defs(Calls.defs.push(Bind.declared(kids), Calls.header(kids, body),
+                    Calls.under(kids, body), Calls.defs(rest))) : List<&2, Calls.Def>}
+              %Equal.sym(Tree.Node, Calls.under(D1.inert.node(kids), D1.inert.node(body)),
+                D1.inert.node(Calls.under(kids, body)), inert.under(kids, body)) :
+                {Calls.defs.push(Bind.declared(kids), D1.inert.node(Calls.header(kids, body)), _,
+                  Calls.defs(D1.inert.node(rest)))
+                  == inert.defs(Calls.defs.push(Bind.declared(kids), Calls.header(kids, body),
+                    Calls.under(kids, body), Calls.defs(rest))) : List<&2, Calls.Def>}
               %Equal.sym(List<&2, Calls.Def>, Calls.defs(D1.inert.node(rest)), inert.defs(Calls.defs(rest)),
-                inert.defs.of(rest)) : {Calls.defs.push(Bind.declared(kids), D1.inert.node(kids),
-                  D1.inert.node(body), _)
-                  == inert.defs(Calls.defs.push(Bind.declared(kids), kids, body,
-                    Calls.defs(rest))) : List<&2, Calls.Def>}
-              inert.defs.push(Bind.declared(kids), kids, body, Calls.defs(rest))
+                inert.defs.of(rest)) :
+                {Calls.defs.push(Bind.declared(kids), D1.inert.node(Calls.header(kids, body)),
+                  D1.inert.node(Calls.under(kids, body)), _)
+                  == inert.defs(Calls.defs.push(Bind.declared(kids), Calls.header(kids, body),
+                    Calls.under(kids, body), Calls.defs(rest))) : List<&2, Calls.Def>}
+              inert.defs.push(Bind.declared(kids), Calls.header(kids, body), Calls.under(kids, body),
+                Calls.defs(rest))
             case Tree.SType{}: inert.defs.of(rest)
             case Tree.SLaw{}: inert.defs.of(rest)
             case Tree.SImport{}: inert.defs.of(rest)
@@ -657,7 +1110,9 @@ law inert.dok.stmt:
 
 def inert.dok.stmt(sk, kids, body, rest, en, es, er):
   match sk:
-    case Tree.SDef{}: inert.dok.push(Bind.declared(kids), kids, body, Calls.defs(rest), en, es, er)
+    case Tree.SDef{}:
+      inert.dok.push(Bind.declared(kids), Calls.header(kids, body), Calls.under(kids, body), Calls.defs(rest), en,
+        inert.ok.head(kids, body, es), er)
     case Tree.SType{}: er
     case Tree.SLaw{}: er
     case Tree.SImport{}: er
@@ -1224,21 +1679,6 @@ def inert.or_else(c1, _c2, a1, a2, ec, ea):
   %ec : {Lazy.or_else(c1, _u => a1) == Lazy.or_else(_, _v => a2) : Bool}
   %ea : {Lazy.or_else(c1, _u => a1) == Lazy.or_else(c1, _v => _) : Bool}
   {==}
-
-# a parameter read that way has a top-level colon as it had
-law inert.has_colon:
-  for pp: Tree.Node
-  {Calls.has_colon(D1.inert.node(pp)) == Calls.has_colon(pp) : Bool}
-
-def inert.has_colon(pp):
-  match pp:
-    case Tree.NCons{+h, +rest}:
-      inert.or_else(Calls.kind.leaf(~Calls.kind.colon, D1.inert.node(h)), Calls.kind.leaf(~Calls.kind.colon, h),
-        Calls.has_colon(D1.inert.node(rest)), Calls.has_colon(rest), inert.colon(h), inert.has_colon(rest))
-    case Tree.Leaf{tok}: {==}
-    case Tree.Group{o, gk, cl}: {==}
-    case Tree.Stmt{sk, sks, sb}: {==}
-    case Tree.NNil{}: {==}
 
 # a leaf read that way says what it said, cut when a comment or a string
 law inert.leaf_text:
