@@ -6,6 +6,8 @@ import ../src/role.bend as Role
 import ../src/lazy/lazy.bend as Lazy
 import ../src/rules/imports.bend as Imports
 import ../laws/RoleFollowsImports.bend as Laws
+import ../src/syntax/bind.bend as Bind
+import ./lemmas/BinderIndexIsContains.bend as M1
 
 # roles from the imports (laws/RoleFollowsImports.bend). The law's
 # vocabulary reads the facts the way src/role.bend does, so each list is the
@@ -71,43 +73,62 @@ def rf.lawful(fs):
           == Laws.role.lawful(Role.Fact{norm, deps, named, entry} <> rest) : List<&2, String>}
       {==}
 
-# the roots of the code are the law's
+# the roots of the code, asked of the index of what the laws reach, are the
+# law's over the list
 law rf.code:
   for fs: List<&2, Role.Fact>
   for +laws: List<&2, String>
-  {Role.code(fs, laws) == Laws.role.code(fs, laws) : List<&2, String>}
+  {Role.code.fast(fs, Bind.index(laws)) == Laws.role.code(fs, laws) : List<&2, String>}
 
 def rf.code(fs, laws):
   match fs:
     case Nil{}:
       {==}
     case Con{Role.Fact{+norm, +deps, +named, +entry}, +rest}:
-      %Equal.sym(List<&2, String>, Role.code(rest, laws), Laws.role.code(rest, laws), rf.code(rest, laws)) :
+      +fast = Role.code.fast(rest, Bind.index(laws))
+      %Equal.sym(Bool, Bind.indexed(Bind.index(laws), norm), List.contains(~String, ~String.eq, laws, norm),
+        M1.ic.indexed(laws, norm)) :
+        {Bool.pick(List<&2, String>, Bool.or(entry, Bool.not(_)), norm <> fast, fast)
+          == Laws.role.code(Role.Fact{norm, deps, named, entry} <> rest, laws) : List<&2, String>}
+      %Equal.sym(List<&2, String>, fast, Laws.role.code(rest, laws), rf.code(rest, laws)) :
         {Bool.pick(List<&2, String>, Bool.or(entry, Bool.not(List.contains(~String, ~String.eq, laws, norm))),
           norm <> _, _) == Laws.role.code(Role.Fact{norm, deps, named, entry} <> rest, laws) : List<&2, String>}
       {==}
 
-# the marks over three reaches are the law's over the same three
+# the marks over the indexes of three reaches are the law's over the three
 law rf.marks:
   for fs: List<&2, Role.Fact>
   for +laws: List<&2, String>
   for +lawful: List<&2, String>
   for +code: List<&2, String>
-  {Role.marks.of(fs, laws, lawful, code) == Laws.role.marks(fs, laws, lawful, code) : List<&2, Role.Mark>}
+  {Role.marks.fast(fs, Bind.index(laws), Bind.index(lawful), Bind.index(code))
+    == Laws.role.marks(fs, laws, lawful, code) : List<&2, Role.Mark>}
 
 def rf.marks(fs, laws, lawful, code):
   match fs:
     case Nil{}:
       {==}
     case Con{Role.Fact{+norm, +deps, +named, +entry}, +rest}:
-      %Equal.sym(List<&2, Role.Mark>, Role.marks.of(rest, laws, lawful, code),
-        Laws.role.marks(rest, laws, lawful, code), rf.marks(rest, laws, lawful, code)) :
-        {Bool.pick(List<&2, Role.Mark>,
-          Bool.and(List.contains(~String, ~String.eq, laws, norm),
-            Bool.not(List.contains(~String, ~String.eq, code, norm))),
-          Role.Mark{norm, Laws.role.given(named, List.contains(~String, ~String.eq, lawful, norm))} <> _, _)
-          == Laws.role.marks(Role.Fact{norm, deps, named, entry} <> rest, laws, lawful, code)
-          : List<&2, Role.Mark>}
+      +fast = Role.marks.fast(rest, Bind.index(laws), Bind.index(lawful), Bind.index(code))
+      +goal = Laws.role.marks(Role.Fact{norm, deps, named, entry} <> rest, laws, lawful, code)
+      +inl = List.contains(~String, ~String.eq, laws, norm)
+      +inc = List.contains(~String, ~String.eq, code, norm)
+      +inf = List.contains(~String, ~String.eq, lawful, norm)
+      %Equal.sym(Bool, Bind.indexed(Bind.index(laws), norm), inl, M1.ic.indexed(laws, norm)) :
+        {Bool.pick(List<&2, Role.Mark>, Bool.and(_, Bool.not(Bind.indexed(Bind.index(code), norm))),
+          Role.Mark{norm, Role.role.of(named, Role.reached(Bind.indexed(Bind.index(lawful), norm)))} <> fast, fast)
+          == goal : List<&2, Role.Mark>}
+      %Equal.sym(Bool, Bind.indexed(Bind.index(code), norm), inc, M1.ic.indexed(code, norm)) :
+        {Bool.pick(List<&2, Role.Mark>, Bool.and(inl, Bool.not(_)),
+          Role.Mark{norm, Role.role.of(named, Role.reached(Bind.indexed(Bind.index(lawful), norm)))} <> fast, fast)
+          == goal : List<&2, Role.Mark>}
+      %Equal.sym(Bool, Bind.indexed(Bind.index(lawful), norm), inf, M1.ic.indexed(lawful, norm)) :
+        {Bool.pick(List<&2, Role.Mark>, Bool.and(inl, Bool.not(inc)),
+          Role.Mark{norm, Role.role.of(named, Role.reached(_))} <> fast, fast) == goal : List<&2, Role.Mark>}
+      %Equal.sym(List<&2, Role.Mark>, fast, Laws.role.marks(rest, laws, lawful, code),
+        rf.marks(rest, laws, lawful, code)) :
+        {Bool.pick(List<&2, Role.Mark>, Bool.and(inl, Bool.not(inc)),
+          Role.Mark{norm, Laws.role.given(named, inf)} <> _, _) == goal : List<&2, Role.Mark>}
       {==}
 
 # a search that stops at the first mark is the pick of its role
