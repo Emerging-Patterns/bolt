@@ -43,6 +43,7 @@ import ./proofs/PathsNameFiles.bend as PPathsNameFiles
 import ./proofs/NamedFilesTakeTreeRoles.bend as PNamedFilesTakeTreeRoles
 import ./proofs/PlannerAsksEachPathOnce.bend as PPlannerAsksEachPathOnce
 import ./proofs/ConfigReadsSettings.bend as PConfigReadsSettings
+import ./proofs/TokenKindsNamed.bend as PTokenKindsNamed
 import ./proofs/ScopeProjectRulesRunOnRoot.bend as PScopeProjectRulesRunOnRoot
 import ./proofs/ScopeRulesSeeTheirInputs.bend as PScopeRulesSeeTheirInputs
 import ./proofs/ScopeWalksWholeTree.bend as PScopeWalksWholeTree
