@@ -30,6 +30,8 @@ import ../laws/defs/InertText.bend as D1
 import ./lemmas/InertTextFacts.bend as M1
 import ./lemmas/UnusedBinderPick.bend as M2
 import ./lemmas/CarriedSearch.bend as CS
+import ../laws/DocFlagsAnswerAsLines.bend as DF
+import ./lemmas/DocFlags.bend as DFP
 
 # a Bool whose negation holds is False
 law inert.not_true:
@@ -2222,18 +2224,24 @@ def Laws.inert_doc(path, text, toks, _tree, _bound, items, text2, toks2, _tree2,
   +r2 = Doc.check.go(Laws.inert.items(items2), path, inert.doc.relines(Laws.inert.leads(l2)))
   +w1 = Doc.check.go(items, path, l1)
   +w2 = Doc.check.go(items2, path, l2)
+  +f1 = Doc.check.fast(items, path, Doc.flags(l1))
+  +f2 = Doc.check.fast(items2, path, Doc.flags(l2))
   Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
-    z => Lazy.stop(List<&2, F.Finding>, Bool.or(Paths.is_proof(path), Paths.is_test(path)), [], _u => z), w1, w2,
-    Equal.trans(List<&2, F.Finding>, w1, r1, w2, Equal.sym(List<&2, F.Finding>, r1, w1, inert.doc.go(items, path, l1)),
-      Equal.trans(List<&2, F.Finding>, r1, m, w2,
-        Equal.cong(List<&2, Outline.Item>, List<&2, F.Finding>,
-          z => Doc.check.go(z, path, inert.doc.relines(Laws.inert.leads(l1))), Laws.inert.items(items),
-          Laws.inert.items(items2), ei),
-        Equal.trans(List<&2, F.Finding>, m, r2, w2,
-          Equal.cong(List<&2, Laws.inert.Lead>, List<&2, F.Finding>,
-            z => Doc.check.go(Laws.inert.items(items2), path, inert.doc.relines(z)), Laws.inert.leads(l1),
-            Laws.inert.leads(l2), el),
-          inert.doc.go(items2, path, l2)))))
+    z => Lazy.stop(List<&2, F.Finding>, Bool.or(Paths.is_proof(path), Paths.is_test(path)), [], _u => z), f1, f2,
+    Equal.trans(List<&2, F.Finding>, f1, w1, f2, DF.fast_is_go(items, path, l1),
+      Equal.trans(List<&2, F.Finding>, w1, w2, f2,
+        Equal.trans(List<&2, F.Finding>, w1, r1, w2,
+          Equal.sym(List<&2, F.Finding>, r1, w1, inert.doc.go(items, path, l1)),
+          Equal.trans(List<&2, F.Finding>, r1, m, w2,
+            Equal.cong(List<&2, Outline.Item>, List<&2, F.Finding>,
+              z => Doc.check.go(z, path, inert.doc.relines(Laws.inert.leads(l1))), Laws.inert.items(items),
+              Laws.inert.items(items2), ei),
+            Equal.trans(List<&2, F.Finding>, m, r2, w2,
+              Equal.cong(List<&2, Laws.inert.Lead>, List<&2, F.Finding>,
+                z => Doc.check.go(Laws.inert.items(items2), path, inert.doc.relines(z)), Laws.inert.leads(l1),
+                Laws.inert.leads(l2), el),
+              inert.doc.go(items2, path, l2)))),
+        Equal.sym(List<&2, F.Finding>, f2, w2, DF.fast_is_go(items2, path, l2)))))
 
 # param
 # -----

@@ -162,7 +162,7 @@ law ws.same:
   for e: {xx == yy : U32}
   {U32.is_eq(xx, yy) == True{} : Bool}
 
-def ws.same(xx, yy, e):
+def ws.same(xx, _yy, e):
   %e : {U32.is_eq(xx, _) == True{} : Bool}
   ws.refl(xx)
 
@@ -194,7 +194,7 @@ law ws.shift.up:
   for e: {U32.sub(xx, 1) == zz : U32}
   {U32.is_eq(xx, U32.inc(zz)) == True{} : Bool}
 
-def ws.shift.up(xx, zz, e):
+def ws.shift.up(xx, _zz, e):
   %e : {U32.is_eq(xx, U32.inc(_)) == True{} : Bool}
   %Equal.sym(U32, U32.inc(U32.sub(xx, 1)), xx, ws.up_down(xx)) : {U32.is_eq(xx, _) == True{} : Bool}
   ws.refl(xx)
