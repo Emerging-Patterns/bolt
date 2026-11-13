@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.38.0](https://github.com/Emerging-Patterns/bolt/compare/v1.37.0...v1.38.0) (2026-11-13)
+
+
+### Performance Improvements
+
+* **rules:** eager and rewalk gather the looping defs with an index of their names ([#298](https://github.com/Emerging-Patterns/bolt/issues/298)) ([db3768b](https://github.com/Emerging-Patterns/bolt/commit/db3768b357f7ee1683ce91fdbb3d311bcb0215e4))
+
 ## [1.37.0](https://github.com/Emerging-Patterns/bolt/compare/v1.36.0...v1.37.0) (2026-11-13)
 
 
