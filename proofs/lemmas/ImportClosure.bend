@@ -8,6 +8,8 @@ import ../../laws/defs/Unsafe.bend as D1
 import ./RoleProofPicked.bend as M1
 import ./UnsafeStringCompare.bend as M2
 import ./UnusedEarlyOr.bend as M3
+import ./WalkIndex.bend as M4
+import ../../src/syntax/bind.bend as Bind
 
 # or with False on the right is the left
 law unsafe.or_false:
@@ -725,16 +727,18 @@ def imp.fresh(ds, seen, read):
           : List<&2, String>}
       {==}
 
-# the walk through the fast lookups is the walk
-law imp.walk:
+# the walk through its indexes, each index the one of the lists it stands
+# for, is the walk
+law imp.walk.ix:
   for fuel: Nat
   for todo: List<&2, String>
   for +seen: List<&2, String>
   for +es: List<&2, Imports.Edge>
   for +read: List<&2, String>
-  {Imports.walk(fuel, todo, seen, es, read) == Imports.walk.spec(fuel, todo, seen, es, read) : List<&2, String>}
+  {Imports.walk.ix(fuel, todo, seen, Bind.index(seen), Imports.edges.ix.of(es), Bind.index(read))
+    == Imports.walk.spec(fuel, todo, seen, es, read) : List<&2, String>}
 
-def imp.walk(fuel, todo, seen, es, read):
+def imp.walk.ix(fuel, todo, seen, es, read):
   match fuel todo:
     case 0n _t:
       {==}
@@ -747,12 +751,44 @@ def imp.walk(fuel, todo, seen, es, read):
         imp.fresh(Imports.deps.first(es, p), seen, read),
         Equal.cong(List<&2, String>, List<&2, String>, z => Imports.fresh.spec(z, seen, read),
           Imports.deps.first(es, p), Imports.deps.spec(es, p), imp.deps(es, p)))
-      %Equal.sym(List<&2, String>, Imports.fresh.fast(Imports.deps.first(es, p), seen, read), found, ef) :
-        {Imports.walk(f, List.append(&2, String, _, rest), List.append(&2, String, List.reverse(&2, String, _), seen),
-          es, read) == Imports.walk.spec(f, List.append(&2, String, found, rest),
-          List.append(&2, String, List.reverse(&2, String, found), seen), es, read) : List<&2, String>}
-      imp.walk(f, List.append(&2, String, found, rest), List.append(&2, String, List.reverse(&2, String, found), seen),
-        es, read)
+      +ei = Equal.trans(List<&2, String>,
+        Imports.fresh.ix(Imports.deps.ix(Imports.edges.ix.of(es), p), Bind.index(seen), Bind.index(read)),
+        Imports.fresh.ix(Imports.deps.first(es, p), Bind.index(seen), Bind.index(read)),
+        Imports.fresh.fast(Imports.deps.first(es, p), seen, read),
+        Equal.cong(List<&2, String>, List<&2, String>, z => Imports.fresh.ix(z, Bind.index(seen), Bind.index(read)),
+          Imports.deps.ix(Imports.edges.ix.of(es), p), Imports.deps.first(es, p), M4.wi.deps(es, p)),
+        M4.wi.fresh(Imports.deps.first(es, p), seen, read))
+      +ex = Equal.trans(List<&2, String>,
+        Imports.fresh.ix(Imports.deps.ix(Imports.edges.ix.of(es), p), Bind.index(seen), Bind.index(read)),
+        Imports.fresh.fast(Imports.deps.first(es, p), seen, read), found, ei, ef)
+      %Equal.sym(List<&2, String>,
+        Imports.fresh.ix(Imports.deps.ix(Imports.edges.ix.of(es), p), Bind.index(seen), Bind.index(read)), found, ex) :
+        {Imports.walk.ix(f, List.append(&2, String, _, rest),
+          List.append(&2, String, List.reverse(&2, String, _), seen),
+          Imports.seen.onto(List.reverse(&2, String, _), Bind.index(seen)), Imports.edges.ix.of(es), Bind.index(read))
+          == Imports.walk.spec(f, List.append(&2, String, found, rest),
+            List.append(&2, String, List.reverse(&2, String, found), seen), es, read) : List<&2, String>}
+      %Equal.sym(Bind.Index, Imports.seen.onto(List.reverse(&2, String, found), Bind.index(seen)),
+        Bind.index(List.append(&2, String, List.reverse(&2, String, found), seen)),
+        M4.wi.onto(List.reverse(&2, String, found), seen)) :
+        {Imports.walk.ix(f, List.append(&2, String, found, rest),
+          List.append(&2, String, List.reverse(&2, String, found), seen), _, Imports.edges.ix.of(es), Bind.index(read))
+          == Imports.walk.spec(f, List.append(&2, String, found, rest),
+            List.append(&2, String, List.reverse(&2, String, found), seen), es, read) : List<&2, String>}
+      imp.walk.ix(f, List.append(&2, String, found, rest),
+        List.append(&2, String, List.reverse(&2, String, found), seen), es, read)
+
+# the walk is the walk through its indexes, so the walk
+law imp.walk:
+  for fuel: Nat
+  for todo: List<&2, String>
+  for +seen: List<&2, String>
+  for +es: List<&2, Imports.Edge>
+  for +read: List<&2, String>
+  {Imports.walk(fuel, todo, seen, es, read) == Imports.walk.spec(fuel, todo, seen, es, read) : List<&2, String>}
+
+def imp.walk(fuel, todo, seen, es, read):
+  imp.walk.ix(fuel, todo, seen, es, read)
 
 # the closure, walked fast, is the walk's
 law imp.closure:
