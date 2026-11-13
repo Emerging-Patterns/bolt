@@ -16,6 +16,11 @@ over every repo of the lint corpus (`~/.local/share/bolt-corpus`) and writes
 `corpus/cmp.tsv` (same or DIFF per repo) and `corpus/times.tsv`.
 
 What they found, 2026-11-12: bolt #294, #296, #298, #302 and issue #301.
-The same pure work takes longer the more the process has allocated (one
-rule pass over a 5.7 MB file: 8.3 s on a fresh heap, 19 s after four
-passes), so compare stages in the same order across builds.
+In stages.bend the same rule pass over a 5.7 MB file took 8.3 s first and
+19 s on its fifth run in one process. A stand-alone program (2M cells, one
+pure pass eight times) did not reproduce it (0.74 s every pass), so the cause
+is not known: compare stages in the same order across builds and do not read
+a later stage's time as that stage's cost.
+
+`sweep.py <repo> <scratch> [workers] [per_def]` is the mutation sweep (issue
+#310); `sweep-2026-11-12.json` its results on main at #308.
