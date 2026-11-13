@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.51.0](https://github.com/Emerging-Patterns/bolt/compare/v1.50.0...v1.51.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **syntax:** read the proof of a named rewrite `%h@e : P` as a use ([#350](https://github.com/Emerging-Patterns/bolt/issues/350)) ([736d76a](https://github.com/Emerging-Patterns/bolt/commit/736d76a1a6bc312a55038d8a96d8f07259ab63c7))
+
 ## [1.50.0](https://github.com/Emerging-Patterns/bolt/compare/v1.49.0...v1.50.0) (2026-11-13)
 
 
