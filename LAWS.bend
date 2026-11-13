@@ -53,6 +53,11 @@ import ./laws/PackagesScoped.bend as PackagesScoped
 import ./laws/ScopeConfigIsNeverLinted.bend as ScopeConfigIsNeverLinted
 import ./laws/ScopeLawsGovernPackage.bend as ScopeLawsGovernPackage
 import ./laws/ScopePackageRootsFound.bend as ScopePackageRootsFound
+import ./laws/ImportPathsResolve.bend as ImportPathsResolve
+import ./laws/PathsNameFiles.bend as PathsNameFiles
+import ./laws/NamedFilesTakeTreeRoles.bend as NamedFilesTakeTreeRoles
+import ./laws/PlannerAsksEachPathOnce.bend as PlannerAsksEachPathOnce
+import ./laws/ConfigReadsSettings.bend as ConfigReadsSettings
 import ./laws/ScopeProjectRulesRunOnRoot.bend as ScopeProjectRulesRunOnRoot
 import ./laws/ScopeRulesSeeTheirInputs.bend as ScopeRulesSeeTheirInputs
 import ./laws/ScopeWalksWholeTree.bend as ScopeWalksWholeTree

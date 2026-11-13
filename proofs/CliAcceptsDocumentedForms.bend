@@ -79,3 +79,6 @@ def Laws.cli_lsp(mm, ss, hp, hs, ha, hf, hv):
 
 def Laws.cli_lsp_word(ww, ws, _h, ee, hp, hh):
   Laws.cli_error_exits("lsp" <> ww <> ws, ee, hp, hh)
+
+def Laws.cli_files_optional(_help):
+  {==}
