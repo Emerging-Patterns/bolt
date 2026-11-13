@@ -30,6 +30,7 @@ import ../config.bend as Config
 import ../noqa.bend as Noqa
 import ../rules/style/noqa.bend as NoqaRule
 import ../rules/correctness/setting.bend as Setting
+import ../syntax/bind.bend as Bind
 
 # what `bolt` prints, in order, and the status it exits with
 type Plan is Data:
@@ -211,15 +212,22 @@ def seen.has(ps: List<&2, String>, +pp: String) -> Bool:
     case Con{p, rest}:
       Lazy.or_else(String.eq(p, pp), _u => seen.has(rest, pp))
 
-# each path once, where it first appears
-def uniq(ps: List<&2, String>, +seen: List<&2, String>) -> List<&2, String>:
+def uniq.fast(ps: List<&2, String>, +ix: Bind.Index) -> List<&2, String>:
   match ps:
     case Nil{}:
       Nil{}
     case Con{+p, rest}:
-      +dup = seen.has(seen, p)
-      +more = uniq(rest, p <> seen)
+      +dup = Bind.indexed(ix, p)
+      +more = uniq.fast(rest, Bind.index.put(Bind.index.depth(), Bind.key(p), ix, p))
       Bool.pick(List<&2, String>, dup, more, p <> more)
+
+# each path once, where it first appears: a path is kept when it is none of
+# those seen and none before it (laws/UniqKeepsFirstOccurrences.bend). The
+# paths met so far are held in the binder's index (src/syntax/bind.bend), each
+# put in as it is met: a scan of them for every path is the paths squared,
+# 3 s a round of `wants` on a project of 4,062 files
+def uniq(ps: List<&2, String>, +seen: List<&2, String>) -> List<&2, String>:
+  uniq.fast(ps, Bind.index(seen))
 
 # ---------------------------------------------------------------------------
 # the packages (laws/ScopePackageRootsFound.bend): every directory the walk reads but `.` whose
@@ -318,14 +326,51 @@ def texts(+world: W.World) -> List<&2, W.Ask>:
 def looks(+world: W.World) -> List<&2, W.Ask>:
   List.append(&2, W.Ask, lists(world), texts(world))
 
-# the questions a World does not answer yet
-def unanswered(asks: List<&2, W.Ask>, +world: W.World) -> List<&2, W.Ask>:
+def unanswered.dirs(rs: List<&2, W.Reply>) -> List<&2, String>:
+  match rs:
+    case Nil{}:
+      Nil{}
+    case Con{W.Reply{W.Entries{d}, _a}, rest}:
+      d <> unanswered.dirs(rest)
+    case Con{W.Reply{W.Contents{_p}, _a}, rest}:
+      unanswered.dirs(rest)
+
+def unanswered.paths(rs: List<&2, W.Reply>) -> List<&2, String>:
+  match rs:
+    case Nil{}:
+      Nil{}
+    case Con{W.Reply{W.Entries{_d}, _a}, rest}:
+      unanswered.paths(rest)
+    case Con{W.Reply{W.Contents{p}, _a}, rest}:
+      p <> unanswered.paths(rest)
+
+def unanswered.hit(aa: W.Ask, +dx: Bind.Index, +px: Bind.Index) -> Bool:
+  match aa:
+    case W.Entries{+d}:
+      Bind.indexed(dx, d)
+    case W.Contents{+p}:
+      Bind.indexed(px, p)
+
+def unanswered.fast(asks: List<&2, W.Ask>, +dx: Bind.Index, +px: Bind.Index) -> List<&2, W.Ask>:
   match asks:
     case Nil{}:
       Nil{}
     case Con{+a, rest}:
-      +more = unanswered(rest, world)
-      Bool.pick(List<&2, W.Ask>, W.answered(world, a), more, a <> more)
+      +more = unanswered.fast(rest, dx, px)
+      Bool.pick(List<&2, W.Ask>, unanswered.hit(a, dx, px), more, a <> more)
+
+def unanswered.of(asks: List<&2, W.Ask>, +rs: List<&2, W.Reply>) -> List<&2, W.Ask>:
+  unanswered.fast(asks, Bind.index(unanswered.dirs(rs)), Bind.index(unanswered.paths(rs)))
+
+# the questions a World does not answer yet, in order
+# (laws/UnansweredAreOpenQuestions.bend). The World answers a question when
+# some reply holds it, and a scan of the replies for every question is the
+# questions times the replies (1.8 s a round of `wants` on a project of 4,062
+# files). So the directories listed and the paths read are each put in the
+# binder's index (src/syntax/bind.bend) once, and each question asks its own
+def unanswered(asks: List<&2, W.Ask>, world: W.World) -> List<&2, W.Ask>:
+  W.World{_paths, _cwd, rs} = world
+  unanswered.of(asks, rs)
 
 # the listings still open, or, once there are none, the texts still open
 def wants.pick(ls: List<&2, W.Ask>, +world: W.World) -> List<&2, W.Ask>:
