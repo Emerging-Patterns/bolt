@@ -14,6 +14,7 @@ import ../src/rules/style/noqa.bend as NoqaRule
 import ../src/syntax/lex.bend as Lex
 import ../laws/LspDiagnosticsMatchCli.bend as Laws
 import ./lemmas/PublishComparisons.bend as M1
+import ./lemmas/ReplyIndex.bend as M9
 
 # appending nothing leaves a list as it was
 law pub.app_nil:
@@ -239,6 +240,15 @@ def pub.cli.case(bb, world, path, text, ms, hc, ht):
             Rules.on.role(Role.of(ms, path), Src.of(path, text)))))
 
 def Laws.lint_is_cli(world, path, text, h, ht):
+  %Equal.sym(List<&2, Plan.Conf>, Plan.confs(world), Plan.confs.at(Plan.conf.dirs(Plan.inputs(world)), world),
+    M9.ri.confs_spec(world)) :
+    {Server.pub.lint(path, text, Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world),
+      Server.pub.marks(world))
+      == Plan.after(Noqa.of_srcs(Plan.srcs_of(Plan.gots(Plan.inputs(world), world))), False{},
+        Plan.grade(_, world, Plan.per_file.role(Plan.marks.run(W.paths.of(world), world,
+          Plan.srcs_of(Plan.gots(Plan.inputs(world), world))), Plan.srcs_of(Plan.gots(Plan.inputs(world), world)))),
+        fs => Plan.grade(_, world, fs))
+      : List<&2, F.Graded>}
   q = Equal.sym(List<&2, String>, W.paths.of(world), [path], h)
   %q : {Server.pub.lint(path, text, Plan.texts.at(Server.pub.cands(W.cwd.of(world), path), world),
       Server.pub.marks(world))
