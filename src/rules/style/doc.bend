@@ -95,7 +95,7 @@ type Flags is Data:
 
 # how many bits of a line the flags branch on
 def flags.depth() -> Nat:
-  20n
+  12n
 
 # the cells at a leaf, none elsewhere
 def flags.cells(fl: Flags) -> List<&2, Cell>:
