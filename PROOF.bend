@@ -52,6 +52,7 @@ import ./proofs/TreeReadsStatements.bend as PTreeReadsStatements
 import ./proofs/WordFindsNameAtCursor.bend as PWordFindsNameAtCursor
 import ./proofs/RulesReadSignaturesAndLiterals.bend as PRulesReadSignaturesAndLiterals
 import ./proofs/FindingsSayWhereAndWhat.bend as PFindingsSayWhereAndWhat
+import ./proofs/RulesReadTokensAndChains.bend as PRulesReadTokensAndChains
 import ./proofs/ScopeProjectRulesRunOnRoot.bend as PScopeProjectRulesRunOnRoot
 import ./proofs/ScopeRulesSeeTheirInputs.bend as PScopeRulesSeeTheirInputs
 import ./proofs/ScopeWalksWholeTree.bend as PScopeWalksWholeTree
