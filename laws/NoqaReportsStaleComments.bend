@@ -65,3 +65,23 @@ law noqa_counts:
   for +path: String
   for +gs: List<&2, F.Graded>
   {List.length(&2, F.Finding, NoqaRule.check(mks, whole, path, gs)) == nq.count(mks, whole, path, gs) : Nat}
+
+# LAW: a code is some rule's when the first row of the table has it or a
+# later row does
+law known_in_some_row:
+  for s: String
+  for id: String
+  for grp: String
+  for rest: List<&2, Codes.Entry>
+  for +code: String
+  {NoqaRule.known.in(Codes.Entry{s, id, grp} <> rest, code)
+    == Bool.or(String.eq(id, code), NoqaRule.known.in(rest, code)) : Bool}
+
+# LAW: a table of one row has a code exactly when that row does, so a table
+# of none has no code
+law known_in_one_row:
+  for s: String
+  for +id: String
+  for grp: String
+  for +code: String
+  {NoqaRule.known.in(Codes.Entry{s, id, grp} <> Nil{}, code) == String.eq(id, code) : Bool}

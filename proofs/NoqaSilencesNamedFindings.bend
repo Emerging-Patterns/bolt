@@ -260,3 +260,6 @@ def nqp.keeps(ms, gs):
 
 def Laws.noqa_keeps(ms, gs):
   nqp.keeps(ms, gs)
+
+def Laws.code_list_chars(_cc):
+  {==}
