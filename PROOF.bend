@@ -96,6 +96,7 @@ import ./proofs/RoleParamExempt.bend as PRoleParamExempt
 import ./proofs/RolePick.bend as PRolePick
 import ./proofs/RoleProofNamed.bend as PRoleProofNamed
 import ./proofs/RoleReached.bend as PRoleReached
+import ./proofs/RoleFollowsImports.bend as PRoleFollowsImports
 import ./proofs/RoleRewalk.bend as PRoleRewalk
 import ./proofs/RoleStrict.bend as PRoleStrict
 import ./proofs/RoleTail.bend as PRoleTail
