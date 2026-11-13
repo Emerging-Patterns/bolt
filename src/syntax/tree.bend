@@ -19,8 +19,9 @@ import ./lex.bend as Lex
 # SType, SLaw, SImport, SCase `case p:`, SFor `for x: T` / `exs x: T`, SLet
 # (a `=` or `<-` among its own tokens), else STerm (`match x:`, `do M<T>:`,
 # `return e`, a call, a dependent arrow `@x: A -> B` or `@+x: A -> B`,
-# which an `@` does not make a def, and a typed step `Unit <- m`, whose
-# name is the type m runs at, not a binder)
+# which an `@` does not make a def, a typed step `Unit <- m`, whose name
+# is the type m runs at, not a binder, and an array write `a[i] <- v`, which
+# reads a and keeps its name)
 type StmtKind is Data:
   SDef{}
   SType{}
@@ -326,6 +327,16 @@ def typed_step(kids: Node) -> Bool:
     case _other:
       False{}
 
+# is the statement an array write: a name, a `[..]` group, then `<-`? It
+# reads the array and keeps its name, so it binds nothing new
+def array_write(kids: Node) -> Bool:
+  match kids:
+    case NCons{Leaf{Lex.Tok{Lex.TName{}, _t, _l, _c}},
+      NCons{Group{Lex.Tok{_ok, ot, _ol, _oc}, _g, _cl}, NCons{Leaf{Lex.Tok{Lex.TBind{}, _bt, _bl, _bc}}, _r}}}:
+      String.eq(ot, "[")
+    case _other:
+      False{}
+
 # a statement's kind from its own tokens
 def classify(kids: Node) -> StmtKind:
   match kids:
@@ -334,7 +345,8 @@ def classify(kids: Node) -> StmtKind:
     case NCons{Leaf{Lex.Tok{Lex.TAll{}, t, l, c}}, rest}:
       Bool.pick(StmtKind, arrow(rest), STerm{}, SDef{})
     case +other:
-      Bool.pick(StmtKind, typed_step(other), STerm{}, Bool.pick(StmtKind, binds_in(other), SLet{}, STerm{}))
+      Bool.pick(StmtKind, Bool.or(typed_step(other), array_write(other)), STerm{},
+        Bool.pick(StmtKind, binds_in(other), SLet{}, STerm{}))
 
 # the innermost open statement is finished and lands in its parent
 def end_stmt(stack: List<&2, Frame>) -> List<&2, Frame>:
