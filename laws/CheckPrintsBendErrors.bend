@@ -573,3 +573,18 @@ law check_own_marked:
     == [path ++ ":" ++ U32.show(chk.marks(Some{span})) ++ ":1: error: "
       ++ Check.message(String.join(chk.texts(parts), "\n"))]
     : List<&2, String>}
+
+# LAW: a LAWS.bend whose PROOF.bend checks clean has no errors of its own to
+# show, whatever bend said of it alone
+law proved_clean_shows_none:
+  for +pds: List<&2, Rep.Diag>
+  for ds: List<&2, Rep.Diag>
+  for e: {List.is_empty(&2, Rep.Diag, pds) == True{} : Bool}
+  {Checker.proved(Checker.Checked{pds}, ds) == Checker.Checked{[]} : Checker.Answer}
+
+# LAW: one whose PROOF.bend has errors shows the LAWS.bend's own
+law proved_failing_shows_its_own:
+  for +pds: List<&2, Rep.Diag>
+  for +ds: List<&2, Rep.Diag>
+  for e: {List.is_empty(&2, Rep.Diag, pds) == False{} : Bool}
+  {Checker.proved(Checker.Checked{pds}, ds) == Checker.Checked{ds} : Checker.Answer}

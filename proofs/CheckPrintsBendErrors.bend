@@ -1481,3 +1481,13 @@ def Laws.check_own_marked(names, path, parts, name, span, note, own, some, flat,
       flat, fits),
     mk.own.at(Laws.chk.own(names, name), own, U32.is_eq(Laws.chk.marks(Some{span}), 0), some, path, name,
       Laws.chk.marks(Some{span}), String.join(Laws.chk.texts(parts), "\n")))
+
+def Laws.proved_clean_shows_none(pds, ds, e):
+  %Equal.sym(Bool, List.is_empty(&2, Rep.Diag, pds), True{}, e) :
+    {Checker.Checked{Bool.pick(List<&2, Rep.Diag>, _, [], ds)} == Checker.Checked{[]} : Checker.Answer}
+  {==}
+
+def Laws.proved_failing_shows_its_own(pds, ds, e):
+  %Equal.sym(Bool, List.is_empty(&2, Rep.Diag, pds), False{}, e) :
+    {Checker.Checked{Bool.pick(List<&2, Rep.Diag>, _, [], ds)} == Checker.Checked{ds} : Checker.Answer}
+  {==}

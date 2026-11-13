@@ -6,6 +6,8 @@
 # (laws/ConfigLevelsResolve.bend reads them from the front).
 import Base
 import ../src/config.bend as Config
+import ../src/syntax/tree.bend as Tree
+import ../src/syntax/bind.bend as Bind
 
 # LAW: a token that opens and closes with a quote is read without them
 law unquote_strips_quotes:
@@ -32,3 +34,14 @@ law levels_in_order:
 law parse_reads_settings:
   for text: String
   {Config.parse(text) == Config.Config{Config.levels(Config.settings(text))} : Config.Config}
+
+# LAW: a def's setting comes before the settings of the defs after it: the
+# settings are in file order
+law settings_in_file_order:
+  for +kids: Tree.Node
+  for body: Tree.Node
+  for rest: Tree.Node
+  {Config.settings.go(Tree.NCons{Tree.Stmt{Tree.SDef{}, kids, body}, rest})
+    == List.append(&2, Config.Setting,
+      Config.setting(Bind.declared(kids), Config.first_str(Tree.leaves(body)), Tree.line(kids)),
+      Config.settings.go(rest)) : List<&2, Config.Setting>}

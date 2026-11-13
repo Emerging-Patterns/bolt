@@ -96,3 +96,19 @@ def nav.chars_narrow(lines, h, ii):
 def Laws.enc_narrow(lines, h, line, nn):
   +hc = nav.chars_narrow(lines, h, U32.to_nat(line))
   (nav.units_narrow(Enc.chars(lines, line), hc, nn), nav.points_narrow(Enc.chars(lines, line), hc, nn))
+
+def Laws.wide_from_u10000(_xx):
+  {==}
+
+def Laws.narrowed_keeps_utf16_with_a_wide_char(lines, e):
+  %Equal.sym(Bool, Enc.wide_any(lines), True{}, e) :
+    {Bool.pick(Enc.Enc, _, Enc.Utf16{}, Enc.Utf32{}) == Enc.Utf16{} : Enc.Enc}
+  {==}
+
+def Laws.narrowed_reads_utf16_as_utf32_without_one(lines, e):
+  %Equal.sym(Bool, Enc.wide_any(lines), False{}, e) :
+    {Bool.pick(Enc.Enc, _, Enc.Utf16{}, Enc.Utf32{}) == Enc.Utf32{} : Enc.Enc}
+  {==}
+
+def Laws.narrowed_keeps_utf32(_wide):
+  {==}

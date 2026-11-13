@@ -51,3 +51,9 @@ def Laws.at_reads_from_the_line(_source, _line, _col):
 
 def Laws.run_of_name_chars(c, t):
   wf.stop(Word.is_name(c), c <> Word.run_of(t))
+
+def Laws.step_joins_a_name_char(_cc, _ii, _start, _run, _hit, _col):
+  {==}
+
+def Laws.step_ends_the_run(_cc, _ii, _start, _run, _hit, _col):
+  {==}

@@ -1268,3 +1268,25 @@ def Laws.outline(text, toks):
     ol.run(String.lines(text), Outline.St{Outline.Top{}, 0, [], []}, Outline.inside(toks)),
     Equal.cong(List<&2, Bool>, List<&2, Outline.Item>, x => Laws.top.spec(String.lines(text), x, 0),
       Outline.inside(toks), False{} <> Laws.top.strung(toks), ol.flags(toks)))
+
+def Laws.undoc_drops_hash_and_space(ss, e):
+  %Equal.sym(Bool, String.starts_with(ss, "# "), True{}, e) :
+    {Bool.pick(String, _, String.drop(ss, 2n),
+      Bool.pick(String, String.starts_with(ss, "#"), String.drop(ss, 1n), ss)) == String.drop(ss, 2n) : String}
+  {==}
+
+def Laws.undoc_drops_a_bare_hash(ss, e1, e2):
+  %Equal.sym(Bool, String.starts_with(ss, "# "), False{}, e1) :
+    {Bool.pick(String, _, String.drop(ss, 2n),
+      Bool.pick(String, String.starts_with(ss, "#"), String.drop(ss, 1n), ss)) == String.drop(ss, 1n) : String}
+  %Equal.sym(Bool, String.starts_with(ss, "#"), True{}, e2) :
+    {Bool.pick(String, _, String.drop(ss, 1n), ss) == String.drop(ss, 1n) : String}
+  {==}
+
+def Laws.undoc_keeps_other_lines(ss, e1, e2):
+  %Equal.sym(Bool, String.starts_with(ss, "# "), False{}, e1) :
+    {Bool.pick(String, _, String.drop(ss, 2n),
+      Bool.pick(String, String.starts_with(ss, "#"), String.drop(ss, 1n), ss)) == ss : String}
+  %Equal.sym(Bool, String.starts_with(ss, "#"), False{}, e2) :
+    {Bool.pick(String, _, String.drop(ss, 1n), ss) == ss : String}
+  {==}

@@ -61,3 +61,25 @@ law run_of_name_chars:
   for +c: Char
   for t: List<&2, Char>
   {Word.run_of(c <> t) == Bool.pick(List<&2, Char>, Word.is_name(c), c <> Word.run_of(t), Nil{}) : List<&2, Char>}
+
+# LAW: a name char joins the run, and the scan moves one column on
+law step_joins_a_name_char:
+  for cc: Char
+  for +ii: U32
+  for start: U32
+  for run: List<&2, Char>
+  for hit: Maybe<&2, String>
+  for col: U32
+  {Word.step.on(True{}, cc, ii, start, run, hit, col) == Word.W{(ii + 1 : U32), start, cc <> run, hit} : Word.W}
+
+# LAW: any other char ends the run at its own column, where the run is read
+# for the cursor, and the next run starts at the column after it
+law step_ends_the_run:
+  for cc: Char
+  for +ii: U32
+  for +start: U32
+  for run: List<&2, Char>
+  for hit: Maybe<&2, String>
+  for +col: U32
+  {Word.step.on(False{}, cc, ii, start, run, hit, col)
+    == Word.W{(ii + 1 : U32), (ii + 1 : U32), [], Word.close(ii, start, run, hit, col)} : Word.W}
