@@ -59,6 +59,7 @@ import ./laws/NamedFilesTakeTreeRoles.bend as NamedFilesTakeTreeRoles
 import ./laws/PlannerAsksEachPathOnce.bend as PlannerAsksEachPathOnce
 import ./laws/ConfigReadsSettings.bend as ConfigReadsSettings
 import ./laws/TokenKindsNamed.bend as TokenKindsNamed
+import ./laws/RulesNamedInCodeTable.bend as RulesNamedInCodeTable
 import ./laws/BinderReadsBindingForms.bend as BinderReadsBindingForms
 import ./laws/BinderFindsPositions.bend as BinderFindsPositions
 import ./laws/OutlineLooksUpItems.bend as OutlineLooksUpItems
