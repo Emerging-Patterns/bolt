@@ -220,8 +220,10 @@ statement.
   `<-`) binds nothing: bend reads the name as the type m runs at. An array
   write `a[i] <- v` reads a (and every name in it) and keeps a's name, so it
   binds nothing either, and nor do writes chained in one term,
-  `(a[i] <- v)[j] <- w`. Exempt: pattern binders (naming every field of `Tok{k, t, l, c}`
-  reads better than `_`), names starting with `_`, erased parameters (`-x`),
+  `(a[i] <- v)[j] <- w`. A named rewrite `%h@e : P` reads e as the proof it
+  is, never as the `@e:` of a dependent arrow. Exempt: pattern binders
+  (naming every field of `Tok{k, t, l, c}` reads better than `_`), names
+  starting with `_`, erased parameters (`-x`),
   a law's `for` names, and every parameter of a foreign def, one whose body's
   first statement is `import` (its C and JS read them), wherever its
   header's `->` and return type fall. A name read in a dependent arrow's

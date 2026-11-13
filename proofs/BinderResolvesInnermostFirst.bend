@@ -432,9 +432,9 @@ def Laws.extends(nn, mode, env, ns, out):
               +ps = Bind.plan.push(mode, k, rest)
               +ou = Bind.plan.outer(mode)
               +e2 = Bind.plan.enter(keep, ou, ps, bb, env)
-              +r = Bind.walk(rest, Bind.plan.lmode(mode, k, rest), e2, ns, o2)
+              +r = Bind.walk(rest, Bind.plan.after(mode, k, t, rest), e2, ns, o2)
               rs.leaf(keep, ou, ps, bb, env, Bind.env_of(r))(
-                Laws.extends(rest, Bind.plan.lmode(mode, k, rest), e2, ns, o2))
+                Laws.extends(rest, Bind.plan.after(mode, k, t, rest), e2, ns, o2))
         case Tree.Group{open, gkids, _close}:
           match open:
             case Lex.Tok{_gk, +gt, _gl, _gc}:
