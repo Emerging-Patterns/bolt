@@ -58,6 +58,7 @@ import ./laws/PathsNameFiles.bend as PathsNameFiles
 import ./laws/NamedFilesTakeTreeRoles.bend as NamedFilesTakeTreeRoles
 import ./laws/PlannerAsksEachPathOnce.bend as PlannerAsksEachPathOnce
 import ./laws/ConfigReadsSettings.bend as ConfigReadsSettings
+import ./laws/TokenKindsNamed.bend as TokenKindsNamed
 import ./laws/ScopeProjectRulesRunOnRoot.bend as ScopeProjectRulesRunOnRoot
 import ./laws/ScopeRulesSeeTheirInputs.bend as ScopeRulesSeeTheirInputs
 import ./laws/ScopeWalksWholeTree.bend as ScopeWalksWholeTree
