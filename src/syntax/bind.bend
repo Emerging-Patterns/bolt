@@ -10,6 +10,8 @@
 #     `(a, K{b}) = p`) for the lines after it in its block -- the right side
 #     sees the outer names, so `st = step(st)` reads the old st;
 #   - `x => e`, `@x: A -> B` and `&x: A -> B`, for the rest of their sequence.
+# A named rewrite `%h@e : P` binds nothing: h and the `@` are stepped over,
+# so e is read as the term it is and not as the `@e:` of an arrow.
 # The walk branches on token and statement kinds, never on a computed test,
 # so each step recurses on one subtree and the checker accepts it.
 # A binder shadows an item of the same name; a dotted name is an item of the
@@ -503,6 +505,16 @@ def plan.typed(rest: Tree.Node, upper: Bool) -> Bool:
     case _other:
       False{}
 
+# does the chain start with a name and an `@`: the `h@` of a named rewrite,
+# `%h@e : P`, where h names the equation inside P and e proves it?
+def plan.rewrites(rest: Tree.Node) -> Bool:
+  match rest:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, _t, _l, _c}},
+      Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TAll{}, _at, _al, _ac}}, _r}}:
+      True{}
+    case _other:
+      False{}
+
 # the chain's first token; a blank one when it does not start with a leaf
 def plan.peek(rest: Tree.Node) -> Lex.Tok:
   match rest:
@@ -582,6 +594,25 @@ def plan.lmode(mode: Mode, kk: Lex.TokKind, +rest: Tree.Node) -> Mode:
       Bool.pick(Mode, plan.typed(rest, False{}), MSkip{MTerm{}}, MTerm{})
     case other _k:
       plan.skip(other)
+
+# the mode the rest of a term is read in after a leaf of kind k saying t: a
+# `%` with a name and an `@` behind it starts a named rewrite (`%h@e : P`),
+# and its name and `@` are stepped over; any other leaf is read by its kind
+def plan.after.term(kk: Lex.TokKind, +tt: String, +rest: Tree.Node) -> Mode:
+  match kk:
+    case Lex.TOp{}:
+      Bool.pick(Mode, Bool.and(String.eq(tt, "%"), plan.rewrites(rest)), MSkip{MSkip{MTerm{}}}, MTerm{})
+    case other:
+      plan.lmode(MTerm{}, other, rest)
+
+# the mode the rest is read in after a leaf of kind k saying t: by its kind
+# (plan.lmode), but for the `%` of a named rewrite in a term
+def plan.after(mode: Mode, kk: Lex.TokKind, +tt: String, +rest: Tree.Node) -> Mode:
+  match mode:
+    case MTerm{}:
+      plan.after.term(kk, tt, rest)
+    case other:
+      plan.lmode(other, kk, rest)
 
 # does a leaf of kind k record a binder?
 def plan.rec(mode: Mode, kk: Lex.TokKind, +rest: Tree.Node) -> Bool:
@@ -894,7 +925,7 @@ def walk(nn: Tree.Node, +mode: Mode, +env: List<&2, Bind>, +ns: Names, out: Out)
           +o1 = plan.recorded(plan.rec(mode, k, rest), bb, out)
           +o2 = plan.used(plan.use(mode, k, rest), t, l, c, env, ns, o1)
           +e2 = plan.enter(keep, plan.outer(mode), plan.push(mode, k, rest), bb, env)
-          +r = walk(rest, plan.lmode(mode, k, rest), e2, ns, o2)
+          +r = walk(rest, plan.after(mode, k, t, rest), e2, ns, o2)
           W{Bool.pick(List<&2, Bind>, keep, env, env_of(r)), out_of(r)}
         case Tree.Group{Lex.Tok{_gk, gt, _gl, _gc}, gkids, _close}:
           +g = walk(gkids, plan.ginner(mode, gt), env, ns, out)
