@@ -122,3 +122,109 @@ def text.got(mm: Maybe<&2, Answer>) -> Maybe<&2, String>:
 # not read yet
 def text(world: World, path: String) -> Maybe<&2, String>:
   text.got(answer(world, Contents{path}))
+
+# The replies, indexed. A question is looked up once per source, per
+# bolt.bend candidate of each directory, and a scan of every reply for each
+# is the questions times the replies: on a project of 4,062 files, 4.4 s to
+# find which bolt.bend grades each of its 733 directories, and 3 s to read
+# their configs. So the replies are put in a trie on the low bits of each
+# question's number, each leaf the replies whose question lands there, in
+# their order, and a lookup scans only its own leaf. Two questions alike have
+# the same number, so the leaf holds every reply the scan would stop at, and
+# its first such reply is the scan's (proofs/lemmas/ReplyIndex.bend).
+type Ix is Data:
+  INone{}
+  ILeaf{rs: List<&2, Reply>}
+  INode{lo: Ix, hi: Ix}
+
+# how many bits of a question's number the index branches on
+def ix.depth() -> Nat:
+  12n
+
+# a path's number: its chars folded, each onto 31 times the number so far
+def ix.key.go(name: String, +acc: U32) -> U32:
+  match name:
+    case SNil{}:
+      acc
+    case SCon{Chr{x}, rest}:
+      ix.key.go(rest, (acc * 31 + x : U32))
+
+# a question's number: its path's
+def ix.key(aa: Ask) -> U32:
+  match aa:
+    case Entries{d}:
+      ix.key.go(d, 7)
+    case Contents{p}:
+      ix.key.go(p, 7)
+
+# the replies at a leaf, none elsewhere
+def ix.rs(ix: Ix) -> List<&2, Reply>:
+  match ix:
+    case INone{}:
+      Nil{}
+    case ILeaf{rs}:
+      rs
+    case INode{_lo, _hi}:
+      Nil{}
+
+# the half a bit picks: an even bit the low half
+def ix.pick(bb: Bool, lo: Ix, hi: Ix) -> Ix:
+  match bb:
+    case True{}:
+      lo
+    case False{}:
+      hi
+
+# the half of a node a bit picks; none below anything else
+def ix.near(bb: Bool, ix: Ix) -> Ix:
+  match ix:
+    case INode{lo, hi}:
+      ix.pick(bb, lo, hi)
+    case other:
+      INone{}
+
+# a node from the half a bit picks and the other half
+def ix.join(bb: Bool, sub: Ix, far: Ix) -> Ix:
+  match bb:
+    case True{}:
+      INode{sub, far}
+    case False{}:
+      INode{far, sub}
+
+# a reply put at the front of the leaf its number's low bits lead to
+def ix.put(dd: Nat, +kk: U32, +ix: Ix, rr: Reply) -> Ix:
+  match dd:
+    case 0n:
+      ILeaf{rr <> ix.rs(ix)}
+    case 1n+p:
+      ix.join(U32.is_even(kk), ix.put(p, U32.shr(kk), ix.near(U32.is_even(kk), ix), rr),
+        ix.near(Bool.not(U32.is_even(kk)), ix))
+
+# the replies at the leaf a number's low bits lead to
+def ix.at(dd: Nat, +kk: U32, ix: Ix) -> List<&2, Reply>:
+  match dd:
+    case 0n:
+      ix.rs(ix)
+    case 1n+p:
+      ix.at(p, U32.shr(kk), ix.near(U32.is_even(kk), ix))
+
+# the index of these replies, each leaf in their order
+def ix.of(rs: List<&2, Reply>) -> Ix:
+  match rs:
+    case Nil{}:
+      INone{}
+    case Con{Reply{+q, a}, rest}:
+      ix.put(ix.depth(), ix.key(q), ix.of(rest), Reply{q, a})
+
+# a World's replies, indexed
+def ix.world(world: World) -> Ix:
+  World{_paths, _cwd, rs} = world
+  ix.of(rs)
+
+# the first answer to a question, read off its leaf: answer's
+def answer.ix(ix: Ix, +ask: Ask) -> Maybe<&2, Answer>:
+  answer.in(ix.at(ix.depth(), ix.key(ask), ix), ask)
+
+# a file's text, read off the index: text's
+def text.ix(ix: Ix, path: String) -> Maybe<&2, String>:
+  text.got(answer.ix(ix, Contents{path}))

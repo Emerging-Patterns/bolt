@@ -7,6 +7,7 @@ import ../../src/lint/plan.bend as Plan
 import ../../src/rules/correctness/setting.bend as Setting
 import ../../laws/SettingReportsUnknownNames.bend as L1
 import ../../laws/defs/GradedFindingCounts.bend as D1
+import ./ReplyIndex.bend as M9
 
 # `setting` (laws/SettingReportsUnknownNames.bend): the planner's walk to each grading bolt.bend
 # and its findings there are the spec's.
@@ -128,6 +129,9 @@ def c011.at(ps, world):
         c011.at(tl, world))
 
 def L1.setting_reports(world):
+  %Equal.sym(List<&2, String>, Plan.graders(world),
+    Plan.uniq(Plan.conf.used(Plan.conf.dirs(Plan.inputs(world)), world), []), M9.ri.graders_spec(world)) :
+    {Plan.settings.at(Plan.gots(_, world)) == D1.settings_found(world) : List<&2, F.Finding>}
   u = Equal.sym(List<&2, String>, Plan.conf.used(Plan.conf.dirs(Plan.inputs(world)), world),
     D1.graders_all(world, Plan.conf.dirs(Plan.inputs(world))), c011.used(Plan.conf.dirs(Plan.inputs(world)), world))
   %u : {Plan.settings.at(Plan.gots(Plan.uniq(_, []), world)) == D1.settings_found(world) : List<&2, F.Finding>}

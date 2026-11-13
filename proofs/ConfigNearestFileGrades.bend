@@ -5,6 +5,7 @@ import ../src/config.bend as Config
 import ../src/lint/world.bend as W
 import ../src/lint/plan.bend as Plan
 import ../laws/ConfigNearestFileGrades.bend as Laws
+import ./lemmas/ReplyIndex.bend as M9
 
 # Where a finding is graded (laws/ConfigNearestFileGrades.bend). The table lookup compares
 # directories with String.eq, so the proof needs String.eq to be sound: two
@@ -281,7 +282,11 @@ def cfg4.first(ps, world):
         cfg4.first(tl, world))
 
 def Laws.nearest_grades(world, path):
-  Equal.trans(Config.Config, Plan.config.at(Plan.confs(world), world, path),
+  %Equal.sym(List<&2, Plan.Conf>, Plan.confs(world), Plan.confs.at(Plan.conf.dirs(Plan.inputs(world)), world),
+    M9.ri.confs_spec(world)) :
+    {Plan.config.at(_, world, path)
+      == Laws.first_read(world, Config.chain(Config.home(W.cwd.of(world), Config.dir_of(path)))) : Config.Config}
+  Equal.trans(Config.Config, Plan.config.at(Plan.confs.at(Plan.conf.dirs(Plan.inputs(world)), world), world, path),
     Plan.conf.near(world, Config.dir_of(path)),
     Laws.first_read(world, Config.chain(Config.home(W.cwd.of(world), Config.dir_of(path)))),
     cfg4.find(Plan.conf.dirs(Plan.inputs(world)), world, Config.dir_of(path)),
