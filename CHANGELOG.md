@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.41.0](https://github.com/Emerging-Patterns/bolt/compare/v1.40.0...v1.41.0) (2026-11-13)
+
+
+### Performance Improvements
+
+* **role:** the marks ask indexes of what the walks reach ([#308](https://github.com/Emerging-Patterns/bolt/issues/308)) ([0777d83](https://github.com/Emerging-Patterns/bolt/commit/0777d834f987788058c642ca162f4eee2eec1d66))
+
 ## [1.40.0](https://github.com/Emerging-Patterns/bolt/compare/v1.39.0...v1.40.0) (2026-11-13)
 
 
