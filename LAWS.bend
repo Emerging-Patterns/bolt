@@ -71,6 +71,7 @@ import ./laws/FindingsSayWhereAndWhat.bend as FindingsSayWhereAndWhat
 import ./laws/RulesReadTokensAndChains.bend as RulesReadTokensAndChains
 import ./laws/RewalkReadsNarrowAndWide.bend as RewalkReadsNarrowAndWide
 import ./laws/LspRepliesListEveryEntry.bend as LspRepliesListEveryEntry
+import ./laws/LspRepliesFollowTheProtocol.bend as LspRepliesFollowTheProtocol
 import ./laws/ScopeProjectRulesRunOnRoot.bend as ScopeProjectRulesRunOnRoot
 import ./laws/ScopeRulesSeeTheirInputs.bend as ScopeRulesSeeTheirInputs
 import ./laws/ScopeWalksWholeTree.bend as ScopeWalksWholeTree
