@@ -9,6 +9,10 @@ import ../laws/NoqaSilencesNamedFindings.bend as Laws
 import ../laws/defs/NoqaSpacing.bend as D1
 import ./lemmas/NoqaEarlyExits.bend as M1
 import ./lemmas/NoqaLeadingSpaces.bend as M2
+import ./lemmas/BinderIndexIsContains.bend as M3
+import ../src/syntax/bind.bend as Bind
+import ../laws/BinderIndexFindsItems.bend as L1
+import ./lemmas/BinderIndex.bend as M4
 
 # silencing and the `noqa` rule (laws/NoqaSilencesNamedFindings.bend, laws/NoqaReportsStaleComments.bend)
 # ----------------------------------
@@ -136,18 +140,123 @@ def nqp.silenced(ms, path, line, code):
           nqp.on_line(mks, line, code)),
         nqp.silenced(rest, path, line, code))
 
-def Laws.noqa_keeps(ms, gs):
+# an early and that the plain and absorbs is what it guards
+law nqp.guard:
+  for c: Bool
+  for -s: Bool
+  for ih: {Bool.and(c, s) == s : Bool}
+  {Lazy.and_then(c, _u => s) == s : Bool}
+
+def nqp.guard(c, _s, ih):
+  match c:
+    case True{}:
+      {==}
+    case False{}:
+      ih
+
+# a file that holds no mark: the search goes on to the rest, whatever its path
+law nqp.none:
+  for e: Bool
+  for -c: Bool
+  for -s: Bool
+  for ih: {Bool.and(c, s) == s : Bool}
+  {Bool.and(c, Lazy.or_else(Lazy.and_then(e, _u => False{}), _v => s))
+    == Lazy.or_else(Lazy.and_then(e, _u => False{}), _v => s) : Bool}
+
+def nqp.none(e, _c, _s, ih):
+  match e:
+    case True{}:
+      ih
+    case False{}:
+      ih
+
+# a file that holds a mark: its path is among the marked ones, so the search
+# of its marks is kept, and past another file's the rest decides
+law nqp.some:
+  for e: Bool
+  for -c: Bool
+  for -o: Bool
+  for -s: Bool
+  for ih: {Bool.and(c, s) == s : Bool}
+  {Bool.and(Lazy.or_else(e, _u => c), Lazy.or_else(Lazy.and_then(e, _u => o), _v => s))
+    == Lazy.or_else(Lazy.and_then(e, _u => o), _v => s) : Bool}
+
+def nqp.some(e, _c, _o, _s, ih):
+  match e:
+    case True{}:
+      {==}
+    case False{}:
+      ih
+
+# a mark silences a finding only in a file that holds a mark: the search
+# finds nothing for a path that is not among the marked ones
+law nqp.absorb:
+  for ms: List<&2, Noqa.Marks>
+  for +path: String
+  for +line: U32
+  for +code: String
+  {Bool.and(Bind.has_item(Noqa.marked(ms), path), Noqa.silenced(ms, path, line, code))
+    == Noqa.silenced(ms, path, line, code) : Bool}
+
+def nqp.absorb(ms, path, line, code):
+  match ms:
+    case Nil{}:
+      {==}
+    case Con{Noqa.Marks{+p, Nil{}}, +rest}:
+      nqp.none(String.eq(p, path), Bind.has_item(Noqa.marked(rest), path), Noqa.silenced(rest, path, line, code),
+        nqp.absorb(rest, path, line, code))
+    case Con{Noqa.Marks{+p, Con{+m, +mt}}, +rest}:
+      %Equal.sym(Bool, Bind.same(p, path), String.eq(p, path), M3.ic.alike(p, path)) :
+        {Bool.and(Lazy.or_else(_, _u => Bind.has_item(Noqa.marked(rest), path)),
+          Noqa.silenced(Noqa.Marks{p, m <> mt} <> rest, path, line, code))
+          == Noqa.silenced(Noqa.Marks{p, m <> mt} <> rest, path, line, code) : Bool}
+      nqp.some(String.eq(p, path), Bind.has_item(Noqa.marked(rest), path), Noqa.on_line(m <> mt, line, code),
+        Noqa.silenced(rest, path, line, code), nqp.absorb(rest, path, line, code))
+
+# asking the index of the marked files first changes nothing the search finds
+law nqp.filter:
+  for +ms: List<&2, Noqa.Marks>
+  for +path: String
+  for +line: U32
+  for +code: String
+  {Lazy.and_then(Bind.indexed(Bind.index(Noqa.marked(ms)), path), _u => Noqa.silenced(ms, path, line, code))
+    == Noqa.silenced(ms, path, line, code) : Bool}
+
+def nqp.filter(ms, path, line, code):
+  %Equal.sym(Bool, Bind.indexed(Bind.index(Noqa.marked(ms)), path), Bind.has_item(Noqa.marked(ms), path),
+    L1.index_finds(Noqa.marked(ms), path)) :
+    {Lazy.and_then(_, _u => Noqa.silenced(ms, path, line, code)) == Noqa.silenced(ms, path, line, code) : Bool}
+  nqp.guard(Bind.has_item(Noqa.marked(ms), path), Noqa.silenced(ms, path, line, code),
+    nqp.absorb(ms, path, line, code))
+
+# the filter over the index of the marked files keeps what the spec keeps
+law nqp.keeps:
+  for +ms: List<&2, Noqa.Marks>
+  for gs: List<&2, F.Graded>
+  {Noqa.keep.fast(ms, Bind.index(Noqa.marked(ms)), gs) == Laws.nq.kept(ms, gs) : List<&2, F.Graded>}
+
+def nqp.keeps(ms, gs):
   match gs:
     case Nil{}:
       {==}
     case Con{F.Graded{+ll, F.Finding{+path, +line, +col, +len, +rule, +msg}}, +rest}:
-      e = Equal.sym(Bool, Noqa.silenced(ms, path, line, Codes.code(rule)),
-        Laws.nq.named(ms, path, line, Codes.code(rule)), nqp.silenced(ms, path, line, Codes.code(rule)))
-      %e : {Bool.pick(List<&2, F.Graded>, _, Noqa.keep(ms, rest),
-          F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> Noqa.keep(ms, rest))
+      +ix = Bind.index(Noqa.marked(ms))
+      +code = Codes.code(rule)
+      %Equal.sym(Bool, Lazy.and_then(Bind.indexed(ix, path), _u => Noqa.silenced(ms, path, line, code)),
+        Noqa.silenced(ms, path, line, code), nqp.filter(ms, path, line, code)) :
+        {Bool.pick(List<&2, F.Graded>, _, Noqa.keep.fast(ms, ix, rest),
+          F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> Noqa.keep.fast(ms, ix, rest))
+          == Laws.nq.kept(ms, F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> rest) : List<&2, F.Graded>}
+      e = Equal.sym(Bool, Noqa.silenced(ms, path, line, code),
+        Laws.nq.named(ms, path, line, code), nqp.silenced(ms, path, line, code))
+      %e : {Bool.pick(List<&2, F.Graded>, _, Noqa.keep.fast(ms, ix, rest),
+          F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> Noqa.keep.fast(ms, ix, rest))
         == Laws.nq.kept(ms, F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> rest) : List<&2, F.Graded>}
-      h = Equal.sym(List<&2, F.Graded>, Noqa.keep(ms, rest), Laws.nq.kept(ms, rest), Laws.noqa_keeps(ms, rest))
-      %h : {Bool.pick(List<&2, F.Graded>, Laws.nq.named(ms, path, line, Codes.code(rule)), _,
+      h = Equal.sym(List<&2, F.Graded>, Noqa.keep.fast(ms, ix, rest), Laws.nq.kept(ms, rest), nqp.keeps(ms, rest))
+      %h : {Bool.pick(List<&2, F.Graded>, Laws.nq.named(ms, path, line, code), _,
           F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> _)
         == Laws.nq.kept(ms, F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> rest) : List<&2, F.Graded>}
       {==}
+
+def Laws.noqa_keeps(ms, gs):
+  nqp.keeps(ms, gs)
