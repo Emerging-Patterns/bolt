@@ -353,3 +353,80 @@ def cut.body(hh: Head) -> Cut:
 # not yet
 def cut(buf: List<&2, U32>) -> Cut:
   cut.body(header(buf, [], [D0{}]))
+
+# what the transport reads next
+# -----------------------------
+
+# bend's File.read_bytes fills what it is asked for or reaches the end of the
+# file (2.0.40): it does not answer with what has arrived. A server that asks
+# for more than its peer has sent waits for ever, as bolt's did when it asked
+# for 65536 bytes a time. So the transport asks for exactly what the message
+# in hand still lacks: a line while the header block has not ended, and then
+# the bytes the body is short of.
+
+# what to read next: a header line, or this many bytes of the body
+type Next is Data:
+  Line{}
+  Bytes{count: U32}
+
+# a count less one for each byte held (zero stays zero): what a body of that
+# count still lacks
+def lack(xs: List<&2, U32>, ds: List<&2, Digit>) -> List<&2, Digit>:
+  match xs:
+    case Nil{}:
+      ds
+    case Con{_h, t}:
+      lack(t, untick(ds))
+
+# a digit's value, 0 to 9
+def digit.value(dd: Digit) -> U32:
+  match dd:
+    case D0{}:
+      0
+    case D1{}:
+      1
+    case D2{}:
+      2
+    case D3{}:
+      3
+    case D4{}:
+      4
+    case D5{}:
+      5
+    case D6{}:
+      6
+    case D7{}:
+      7
+    case D8{}:
+      8
+    case D9{}:
+      9
+
+# a number held to 65536, the most one read asks for; what is past it is
+# asked for by the next read
+def held(+nn: U32) -> U32:
+  Bool.pick(U32, U32.is_gt(nn, 65536), 65536, nn)
+
+# a count as a number, held to 65536 at every digit so it never wraps
+def count.held(ds: List<&2, Digit>) -> U32:
+  match ds:
+    case Nil{}:
+      0
+    case Con{d, t}:
+      held((digit.value(d) + 10 * count.held(t) : U32))
+
+# a number, or one when it is none: a read of no bytes answers none, which
+# the transport takes for a peer that closed
+def at_least_one(+nn: U32) -> U32:
+  Bool.pick(U32, U32.is_eq(nn, 0), 1, nn)
+
+def next.of(hh: Head) -> Next:
+  match hh:
+    case NoHead{}:
+      Line{}
+    case Head{len, rest}:
+      Bytes{at_least_one(count.held(lack(rest, len)))}
+
+# what a buffer short of a whole message needs read next
+def next(buf: List<&2, U32>) -> Next:
+  next.of(header(buf, [], [D0{}]))

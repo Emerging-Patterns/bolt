@@ -1194,3 +1194,84 @@ def Laws.frame_waits(s, kk0, h):
         Equal.cong(List<&2, U32>, Bool, w => Nat.is_lt(kk, List.length(&2, U32, w)), w2, Laws.wire(s),
           Equal.sym(List<&2, U32>, Laws.wire(s), w2, wire.shape(s))),
         h)))
+
+def Laws.next_reads_a_header_line(buf, e):
+  %Equal.sym(Frame.Head, Frame.header(buf, [], [Frame.D0{}]), Frame.NoHead{}, e) :
+    {Frame.next.of(_) == Frame.Line{} : Frame.Next}
+  {==}
+
+def Laws.next_reads_what_the_body_lacks(buf, len, rest, e):
+  %Equal.sym(Frame.Head, Frame.header(buf, [], [Frame.D0{}]), Frame.Head{len, rest}, e) :
+    {Frame.next.of(_) == Frame.Bytes{Frame.at_least_one(Frame.count.held(Frame.lack(rest, len)))} : Frame.Next}
+  {==}
+
+def Laws.lack_takes_each_byte(_h, _t, _ds):
+  {==}
+
+def Laws.lack_of_none_held(_ds):
+  {==}
+
+def Laws.digit_value_is_its_char(dd):
+  match dd:
+    case Frame.D0{}:
+      {==}
+    case Frame.D1{}:
+      {==}
+    case Frame.D2{}:
+      {==}
+    case Frame.D3{}:
+      {==}
+    case Frame.D4{}:
+      {==}
+    case Frame.D5{}:
+      {==}
+    case Frame.D6{}:
+      {==}
+    case Frame.D7{}:
+      {==}
+    case Frame.D8{}:
+      {==}
+    case Frame.D9{}:
+      {==}
+
+def Laws.held_caps(nn, e):
+  %Equal.sym(Bool, U32.is_gt(nn, 65536), True{}, e) : {Bool.pick(U32, _, 65536, nn) == 65536 : U32}
+  {==}
+
+def Laws.held_keeps(nn, e):
+  %Equal.sym(Bool, U32.is_gt(nn, 65536), False{}, e) : {Bool.pick(U32, _, 65536, nn) == nn : U32}
+  {==}
+
+def Laws.count_held_by_digits(_d, _t):
+  {==}
+
+def Laws.count_held_one_digit(d):
+  match d:
+    case Frame.D0{}:
+      {==}
+    case Frame.D1{}:
+      {==}
+    case Frame.D2{}:
+      {==}
+    case Frame.D3{}:
+      {==}
+    case Frame.D4{}:
+      {==}
+    case Frame.D5{}:
+      {==}
+    case Frame.D6{}:
+      {==}
+    case Frame.D7{}:
+      {==}
+    case Frame.D8{}:
+      {==}
+    case Frame.D9{}:
+      {==}
+
+def Laws.at_least_one_of_none(nn, e):
+  %Equal.sym(Bool, U32.is_eq(nn, 0), True{}, e) : {Bool.pick(U32, _, 1, nn) == 1 : U32}
+  {==}
+
+def Laws.at_least_one_keeps(nn, e):
+  %Equal.sym(Bool, U32.is_eq(nn, 0), False{}, e) : {Bool.pick(U32, _, 1, nn) == nn : U32}
+  {==}
