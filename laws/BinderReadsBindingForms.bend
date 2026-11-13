@@ -11,48 +11,9 @@ import ../src/syntax/lex.bend as Lex
 import ../src/syntax/tree.bend as Tree
 import ../src/syntax/bind.bend as Bind
 import ./defs/TokenKinds.bend as D1
+import ./defs/Chains.bend as D2
 
 # Law vocabulary, down to the LAWs: bolt never calls any of it.
-
-# what a chain starts with: a leaf of some kind, a group, or neither
-type Front is Data:
-  FLeaf{kind: Lex.TokKind}
-  FGroup{}
-  FOther{}
-
-# what a chain starts with
-def binds.front(rest: Tree.Node) -> Front:
-  match rest:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{k, _t, _l, _c}}, _r}:
-      FLeaf{k}
-    case Tree.NCons{Tree.Group{_o, _g, _cl}, _r}:
-      FGroup{}
-    case _other:
-      FOther{}
-
-# a chain after its first node; nothing after a chain that has none
-def binds.after(rest: Tree.Node) -> Tree.Node:
-  match rest:
-    case Tree.NCons{_h, r}:
-      r
-    case _other:
-      Tree.NNil{}
-
-# is it a leaf of one of these kinds?
-def binds.leaf_of(ff: Front, ks: List<&2, Lex.TokKind>) -> Bool:
-  match ff:
-    case FLeaf{k}:
-      D1.kinds.among(k, ks)
-    case _other:
-      False{}
-
-# is it a group?
-def binds.is_group(ff: Front) -> Bool:
-  match ff:
-    case FGroup{}:
-      True{}
-    case _other:
-      False{}
 
 # does a leaf record a binder? In a constructor list, a capitalized name. In
 # a name position, a name, capitalized or dotted. In a telescope, a name, a
@@ -148,18 +109,18 @@ def binds.is_lhs(mode: Bind.Mode) -> Bool:
 # that kind
 law plan_lam_leads:
   for rest: Tree.Node
-  {Bind.plan.lam(rest) == binds.leaf_of(binds.front(rest), [Lex.TLam{}]) : Bool}
+  {Bind.plan.lam(rest) == D2.chains.leaf_of(D2.chains.front(rest), [Lex.TLam{}]) : Bool}
 
 # LAW: a chain starts with a group exactly when its first node is one
 law plan_group_leads:
   for rest: Tree.Node
-  {Bind.plan.group(rest) == binds.is_group(binds.front(rest)) : Bool}
+  {Bind.plan.group(rest) == D2.chains.is_group(D2.chains.front(rest)) : Bool}
 
 # LAW: a chain starts with a name exactly when its first node is a name or a
 # capitalized name
 law plan_named_leads:
   for rest: Tree.Node
-  {Bind.plan.named(rest) == binds.leaf_of(binds.front(rest), [Lex.TName{}, Lex.TUpper{}]) : Bool}
+  {Bind.plan.named(rest) == D2.chains.leaf_of(D2.chains.front(rest), [Lex.TName{}, Lex.TUpper{}]) : Bool}
 
 # LAW: a chain starts with `x:` exactly when its first node is a name and its
 # second a `:`; it starts with `X:` that way only when capitalized names are
@@ -169,10 +130,10 @@ law plan_typed_leads:
   for upper: Bool
   {Bind.plan.typed(rest, upper)
     == Bool.or(
-      Bool.and(binds.leaf_of(binds.front(rest), [Lex.TName{}]),
-        binds.leaf_of(binds.front(binds.after(rest)), [Lex.TColon{}])),
-      Bool.and(binds.leaf_of(binds.front(rest), [Lex.TUpper{}]),
-        Bool.and(binds.leaf_of(binds.front(binds.after(rest)), [Lex.TColon{}]), upper))) : Bool}
+      Bool.and(D2.chains.leaf_of(D2.chains.front(rest), [Lex.TName{}]),
+        D2.chains.leaf_of(D2.chains.front(D2.chains.after(rest)), [Lex.TColon{}])),
+      Bool.and(D2.chains.leaf_of(D2.chains.front(rest), [Lex.TUpper{}]),
+        Bool.and(D2.chains.leaf_of(D2.chains.front(D2.chains.after(rest)), [Lex.TColon{}]), upper))) : Bool}
 
 # LAW: a leaf records a binder exactly in the forms binds.records lists
 law plan_records:

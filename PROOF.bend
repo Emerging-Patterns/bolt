@@ -46,6 +46,10 @@ import ./proofs/ConfigReadsSettings.bend as PConfigReadsSettings
 import ./proofs/TokenKindsNamed.bend as PTokenKindsNamed
 import ./proofs/BinderReadsBindingForms.bend as PBinderReadsBindingForms
 import ./proofs/BinderFindsPositions.bend as PBinderFindsPositions
+import ./proofs/OutlineLooksUpItems.bend as POutlineLooksUpItems
+import ./proofs/LexerCutsTokens.bend as PLexerCutsTokens
+import ./proofs/TreeReadsStatements.bend as PTreeReadsStatements
+import ./proofs/WordFindsNameAtCursor.bend as PWordFindsNameAtCursor
 import ./proofs/ScopeProjectRulesRunOnRoot.bend as PScopeProjectRulesRunOnRoot
 import ./proofs/ScopeRulesSeeTheirInputs.bend as PScopeRulesSeeTheirInputs
 import ./proofs/ScopeWalksWholeTree.bend as PScopeWalksWholeTree

@@ -61,6 +61,10 @@ import ./laws/ConfigReadsSettings.bend as ConfigReadsSettings
 import ./laws/TokenKindsNamed.bend as TokenKindsNamed
 import ./laws/BinderReadsBindingForms.bend as BinderReadsBindingForms
 import ./laws/BinderFindsPositions.bend as BinderFindsPositions
+import ./laws/OutlineLooksUpItems.bend as OutlineLooksUpItems
+import ./laws/LexerCutsTokens.bend as LexerCutsTokens
+import ./laws/TreeReadsStatements.bend as TreeReadsStatements
+import ./laws/WordFindsNameAtCursor.bend as WordFindsNameAtCursor
 import ./laws/ScopeProjectRulesRunOnRoot.bend as ScopeProjectRulesRunOnRoot
 import ./laws/ScopeRulesSeeTheirInputs.bend as ScopeRulesSeeTheirInputs
 import ./laws/ScopeWalksWholeTree.bend as ScopeWalksWholeTree
