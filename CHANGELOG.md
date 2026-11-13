@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.49.0](https://github.com/Emerging-Patterns/bolt/compare/v1.48.0...v1.49.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **rules:** read a wrapped def header as the def's signature ([#345](https://github.com/Emerging-Patterns/bolt/issues/345)) ([46385dc](https://github.com/Emerging-Patterns/bolt/commit/46385dcfa6301f880840a4f6b94074ff5e580e39))
+
 ## [1.48.0](https://github.com/Emerging-Patterns/bolt/compare/v1.47.0...v1.48.0) (2026-11-13)
 
 
