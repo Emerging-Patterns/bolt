@@ -2,7 +2,7 @@
 # token with a `(` token right after it. Base's Map.put is an internal helper
 # of Map.set: on a leaf it keeps the old key and replaces the value without
 # comparing keys, so putting a new key silently overwrites another entry
-# (bend-http c91bdf8: "b" into a map of "a" replaced "a"). Use Map.set. A
+# (putting "b" into a map holding "a" replaced "a"). Use Map.set. A
 # file that defines Map.put itself (Base's source), a `def` keyword with a
 # `Map.put` token right after it, is exempt.
 import Base

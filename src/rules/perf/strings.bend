@@ -6,7 +6,7 @@
 # take 13.7 s and 1.8 GB, where the same strings compared with String.eq
 # take 0.6 to 0.7 s and 0.13 GB at every size; the check alone is 2.6 s and
 # 0.49 GB at 480. On bend 2.0.16 the check at 480 was 12 s and 4.8 GB;
-# pi-bend BEND-001/016 was 16 long event names).
+# 16 long event names are enough to reach it).
 # The number of arms barely matters, so only the characters count. Classify
 # the string once through a lookup table into a sum type, and match on that.
 # Only a case's first match column is read: string literals in a later

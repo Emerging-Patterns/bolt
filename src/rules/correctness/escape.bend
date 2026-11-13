@@ -1,7 +1,7 @@
 # rule escape: a string or char literal with `\0` then a digit, as in
 # `"\033[1m"`. Bend's escapes are \n \t \r \0 \\ \' \" and \u{..}; it has no
-# octal, so `\033` is NUL and then the chars "33" (nohzafk esc_bad: the bytes
-# 00 33 33, not ESC), with no error. Write the code point, `\u{1B}`. Other
+# octal, so `\033` is NUL and then the chars "33" (the bytes 00 33 33, not
+# ESC), with no error. Write the code point, `\u{1B}`. Other
 # unknown escapes (\x1b, \e) the checker rejects on its own.
 import Base
 import ../../src.bend as Src

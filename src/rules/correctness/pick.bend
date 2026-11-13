@@ -5,7 +5,7 @@
 # call once above the pick (`+more = go(rest)`) and pick between `x <> more`
 # and `more`. In one branch, the recursion runs even when the other branch
 # was the answer: a search never stops early and walks the whole input
-# (portal-bend's `get`, bendoom's sorted insert). Match on the Bool instead,
+# (a lookup by key, a sorted insert). Match on the Bool instead,
 # in a helper that takes it as a parameter. A self-call is the def's name
 # followed by `(..)`: a parameter or a value named like the def is not one. A
 # pick nested in a branch of one already reported is not reported again; one

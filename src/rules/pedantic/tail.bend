@@ -4,8 +4,8 @@
 # alone, never on whether the self-call shrinks it: a def that recurses on
 # a later Nat is reported too, and one whose list comes second is not. Each
 # such call holds a frame until the rest of the input is done, and the JS lane
-# overflows its stack at a few thousand to ~64K elements (bend-http on a 48KB
-# header, agora at ~4,900 entries); native is fine. Carry an accumulator and
+# overflows its stack at a few thousand to ~64K elements (a 48 KB header, a
+# list of ~4,900 entries); native is fine. Carry an accumulator and
 # make the self-call the whole statement (reverse once at the end if order
 # matters). Idiomatic code does this on purpose, so the rule is noisy: off
 # unless asked. Everything inside a `Bool.pick(..)` is skipped, whether or

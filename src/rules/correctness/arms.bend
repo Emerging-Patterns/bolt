@@ -1,8 +1,8 @@
 # rule arms: a Nat arm no value can reach. `case kn+p:` matches every Nat
 # from k up, so a later `case jn+q:` with j >= k, or a later `case mn:` with
 # m >= k, never runs. The checker accepts it and the match quietly returns
-# the earlier arm (nohzafk pat_bad: 0n, 1n+p, 2n+p gives f(2n) = 1; bend
-# 2.0.16 still does). Put the narrower arms first: the literals, then the
+# the earlier arm (with arms 0n, 1n+p, 2n+p, f(2n) is 1). Put the narrower
+# arms first: the literals, then the
 # larger n+p. `Succ{p}` and `Succ{_}` count as 1n+p. Only a
 # single-scrutinee match is read: a column of a multi-scrutinee match is
 # skipped.
@@ -23,8 +23,8 @@
 # another (what a string says is not code), and any other operator, an angle
 # bracket or a keyword inside a pattern covers nothing and is covered only
 # inside an item a binder stands for; and a pattern that wraps onto the next
-# line, which the tree holds only in part, is not read at all (mylsm's
-# 36-item list patterns, each cut at the same `<>`, would else read alike).
+# line, which the tree holds only in part, is not read at all (36-item list
+# patterns, each cut at the same `<>`, would else read alike).
 import Base
 import ../../src.bend as Src
 import ../../finding.bend as F
