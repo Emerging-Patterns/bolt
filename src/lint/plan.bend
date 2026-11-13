@@ -400,6 +400,14 @@ def gots(ps: List<&2, String>, +world: W.World) -> List<&2, Got>:
     case Con{+p, rest}:
       Got{p, W.text(world, p)} <> gots(rest, world)
 
+# gots, each text read off the World's index
+def gots.ix(ps: List<&2, String>, +ix: W.Ix) -> List<&2, Got>:
+  match ps:
+    case Nil{}:
+      Nil{}
+    case Con{+p, rest}:
+      Got{p, W.text.ix(ix, p)} <> gots.ix(rest, ix)
+
 # one finding for each source that could not be read
 def unread(gs: List<&2, Got>) -> List<&2, F.Finding>:
   match gs:
@@ -490,9 +498,17 @@ def conf.used(ds: List<&2, String>, +world: W.World) -> List<&2, String>:
     case Con{d, rest}:
       List.append(&2, String, conf.first(gots(conf.chain(world, d), world)), conf.used(rest, world))
 
+# conf.used, each candidate read off the World's index
+def conf.used.ix(ds: List<&2, String>, +world: W.World, +ix: W.Ix) -> List<&2, String>:
+  match ds:
+    case Nil{}:
+      Nil{}
+    case Con{d, rest}:
+      List.append(&2, String, conf.first(gots.ix(conf.chain(world, d), ix)), conf.used.ix(rest, world, ix))
+
 # every bolt.bend grading reads, each once, in the order its directories come
 def graders(+world: W.World) -> List<&2, String>:
-  uniq(conf.used(conf.dirs(inputs(world)), world), [])
+  uniq(conf.used.ix(conf.dirs(inputs(world)), world, W.ix.world(world)), [])
 
 # the `setting` rule's findings on each bolt.bend the World read, in order
 def settings.at(gs: List<&2, Got>) -> List<&2, F.Finding>:
@@ -537,10 +553,22 @@ def texts.at(ps: List<&2, String>, +world: W.World) -> List<&2, Maybe<&2, String
     case Con{p, rest}:
       W.text(world, p) <> texts.at(rest, world)
 
+# texts.at, each read off the World's index
+def texts.ix(ps: List<&2, String>, +ix: W.Ix) -> List<&2, Maybe<&2, String>>:
+  match ps:
+    case Nil{}:
+      Nil{}
+    case Con{p, rest}:
+      W.text.ix(ix, p) <> texts.ix(rest, ix)
+
 # a directory's config: the nearest bolt.bend the World could read among its
 # candidates, or the defaults
 def conf.near(+world: W.World, dir: String) -> Config.Config:
   Config.nearest(texts.at(conf.chain(world, dir), world))
+
+# conf.near, its candidates read off the World's index
+def conf.near.ix(+world: W.World, +ix: W.Ix, dir: String) -> Config.Config:
+  Config.nearest(texts.ix(conf.chain(world, dir), ix))
 
 # each directory's config
 def confs.at(ds: List<&2, String>, +world: W.World) -> List<&2, Conf>:
@@ -550,9 +578,17 @@ def confs.at(ds: List<&2, String>, +world: W.World) -> List<&2, Conf>:
     case Con{+d, rest}:
       Conf{d, conf.near(world, d)} <> confs.at(rest, world)
 
+# confs.at, each directory's candidates read off the World's index
+def confs.at.ix(ds: List<&2, String>, +world: W.World, +ix: W.Ix) -> List<&2, Conf>:
+  match ds:
+    case Nil{}:
+      Nil{}
+    case Con{+d, rest}:
+      Conf{d, conf.near.ix(world, ix, d)} <> confs.at.ix(rest, world, ix)
+
 # the config of every directory grading needs
 def confs(+world: W.World) -> List<&2, Conf>:
-  confs.at(conf.dirs(inputs(world)), world)
+  confs.at.ix(conf.dirs(inputs(world)), world, W.ix.world(world))
 
 # the config of a directory, from the table; one the table does not hold is
 # worked out the same way (every finding's directory is in the table, so this

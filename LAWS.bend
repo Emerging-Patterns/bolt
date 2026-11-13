@@ -60,6 +60,7 @@ import ./laws/PlannerAsksEachPathOnce.bend as PlannerAsksEachPathOnce
 import ./laws/ConfigReadsSettings.bend as ConfigReadsSettings
 import ./laws/TokenKindsNamed.bend as TokenKindsNamed
 import ./laws/RulesNamedInCodeTable.bend as RulesNamedInCodeTable
+import ./laws/BracketsPairUp.bend as BracketsPairUp
 import ./laws/BinderReadsBindingForms.bend as BinderReadsBindingForms
 import ./laws/BinderFindsPositions.bend as BinderFindsPositions
 import ./laws/OutlineLooksUpItems.bend as OutlineLooksUpItems
@@ -71,6 +72,7 @@ import ./laws/FindingsSayWhereAndWhat.bend as FindingsSayWhereAndWhat
 import ./laws/RulesReadTokensAndChains.bend as RulesReadTokensAndChains
 import ./laws/RewalkReadsNarrowAndWide.bend as RewalkReadsNarrowAndWide
 import ./laws/LspRepliesListEveryEntry.bend as LspRepliesListEveryEntry
+import ./laws/LspRepliesFollowTheProtocol.bend as LspRepliesFollowTheProtocol
 import ./laws/ScopeProjectRulesRunOnRoot.bend as ScopeProjectRulesRunOnRoot
 import ./laws/ScopeRulesSeeTheirInputs.bend as ScopeRulesSeeTheirInputs
 import ./laws/ScopeWalksWholeTree.bend as ScopeWalksWholeTree
@@ -151,6 +153,7 @@ import ./laws/LspFramesCountBytes.bend as LspFramesCountBytes
 import ./laws/LspNavigationUsesBinder.bend as LspNavigationUsesBinder
 import ./laws/LspPositionsUseNegotiatedEncoding.bend as LspPositionsUseNegotiatedEncoding
 import ./laws/LspPublishesOnDocumentEvents.bend as LspPublishesOnDocumentEvents
+import ./laws/LspRequestsReadTheProtocol.bend as LspRequestsReadTheProtocol
 import ./laws/LspKeepsRoleMarks.bend as LspKeepsRoleMarks
 import ./laws/LspUnitsMatchCharsBelowAstral.bend as LspUnitsMatchCharsBelowAstral
 import ./laws/ArrowTerm.bend as ArrowTerm
@@ -160,6 +163,7 @@ import ./laws/BinderIndexFindsItems.bend as BinderIndexFindsItems
 import ./laws/DocFlagsAnswerAsLines.bend as DocFlagsAnswerAsLines
 import ./laws/LexPositionsAreZeroBased.bend as LexPositionsAreZeroBased
 import ./laws/LexRoundTripsText.bend as LexRoundTripsText
+import ./laws/NamesTakeTheirKind.bend as NamesTakeTheirKind
 import ./laws/MarkedArrowTerm.bend as MarkedArrowTerm
 import ./laws/OutlineListsTopLevelItems.bend as OutlineListsTopLevelItems
 import ./laws/TreeKeepsEveryToken.bend as TreeKeepsEveryToken

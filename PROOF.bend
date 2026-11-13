@@ -45,6 +45,7 @@ import ./proofs/PlannerAsksEachPathOnce.bend as PPlannerAsksEachPathOnce
 import ./proofs/ConfigReadsSettings.bend as PConfigReadsSettings
 import ./proofs/TokenKindsNamed.bend as PTokenKindsNamed
 import ./proofs/RulesNamedInCodeTable.bend as PRulesNamedInCodeTable
+import ./proofs/BracketsPairUp.bend as PBracketsPairUp
 import ./proofs/BinderReadsBindingForms.bend as PBinderReadsBindingForms
 import ./proofs/BinderFindsPositions.bend as PBinderFindsPositions
 import ./proofs/OutlineLooksUpItems.bend as POutlineLooksUpItems
@@ -56,6 +57,7 @@ import ./proofs/FindingsSayWhereAndWhat.bend as PFindingsSayWhereAndWhat
 import ./proofs/RulesReadTokensAndChains.bend as PRulesReadTokensAndChains
 import ./proofs/RewalkReadsNarrowAndWide.bend as PRewalkReadsNarrowAndWide
 import ./proofs/LspRepliesListEveryEntry.bend as PLspRepliesListEveryEntry
+import ./proofs/LspRepliesFollowTheProtocol.bend as PLspRepliesFollowTheProtocol
 import ./proofs/ScopeProjectRulesRunOnRoot.bend as PScopeProjectRulesRunOnRoot
 import ./proofs/ScopeRulesSeeTheirInputs.bend as PScopeRulesSeeTheirInputs
 import ./proofs/ScopeWalksWholeTree.bend as PScopeWalksWholeTree
@@ -136,6 +138,7 @@ import ./proofs/LspFramesCountBytes.bend as PLspFramesCountBytes
 import ./proofs/LspNavigationUsesBinder.bend as PLspNavigationUsesBinder
 import ./proofs/LspPositionsUseNegotiatedEncoding.bend as PLspPositionsUseNegotiatedEncoding
 import ./proofs/LspPublishesOnDocumentEvents.bend as PLspPublishesOnDocumentEvents
+import ./proofs/LspRequestsReadTheProtocol.bend as PLspRequestsReadTheProtocol
 import ./proofs/LspKeepsRoleMarks.bend as PLspKeepsRoleMarks
 import ./proofs/LspUnitsMatchCharsBelowAstral.bend as PLspUnitsMatchCharsBelowAstral
 import ./proofs/ArrowTerm.bend as PArrowTerm
@@ -145,6 +148,7 @@ import ./proofs/BinderIndexFindsItems.bend as PBinderIndexFindsItems
 import ./proofs/DocFlagsAnswerAsLines.bend as PDocFlagsAnswerAsLines
 import ./proofs/LexPositionsAreZeroBased.bend as PLexPositionsAreZeroBased
 import ./proofs/LexRoundTripsText.bend as PLexRoundTripsText
+import ./proofs/NamesTakeTheirKind.bend as PNamesTakeTheirKind
 import ./proofs/MarkedArrowTerm.bend as PMarkedArrowTerm
 import ./proofs/OutlineListsTopLevelItems.bend as POutlineListsTopLevelItems
 import ./proofs/TreeKeepsEveryToken.bend as PTreeKeepsEveryToken
