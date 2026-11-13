@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.42.0](https://github.com/Emerging-Patterns/bolt/compare/v1.41.0...v1.42.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **lsp:** the server asks for what the message lacks, so it answers under bend 2.0.40 ([#312](https://github.com/Emerging-Patterns/bolt/issues/312)) ([9c0ef1e](https://github.com/Emerging-Patterns/bolt/commit/9c0ef1e8ecb28cb89f5a8b163902bbbfe77f7471))
+
 ## [1.41.0](https://github.com/Emerging-Patterns/bolt/compare/v1.40.0...v1.41.0) (2026-11-13)
 
 
