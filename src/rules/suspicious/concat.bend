@@ -7,8 +7,8 @@
 # enclosing one, whose right side is such an append (a later let of the name
 # shadows it; other binders, a typed or destructuring let and a do-bind do
 # not count). A String and a List are cons lists, so appending copies all of
-# p: the loop is quadratic, with right output (night-train's text step cost
-# three times the render; rootagi's JSON stringify). Prepend (`x <> acc`)
+# p: the loop is quadratic, with right output (a text step that cost three
+# times the render; a JSON stringify). Prepend (`x <> acc`)
 # and reverse once at the end, build with `h <> go(t)`, or gather pieces and
 # join them once.
 #

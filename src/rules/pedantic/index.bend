@@ -1,6 +1,6 @@
 # rule index: a def that calls itself also calls `List.get(..)` or
 # `String.get(..)`. Both walk the cons list from the head to the index, so a
-# per-index loop is quadratic (AppSprout's sort went from 39 s to 0.9 s
+# per-index loop is quadratic (a sort over a list went from 39 s to 0.9 s
 # walking the list itself). Walk the list in the recursion, or materialize
 # what the loop needs in one pass. A get anywhere in the def is reported,
 # one in a base arm that runs once included. A literal index of any size
