@@ -4,7 +4,9 @@
 # need not be named. So a run over named files reads every source the walk of
 # the tree finds for its imports, each at its path resolved against the
 # working directory, takes the marks of that graph, and looks each named file
-# up there as it is spelled. A run over the whole tree takes the marks of its
+# up there as it is spelled. The graph is every source the walk finds, then
+# each named file the walk did not find (one outside the working directory),
+# so no file is read twice and none named is left out. A run over the whole tree takes the marks of its
 # own sources.
 import Base
 import ../src/src.bend as Src
@@ -85,3 +87,31 @@ law marks_run_whole_tree:
   for +world: W.World
   for +ss: List<&2, Src.Src>
   {Plan.marks.run(Nil{}, world, ss) == Role.marks(ss) : List<&2, Role.Mark>}
+
+# LAW: a named file that resolves to a path already seen is not read again
+law unseen_drops_seen:
+  for +p: String
+  for rest: List<&2, String>
+  for +cwd: String
+  for +seen: List<&2, String>
+  for e: {Imports.has(seen, Plan.abs(cwd, p)) == True{} : Bool}
+  {Plan.unseen(p <> rest, cwd, seen) == Plan.unseen(rest, cwd, seen) : List<&2, String>}
+
+# LAW: a named file that resolves to no path seen is read, in the order named
+law unseen_keeps_new:
+  for +p: String
+  for rest: List<&2, String>
+  for +cwd: String
+  for +seen: List<&2, String>
+  for e: {Imports.has(seen, Plan.abs(cwd, p)) == False{} : Bool}
+  {Plan.unseen(p <> rest, cwd, seen) == p <> Plan.unseen(rest, cwd, seen) : List<&2, String>}
+
+# LAW: the graph is the sources the walk finds, then the named files it did
+# not find
+law graph_found_then_named:
+  for +world: W.World
+  {Plan.graph(world)
+    == List.append(&2, String, Plan.sources(Plan.walk.found(Plan.tree(world))),
+      Plan.unseen(Plan.inputs(world), W.cwd.of(world),
+        Plan.norms(Plan.sources(Plan.walk.found(Plan.tree(world))), W.cwd.of(world))))
+    : List<&2, String>}
