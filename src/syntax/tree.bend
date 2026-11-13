@@ -20,8 +20,8 @@ import ./lex.bend as Lex
 # (a `=` or `<-` among its own tokens), else STerm (`match x:`, `do M<T>:`,
 # `return e`, a call, a dependent arrow `@x: A -> B` or `@+x: A -> B`,
 # which an `@` does not make a def, a typed step `Unit <- m`, whose name
-# is the type m runs at, not a binder, and an array write `a[i] <- v`, which
-# reads a and keeps its name)
+# is the type m runs at, not a binder, and an array write `a[i] <- v` or
+# `(a[i] <- v)[j] <- w`, which reads a and keeps its name)
 type StmtKind is Data:
   SDef{}
   SType{}
@@ -327,13 +327,18 @@ def typed_step(kids: Node) -> Bool:
     case _other:
       False{}
 
-# is the statement an array write: a name, a `[..]` group, then `<-`? It
-# reads the array and keeps its name, so it binds nothing new
+# is the statement an array write: a name, a `[..]` group, then `<-`, or a
+# write into what a `(..)` group gives, `(a[i] <- v)[j] <- w`: a `(..)`
+# group, a `[..]` group, then `<-`? It reads the array and keeps its name,
+# so it binds nothing new
 def array_write(kids: Node) -> Bool:
   match kids:
     case NCons{Leaf{Lex.Tok{Lex.TName{}, _t, _l, _c}},
       NCons{Group{Lex.Tok{_ok, ot, _ol, _oc}, _g, _cl}, NCons{Leaf{Lex.Tok{Lex.TBind{}, _bt, _bl, _bc}}, _r}}}:
       String.eq(ot, "[")
+    case NCons{Group{Lex.Tok{_pk, pt, _pl, _pc}, _pg, _pz},
+      NCons{Group{Lex.Tok{_ok, ot, _ol, _oc}, _g, _cl}, NCons{Leaf{Lex.Tok{Lex.TBind{}, _bt, _bl, _bc}}, _r}}}:
+      Bool.and(String.eq(pt, "("), String.eq(ot, "["))
     case _other:
       False{}
 

@@ -219,7 +219,8 @@ statement.
   never used. A typed step `Unit <- m` (a capitalized or dotted name, then
   `<-`) binds nothing: bend reads the name as the type m runs at. An array
   write `a[i] <- v` reads a (and every name in it) and keeps a's name, so it
-  binds nothing either. Exempt: pattern binders (naming every field of `Tok{k, t, l, c}`
+  binds nothing either, and nor do writes chained in one term,
+  `(a[i] <- v)[j] <- w`. Exempt: pattern binders (naming every field of `Tok{k, t, l, c}`
   reads better than `_`), names starting with `_`, erased parameters (`-x`),
   a law's `for` names, and every parameter of a foreign def, one whose body's
   first statement is `import` (its C and JS read them), wherever its
