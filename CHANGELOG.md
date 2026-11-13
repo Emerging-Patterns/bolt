@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.48.0](https://github.com/Emerging-Patterns/bolt/compare/v1.47.0...v1.48.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **syntax:** read an array write `a[i] <- v` as a term that uses a ([#342](https://github.com/Emerging-Patterns/bolt/issues/342)) ([4ea3d4f](https://github.com/Emerging-Patterns/bolt/commit/4ea3d4fe9ac37aca86c17654106f77f9f1ccd942))
+
 ## [1.47.0](https://github.com/Emerging-Patterns/bolt/compare/v1.46.0...v1.47.0) (2026-11-13)
 
 
