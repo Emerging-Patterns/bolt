@@ -1,6 +1,9 @@
 # `foreign` reports exactly a foreign def with a `.c` body and no `.js` or the
 # reverse, where a file whose leading comment lines include the exact line `#
-# lanes: native` needs no `.js`.
+# lanes: native` needs no `.js`. A def's body is what is under its whole
+# header, wrapped over lines or not (laws/DefSignatureRunsToItsColon.bend).
+#
+# also rests on: laws/DefSignatureRunsToItsColon.bend
 import Base
 import ../src/syntax/lex.bend as Lex
 import ../src/finding.bend as F
@@ -9,9 +12,11 @@ import ../src/src.bend as Src
 import ../src/syntax/tree.bend as Tree
 import ../src/syntax/outline.bend as Outline
 import ../src/rules/pedantic/foreign.bend as Foreign
+import ../src/rules/calls.bend as Calls
 
 # foreign (laws/ForeignReportsMissingBackend.bend). Over the file's top-level statements the rule
-# reports each def whose body is one import or more and nothing else (a
+# reports each def whose body (Calls.under: the statements under it, less the
+# lines its header wrapped onto) is one import or more and nothing else (a
 # foreign def) and whose imports name a `.c` body and no `.js` one, unless the
 # file is headed `# lanes: native`, or a `.js` body and no `.c` one. Headed
 # means the exact line is among the file's leading comment lines, those before
@@ -59,7 +64,7 @@ def foreign.count(root: Tree.Node, +native: Bool) -> Nat:
   match root:
     case Tree.NCons{Tree.Stmt{Tree.SDef{}, kids, body}, rest}:
       +m = foreign.count(rest, native)
-      Bool.pick(Nat, foreign.bad(body, native), 1n+m, m)
+      Bool.pick(Nat, foreign.bad(Calls.under(kids, body), native), 1n+m, m)
     case Tree.NCons{h, rest}:
       foreign.count(rest, native)
     case other:
