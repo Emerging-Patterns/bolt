@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.47.0](https://github.com/Emerging-Patterns/bolt/compare/v1.46.0...v1.47.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **syntax:** read a typed step `Unit <- m` as a term, not a let ([#341](https://github.com/Emerging-Patterns/bolt/issues/341)) ([38ef66e](https://github.com/Emerging-Patterns/bolt/commit/38ef66ea122c1b70720ac6f254cb20d064eb403b))
+
 ## [1.46.0](https://github.com/Emerging-Patterns/bolt/compare/v1.45.0...v1.46.0) (2026-11-13)
 
 
