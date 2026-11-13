@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.45.0](https://github.com/Emerging-Patterns/bolt/compare/v1.44.0...v1.45.0) (2026-11-13)
+
+
+### Performance Improvements
+
+* **doc:** branch the line flags on 12 bits, not 20 ([#337](https://github.com/Emerging-Patterns/bolt/issues/337)) ([1f557c7](https://github.com/Emerging-Patterns/bolt/commit/1f557c7dd40857d7ea9c14957df7fdde8d5bb057))
+
 ## [1.44.0](https://github.com/Emerging-Patterns/bolt/compare/v1.43.0...v1.44.0) (2026-11-13)
 
 
