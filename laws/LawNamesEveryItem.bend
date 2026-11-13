@@ -476,3 +476,39 @@ law reach_binder:
         coverage.said(coverage.uses(Bind.of_tree(Tree.parse(text), String.lines(text))), Tree.parse(text),
           Outline.of_tokens(text, Lex.tokens(text)), Imports.norm(path)), [])}
     : CoverageView}
+
+# LAW: a law's doc is looked for from the first item at or after its line: an
+# item sits there when the line is at or before the item's own
+law from_line_stops_at_item:
+  for kk: Outline.ItemKind
+  for nn: String
+  for +ln: U32
+  for sig: String
+  for doc: String
+  for pp: String
+  for rest: List<&2, Outline.Item>
+  for +at: U32
+  {Digest.from_line.stop(Outline.Item{kk, nn, ln, sig, doc, pp} <> rest, at) == U32.is_le(at, ln) : Bool}
+
+# LAW: with no item left, the search stops
+law from_line_stops_at_end:
+  for items: List<&2, Outline.Item>
+  for +at: U32
+  for e: {List.is_empty(&2, Outline.Item, items) == True{} : Bool}
+  {Digest.from_line.stop(items, at) == True{} : Bool}
+
+# LAW: every law statement of a tree is one of its laws, in order: its
+# declared name, its line, whether its body binds, and the doc of the item
+# on its line, the items searched on from where the last law's search stopped
+law laws_of_takes_each_law:
+  for +kids: Tree.Node
+  for body: Tree.Node
+  for rest: Tree.Node
+  for +items: List<&2, Outline.Item>
+  {Digest.laws_of(Tree.NCons{Tree.Stmt{Tree.SLaw{}, kids, body}, rest}, items)
+    == Digest.Law{Closed.name.of(Bind.declared(kids)), Tree.line(kids), Closed.binds(body),
+      String.lines(Digest.doc_at(
+        Digest.from_line(items, Tree.line(kids), Digest.from_line.stop(items, Tree.line(kids))), Tree.line(kids)))}
+      <> Digest.laws_of(rest,
+        Digest.from_line(items, Tree.line(kids), Digest.from_line.stop(items, Tree.line(kids))))
+    : List<&2, Digest.Law>}

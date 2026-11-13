@@ -98,3 +98,13 @@ law noqa_keeps:
   for +ms: List<&2, Noqa.Marks>
   for gs: List<&2, F.Graded>
   {Noqa.keep(ms, gs) == nq.kept(ms, gs) : List<&2, F.Graded>}
+
+# LAW: in a noqa comment's code list a space is a space, a comma a comma, a
+# letter or a digit part of a code, and anything else ends the list
+law code_list_chars:
+  for +cc: Char
+  {Noqa.cls(cc)
+    == Bool.pick(Noqa.Cls, Char.is_eq(cc, ' '), Noqa.CSpace{},
+      Bool.pick(Noqa.Cls, Char.is_eq(cc, ','), Noqa.CComma{},
+        Bool.pick(Noqa.Cls, Bool.or(Char.is_alpha(cc), Char.is_digit(cc)), Noqa.CCode{}, Noqa.COther{})))
+    : Noqa.Cls}

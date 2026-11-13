@@ -165,3 +165,35 @@ def Laws.noqa_counts(mks, whole, path, gs):
           NoqaRule.check(rest, whole, path, gs)))
         == Nat.add(List.length(&2, F.Finding, NoqaRule.check.mark(mk, whole, path, gs)), _) : Nat}
       nqp.len_app(NoqaRule.check.mark(mk, whole, path, gs), NoqaRule.check(rest, whole, path, gs))
+
+# a stop at the first True is the plain or
+law nqr.or_else:
+  for c: Bool
+  for -x: Bool
+  {Lazy.or_else(c, _u => x) == Bool.or(c, x) : Bool}
+
+def nqr.or_else(c, _x):
+  match c:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# a test or nothing is the test
+law nqr.or_false:
+  for c: Bool
+  {Bool.or(c, False{}) == c : Bool}
+
+def nqr.or_false(c):
+  match c:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+def Laws.known_in_some_row(_s, id, _grp, rest, code):
+  nqr.or_else(String.eq(id, code), NoqaRule.known.in(rest, code))
+
+def Laws.known_in_one_row(s, id, grp, code):
+  Equal.trans(Bool, NoqaRule.known.in(Codes.Entry{s, id, grp} <> Nil{}, code), Bool.or(String.eq(id, code), False{}),
+    String.eq(id, code), Laws.known_in_some_row(s, id, grp, Nil{}, code), nqr.or_false(String.eq(id, code)))

@@ -50,6 +50,7 @@ import ./proofs/OutlineLooksUpItems.bend as POutlineLooksUpItems
 import ./proofs/LexerCutsTokens.bend as PLexerCutsTokens
 import ./proofs/TreeReadsStatements.bend as PTreeReadsStatements
 import ./proofs/WordFindsNameAtCursor.bend as PWordFindsNameAtCursor
+import ./proofs/RulesReadSignaturesAndLiterals.bend as PRulesReadSignaturesAndLiterals
 import ./proofs/ScopeProjectRulesRunOnRoot.bend as PScopeProjectRulesRunOnRoot
 import ./proofs/ScopeRulesSeeTheirInputs.bend as PScopeRulesSeeTheirInputs
 import ./proofs/ScopeWalksWholeTree.bend as PScopeWalksWholeTree
