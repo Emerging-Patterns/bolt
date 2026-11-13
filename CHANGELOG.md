@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.37.0](https://github.com/Emerging-Patterns/bolt/compare/v1.36.0...v1.37.0) (2026-11-13)
+
+
+### Performance Improvements
+
+* **rules:** the digest asks an index of the proofs' names, not the list ([#296](https://github.com/Emerging-Patterns/bolt/issues/296)) ([8c5b6b0](https://github.com/Emerging-Patterns/bolt/commit/8c5b6b0c492ccd7a1c9dfee49b161f5357f6878f))
+
+## [1.36.0](https://github.com/Emerging-Patterns/bolt/compare/v1.35.0...v1.36.0) (2026-11-13)
+
+
+### Performance Improvements
+
+* **rules:** doc reads one-pass line flags ([#294](https://github.com/Emerging-Patterns/bolt/issues/294)) ([af14827](https://github.com/Emerging-Patterns/bolt/commit/af1482755b6ef1269a7b8d9f943c1eab791e9b78))
+
 ## [1.35.0](https://github.com/Emerging-Patterns/bolt/compare/v1.34.0...v1.35.0) (2026-11-11)
 
 

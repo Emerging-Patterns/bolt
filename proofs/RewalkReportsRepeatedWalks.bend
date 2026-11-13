@@ -9,6 +9,7 @@ import ../src/rules/correctness/pick.bend as Pick
 import ../src/rules/pedantic/rewalk.bend as Rewalk
 import ../laws/RewalkReportsRepeatedWalks.bend as Laws
 import ./lemmas/Pick.bend as M1
+import ./lemmas/LoopSetIndex.bend as M2
 
 # the rule's names are the law's
 law rewalk.names_eq:
@@ -2004,8 +2005,8 @@ law rewalk.or_else:
   for b: Bool
   for t: List<&2, String>
   for +set: List<&2, String>
-  for ih: {Rewalk.any_of(t, set) == Laws.rewalk.any(t, set) : Bool}
-  {Lazy.or_else(b, _u => Rewalk.any_of(t, set)) == Bool.or(b, Laws.rewalk.any(t, set)) : Bool}
+  for ih: {Rewalk.loops.any(t, set) == Laws.rewalk.any(t, set) : Bool}
+  {Lazy.or_else(b, _u => Rewalk.loops.any(t, set)) == Bool.or(b, Laws.rewalk.any(t, set)) : Bool}
 
 def rewalk.or_else(b, _t, _set, ih):
   match b:
@@ -2018,7 +2019,7 @@ def rewalk.or_else(b, _t, _set, ih):
 law rewalk.any_eq:
   for cs: List<&2, String>
   for +set: List<&2, String>
-  {Rewalk.any_of(cs, set) == Laws.rewalk.any(cs, set) : Bool}
+  {Rewalk.loops.any(cs, set) == Laws.rewalk.any(cs, set) : Bool}
 
 def rewalk.any_eq(cs, set):
   match cs:
@@ -2048,7 +2049,7 @@ def rewalk.loops_eq(ds, acc):
             Bool.or(List.contains(~String, ~String.eq, Rewalk.called(body), name), _), name <> acc, acc))
             : List<&2, String>}
           rewalk.loops_eq(rest, Bool.pick(List<&2, String>, Bool.or(List.contains(~String, ~String.eq,
-            Rewalk.called(body), name), Rewalk.any_of(Rewalk.called(body), acc)), name <> acc, acc))
+            Rewalk.called(body), name), Rewalk.loops.any(Rewalk.called(body), acc)), name <> acc, acc))
 
 # one def's findings, exempt or its piece and its arms
 law rewalk.stop:
@@ -2097,6 +2098,9 @@ def rewalk.go(ds, lp, path, acc):
 
 def Laws.rewalk_counts(path, _text, _toks, tree, _bound, _items):
   +ds = Calls.defs(tree)
+  %Equal.sym(List<&2, String>, Rewalk.loops(ds), Rewalk.loops.go(ds, []), M2.lp.rewalk.all(ds)) :
+    {List.length(&2, F.Finding, Rewalk.check.go(ds, _, path, []))
+      == Laws.rewalk.total(ds, Laws.rewalk.loops(ds, []), path) : Nat}
   %rewalk.loops_eq(ds, []) : {List.length(&2, F.Finding, Rewalk.check.go(ds, Rewalk.loops.go(ds, []), path, []))
     == Laws.rewalk.total(ds, _, path) : Nat}
   rewalk.go(ds, Rewalk.loops.go(ds, []), path, [])
