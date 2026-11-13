@@ -1,5 +1,7 @@
 # rule foreign: a foreign def (its body only `import "./x.c"` / `import
-# "./x.js"` lines) with a body for one lane and not the other. Each lane
+# "./x.js"` lines, wherever its header's `->` and return type fall: a header
+# wrapped onto the next line is not part of the body, Calls.under) with a
+# body for one lane and not the other. Each lane
 # finds out only when it first runs: a native build (`bend -o bin`) fails
 # with "no .c import", an interpreted or JS run with "a foreign def without a
 # .js import". Give every foreign def both bodies, `x.c` and `x.js`. A file
@@ -14,6 +16,7 @@ import ../../syntax/lex.bend as Lex
 import ../../syntax/tree.bend as Tree
 import ../../syntax/bind.bend as Bind
 import ../../lazy/lazy.bend as Lazy
+import ../calls.bend as Calls
 
 # which lanes a foreign def's bodies cover
 type Lanes is Data:
@@ -75,8 +78,8 @@ def name.of(mm: Maybe<&2, String>) -> String:
 def check.go(root: Tree.Node, +native: Bool, +path: String) -> List<&2, F.Finding>:
   match root:
     case Tree.NCons{Tree.Stmt{Tree.SDef{}, +kids, body}, rest}:
-      at(lack(lanes(body), native, name.of(Bind.declared(kids))), Tree.line(kids), Tree.col(kids), path,
-        check.go(rest, native, path))
+      at(lack(lanes(Calls.under(kids, body)), native, name.of(Bind.declared(kids))), Tree.line(kids),
+        Tree.col(kids), path, check.go(rest, native, path))
     case Tree.NCons{h, rest}:
       check.go(rest, native, path)
     case other:

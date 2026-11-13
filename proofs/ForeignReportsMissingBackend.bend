@@ -5,6 +5,7 @@ import ../src/syntax/bind.bend as Bind
 import ../src/lazy/lazy.bend as Lazy
 import ../src/syntax/tree.bend as Tree
 import ../src/rules/pedantic/foreign.bend as Foreign
+import ../src/rules/calls.bend as Calls
 import ../laws/ForeignReportsMissingBackend.bend as Laws
 
 # foreign (laws/ForeignReportsMissingBackend.bend): the rule's lanes are the law's imports and
@@ -273,20 +274,21 @@ law foreign.def:
     == Laws.foreign.count(Tree.NCons{Tree.Stmt{Tree.SDef{}, kids, body}, rest}, native) : Nat}
 
 def foreign.def(kids, body, rest, native, path, ih):
+  +ub = Calls.under(kids, body)
   +nm = Foreign.name.of(Bind.declared(kids))
-  +msg = Foreign.lack(Foreign.lanes(body), native, nm)
+  +msg = Foreign.lack(Foreign.lanes(ub), native, nm)
   +more = Foreign.check.go(rest, native, path)
-  +bad = Laws.foreign.bad(body, native)
+  +bad = Laws.foreign.bad(ub, native)
   +x = {F.Finding{path, Tree.line(kids), Tree.col(kids), 0, "foreign", msg} : F.Finding}
   +e = Equal.trans(Bool, String.is_empty(msg),
-    String.is_empty(Foreign.lack(Bool.pick(Maybe<&2, Foreign.Lanes>, Laws.foreign.only(body),
-      Some{Foreign.Lanes{Laws.foreign.has(body, ".c\""), Laws.foreign.has(body, ".js\"")}}, None{}), native, nm)),
+    String.is_empty(Foreign.lack(Bool.pick(Maybe<&2, Foreign.Lanes>, Laws.foreign.only(ub),
+      Some{Foreign.Lanes{Laws.foreign.has(ub, ".c\""), Laws.foreign.has(ub, ".js\"")}}, None{}), native, nm)),
     Bool.not(bad),
-    Equal.cong(Maybe<&2, Foreign.Lanes>, Bool, z => String.is_empty(Foreign.lack(z, native, nm)), Foreign.lanes(body),
-      Bool.pick(Maybe<&2, Foreign.Lanes>, Laws.foreign.only(body),
-        Some{Foreign.Lanes{Laws.foreign.has(body, ".c\""), Laws.foreign.has(body, ".js\"")}}, None{}),
-      foreign.lanes(body)),
-    foreign.lack(Laws.foreign.only(body), Laws.foreign.has(body, ".c\""), Laws.foreign.has(body, ".js\""), native, nm))
+    Equal.cong(Maybe<&2, Foreign.Lanes>, Bool, z => String.is_empty(Foreign.lack(z, native, nm)), Foreign.lanes(ub),
+      Bool.pick(Maybe<&2, Foreign.Lanes>, Laws.foreign.only(ub),
+        Some{Foreign.Lanes{Laws.foreign.has(ub, ".c\""), Laws.foreign.has(ub, ".js\"")}}, None{}),
+      foreign.lanes(ub)),
+    foreign.lack(Laws.foreign.only(ub), Laws.foreign.has(ub, ".c\""), Laws.foreign.has(ub, ".js\""), native, nm))
   Equal.trans(Nat, List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, String.is_empty(msg), more, x <> more)),
     List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, Bool.not(bad), more, x <> more)),
     Bool.pick(Nat, bad, 1n+Laws.foreign.count(rest, native), Laws.foreign.count(rest, native)),

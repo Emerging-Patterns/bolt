@@ -491,7 +491,8 @@ statement.
   whether the arms above together cover an arm, only whether one of them
   does.
 - `foreign` (pedantic) — a foreign def with a `.c` body and no `.js` body, or the
-  reverse: the missing lane cannot run it. A file headed `# lanes: native`
+  reverse: the missing lane cannot run it. A foreign def is one whose body
+  is only imports, wherever its header's `->` and return type fall. A file headed `# lanes: native`
   needs no `.js`: that exact line must be one of the comment lines before the
   file's first non-comment line.
 - `setting` — a setting in a bolt.bend whose name is no rule's slug and no
