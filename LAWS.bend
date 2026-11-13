@@ -192,3 +192,4 @@ import ./laws/BlankExempt.bend as BlankExempt
 import ./laws/RoleBlank.bend as RoleBlank
 import ./laws/RoleBlankExempt.bend as RoleBlankExempt
 import ./laws/InertBlank.bend as InertBlank
+import ./laws/DefSignatureRunsToItsColon.bend as DefSignatureRunsToItsColon

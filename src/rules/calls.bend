@@ -1,5 +1,6 @@
 # src/rules/calls: what the recursion rules (pick, strict, tail, concat,
-# index) share. A file's defs, each with its name, its signature and its body;
+# index) share. A file's defs, each with its name, its signature (the whole
+# header, wrapped over lines or not) and its body;
 # a call's arguments; whether a def calls itself; its parameters, and the type
 # of the one it walks; and whether it is exempt (a law or a proof never runs,
 # and a def with no type fills a law: it is a proof).
@@ -10,27 +11,10 @@ import ../syntax/tree.bend as Tree
 import ../syntax/bind.bend as Bind
 import ../lazy/lazy.bend as Lazy
 
-# a def: its name, its own tokens (the signature) and the statements under it
+# a def: its name, its signature (the header through its `:`) and the
+# statements under that
 type Def is Data:
   Def{name: String, sig: Tree.Node, body: Tree.Node}
-
-# a def with a name joins the others; one without (half-written) does not
-def defs.push(mm: Maybe<&2, String>, sig: Tree.Node, body: Tree.Node, acc: List<&2, Def>) -> List<&2, Def>:
-  match mm:
-    case None{}:
-      acc
-    case Some{name}:
-      Def{name, sig, body} <> acc
-
-# the defs of a parsed source, in order
-def defs(root: Tree.Node) -> List<&2, Def>:
-  match root:
-    case Tree.NCons{Tree.Stmt{Tree.SDef{}, +kids, body}, rest}:
-      defs.push(Bind.declared(kids), kids, body, defs(rest))
-    case Tree.NCons{h, rest}:
-      defs(rest)
-    case other:
-      Nil{}
 
 # a leaf's kind, none for anything else: kind tests read this, never a text
 def leaf.kind(nn: Tree.Node) -> Maybe<&2, Lex.TokKind>:
@@ -198,6 +182,89 @@ def has_colon(pp: Tree.Node) -> Bool:
       Lazy.or_else(kind.leaf(~kind.colon, h), _u => has_colon(rest))
     case other:
       False{}
+
+# one chain and then another
+def join(aa: Tree.Node, bb: Tree.Node) -> Tree.Node:
+  match aa:
+    case Tree.NCons{h, t}:
+      Tree.NCons{h, join(t, bb)}
+    case other:
+      bb
+
+# the lines a header wrapped onto (their tokens, in order) and the body left
+# once they are taken
+type Wrap is Data:
+  Wrap{sig: Tree.Node, body: Tree.Node}
+
+# a line's tokens before the ones found after it
+def wrap.more(kids: Tree.Node, found: Maybe<&2, Wrap>) -> Maybe<&2, Wrap>:
+  match found:
+    case None{}:
+      None{}
+    case Some{Wrap{sig, body}}:
+      Some{Wrap{join(kids, sig), body}}
+
+# the statements a def's header wrapped onto: those under it, first to last,
+# through the first whose own tokens hold a `:`, with what is under that one
+# and then what follows it as the body. None when no statement holds one, or
+# when one before it has statements of its own under it
+def wrap(body: Tree.Node) -> Maybe<&2, Wrap>:
+  match body:
+    case Tree.NCons{Tree.Stmt{kind, +kids, Tree.NNil{}}, +rest}:
+      Lazy.stop(Maybe<&2, Wrap>, has_colon(kids), Some{Wrap{kids, rest}}, _u => wrap.more(kids, wrap(rest)))
+    case Tree.NCons{Tree.Stmt{kind, +kids, under}, rest}:
+      Lazy.stop(Maybe<&2, Wrap>, Bool.not(has_colon(kids)), None{}, _u => Some{Wrap{kids, join(under, rest)}})
+    case other:
+      None{}
+
+# the first line's tokens and then the wrapped lines', when there are any
+def header.of(kids: Tree.Node, found: Maybe<&2, Wrap>) -> Tree.Node:
+  match found:
+    case None{}:
+      kids
+    case Some{Wrap{sig, body}}:
+      join(kids, sig)
+
+# a def's signature: its header through the `:` that ends it. The tree makes
+# a statement of each line outside a bracket, so a header that wraps there
+# (`def f(xs: A) ->` then `B:`; `def lemma(..)` then `-> {a == b : T}:`)
+# leaves its later lines as the first statements under the def. kids are the
+# def statement's own tokens and body the statements under it: when kids hold
+# no `:`, the lines `wrap` finds are joined on
+def header(+kids: Tree.Node, body: Tree.Node) -> Tree.Node:
+  Lazy.stop(Tree.Node, has_colon(kids), kids, _u => header.of(kids, wrap(body)))
+
+# the whole body, or what the wrapped lines leave of it
+def under.of(+body: Tree.Node, found: Maybe<&2, Wrap>) -> Tree.Node:
+  match found:
+    case None{}:
+      body
+    case Some{Wrap{sig, left}}:
+      left
+
+# a def's body: the statements under it, less the lines its header wrapped
+# onto (`header`)
+def under(kids: Tree.Node, +body: Tree.Node) -> Tree.Node:
+  Lazy.stop(Tree.Node, has_colon(kids), body, _u => under.of(body, wrap(body)))
+
+# a def with a name joins the others; one without (half-written) does not
+def defs.push(mm: Maybe<&2, String>, sig: Tree.Node, body: Tree.Node, acc: List<&2, Def>) -> List<&2, Def>:
+  match mm:
+    case None{}:
+      acc
+    case Some{name}:
+      Def{name, sig, body} <> acc
+
+# the defs of a parsed source, in order, each with its whole header as its
+# signature (`header`) and the rest as its body (`under`)
+def defs(root: Tree.Node) -> List<&2, Def>:
+  match root:
+    case Tree.NCons{Tree.Stmt{Tree.SDef{}, +kids, +body}, rest}:
+      defs.push(Bind.declared(kids), header(kids, body), under(kids, body), defs(rest))
+    case Tree.NCons{h, rest}:
+      defs(rest)
+    case other:
+      Nil{}
 
 # does the chain open with a `-` or `~` operator?
 def is_live.sign(pp: Tree.Node) -> Bool:
