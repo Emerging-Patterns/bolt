@@ -13,6 +13,7 @@ import ../src/rules/laws/closed.bend as Closed
 import ../src/rules/laws/law.bend as Coverage
 import ../src/rules/imports.bend as Imports
 import ../src/rules/digest.bend as Digest
+import ../src/role.bend as Role
 import ../laws/LawNamesEveryItem.bend as Laws
 import ../laws/ImportReachIsClosed.bend as L1
 import ./lemmas/ImportClosure.bend as M1
@@ -949,6 +950,53 @@ def Laws.reach_digest(path, text, toks, tree, bound, items):
         Digest.ranged(items, Digest.uses.of(bound), Digest.aliases(items, pp), pp,
           Bind.index(Digest.proofs(Calls.defs(tree)))), _}
         : Laws.CoverageView}
+  {==}
+
+def Laws.reach_digest_role(rr, path, text, toks, tree, bound, items):
+  +pp = Imports.norm(path)
+  %reach.proofs_eq(tree) :
+    {Digest.of.role(rr, Src.Src{path, text, toks, tree, bound, items})
+      == Digest.Digest{path, pp, Imports.dir_of(path), Role.is_laws(rr), Role.is_law_file(rr),
+        Bool.or(Role.is_law_file(rr), Paths.is_test(pp)),
+        Laws.reach.tops(items, items, Laws.coverage.uses(bound), pp, _),
+        Bool.pick(List<&2, Digest.Mention>, Role.is_laws(rr),
+          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, pp), []),
+        Imports.targets(items, pp), Digest.laws.in(Role.is_laws(rr), tree, items)} : Digest.Digest}
+  %reach.uses_eq(bound) :
+    {Digest.of.role(rr, Src.Src{path, text, toks, tree, bound, items})
+      == Digest.Digest{path, pp, Imports.dir_of(path), Role.is_laws(rr), Role.is_law_file(rr),
+        Bool.or(Role.is_law_file(rr), Paths.is_test(pp)),
+        Laws.reach.tops(items, items, _, pp, Digest.proofs(Calls.defs(tree))),
+        Bool.pick(List<&2, Digest.Mention>, Role.is_laws(rr),
+          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, pp), []),
+        Imports.targets(items, pp), Digest.laws.in(Role.is_laws(rr), tree, items)} : Digest.Digest}
+  %reach.tops_eq(items, items, Digest.uses.of(bound), pp, Digest.proofs(Calls.defs(tree))) :
+    {Digest.of.role(rr, Src.Src{path, text, toks, tree, bound, items})
+      == Digest.Digest{path, pp, Imports.dir_of(path), Role.is_laws(rr), Role.is_law_file(rr),
+        Bool.or(Role.is_law_file(rr), Paths.is_test(pp)),
+        _,
+        Bool.pick(List<&2, Digest.Mention>, Role.is_laws(rr),
+          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, pp), []),
+        Imports.targets(items, pp), Digest.laws.in(Role.is_laws(rr), tree, items)} : Digest.Digest}
+  %reach.indexed(items, Digest.uses.of(bound), Digest.aliases(items, pp), pp, Digest.proofs(Calls.defs(tree))) :
+    {Digest.of.role(rr, Src.Src{path, text, toks, tree, bound, items})
+      == Digest.Digest{path, pp, Imports.dir_of(path), Role.is_laws(rr), Role.is_law_file(rr),
+        Bool.or(Role.is_law_file(rr), Paths.is_test(pp)),
+        _,
+        Bool.pick(List<&2, Digest.Mention>, Role.is_laws(rr),
+          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, pp), []),
+        Imports.targets(items, pp), Digest.laws.in(Role.is_laws(rr), tree, items)} : Digest.Digest}
+  %coverage.d_stated(Role.is_laws(rr), tree, bound, items, pp) :
+    {Digest.of.role(rr, Src.Src{path, text, toks, tree, bound, items})
+      == Digest.Digest{path, pp, Imports.dir_of(path), Role.is_laws(rr), Role.is_law_file(rr),
+        Bool.or(Role.is_law_file(rr), Paths.is_test(pp)),
+        Digest.ranged(items, Digest.uses.of(bound), Digest.aliases(items, pp), pp,
+          Bind.index(Digest.proofs(Calls.defs(tree)))),
+        _,
+        Imports.targets(items, pp), Digest.laws.in(Role.is_laws(rr), tree, items)} : Digest.Digest}
+  {==}
+
+def Laws.reach_digest_marks(_ms, _path, _text, _toks, _tree, _bound, _items, _ss):
   {==}
 
 def Laws.reach_binder(path, text):
