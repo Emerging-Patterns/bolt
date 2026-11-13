@@ -9,6 +9,7 @@ import ./lemmas/LexAndTreeFacts.bend as M1
 import ./lemmas/CarriedSearch.bend as CS
 import ../laws/BinderIndexFindsItems.bend as L1
 import ./lemmas/BinderIndex.bend as M2
+import ./lemmas/BinderIndexIsContains.bend as M3
 
 # the binder's resolution (laws/BinderResolvesInnermostFirst.bend)
 # ------------------------------------
@@ -212,129 +213,12 @@ def rs.qual.at(c, q, r, mm, als, e1, e2):
       Bind.TFree{}, _u => Bind.TQual{q, _}) == Laws.res.qual(mm, q, als) : Bind.Target}
   rs.qual(mm, q, als)
 
-# String.eq walks with String.order.go (bend 2.0.37): once the heads differ,
-# the order is theirs, whatever the rest
-law rs.go_lt:
-  for a: String
-  for b: String
-  {String.order.go(a, b, LT{}) == LT{} : Cmp}
-
-def rs.go_lt(a, b):
-  match a b:
-    case SNil{} SNil{}:
-      {==}
-    case SNil{} SCon{_h, _t}:
-      {==}
-    case SCon{_h, _t} SNil{}:
-      {==}
-    case SCon{Chr{_x}, _t1} SCon{Chr{_y}, _t2}:
-      {==}
-
-law rs.go_gt:
-  for a: String
-  for b: String
-  {String.order.go(a, b, GT{}) == GT{} : Cmp}
-
-def rs.go_gt(a, b):
-  match a b:
-    case SNil{} SNil{}:
-      {==}
-    case SNil{} SCon{_h, _t}:
-      {==}
-    case SCon{_h, _t} SNil{}:
-      {==}
-    case SCon{Chr{_x}, _t1} SCon{Chr{_y}, _t2}:
-      {==}
-
-# a step of `same` is a step of String.eq, whatever the heads compare to
-law rs.step:
-  for c: Cmp
-  for +t1: String
-  for +t2: String
-  for ih: {Bind.same(t1, t2) == String.eq(t1, t2) : Bool}
-  {Lazy.and_then(Cmp.is_eq(c), _u => Bind.same(t1, t2)) == Cmp.is_eq(String.order.go(t1, t2, c)) : Bool}
-
-def rs.step(c, t1, t2, ih):
-  match c:
-    case LT{}:
-      %Equal.sym(Cmp, String.order.go(t1, t2, LT{}), LT{}, rs.go_lt(t1, t2)) :
-        {Lazy.and_then(Cmp.is_eq(LT{}), _u => Bind.same(t1, t2)) == Cmp.is_eq(_) : Bool}
-      {==}
-    case EQ{}:
-      ih
-    case GT{}:
-      %Equal.sym(Cmp, String.order.go(t1, t2, GT{}), GT{}, rs.go_gt(t1, t2)) :
-        {Lazy.and_then(Cmp.is_eq(GT{}), _u => Bind.same(t1, t2)) == Cmp.is_eq(_) : Bool}
-      {==}
-
-# the binder's name test is String.eq
-law rs.alike:
-  for aa: String
-  for bb: String
-  {Bind.same(aa, bb) == String.eq(aa, bb) : Bool}
-
-def rs.alike(aa, bb):
-  match aa bb:
-    case SNil{} SNil{}:
-      {==}
-    case SNil{} SCon{h2, t2}:
-      {==}
-    case SCon{h1, t1} SNil{}:
-      {==}
-    case SCon{Chr{+x}, +t1} SCon{Chr{+y}, +t2}:
-      rs.step(U32.cmp(x, y), t1, t2, rs.alike(t1, t2))
-
-# a stop at the first True is List.contains's step (List.any.if, bend 2.0.37)
-law rs.or_if:
-  for a: Bool
-  for -x: Bool
-  for -y: Bool
-  for ih: {x == y : Bool}
-  {Lazy.or_else(a, _u => x) == List.any.if(_u => y, a) : Bool}
-
-def rs.or_if(a, _x, _y, ih):
-  match a:
-    case True{}:
-      {==}
-    case False{}:
-      ih
-
-# the binder's item search is List.contains
-law rs.items:
-  for names: List<&2, String>
-  for +name: String
-  {Bind.has_item(names, name) == List.contains(~String, ~String.eq, names, name) : Bool}
-
-def rs.items(names, name):
-  match names:
-    case Nil{}:
-      {==}
-    case Con{+hh, +rest}:
-      Equal.trans(Bool,
-        Lazy.or_else(Bind.same(hh, name), _u => Bind.has_item(rest, name)),
-        List.any.if(_u => List.contains(~String, ~String.eq, rest, name), Bind.same(hh, name)),
-        List.any.if(_u => List.contains(~String, ~String.eq, rest, name), String.eq(hh, name)),
-        rs.or_if(Bind.same(hh, name), Bind.has_item(rest, name), List.contains(~String, ~String.eq, rest, name),
-          rs.items(rest, name)),
-        Equal.cong(Bool, Bool, z => List.any.if(_u => List.contains(~String, ~String.eq, rest, name), z),
-          Bind.same(hh, name), String.eq(hh, name), rs.alike(hh, name)))
-
 # what the binder makes of a name no binder holds and no item has
 def rs.code(+name: String, als: List<&2, String>) -> Bind.Target:
   +cs = String.to_list(name)
   +head = Bind.head_of(cs)
   Lazy.stop(Bind.Target, Bool.not(Bool.and(String.contains(name, "."), Bind.has(als, head))), Bind.TFree{},
     _u => Bind.TQual{head, Bind.rest_of(cs)})
-
-# the binder's index of the items is List.contains over them
-law rs.indexed:
-  for +its: List<&2, String>
-  for +name: String
-  {Bind.indexed(Bind.index(its), name) == List.contains(~String, ~String.eq, its, name) : Bool}
-
-def rs.indexed(its, name):
-  Equal.trans(Bool, Bind.indexed(Bind.index(its), name), Bind.has_item(its, name),
-    List.contains(~String, ~String.eq, its, name), L1.index_finds(its, name), rs.items(its, name))
 
 # a name no binder holds: an item, else what its dot and alias make of it
 law rs.none:
@@ -345,7 +229,7 @@ law rs.none:
     == Laws.res.found(None{}, name, its, als) : Bind.Target}
 
 def rs.none(name, its, als):
-  %rs.indexed(its, name) : {Bind.resolve.local(None{}, name, Bind.Names{its, als, Bind.index(its)})
+  %M3.ic.indexed(its, name) : {Bind.resolve.local(None{}, name, Bind.Names{its, als, Bind.index(its)})
     == Bool.pick(Bind.Target, _, Bind.TItem{name}, Laws.res.qual(Laws.res.after(name), Laws.res.before(name), als))
     : Bind.Target}
   Equal.cong(Bind.Target, Bind.Target,
