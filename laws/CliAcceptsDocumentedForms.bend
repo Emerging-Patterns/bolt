@@ -183,3 +183,10 @@ law cli_help:
   for hp: {Args.parse("help" <> ps) == Fail{ee} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
   for hh: {Shake.help_path(ee) == Some{ps} : Maybe<&2, List<&2, String>>}
   {Args.out(Args.parse("help" <> ps)) == Args.Stop{Args.Page{}, Args.help_text(ps), 0} : Args.Out}
+
+# LAW: the files are a rest argument named `files` that need not be given,
+# with no default and no fixed choices, whatever its help line: `bolt` with
+# no file lints the tree
+law cli_files_optional:
+  for +help: String
+  {Args.spec.files(help) == Shake.rest("files", help, False{}, None{}, []) : Shake.Arg}

@@ -18,6 +18,7 @@ import ../laws/LawNamesEveryItem.bend as Laws
 import ../laws/ImportReachIsClosed.bend as L1
 import ./lemmas/ImportClosure.bend as M1
 import ./lemmas/CarriedSearch.bend as CS
+import ./lemmas/BoolEmptiness.bend as MB
 import ./lemmas/BinderIndexIsContains.bend as M2
 
 # coverage (laws/LawNamesEveryItem.bend)
@@ -1002,3 +1003,16 @@ def Laws.reach_digest_marks(_ms, _path, _text, _toks, _tree, _bound, _items, _ss
 def Laws.reach_binder(path, text):
   Laws.reach_digest(path, text, Lex.tokens(text), Tree.parse(text),
     Bind.of_tree(Tree.parse(text), String.lines(text)), Outline.of_tokens(text, Lex.tokens(text)))
+
+def Laws.from_line_stops_at_item(_kk, _nn, _ln, _sig, _doc, _pp, _rest, _at):
+  {==}
+
+def Laws.from_line_stops_at_end(items, at, e):
+  match items:
+    case Nil{}:
+      {==}
+    case Con{_h, _t}:
+      Empty.absurd({Digest.from_line.stop(items, at) == True{} : Bool}, MB.false_true(e))
+
+def Laws.laws_of_takes_each_law(_kids, _body, _rest, _items):
+  {==}

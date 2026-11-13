@@ -55,3 +55,11 @@ law package_nearest:
   for +rs: List<&2, String>
   for +dir: String
   {Rules.owner(rs, dir) == D1.nearest(Rules.ups(dir), rs) : String}
+
+# LAW: a directory's parents are read nearest first: the directory itself,
+# with its slash, then the parents of what is above it
+law ups_nearest_first:
+  for s: String
+  for +rest: List<&2, String>
+  {Rules.ups.go(s <> rest) == (String.join(List.reverse(&2, String, s <> rest), "/") ++ "/") <> Rules.ups.go(rest)
+    : List<&2, String>}

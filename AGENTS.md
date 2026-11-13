@@ -45,13 +45,15 @@ A `#|` equality for a proveable claim is a bug. The root `LAWS.bend` and
 
 ## The gate
 
-    nix flake check                the bolt package, checks.test
-                                   (mkProofs runs `ez test --unit-only`) and
-                                   checks.lint (mkLint: bolt on this tree)
+    nix flake check                the bolt package, checks.proofs (mkProofs
+                                   runs `ez prove`: every PROOF.bend),
+                                   checks.lint (mkLint: bolt on this tree) and
+                                   checks.lsp (the packaged bolt as an editor
+                                   starts it, and the server over the real
+                                   checker)
     nix develop                    bend 2, bend-cc and node, with CC=bend-cc set
-    ez test                        every lane, every proof, and the top-level tests/
-    ez test --js-only              skip the native lanes
-    ez test --full                 ignore the cache
+    ez test                        each */tests/*.bend, run by `bend <file>`
+                                   against its `#|` trailer
     ez build bin/bolt.bin          the binary people run
 
 Run all of it from the repo root. `gate.sh` used to re-exec itself under
@@ -59,25 +61,29 @@ Run all of it from the repo root. `gate.sh` used to re-exec itself under
 enter the shell first. `ez build` takes the output path because its default is
 still `bin/ez.out`.
 
-[ez](https://github.com/Emerging-Patterns/ez) is the gate. It finds every
-`*/tests/*.bend`, runs it on both lanes -- JS, where `bend` interprets it, and
-native, where it is compiled first -- against the `#|` trailer the file ends
-in, checks every `PROOF.bend` in the tree, runs each `bend` inside a memory
-cgroup (`EZ_CAP` gigabytes, 8 by default, which this repo has never needed
-raising), compiles a project's
-tests into one binary rather than one
-each, and caches a lane on the content of everything it reads. It replaced
-`gate.sh` and `build.sh`, 299 lines of shell that did the same work worse, and
-nothing in this repo is a shell script now.
+[ez](https://github.com/Emerging-Patterns/ez) is the gate. `ez prove` checks
+every `PROOF.bend` in the tree, and `ez test` finds every `*/tests/*.bend` and
+runs it with `bend <file>` (interpreted) against the `#|` trailer the file
+ends in, each `bend` inside a memory cgroup (`EZ_CAP` gigabytes, 8 by default,
+which this repo has never needed raising). The ez this flake pins has one lane
+and no `--js-only`, `--unit-only` or `--full`. It replaced `gate.sh` and
+`build.sh`, 299 lines of shell that did the same work worse, and nothing in
+this repo is a shell script now.
 
 ez is a separate binary built from a separate repo, so it still runs and still
 reports when bolt itself is broken, which is the whole of the argument that
 used to keep `gate.sh` around.
 
 CI is that flake check. `.github/workflows/ci.yml` runs `nix flake check`:
-the bolt package, checks.test and checks.lint. `--unit-only` skips
-`tests/bare.bend`, so checks.lint is where CI sees bolt lint itself; it
-fails on an error, not a warning. `main` requires the `check / check` job
+the bolt package, checks.proofs, checks.lint and checks.lsp. CI runs no
+`ez test`: `tests/bare.bend` builds bolt from the hub and needs the network,
+so checks.lint is where CI sees bolt lint itself (it fails on an error, not a
+warning), and checks.lsp is where CI sees the language server answer:
+`src/lsp/tests/spawn.js` and `tests/locate.js` against the packaged bolt, and
+`src/lsp/tests/checker.bend` built as a binary. Run `ez test` by hand before a
+release for `tests/bare.bend`; under it `src/lsp/tests/checker.bend` runs
+interpreted and overflows the stack on this tree's larger proofs, so its
+verdict is checks.lsp's. `main` requires the `check / check` job
 (ruleset "main: require ci"); release-please PRs get no CI run, so an admin
 merges them through the ruleset's pull-request bypass.
 
@@ -220,8 +226,19 @@ Design specs and plans are not kept in this repo; they live under
 - A pair `A & B` is never `Data`: a list of pairs is `List<&1, A & B>`.
 - `x.of` and `x_of` mangle to the same C name ("two names mangle to
   FID_.."): never both in one module.
-- The JS lane overflows its stack on long strings (~65KB). Head such a test
-  `# lanes: native`; anything long-running ships as the native binary.
+- Interpreted (`bend <file>`, which is how `ez test` runs a test), a program
+  overflows its stack on long strings (~65KB) and on this tree's larger
+  proofs. The ez this flake pins reads no `# lanes:` header, so such a test
+  needs a flake check that builds it as a binary (checks.lsp builds
+  `src/lsp/tests/checker.bend`); anything long-running ships as the native
+  binary.
+- `File.read_bytes(f, n)` and `File.read` fill n bytes or reach the end of the
+  file (bend 2.0.40); they do not answer with what has arrived. On a pipe or
+  a socket, asking for more than the peer has sent waits for ever: bolt's
+  language server never answered an editor from the 2.0.40 pin (v1.28.0) to
+  the fix. Ask for what the protocol says is coming (`Frame.next` in
+  src/lsp/frame.bend: a header line with `File.read_line`, then the body's
+  exact count).
 - The GPU is on by default in a native binary: the CPU lane is `+RTS --gpu
   off -RTS`. `bolt lsp` with no `--gpu` in a bracket or in `BENDRTS` starts
   again as `+RTS --gpu off -RTS lsp` before the runtime chooses a device;

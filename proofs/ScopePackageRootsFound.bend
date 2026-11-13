@@ -53,3 +53,6 @@ def Laws.roots_whole(world, h):
   e = Equal.sym(List<&2, String>, W.paths.of(world), [], h)
   %e : {Plan.roots.named(_, world) == Laws.main_dirs(world, Plan.walk.read(Plan.tree(world))) : List<&2, String>}
   pk.of(Plan.walk.read(Plan.tree(world)), world)
+
+def Laws.ups_nearest_first(_s, _rest):
+  {==}

@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.42.0](https://github.com/Emerging-Patterns/bolt/compare/v1.41.0...v1.42.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **lsp:** the server asks for what the message lacks, so it answers under bend 2.0.40 ([#312](https://github.com/Emerging-Patterns/bolt/issues/312)) ([9c0ef1e](https://github.com/Emerging-Patterns/bolt/commit/9c0ef1e8ecb28cb89f5a8b163902bbbfe77f7471))
+
+## [1.41.0](https://github.com/Emerging-Patterns/bolt/compare/v1.40.0...v1.41.0) (2026-11-13)
+
+
+### Performance Improvements
+
+* **role:** the marks ask indexes of what the walks reach ([#308](https://github.com/Emerging-Patterns/bolt/issues/308)) ([0777d83](https://github.com/Emerging-Patterns/bolt/commit/0777d834f987788058c642ca162f4eee2eec1d66))
+
+## [1.40.0](https://github.com/Emerging-Patterns/bolt/compare/v1.39.0...v1.40.0) (2026-11-13)
+
+
+### Performance Improvements
+
+* **lint:** wants asks indexes of the paths met and the questions answered ([#305](https://github.com/Emerging-Patterns/bolt/issues/305)) ([20207c6](https://github.com/Emerging-Patterns/bolt/commit/20207c64bbd5912f748c4ea067a2f209eedc3bbf))
+
 ## [1.39.0](https://github.com/Emerging-Patterns/bolt/compare/v1.38.0...v1.39.0) (2026-11-13)
 
 

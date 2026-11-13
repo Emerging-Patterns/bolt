@@ -87,3 +87,21 @@ law doc_counts:
   {List.length(&2, F.Finding, Doc.check(Src.Src{path, text, toks, tree, bound, items}))
     == Bool.pick(Nat, Bool.or(Paths.is_proof(path), Paths.is_test(path)), 0n, doc.count(items, Doc.lines(text, toks)))
     : Nat}
+
+# LAW: reading the lines beside the lexer's word on each (does it start
+# inside a string literal?), such a line is read as empty, so it is never a
+# comment line, and any other line is read as it is, in order
+law doc_lines_inside_are_text:
+  for hh: String
+  for tt: List<&2, String>
+  for +ins: List<&2, Bool>
+  {Doc.lines.go(hh <> tt, ins)
+    == Bool.pick(String, Outline.inside.hit(ins), "", hh) <> Doc.lines.go(tt, Outline.inside.rest(ins))
+    : List<&2, String>}
+
+# LAW: the lines doc reads are the text's lines beside what the tokens say
+# of each
+law doc_lines_of_text:
+  for text: String
+  for toks: List<&2, Lex.Tok>
+  {Doc.lines(text, toks) == Doc.lines.go(String.lines(text), Outline.inside(toks)) : List<&2, String>}

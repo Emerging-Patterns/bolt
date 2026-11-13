@@ -17,6 +17,7 @@ import ./rules/imports.bend as Imports
 import ./syntax/lex.bend as Lex
 import ./syntax/outline.bend as Outline
 import ./finding.bend as F
+import ./syntax/bind.bend as Bind
 
 # what a file is to the laws
 type Role is Data:
@@ -136,35 +137,46 @@ def lawful(fs: List<&2, Fact>) -> List<&2, String>:
 def reach(+fs: List<&2, Fact>, +from: List<&2, String>) -> List<&2, String>:
   Imports.walk(List.length(&2, Fact, fs), from, from, edges(fs), paths(fs))
 
-# the roots of the code: every package's main.bend, and every file the laws
-# do not reach
-def code(fs: List<&2, Fact>, +laws: List<&2, String>) -> List<&2, String>:
+def code.fast(fs: List<&2, Fact>, +lx: Bind.Index) -> List<&2, String>:
   match fs:
     case Nil{}:
       Nil{}
     case Con{Fact{+norm, _deps, _named, entry}, rest}:
-      +more = code(rest, laws)
-      Bool.pick(List<&2, String>, Bool.or(entry, Bool.not(Imports.has(laws, norm))), norm <> more, more)
+      +more = code.fast(rest, lx)
+      Bool.pick(List<&2, String>, Bool.or(entry, Bool.not(Bind.indexed(lx, norm))), norm <> more, more)
+
+# the roots of the code: every package's main.bend, and every file the laws
+# do not reach. Each file asks the binder's index (src/syntax/bind.bend) of
+# what the laws reach: a scan of that list for every file is the files
+# squared
+def code(fs: List<&2, Fact>, +laws: List<&2, String>) -> List<&2, String>:
+  code.fast(fs, Bind.index(laws))
 
 # a file's role: its role by name, or else its role on the laws' side
 def role.of(+named: Role, reach: Role) -> Role:
   Bool.pick(Role, is_law_file(named), named, reach)
 
+def marks.fast(fs: List<&2, Fact>, +lx: Bind.Index, +fx: Bind.Index, +cx: Bind.Index) -> List<&2, Mark>:
+  match fs:
+    case Nil{}:
+      Nil{}
+    case Con{Fact{+norm, _deps, +named, _entry}, rest}:
+      +more = marks.fast(rest, lx, fx, cx)
+      Bool.pick(List<&2, Mark>, Bool.and(Bind.indexed(lx, norm), Bool.not(Bind.indexed(cx, norm))),
+        Mark{norm, role.of(named, reached(Bind.indexed(fx, norm)))} <> more, more)
+
 # the marks of the files the laws reach and the code does not, in the run's
-# order: a law file when a LAWS.bend reaches it
+# order: a law file when a LAWS.bend reaches it. What each walk reaches is
+# put in the binder's index once, and each file asks the three indexes,
+# where three scans for every file were the files squared (1.7 s of the 5 s
+# the marks took on a project of 4,062 files)
 def marks.of(
   fs: List<&2, Fact>,
   +laws: List<&2, String>,
   +lawful: List<&2, String>,
   +code: List<&2, String>
 ) -> List<&2, Mark>:
-  match fs:
-    case Nil{}:
-      Nil{}
-    case Con{Fact{+norm, _deps, +named, _entry}, rest}:
-      +more = marks.of(rest, laws, lawful, code)
-      Bool.pick(List<&2, Mark>, Bool.and(Imports.has(laws, norm), Bool.not(Imports.has(code, norm))),
-        Mark{norm, role.of(named, reached(Imports.has(lawful, norm)))} <> more, more)
+  marks.fast(fs, Bind.index(laws), Bind.index(lawful), Bind.index(code))
 
 # the role of every file on the laws' side of a graph given as facts
 def marks.facts(+fs: List<&2, Fact>) -> List<&2, Mark>:

@@ -286,3 +286,9 @@ def Laws.nearest_grades(world, path):
     Laws.first_read(world, Config.chain(Config.home(W.cwd.of(world), Config.dir_of(path)))),
     cfg4.find(Plan.conf.dirs(Plan.inputs(world)), world, Config.dir_of(path)),
     cfg4.first(Config.chain(Config.home(W.cwd.of(world), Config.dir_of(path))), world))
+
+def Laws.chain_ends_at_root(_dd):
+  {==}
+
+def Laws.root_from_the_top(_dd, _acc):
+  {==}

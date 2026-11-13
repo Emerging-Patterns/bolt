@@ -146,3 +146,9 @@ def Laws.doc_counts(path, text, toks, _tree, _bound, items):
       Equal.cong(List<&2, F.Finding>, Nat, z => List.length(&2, F.Finding, z), fast, slow,
         L1.fast_is_go(items, path, ls)),
       Laws.doc_walk_counts(items, path, ls)))
+
+def Laws.doc_lines_inside_are_text(_hh, _tt, _ins):
+  {==}
+
+def Laws.doc_lines_of_text(_text, _toks):
+  {==}
