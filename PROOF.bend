@@ -179,3 +179,4 @@ import ./proofs/RoleBlankExempt.bend as PRoleBlankExempt
 import ./proofs/InertBlank.bend as PInertBlank
 import ./proofs/DefSignatureRunsToItsColon.bend as PDefSignatureRunsToItsColon
 import ./proofs/NamedRewriteReadsItsProof.bend as PNamedRewriteReadsItsProof
+import ./proofs/LspSemanticTokensFollowTheLegend.bend as PLspSemanticTokensFollowTheLegend

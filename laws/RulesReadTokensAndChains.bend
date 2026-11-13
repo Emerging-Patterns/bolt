@@ -94,6 +94,48 @@ law arms_told_skips_other_arms:
   for w2: Arms.Wide
   {Arms.told(Some{w2}, Arms.AOther{}) == False{} : Bool}
 
+# LAW: under an n+p arm that starts at k, a later n+p arm is reported
+# exactly when it starts at k or above: every Nat it matches is matched
+# already
+law arms_told_plus_from_k:
+  for +kk: U32
+  for text: String
+  for +jj: U32
+  for tt: String
+  for ll: U32
+  for cc: U32
+  for nn: U32
+  {Arms.told(Some{Arms.Wide{kk, text}}, Arms.APlus{jj, tt, ll, cc, nn}) == U32.is_ge(jj, kk) : Bool}
+
+# LAW: and a later literal arm exactly when the literal is k or above
+law arms_told_literal_from_k:
+  for +kk: U32
+  for text: String
+  for +mm: U32
+  for ll: U32
+  for cc: U32
+  for nn: U32
+  {Arms.told(Some{Arms.Wide{kk, text}}, Arms.ALit{mm, ll, cc, nn}) == U32.is_ge(mm, kk) : Bool}
+
+# arms: an operator in a pattern, as the part it is
+# LAW: a `+` (a quantity mark, or the plus of `kn+`) is no part of its own
+law arms_plus_is_no_part:
+  for +more: List<&2, Arms.Part>
+  {Arms.part.op("+", more) == more : List<&2, Arms.Part>}
+
+# LAW: a `<>` is the cons between two items
+law arms_cons_is_a_part:
+  for +more: List<&2, Arms.Part>
+  {Arms.part.op("<>", more) == Arms.PCons{} <> more : List<&2, Arms.Part>}
+
+# LAW: any other operator is not understood, so the pattern covers nothing
+law arms_other_operator_is_bad:
+  for +tt: String
+  for +more: List<&2, Arms.Part>
+  for e1: {String.eq(tt, "+") == False{} : Bool}
+  for e2: {String.eq(tt, "<>") == False{} : Bool}
+  {Arms.part.op(tt, more) == Arms.PBad{} <> more : List<&2, Arms.Part>}
+
 # escape: a literal's chars as the four things the rule tells apart
 # LAW: a backslash, a `0`, a digit from 1 to 9, and any other char
 law escape_sym_by_code:
@@ -549,3 +591,56 @@ law empty_item_other_by_keyword:
   {Empty.item.other(word, skip)
     == Bool.pick(Bool, String.eq(word, "law"), True{},
       Bool.pick(Bool, Bool.or(String.eq(word, "type"), String.eq(word, "import")), False{}, skip)) : Bool}
+
+# concat: how many times a plain name is read
+# LAW: a name leaf that spells the name is one read of it
+law concat_uses_counts_the_name:
+  for +tt: String
+  for ll: U32
+  for cc: U32
+  for +name: String
+  for e: {String.eq(tt, name) == True{} : Bool}
+  {Concat.uses(Tree.Leaf{Lex.Tok{Lex.TName{}, tt, ll, cc}}, name) == 1n : Nat}
+
+# LAW: a name leaf that spells another name is none
+law concat_uses_skips_other_names:
+  for +tt: String
+  for ll: U32
+  for cc: U32
+  for +name: String
+  for e: {String.eq(tt, name) == False{} : Bool}
+  {Concat.uses(Tree.Leaf{Lex.Tok{Lex.TName{}, tt, ll, cc}}, name) == 0n : Nat}
+
+# table: the names in scope without one
+# LAW: the name itself is dropped, wherever it stands
+law table_drop_takes_the_name:
+  for +hh: String
+  for +rest: List<&2, String>
+  for +nm: String
+  for e: {String.eq(hh, nm) == True{} : Bool}
+  {Table.drop(hh <> rest, nm) == Table.drop(rest, nm) : List<&2, String>}
+
+# LAW: every other name stays, in order
+law table_drop_keeps_other_names:
+  for +hh: String
+  for +rest: List<&2, String>
+  for +nm: String
+  for e: {String.eq(hh, nm) == False{} : Bool}
+  {Table.drop(hh <> rest, nm) == hh <> Table.drop(rest, nm) : List<&2, String>}
+
+# wrap: an operator's angle motion in a header
+# LAW: a run of `>` closes angles, unless the operator opens one
+law wrap_gt_run_closes_angles:
+  for +tx: String
+  for glued: Bool
+  for e: {Wrap.check.all_gt(tx) == True{} : Bool}
+  {Wrap.check.op_angle(tx, glued) == Wrap.check.prefer_open(Wrap.check.opens_angle(glued, tx), Wrap.AUnangle{})
+    : Wrap.Act}
+
+# LAW: any other operator moves no angle, unless it opens one
+law wrap_other_operator_moves_no_angle:
+  for +tx: String
+  for glued: Bool
+  for e: {Wrap.check.all_gt(tx) == False{} : Bool}
+  {Wrap.check.op_angle(tx, glued) == Wrap.check.prefer_open(Wrap.check.opens_angle(glued, tx), Wrap.ANone{})
+    : Wrap.Act}

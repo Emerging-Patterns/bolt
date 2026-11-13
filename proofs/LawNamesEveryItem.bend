@@ -1016,3 +1016,24 @@ def Laws.from_line_stops_at_end(items, at, e):
 
 def Laws.laws_of_takes_each_law(_kids, _body, _rest, _items):
   {==}
+
+def Laws.doc_at_takes_the_item_on_the_line(_kk, _nn, ln, _sig, doc, _pp, rest, at, e1, e2):
+  %Equal.sym(Bool, U32.is_le(at, ln), True{}, e1) :
+    {Lazy.stop(String, _, Bool.pick(String, U32.is_eq(ln, at), doc, ""), _u => Digest.doc_at(rest, at)) == doc
+      : String}
+  %Equal.sym(Bool, U32.is_eq(ln, at), True{}, e2) : {Bool.pick(String, _, doc, "") == doc : String}
+  {==}
+
+def Laws.doc_at_stops_past_the_line(_kk, _nn, ln, _sig, doc, _pp, rest, at, e1, e2):
+  %Equal.sym(Bool, U32.is_le(at, ln), True{}, e1) :
+    {Lazy.stop(String, _, Bool.pick(String, U32.is_eq(ln, at), doc, ""), _u => Digest.doc_at(rest, at)) == ""
+      : String}
+  %Equal.sym(Bool, U32.is_eq(ln, at), False{}, e2) : {Bool.pick(String, _, doc, "") == "" : String}
+  {==}
+
+def Laws.doc_at_passes_earlier_items(_kk, _nn, ln, _sig, doc, _pp, rest, at, e1):
+  %Equal.sym(Bool, U32.is_le(at, ln), False{}, e1) :
+    {Lazy.stop(String, _, Bool.pick(String, U32.is_eq(ln, at), doc, ""), _u => Digest.doc_at(rest, at))
+      == Digest.doc_at(rest, at) : String}
+  {==}
+

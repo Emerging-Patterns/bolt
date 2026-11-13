@@ -499,6 +499,49 @@ law from_line_stops_at_end:
   for e: {List.is_empty(&2, Outline.Item, items) == True{} : Bool}
   {Digest.from_line.stop(items, at) == True{} : Bool}
 
+# LAW: the doc of the item on a line is the doc of the first item at or after
+# that line when it sits on the line itself
+law doc_at_takes_the_item_on_the_line:
+  for kk: Outline.ItemKind
+  for nn: String
+  for +ln: U32
+  for sig: String
+  for +doc: String
+  for pp: String
+  for +rest: List<&2, Outline.Item>
+  for +at: U32
+  for e1: {U32.is_le(at, ln) == True{} : Bool}
+  for e2: {U32.is_eq(ln, at) == True{} : Bool}
+  {Digest.doc_at(Outline.Item{kk, nn, ln, sig, doc, pp} <> rest, at) == doc : String}
+
+# LAW: and no doc at all when that item sits past the line: the items are in
+# line order, so no later one is on it
+law doc_at_stops_past_the_line:
+  for kk: Outline.ItemKind
+  for nn: String
+  for +ln: U32
+  for sig: String
+  for +doc: String
+  for pp: String
+  for +rest: List<&2, Outline.Item>
+  for +at: U32
+  for e1: {U32.is_le(at, ln) == True{} : Bool}
+  for e2: {U32.is_eq(ln, at) == False{} : Bool}
+  {Digest.doc_at(Outline.Item{kk, nn, ln, sig, doc, pp} <> rest, at) == "" : String}
+
+# LAW: an item before the line is passed over
+law doc_at_passes_earlier_items:
+  for kk: Outline.ItemKind
+  for nn: String
+  for +ln: U32
+  for sig: String
+  for +doc: String
+  for pp: String
+  for +rest: List<&2, Outline.Item>
+  for +at: U32
+  for e1: {U32.is_le(at, ln) == False{} : Bool}
+  {Digest.doc_at(Outline.Item{kk, nn, ln, sig, doc, pp} <> rest, at) == Digest.doc_at(rest, at) : String}
+
 # LAW: every law statement of a tree is one of its laws, in order: its
 # declared name, its line, whether its body binds, and the doc of the item
 # on its line, the items searched on from where the last law's search stopped
