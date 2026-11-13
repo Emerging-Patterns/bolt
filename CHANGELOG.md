@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.43.0](https://github.com/Emerging-Patterns/bolt/compare/v1.42.0...v1.43.0) (2026-11-13)
+
+
+### Performance Improvements
+
+* **lint:** read grading's bolt.bend candidates off an index of the replies ([#332](https://github.com/Emerging-Patterns/bolt/issues/332)) ([da4a544](https://github.com/Emerging-Patterns/bolt/commit/da4a544c1e8c742cb885e100ea7af7ccaca66eab))
+
 ## [1.42.0](https://github.com/Emerging-Patterns/bolt/compare/v1.41.0...v1.42.0) (2026-11-13)
 
 
