@@ -18,8 +18,9 @@ import ./lex.bend as Lex
 # what a statement is, by its shape: SDef `def f(..)` (also `@unsafe def`),
 # SType, SLaw, SImport, SCase `case p:`, SFor `for x: T` / `exs x: T`, SLet
 # (a `=` or `<-` among its own tokens), else STerm (`match x:`, `do M<T>:`,
-# `return e`, a call, and a dependent arrow `@x: A -> B` or `@+x: A -> B`,
-# which an `@` does not make a def)
+# `return e`, a call, a dependent arrow `@x: A -> B` or `@+x: A -> B`,
+# which an `@` does not make a def, and a typed step `Unit <- m`, whose
+# name is the type m runs at, not a binder)
 type StmtKind is Data:
   SDef{}
   SType{}
@@ -314,6 +315,17 @@ def arrow(rest: Node) -> Bool:
     case other:
       arrow.named(other)
 
+# is the statement a typed step: a capitalized or dotted name, then `<-`?
+# bend reads the name as the type the step runs at, so it binds nothing
+def typed_step(kids: Node) -> Bool:
+  match kids:
+    case NCons{Leaf{Lex.Tok{Lex.TUpper{}, _t, _l, _c}}, NCons{Leaf{Lex.Tok{Lex.TBind{}, _bt, _bl, _bc}}, _r}}:
+      True{}
+    case NCons{Leaf{Lex.Tok{Lex.TDotted{}, _t, _l, _c}}, NCons{Leaf{Lex.Tok{Lex.TBind{}, _bt, _bl, _bc}}, _r}}:
+      True{}
+    case _other:
+      False{}
+
 # a statement's kind from its own tokens
 def classify(kids: Node) -> StmtKind:
   match kids:
@@ -321,8 +333,8 @@ def classify(kids: Node) -> StmtKind:
       keyword_kind(t)
     case NCons{Leaf{Lex.Tok{Lex.TAll{}, t, l, c}}, rest}:
       Bool.pick(StmtKind, arrow(rest), STerm{}, SDef{})
-    case other:
-      Bool.pick(StmtKind, binds_in(other), SLet{}, STerm{})
+    case +other:
+      Bool.pick(StmtKind, typed_step(other), STerm{}, Bool.pick(StmtKind, binds_in(other), SLet{}, STerm{}))
 
 # the innermost open statement is finished and lands in its parent
 def end_stmt(stack: List<&2, Frame>) -> List<&2, Frame>:

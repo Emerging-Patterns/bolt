@@ -157,6 +157,7 @@ import ./laws/LspRequestsReadTheProtocol.bend as LspRequestsReadTheProtocol
 import ./laws/LspKeepsRoleMarks.bend as LspKeepsRoleMarks
 import ./laws/LspUnitsMatchCharsBelowAstral.bend as LspUnitsMatchCharsBelowAstral
 import ./laws/ArrowTerm.bend as ArrowTerm
+import ./laws/TypedStepBindsNothing.bend as TypedStepBindsNothing
 import ./laws/AttributeDef.bend as AttributeDef
 import ./laws/BinderResolvesInnermostFirst.bend as BinderResolvesInnermostFirst
 import ./laws/BinderIndexFindsItems.bend as BinderIndexFindsItems
