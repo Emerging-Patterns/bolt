@@ -90,6 +90,14 @@ def st.found(+cfg: Config.Config, +rr: Role.Role, +ss: Src.Src) -> IO(List<&2, F
     say("found(default config)", List.length(&2, F.Finding, fs))
     return fs
 
+def st.all(+rr: Role.Role, +ss: Src.Src) -> IO(Unit):
+  +fs = Rules.on.rules.role(rr, ss)
+  say("on.rules.role (every rule, one call)", List.length(&2, F.Finding, fs))
+
+def st.live(+cfg: Config.Config, +rr: Role.Role, +ss: Src.Src) -> IO(Unit):
+  +fs = Rules.on.live(Rules.on.table(), cfg, rr, ss)
+  say("on.live (default config, no on.at)", List.length(&2, F.Finding, fs))
+
 def st.grade(+cfg: Config.Config, +fs: List<&2, F.Finding>) -> IO(List<&2, F.Graded>):
   +gs = Rules.graded(cfg, fs)
   do IO<List<&2, F.Graded>>:
@@ -117,11 +125,17 @@ def go(+path: String, +text: String) -> IO(Unit):
     +ss : Src.Src = Src.Src{path, text, toks, tree, bb, items}
     +ms : List<&2, Role.Mark> <- st.marks(ss)
     +rr : Role.Role = Role.of(ms, path)
+    st.all(rr, ss)
+    st.rules(Rules.on.table(), rr, ss)
+    st.all(rr, ss)
     st.rules(Rules.on.table(), rr, ss)
     +ds : List<&2, Digest.Digest> <- st.digest(ms, ss)
     st.law(ds)
     +cfg : Config.Config = Config.nearest([])
+    st.all(rr, ss)
+    st.live(cfg, rr, ss)
     +fs : List<&2, F.Finding> <- st.found(cfg, rr, ss)
+    st.live(cfg, rr, ss)
     +gs : List<&2, F.Graded> <- st.grade(cfg, fs)
     +nm : List<&2, Noqa.Marks> <- st.noqa(ss)
     st.keep(nm, gs)
