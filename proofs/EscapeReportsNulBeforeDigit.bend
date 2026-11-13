@@ -142,3 +142,190 @@ def Laws.escape_counts(toks, path):
       {==}
     case Con{Lex.Tok{kk, t, l, c}, +rest}:
       esc.step(kk, t, l, c, rest, path, Laws.escape_counts(rest, path))
+
+def Laws.escape_octal_digits(dd):
+  match dd:
+    case Laws.D1{}:
+      {==}
+    case Laws.D2{}:
+      {==}
+    case Laws.D3{}:
+      {==}
+    case Laws.D4{}:
+      {==}
+    case Laws.D5{}:
+      {==}
+    case Laws.D6{}:
+      {==}
+    case Laws.D7{}:
+      {==}
+    case Laws.D8{}:
+      {==}
+    case Laws.D9{}:
+      {==}
+
+def Laws.escape_names_one_digit(aa):
+  match aa:
+    case Laws.O0{}:
+      {==}
+    case Laws.O1{}:
+      {==}
+    case Laws.O2{}:
+      {==}
+    case Laws.O3{}:
+      {==}
+    case Laws.O4{}:
+      {==}
+    case Laws.O5{}:
+      {==}
+    case Laws.O6{}:
+      {==}
+    case Laws.O7{}:
+      {==}
+
+def Laws.escape_names_two_digits(aa, bb):
+  match aa:
+    case Laws.O0{}:
+      match bb:
+        case Laws.O0{}:
+          {==}
+        case Laws.O1{}:
+          {==}
+        case Laws.O2{}:
+          {==}
+        case Laws.O3{}:
+          {==}
+        case Laws.O4{}:
+          {==}
+        case Laws.O5{}:
+          {==}
+        case Laws.O6{}:
+          {==}
+        case Laws.O7{}:
+          {==}
+    case Laws.O1{}:
+      match bb:
+        case Laws.O0{}:
+          {==}
+        case Laws.O1{}:
+          {==}
+        case Laws.O2{}:
+          {==}
+        case Laws.O3{}:
+          {==}
+        case Laws.O4{}:
+          {==}
+        case Laws.O5{}:
+          {==}
+        case Laws.O6{}:
+          {==}
+        case Laws.O7{}:
+          {==}
+    case Laws.O2{}:
+      match bb:
+        case Laws.O0{}:
+          {==}
+        case Laws.O1{}:
+          {==}
+        case Laws.O2{}:
+          {==}
+        case Laws.O3{}:
+          {==}
+        case Laws.O4{}:
+          {==}
+        case Laws.O5{}:
+          {==}
+        case Laws.O6{}:
+          {==}
+        case Laws.O7{}:
+          {==}
+    case Laws.O3{}:
+      match bb:
+        case Laws.O0{}:
+          {==}
+        case Laws.O1{}:
+          {==}
+        case Laws.O2{}:
+          {==}
+        case Laws.O3{}:
+          {==}
+        case Laws.O4{}:
+          {==}
+        case Laws.O5{}:
+          {==}
+        case Laws.O6{}:
+          {==}
+        case Laws.O7{}:
+          {==}
+    case Laws.O4{}:
+      match bb:
+        case Laws.O0{}:
+          {==}
+        case Laws.O1{}:
+          {==}
+        case Laws.O2{}:
+          {==}
+        case Laws.O3{}:
+          {==}
+        case Laws.O4{}:
+          {==}
+        case Laws.O5{}:
+          {==}
+        case Laws.O6{}:
+          {==}
+        case Laws.O7{}:
+          {==}
+    case Laws.O5{}:
+      match bb:
+        case Laws.O0{}:
+          {==}
+        case Laws.O1{}:
+          {==}
+        case Laws.O2{}:
+          {==}
+        case Laws.O3{}:
+          {==}
+        case Laws.O4{}:
+          {==}
+        case Laws.O5{}:
+          {==}
+        case Laws.O6{}:
+          {==}
+        case Laws.O7{}:
+          {==}
+    case Laws.O6{}:
+      match bb:
+        case Laws.O0{}:
+          {==}
+        case Laws.O1{}:
+          {==}
+        case Laws.O2{}:
+          {==}
+        case Laws.O3{}:
+          {==}
+        case Laws.O4{}:
+          {==}
+        case Laws.O5{}:
+          {==}
+        case Laws.O6{}:
+          {==}
+        case Laws.O7{}:
+          {==}
+    case Laws.O7{}:
+      match bb:
+        case Laws.O0{}:
+          {==}
+        case Laws.O1{}:
+          {==}
+        case Laws.O2{}:
+          {==}
+        case Laws.O3{}:
+          {==}
+        case Laws.O4{}:
+          {==}
+        case Laws.O5{}:
+          {==}
+        case Laws.O6{}:
+          {==}
+        case Laws.O7{}:
+          {==}
