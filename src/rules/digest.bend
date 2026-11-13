@@ -219,11 +219,13 @@ def proofs(ds: List<&2, Calls.Def>) -> List<&2, String>:
       +more = proofs(rest)
       Bool.pick(List<&2, String>, Calls.proof(sig), name <> more, more)
 
-# the top-level defs and types, by name and line, less the defs that are
-# proofs (ps): what the coverage rule grades. The uses are read in order,
+# ranged, asking the list of the proofs' names where ranged asks their index:
+# the walk the laws are proved on (proofs/LawNamesEveryItem.bend shows the two
+# equal). The top-level defs and types, by name and line, less the defs that
+# are proofs (ps): what the coverage rule grades. The uses are read in order,
 # once: each item but a constructor takes those before the next such item's
 # line, and a def or a type keeps what they name (a def's calls)
-def ranged(
+def ranged.spec(
   items: List<&2, Outline.Item>,
   +us: List<&2, Bind.Use>,
   +as: List<&2, Alias>,
@@ -234,18 +236,49 @@ def ranged(
     case Nil{}:
       Nil{}
     case Con{Outline.Item{Outline.ICtor{}, name, line, sig, doc, path}, rest}:
-      ranged(rest, us, as, file, ps)
+      ranged.spec(rest, us, as, file, ps)
     case Con{Outline.Item{Outline.IDef{}, +name, line, sig, doc, path}, +rest}:
       +nx = next_line(rest)
       cs = called(upto(us, nx), as, file)
-      +more = ranged(rest, past(us, nx), as, file, ps)
+      +more = ranged.spec(rest, past(us, nx), as, file, ps)
       Bool.pick(List<&2, Top>, Imports.has(ps, name), more, Top{Outline.IDef{}, name, line, [], cs} <> more)
     case Con{Outline.Item{Outline.IType{}, name, line, sig, doc, path}, +rest}:
       +nx = next_line(rest)
       Top{Outline.IType{}, name, line, ctors(rest), called(upto(us, nx), as, file)}
-        <> ranged(rest, past(us, nx), as, file, ps)
+        <> ranged.spec(rest, past(us, nx), as, file, ps)
     case Con{Outline.Item{kind, name, line, sig, doc, path}, +rest}:
-      ranged(rest, past(us, next_line(rest)), as, file, ps)
+      ranged.spec(rest, past(us, next_line(rest)), as, file, ps)
+
+# the top-level defs and types, by name and line, less the defs that are
+# proofs (px, the index of their names: a scan of the names for each def is
+# the defs times the proofs, 18 s on a generated file of 21,344 untyped defs
+# and 0.2 s through the index): what the coverage rule grades. The uses are
+# read in order, once: each item but a constructor takes those before the
+# next such item's line, and a def or a type keeps what they name (a def's
+# calls)
+def ranged(
+  items: List<&2, Outline.Item>,
+  +us: List<&2, Bind.Use>,
+  +as: List<&2, Alias>,
+  +file: String,
+  +px: Bind.Index
+) -> List<&2, Top>:
+  match items:
+    case Nil{}:
+      Nil{}
+    case Con{Outline.Item{Outline.ICtor{}, name, line, sig, doc, path}, rest}:
+      ranged(rest, us, as, file, px)
+    case Con{Outline.Item{Outline.IDef{}, +name, line, sig, doc, path}, +rest}:
+      +nx = next_line(rest)
+      cs = called(upto(us, nx), as, file)
+      +more = ranged(rest, past(us, nx), as, file, px)
+      Bool.pick(List<&2, Top>, Bind.indexed(px, name), more, Top{Outline.IDef{}, name, line, [], cs} <> more)
+    case Con{Outline.Item{Outline.IType{}, name, line, sig, doc, path}, +rest}:
+      +nx = next_line(rest)
+      Top{Outline.IType{}, name, line, ctors(rest), called(upto(us, nx), as, file)}
+        <> ranged(rest, past(us, nx), as, file, px)
+    case Con{Outline.Item{kind, name, line, sig, doc, path}, +rest}:
+      ranged(rest, past(us, next_line(rest)), as, file, px)
 
 # a law file or a test, by its path alone: not under law. Nothing the file's
 # text mentions exempts it; IO is not an exemption, since an IO equality is a
@@ -327,7 +360,8 @@ def of(s2: Src.Src) -> Digest:
   +p = Imports.norm(path)
   +as = aliases(items, p)
   Digest{path, p, Imports.dir_of(path), Paths.is_laws(path), Paths.is_law_file(path), is_exempt(p),
-    ranged(items, uses.of(bound), as, p, proofs(Calls.defs(tree))), stated(Paths.is_laws(path), tree, bound, as, p),
+    ranged(items, uses.of(bound), as, p, Bind.index(proofs(Calls.defs(tree)))),
+    stated(Paths.is_laws(path), tree, bound, as, p),
     Imports.targets(items, p),
     laws.in(Paths.is_laws(path), tree, items)}
 
@@ -339,7 +373,8 @@ def of.role(+rr: Role.Role, s2: Src.Src) -> Digest:
   +as = aliases(items, p)
   +laws = Role.is_laws(rr)
   Digest{path, p, Imports.dir_of(path), laws, Role.is_law_file(rr), Bool.or(Role.is_law_file(rr), Paths.is_test(p)),
-    ranged(items, uses.of(bound), as, p, proofs(Calls.defs(tree))), stated(laws, tree, bound, as, p),
+    ranged(items, uses.of(bound), as, p, Bind.index(proofs(Calls.defs(tree)))),
+    stated(laws, tree, bound, as, p),
     Imports.targets(items, p),
     laws.in(laws, tree, items)}
 
