@@ -24,3 +24,10 @@ a later stage's time as that stage's cost.
 
 `sweep.py <repo> <scratch> [workers] [per_def]` is the mutation sweep (issue
 #310); `sweep-2026-11-12.json` its results on main at #308.
+
+`sweep2.py` is the second sweep, with wider operators (negate a `Bool.pick`'s
+condition, swap a `List.append`'s sides, compare a value with itself, shift a
+comparison's boundary, empty a string literal, drop a `+ 1`);
+`sweep2-2026-11-13.json` its results on main at #322 (225 of 922 survive).
+`recheck.py <sweep.json> <repo> <scratch>` re-runs a sweep's survivors against
+a branch and says which now fail a proof.
