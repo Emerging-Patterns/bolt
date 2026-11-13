@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.39.0](https://github.com/Emerging-Patterns/bolt/compare/v1.38.0...v1.39.0) (2026-11-13)
+
+
+### Performance Improvements
+
+* **noqa:** a finding asks whether its file holds a mark before the marks are searched ([#302](https://github.com/Emerging-Patterns/bolt/issues/302)) ([fda7404](https://github.com/Emerging-Patterns/bolt/commit/fda740469ab7b49bf09d1cede4df389df80be443))
+
 ## [1.38.0](https://github.com/Emerging-Patterns/bolt/compare/v1.37.0...v1.38.0) (2026-11-13)
 
 
