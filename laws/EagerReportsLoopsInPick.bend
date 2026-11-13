@@ -18,7 +18,8 @@ import ../src/rules/calls.bend as Calls
 # at a comma of a group that is not a pick's). A leaf moves them by its kind,
 # Eager.work.hot and Eager.work.seg; a statement starts cold. A looping def of
 # the file is one Eager.loops lists: it calls itself, or a looping def above
-# it.
+# it (eager_loops_named, at the end of this file, says so against eager.loops,
+# which is this file's own reading).
 
 # how many calls under the node, `f(..)` with f a looping def of the file
 # (in ns) other than the def itself, sit where hot holds
@@ -118,3 +119,31 @@ law eager_plain:
   for e: {eager.plain(kk) == True{} : Bool}
   {(Eager.work.hot(kk, hot, seg, keep), Eager.work.seg(kk, seg), Eager.work.name(kk))
     == (hot, seg, True{}) : Bool & U32 & Bool}
+
+# does the list hold a name the set has? Law vocabulary: bolt never calls it
+def eager.any(cs: List<&2, String>, +set: List<&2, String>) -> Bool:
+  match cs:
+    case Nil{}:
+      False{}
+    case Con{c, t}:
+      Bool.or(List.contains(~String, ~String.eq, set, c), eager.any(t, set))
+
+# the looping defs pushed onto acc: each def, in order, that calls itself or
+# a looping def before it, what a def calls being every `f(` under its body
+# (Eager.called). Law vocabulary: bolt never calls it
+def eager.loops(ds: List<&2, Calls.Def>, +acc: List<&2, String>) -> List<&2, String>:
+  match ds:
+    case Nil{}:
+      acc
+    case Con{Calls.Def{+name, _sig, body}, rest}:
+      +cs = Eager.called(body)
+      eager.loops(rest, Bool.pick(List<&2, String>,
+        Bool.or(List.contains(~String, ~String.eq, cs, name), eager.any(cs, acc)), name <> acc, acc))
+
+# LAW: the looping defs eager_counts speaks of are exactly these: reading the
+# defs in order, a def loops when it calls itself or a def already found to
+# loop, and no other def does. A def is defined above its use and there is no
+# mutual recursion, so one pass down the file finds them all
+law eager_loops_named:
+  for +ds: List<&2, Calls.Def>
+  {Eager.loops(ds) == eager.loops(ds, []) : List<&2, String>}
