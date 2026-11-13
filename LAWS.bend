@@ -160,6 +160,7 @@ import ./laws/BinderIndexFindsItems.bend as BinderIndexFindsItems
 import ./laws/DocFlagsAnswerAsLines.bend as DocFlagsAnswerAsLines
 import ./laws/LexPositionsAreZeroBased.bend as LexPositionsAreZeroBased
 import ./laws/LexRoundTripsText.bend as LexRoundTripsText
+import ./laws/NamesTakeTheirKind.bend as NamesTakeTheirKind
 import ./laws/MarkedArrowTerm.bend as MarkedArrowTerm
 import ./laws/OutlineListsTopLevelItems.bend as OutlineListsTopLevelItems
 import ./laws/TreeKeepsEveryToken.bend as TreeKeepsEveryToken

@@ -145,6 +145,7 @@ import ./proofs/BinderIndexFindsItems.bend as PBinderIndexFindsItems
 import ./proofs/DocFlagsAnswerAsLines.bend as PDocFlagsAnswerAsLines
 import ./proofs/LexPositionsAreZeroBased.bend as PLexPositionsAreZeroBased
 import ./proofs/LexRoundTripsText.bend as PLexRoundTripsText
+import ./proofs/NamesTakeTheirKind.bend as PNamesTakeTheirKind
 import ./proofs/MarkedArrowTerm.bend as PMarkedArrowTerm
 import ./proofs/OutlineListsTopLevelItems.bend as POutlineListsTopLevelItems
 import ./proofs/TreeKeepsEveryToken.bend as PTreeKeepsEveryToken
