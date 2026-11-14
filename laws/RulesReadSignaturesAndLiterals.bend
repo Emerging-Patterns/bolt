@@ -68,6 +68,37 @@ law code_cuts_each_token:
   for t: List<&2, Lex.Tok>
   {Tokens.code.toks(h <> t) == Tokens.code.tok(h) <> Tokens.code.toks(t) : List<&2, Lex.Tok>}
 
+# LAW: a string literal is cut to its first char, its kind and place kept
+law code_cuts_a_string:
+  for +kk: Lex.TokKind
+  for +tt: String
+  for ll: U32
+  for cc: U32
+  for e: {Lex.is_str(kk) == True{} : Bool}
+  {Tokens.code.tok(Lex.Tok{kk, tt, ll, cc}) == Lex.Tok{kk, Tokens.code.cut(tt), ll, cc} : Lex.Tok}
+
+# LAW: any other token is as it was
+law code_keeps_other_tokens:
+  for +kk: Lex.TokKind
+  for +tt: String
+  for ll: U32
+  for cc: U32
+  for e: {Lex.is_str(kk) == False{} : Bool}
+  {Tokens.code.tok(Lex.Tok{kk, tt, ll, cc}) == Lex.Tok{kk, tt, ll, cc} : Lex.Tok}
+
+# LAW: a Nat literal's value is its digits read as a U32: the text without
+# its final `n`
+law nat_value_reads_the_digits:
+  for +tt: String
+  for e: {Tokens.nat_ok(String.to_list(tt)) == True{} : Bool}
+  {Tokens.nat_value(tt) == U32.read(Tokens.stem(tt)) : Maybe<&2, U32>}
+
+# LAW: a text that is no Nat literal has no value
+law nat_value_needs_a_literal:
+  for +tt: String
+  for e: {Tokens.nat_ok(String.to_list(tt)) == False{} : Bool}
+  {Tokens.nat_value(tt) == None{} : Maybe<&2, U32>}
+
 # LAW: the chars `n` alone end a Nat literal
 law nat_ends_in_n:
   for cs: List<&2, Char>

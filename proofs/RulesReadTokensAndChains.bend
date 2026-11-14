@@ -856,3 +856,57 @@ def Laws.empty_proofy_needs_tokens(toks, dd, fin, e):
 
 def Laws.empty_item_other_by_keyword(_word, _skip):
   {==}
+
+def Laws.arms_told_plus_from_k(_kk, _text, _jj, _tt, _ll, _cc, _nn):
+  {==}
+
+def Laws.arms_told_literal_from_k(_kk, _text, _mm, _ll, _cc, _nn):
+  {==}
+
+def Laws.arms_plus_is_no_part(_more):
+  {==}
+
+def Laws.arms_cons_is_a_part(_more):
+  {==}
+
+def Laws.arms_other_operator_is_bad(tt, more, e1, e2):
+  %Equal.sym(Bool, String.eq(tt, "+"), False{}, e1) :
+    {Bool.pick(List<&2, Arms.Part>, _, more,
+      Bool.pick(Arms.Part, String.eq(tt, "<>"), Arms.PCons{}, Arms.PBad{}) <> more)
+      == Arms.PBad{} <> more : List<&2, Arms.Part>}
+  %Equal.sym(Bool, String.eq(tt, "<>"), False{}, e2) :
+    {Bool.pick(Arms.Part, _, Arms.PCons{}, Arms.PBad{}) <> more == Arms.PBad{} <> more : List<&2, Arms.Part>}
+  {==}
+
+def Laws.concat_uses_counts_the_name(tt, _ll, _cc, name, e):
+  %Equal.sym(Bool, String.eq(tt, name), True{}, e) : {Bool.pick(Nat, _, 1n, 0n) == 1n : Nat}
+  {==}
+
+def Laws.concat_uses_skips_other_names(tt, _ll, _cc, name, e):
+  %Equal.sym(Bool, String.eq(tt, name), False{}, e) : {Bool.pick(Nat, _, 1n, 0n) == 0n : Nat}
+  {==}
+
+def Laws.table_drop_takes_the_name(hh, rest, nm, e):
+  %Equal.sym(Bool, String.eq(hh, nm), True{}, e) :
+    {Bool.pick(List<&2, String>, _, Table.drop(rest, nm), hh <> Table.drop(rest, nm))
+      == Table.drop(rest, nm) : List<&2, String>}
+  {==}
+
+def Laws.table_drop_keeps_other_names(hh, rest, nm, e):
+  %Equal.sym(Bool, String.eq(hh, nm), False{}, e) :
+    {Bool.pick(List<&2, String>, _, Table.drop(rest, nm), hh <> Table.drop(rest, nm))
+      == hh <> Table.drop(rest, nm) : List<&2, String>}
+  {==}
+
+def Laws.wrap_gt_run_closes_angles(tx, glued, e):
+  %Equal.sym(Bool, Wrap.check.all_gt(tx), True{}, e) :
+    {Wrap.check.prefer_open(Wrap.check.opens_angle(glued, tx), Bool.pick(Wrap.Act, _, Wrap.AUnangle{}, Wrap.ANone{}))
+      == Wrap.check.prefer_open(Wrap.check.opens_angle(glued, tx), Wrap.AUnangle{}) : Wrap.Act}
+  {==}
+
+def Laws.wrap_other_operator_moves_no_angle(tx, glued, e):
+  %Equal.sym(Bool, Wrap.check.all_gt(tx), False{}, e) :
+    {Wrap.check.prefer_open(Wrap.check.opens_angle(glued, tx), Bool.pick(Wrap.Act, _, Wrap.AUnangle{}, Wrap.ANone{}))
+      == Wrap.check.prefer_open(Wrap.check.opens_angle(glued, tx), Wrap.ANone{}) : Wrap.Act}
+  {==}
+

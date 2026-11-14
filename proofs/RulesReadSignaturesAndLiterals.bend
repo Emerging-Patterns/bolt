@@ -106,3 +106,25 @@ def Laws.digits_need_chars(cs, e):
 
 def Laws.digits_of_one_char(_c):
   {==}
+
+def Laws.code_cuts_a_string(kk, tt, ll, cc, e):
+  %Equal.sym(Bool, Lex.is_str(kk), True{}, e) :
+    {Lex.Tok{kk, Bool.pick(String, _, Tokens.code.cut(tt), tt), ll, cc} == Lex.Tok{kk, Tokens.code.cut(tt), ll, cc}
+      : Lex.Tok}
+  {==}
+
+def Laws.code_keeps_other_tokens(kk, tt, ll, cc, e):
+  %Equal.sym(Bool, Lex.is_str(kk), False{}, e) :
+    {Lex.Tok{kk, Bool.pick(String, _, Tokens.code.cut(tt), tt), ll, cc} == Lex.Tok{kk, tt, ll, cc} : Lex.Tok}
+  {==}
+
+def Laws.nat_value_reads_the_digits(tt, e):
+  %Equal.sym(Bool, Tokens.nat_ok(String.to_list(tt)), True{}, e) :
+    {Bool.pick(Maybe<&2, U32>, _, U32.read(Tokens.stem(tt)), None{}) == U32.read(Tokens.stem(tt)) : Maybe<&2, U32>}
+  {==}
+
+def Laws.nat_value_needs_a_literal(tt, e):
+  %Equal.sym(Bool, Tokens.nat_ok(String.to_list(tt)), False{}, e) :
+    {Bool.pick(Maybe<&2, U32>, _, U32.read(Tokens.stem(tt)), None{}) == None{} : Maybe<&2, U32>}
+  {==}
+

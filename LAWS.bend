@@ -194,3 +194,4 @@ import ./laws/RoleBlankExempt.bend as RoleBlankExempt
 import ./laws/InertBlank.bend as InertBlank
 import ./laws/DefSignatureRunsToItsColon.bend as DefSignatureRunsToItsColon
 import ./laws/NamedRewriteReadsItsProof.bend as NamedRewriteReadsItsProof
+import ./laws/LspSemanticTokensFollowTheLegend.bend as LspSemanticTokensFollowTheLegend
