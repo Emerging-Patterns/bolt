@@ -1,6 +1,8 @@
 # src/fmt: bolt's formatter (`bolt fmt`). It changes blank space and nothing
 # else: every token that is code is kept as it is, in order, and so is each
-# comment but for the blanks it ends in. Three passes over a file's tokens:
+# comment but for the blanks it ends in. Four passes over a file's tokens:
+#   heads    a def header that breaks across lines, or is too wide, takes
+#            the shape `wrap` asks for (src/fmt/head.bend);
 #   trim     no blank before a line's end: a space token right before a
 #            newline, or before the end of the file, is dropped, and a
 #            comment loses the spaces and tabs it ends in;
@@ -10,15 +12,15 @@
 #   close    one newline at the end: the newlines the tokens end in become
 #            one, and a file that ends without one gains it. An empty file
 #            stays empty.
-# Indentation, the spaces inside a line, and where a line breaks are left as
-# they are: this is what `space` reports that has one right answer, and the
-# blank lines no rule reports.
+# Indentation, the spaces inside a line, and where a line that is no def
+# header breaks are left as they are.
 # Pure: text in, text out. src/fmt/plan.bend decides which files change and
 # src/fmt/run.bend writes them.
 import Base
 import ./lazy/lazy.bend as Lazy
 import ./rchars.bend as Rchars
 import ./syntax/lex.bend as Lex
+import ./fmt/head.bend as Head
 
 # a newline token?
 def is_newline(k: Lex.TokKind) -> Bool:
@@ -143,7 +145,7 @@ def close(toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
 # change are the ones it was read at, not where it now sits: only the texts
 # are read again
 def toks(ts: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
-  close(squeeze(trim(ts), squeeze.most()))
+  close(squeeze(trim(Head.heads(ts)), squeeze.most()))
 
 # a file's text, formatted
 def text(source: String) -> String:

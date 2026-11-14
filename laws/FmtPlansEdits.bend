@@ -1,7 +1,11 @@
-# `bolt fmt` writes exactly the files formatting changes, each with its
-# formatted text, in the order the run reads them: a file whose formatted
-# text is its text gets no edit, one whose text changes gets one edit
-# holding the formatted text, and a path the run could not read gets none.
+# `bolt fmt` writes exactly the files formatting changes and can write back,
+# each with its formatted text, in the order the run reads them: a file
+# whose formatted text is its text gets no edit, one whose text changes gets
+# one edit holding the formatted text, and a path the run could not read
+# gets none. A file whose text cannot be written back as it was read (it
+# holds U+FFFD, which a byte that is not UTF-8 reads as) gets no edit either,
+# whatever formatting would make of it, so a write never changes a file
+# beyond what formatting changes.
 # `bolt fmt --check` writes nothing, whatever it finds, and exits 1 when a
 # file would change. A path that could not be read is exit 1 either way, a
 # write run with every path read exits 0, and a run with nothing to say
@@ -59,15 +63,27 @@ law fmt_same_text_no_edit:
   for e: {String.eq(Fmt.text(text), text) == True{} : Bool}
   {Fp.edits(Lint.Got{path, Some{text}} <> rest) == Fp.edits(rest) : List<&2, Fp.Edit>}
 
-# LAW: a file formatting changes gets one edit, its path with the formatted
-# text, before the edits of the files after it
+# LAW: a file formatting changes, and whose text can be written back, gets
+# one edit, its path with the formatted text, before the edits of the files
+# after it
 law fmt_changed_text_one_edit:
   for path: String
   for +text: String
   for rest: List<&2, Lint.Got>
   for e: {String.eq(Fmt.text(text), text) == False{} : Bool}
+  for ok: {Fp.safe(text) == True{} : Bool}
   {Fp.edits(Lint.Got{path, Some{text}} <> rest) == Fp.Edit{path, Fmt.text(text)} <> Fp.edits(rest)
     : List<&2, Fp.Edit>}
+
+# LAW: a file whose text cannot be written back gets no edit, though
+# formatting would change it
+law fmt_not_utf8_no_edit:
+  for path: String
+  for +text: String
+  for rest: List<&2, Lint.Got>
+  for e: {String.eq(Fmt.text(text), text) == False{} : Bool}
+  for ok: {Fp.safe(text) == False{} : Bool}
+  {Fp.edits(Lint.Got{path, Some{text}} <> rest) == Fp.edits(rest) : List<&2, Fp.Edit>}
 
 # LAW: a path the run could not read gets no edit
 law fmt_unread_no_edit:
@@ -96,11 +112,12 @@ law fmt_write_succeeds:
   for es: List<&2, Fp.Edit>
   {Fp.exit(False{}, es, Nil{}) == 0 : U32}
 
-# LAW: a run with no file to change and no path unread prints `clean` and
-# exits 0, checking or not
+# LAW: a run with no file to change, none skipped and no path unread prints
+# `clean` and exits 0, checking or not
 law fmt_clean:
   for +check: Bool
   for +gs: List<&2, Lint.Got>
   for e1: {Fp.edits(gs) == Nil{} : List<&2, Fp.Edit>}
   for e2: {Fp.unread(gs) == Nil{} : List<&2, String>}
+  for e3: {Fp.skipped(gs) == Nil{} : List<&2, String>}
   {Fp.plan.at(check, gs) == Fp.Plan{Nil{}, ["clean"], 0} : Fp.Plan}

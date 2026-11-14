@@ -1,20 +1,28 @@
 # `bolt fmt` changes blank space and nothing else: the tokens of a file that
 # are code (every token but spaces, newlines and comments), each by its kind
 # and its text, are the same after formatting as before, in the same order.
-# So a formatted file is the same program. This holds of each pass (trim,
-# squeeze from any run of newlines, close) and so of the three together.
+# So a formatted file is the same program. This holds of each pass (the def
+# headers, from any state; trim; squeeze, from any run of newlines; close)
+# and so of the four together.
+#
+# The header pass leaves alone what it has no business with: outside a
+# header every token is written as it is, blank space too, and a `def`
+# whose header needs no rewriting does not start one.
 #
 # Of the final newline two things are proved: a file that is one token of
 # code gains it, and a file that is nothing but newlines, however many,
 # closes to one.
 #
-# Not proved here, and checked instead over 2,012 files (this repo's and
-# 1,500 public ones): that a comment keeps its text but for the blanks it
-# ends in, that the result has no blank before a line's end and no two blank
-# lines in a row, that every file ends in one newline, and that formatting a
-# formatted file changes nothing.
+# Not proved here, and checked instead over 4,943 files of sixteen public
+# repos and this repo's own: that a comment keeps its text but for the
+# blanks it ends in, that the result has no blank before a line's end and no
+# two blank lines in a row, that every file ends in one newline, that a
+# rewritten header has the shape `wrap` asks for (its findings there fell
+# from 8,920 to 215, none left in a header the pass rewrote), and that
+# formatting a formatted file changes nothing.
 import Base
 import ../src/fmt.bend as Fmt
+import ../src/fmt/head.bend as Head
 import ../src/syntax/lex.bend as Lex
 
 # the tokens that are code, each by its kind and text, in order: where a
@@ -26,6 +34,37 @@ def code(toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
     case Con{Lex.Tok{+k, t, _l, _c}, rest}:
       +more = code(rest)
       Bool.pick(List<&2, Lex.Tok>, Lex.significant(k), Lex.Tok{k, t, 0, 0} <> more, more)
+
+# LAW: the def-header pass keeps the code, whether it starts outside a
+# header or inside one it is rewriting
+law heads_keep_code:
+  for toks: List<&2, Lex.Tok>
+  for +st: Head.State
+  {code(Head.heads.go(toks, st)) == code(toks) : List<&2, Lex.Tok>}
+
+# LAW: outside a header, a token that is no `def` at column 0 is written as
+# it is, blank space included, and the pass stays outside
+law heads_pass_other_tokens:
+  for k: Lex.TokKind
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for +rest: List<&2, Lex.Tok>
+  for e: {Head.starts(Lex.Tok{k, t, l, c}) == False{} : Bool}
+  {Head.heads.go(Lex.Tok{k, t, l, c} <> rest, Head.Out{}) == Lex.Tok{k, t, l, c} <> Head.heads.go(rest, Head.Out{})
+    : List<&2, Lex.Tok>}
+
+# LAW: a `def` whose header needs no rewriting (it fits on its one line, or
+# never reaches a `:`) is written as it is, and the pass stays outside, so
+# that header's blank space is left alone
+law heads_leave_fitting_header:
+  for +t: String
+  for +l: U32
+  for +c: U32
+  for +rest: List<&2, Lex.Tok>
+  for e: {Head.needs(rest, 0, 3, False{}) == False{} : Bool}
+  {Head.heads.go(Lex.Tok{Lex.TKey{}, t, l, c} <> rest, Head.Out{})
+    == Lex.Tok{Lex.TKey{}, t, l, c} <> Head.heads.go(rest, Head.Out{}) : List<&2, Lex.Tok>}
 
 # LAW: trim keeps the code
 law trim_keeps_code:

@@ -726,23 +726,40 @@ word, and lists of names nobody may use.
 every `.bend` file under the current directory (a bolt.bend is not among
 them). It changes blank space and nothing else:
 
+- a def header that breaks across lines, or is wider than 120 on one, is
+  written in the shape `wrap` asks for: `(` ends the first line, each
+  parameter has a line of its own, indented two, and `)` opens the last
+  line with the return type after it. A header on one line that fits is
+  left as it is, and a parameter list with nothing in it is closed where it
+  opens. A comment on the `def` line (`def run(  # noqa: L001`) stays on
+  it;
 - no blank before a line's end: trailing spaces and tabs go, a comment's
   included;
 - no two blank lines in a row, and none at the top of a file;
 - one newline at the end of a file. An empty file stays empty.
 
-Indentation, the spaces inside a line and where a line breaks are left as
-they are, so this is the part of `space` that has one right answer, plus
-the blank lines no rule reports; a tab, a line over 120 wide and a def
-header's shape (`wrap`) are still yours to fix. Every token of code is kept
-as it is, in order (laws/FmtChangesOnlyBlankSpace.bend), so a formatted
-file is the same program.
+Indentation under a header, the spaces inside a line and where any other
+line breaks are left as they are; a tab and a line over 120 wide that is no
+def header are still yours to fix, and so is a header `wrap` reports that
+has no parameter to put on a line of its own. A header is a `def` at column
+0 through its first `:` outside every bracket, so one behind `@unsafe` on
+its line is not read. Every token of code is kept as it is, in order
+(laws/FmtChangesOnlyBlankSpace.bend), so a formatted file is the same
+program.
 
 It prints `formatted <path>` for each file it rewrites, or `clean`.
 `bolt fmt --check` writes nothing: it prints `would format <path>` for each
 file that would change and exits 1 when there is one, which is the form for
 a gate. A path that cannot be read is `cannot read <path>` and exit 1
-either way (laws/FmtPlansEdits.bend).
+either way. A file formatting would change that is not UTF-8 is `skipped
+(not UTF-8) <path>` and never written: bolt reads a byte that is no UTF-8
+as U+FFFD, and writing that back would change the file beyond its blank
+space (laws/FmtPlansEdits.bend).
+
+Over sixteen public repos (4,943 files) it rewrote 1,174 files and skipped
+26; `wrap`'s findings there fell from 8,920 to 215, of which 194 sit in
+the skipped files; a second run changed nothing, and no file changed but
+in its blank space.
 
 ## One binary
 
