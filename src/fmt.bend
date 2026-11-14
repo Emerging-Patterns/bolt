@@ -1,0 +1,157 @@
+# src/fmt: bolt's formatter (`bolt fmt`). It changes blank space and nothing
+# else: every token that is code is kept as it is, in order, and so is each
+# comment but for the blanks it ends in. Three passes over a file's tokens:
+#   trim     no blank before a line's end: a space token right before a
+#            newline, or before the end of the file, is dropped, and a
+#            comment loses the spaces and tabs it ends in;
+#   squeeze  no two blank lines in a row, and none at the top: once two
+#            newlines have run, further ones are dropped, and the file opens
+#            as if two already had;
+#   close    one newline at the end: the newlines the tokens end in become
+#            one, and a file that ends without one gains it. An empty file
+#            stays empty.
+# Indentation, the spaces inside a line, and where a line breaks are left as
+# they are: this is what `space` reports that has one right answer, and the
+# blank lines no rule reports.
+# Pure: text in, text out. src/fmt/plan.bend decides which files change and
+# src/fmt/run.bend writes them.
+import Base
+import ./lazy/lazy.bend as Lazy
+import ./syntax/lex.bend as Lex
+
+# a newline token?
+def is_newline(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TNewline{}:
+      True{}
+    case other:
+      False{}
+
+# a space token: a run of spaces and tabs?
+def is_space(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TSpace{}:
+      True{}
+    case other:
+      False{}
+
+# a comment?
+def is_comment(kk: Lex.TokKind) -> Bool:
+  match kk:
+    case Lex.TComment{}:
+      True{}
+    case other:
+      False{}
+
+# a space or a tab?
+def blank(+ch: Char) -> Bool:
+  Bool.or(Char.is_eq(ch, ' '), Char.is_eq(ch, '\t'))
+
+# the chars after the blanks they open with
+def trim.lead(cs: List<&2, Char>) -> List<&2, Char>:
+  match cs:
+    case Nil{}:
+      Nil{}
+    case Con{+c, +t}:
+      Lazy.either(List<&2, Char>, blank(c), _u => trim.lead(t), _v => c <> t)
+
+# a text without the spaces and tabs it ends in
+def trim.tail(tt: String) -> String:
+  String.from_list(List.reverse(&2, Char, trim.lead(List.reverse(&2, Char, String.to_list(tt)))))
+
+# a token's text as trim leaves it: a comment's without the blanks it ends
+# in, any other as it is
+def trim.text(kk: Lex.TokKind, +tt: String) -> String:
+  match kk:
+    case Lex.TComment{}:
+      trim.tail(tt)
+    case other:
+      tt
+
+# does a line end here: at a newline, or at the end of the tokens?
+def trim.ends(toks: List<&2, Lex.Tok>) -> Bool:
+  match toks:
+    case Nil{}:
+      True{}
+    case Con{Lex.Tok{k, _t, _l, _c}, _rest}:
+      is_newline(k)
+
+# a token kept, with its text trimmed, before the rest; or dropped
+def trim.keep(drop: Bool, +kk: Lex.TokKind, tt: String, ll: U32, cc: U32, more: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
+  match drop:
+    case True{}:
+      more
+    case False{}:
+      Lex.Tok{kk, trim.text(kk, tt), ll, cc} <> more
+
+# no blank before a line's end
+def trim(toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
+  match toks:
+    case Nil{}:
+      Nil{}
+    case Con{Lex.Tok{+k, t, l, c}, +rest}:
+      trim.keep(Lazy.and_then(is_space(k), _u => trim.ends(rest)), k, t, l, c, trim(rest))
+
+# how many newlines in a row are kept: two, which is one blank line
+def squeeze.most() -> U32:
+  2
+
+# the run of newlines after a token: one longer after a newline, none after
+# anything else
+def squeeze.run(nl: Bool, run: U32) -> U32:
+  match nl:
+    case True{}:
+      (run + 1 : U32)
+    case False{}:
+      0
+
+# no two blank lines in a row. run: how many newlines the tokens so far end
+# in
+def squeeze(toks: List<&2, Lex.Tok>, +run: U32) -> List<&2, Lex.Tok>:
+  match toks:
+    case Nil{}:
+      Nil{}
+    case Con{Lex.Tok{+k, t, l, c}, rest}:
+      +nl = is_newline(k)
+      +drop = Bool.and(nl, U32.is_ge(run, squeeze.most()))
+      +more = squeeze(rest, Bool.pick(U32, drop, run, squeeze.run(nl, run)))
+      Bool.pick(List<&2, Lex.Tok>, drop, more, Lex.Tok{k, t, l, c} <> more)
+
+# are these all newlines?
+def close.only(toks: List<&2, Lex.Tok>) -> Bool:
+  match toks:
+    case Nil{}:
+      True{}
+    case Con{Lex.Tok{k, _t, _l, _c}, rest}:
+      Lazy.and_then(is_newline(k), _u => close.only(rest))
+
+# the newline a file ends in
+def close.newline() -> Lex.Tok:
+  Lex.Tok{Lex.TNewline{}, "\n", 0, 0}
+
+# the tokens through their last one that is no newline, then one newline
+def close.go(toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
+  match toks:
+    case Nil{}:
+      [close.newline()]
+    case Con{Lex.Tok{+k, t, l, c}, +rest}:
+      Lazy.stop(List<&2, Lex.Tok>, Lazy.and_then(is_newline(k), _u => close.only(rest)), [close.newline()],
+        _v => Lex.Tok{k, t, l, c} <> close.go(rest))
+
+# one newline at the end; an empty file stays empty
+def close(toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
+  match toks:
+    case Nil{}:
+      Nil{}
+    case Con{h, t}:
+      close.go(h <> t)
+
+# a file's tokens, formatted. The line and column of a token after the first
+# change are the ones it was read at, not where it now sits: only the texts
+# are read again
+def toks(ts: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
+  close(squeeze(trim(ts), squeeze.most()))
+
+# a file's text, formatted
+def text(source: String) -> String:
+  Lex.text(toks(Lex.tokens(source)))
