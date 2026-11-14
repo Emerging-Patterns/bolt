@@ -13,7 +13,9 @@ import ../../laws/defs/GradedFindingCounts.bend as D1
 import ../../laws/defs/GradingKeepsFindings.bend as D2
 import ./PlannerPerFileFindings.bend as M1
 import ../../laws/OffRulesAreNotRun.bend as L3
+import ../../laws/LargeRunParsesInBatches.bend as L4
 import ./OffRules.bend as M2
+import ./BatchedRun.bend as M3
 
 # one finding graded the planner's way is graded the spec's way
 law lint.grade.step:
@@ -99,6 +101,15 @@ law lint.final.live:
 def lint.final.live(world):
   Equal.trans(List<&2, F.Graded>, Plan.final.live(world), Plan.final(world), D1.run_graded(world),
     L3.final_live(world), lint.final(world))
+
+# and so are the findings of the run bolt makes, batched or not
+law lint.final.run:
+  for +world: W.World
+  {Plan.final.run(world) == D1.run_graded(world) : List<&2, F.Graded>}
+
+def lint.final.run(world):
+  Equal.trans(List<&2, F.Graded>, Plan.final.run(world), Plan.final.live(world), D1.run_graded(world),
+    L4.final_run(world), lint.final.live(world))
 
 # each graded finding is its line
 law lint.shown:
@@ -190,7 +201,7 @@ def lint.summary(gs):
       {==}
 
 def L1.lines_in_order(world):
-  e = Equal.sym(List<&2, F.Graded>, Plan.final.live(world), D1.run_graded(world), lint.final.live(world))
+  e = Equal.sym(List<&2, F.Graded>, Plan.final.run(world), D1.run_graded(world), lint.final.run(world))
   %e : {List.append(&2, String, Plan.show_all(_), [Plan.summary(_)]) == L1.out_lines(world) : List<&2, String>}
   s = Equal.sym(List<&2, String>, Plan.show_all(D1.run_graded(world)), L1.shown_all(D1.run_graded(world)),
     lint.shown(D1.run_graded(world)))

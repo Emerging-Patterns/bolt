@@ -30,6 +30,7 @@ import ./proofs/ExitOnError.bend as PExitOnError
 import ./proofs/LastLineSummary.bend as PLastLineSummary
 import ./proofs/LevelOwn.bend as PLevelOwn
 import ./proofs/LinesInOrder.bend as PLinesInOrder
+import ./proofs/LargeRunParsesInBatches.bend as PLargeRunParsesInBatches
 import ./proofs/OffRulesAreNotRun.bend as POffRulesAreNotRun
 import ./proofs/NoqaBare.bend as PNoqaBare
 import ./proofs/NoqaBareText.bend as PNoqaBareText

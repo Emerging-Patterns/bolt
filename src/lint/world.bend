@@ -123,6 +123,40 @@ def text.got(m: Maybe<&2, Answer>) -> Maybe<&2, String>:
 def text(world: World, path: String) -> Maybe<&2, String>:
   text.got(answer(world, Contents{path}))
 
+# how many characters a text holds, onto a count
+def size.text(t: String, acc: U32) -> U32:
+  match t:
+    case SNil{}:
+      acc
+    case SCon{_c, rest}:
+      size.text(rest, U32.inc(acc))
+
+# an answer's characters onto a count: a read's text, and nothing else
+def size.answer(a: Answer, acc: U32) -> U32:
+  match a:
+    case Listed{_names}:
+      acc
+    case Read{t}:
+      size.text(t, acc)
+    case Unread{}:
+      acc
+    case Directory{}:
+      acc
+
+# every reply's characters onto a count
+def size.go(rs: List<&2, Reply>, acc: U32) -> U32:
+  match rs:
+    case Nil{}:
+      acc
+    case Con{Reply{_ask, a}, rest}:
+      size.go(rest, size.answer(a, acc))
+
+# how many characters of text the World holds, over every file it read: what
+# the planner sets against its budget (laws/LargeRunParsesInBatches.bend)
+def size(world: World) -> U32:
+  World{_paths, _cwd, rs} = world
+  size.go(rs, 0)
+
 # The replies, indexed. A question is looked up once per source, per
 # bolt.bend candidate of each directory, and a scan of every reply for each
 # is the questions times the replies: on a project of 4,062 files, 4.4 s to
