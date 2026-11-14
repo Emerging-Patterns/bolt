@@ -8,10 +8,14 @@
 # its path and its new text. `bolt fmt` plans every edit and prints
 # `formatted <path>` for each; `bolt fmt --check` plans none, prints
 # `would format <path>` for each, and exits 1 when there is one. A path the
-# World could not read is `cannot read <path>` and exit 1 either way. With
-# nothing to say the one line is `clean`.
+# World could not read is `cannot read <path>` and exit 1 either way. A file
+# formatting would change whose text holds U+FFFD is `skipped (not UTF-8)
+# <path>` and is never written: the character is what a byte that is not
+# UTF-8 reads as, so writing the text back could change the file beyond its
+# blank space. With nothing to say the one line is `clean`.
 import Base
 import ../fmt.bend as Fmt
+import ../lazy/lazy.bend as Lazy
 import ../lint/world.bend as W
 import ../lint/plan.bend as Lint
 
@@ -23,30 +27,77 @@ type Edit is Data:
 type Plan is Data:
   Plan{edits: List<&2, Edit>, lines: List<&2, String>, exit: U32}
 
-# a file's edit when formatting changes its text, before the rest
-def edit(same: Bool, path: String, text: String, more: List<&2, Edit>) -> List<&2, Edit>:
-  match same:
+# what formatting makes of a file: nothing, another text, or another text
+# that must not be written
+type Fate is Data:
+  FSame{}
+  FEdit{text: String}
+  FSkip{}
+
+# a path the World read, and what formatting makes of its file
+type Fated is Data:
+  Fated{path: String, fate: Fate}
+
+# can a text be written back as it was read? A byte that is not UTF-8 reads
+# as U+FFFD (src/lsp/files/disk.bend), so a text holding that character may
+# not be the file's own bytes: writing it would change them
+def safe(text: String) -> Bool:
+  Bool.not(String.contains(text, "\u{FFFD}"))
+
+# a text formatting changes: an edit when it can be written back, else
+# skipped
+def fate.changed(ok: Bool, new: String) -> Fate:
+  match ok:
     case True{}:
-      more
+      FEdit{new}
     case False{}:
-      Edit{path, text} <> more
+      FSkip{}
 
-# one file's edit, if formatting changes it; a path with no text has none
-def edits.one(path: String, m: Maybe<&2, String>, more: List<&2, Edit>) -> List<&2, Edit>:
-  match m:
-    case None{}:
-      more
-    case Some{+text}:
-      +new = Fmt.text(text)
-      edit(String.eq(new, text), path, new, more)
+# what formatting makes of a text. Whether it can be written back is read
+# only when formatting changes it
+def fate(+text: String) -> Fate:
+  +new = Fmt.text(text)
+  Lazy.either(Fate, String.eq(new, text), _u => FSame{}, _v => fate.changed(safe(text), new))
 
-# every file formatting changes, in order, each with its new text
-def edits(gs: List<&2, Lint.Got>) -> List<&2, Edit>:
+# each path the World read with what formatting makes of it, in order; each
+# file is formatted once
+def fates(gs: List<&2, Lint.Got>) -> List<&2, Fated>:
   match gs:
     case Nil{}:
       Nil{}
-    case Con{Lint.Got{path, m}, rest}:
-      edits.one(path, m, edits(rest))
+    case Con{Lint.Got{_path, None{}}, rest}:
+      fates(rest)
+    case Con{Lint.Got{path, Some{text}}, rest}:
+      Fated{path, fate(text)} <> fates(rest)
+
+# the edits among them, in order
+def edits.of(fs: List<&2, Fated>) -> List<&2, Edit>:
+  match fs:
+    case Nil{}:
+      Nil{}
+    case Con{Fated{path, FEdit{text}}, rest}:
+      Edit{path, text} <> edits.of(rest)
+    case Con{_other, rest}:
+      edits.of(rest)
+
+# every file formatting changes and can write back, in order, each with its
+# new text
+def edits(gs: List<&2, Lint.Got>) -> List<&2, Edit>:
+  edits.of(fates(gs))
+
+# the paths skipped among them, in order
+def skipped.of(fs: List<&2, Fated>) -> List<&2, String>:
+  match fs:
+    case Nil{}:
+      Nil{}
+    case Con{Fated{path, FSkip{}}, rest}:
+      path <> skipped.of(rest)
+    case Con{_other, rest}:
+      skipped.of(rest)
+
+# every file formatting would change but cannot write back, in order
+def skipped(gs: List<&2, Lint.Got>) -> List<&2, String>:
+  skipped.of(fates(gs))
 
 # the paths the World could not read, in order
 def unread(gs: List<&2, Lint.Got>) -> List<&2, String>:
@@ -117,10 +168,12 @@ def written(check: Bool, es: List<&2, Edit>) -> List<&2, Edit>:
 
 # the plan over the files the World answered for
 def plan.at(+check: Bool, +gs: List<&2, Lint.Got>) -> Plan:
-  +es = edits(gs)
+  +fs = fates(gs)
+  +es = edits.of(fs)
   +bad = unread(gs)
   Plan{written(check, es),
-    lines.or(List.append(&2, String, said("cannot read", bad), said(word(check), paths(es)))),
+    lines.or(List.append(&2, String, said("cannot read", bad),
+      List.append(&2, String, said("skipped (not UTF-8)", skipped.of(fs)), said(word(check), paths(es))))),
     exit(check, es, bad)}
 
 # what `bolt fmt` does in a World: check says whether it only checks
