@@ -9,6 +9,9 @@
 # - A message's method is its `method`, its id its `id`; the document a
 #   request is about is `textDocument.uri`, and its position
 #   `position.line` and `position.character`.
+# - A document's text on open is `textDocument.text`, and on change the
+#   `text` of the first of `contentChanges` (the whole document: the server
+#   asks for full sync).
 # - The position encodings are named `utf-16` and `utf-32`.
 # - The semantic token legend uses the spec's own token type names, in the
 #   order the server numbers them.
@@ -95,6 +98,22 @@ law request_uri_field:
   for pos: J.Json
   {Server.uri_of(Ezjson.obj([("textDocument", Ezjson.obj([("uri", J.JStr{uri})])), ("position", pos)])) == uri
     : String}
+
+# LAW: an opened document's text is `textDocument.text`
+law opened_text_field:
+  for uri: String
+  for text: String
+  {Server.opened_text(Ezjson.obj([("textDocument", Ezjson.obj([("uri", J.JStr{uri}), ("text", J.JStr{text})]))]))
+    == text : String}
+
+# LAW: a changed document's text is the `text` of the first of
+# `contentChanges`, whatever changes follow it
+law changed_text_field:
+  for doc: J.Json
+  for text: String
+  for more: J.Json
+  {Server.changed_text(Ezjson.obj([("textDocument", doc),
+      ("contentChanges", J.JArr{J.JCons{Ezjson.obj([("text", J.JStr{text})]), more}})])) == text : String}
 
 # LAW: a request's line is `position.line`
 law request_line_field:

@@ -51,12 +51,11 @@ def seg_op(nn: Tree.Node) -> Bool:
 def inner(+hot: Bool, +oo: String, +tt: String) -> Bool:
   Bool.or(hot, Bool.and(String.eq(oo, "("), Bool.or(String.eq(tt, "Bool.and"), String.eq(tt, "Bool.or"))))
 
-# a name, then a group: a finding when the name is the def, the group a `(`
-# call and the stretch hot, then what the group and the rest report
-def call(  # noqa: S009 #365
-  +tt: String,
-  +ll: U32,
-  +cc: U32,
+# a name's token, then a group: a finding when the name is the def, the
+# group a `(` call and the stretch hot, then what the group and the rest
+# report
+def call(
+  tok: Lex.Tok,
   +oo: String,
   +name: String,
   +path: String,
@@ -64,6 +63,7 @@ def call(  # noqa: S009 #365
   kids: List<&2, F.Finding>,
   rest: List<&2, F.Finding>
 ) -> List<&2, F.Finding>:
+  Lex.Tok{_kk, tt, ll, cc} = tok
   +more = List.concat(&2, F.Finding, [kids, rest])
   Bool.pick(List<&2, F.Finding>, Bool.and(Bool.and(String.eq(oo, "("), String.eq(tt, name)), hot),
     F.Finding{path, ll, cc, U32.from_nat(String.length(name)), "strict",
@@ -92,12 +92,12 @@ def leaf(
 # once the cell after it is known
 def walk(nn: Tree.Node, +name: String, +path: String, +outer: Bool, +hot: Bool) -> List<&2, F.Finding>:
   match nn:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, +rest}:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{+k, +t, +l, +c}}, +rest}:
       match rest:
         case Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, r2}:
           leaf(k, _u => walk(rest, name, path, outer, Bool.or(outer, seg_op(rest))),
             _v => walk(rest, name, path, outer, seg_op(rest)),
-            _w => call(t, l, c, o, name, path, hot,
+            _w => call(Lex.Tok{k, t, l, c}, o, name, path, hot,
               walk(kids, name, path, inner(hot, o, t), Bool.or(inner(hot, o, t), seg_op(kids))),
               walk(r2, name, path, outer, hot)))
         case _r:

@@ -142,6 +142,16 @@ def id_of(msg: J.Json) -> J.Json:
 def uri_of(params: J.Json) -> String:
   Maybe.default(&2, String, Ezjson.as_str(Ezjson.get(Ezjson.get(params, "textDocument"), "uri")), "")
 
+# the text a didOpen carries: its document's, or none
+def opened_text(params: J.Json) -> String:
+  Maybe.default(&2, String, Ezjson.as_str(Ezjson.get(Ezjson.get(params, "textDocument"), "text")), "")
+
+# the text a didChange carries: its first content change's, which is the
+# whole document (the server asks for full sync), or none
+def changed_text(params: J.Json) -> String:
+  Maybe.default(&2, String, Ezjson.as_str(Ezjson.get(Ezjson.at(Ezjson.get(params, "contentChanges"), 0), "text")),
+    "")
+
 # the line of a request's position
 def line_of(params: J.Json) -> U32:
   Maybe.default(&2, U32, Ezjson.as_u32(Ezjson.get(Ezjson.get(params, "position"), "line")), 0)
@@ -550,7 +560,7 @@ def symbols(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String) 
 
 # the work behind a method: what the checker, the files and the documents
 # give it. It does not see the message's id: step alone puts that on a reply
-def work(  # noqa: L001, S010 LSP IO glue (#365)
+def work(  # noqa: L001 LSP IO glue
   ~fs: F.Files,
   ~ck: C.Checker,
   enc: Enc.Enc,
@@ -566,11 +576,9 @@ def work(  # noqa: L001, S010 LSP IO glue (#365)
     case MExit{}:
       IO.pure(Work, noted([], docs))
     case MOpen{}:
-      pub.opened(~fs, ~ck, enc, uri_of(params),
-        Maybe.default(&2, String, Ezjson.as_str(Ezjson.get(Ezjson.get(params, "textDocument"), "text")), ""), docs)
+      pub.opened(~fs, ~ck, enc, uri_of(params), opened_text(params), docs)
     case MChange{}:
-      pub.changed(~fs, enc, uri_of(params),
-        Maybe.default(&2, String, Ezjson.as_str(Ezjson.get(Ezjson.at(Ezjson.get(params, "contentChanges"), 0), "text")), ""), docs)
+      pub.changed(~fs, enc, uri_of(params), changed_text(params), docs)
     case MSave{}:
       pub.saved(~fs, ~ck, enc, uri_of(params), docs)
     case MClose{}:

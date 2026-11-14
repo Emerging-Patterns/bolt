@@ -74,19 +74,18 @@ def cite(+ll: U32, +cc: U32, +name: String, +path: String) -> F.Finding:
   F.Finding{path, ll, cc, U32.from_nat(String.length(name)), "thunk",
     name ++ " calls itself inside a thunk, which allocates a closure and leaves the loop on every step; carry the test as a Bool into the next call (`go(rest, k, test(h))`) and match on it first, so the search stays a loop."}
 
-# after the parameter, `=>`, the name and its `(` group: the finding when
-# they make a thunk of a self-call
-def site.group(  # noqa: S009 #365
+# after the parameter, `=>`, the token that names the call and its `(`
+# group: the finding when they make a thunk of a self-call
+def site.group(
   kp: Lex.TokKind,
   +pp: String,
   +aa: String,
-  +nm: String,
-  +ll: U32,
-  +cc: U32,
+  callee: Lex.Tok,
   r3: Tree.Node,
   +name: String,
   +path: String
 ) -> List<&2, F.Finding>:
+  Lex.Tok{_kn, +nm, +ll, +cc} = callee
   match r3:
     case Tree.NCons{Tree.Group{Lex.Tok{_ko, +o, _lo, _co}, kids, _cl}, after}:
       +lead = Bool.and(Lex.is_name(kp), Bool.not(reads(kids, pp)))
@@ -106,8 +105,8 @@ def site.name(
   +path: String
 ) -> List<&2, F.Finding>:
   match r2:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{_kn, +n, +l, +c}}, r3}:
-      site.group(kp, pp, aa, n, l, c, r3, name, path)
+    case Tree.NCons{Tree.Leaf{callee}, r3}:
+      site.group(kp, pp, aa, callee, r3, name, path)
     case _other:
       []
 

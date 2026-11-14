@@ -201,20 +201,18 @@ def same(+kk: Lex.TokKind, +tt: String, +xx: String) -> Bool:
 # is x read among the tokens before the bracket that closes the group they
 # sit in? found carries whether the last token read was x, live whether that
 # bracket is still ahead
-def kept(toks: List<&2, Lex.Tok>, +xx: String, +dd: Nat, found: Bool, live: Bool) -> Bool:  # noqa: S011 #365
+def kept(toks: List<&2, Lex.Tok>, +xx: String, +dd: Nat, found: Bool, live: Bool) -> Bool:
   match toks:
     case Nil{}:
       found
     case Con{Lex.Tok{+k, +t, l, c}, rest}:
-      match found:
-        case True{}:
+      match found live:
+        case True{} _live:
           True{}
-        case False{}:
-          match live:
-            case False{}:
-              False{}
-            case True{}:
-              kept(rest, xx, close.depth(k, dd), same(k, t, xx), Bool.not(close.here(k, dd)))
+        case False{} False{}:
+          False{}
+        case False{} True{}:
+          kept(rest, xx, close.depth(k, dd), same(k, t, xx), Bool.not(close.here(k, dd)))
 
 # what a finding says: the test, its fix and why
 def say(fm: Form, +xx: String) -> String:
