@@ -79,14 +79,14 @@ law marks_run_named:
   for p: String
   for rest: List<&2, String>
   for +world: W.World
-  for +ss: List<&2, Src.Src>
-  {Plan.marks.run(p <> rest, world, ss) == Plan.marks.named(world) : List<&2, Role.Mark>}
+  for +s: List<&2, Src.Src>
+  {Plan.marks.run(p <> rest, world, s) == Plan.marks.named(world) : List<&2, Role.Mark>}
 
 # LAW: a run over the whole tree takes the marks of its own sources
 law marks_run_whole_tree:
   for +world: W.World
-  for +ss: List<&2, Src.Src>
-  {Plan.marks.run(Nil{}, world, ss) == Role.marks(ss) : List<&2, Role.Mark>}
+  for +s: List<&2, Src.Src>
+  {Plan.marks.run(Nil{}, world, s) == Role.marks(s) : List<&2, Role.Mark>}
 
 # LAW: a named file that resolves to a path already seen is not read again
 law unseen_drops_seen:

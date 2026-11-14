@@ -13,8 +13,8 @@ import ../src/rules/style/doc.bend as Doc
 # exactly when reading those lines down to it says so
 law flags_answer:
   for +lines: List<&2, String>
-  for +nn: U32
-  {Doc.above.at(Doc.flags(lines), nn) == Doc.check.above(lines, nn) : Bool}
+  for +n: U32
+  {Doc.above.at(Doc.flags(lines), n) == Doc.check.above(lines, n) : Bool}
 
 # LAW: doc over the flags of the lines finds what doc over the lines finds
 law fast_is_go:

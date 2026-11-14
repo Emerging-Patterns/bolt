@@ -176,14 +176,14 @@ def ticks(nn: Nat, ds: List<&2, Frame.Digit>) -> List<&2, Frame.Digit>:
 # the bytes of a char of any width, counted, are that many ticks
 law count.char:
   for x: U32
-  for rr: List<&2, U32>
+  for r: List<&2, U32>
   for ds: List<&2, Frame.Digit>
   for +b1: Bool
   for +b2: Bool
   for +b3: Bool
   {ticks(List.length(&2, U32, Frame.encode.char(Bool.pick(U32, b1, 1, Bool.pick(U32, b2, 2, Bool.pick(U32, b3, 3, 4))),
-      x, rr)), ds)
-    == ticks(List.length(&2, U32, rr), Frame.tick.by(Bool.pick(U32, b1, 1, Bool.pick(U32, b2, 2, Bool.pick(U32, b3, 3,
+      x, r)), ds)
+    == ticks(List.length(&2, U32, r), Frame.tick.by(Bool.pick(U32, b1, 1, Bool.pick(U32, b2, 2, Bool.pick(U32, b3, 3,
       4))), ds)) : List<&2, Frame.Digit>}
 
 def count.char(_x, _rr, _ds, b1, b2, b3):
@@ -256,9 +256,9 @@ def count.tick(ds):
 
 # n ticks add n to the value
 law count.ticks:
-  for +nn: Nat
+  for +n: Nat
   for +ds: List<&2, Frame.Digit>
-  {Laws.value(ticks(nn, ds)) == Nat.add(nn, Laws.value(ds)) : Nat}
+  {Laws.value(ticks(n, ds)) == Nat.add(n, Laws.value(ds)) : Nat}
 
 def count.ticks(nn, ds):
   match nn:
@@ -318,11 +318,11 @@ def str_nil(a):
 
 # a digit's code is its char
 law digit.char:
-  for dd: Frame.Digit
-  {Char.from_u32(Frame.digit.code(dd)) == Laws.digit_char(dd) : Char}
+  for d: Frame.Digit
+  {Char.from_u32(Frame.digit.code(d)) == Laws.digit_char(d) : Char}
 
-def digit.char(dd):
-  match dd:
+def digit.char(d):
+  match d:
     case Frame.D0{}:
       {==}
     case Frame.D1{}:
@@ -509,15 +509,15 @@ def down.less(ds, n, hv):
 
 # split, once the count is zero, is ready
 law split.ready:
-  for zz: Bool
+  for z: Bool
   for xs: List<&2, U32>
   for acc: List<&2, U32>
   for -more: Unit -> Frame.Cut
-  for h: {zz == True{} : Bool}
-  {Frame.split.on(zz, xs, acc, more) == Frame.Whole{List.reverse(&2, U32, acc), xs} : Frame.Cut}
+  for h: {z == True{} : Bool}
+  {Frame.split.on(z, xs, acc, more) == Frame.Whole{List.reverse(&2, U32, acc), xs} : Frame.Cut}
 
-def split.ready(zz, xs, acc, more, h):
-  match zz:
+def split.ready(z, xs, acc, more, h):
+  match z:
     case True{}:
       {==}
     case False{}:
@@ -526,15 +526,15 @@ def split.ready(zz, xs, acc, more, h):
 
 # split, while the count is not zero, goes on
 law split.more:
-  for zz: Bool
+  for z: Bool
   for -xs: List<&2, U32>
   for -acc: List<&2, U32>
   for more: Unit -> Frame.Cut
-  for h: {zz == False{} : Bool}
-  {Frame.split.on(zz, xs, acc, more) == more(Unit{}) : Frame.Cut}
+  for h: {z == False{} : Bool}
+  {Frame.split.on(z, xs, acc, more) == more(Unit{}) : Frame.Cut}
 
-def split.more(zz, xs, acc, more, h):
-  match zz:
+def split.more(z, xs, acc, more, h):
+  match z:
     case True{}:
       Empty.absurd({Frame.split.on(True{}, xs, acc, more) == more(Unit{}) : Frame.Cut}, M1.true_false(h))
     case False{}:
@@ -603,16 +603,16 @@ def pl() -> List<&2, U32>:
   [32, 58, 104, 116, 103, 110, 101, 76, 45, 116, 110, 101, 116, 110, 111, 67]
 
 # the count wrap writes for s
-def cnt(ss: String) -> List<&2, Frame.Digit>:
-  Frame.byte_count(String.to_list(ss), [Frame.D0{}])
+def cnt(s: String) -> List<&2, Frame.Digit>:
+  Frame.byte_count(String.to_list(s), [Frame.D0{}])
 
 # that count's digits, most significant first
-def msd(ss: String) -> List<&2, Frame.Digit>:
-  List.reverse(&2, Frame.Digit, cnt(ss))
+def msd(s: String) -> List<&2, Frame.Digit>:
+  List.reverse(&2, Frame.Digit, cnt(s))
 
-# the wire after "Content-Length: ", with zz after the blank line
-def body(ss: String, zz: List<&2, U32>) -> List<&2, U32>:
-  List.append(&2, U32, codes(msd(ss)), 13 <> 10 <> 13 <> 10 <> zz)
+# the wire after "Content-Length: ", with z after the blank line
+def body(s: String, z: List<&2, U32>) -> List<&2, U32>:
+  List.append(&2, U32, codes(msd(s)), 13 <> 10 <> 13 <> 10 <> z)
 
 # count.show writes the digits reversed
 law show.ms:
@@ -645,12 +645,12 @@ def ms.app(dl, x, y):
 
 # a digit takes one byte, its code
 law enc.digit:
-  for dd: Frame.Digit
-  for -rr: List<&2, U32>
-  {Frame.encode.one(Frame.digit.code(dd), rr) == Frame.digit.code(dd) <> rr : List<&2, U32>}
+  for d: Frame.Digit
+  for -r: List<&2, U32>
+  {Frame.encode.one(Frame.digit.code(d), r) == Frame.digit.code(d) <> r : List<&2, U32>}
 
-def enc.digit(dd, _rr):
-  match dd:
+def enc.digit(d, _rr):
+  match d:
     case Frame.D0{}:
       {==}
     case Frame.D1{}:
@@ -713,15 +713,15 @@ def wire.shape(s):
 
 # the header steps over a digit
 law hdr.digit:
-  for dd: Frame.Digit
+  for d: Frame.Digit
   for -t: List<&2, U32>
   for -line: List<&2, U32>
   for -len: List<&2, Frame.Digit>
-  {Frame.header(Frame.digit.code(dd) <> t, line, len) == Frame.header(t, Frame.digit.code(dd) <> line, len)
+  {Frame.header(Frame.digit.code(d) <> t, line, len) == Frame.header(t, Frame.digit.code(d) <> line, len)
     : Frame.Head}
 
-def hdr.digit(dd, _t, _line, _len):
-  match dd:
+def hdr.digit(d, _t, _line, _len):
+  match d:
     case Frame.D0{}:
       {==}
     case Frame.D1{}:
@@ -746,22 +746,22 @@ def hdr.digit(dd, _t, _line, _len):
 # the header steps over digits onto the line
 law hdr.digits:
   for dl: List<&2, Frame.Digit>
-  for +zz: List<&2, U32>
+  for +z: List<&2, U32>
   for +line: List<&2, U32>
   for +len: List<&2, Frame.Digit>
-  {Frame.header(List.append(&2, U32, codes(dl), zz), line, len)
-    == Frame.header(zz, List.reverse.go(&2, U32, codes(dl), line), len) : Frame.Head}
+  {Frame.header(List.append(&2, U32, codes(dl), z), line, len)
+    == Frame.header(z, List.reverse.go(&2, U32, codes(dl), line), len) : Frame.Head}
 
-def hdr.digits(dl, zz, line, len):
+def hdr.digits(dl, z, line, len):
   match dl:
     case Nil{}:
       {==}
     case Con{+d, t}:
-      Equal.trans(Frame.Head, Frame.header(Frame.digit.code(d) <> List.append(&2, U32, codes(t), zz), line, len),
-        Frame.header(List.append(&2, U32, codes(t), zz), Frame.digit.code(d) <> line, len),
-        Frame.header(zz, List.reverse.go(&2, U32, codes(t), Frame.digit.code(d) <> line), len),
-        hdr.digit(d, List.append(&2, U32, codes(t), zz), line, len),
-        hdr.digits(t, zz, Frame.digit.code(d) <> line, len))
+      Equal.trans(Frame.Head, Frame.header(Frame.digit.code(d) <> List.append(&2, U32, codes(t), z), line, len),
+        Frame.header(List.append(&2, U32, codes(t), z), Frame.digit.code(d) <> line, len),
+        Frame.header(z, List.reverse.go(&2, U32, codes(t), Frame.digit.code(d) <> line), len),
+        hdr.digit(d, List.append(&2, U32, codes(t), z), line, len),
+        hdr.digits(t, z, Frame.digit.code(d) <> line, len))
 
 # a newline ends a line that is not empty
 law hdr.nl:
@@ -906,10 +906,10 @@ def tick.full(ds):
 
 # ticks onto a count that is not empty leave it not empty
 law ticks.full:
-  for nn: Nat
+  for n: Nat
   for +ds: List<&2, Frame.Digit>
   for h: {List.is_empty(&2, Frame.Digit, ds) == False{} : Bool}
-  {List.is_empty(&2, Frame.Digit, ticks(nn, ds)) == False{} : Bool}
+  {List.is_empty(&2, Frame.Digit, ticks(n, ds)) == False{} : Bool}
 
 def ticks.full(nn, ds, h):
   match nn:
@@ -945,19 +945,19 @@ def line.cnt(s):
 # the header wrap writes is read whole: its count, then what follows it
 law head.shape:
   for +s: String
-  for +zz: List<&2, U32>
-  {Frame.header(body(s, zz), pl(), [Frame.D0{}]) == Frame.Head{cnt(s), zz} : Frame.Head}
+  for +z: List<&2, U32>
+  {Frame.header(body(s, z), pl(), [Frame.D0{}]) == Frame.Head{cnt(s), z} : Frame.Head}
 
-def head.shape(s, zz):
+def head.shape(s, z):
   +l = List.reverse.go(&2, U32, codes(msd(s)), pl())
-  Equal.trans(Frame.Head, Frame.header(body(s, zz), pl(), [Frame.D0{}]),
-    Frame.header(13 <> 10 <> zz, [], Frame.line_len(l, [Frame.D0{}])), Frame.Head{cnt(s), zz},
-    Equal.trans(Frame.Head, Frame.header(body(s, zz), pl(), [Frame.D0{}]),
-      Frame.header(10 <> 13 <> 10 <> zz, l, [Frame.D0{}]),
-      Frame.header(13 <> 10 <> zz, [], Frame.line_len(l, [Frame.D0{}])),
-      hdr.digits(msd(s), 13 <> 10 <> 13 <> 10 <> zz, pl(), [Frame.D0{}]),
-      hdr.nl(l, 13 <> 10 <> zz, [Frame.D0{}], rev_full(U32, codes(msd(s)), pl(), {==}))),
-    Equal.cong(List<&2, Frame.Digit>, Frame.Head, n => Frame.Head{n, zz}, Frame.line_len(l, [Frame.D0{}]), cnt(s),
+  Equal.trans(Frame.Head, Frame.header(body(s, z), pl(), [Frame.D0{}]),
+    Frame.header(13 <> 10 <> z, [], Frame.line_len(l, [Frame.D0{}])), Frame.Head{cnt(s), z},
+    Equal.trans(Frame.Head, Frame.header(body(s, z), pl(), [Frame.D0{}]),
+      Frame.header(10 <> 13 <> 10 <> z, l, [Frame.D0{}]),
+      Frame.header(13 <> 10 <> z, [], Frame.line_len(l, [Frame.D0{}])),
+      hdr.digits(msd(s), 13 <> 10 <> 13 <> 10 <> z, pl(), [Frame.D0{}]),
+      hdr.nl(l, 13 <> 10 <> z, [Frame.D0{}], rev_full(U32, codes(msd(s)), pl(), {==}))),
+    Equal.cong(List<&2, Frame.Digit>, Frame.Head, n => Frame.Head{n, z}, Frame.line_len(l, [Frame.D0{}]), cnt(s),
       line.cnt(s)))
 
 def Laws.frame_round(s, more0):
@@ -976,7 +976,7 @@ def Laws.frame_round(s, more0):
         Equal.cong(List<&2, U32>, Frame.Cut, y => Frame.cut.body(Frame.header(y, pl(), [Frame.D0{}])),
           List.append(&2, U32, body(s, e), more), body(s, List.append(&2, U32, e, more)),
           app_assoc(U32, codes(msd(s)), 13 <> 10 <> 13 <> 10 <> e, more))),
-      Equal.cong(Frame.Head, Frame.Cut, hh => Frame.cut.body(hh),
+      Equal.cong(Frame.Head, Frame.Cut, h => Frame.cut.body(h),
         Frame.header(body(s, List.append(&2, U32, e, more)), pl(), [Frame.D0{}]),
         Frame.Head{cnt(s), List.append(&2, U32, e, more)}, head.shape(s, List.append(&2, U32, e, more)))),
     Equal.trans(Frame.Cut, Frame.split(List.append(&2, U32, e, more), cnt(s), []),
@@ -991,23 +991,23 @@ def Laws.frame_round(s, more0):
 # split waits on fewer bytes than the count's value
 law split.waits:
   for xs: List<&2, U32>
-  for +kk: Nat
+  for +k: Nat
   for +ds: List<&2, Frame.Digit>
   for +acc: List<&2, U32>
   for +hv: {Laws.value(ds) == List.length(&2, U32, xs) : Nat}
-  for h: {Nat.is_lt(kk, List.length(&2, U32, xs)) == True{} : Bool}
-  {Frame.split(List.take(&2, U32, xs, kk), ds, acc) == Frame.More{} : Frame.Cut}
+  for h: {Nat.is_lt(k, List.length(&2, U32, xs)) == True{} : Bool}
+  {Frame.split(List.take(&2, U32, xs, k), ds, acc) == Frame.More{} : Frame.Cut}
 
-def split.waits(xs, kk, ds, acc, hv, h):
+def split.waits(xs, k, ds, acc, hv, h):
   match xs:
     case Nil{}:
-      match kk:
+      match k:
         case 0n:
           Empty.absurd({Frame.split(Nil{}, ds, acc) == Frame.More{} : Frame.Cut}, M1.false_true(h))
         case 1n+p:
           Empty.absurd({Frame.split(Nil{}, ds, acc) == Frame.More{} : Frame.Cut}, M1.false_true(h))
     case Con{+x, +t}:
-      match kk:
+      match k:
         case 0n:
           split.more(Frame.count.zero(ds), [], acc, _u => Frame.More{}, down.full(ds, List.length(&2, U32, t), hv))
         case 1n+p:
@@ -1020,15 +1020,15 @@ def split.waits(xs, kk, ds, acc, hv, h):
 
 # after the blank line's \r\n, a cut short of the body waits
 law tail.waits.body:
-  for +ee: List<&2, U32>
-  for +jj: Nat
+  for +e: List<&2, U32>
+  for +j: Nat
   for +len: List<&2, Frame.Digit>
-  for +hv: {Laws.value(len) == List.length(&2, U32, ee) : Nat}
-  for h: {Nat.is_lt(jj, 1n+1n+List.length(&2, U32, ee)) == True{} : Bool}
-  {Frame.cut.body(Frame.header(List.take(&2, U32, 13 <> 10 <> ee, jj), [], len)) == Frame.More{} : Frame.Cut}
+  for +hv: {Laws.value(len) == List.length(&2, U32, e) : Nat}
+  for h: {Nat.is_lt(j, 1n+1n+List.length(&2, U32, e)) == True{} : Bool}
+  {Frame.cut.body(Frame.header(List.take(&2, U32, 13 <> 10 <> e, j), [], len)) == Frame.More{} : Frame.Cut}
 
-def tail.waits.body(ee, jj, len, hv, h):
-  match jj:
+def tail.waits.body(e, j, len, hv, h):
+  match j:
     case 0n:
       {==}
     case 1n+j1:
@@ -1036,21 +1036,21 @@ def tail.waits.body(ee, jj, len, hv, h):
         case 0n:
           {==}
         case 1n+j2:
-          split.waits(ee, j2, len, [], hv, h)
+          split.waits(e, j2, len, [], hv, h)
 
 # after the digits, a cut short of the body waits
 law tail.waits:
-  for +ee: List<&2, U32>
-  for +jj: Nat
+  for +e: List<&2, U32>
+  for +j: Nat
   for +l: List<&2, U32>
   for +len: List<&2, Frame.Digit>
   for hl: {List.is_empty(&2, U32, l) == False{} : Bool}
-  for +hv: {Laws.value(Frame.line_len(l, len)) == List.length(&2, U32, ee) : Nat}
-  for h: {Nat.is_lt(jj, List.length(&2, U32, 13 <> 10 <> 13 <> 10 <> ee)) == True{} : Bool}
-  {Frame.cut.body(Frame.header(List.take(&2, U32, 13 <> 10 <> 13 <> 10 <> ee, jj), l, len)) == Frame.More{} : Frame.Cut}
+  for +hv: {Laws.value(Frame.line_len(l, len)) == List.length(&2, U32, e) : Nat}
+  for h: {Nat.is_lt(j, List.length(&2, U32, 13 <> 10 <> 13 <> 10 <> e)) == True{} : Bool}
+  {Frame.cut.body(Frame.header(List.take(&2, U32, 13 <> 10 <> 13 <> 10 <> e, j), l, len)) == Frame.More{} : Frame.Cut}
 
-def tail.waits(ee, jj, l, len, hl, hv, h):
-  match jj:
+def tail.waits(e, j, l, len, hl, hv, h):
+  match j:
     case 0n:
       {==}
     case 1n+j1:
@@ -1058,55 +1058,55 @@ def tail.waits(ee, jj, l, len, hl, hv, h):
         case 0n:
           {==}
         case 1n+j2:
-          +tk = List.take(&2, U32, 13 <> 10 <> ee, j2)
+          +tk = List.take(&2, U32, 13 <> 10 <> e, j2)
           Equal.trans(Frame.Cut, Frame.cut.body(Frame.header(10 <> tk, l, len)),
             Frame.cut.body(Frame.header(tk, [], Frame.line_len(l, len))), Frame.More{},
             Equal.cong(Frame.Head, Frame.Cut, hh => Frame.cut.body(hh), Frame.header(10 <> tk, l, len),
               Frame.header(tk, [], Frame.line_len(l, len)), hdr.nl(l, tk, len, hl)),
-            tail.waits.body(ee, j2, Frame.line_len(l, len), hv, h))
+            tail.waits.body(e, j2, Frame.line_len(l, len), hv, h))
 
 # a cut inside the digits waits; past them, it waits when the rest does
 law digits.waits:
   for +dl: List<&2, Frame.Digit>
-  for +zz: List<&2, U32>
-  for +kk: Nat
+  for +z: List<&2, U32>
+  for +k: Nat
   for +line: List<&2, U32>
   for +len: List<&2, Frame.Digit>
-  for hz: @jj:Nat -> {Nat.is_lt(jj, List.length(&2, U32, zz)) == True{} : Bool}
-    -> {Frame.cut.body(Frame.header(List.take(&2, U32, zz, jj), List.reverse.go(&2, U32, codes(dl), line), len))
+  for hz: @j:Nat -> {Nat.is_lt(j, List.length(&2, U32, z)) == True{} : Bool}
+    -> {Frame.cut.body(Frame.header(List.take(&2, U32, z, j), List.reverse.go(&2, U32, codes(dl), line), len))
       == Frame.More{} : Frame.Cut}
-  for h: {Nat.is_lt(kk, List.length(&2, U32, List.append(&2, U32, codes(dl), zz))) == True{} : Bool}
-  {Frame.cut.body(Frame.header(List.take(&2, U32, List.append(&2, U32, codes(dl), zz), kk), line, len)) == Frame.More{}
+  for h: {Nat.is_lt(k, List.length(&2, U32, List.append(&2, U32, codes(dl), z))) == True{} : Bool}
+  {Frame.cut.body(Frame.header(List.take(&2, U32, List.append(&2, U32, codes(dl), z), k), line, len)) == Frame.More{}
     : Frame.Cut}
 
-def digits.waits(dl, zz, kk, line, len, hz, h):
+def digits.waits(dl, z, k, line, len, hz, h):
   match dl:
     case Nil{}:
-      hz(kk, h)
+      hz(k, h)
     case Con{+d, t}:
-      match kk:
+      match k:
         case 0n:
           {==}
         case 1n+p:
-          +tk = List.take(&2, U32, List.append(&2, U32, codes(t), zz), p)
+          +tk = List.take(&2, U32, List.append(&2, U32, codes(t), z), p)
           Equal.trans(Frame.Cut, Frame.cut.body(Frame.header(Frame.digit.code(d) <> tk, line, len)),
             Frame.cut.body(Frame.header(tk, Frame.digit.code(d) <> line, len)), Frame.More{},
             Equal.cong(Frame.Head, Frame.Cut, hh => Frame.cut.body(hh),
               Frame.header(Frame.digit.code(d) <> tk, line, len), Frame.header(tk, Frame.digit.code(d) <> line, len),
               hdr.digit(d, tk, line, len)),
-            digits.waits(t, zz, p, Frame.digit.code(d) <> line, len, hz, h))
+            digits.waits(t, z, p, Frame.digit.code(d) <> line, len, hz, h))
 
 # a cut inside "Content-Length: " waits; past it, it waits when the rest does
 law pfx.waits:
   for +ys: List<&2, U32>
-  for +kk: Nat
-  for hy: @jj:Nat -> {Nat.is_lt(jj, List.length(&2, U32, ys)) == True{} : Bool}
-    -> {Frame.cut.body(Frame.header(List.take(&2, U32, ys, jj), pl(), [Frame.D0{}])) == Frame.More{} : Frame.Cut}
-  for h: {Nat.is_lt(kk, List.length(&2, U32, pfx(ys))) == True{} : Bool}
-  {Frame.cut(List.take(&2, U32, pfx(ys), kk)) == Frame.More{} : Frame.Cut}
+  for +k: Nat
+  for hy: @j:Nat -> {Nat.is_lt(j, List.length(&2, U32, ys)) == True{} : Bool}
+    -> {Frame.cut.body(Frame.header(List.take(&2, U32, ys, j), pl(), [Frame.D0{}])) == Frame.More{} : Frame.Cut}
+  for h: {Nat.is_lt(k, List.length(&2, U32, pfx(ys))) == True{} : Bool}
+  {Frame.cut(List.take(&2, U32, pfx(ys), k)) == Frame.More{} : Frame.Cut}
 
-def pfx.waits(_ys, kk, hy, h):
-  match kk:
+def pfx.waits(_ys, k, hy, h):
+  match k:
     case 0n:
       {==}
     case 1n+k1:
@@ -1173,15 +1173,15 @@ def pfx.waits(_ys, kk, hy, h):
                                                                   hy(k16, h)
 
 def Laws.frame_waits(s, kk0, h):
-  +kk = kk0
+  +k = kk0
   +e = Frame.encode(s)
   +w2 = pfx(body(s, e))
   +l = List.reverse.go(&2, U32, codes(msd(s)), pl())
-  Equal.trans(Frame.Cut, Frame.cut(List.take(&2, U32, Laws.wire(s), kk)), Frame.cut(List.take(&2, U32, w2, kk)),
+  Equal.trans(Frame.Cut, Frame.cut(List.take(&2, U32, Laws.wire(s), k)), Frame.cut(List.take(&2, U32, w2, k)),
     Frame.More{},
-    Equal.cong(List<&2, U32>, Frame.Cut, w => Frame.cut(List.take(&2, U32, w, kk)), Laws.wire(s), w2, wire.shape(s)),
-    pfx.waits(body(s, e), kk,
-      jj => hj => digits.waits(msd(s), 13 <> 10 <> 13 <> 10 <> e, jj, pl(), [Frame.D0{}],
+    Equal.cong(List<&2, U32>, Frame.Cut, w => Frame.cut(List.take(&2, U32, w, k)), Laws.wire(s), w2, wire.shape(s)),
+    pfx.waits(body(s, e), k,
+      j => hj => digits.waits(msd(s), 13 <> 10 <> 13 <> 10 <> e, j, pl(), [Frame.D0{}],
         j2 => hj2 => tail.waits(e, j2, l, [Frame.D0{}], rev_full(U32, codes(msd(s)), pl(), {==}),
           Equal.trans(Nat, Laws.value(Frame.line_len(l, [Frame.D0{}])), Laws.value(cnt(s)), List.length(&2, U32, e),
             Equal.cong(List<&2, Frame.Digit>, Nat, x => Laws.value(x), Frame.line_len(l, [Frame.D0{}]), cnt(s),
@@ -1189,9 +1189,9 @@ def Laws.frame_waits(s, kk0, h):
             count.value(s)),
           hj2),
         hj),
-      Equal.trans(Bool, Nat.is_lt(kk, List.length(&2, U32, w2)), Nat.is_lt(kk, List.length(&2, U32, Laws.wire(s))),
+      Equal.trans(Bool, Nat.is_lt(k, List.length(&2, U32, w2)), Nat.is_lt(k, List.length(&2, U32, Laws.wire(s))),
         True{},
-        Equal.cong(List<&2, U32>, Bool, w => Nat.is_lt(kk, List.length(&2, U32, w)), w2, Laws.wire(s),
+        Equal.cong(List<&2, U32>, Bool, w => Nat.is_lt(k, List.length(&2, U32, w)), w2, Laws.wire(s),
           Equal.sym(List<&2, U32>, Laws.wire(s), w2, wire.shape(s))),
         h)))
 
@@ -1211,8 +1211,8 @@ def Laws.lack_takes_each_byte(_h, _t, _ds):
 def Laws.lack_of_none_held(_ds):
   {==}
 
-def Laws.digit_value_is_its_char(dd):
-  match dd:
+def Laws.digit_value_is_its_char(d):
+  match d:
     case Frame.D0{}:
       {==}
     case Frame.D1{}:
@@ -1234,12 +1234,12 @@ def Laws.digit_value_is_its_char(dd):
     case Frame.D9{}:
       {==}
 
-def Laws.held_caps(nn, e):
-  %Equal.sym(Bool, U32.is_gt(nn, 65536), True{}, e) : {Bool.pick(U32, _, 65536, nn) == 65536 : U32}
+def Laws.held_caps(n, e):
+  %Equal.sym(Bool, U32.is_gt(n, 65536), True{}, e) : {Bool.pick(U32, _, 65536, n) == 65536 : U32}
   {==}
 
-def Laws.held_keeps(nn, e):
-  %Equal.sym(Bool, U32.is_gt(nn, 65536), False{}, e) : {Bool.pick(U32, _, 65536, nn) == nn : U32}
+def Laws.held_keeps(n, e):
+  %Equal.sym(Bool, U32.is_gt(n, 65536), False{}, e) : {Bool.pick(U32, _, 65536, n) == n : U32}
   {==}
 
 def Laws.count_held_by_digits(_d, _t):
@@ -1268,10 +1268,10 @@ def Laws.count_held_one_digit(d):
     case Frame.D9{}:
       {==}
 
-def Laws.at_least_one_of_none(nn, e):
-  %Equal.sym(Bool, U32.is_eq(nn, 0), True{}, e) : {Bool.pick(U32, _, 1, nn) == 1 : U32}
+def Laws.at_least_one_of_none(n, e):
+  %Equal.sym(Bool, U32.is_eq(n, 0), True{}, e) : {Bool.pick(U32, _, 1, n) == 1 : U32}
   {==}
 
-def Laws.at_least_one_keeps(nn, e):
-  %Equal.sym(Bool, U32.is_eq(nn, 0), False{}, e) : {Bool.pick(U32, _, 1, nn) == nn : U32}
+def Laws.at_least_one_keeps(n, e):
+  %Equal.sym(Bool, U32.is_eq(n, 0), False{}, e) : {Bool.pick(U32, _, 1, n) == n : U32}
   {==}

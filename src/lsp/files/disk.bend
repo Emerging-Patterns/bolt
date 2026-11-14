@@ -15,7 +15,7 @@ def whole.end(file: File, acc: List<&2, String>) -> IO(Maybe<&2, String>):
 # an empty read is the end; anything else is one more text
 def whole.more(
   done: Bool,
-  tt: String,
+  t: String,
   file: File,
   acc: List<&2, String>,
   rest: File -> List<&2, String> -> IO(Maybe<&2, String>)
@@ -24,20 +24,20 @@ def whole.more(
     case True{}:
       whole.end(file, acc)
     case False{}:
-      rest(file, tt <> acc)
+      rest(file, t <> acc)
 
 # a read's text kept, or the end at a failed read
 def whole.got(
-  rr: Result<&1, &1, U32 & String, String>,
+  r: Result<&1, &1, U32 & String, String>,
   file: File,
   acc: List<&2, String>,
   rest: File -> List<&2, String> -> IO(Maybe<&2, String>)
 ) -> IO(Maybe<&2, String>):
-  match rr:
+  match r:
     case Fail{e}:
       whole.end(file, acc)
-    case Done{+tt}:
-      whole.more(String.is_empty(tt), tt, file, acc, rest)
+    case Done{+t}:
+      whole.more(String.is_empty(t), t, file, acc, rest)
 
 # a read and the file it leaves
 def whole.next(
@@ -60,8 +60,8 @@ def whole.rest(fuel: Nat, file: File, acc: List<&2, String>) -> IO(Maybe<&2, Str
         whole.next(got, acc, fl => a => whole.rest(f, fl, a))
 
 # a size, or none known
-def whole.size(rr: Result<&1, &1, U32 & String, U32>) -> U32:
-  match rr:
+def whole.size(r: Result<&1, &1, U32 & String, U32>) -> U32:
+  match r:
     case Fail{e}:
       0
     case Done{n}:
@@ -74,8 +74,8 @@ def whole.sized(got: File & Result<&1, &1, U32 & String, U32>) -> IO(Maybe<&2, S
     first : File & Result<&1, &1, U32 & String, String> <- File.read(file, whole.size(r))
     whole.next(first, [], fl => a => whole.rest(U32.to_nat(100000), fl, a))
 
-def read.opened(rr: Result<&1, &1, U32 & String, File>) -> IO(Maybe<&2, String>):
-  match rr:
+def read.opened(r: Result<&1, &1, U32 & String, File>) -> IO(Maybe<&2, String>):
+  match r:
     case Fail{e}:
       IO.pure(Maybe<&2, String>, None{})
     case Done{file}:
@@ -89,8 +89,8 @@ def read(path: String) -> IO(Maybe<&2, String>):
     r : Result<&1, &1, U32 & String, File> <- File.open(path, "r")
     read.opened(r)
 
-def base_path.of(rr: Result<&1, &1, U32 & String, String>) -> IO(String):
-  match rr:
+def base_path.of(r: Result<&1, &1, U32 & String, String>) -> IO(String):
+  match r:
     case Fail{e}:
       IO.pure(String, "")
     case Done{home}:

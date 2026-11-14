@@ -32,16 +32,16 @@ def spelled.seen(sp: Maybe<&2, String>, +seen: List<&2, String>) -> Bool:
   match sp:
     case None{}:
       False{}
-    case Some{ss}:
-      List.contains(~String, ~String.eq, seen, ss)
+    case Some{s}:
+      List.contains(~String, ~String.eq, seen, s)
 
 # the spellings seen, with this one when there is one
 def spelled.add(sp: Maybe<&2, String>, seen: List<&2, String>) -> List<&2, String>:
   match sp:
     case None{}:
       seen
-    case Some{ss}:
-      ss <> seen
+    case Some{s}:
+      s <> seen
 
 # a default outside a nonempty choices list
 def args.default(
@@ -53,9 +53,9 @@ def args.default(
   match dflt:
     case None{}:
       []
-    case Some{+vv}:
-      one(Bool.and(Bool.not(List.is_empty(&2, String, cs)), Bool.not(C.allowed.ok(cs, vv))),
-        DefaultNotChoice{path, name, vv})
+    case Some{+v}:
+      one(Bool.and(Bool.not(List.is_empty(&2, String, cs)), Bool.not(C.allowed.ok(cs, v))),
+        DefaultNotChoice{path, name, v})
 
 # each argument's name and spellings against the earlier ones', and its
 # default against its choices
@@ -69,13 +69,13 @@ def args.dups(
   match args:
     case Nil{}:
       []
-    case Con{hh, tt}:
-      C.Arg{+name, +short, +long, _k, _h, _r, C.Fallback{_e, dflt}, +cs} = hh
+    case Con{h, t}:
+      C.Arg{+name, +short, +long, _k, _h, _r, C.Fallback{_e, dflt}, +cs} = h
       both(one(List.contains(~String, ~String.eq, names, name), SameName{path, name}),
         both(one(spelled.seen(short, shorts), SameShort{path, C.text.of(short, "")}),
           both(one(spelled.seen(long, longs), SameLong{path, C.text.of(long, "")}),
             both(args.default(dflt, cs, path, name),
-              args.dups(tt, path, name <> names, spelled.add(short, shorts),
+              args.dups(t, path, name <> names, spelled.add(short, shorts),
                 spelled.add(long, longs))))))
 
 # the positionals in order: a rest before the last, and a required one after
@@ -88,12 +88,12 @@ def pos.order(
   match pos:
     case Nil{}:
       []
-    case Con{hh, +tt}:
-      C.Arg{+name, _s, _l, kind, _h, +req, _d, _c} = hh
-      both(one(Bool.and(C.rest.is.kind(kind), Bool.not(List.is_empty(&2, C.Arg, tt))),
+    case Con{h, +t}:
+      C.Arg{+name, _s, _l, kind, _h, +req, _d, _c} = h
+      both(one(Bool.and(C.rest.is.kind(kind), Bool.not(List.is_empty(&2, C.Arg, t))),
           RestNotLast{path, name}),
         both(one(Bool.and(req, opt_seen), RequiredAfterOptional{path, name}),
-          pos.order(tt, path, Bool.or(opt_seen, Bool.not(req)))))
+          pos.order(t, path, Bool.or(opt_seen, Bool.not(req)))))
 
 # each subcommand's name against the earlier ones', and against `help`
 def subs.dups(
@@ -104,11 +104,11 @@ def subs.dups(
   match subs:
     case Nil{}:
       []
-    case Con{hh, tt}:
-      C.Sub{+name, _a, _g, _c} = hh
+    case Con{h, t}:
+      C.Sub{+name, _a, _g, _c} = h
       both(one(List.contains(~String, ~String.eq, names, name), SameSub{path, name}),
         both(one(String.eq(name, "help"), HelpSub{path}),
-          subs.dups(tt, path, name <> names)))
+          subs.dups(t, path, name <> names)))
 
 # one command's own reports
 def cmd(
@@ -130,11 +130,11 @@ def forest(subs: List<&2, C.Sub>, +back: List<&2, String>) -> List<&2, SpecErr>:
   match subs:
     case Nil{}:
       []
-    case Con{hh, tt}:
-      C.Sub{+name, _a, +args, +kids} = hh
+    case Con{h, t}:
+      C.Sub{+name, _a, +args, +kids} = h
       +here = pushed(name, back)
       both(cmd(List.reverse(&2, String, here), args, kids),
-        both(forest(kids, here), forest(tt, back)))
+        both(forest(kids, here), forest(t, back)))
 
 # every way the spec contradicts itself: the root's reports, then each
 # subcommand's

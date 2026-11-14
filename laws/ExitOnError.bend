@@ -6,8 +6,8 @@ import ../src/lint/plan.bend as Plan
 import ./defs/GradedFindingCounts.bend as D1
 
 # true at error, or what the rest says
-def any_error.one(ll: Config.Level, more: Bool) -> Bool:
-  match ll:
+def any_error.one(l: Config.Level, more: Bool) -> Bool:
+  match l:
     case Config.Off{}:
       more
     case Config.Warn{}:
@@ -20,8 +20,8 @@ def any_error(gs: List<&2, F.Graded>) -> Bool:
   match gs:
     case Nil{}:
       False{}
-    case Con{F.Graded{ll, _ff}, rest}:
-      any_error.one(ll, any_error(rest))
+    case Con{F.Graded{l, _ff}, rest}:
+      any_error.one(l, any_error(rest))
 
 # LAW: the exit status is 1 exactly when some graded finding is an error,
 # and 0 otherwise, a silenced finding counting for nothing

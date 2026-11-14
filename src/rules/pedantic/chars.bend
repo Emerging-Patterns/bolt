@@ -39,20 +39,20 @@ def literal(kids: Tree.Node) -> U32:
       0
 
 # the character-literal arms among a match's statements
-def tally(body: Tree.Node, +nn: U32) -> U32:
+def tally(body: Tree.Node, +n: U32) -> U32:
   match body:
     case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, b}, rest}:
       +k = literal(T.pattern(kids))
-      tally(rest, (nn + k : U32))
+      tally(rest, (n + k : U32))
     case Tree.NCons{h, rest}:
-      tally(rest, nn)
+      tally(rest, n)
     case other:
-      nn
+      n
 
 # a finding when the match holds more character literals than is cheap
-def report(+nn: U32, +path: String, +ll: U32, +cc: U32) -> List<&2, F.Finding>:
-  Bool.pick(List<&2, F.Finding>, U32.is_gt(nn, 8),
-    [F.Finding{path, ll, cc, 5, "chars", "This match has " ++ U32.show(nn)
+def report(+n: U32, +path: String, +l: U32, +c: U32) -> List<&2, F.Finding>:
+  Bool.pick(List<&2, F.Finding>, U32.is_gt(n, 8),
+    [F.Finding{path, l, c, 5, "chars", "This match has " ++ U32.show(n)
       ++ " character-literal cases, over the limit of 8; each costs build memory, and comparing Char.to_u32(c) costs none."}],
     [])
 
@@ -63,8 +63,8 @@ def on_stmt(+kids: Tree.Node, +body: Tree.Node, +path: String) -> List<&2, F.Fin
     _u => report(tally(body, 0), path, Tree.line(kids), Tree.col(kids)))
 
 # every statement, at any depth
-def walk(nn: Tree.Node, +path: String) -> List<&2, F.Finding>:
-  match nn:
+def walk(n: Tree.Node, +path: String) -> List<&2, F.Finding>:
+  match n:
     case Tree.NCons{Tree.Stmt{kind, kids, +body}, rest}:
       List.concat(&2, F.Finding, [on_stmt(kids, body, path), walk(body, path), walk(rest, path)])
     case Tree.NCons{h, rest}:
@@ -73,6 +73,6 @@ def walk(nn: Tree.Node, +path: String) -> List<&2, F.Finding>:
       Nil{}
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
   walk(tree, path)

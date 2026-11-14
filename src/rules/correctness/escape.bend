@@ -19,8 +19,8 @@ type Sym is Data:
   SOther{c: Char}
 
 # a char as a Sym
-def sym(cc: Char) -> Sym:
-  match cc:
+def sym(c: Char) -> Sym:
+  match c:
     case Chr{+x}:
       Bool.pick(Sym, U32.is_eq(x, 92), SSlash{},
         Bool.pick(Sym, U32.is_eq(x, 48), SZero{},
@@ -35,8 +35,8 @@ def syms(cs: List<&2, Char>) -> List<&2, Sym>:
       sym(c) <> syms(t)
 
 # the Sym's char when it is an octal digit
-def octal(ss: Sym) -> Maybe<&2, Char>:
-  match ss:
+def octal(s: Sym) -> Maybe<&2, Char>:
+  match s:
     case SZero{}:
       Some{'0'}
     case SDigit{Chr{+x}}:
@@ -45,8 +45,8 @@ def octal(ss: Sym) -> Maybe<&2, Char>:
       None{}
 
 # keep the octal digit, and those after it
-def run.if(mm: Maybe<&2, Char>, rest: List<&2, Char>) -> List<&2, Char>:
-  match mm:
+def run.if(m: Maybe<&2, Char>, rest: List<&2, Char>) -> List<&2, Char>:
+  match m:
     case None{}:
       Nil{}
     case Some{c}:
@@ -71,12 +71,12 @@ def value(cs: List<&2, Char>, +acc: U32) -> U32:
       value(t, ((acc * 8) + (x - 48) : U32))
 
 # a hex digit
-def hexd(+nn: U32) -> String:
-  String.from_list([Chr{Bool.pick(U32, U32.is_lt(nn, 10), (nn + 48 : U32), (nn + 55 : U32))}])
+def hexd(+n: U32) -> String:
+  String.from_list([Chr{Bool.pick(U32, U32.is_lt(n, 10), (n + 48 : U32), (n + 55 : U32))}])
 
 # a value under 256 in hex, without leading zeros
-def hex(+nn: U32) -> String:
-  Bool.pick(String, U32.is_lt(nn, 16), hexd(nn), hexd((nn / 16 : U32)) ++ hexd((nn % 16 : U32)))
+def hex(+n: U32) -> String:
+  Bool.pick(String, U32.is_lt(n, 16), hexd(n), hexd((n / 16 : U32)) ++ hexd((n % 16 : U32)))
 
 # the finding for `\0` at a column, the digits after it in ds
 def finding(+ds: List<&2, Char>, +path: String, +line: U32, +col: U32) -> F.Finding:
@@ -88,8 +88,8 @@ def finding(+ds: List<&2, Char>, +path: String, +line: U32, +col: U32) -> F.Find
       "\\0" ++ digits ++ " is a NUL character followed by \"" ++ digits ++ "\", not an octal escape; write \\u{" ++ hex(value(ds, 0)) ++ "}."})
 
 # after a `\0` at a column: a finding when a digit follows
-def after(ss: List<&2, Sym>, +path: String, +line: U32, +col: U32, more: List<&2, F.Finding>) -> List<&2, F.Finding>:
-  match ss:
+def after(s: List<&2, Sym>, +path: String, +line: U32, +col: U32, more: List<&2, F.Finding>) -> List<&2, F.Finding>:
+  match s:
     case Con{SZero{}, t}:
       finding(run(SZero{} <> t, 2n), path, line, col) <> more
     case Con{SDigit{d}, t}:
@@ -121,6 +121,6 @@ def check.go(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
       Nil{}
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
   check.go(toks, path)

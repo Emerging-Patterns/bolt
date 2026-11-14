@@ -9,42 +9,42 @@ import ../src/syntax/word.bend as Word
 # LAW: a char belongs to a name exactly when it is a letter, a digit, `_` or
 # `.`
 law name_chars:
-  for +cc: Char
-  {Word.is_name(cc)
-    == Bool.or(Bool.or(Char.is_alpha(cc), Char.is_digit(cc)), Bool.or(Char.is_eq(cc, '_'), Char.is_eq(cc, '.')))
+  for +c: Char
+  {Word.is_name(c)
+    == Bool.or(Bool.or(Char.is_alpha(c), Char.is_digit(c)), Bool.or(Char.is_eq(c, '_'), Char.is_eq(c, '.')))
     : Bool}
 
-# LAW: a run that ends at column ii is the name at col exactly when it
-# starts at or before col and col is at or before ii; otherwise what was
+# LAW: a run that ends at column i is the name at col exactly when it
+# starts at or before col and col is at or before i; otherwise what was
 # found before stands
 law run_holds_its_columns:
   for h: Char
   for t: List<&2, Char>
   for +start: U32
-  for +ii: U32
+  for +i: U32
   for +col: U32
   for hit: Maybe<&2, String>
-  {Word.close.run(h <> t, start, ii, col, hit)
-    == Bool.pick(Maybe<&2, String>, Bool.and(U32.is_le(start, col), U32.is_le(col, ii)), Some{Word.text(h <> t)},
+  {Word.close.run(h <> t, start, i, col, hit)
+    == Bool.pick(Maybe<&2, String>, Bool.and(U32.is_le(start, col), U32.is_le(col, i)), Some{Word.text(h <> t)},
       hit) : Maybe<&2, String>}
 
 # LAW: an empty run is no name: what was found before stands
 law empty_run_is_no_name:
   for +start: U32
-  for +ii: U32
+  for +i: U32
   for +col: U32
   for hit: Maybe<&2, String>
-  {Word.close.run(Nil{}, start, ii, col, hit) == hit : Maybe<&2, String>}
+  {Word.close.run(Nil{}, start, i, col, hit) == hit : Maybe<&2, String>}
 
 # LAW: the wanted line starts after a newline when one line was left to skip
 law line_starts_after_last_newline:
-  for nn: U32
-  {Word.at.skip.done(True{}, nn) == U32.is_eq(nn, 1) : Bool}
+  for n: U32
+  {Word.at.skip.done(True{}, n) == U32.is_eq(n, 1) : Bool}
 
 # LAW: any other char starts no line
 law line_needs_a_newline:
-  for nn: U32
-  {Word.at.skip.done(False{}, nn) == False{} : Bool}
+  for n: U32
+  {Word.at.skip.done(False{}, n) == False{} : Bool}
 
 # LAW: the name at a line and column is read from that line's start, the
 # source's own start when the line is the first
@@ -64,22 +64,22 @@ law run_of_name_chars:
 
 # LAW: a name char joins the run, and the scan moves one column on
 law step_joins_a_name_char:
-  for cc: Char
-  for +ii: U32
+  for c: Char
+  for +i: U32
   for start: U32
   for run: List<&2, Char>
   for hit: Maybe<&2, String>
   for col: U32
-  {Word.step.on(True{}, cc, ii, start, run, hit, col) == Word.W{(ii + 1 : U32), start, cc <> run, hit} : Word.W}
+  {Word.step.on(True{}, c, i, start, run, hit, col) == Word.W{(i + 1 : U32), start, c <> run, hit} : Word.W}
 
 # LAW: any other char ends the run at its own column, where the run is read
 # for the cursor, and the next run starts at the column after it
 law step_ends_the_run:
-  for cc: Char
-  for +ii: U32
+  for c: Char
+  for +i: U32
   for +start: U32
   for run: List<&2, Char>
   for hit: Maybe<&2, String>
   for +col: U32
-  {Word.step.on(False{}, cc, ii, start, run, hit, col)
-    == Word.W{(ii + 1 : U32), (ii + 1 : U32), [], Word.close(ii, start, run, hit, col)} : Word.W}
+  {Word.step.on(False{}, c, i, start, run, hit, col)
+    == Word.W{(i + 1 : U32), (i + 1 : U32), [], Word.close(i, start, run, hit, col)} : Word.W}

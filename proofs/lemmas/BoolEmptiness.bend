@@ -2,8 +2,8 @@
 import Base
 
 # Unit for False, Empty for True
-def false_ty(bb: Bool) -> Type:
-  match bb:
+def false_ty(b: Bool) -> Type:
+  match b:
     case False{}:
       Unit
     case True{}:

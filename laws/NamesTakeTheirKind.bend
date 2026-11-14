@@ -13,8 +13,8 @@ def keywords() -> List<&2, String>:
    "Type", "Data", "Kind", "Quant"]
 
 # a listed keyword is the lexer's keyword; past the end holds
-def keyword.is_key(mm: Maybe<&2, String>) -> Bool:
-  match mm:
+def keyword.is_key(m: Maybe<&2, String>) -> Bool:
+  match m:
     case None{}:
       True{}
     case Some{+kw}:
@@ -27,39 +27,39 @@ law keywords_are_keywords:
 
 # LAW: a keyword is a keyword token
 law name_keyword:
-  for +tt: String
-  for e1: {Lex.is_keyword(tt) == True{} : Bool}
-  {Lex.refine_name(tt) == Lex.TKey{} : Lex.TokKind}
+  for +t: String
+  for e1: {Lex.is_keyword(t) == True{} : Bool}
+  {Lex.refine_name(t) == Lex.TKey{} : Lex.TokKind}
 
 # LAW: any other name holding a `.` is a dotted name
 law name_dotted:
-  for +tt: String
-  for e1: {Lex.is_keyword(tt) == False{} : Bool}
-  for e2: {String.contains(tt, ".") == True{} : Bool}
-  {Lex.refine_name(tt) == Lex.TDotted{} : Lex.TokKind}
+  for +t: String
+  for e1: {Lex.is_keyword(t) == False{} : Bool}
+  for e2: {String.contains(t, ".") == True{} : Bool}
+  {Lex.refine_name(t) == Lex.TDotted{} : Lex.TokKind}
 
 # LAW: `_` is the wild name
 law name_wild:
-  for +tt: String
-  for e1: {Lex.is_keyword(tt) == False{} : Bool}
-  for e2: {String.contains(tt, ".") == False{} : Bool}
-  for e3: {String.eq(tt, "_") == True{} : Bool}
-  {Lex.refine_name(tt) == Lex.TWild{} : Lex.TokKind}
+  for +t: String
+  for e1: {Lex.is_keyword(t) == False{} : Bool}
+  for e2: {String.contains(t, ".") == False{} : Bool}
+  for e3: {String.eq(t, "_") == True{} : Bool}
+  {Lex.refine_name(t) == Lex.TWild{} : Lex.TokKind}
 
 # LAW: any other name that starts with a capital is a capitalized name
 law name_upper:
-  for +tt: String
-  for e1: {Lex.is_keyword(tt) == False{} : Bool}
-  for e2: {String.contains(tt, ".") == False{} : Bool}
-  for e3: {String.eq(tt, "_") == False{} : Bool}
-  for e4: {Lex.upper_first(String.to_list(tt)) == True{} : Bool}
-  {Lex.refine_name(tt) == Lex.TUpper{} : Lex.TokKind}
+  for +t: String
+  for e1: {Lex.is_keyword(t) == False{} : Bool}
+  for e2: {String.contains(t, ".") == False{} : Bool}
+  for e3: {String.eq(t, "_") == False{} : Bool}
+  for e4: {Lex.upper_first(String.to_list(t)) == True{} : Bool}
+  {Lex.refine_name(t) == Lex.TUpper{} : Lex.TokKind}
 
 # LAW: every other name is a plain name
 law name_plain:
-  for +tt: String
-  for e1: {Lex.is_keyword(tt) == False{} : Bool}
-  for e2: {String.contains(tt, ".") == False{} : Bool}
-  for e3: {String.eq(tt, "_") == False{} : Bool}
-  for e4: {Lex.upper_first(String.to_list(tt)) == False{} : Bool}
-  {Lex.refine_name(tt) == Lex.TName{} : Lex.TokKind}
+  for +t: String
+  for e1: {Lex.is_keyword(t) == False{} : Bool}
+  for e2: {String.contains(t, ".") == False{} : Bool}
+  for e3: {String.eq(t, "_") == False{} : Bool}
+  for e4: {Lex.upper_first(String.to_list(t)) == False{} : Bool}
+  {Lex.refine_name(t) == Lex.TName{} : Lex.TokKind}

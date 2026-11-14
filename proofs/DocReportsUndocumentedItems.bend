@@ -32,40 +32,40 @@ def doc.pick(c, _a, _x, _y, ih):
     case False{}:
       ih
 
-# the read down from ok to line nn, to the rule and to the law
+# the read down from ok to line n, to the rule and to the law
 law doc.lead:
   for lines: List<&2, String>
-  for +nn: U32
+  for +n: U32
   for +ok: Bool
-  {Doc.check.lead(lines, nn, ok) == Laws.doc.lead(lines, nn, ok) : Bool}
+  {Doc.check.lead(lines, n, ok) == Laws.doc.lead(lines, n, ok) : Bool}
 
-def doc.lead(lines, nn, ok):
+def doc.lead(lines, n, ok):
   match lines:
     case Nil{}:
       {==}
-    case Con{+hh, tt}:
-      doc.pick(U32.is_eq(nn, 0), ok, Doc.check.lead(tt, U32.sub(nn, 1), Doc.check.after(hh, ok)),
-        Laws.doc.lead(tt, U32.sub(nn, 1), Laws.doc.after(hh, ok)),
-        doc.lead(tt, U32.sub(nn, 1), Doc.check.after(hh, ok)))
+    case Con{+h, t}:
+      doc.pick(U32.is_eq(n, 0), ok, Doc.check.lead(t, U32.sub(n, 1), Doc.check.after(h, ok)),
+        Laws.doc.lead(t, U32.sub(n, 1), Laws.doc.after(h, ok)),
+        doc.lead(t, U32.sub(n, 1), Doc.check.after(h, ok)))
 
-# the comment block above line nn, to the rule and to the law
+# the comment block above line n, to the rule and to the law
 law doc.above:
   for +lines: List<&2, String>
-  for +nn: U32
-  {Doc.check.above(lines, nn) == Laws.doc.lead(lines, nn, False{}) : Bool}
+  for +n: U32
+  {Doc.check.above(lines, n) == Laws.doc.lead(lines, n, False{}) : Bool}
 
-def doc.above(lines, nn):
-  doc.lead(lines, nn, False{})
+def doc.above(lines, n):
+  doc.lead(lines, n, False{})
 
 # the kind and name test, to the rule and to the law
 law doc.needs:
-  for kk: Outline.ItemKind
+  for k: Outline.ItemKind
   for +name: String
-  {Bool.and(Doc.needs(kk), Bool.not(Doc.exempt(name))) == Bool.and(Laws.doc.kind(kk), Bool.not(Laws.doc.free(name)))
+  {Bool.and(Doc.needs(k), Bool.not(Doc.exempt(name))) == Bool.and(Laws.doc.kind(k), Bool.not(Laws.doc.free(name)))
     : Bool}
 
-def doc.needs(kk, _name):
-  match kk:
+def doc.needs(k, _name):
+  match k:
     case Outline.IImport{}:
       {==}
     case Outline.IDef{}:
@@ -81,51 +81,51 @@ def doc.needs(kk, _name):
 
 # an item's hit, to the rule and to the law
 law doc.hit:
-  for +kk: Outline.ItemKind
+  for +k: Outline.ItemKind
   for +name: String
   for +line: U32
   for +doc: String
   for +lines: List<&2, String>
-  {Lazy.and_then(Bool.and(Doc.needs(kk), Bool.not(Doc.exempt(name))), _u => Bool.not(Doc.check.above(lines, line)))
-    == Laws.doc.bare(kk, name, line, doc, lines) : Bool}
+  {Lazy.and_then(Bool.and(Doc.needs(k), Bool.not(Doc.exempt(name))), _u => Bool.not(Doc.check.above(lines, line)))
+    == Laws.doc.bare(k, name, line, doc, lines) : Bool}
 
-def doc.hit(kk, name, line, _doc, lines):
-  +ar = Bool.and(Doc.needs(kk), Bool.not(Doc.exempt(name)))
-  +as = Bool.and(Laws.doc.kind(kk), Bool.not(Laws.doc.free(name)))
+def doc.hit(k, name, line, _doc, lines):
+  +ar = Bool.and(Doc.needs(k), Bool.not(Doc.exempt(name)))
+  +as = Bool.and(Laws.doc.kind(k), Bool.not(Laws.doc.free(name)))
   +ns = Bool.not(Laws.doc.lead(lines, line, False{}))
   Equal.trans(Bool, Lazy.and_then(ar, _u => Bool.not(Doc.check.above(lines, line))), Bool.and(ar, ns),
     Bool.and(as, ns),
     M1.hole.and(ar, Bool.not(Doc.check.above(lines, line)), ns,
       Equal.cong(Bool, Bool, z => Bool.not(z), Doc.check.above(lines, line),
         Laws.doc.lead(lines, line, False{}), doc.above(lines, line))),
-    Equal.cong(Bool, Bool, z => Bool.and(z, ns), ar, as, doc.needs(kk, name)))
+    Equal.cong(Bool, Bool, z => Bool.and(z, ns), ar, as, doc.needs(k, name)))
 
 # an item onto a rest the law holds for
 law doc.item:
-  for +kk: Outline.ItemKind
+  for +k: Outline.ItemKind
   for +name: String
   for +line: U32
   for sig: String
   for +doc: String
-  for pp: String
+  for p: String
   for +rest: List<&2, Outline.Item>
   for +path: String
   for +lines: List<&2, String>
   for ih: {List.length(&2, F.Finding, Doc.check.go(rest, path, lines)) == Laws.doc.count(rest, lines) : Nat}
-  {List.length(&2, F.Finding, Doc.check.go(Outline.Item{kk, name, line, sig, doc, pp} <> rest, path, lines))
-    == Laws.doc.count(Outline.Item{kk, name, line, sig, doc, pp} <> rest, lines) : Nat}
+  {List.length(&2, F.Finding, Doc.check.go(Outline.Item{k, name, line, sig, doc, p} <> rest, path, lines))
+    == Laws.doc.count(Outline.Item{k, name, line, sig, doc, p} <> rest, lines) : Nat}
 
-def doc.item(kk, name, line, _sig, doc, _pp, rest, path, lines, ih):
+def doc.item(k, name, line, _sig, doc, _pp, rest, path, lines, ih):
   +more = Doc.check.go(rest, path, lines)
   +m = Laws.doc.count(rest, lines)
-  +x = {F.Finding{path, line, 0, 0, "doc", Doc.what(kk) ++ " " ++ name ++ " has no comment above it."} : F.Finding}
-  +hr = Lazy.and_then(Bool.and(Doc.needs(kk), Bool.not(Doc.exempt(name))), _u => Bool.not(Doc.check.above(lines, line)))
-  +hs = Laws.doc.bare(kk, name, line, doc, lines)
+  +x = {F.Finding{path, line, 0, 0, "doc", Doc.what(k) ++ " " ++ name ++ " has no comment above it."} : F.Finding}
+  +hr = Lazy.and_then(Bool.and(Doc.needs(k), Bool.not(Doc.exempt(name))), _u => Bool.not(Doc.check.above(lines, line)))
+  +hs = Laws.doc.bare(k, name, line, doc, lines)
   Equal.trans(Nat, List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, hr, x <> more, more)),
     List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, hs, x <> more, more)),
     Bool.pick(Nat, hs, 1n+m, m),
     Equal.cong(Bool, Nat, z => List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, z, x <> more, more)), hr, hs,
-      doc.hit(kk, name, line, doc, lines)),
+      doc.hit(k, name, line, doc, lines)),
     M2.nat.pick(hs, x, more, m, ih))
 
 def Laws.doc_walk_counts(items, path, lines):
@@ -134,8 +134,8 @@ def Laws.doc_walk_counts(items, path, lines):
       {==}
     case Con{it, +rest}:
       match it:
-        case Outline.Item{kk, name, line, sig, doc, pp}:
-          doc.item(kk, name, line, sig, doc, pp, rest, path, lines, Laws.doc_walk_counts(rest, path, lines))
+        case Outline.Item{k, name, line, sig, doc, p}:
+          doc.item(k, name, line, sig, doc, p, rest, path, lines, Laws.doc_walk_counts(rest, path, lines))
 
 def Laws.doc_counts(path, text, toks, _tree, _bound, items):
   +ls = Doc.lines(text, toks)

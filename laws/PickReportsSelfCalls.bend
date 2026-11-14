@@ -31,16 +31,16 @@ def pick.branch_arg(nth: Nat) -> Bool:
       False{}
 
 # is the token a top-level comma, which starts the next argument?
-def pick.comma(kk: Lex.TokKind) -> Bool:
-  match kk:
+def pick.comma(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TComma{}:
       True{}
     case other:
       False{}
 
 # the argument after a token: one further past a comma
-def pick.step(kk: Lex.TokKind, +nth: Nat) -> Nat:
-  Bool.pick(Nat, pick.comma(kk), 1n+nth, nth)
+def pick.step(k: Lex.TokKind, +nth: Nat) -> Nat:
+  Bool.pick(Nat, pick.comma(k), 1n+nth, nth)
 
 # argument nth of a group is quiet when the group is (quiet), or when it is
 # a branch of a pick counted (hush)
@@ -83,22 +83,22 @@ law pick_mute:
 
 # LAW: the rule moves to the next argument exactly past a comma
 law pick_next:
-  for kk: Lex.TokKind
+  for k: Lex.TokKind
   for +nth: Nat
-  {Pick.next(kk, nth) == pick.step(kk, nth) : Nat}
+  {Pick.next(k, nth) == pick.step(k, nth) : Nat}
 
 # LAW: over any chain, pick reports one finding for each `Bool.pick(..)` whose
 # third or fourth argument calls the def, in both or in one, none for a pick
 # inside a branch of one it reported, and one for a pick in its condition
 law pick_walk_counts:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +name: String
   for +path: String
   for +quiet: Bool
   for +hush: Bool
   for +nth: Nat
-  {List.length(&2, F.Finding, Pick.walk(nn, name, path, quiet, hush, nth))
-    == pick.count(nn, name, quiet, hush, nth) : Nat}
+  {List.length(&2, F.Finding, Pick.walk(n, name, path, quiet, hush, nth))
+    == pick.count(n, name, quiet, hush, nth) : Nat}
 
 # LAW: a def's body is walked outside any pick's arguments
 law pick_picks_counts:

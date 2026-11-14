@@ -9,12 +9,12 @@ import ../../src/rules/laws/law.bend as Law
 import ../../src/lint/world.bend as W
 
 # whether a directory is among the roots
-def listed(rs: List<&2, String>, +dd: String) -> Bool:
+def listed(rs: List<&2, String>, +d: String) -> Bool:
   match rs:
     case Nil{}:
       False{}
     case Con{r, rest}:
-      Bool.or(String.eq(r, dd), listed(rest, dd))
+      Bool.or(String.eq(r, d), listed(rest, d))
 
 # the first of the directories that is a root, or `` (the package `.`)
 def nearest(us: List<&2, String>, +rs: List<&2, String>) -> String:
@@ -57,14 +57,14 @@ def packed(+srcs: List<&2, Src.Src>, +rs: List<&2, String>) -> List<&2, F.Findin
 # walk_files is the row, at 100000.
 
 # an entry's name without the "/" that marks a directory
-def entry_name(+ee: String) -> String:
-  String.take(ee, Nat.sub(String.length(ee), 1n))
+def entry_name(+e: String) -> String:
+  String.take(e, Nat.sub(String.length(e), 1n))
 
 # whether an entry is a directory the search descends into: it ends in "/",
 # and its name neither starts with "." (hidden) nor is node_modules
-def descends(+ee: String) -> Bool:
-  +nn = entry_name(ee)
-  Bool.and(String.ends_with(ee, "/"), Bool.not(Bool.or(String.starts_with(nn, "."), String.eq(nn, "node_modules"))))
+def descends(+e: String) -> Bool:
+  +n = entry_name(e)
+  Bool.and(String.ends_with(e, "/"), Bool.not(Bool.or(String.starts_with(n, "."), String.eq(n, "node_modules"))))
 
 # the directories a listing of a directory names and the search descends
 # into, as paths, in listing order
@@ -72,9 +72,9 @@ def subdirs(es: List<&2, String>, +dir: String) -> List<&2, String>:
   match es:
     case Nil{}:
       []
-    case Con{+ee, rest}:
+    case Con{+e, rest}:
       +more = subdirs(rest, dir)
-      Bool.pick(List<&2, String>, descends(ee), (dir ++ "/" ++ entry_name(ee)) <> more, more)
+      Bool.pick(List<&2, String>, descends(e), (dir ++ "/" ++ entry_name(e)) <> more, more)
 
 # the `.bend` files a listing of a directory names, as paths, in listing
 # order
@@ -82,9 +82,9 @@ def bends_in(es: List<&2, String>, +dir: String) -> List<&2, String>:
   match es:
     case Nil{}:
       []
-    case Con{+ee, rest}:
+    case Con{+e, rest}:
       +more = bends_in(rest, dir)
-      Bool.pick(List<&2, String>, String.ends_with(ee, ".bend"), (dir ++ "/" ++ ee) <> more, more)
+      Bool.pick(List<&2, String>, String.ends_with(e, ".bend"), (dir ++ "/" ++ e) <> more, more)
 
 # the directories a breadth-first search from the queue reads, in the order
 # it reads them, at most `reads` of them: each is listed, and the ones its
@@ -94,12 +94,12 @@ def bfs(reads: Nat, +world: W.World, queue: List<&2, String>) -> List<&2, String
   match reads:
     case 0n:
       []
-    case 1n+ff:
+    case 1n+f:
       match queue:
         case Nil{}:
           []
-        case Con{+dd, rest}:
-          dd <> bfs(ff, world, List.append(&2, String, rest, subdirs(W.listing(world, dd), dd)))
+        case Con{+d, rest}:
+          d <> bfs(f, world, List.append(&2, String, rest, subdirs(W.listing(world, d), d)))
 
 # the `.bend` files the listings of the directories name, the last directory
 # read first (the order the planner sorts from)
@@ -107,5 +107,5 @@ def found_in(ds: List<&2, String>, +world: W.World) -> List<&2, String>:
   match ds:
     case Nil{}:
       []
-    case Con{+dd, rest}:
-      List.append(&2, String, found_in(rest, world), bends_in(W.listing(world, dd), dd))
+    case Con{+d, rest}:
+      List.append(&2, String, found_in(rest, world), bends_in(W.listing(world, d), d))

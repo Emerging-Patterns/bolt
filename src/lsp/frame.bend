@@ -13,18 +13,18 @@ type Dec is Data:
   Dec{need: Nat, acc: U32, out: List<&2, Char>}
 
 # a lead byte, by its high nibble; a stray continuation byte stands for itself
-def decode.lead(hi: U32, +bb: U32, out: List<&2, Char>) -> Dec:
+def decode.lead(hi: U32, +b: U32, out: List<&2, Char>) -> Dec:
   match hi:
     case 12:
-      Dec{1n, (bb .&. 31 : U32), out}
+      Dec{1n, (b .&. 31 : U32), out}
     case 13:
-      Dec{1n, (bb .&. 31 : U32), out}
+      Dec{1n, (b .&. 31 : U32), out}
     case 14:
-      Dec{2n, (bb .&. 15 : U32), out}
+      Dec{2n, (b .&. 15 : U32), out}
     case 15:
-      Dec{3n, (bb .&. 7 : U32), out}
+      Dec{3n, (b .&. 7 : U32), out}
     case other:
-      Dec{0n, 0, Char.from_u32(bb) <> out}
+      Dec{0n, 0, Char.from_u32(b) <> out}
 
 def decode.more(left: Nat, +acc: U32, out: List<&2, Char>) -> Dec:
   match left:
@@ -33,13 +33,13 @@ def decode.more(left: Nat, +acc: U32, out: List<&2, Char>) -> Dec:
     case 1n+p:
       Dec{1n+p, acc, out}
 
-def decode.step(+bb: U32, st: Dec) -> Dec:
+def decode.step(+b: U32, st: Dec) -> Dec:
   Dec{need, acc, out} = st
   match need:
     case 0n:
-      decode.lead((bb >> 4n : U32), bb, out)
+      decode.lead((b >> 4n : U32), b, out)
     case 1n+p:
-      decode.more(p, ((acc << 6n) .|. (bb .&. 63) : U32), out)
+      decode.more(p, ((acc << 6n) .|. (b .&. 63) : U32), out)
 
 def decode.run(bs: List<&2, U32>, st: Dec) -> Dec:
   match bs:
@@ -60,26 +60,26 @@ def decode(bs: List<&2, U32>) -> String:
 # ---------------------
 
 # how many bytes a code point takes
-def width(+xx: U32) -> U32:
-  Bool.pick(U32, U32.is_lt(xx, 128), 1,
-    Bool.pick(U32, U32.is_lt(xx, 2048), 2,
-      Bool.pick(U32, U32.is_lt(xx, 65536), 3, 4)))
+def width(+x: U32) -> U32:
+  Bool.pick(U32, U32.is_lt(x, 128), 1,
+    Bool.pick(U32, U32.is_lt(x, 2048), 2,
+      Bool.pick(U32, U32.is_lt(x, 65536), 3, 4)))
 
 # a code point's bytes, by its width, in front of the rest
-def encode.char(ww: U32, +xx: U32, rest: List<&2, U32>) -> List<&2, U32>:
-  match ww:
+def encode.char(w: U32, +x: U32, rest: List<&2, U32>) -> List<&2, U32>:
+  match w:
     case 1:
-      xx <> rest
+      x <> rest
     case 2:
-      (192 .|. (xx >> 6n) : U32) <> (128 .|. (xx .&. 63) : U32) <> rest
+      (192 .|. (x >> 6n) : U32) <> (128 .|. (x .&. 63) : U32) <> rest
     case 3:
-      (224 .|. (xx >> 12n) : U32) <> (128 .|. ((xx >> 6n) .&. 63) : U32) <> (128 .|. (xx .&. 63) : U32) <> rest
+      (224 .|. (x >> 12n) : U32) <> (128 .|. ((x >> 6n) .&. 63) : U32) <> (128 .|. (x .&. 63) : U32) <> rest
     case other:
-      (240 .|. (xx >> 18n) : U32) <> (128 .|. ((xx >> 12n) .&. 63) : U32) <> (128 .|. ((xx >> 6n) .&. 63) : U32)
-        <> (128 .|. (xx .&. 63) : U32) <> rest
+      (240 .|. (x >> 18n) : U32) <> (128 .|. ((x >> 12n) .&. 63) : U32) <> (128 .|. ((x >> 6n) .&. 63) : U32)
+        <> (128 .|. (x .&. 63) : U32) <> rest
 
-def encode.one(+xx: U32, rest: List<&2, U32>) -> List<&2, U32>:
-  encode.char(width(xx), xx, rest)
+def encode.one(+x: U32, rest: List<&2, U32>) -> List<&2, U32>:
+  encode.char(width(x), x, rest)
 
 def encode.go(cs: List<&2, Char>) -> List<&2, U32>:
   match cs:
@@ -89,8 +89,8 @@ def encode.go(cs: List<&2, Char>) -> List<&2, U32>:
       encode.one(Char.to_u32(c), encode.go(t))
 
 # a string as UTF-8 bytes
-def encode(ss: String) -> List<&2, U32>:
-  encode.go(String.to_list(ss))
+def encode(s: String) -> List<&2, U32>:
+  encode.go(String.to_list(s))
 
 # counts in decimal
 # -----------------
@@ -114,8 +114,8 @@ type Digit is Data:
   D9{}
 
 # a digit's char code, '0' to '9'
-def digit.code(dd: Digit) -> U32:
-  match dd:
+def digit.code(d: Digit) -> U32:
+  match d:
     case D0{}:
       48
     case D1{}:
@@ -138,8 +138,8 @@ def digit.code(dd: Digit) -> U32:
       57
 
 # the digit a char code stands for, if it is one
-def digit.read(xx: U32) -> Maybe<&2, Digit>:
-  match xx:
+def digit.read(x: U32) -> Maybe<&2, Digit>:
+  match x:
     case 48:
       Some{D0{}}
     case 49:
@@ -190,8 +190,8 @@ def tick(ds: List<&2, Digit>) -> List<&2, Digit>:
       D0{} <> tick(t)
 
 # a count plus a char's width in bytes
-def tick.by(ww: U32, ds: List<&2, Digit>) -> List<&2, Digit>:
-  match ww:
+def tick.by(w: U32, ds: List<&2, Digit>) -> List<&2, Digit>:
+  match w:
     case 1:
       tick(ds)
     case 2:
@@ -263,16 +263,16 @@ def count.push(md: Maybe<&2, Digit>, acc: Maybe<&2, List<&2, Digit>>) -> Maybe<&
     case Some{d} None{}:
       None{}
 
-def count.read.go(ss: String, acc: Maybe<&2, List<&2, Digit>>) -> Maybe<&2, List<&2, Digit>>:
-  match ss:
+def count.read.go(s: String, acc: Maybe<&2, List<&2, Digit>>) -> Maybe<&2, List<&2, Digit>>:
+  match s:
     case SNil{}:
       acc
     case SCon{c, t}:
       count.read.go(t, count.push(digit.read(Char.to_u32(c)), acc))
 
 # a string of digits as a count; None when it is empty or holds anything else
-def count.read(ss: String) -> Maybe<&2, List<&2, Digit>>:
-  match ss:
+def count.read(s: String) -> Maybe<&2, List<&2, Digit>>:
+  match s:
     case SNil{}:
       None{}
     case SCon{h, t}:
@@ -326,8 +326,8 @@ def header(bs: List<&2, U32>, line: List<&2, U32>, len: List<&2, Digit>) -> Head
 
 # the bytes taken so far and the rest once the count is down to zero, else
 # what more gives
-def split.on(zz: Bool, xs: List<&2, U32>, acc: List<&2, U32>, more: Unit -> Cut) -> Cut:
-  match zz:
+def split.on(z: Bool, xs: List<&2, U32>, acc: List<&2, U32>, more: Unit -> Cut) -> Cut:
+  match z:
     case True{}:
       Whole{List.reverse(&2, U32, acc), xs}
     case False{}:
@@ -342,8 +342,8 @@ def split(xs: List<&2, U32>, +ds: List<&2, Digit>, +acc: List<&2, U32>) -> Cut:
     case Con{+h, +t}:
       split.on(count.zero(ds), h <> t, acc, _u => split(t, untick(ds), h <> acc))
 
-def cut.body(hh: Head) -> Cut:
-  match hh:
+def cut.body(h: Head) -> Cut:
+  match h:
     case NoHead{}:
       More{}
     case Head{len, rest}:
@@ -379,8 +379,8 @@ def lack(xs: List<&2, U32>, ds: List<&2, Digit>) -> List<&2, Digit>:
       lack(t, untick(ds))
 
 # a digit's value, 0 to 9
-def digit.value(dd: Digit) -> U32:
-  match dd:
+def digit.value(d: Digit) -> U32:
+  match d:
     case D0{}:
       0
     case D1{}:
@@ -404,8 +404,8 @@ def digit.value(dd: Digit) -> U32:
 
 # a number held to 65536, the most one read asks for; what is past it is
 # asked for by the next read
-def held(+nn: U32) -> U32:
-  Bool.pick(U32, U32.is_gt(nn, 65536), 65536, nn)
+def held(+n: U32) -> U32:
+  Bool.pick(U32, U32.is_gt(n, 65536), 65536, n)
 
 # a count as a number, held to 65536 at every digit so it never wraps
 def count.held(ds: List<&2, Digit>) -> U32:
@@ -417,11 +417,11 @@ def count.held(ds: List<&2, Digit>) -> U32:
 
 # a number, or one when it is none: a read of no bytes answers none, which
 # the transport takes for a peer that closed
-def at_least_one(+nn: U32) -> U32:
-  Bool.pick(U32, U32.is_eq(nn, 0), 1, nn)
+def at_least_one(+n: U32) -> U32:
+  Bool.pick(U32, U32.is_eq(n, 0), 1, n)
 
-def next.of(hh: Head) -> Next:
-  match hh:
+def next.of(h: Head) -> Next:
+  match h:
     case NoHead{}:
       Line{}
     case Head{len, rest}:

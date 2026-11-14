@@ -24,9 +24,9 @@ law check_only:
 law followup_check_only:
   for +ds: List<&2, Rep.Diag>
   for +path: String
-  for rr: Argv.Run
-  for h: {Argv.followup(ds, path) == Some{rr} : Maybe<&2, Argv.Run>}
-  {Argv.flag(rr) == "--check-only" : String}
+  for r: Argv.Run
+  for h: {Argv.followup(ds, path) == Some{r} : Maybe<&2, Argv.Run>}
+  {Argv.flag(r) == "--check-only" : String}
 
 # LAW: the proofs of a LAWS.bend are checked in the PROOF.bend beside it: the
 # path with its last nine chars, `LAWS.bend`, replaced

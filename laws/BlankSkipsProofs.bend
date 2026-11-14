@@ -19,43 +19,43 @@ import ./defs/EmptyTests.bend as D2
 law blank_skips_in_law:
   for +path: String
   for e: {Paths.is_law_file(path) == False{} : Bool}
-  for xx: String
-  for +ll: U32
-  for +cc: U32
+  for x: String
+  for +l: U32
+  for +c: U32
   for text: String
   for tree: Tree.Node
   for bound: Bind.Bound
   for items: List<&2, Outline.Item>
   {List.length(&2, F.Finding, Blank.check(Src.Src{path, text,
-    D2.empty.in_law(D1.blank.second(xx, "\"\"", ll, cc), ll, cc),
+    D2.empty.in_law(D1.blank.second(x, "\"\"", l, c), l, c),
     tree, bound, items})) == 0n : Nat}
 
 # LAW: blank skips a test in a def with no type
 law blank_skips_in_untyped_def:
   for +path: String
   for e: {Paths.is_law_file(path) == False{} : Bool}
-  for xx: String
-  for +ll: U32
-  for +cc: U32
+  for x: String
+  for +l: U32
+  for +c: U32
   for text: String
   for tree: Tree.Node
   for bound: Bind.Bound
   for items: List<&2, Outline.Item>
   {List.length(&2, F.Finding, Blank.check(Src.Src{path, text,
-    D2.empty.in_untyped(D1.blank.second(xx, "\"\"", ll, cc), ll, cc),
+    D2.empty.in_untyped(D1.blank.second(x, "\"\"", l, c), l, c),
     tree, bound, items})) == 0n : Nat}
 
 # LAW: blank skips a test in a def that returns a proof
 law blank_skips_in_proof_def:
   for +path: String
   for e: {Paths.is_law_file(path) == False{} : Bool}
-  for xx: String
-  for +ll: U32
-  for +cc: U32
+  for x: String
+  for +l: U32
+  for +c: U32
   for text: String
   for tree: Tree.Node
   for bound: Bind.Bound
   for items: List<&2, Outline.Item>
   {List.length(&2, F.Finding, Blank.check(Src.Src{path, text,
-    D2.empty.in_proof(D1.blank.second(xx, "\"\"", ll, cc), ll, cc),
+    D2.empty.in_proof(D1.blank.second(x, "\"\"", l, c), l, c),
     tree, bound, items})) == 0n : Nat}

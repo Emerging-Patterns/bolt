@@ -126,8 +126,8 @@ def Laws.wrap_cites_jammed_parameter(_line, _end, _col, _empty, _shut, _loose, _
 def Laws.wrap_cites_jammed_parameter_or_next(_empty, _shut, _loose, _base, _path, _more):
   {==}
 
-def Laws.doc_names_the_item_kind(kk):
-  match kk:
+def Laws.doc_names_the_item_kind(k):
+  match k:
     case Outline.IImport{}:
       {==}
     case Outline.IDef{}:
@@ -141,8 +141,8 @@ def Laws.doc_names_the_item_kind(kk):
     case Outline.ILocal{}:
       {==}
 
-def Laws.unused_names_the_binder_kind(kk):
-  match kk:
+def Laws.unused_names_the_binder_kind(k):
+  match k:
     case Bind.KItem{}:
       {==}
     case Bind.KCtor{}:
@@ -162,18 +162,18 @@ def Laws.unused_names_the_binder_kind(kk):
     case Bind.KTypeVar{}:
       {==}
 
-def Laws.closed_names_a_nameless_law(mm):
-  match mm:
+def Laws.closed_names_a_nameless_law(m):
+  match m:
     case None{}:
       {==}
-    case Some{nn}:
+    case Some{n}:
       {==}
 
-def Laws.foreign_names_a_nameless_def(mm):
-  match mm:
+def Laws.foreign_names_a_nameless_def(m):
+  match m:
     case None{}:
       {==}
-    case Some{nn}:
+    case Some{n}:
       {==}
 
 def Laws.noqa_tells_a_bare_mark(_line, _col, _len, _whole, _path, _gs):

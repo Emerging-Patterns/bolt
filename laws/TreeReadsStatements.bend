@@ -12,22 +12,22 @@ import ./defs/TokenKinds.bend as D1
 import ./defs/Chains.bend as D2
 
 # a statement's kind by its keyword. Law vocabulary: bolt never calls it
-def trees.keyword_kind(+tt: String) -> Tree.StmtKind:
-  Bool.pick(Tree.StmtKind, String.eq(tt, "def"), Tree.SDef{},
-    Bool.pick(Tree.StmtKind, String.eq(tt, "type"), Tree.SType{},
-      Bool.pick(Tree.StmtKind, String.eq(tt, "law"), Tree.SLaw{},
-        Bool.pick(Tree.StmtKind, String.eq(tt, "import"), Tree.SImport{},
-          Bool.pick(Tree.StmtKind, String.eq(tt, "case"), Tree.SCase{},
-            Bool.pick(Tree.StmtKind, Bool.or(String.eq(tt, "for"), String.eq(tt, "exs")), Tree.SFor{}, Tree.STerm{}))))))
+def trees.keyword_kind(+t: String) -> Tree.StmtKind:
+  Bool.pick(Tree.StmtKind, String.eq(t, "def"), Tree.SDef{},
+    Bool.pick(Tree.StmtKind, String.eq(t, "type"), Tree.SType{},
+      Bool.pick(Tree.StmtKind, String.eq(t, "law"), Tree.SLaw{},
+        Bool.pick(Tree.StmtKind, String.eq(t, "import"), Tree.SImport{},
+          Bool.pick(Tree.StmtKind, String.eq(t, "case"), Tree.SCase{},
+            Bool.pick(Tree.StmtKind, Bool.or(String.eq(t, "for"), String.eq(t, "exs")), Tree.SFor{}, Tree.STerm{}))))))
 
 # LAW: an operator opens type arguments exactly when it is `<` or `<&` glued
 # to what is before it
 law angle_opens_when_glued:
-  for kk: Lex.TokKind
-  for +tt: String
+  for k: Lex.TokKind
+  for +t: String
   for glued: Bool
-  {Tree.opens_angle(kk, tt, glued)
-    == Bool.and(D1.kinds.among(kk, [Lex.TOp{}]), Bool.and(glued, Bool.or(String.eq(tt, "<"), String.eq(tt, "<&"))))
+  {Tree.opens_angle(k, t, glued)
+    == Bool.and(D1.kinds.among(k, [Lex.TOp{}]), Bool.and(glued, Bool.or(String.eq(t, "<"), String.eq(t, "<&"))))
     : Bool}
 
 # LAW: a statement binds when its first node is a `=` or a `<-`, or when the
@@ -46,8 +46,8 @@ law binds_in_needs_tokens:
 
 # LAW: a statement's kind is read off its keyword
 law statement_kind_by_keyword:
-  for +tt: String
-  {Tree.keyword_kind(tt) == trees.keyword_kind(tt) : Tree.StmtKind}
+  for +t: String
+  {Tree.keyword_kind(t) == trees.keyword_kind(t) : Tree.StmtKind}
 
 # LAW: the chain after an `@` names a binder exactly when it starts with a
 # name, capitalized or not, and then a `:`
@@ -98,23 +98,23 @@ law show_statement_with_body:
 
 # LAW: the last node of a chain shows alone
 law show_last_node:
-  for +hh: Tree.Node
-  for +tt: Tree.Node
-  for e: {String.is_empty(Tree.show(tt)) == True{} : Bool}
-  {Tree.show(Tree.NCons{hh, tt}) == Tree.show(hh) ++ "" : String}
+  for +h: Tree.Node
+  for +t: Tree.Node
+  for e: {String.is_empty(Tree.show(t)) == True{} : Bool}
+  {Tree.show(Tree.NCons{h, t}) == Tree.show(h) ++ "" : String}
 
 # LAW: any other with a space before what follows it
 law show_node_then_rest:
-  for +hh: Tree.Node
-  for +tt: Tree.Node
-  for e: {String.is_empty(Tree.show(tt)) == False{} : Bool}
-  {Tree.show(Tree.NCons{hh, tt}) == Tree.show(hh) ++ (" " ++ Tree.show(tt)) : String}
+  for +h: Tree.Node
+  for +t: Tree.Node
+  for e: {String.is_empty(Tree.show(t)) == False{} : Bool}
+  {Tree.show(Tree.NCons{h, t}) == Tree.show(h) ++ (" " ++ Tree.show(t)) : String}
 
 # LAW: a group that never closed shows `..` where its close would be
 law show_unclosed_group:
-  for kk: Lex.TokKind
-  for tt: String
-  for ll: U32
-  for cc: U32
+  for k: Lex.TokKind
+  for t: String
+  for l: U32
+  for c: U32
   for kids: Tree.Node
-  {Tree.show(Tree.Group{Lex.Tok{kk, tt, ll, cc}, kids, None{}}) == tt ++ Tree.show(kids) ++ ".." : String}
+  {Tree.show(Tree.Group{Lex.Tok{k, t, l, c}, kids, None{}}) == t ++ Tree.show(kids) ++ ".." : String}

@@ -28,8 +28,8 @@ import ../src/rules/tokens.bend as T
 
 # a binder of a kind reach counts: a parameter, a let, do-bind or lambda
 # name, or a pattern name
-def counted(kk: Bind.BindKind) -> Bool:
-  match kk:
+def counted(k: Bind.BindKind) -> Bool:
+  match k:
     case Bind.KParam{}:
       True{}
     case Bind.KLocal{}:
@@ -52,8 +52,8 @@ def counted(kk: Bind.BindKind) -> Bool:
 # does a use that refers to this target, by this name on this line, read the
 # binder at (line, col) from more than max lines below, the name spelled
 # with one character?
-def reads_far(name: String, ul: U32, tt: Bind.Target, line: U32, col: U32, max: U32) -> Bool:
-  match tt:
+def reads_far(name: String, ul: U32, t: Bind.Target, line: U32, col: U32, max: U32) -> Bool:
+  match t:
     case Bind.TLocal{+tl, tc}:
       Bool.and(Bool.and(U32.is_gt(ul, (tl + max : U32)), Reach.one(name)),
         Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col)))
@@ -69,12 +69,12 @@ def read_far(uses: List<&2, Bind.Use>, +line: U32, +col: U32, +max: U32) -> Bool
   match uses:
     case Nil{}:
       False{}
-    case Con{Bind.Use{name, ul, _uc, tt}, rest}:
-      Bool.or(reads_far(name, ul, tt, line, col, max), read_far(rest, line, col, max))
+    case Con{Bind.Use{name, ul, _uc, t}, rest}:
+      Bool.or(reads_far(name, ul, t, line, col, max), read_far(rest, line, col, max))
 
 # is the binder one reach reports? item: the line of the item it sits in
 def carried(
-  +kk: Bind.BindKind,
+  +k: Bind.BindKind,
   nm: String,
   line: U32,
   col: U32,
@@ -85,7 +85,7 @@ def carried(
   max: U32
 ) -> Bool:
   Bool.and(read_far(uses, line, col, max),
-    Bool.and(counted(kk), Bool.and(Bool.not(Reach.allowed(kk, nm, note)), Bool.not(Reach.has(ps, item)))))
+    Bool.and(counted(k), Bool.and(Bool.not(Reach.allowed(k, nm, note)), Bool.not(Reach.has(ps, item)))))
 
 # how many of the binders reach reports. item: the line of the item the
 # binders so far sit in
@@ -99,10 +99,10 @@ def far_count(
   match binds:
     case Nil{}:
       0n
-    case Con{Bind.Bind{nm, +line, col, +kk, note}, rest}:
-      +at = Reach.at_item(kk, line, item)
+    case Con{Bind.Bind{nm, +line, col, +k, note}, rest}:
+      +at = Reach.at_item(k, line, item)
       +m = far_count(rest, uses, ps, at, max)
-      Bool.pick(Nat, carried(kk, nm, line, col, note, uses, ps, at, max), 1n+m, m)
+      Bool.pick(Nat, carried(k, nm, line, col, note, uses, ps, at, max), 1n+m, m)
 
 # `n`, written once more than the count
 def ens(kn: Nat) -> List<&2, Char>:

@@ -61,8 +61,8 @@ law annotated_bind_let:
   for +xc: U32
   for +ct: String
   for +cl: U32
-  for +cc: U32
+  for +c: U32
   for +rest: Tree.Node
   {Tree.classify(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, x, xl, xc}},
-    Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, ct, cl, cc}}, rest}})
+    Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, ct, cl, c}}, rest}})
     == Bool.pick(Tree.StmtKind, Tree.binds_in(rest), Tree.SLet{}, Tree.STerm{}) : Tree.StmtKind}

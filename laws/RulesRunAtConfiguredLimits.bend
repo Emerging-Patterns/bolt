@@ -29,10 +29,10 @@ law tune_reach:
 
 # LAW: reach's entry runs the rule at the limit the entry carries
 law run_reach_at_limit:
-  for rr: Role.Role
-  for ss: Src.Src
+  for r: Role.Role
+  for s: Src.Src
   for max: U32
-  {Rules.on.run(Rules.WReach{max}, rr, ss) == Reach.check.role(rr, ss, max) : List<&2, F.Finding>}
+  {Rules.on.run(Rules.WReach{max}, r, s) == Reach.check.role(r, s, max) : List<&2, F.Finding>}
 
 # LAW: arity, length and depth are each tuned to the config's limit of the
 # rule's name (`arity_max`, `length_max`, `depth_max`), and to the limit
@@ -47,11 +47,11 @@ law tune_size:
 # LAW: a size rule's entry runs it at the limit the entry carries, and not
 # at all in a law or proof file
 law run_size_at_limit:
-  for rr: Role.Role
-  for ss: Src.Src
+  for r: Role.Role
+  for s: Src.Src
   for dim: Size.Dim
   for max: U32
-  {Rules.on.run(Rules.WSize{dim, max}, rr, ss) == Role.skip(rr, _u => Size.check(dim, ss, max)) : List<&2, F.Finding>}
+  {Rules.on.run(Rules.WSize{dim, max}, r, s) == Role.skip(r, _u => Size.check(dim, s, max)) : List<&2, F.Finding>}
 
 # LAW: the name each size rule asks its limit by is one a bolt.bend may set:
 # `setting` (C011) does not report it (laws/UnknownExact.bend). `reach`

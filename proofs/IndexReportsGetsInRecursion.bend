@@ -18,11 +18,11 @@ import ./lemmas/Nat.bend as M2
 
 # the rule's literal test is the law's
 law index.lit:
-  for nn: Tree.Node
-  {Index.literal(nn) == Laws.index.lit(nn) : Bool}
+  for n: Tree.Node
+  {Index.literal(n) == Laws.index.lit(n) : Bool}
 
-def index.lit(nn):
-  match nn:
+def index.lit(n):
+  match n:
     case Tree.Leaf{tok}:
       {==}
     case Tree.Group{o, gk, cl}:
@@ -100,11 +100,11 @@ def index.lit(nn):
 
 # table's literal test is the law's too
 law index.tlit:
-  for nn: Tree.Node
-  {Table.literal(nn) == Laws.index.lit(nn) : Bool}
+  for n: Tree.Node
+  {Table.literal(n) == Laws.index.lit(n) : Bool}
 
-def index.tlit(nn):
-  match nn:
+def index.tlit(n):
+  match n:
     case Tree.Leaf{tok}:
       {==}
     case Tree.Group{o, gk, cl}:
@@ -301,20 +301,20 @@ law index.call:
   for +gc: U32
   for +kids: Tree.Node
   for +cl: Maybe<&2, Lex.Tok>
-  for +rr: Tree.Node
+  for +r: Tree.Node
   for +path: String
   for +fixed: List<&2, String>
   for +self: String
   for ih1: {List.length(&2, F.Finding, Index.walk(kids, path, fixed, self)) == Laws.index.count(kids, path, fixed, self)
     : Nat}
-  for ih2: {List.length(&2, F.Finding, Index.walk(rr, path, fixed, self)) == Laws.index.count(rr, path, fixed, self)
+  for ih2: {List.length(&2, F.Finding, Index.walk(r, path, fixed, self)) == Laws.index.count(r, path, fixed, self)
     : Nat}
   {List.length(&2, F.Finding, Index.walk(Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}},
-      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, kids, cl}, rr}}, path, fixed, self))
+      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, kids, cl}, r}}, path, fixed, self))
     == Laws.index.count(Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}},
-      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, kids, cl}, rr}}, path, fixed, self) : Nat}
+      Tree.NCons{Tree.Group{Lex.Tok{gk, o, gl, gc}, kids, cl}, r}}, path, fixed, self) : Nat}
 
-def index.call(_k, t, l, c, _gk, o, _gl, _gc, kids, _cl, rr, path, fixed, self, ih1, ih2):
+def index.call(_k, t, l, c, _gk, o, _gl, _gc, kids, _cl, r, path, fixed, self, ih1, ih2):
   +list = Index.named(t, self, "List.get")
   +ob = String.eq(o, "(")
   +sb = Index.named(t, self, "String.get")
@@ -322,8 +322,8 @@ def index.call(_k, t, l, c, _gk, o, _gl, _gc, kids, _cl, rr, path, fixed, self, 
   +fire = Bool.and(Bool.and(ob, Bool.or(list, sb)),
     Bool.and(Bool.not(Index.literal(Calls.arg(as, Bool.pick(Nat, list, 3n, 1n)))),
       Bool.not(Index.held(list, Calls.arg(as, 2n), fixed))))
-  +more = List.concat(&2, F.Finding, [Index.walk(kids, path, fixed, self), Index.walk(rr, path, fixed, self)])
-  +m = Nat.add(Laws.index.count(kids, path, fixed, self), Laws.index.count(rr, path, fixed, self))
+  +more = List.concat(&2, F.Finding, [Index.walk(kids, path, fixed, self), Index.walk(r, path, fixed, self)])
+  +m = Nat.add(Laws.index.count(kids, path, fixed, self), Laws.index.count(r, path, fixed, self))
   +spec = Laws.index.fires(list, ob, sb, as, Table.hit(ob, "List.get", kids, fixed, path, l, c))
   +x = {F.Finding{path, l, c, U32.from_nat(String.length(t)), "index",
     t ++ " in a recursive def walks the list from its head on every step, which is quadratic; recurse over the list itself."}
@@ -332,8 +332,8 @@ def index.call(_k, t, l, c, _gk, o, _gl, _gc, kids, _cl, rr, path, fixed, self, 
     List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, fire, x <> more, more)),
     Bool.pick(Nat, fire, 1n+m, m),
     Nat.add(Bool.pick(Nat, spec, 1n, 0n), m),
-    M2.nat.pick(fire, x, more, m, M1.index.two(Index.walk(kids, path, fixed, self), Index.walk(rr, path, fixed, self),
-      Laws.index.count(kids, path, fixed, self), Laws.index.count(rr, path, fixed, self), ih1, ih2)),
+    M2.nat.pick(fire, x, more, m, M1.index.two(Index.walk(kids, path, fixed, self), Index.walk(r, path, fixed, self),
+      Laws.index.count(kids, path, fixed, self), Laws.index.count(r, path, fixed, self), ih1, ih2)),
     Equal.trans(Nat,
       Bool.pick(Nat, fire, 1n+m, m),
       Nat.add(Bool.pick(Nat, fire, 1n, 0n), m),
@@ -344,14 +344,14 @@ def index.call(_k, t, l, c, _gk, o, _gl, _gc, kids, _cl, rr, path, fixed, self, 
 
 # index's walk counts the calls the law counts
 law index.walk:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +path: String
   for +fixed: List<&2, String>
   for +self: String
-  {List.length(&2, F.Finding, Index.walk(nn, path, fixed, self)) == Laws.index.count(nn, path, fixed, self) : Nat}
+  {List.length(&2, F.Finding, Index.walk(n, path, fixed, self)) == Laws.index.count(n, path, fixed, self) : Nat}
 
-def index.walk(nn, path, fixed, self):
-  match nn:
+def index.walk(n, path, fixed, self):
+  match n:
     case Tree.Leaf{tok}:
       {==}
     case Tree.Group{o, gk, cl}:
@@ -372,11 +372,11 @@ def index.walk(nn, path, fixed, self):
               {==}
             case Tree.NNil{}:
               {==}
-            case Tree.NCons{rh, +rr}:
+            case Tree.NCons{rh, +r}:
               match rh:
                 case Tree.Group{Lex.Tok{gk, o, gl, gc}, +kids, cl}:
-                  index.call(k, t, l, c, gk, o, gl, gc, kids, cl, rr, path, fixed, self,
-                    index.walk(kids, path, fixed, self), index.walk(rr, path, fixed, self))
+                  index.call(k, t, l, c, gk, o, gl, gc, kids, cl, r, path, fixed, self,
+                    index.walk(kids, path, fixed, self), index.walk(r, path, fixed, self))
                 case Tree.Leaf{tok}:
                   index.walk(rest, path, fixed, self)
                 case Tree.Stmt{kind, sk, sb}:

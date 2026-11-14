@@ -60,11 +60,11 @@ def tail.total(ds: List<&2, Calls.Def>, +path: String) -> Nat:
 # outside any `Bool.pick(..)` that is not a statement's whole chain, and
 # none for anything else
 law tail_walk_counts:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +name: String
   for +path: String
   for skip: Bool
-  {List.length(&2, F.Finding, Tail.walk(nn, name, path, skip)) == tail.count(nn, name, skip) : Nat}
+  {List.length(&2, F.Finding, Tail.walk(n, name, path, skip)) == tail.count(n, name, skip) : Nat}
 
 # LAW: tail reports exactly those self-calls of each of the file's defs whose
 # first live parameter is a List or a String and that is not exempt, and

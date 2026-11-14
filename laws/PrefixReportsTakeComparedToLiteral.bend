@@ -27,16 +27,16 @@ import ../src/rules/tokens.bend as T
 import ./defs/PrefixLength.bend as D1
 
 # where the scan of a take's argument goes after a comma at the depth
-def prefix_comma(dd: Nat) -> Prefix.Skip:
-  match dd:
+def prefix_comma(d: Nat) -> Prefix.Skip:
+  match d:
     case 0n:
       Prefix.SComma{}
     case 1n+p:
       Prefix.SGo{1n+p}
 
 # where the scan goes after a closing bracket at the depth
-def prefix_close(dd: Nat) -> Prefix.Skip:
-  match dd:
+def prefix_close(d: Nat) -> Prefix.Skip:
+  match d:
     case 0n:
       Prefix.SClose{}
     case 1n+p:
@@ -44,16 +44,16 @@ def prefix_close(dd: Nat) -> Prefix.Skip:
 
 # where the scan goes after a token of the kind at the depth: an opening
 # bracket one deeper, a closing one back out, a comma per prefix_comma
-def prefix_step(kk: Lex.TokKind, dd: Nat) -> Prefix.Skip:
-  match kk:
+def prefix_step(k: Lex.TokKind, d: Nat) -> Prefix.Skip:
+  match k:
     case Lex.TComma{}:
-      prefix_comma(dd)
+      prefix_comma(d)
     case Lex.TOpen{}:
-      Prefix.SGo{1n+dd}
+      Prefix.SGo{1n+d}
     case Lex.TClose{}:
-      prefix_close(dd)
+      prefix_close(d)
     case other:
-      Prefix.SGo{dd}
+      Prefix.SGo{d}
 
 # the tokens after the argument's comma, none when the take closes first
 def prefix_skip(toks: List<&2, Lex.Tok>, sk: Prefix.Skip) -> Maybe<&2, List<&2, Lex.Tok>>:
@@ -66,12 +66,12 @@ def prefix_skip(toks: List<&2, Lex.Tok>, sk: Prefix.Skip) -> Maybe<&2, List<&2, 
           Some{Lex.Tok{k, t, l, c} <> rest}
         case Prefix.SClose{}:
           None{}
-        case Prefix.SGo{dd}:
-          prefix_skip(rest, prefix_step(k, dd))
+        case Prefix.SGo{d}:
+          prefix_skip(rest, prefix_step(k, d))
 
 # True for a dotted name
-def prefix_dotted(kk: Lex.TokKind) -> Bool:
-  match kk:
+def prefix_dotted(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TDotted{}:
       True{}
     case other:
@@ -128,9 +128,9 @@ def prefix_tail_b(mr: Maybe<&2, List<&2, Lex.Tok>>, +lit: String) -> Bool:
                 case Con{Lex.Tok{k10, +a10, l10, c10}, r10}:
                   Bool.and(String.eq(a9, ")"), Bool.and(String.eq(a10, ")"), D1.prefix_fits(a8, lit)))
 
-# True when a dotted `String.eq` of text tt, then these, open
+# True when a dotted `String.eq` of text t, then these, open
 # `String.eq(String.take(s, k), "..")`
-def prefix_a(+k0: Lex.TokKind, +tt: String, toks: List<&2, Lex.Tok>) -> Bool:
+def prefix_a(+k0: Lex.TokKind, +t: String, toks: List<&2, Lex.Tok>) -> Bool:
   match toks:
     case Nil{}:
       False{}
@@ -143,7 +143,7 @@ def prefix_a(+k0: Lex.TokKind, +tt: String, toks: List<&2, Lex.Tok>) -> Bool:
             case Nil{}:
               False{}
             case Con{Lex.Tok{k3, +a3, l3, c3}, r3}:
-              Bool.and(Bool.and(prefix_dotted(k0), Bool.and(String.eq(tt, "String.eq"), Bool.and(String.eq(a1, "("),
+              Bool.and(Bool.and(prefix_dotted(k0), Bool.and(String.eq(t, "String.eq"), Bool.and(String.eq(a1, "("),
                   Bool.and(String.eq(a3, "("), String.eq(a2, "String.take"))))),
                 prefix_tail_a(prefix_skip(r3, Prefix.SGo{0n})))
 
@@ -175,9 +175,9 @@ def prefix_b(+k0: Lex.TokKind, +text: String, toks: List<&2, Lex.Tok>) -> Bool:
                           Bool.and(String.eq(a4, "String.take"), String.eq(a5, "("))))))),
                         prefix_tail_b(prefix_skip(r5, Prefix.SGo{0n}), a2))
 
-# True when a token of kind k0 and text tt, then these, make either shape
-def prefix_at(+k0: Lex.TokKind, +tt: String, +toks: List<&2, Lex.Tok>) -> Bool:
-  Bool.or(prefix_a(k0, tt, toks), prefix_b(k0, tt, toks))
+# True when a token of kind k0 and text t, then these, make either shape
+def prefix_at(+k0: Lex.TokKind, +t: String, +toks: List<&2, Lex.Tok>) -> Bool:
+  Bool.or(prefix_a(k0, t, toks), prefix_b(k0, t, toks))
 
 # how many tokens start a run of either shape
 def prefix_count(toks: List<&2, Lex.Tok>) -> Nat:

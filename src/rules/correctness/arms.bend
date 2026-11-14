@@ -44,8 +44,8 @@ type Wide is Data:
   Wide{k: U32, text: String}
 
 # a lone binder, inside `Succ{..}` or after `kn+`: a name or `_`
-def binder(kk: Lex.TokKind) -> Bool:
-  match kk:
+def binder(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TName{}:
       True{}
     case Lex.TWild{}:
@@ -54,24 +54,24 @@ def binder(kk: Lex.TokKind) -> Bool:
       False{}
 
 # `kn+p:` (p a name or `_`) or `kn:`
-def lit.shape(rest: Tree.Node, +kk: U32, +tt: String, +line: U32, +col: U32) -> Arm:
+def lit.shape(rest: Tree.Node, +k: U32, +t: String, +line: U32, +col: U32) -> Arm:
   match rest:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TOp{}, +o, l, c}},
         Tree.NCons{Tree.Leaf{Lex.Tok{b, +p, l2, c2}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, s, l3, c3}}, more}}}:
-      Bool.pick(Arm, Bool.and(String.eq(o, "+"), binder(b)), APlus{kk, tt ++ "+" ++ p, line, col,
-        T.width(tt)}, AOther{})
+      Bool.pick(Arm, Bool.and(String.eq(o, "+"), binder(b)), APlus{k, t ++ "+" ++ p, line, col,
+        T.width(t)}, AOther{})
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, s, l, c}}, more}:
-      ALit{kk, line, col, T.width(tt)}
+      ALit{k, line, col, T.width(t)}
     case other:
       AOther{}
 
 # a Nat literal token's arm, once its value is read
-def lit.of(mm: Maybe<&2, U32>, +tt: String, +rest: Tree.Node, +line: U32, +col: U32) -> Arm:
-  match mm:
+def lit.of(m: Maybe<&2, U32>, +t: String, +rest: Tree.Node, +line: U32, +col: U32) -> Arm:
+  match m:
     case None{}:
       AOther{}
     case Some{+k}:
-      lit.shape(rest, k, tt, line, col)
+      lit.shape(rest, k, t, line, col)
 
 # a case pattern's arm
 def arm(pat: Tree.Node) -> Arm:
@@ -86,8 +86,8 @@ def arm(pat: Tree.Node) -> Arm:
       AOther{}
 
 # the widest n+p arm after this one
-def widen(ww: Maybe<&2, Wide>, aa: Arm) -> Maybe<&2, Wide>:
-  match ww aa:
+def widen(w: Maybe<&2, Wide>, a: Arm) -> Maybe<&2, Wide>:
+  match w a:
     case None{} APlus{k, text, l, c, n}:
       Some{Wide{k, text}}
     case Some{Wide{+k, +text}} APlus{+j, +t2, l, c, n}:
@@ -96,16 +96,16 @@ def widen(ww: Maybe<&2, Wide>, aa: Arm) -> Maybe<&2, Wide>:
       w2
 
 # a finding when the arm is inside the widest one above
-def verdict.on(+kk: U32, +text: String, aa: Arm, +path: String, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
-  match aa:
+def verdict.on(+k: U32, +text: String, a: Arm, +path: String, +more: List<&2, F.Finding>) -> List<&2, F.Finding>:
+  match a:
     case APlus{+j, t, l, c, n}:
-      Bool.pick(List<&2, F.Finding>, U32.is_ge(j, kk),
+      Bool.pick(List<&2, F.Finding>, U32.is_ge(j, k),
         F.Finding{path, l, c, n, "arms",
           "Unreachable: the case " ++ text ++ " above already matches everything from " ++ U32.show(j)
             ++ "n up; put narrower arms first."} <> more,
         more)
     case ALit{+m, l, c, n}:
-      Bool.pick(List<&2, F.Finding>, U32.is_ge(m, kk),
+      Bool.pick(List<&2, F.Finding>, U32.is_ge(m, k),
         F.Finding{path, l, c, n, "arms",
           "Unreachable: the case " ++ text ++ " above already matches " ++ U32.show(m) ++ "n; put narrower arms first."}
           <> more,
@@ -114,12 +114,12 @@ def verdict.on(+kk: U32, +text: String, aa: Arm, +path: String, +more: List<&2, 
       more
 
 # the arm against the widest one above, if any
-def verdict(ww: Maybe<&2, Wide>, aa: Arm, +path: String, more: List<&2, F.Finding>) -> List<&2, F.Finding>:
-  match ww:
+def verdict(w: Maybe<&2, Wide>, a: Arm, +path: String, more: List<&2, F.Finding>) -> List<&2, F.Finding>:
+  match w:
     case None{}:
       more
     case Some{Wide{k, text}}:
-      verdict.on(k, text, aa, path, more)
+      verdict.on(k, text, a, path, more)
 
 # a match's arms in order, against the widest n+p arm above each
 def arms(body: Tree.Node, +wide: Maybe<&2, Wide>, +path: String) -> List<&2, F.Finding>:
@@ -142,8 +142,8 @@ def single(kids: Tree.Node) -> Bool:
       False{}
 
 # every statement, at any depth; a single-scrutinee match's arms are read
-def walk(nn: Tree.Node, +path: String) -> List<&2, F.Finding>:
-  match nn:
+def walk(n: Tree.Node, +path: String) -> List<&2, F.Finding>:
+  match n:
     case Tree.NCons{Tree.Stmt{kind, kids, +body}, rest}:
       +mine = Lazy.stop(List<&2, F.Finding>, Bool.not(single(kids)), [], _u => arms(body, None{}, path))
       List.concat(&2, F.Finding, [mine, walk(body, path), walk(rest, path)])
@@ -153,8 +153,8 @@ def walk(nn: Tree.Node, +path: String) -> List<&2, F.Finding>:
       Nil{}
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
   walk(tree, path)
 
 # covered arms
@@ -198,20 +198,20 @@ def ended(pat: Tree.Node) -> Bool:
       False{}
 
 # do the tokens open with this text, as a token of the kind wanted?
-def opens.as(want: Bool, +tt: String, +text: String) -> Bool:
-  Bool.and(want, String.eq(tt, text))
+def opens.as(want: Bool, +t: String, +text: String) -> Bool:
+  Bool.and(want, String.eq(t, text))
 
 # is it a bracket that opens a group?
-def opens.open(kk: Lex.TokKind) -> Bool:
-  match kk:
+def opens.open(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TOpen{}:
       True{}
     case other:
       False{}
 
 # is it an operator?
-def opens.op(kk: Lex.TokKind) -> Bool:
-  match kk:
+def opens.op(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TOp{}:
       True{}
     case other:
@@ -234,21 +234,21 @@ def opens.plus(toks: List<&2, Lex.Tok>) -> Bool:
       False{}
 
 # an opening bracket's part: `(`, `[` or `{`; an angle bracket is not read
-def part.open(+tt: String) -> Part:
-  Bool.pick(Part, Bool.or(String.eq(tt, "("), Bool.or(String.eq(tt, "["), String.eq(tt, "{"))), POpen{tt}, PBad{})
+def part.open(+t: String) -> Part:
+  Bool.pick(Part, Bool.or(String.eq(t, "("), Bool.or(String.eq(t, "["), String.eq(t, "{"))), POpen{t}, PBad{})
 
 # an operator's part before the parts after it: `<>` is itself, `+` (a
 # quantity mark, or the plus of `kn+`, which the number reads) is nothing,
 # and any other is not understood
-def part.op(+tt: String, +more: List<&2, Part>) -> List<&2, Part>:
-  Bool.pick(List<&2, Part>, String.eq(tt, "+"), more,
-    Bool.pick(Part, String.eq(tt, "<>"), PCons{}, PBad{}) <> more)
+def part.op(+t: String, +more: List<&2, Part>) -> List<&2, Part>:
+  Bool.pick(List<&2, Part>, String.eq(t, "+"), more,
+    Bool.pick(Part, String.eq(t, "<>"), PCons{}, PBad{}) <> more)
 
 # a token's part before the parts after it. brace: a `{` follows it (a
 # plain name is then a constructor); plus: a `+` does (a number is then
 # `kn+`)
-def part(kk: Lex.TokKind, +text: String, brace: Bool, plus: Bool, more: List<&2, Part>) -> List<&2, Part>:
-  match kk:
+def part(k: Lex.TokKind, +text: String, brace: Bool, plus: Bool, more: List<&2, Part>) -> List<&2, Part>:
+  match k:
     case Lex.TName{}:
       Bool.pick(Part, brace, PWord{text}, PAny{}) <> more
     case Lex.TWild{}:
@@ -322,46 +322,46 @@ def skip.want(pb: Part) -> Skip:
       SFail{}
 
 # where the walk is after a closing bracket this deep
-def skip.close(dd: Nat) -> Skip:
-  match dd:
+def skip.close(d: Nat) -> Skip:
+  match d:
     case 0n:
       SGot{}
     case 1n+p:
       SIn{p}
 
 # where the walk is after a part inside brackets this deep
-def skip.in(pb: Part, dd: Nat) -> Skip:
+def skip.in(pb: Part, d: Nat) -> Skip:
   match pb:
     case POpen{t}:
-      SIn{1n+dd}
+      SIn{1n+d}
     case PClose{t}:
-      skip.close(dd)
+      skip.close(d)
     case other:
-      SIn{dd}
+      SIn{d}
 
 # the parts left once one item is walked over, and, when chain says so,
 # every `<> item` after it; none when the parts open with no item
 def skip(pb: List<&2, Part>, st: Skip, chain: Bool) -> Maybe<&2, List<&2, Part>>:
   match pb st chain:
-    case rest SFail{} cc:
+    case rest SFail{} c:
       None{}
-    case Nil{} SGot{} cc:
+    case Nil{} SGot{} c:
       Some{Nil{}}
-    case Nil{} SWord{} cc:
+    case Nil{} SWord{} c:
       Some{Nil{}}
-    case Nil{} other cc:
+    case Nil{} other c:
       None{}
-    case Con{b, rest} SWant{} cc:
-      skip(rest, skip.want(b), cc)
-    case Con{b, rest} SIn{d} cc:
-      skip(rest, skip.in(b, d), cc)
-    case Con{POpen{t}, rest} SWord{} cc:
-      skip(rest, SIn{0n}, cc)
+    case Con{b, rest} SWant{} c:
+      skip(rest, skip.want(b), c)
+    case Con{b, rest} SIn{d} c:
+      skip(rest, skip.in(b, d), c)
+    case Con{POpen{t}, rest} SWord{} c:
+      skip(rest, SIn{0n}, c)
     case Con{PCons{}, rest} SGot{} True{}:
       skip(rest, SWant{}, True{})
     case Con{PCons{}, rest} SWord{} True{}:
       skip(rest, SWant{}, True{})
-    case Con{b, rest} other cc:
+    case Con{b, rest} other c:
       Some{b <> rest}
 
 # the parts, when the two texts are the same
@@ -426,8 +426,8 @@ def above(seen: List<&2, Seen>, +pb: List<&2, Part>, hit: Bool, +at: U32) -> May
       above(rest, pb, covers(parts, Some{pb}), line)
 
 # does the Nat check report the arm against the widest n+p arm above it?
-def told(ww: Maybe<&2, Wide>, aa: Arm) -> Bool:
-  match ww aa:
+def told(w: Maybe<&2, Wide>, a: Arm) -> Bool:
+  match w a:
     case None{} a2:
       False{}
     case Some{Wide{k, text}} APlus{j, t, l, c, n}:
@@ -438,12 +438,12 @@ def told(ww: Maybe<&2, Wide>, aa: Arm) -> Bool:
       False{}
 
 # the finding a covered arm makes, if any, before the rest
-def cover.hit(mm: Maybe<&2, U32>, +path: String, ll: U32, cc: U32, more: List<&2, F.Finding>) -> List<&2, F.Finding>:
-  match mm:
+def cover.hit(m: Maybe<&2, U32>, +path: String, l: U32, c: U32, more: List<&2, F.Finding>) -> List<&2, F.Finding>:
+  match m:
     case None{}:
       more
     case Some{line}:
-      F.Finding{path, ll, cc, 0, "arms",
+      F.Finding{path, l, c, 0, "arms",
         "Unreachable: the case on line " ++ U32.show((line + 1 : U32))
           ++ " already matches everything this one does; delete this arm, or move it above that one."} <> more
 
@@ -478,8 +478,8 @@ def cover.arms(
       Nil{}
 
 # every statement, at any depth; a match's arms are read
-def cover.walk(nn: Tree.Node, +path: String) -> List<&2, F.Finding>:
-  match nn:
+def cover.walk(n: Tree.Node, +path: String) -> List<&2, F.Finding>:
+  match n:
     case Tree.NCons{Tree.Stmt{kind, +kids, +body}, rest}:
       +mine = Lazy.stop(List<&2, F.Finding>, Bool.not(T.keyword(kids, "match")), [],
         _u => cover.arms(body, [], None{}, single(kids), path))
@@ -491,14 +491,14 @@ def cover.walk(nn: Tree.Node, +path: String) -> List<&2, F.Finding>:
 
 # a token's text where it is code: what a string literal or a comment says
 # is left out
-def blank.text(kk: Lex.TokKind, tt: String) -> String:
-  match kk:
+def blank.text(k: Lex.TokKind, t: String) -> String:
+  match k:
     case Lex.TStr{}:
       ""
     case Lex.TComment{}:
       ""
     case other:
-      tt
+      t
 
 # a token with what it says left out when it is a string or a comment
 def blank.tok(tk: Lex.Tok) -> Lex.Tok:
@@ -508,8 +508,8 @@ def blank.tok(tk: Lex.Tok) -> Lex.Tok:
 
 # a tree with each leaf read that way: what the cover check reads, so what
 # a string says can never change what it finds
-def blank(nn: Tree.Node) -> Tree.Node:
-  match nn:
+def blank(n: Tree.Node) -> Tree.Node:
+  match n:
     case Tree.Leaf{tok}:
       Tree.Leaf{blank.tok(tok)}
     case Tree.Group{open, kids, close}:
@@ -522,6 +522,6 @@ def blank(nn: Tree.Node) -> Tree.Node:
       Tree.NCons{blank(h), blank(t)}
 
 # the rule's second check: an arm an earlier arm of its match covers
-def cover(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
+def cover(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
   cover.walk(blank(tree), path)

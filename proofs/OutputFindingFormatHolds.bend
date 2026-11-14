@@ -3,8 +3,8 @@ import Base
 import ../src/config.bend as Config
 import ../laws/OutputFindingFormatHolds.bend as Laws
 
-def Laws.level_words(ll):
-  match ll:
+def Laws.level_words(l):
+  match l:
     case Config.Off{}:
       {==}
     case Config.Warn{}:

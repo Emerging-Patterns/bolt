@@ -58,8 +58,8 @@ def none() -> Config:
   Config{[], []}
 
 # the word for a level, as a finding is shown
-def show(ll: Level) -> String:
-  match ll:
+def show(l: Level) -> String:
+  match l:
     case Off{}:
       "off"
     case Warn{}:
@@ -68,16 +68,16 @@ def show(ll: Level) -> String:
       "error"
 
 # is it an error?
-def is_error(ll: Level) -> Bool:
-  match ll:
+def is_error(l: Level) -> Bool:
+  match l:
     case Error{}:
       True{}
     case other:
       False{}
 
 # is it off?
-def is_off(ll: Level) -> Bool:
-  match ll:
+def is_off(l: Level) -> Bool:
+  match l:
     case Off{}:
       True{}
     case other:
@@ -87,13 +87,13 @@ def is_off(ll: Level) -> Bool:
 # ----------------
 
 # a level by its word; an unknown word is an error, so a typo shows
-def of_word(+ww: String) -> Level:
-  Bool.pick(Level, String.eq(ww, "off"), Off{}, Bool.pick(Level, String.eq(ww, "warn"), Warn{}, Error{}))
+def of_word(+w: String) -> Level:
+  Bool.pick(Level, String.eq(w, "off"), Off{}, Bool.pick(Level, String.eq(w, "warn"), Warn{}, Error{}))
 
 # a string literal's text, its quotes dropped
-def unquote(+tt: String) -> String:
-  Bool.pick(String, Bool.and(String.starts_with(tt, "\""), String.ends_with(tt, "\"")),
-    String.take(String.drop(tt, 1n), (String.length(tt) - 2n : Nat)), tt)
+def unquote(+t: String) -> String:
+  Bool.pick(String, Bool.and(String.starts_with(t, "\""), String.ends_with(t, "\"")),
+    String.take(String.drop(t, 1n), (String.length(t) - 2n : Nat)), t)
 
 # the first string or number among the tokens: a setting's word, a level's
 # or a limit's
@@ -137,8 +137,8 @@ def settings(text: String) -> List<&2, Setting>:
   settings.go(Tree.parse(text))
 
 # each setting as the level it sets its name to
-def levels(ss: List<&2, Setting>) -> List<&2, LevelSet>:
-  match ss:
+def levels(s: List<&2, Setting>) -> List<&2, LevelSet>:
+  match s:
     case Nil{}:
       Nil{}
     case Con{Setting{n, w, _line}, rest}:
@@ -217,8 +217,8 @@ def known.in(+rows: List<&2, Codes.Entry>, +name: String) -> Bool:
 
 # the settings, in order, whose name no row of the table has as its slug or
 # its group and that is no limit's
-def unknown.in(ss: List<&2, Setting>, +rows: List<&2, Codes.Entry>) -> List<&2, Setting>:
-  match ss:
+def unknown.in(s: List<&2, Setting>, +rows: List<&2, Codes.Entry>) -> List<&2, Setting>:
+  match s:
     case Nil{}:
       Nil{}
     case Con{Setting{+n, w, line}, rest}:
@@ -228,8 +228,8 @@ def unknown.in(ss: List<&2, Setting>, +rows: List<&2, Codes.Entry>) -> List<&2, 
 
 # the settings, in order, whose name is neither a rule's slug, a group of
 # the code table, nor a limit's
-def unknown(ss: List<&2, Setting>) -> List<&2, Setting>:
-  unknown.in(ss, Codes.table())
+def unknown(s: List<&2, Setting>) -> List<&2, Setting>:
+  unknown.in(s, Codes.table())
 
 # a path's directory, with its slash; `` at the top
 def dir_of.go(cs: List<&2, Char>, +acc: List<&2, Char>, best: List<&2, Char>) -> String:
@@ -360,8 +360,8 @@ def level.of(+sets: List<&2, LevelSet>, +group: String, +rule: String) -> Level:
 
 # the rule's own setting, else its group's, else the group's default
 def level(cfg: Config, group: String, rule: String) -> Level:
-  Config{ss, _lims} = cfg
-  level.of(ss, group, rule)
+  Config{s, _lims} = cfg
+  level.of(s, group, rule)
 
 # limits
 # ------

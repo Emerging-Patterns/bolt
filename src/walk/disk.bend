@@ -38,8 +38,8 @@ def entries(dir: String) -> IO(List<&2, String>):  # noqa: L001 disk effect
 
 # whether a first read failed as a directory's does (EISDIR, 21, in C and
 # in node alike)
-def is_dir.code(rr: Result<&1, &1, U32 & String, List<&2, U32>>) -> Bool:
-  match rr:
+def is_dir.code(r: Result<&1, &1, U32 & String, List<&2, U32>>) -> Bool:
+  match r:
     case Fail{e}:
       (code, _msg) = e
       U32.is_eq(code, 21)
@@ -48,14 +48,14 @@ def is_dir.code(rr: Result<&1, &1, U32 & String, List<&2, U32>>) -> Bool:
 
 # the file closed, and what its first read said
 def is_dir.got(got: File & Result<&1, &1, U32 & String, List<&2, U32>>) -> IO(Bool):
-  (file, rr) = got
+  (file, r) = got
   do IO<Bool>:
     File.close(file)
-    return is_dir.code(rr)
+    return is_dir.code(r)
 
 # a path that opened: read one byte and see; one that did not is no directory
-def is_dir.opened(rr: Result<&1, &1, U32 & String, File>) -> IO(Bool):
-  match rr:
+def is_dir.opened(r: Result<&1, &1, U32 & String, File>) -> IO(Bool):
+  match r:
     case Fail{_e}:
       IO.pure(Bool, False{})
     case Done{file}:

@@ -31,13 +31,13 @@ def recv.grown(
       rest(Stdio{inp, out, List.append(&2, U32, buf, b <> t)})
 
 def recv.fed(
-  rr: Result<&1, &1, U32 & String, List<&2, U32>>,
+  r: Result<&1, &1, U32 & String, List<&2, U32>>,
   inp: File,
   out: File,
   buf: List<&2, U32>,
   rest: Stdio -> IO(Stdio & Maybe<&2, String>)
 ) -> IO(Stdio & Maybe<&2, String>):
-  match rr:
+  match r:
     case Fail{e}:
       IO.pure(Stdio & Maybe<&2, String>, (Stdio{inp, out, []}, None{}))
     case Done{bytes}:
@@ -53,13 +53,13 @@ def recv.read(
   recv.fed(r, inp, out, buf, rest)
 
 def recv.lined(
-  rr: Result<&1, &1, U32 & String, String>,
+  r: Result<&1, &1, U32 & String, String>,
   inp: File,
   out: File,
   buf: List<&2, U32>,
   rest: Stdio -> IO(Stdio & Maybe<&2, String>)
 ) -> IO(Stdio & Maybe<&2, String>):
-  match rr:
+  match r:
     case Fail{e}:
       IO.pure(Stdio & Maybe<&2, String>, (Stdio{inp, out, []}, None{}))
     case Done{line}:
@@ -77,13 +77,13 @@ def recv.line(
 # what the buffer lacks, read: a header line, or the bytes the body is short
 # of, never more than the message in hand
 def recv.more(
-  nn: Frame.Next,
+  n: Frame.Next,
   inp: File,
   out: File,
   buf: List<&2, U32>,
   rest: Stdio -> IO(Stdio & Maybe<&2, String>)
 ) -> IO(Stdio & Maybe<&2, String>):
-  match nn:
+  match n:
     case Frame.Line{}:
       do IO<Stdio & Maybe<&2, String>>:
         got : File & Result<&1, &1, U32 & String, String> <- File.read_line(inp, 4096)
@@ -96,13 +96,13 @@ def recv.more(
 # a whole message is cut off the buffer; short of one, read what it lacks and
 # look again
 def recv.on(
-  cc: Frame.Cut,
+  c: Frame.Cut,
   inp: File,
   out: File,
   +buf: List<&2, U32>,
   rest: Stdio -> IO(Stdio & Maybe<&2, String>)
 ) -> IO(Stdio & Maybe<&2, String>):
-  match cc:
+  match c:
     case Frame.Whole{body, left}:
       IO.pure(Stdio & Maybe<&2, String>, (Stdio{inp, out, left}, Some{Frame.decode(body)}))
     case Frame.More{}:
@@ -114,14 +114,14 @@ def recv.loop(fuel: Nat, h2: Stdio) -> IO(Stdio & Maybe<&2, String>):
       IO.pure(Stdio & Maybe<&2, String>, (h2, None{}))
     case 1n+f:
       Stdio{inp, out, +buf} = h2
-      recv.on(Frame.cut(buf), inp, out, buf, hh => recv.loop(f, hh))
+      recv.on(Frame.cut(buf), inp, out, buf, h => recv.loop(f, h))
 
 # the fuel bounds the reads one message may take
 def recv(h2: Stdio) -> IO(Stdio & Maybe<&2, String>):  # noqa: L001 transport effect
   recv.loop(U32.to_nat(1000000), h2)
 
-def send.done(ww: File & Result<&1, &1, U32 & String, Unit>, inp: File, buf: List<&2, U32>) -> IO(Stdio):
-  (out, r) = ww
+def send.done(w: File & Result<&1, &1, U32 & String, Unit>, inp: File, buf: List<&2, U32>) -> IO(Stdio):
+  (out, r) = w
   IO.pure(Stdio, Stdio{inp, out, buf})
 
 # a body, framed and written

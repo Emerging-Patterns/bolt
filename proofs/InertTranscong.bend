@@ -46,12 +46,12 @@ def inert.transcong.text(k, _t, _s):
 
 # the rule's name leaf reads a node as it did
 law inert.transcong.named:
-  for nn: Tree.Node
-  for +tt: String
-  {Transcong.named(D1.inert.node(nn), tt) == Transcong.named(nn, tt) : Bool}
+  for n: Tree.Node
+  for +t: String
+  {Transcong.named(D1.inert.node(n), t) == Transcong.named(n, t) : Bool}
 
-def inert.transcong.named(nn, tt):
-  match nn:
+def inert.transcong.named(n, tt):
+  match n:
     case Tree.Leaf{tok}:
       match tok:
         case Lex.Tok{k, t, l, c}: inert.transcong.text(k, t, tt)
@@ -62,11 +62,11 @@ def inert.transcong.named(nn, tt):
 
 # a group's open is never cut
 law inert.transcong.paren:
-  for nn: Tree.Node
-  {Transcong.paren(D1.inert.node(nn)) == Transcong.paren(nn) : Bool}
+  for n: Tree.Node
+  {Transcong.paren(D1.inert.node(n)) == Transcong.paren(n) : Bool}
 
-def inert.transcong.paren(nn):
-  match nn:
+def inert.transcong.paren(n):
+  match n:
     case Tree.Group{open, kids, cl}:
       match open:
         case Lex.Tok{k, o, l, c}: {==}
@@ -77,11 +77,11 @@ def inert.transcong.paren(nn):
 
 # a leaf keeps its kind
 law inert.transcong.comma:
-  for nn: Tree.Node
-  {Transcong.comma(D1.inert.node(nn)) == Transcong.comma(nn) : Bool}
+  for n: Tree.Node
+  {Transcong.comma(D1.inert.node(n)) == Transcong.comma(n) : Bool}
 
-def inert.transcong.comma(nn):
-  match nn:
+def inert.transcong.comma(n):
+  match n:
     case Tree.Leaf{tok}:
       match tok:
         case Lex.Tok{k, t, l, c}: {==}
@@ -92,11 +92,11 @@ def inert.transcong.comma(nn):
 
 # an argument ends where it did
 law inert.transcong.ends:
-  for nn: Tree.Node
-  {Transcong.ends(D1.inert.node(nn)) == Transcong.ends(nn) : Bool}
+  for n: Tree.Node
+  {Transcong.ends(D1.inert.node(n)) == Transcong.ends(n) : Bool}
 
-def inert.transcong.ends(nn):
-  match nn:
+def inert.transcong.ends(n):
+  match n:
     case Tree.NCons{h, t}: inert.transcong.comma(h)
     case Tree.Leaf{x}: {==}
     case Tree.Group{x, y, z}: {==}
@@ -105,11 +105,11 @@ def inert.transcong.ends(nn):
 
 # a cong call past its name reads as it did
 law inert.transcong.call:
-  for nn: Tree.Node
-  {Transcong.cong.call(D1.inert.node(nn)) == Transcong.cong.call(nn) : Bool}
+  for n: Tree.Node
+  {Transcong.cong.call(D1.inert.node(n)) == Transcong.cong.call(n) : Bool}
 
-def inert.transcong.call(nn):
-  match nn:
+def inert.transcong.call(n):
+  match n:
     case Tree.NCons{+g, +after}:
       %inert.transcong.paren(g) : {Bool.and(Transcong.paren(D1.inert.node(g)), Transcong.ends(D1.inert.node(after)))
         == Bool.and(_, Transcong.ends(after)) : Bool}
@@ -124,11 +124,11 @@ def inert.transcong.call(nn):
 
 # a cong argument reads as it did
 law inert.transcong.cong:
-  for nn: Tree.Node
-  {Transcong.cong(D1.inert.node(nn)) == Transcong.cong(nn) : Bool}
+  for n: Tree.Node
+  {Transcong.cong(D1.inert.node(n)) == Transcong.cong(n) : Bool}
 
-def inert.transcong.cong(nn):
-  match nn:
+def inert.transcong.cong(n):
+  match n:
     case Tree.NCons{+h, +t}:
       %inert.transcong.named(h, "Equal.cong") : {Bool.and(Transcong.named(D1.inert.node(h), "Equal.cong"),
         Transcong.cong.call(D1.inert.node(t))) == Bool.and(_, Transcong.cong.call(t)) : Bool}
@@ -143,8 +143,8 @@ def inert.transcong.cong(nn):
 
 # the commas are counted as they were
 law inert.transcong.commas:
-  for nn: Tree.Node
-  {Transcong.commas(D1.inert.node(nn)) == Transcong.commas(nn) : Nat}
+  for n: Tree.Node
+  {Transcong.commas(D1.inert.node(n)) == Transcong.commas(n) : Nat}
 
 def inert.transcong.commas(nn):
   match nn:
@@ -191,8 +191,8 @@ def inert.transcong.fed(nn, n, fresh, seen):
 
 # the arguments past `Equal.trans` read as they did
 law inert.transcong.args:
-  for nn: Tree.Node
-  {Transcong.args(D1.inert.node(nn)) == Transcong.args(nn) : Bool}
+  for n: Tree.Node
+  {Transcong.args(D1.inert.node(n)) == Transcong.args(n) : Bool}
 
 def inert.transcong.args(nn):
   match nn:
@@ -220,14 +220,14 @@ def inert.transcong.args(nn):
 
 # a site reads as it did
 law inert.transcong.site:
-  for hh: Tree.Node
+  for h: Tree.Node
   for +rest: Tree.Node
   for +path: String
-  {Transcong.site(D1.inert.node(hh), D1.inert.node(rest), path) == Transcong.site(hh, rest, path) : List<&2,
+  {Transcong.site(D1.inert.node(h), D1.inert.node(rest), path) == Transcong.site(h, rest, path) : List<&2,
       F.Finding>}
 
-def inert.transcong.site(hh, rest, path):
-  match hh:
+def inert.transcong.site(h, rest, path):
+  match h:
     case Tree.Leaf{tok}:
       match tok:
         case Lex.Tok{+k, +t, +l, +c}:
@@ -246,11 +246,11 @@ def inert.transcong.site(hh, rest, path):
 
 # a `=` or `<-` leaf reads as it did: the kind is kept
 law inert.transcong.binds:
-  for hh: Tree.Node
-  {Transcong.binds(D1.inert.node(hh)) == Transcong.binds(hh) : Bool}
+  for h: Tree.Node
+  {Transcong.binds(D1.inert.node(h)) == Transcong.binds(h) : Bool}
 
-def inert.transcong.binds(hh):
-  match hh:
+def inert.transcong.binds(h):
+  match h:
     case Tree.Leaf{tok}:
       match tok:
         case Lex.Tok{k, t, l, c}:
@@ -284,13 +284,13 @@ def inert.transcong.binds(hh):
 
 # the walk reads a node as it did
 law inert.transcong.walk:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +top: Bool
   for +path: String
-  {Transcong.walk(D1.inert.node(nn), top, path) == Transcong.walk(nn, top, path) : List<&2, F.Finding>}
+  {Transcong.walk(D1.inert.node(n), top, path) == Transcong.walk(n, top, path) : List<&2, F.Finding>}
 
-def inert.transcong.walk(nn, top, path):
-  match nn:
+def inert.transcong.walk(n, top, path):
+  match n:
     case Tree.NCons{+h, +rest}:
       +lhs = Transcong.walk(D1.inert.node(Tree.NCons{h, rest}), top, path)
       +tr = Bool.and(top, Bool.not(Transcong.binds(h)))

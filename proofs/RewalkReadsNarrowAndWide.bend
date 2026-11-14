@@ -38,8 +38,8 @@ def Laws.slot_by_accessor_family(list, str, arr):
 def Laws.slot_of_named_accessors(_tt):
   {==}
 
-def Laws.step_is_zero_of_none_left(pp, e):
-  %Equal.sym(Nat, pp, 0n, e) : {Rewalk.step_is_zero(_) == True{} : Bool}
+def Laws.step_is_zero_of_none_left(p, e):
+  %Equal.sym(Nat, p, 0n, e) : {Rewalk.step_is_zero(_) == True{} : Bool}
   {==}
 
 def Laws.step_is_zero_of_some_left(_k):
@@ -149,8 +149,8 @@ def Laws.has_eq_passes_other(h, rest, e):
     case Tree.Stmt{_kd, _ks, _b}:
       {==}
 
-def Laws.has_eq_needs_a_chain(nn, e):
-  match nn:
+def Laws.has_eq_needs_a_chain(n, e):
+  match n:
     case Tree.NCons{h, r}:
       Empty.absurd({Rewalk.has_eq(Tree.NCons{h, r}) == False{} : Bool}, M1.true_false(e))
     case Tree.NNil{}:

@@ -54,8 +54,8 @@ type Hit is Data:
 
 # a bracket that opens a group, or a comma inside one: what may stand right
 # before a test
-def opener(kk: Lex.TokKind) -> Bool:
-  match kk:
+def opener(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TOpen{}:
       True{}
     case Lex.TComma{}:
@@ -65,34 +65,34 @@ def opener(kk: Lex.TokKind) -> Bool:
 
 # a token's text where it is code: a string literal or a comment says
 # nothing the rule reads
-def code(kk: Lex.TokKind, tt: String) -> String:
-  match kk:
+def code(k: Lex.TokKind, t: String) -> String:
+  match k:
     case Lex.TStr{}:
       ""
     case Lex.TComment{}:
       ""
     case other:
-      tt
+      t
 
 # a dotted name
-def dotted(kk: Lex.TokKind) -> Bool:
-  match kk:
+def dotted(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TDotted{}:
       True{}
     case other:
       False{}
 
 # a plain name
-def plain(kk: Lex.TokKind) -> Bool:
-  match kk:
+def plain(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TName{}:
       True{}
     case other:
       False{}
 
 # the length a dotted name takes
-def form(+tt: String) -> Form:
-  Bool.pick(Form, String.eq(tt, "List.length"), FList{}, Bool.pick(Form, String.eq(tt, "String.length"), FStr{}, FNone{}))
+def form(+t: String) -> Form:
+  Bool.pick(Form, String.eq(t, "List.length"), FList{}, Bool.pick(Form, String.eq(t, "String.length"), FStr{}, FNone{}))
 
 # an opener, `Nat.is_eq`, `(`, a dotted name and `(`?
 def head(
@@ -110,14 +110,14 @@ def head(
 
 # what a token leaves of the last tokens: a comma, a name after a comma, or
 # anything else
-def last.step(+kk: Lex.TokKind, +tt: String, ll: Last) -> Last:
-  match kk:
+def last.step(+k: Lex.TokKind, +t: String, l: Last) -> Last:
+  match k:
     case Lex.TComma{}:
       LComma{}
     case Lex.TName{}:
-      match ll:
+      match l:
         case LComma{}:
-          LName{code(kk, tt)}
+          LName{code(k, t)}
         case other:
           LOther{}
     case other:
@@ -125,33 +125,33 @@ def last.step(+kk: Lex.TokKind, +tt: String, ll: Last) -> Last:
 
 # the name a List.length's arguments end in, when the last two were a comma
 # and a plain name
-def last.name(ll: Last, rest: List<&2, Lex.Tok>) -> Maybe<&2, Taken>:
-  match ll:
-    case LName{nn}:
-      Some{Taken{nn, rest}}
+def last.name(l: Last, rest: List<&2, Lex.Tok>) -> Maybe<&2, Taken>:
+  match l:
+    case LName{n}:
+      Some{Taken{n, rest}}
     case other:
       None{}
 
 # a bracket at the depth: the length's own `)` at depth zero; else the depth
 # it leaves
-def close.depth(kk: Lex.TokKind, dd: Nat) -> Nat:
-  match kk:
+def close.depth(k: Lex.TokKind, d: Nat) -> Nat:
+  match k:
     case Lex.TOpen{}:
-      1n+dd
+      1n+d
     case Lex.TClose{}:
-      match dd:
+      match d:
         case 0n:
           0n
         case 1n+p:
           p
     case other:
-      dd
+      d
 
 # is the token the bracket that closes the arguments, at depth zero?
-def close.here(kk: Lex.TokKind, dd: Nat) -> Bool:
-  match kk:
+def close.here(k: Lex.TokKind, d: Nat) -> Bool:
+  match k:
     case Lex.TClose{}:
-      match dd:
+      match d:
         case 0n:
           True{}
         case 1n+p:
@@ -162,7 +162,7 @@ def close.here(kk: Lex.TokKind, dd: Nat) -> Bool:
 # a List.length's arguments, scanned to the `)` that closes them: the name
 # they end in and the tokens after that `)`; none when they end otherwise
 # or run out. done carries whether the last token read was that `)`.
-def close.list(toks: List<&2, Lex.Tok>, +dd: Nat, +ll: Last, done: Bool, got: Maybe<&2, Taken>) -> Maybe<&2, Taken>:
+def close.list(toks: List<&2, Lex.Tok>, +d: Nat, +ll: Last, done: Bool, got: Maybe<&2, Taken>) -> Maybe<&2, Taken>:
   match toks:
     case Nil{}:
       got
@@ -171,8 +171,8 @@ def close.list(toks: List<&2, Lex.Tok>, +dd: Nat, +ll: Last, done: Bool, got: Ma
         case True{}:
           got
         case False{}:
-          +here = close.here(k, dd)
-          close.list(rest, close.depth(k, dd), last.step(k, t, ll), here, Bool.pick(Maybe<&2, Taken>, here,
+          +here = close.here(k, d)
+          close.list(rest, close.depth(k, d), last.step(k, t, ll), here, Bool.pick(Maybe<&2, Taken>, here,
             last.name(ll, rest), None{}))
 
 # a String.length's argument: a plain name and `)`, then the tokens after
@@ -195,13 +195,13 @@ def taken(fm: Form, +toks: List<&2, Lex.Tok>) -> Maybe<&2, Taken>:
       None{}
 
 # a plain name with x's text?
-def same(+kk: Lex.TokKind, +tt: String, +xx: String) -> Bool:
-  Bool.and(plain(kk), String.eq(code(kk, tt), xx))
+def same(+k: Lex.TokKind, +t: String, +x: String) -> Bool:
+  Bool.and(plain(k), String.eq(code(k, t), x))
 
 # is x read among the tokens before the bracket that closes the group they
 # sit in? found carries whether the last token read was x, live whether that
 # bracket is still ahead
-def kept(toks: List<&2, Lex.Tok>, +xx: String, +dd: Nat, found: Bool, live: Bool) -> Bool:
+def kept(toks: List<&2, Lex.Tok>, +x: String, +d: Nat, found: Bool, live: Bool) -> Bool:
   match toks:
     case Nil{}:
       found
@@ -212,45 +212,45 @@ def kept(toks: List<&2, Lex.Tok>, +xx: String, +dd: Nat, found: Bool, live: Bool
         case False{} False{}:
           False{}
         case False{} True{}:
-          kept(rest, xx, close.depth(k, dd), same(k, t, xx), Bool.not(close.here(k, dd)))
+          kept(rest, x, close.depth(k, d), same(k, t, x), Bool.not(close.here(k, d)))
 
 # what a finding says: the test, its fix and why
-def say(fm: Form, +xx: String) -> String:
+def say(fm: Form, +x: String) -> String:
   match fm:
     case FList{}:
-      "Nat.is_eq(List.length(.., " ++ xx ++ "), 0n) counts every cell of " ++ xx ++ ", which is read again; List.is_empty(.., "
-        ++ xx ++ ") looks at one and gives the same answer."
+      "Nat.is_eq(List.length(.., " ++ x ++ "), 0n) counts every cell of " ++ x ++ ", which is read again; List.is_empty(.., "
+        ++ x ++ ") looks at one and gives the same answer."
     case other:
-      "Nat.is_eq(String.length(" ++ xx ++ "), 0n) counts every char of " ++ xx ++ ", which is read again; String.is_empty("
-        ++ xx ++ ") looks at one and gives the same answer."
+      "Nat.is_eq(String.length(" ++ x ++ "), 0n) counts every char of " ++ x ++ ", which is read again; String.is_empty("
+        ++ x ++ ") looks at one and gives the same answer."
 
 # a finding, if the test is whole and x kept
-def tail.go(ok: Bool, fm: Form, xx: String, ll: U32, cc: U32) -> Maybe<&2, Hit>:
+def tail.go(ok: Bool, fm: Form, x: String, l: U32, c: U32) -> Maybe<&2, Hit>:
   match ok:
     case True{}:
-      Some{Hit{ll, cc, say(fm, xx)}}
+      Some{Hit{l, c, say(fm, x)}}
     case False{}:
       None{}
 
 # the test's end, `,`, `0n` and `)`, then x kept: the finding, if any
-def tail(mm: Maybe<&2, Taken>, +fm: Form, +ll: U32, +cc: U32) -> Maybe<&2, Hit>:
-  match mm:
+def tail(m: Maybe<&2, Taken>, +fm: Form, +l: U32, +c: U32) -> Maybe<&2, Hit>:
+  match m:
     case None{}:
       None{}
-    case Some{Taken{+xx, r}}:
+    case Some{Taken{+x, r}}:
       match r:
         case Con{Lex.Tok{k1, +t1, l1, c1}, Con{Lex.Tok{k2, +t2, l2, c2}, Con{Lex.Tok{k3, +t3, l3, c3}, rest}}}:
           tail.go(Bool.and(String.eq(code(k1, t1), ","), Bool.and(String.eq(code(k2, t2), "0n"),
             Bool.and(String.eq(code(k3, t3), ")"),
-            kept(rest, xx, 0n, False{}, True{})))), fm, xx, ll, cc)
+            kept(rest, x, 0n, False{}, True{})))), fm, x, l, c)
         case other:
           None{}
 
 # the test, its head read: the finding, if any
-def at.go(ok: Bool, +fm: Form, +ll: U32, +cc: U32, r4: List<&2, Lex.Tok>) -> Maybe<&2, Hit>:
+def at.go(ok: Bool, +fm: Form, +l: U32, +c: U32, r4: List<&2, Lex.Tok>) -> Maybe<&2, Hit>:
   match ok:
     case True{}:
-      tail(taken(fm, r4), fm, ll, cc)
+      tail(taken(fm, r4), fm, l, c)
     case False{}:
       None{}
 
@@ -264,12 +264,12 @@ def at(k0: Lex.TokKind, toks: List<&2, Lex.Tok>) -> Maybe<&2, Hit>:
       None{}
 
 # the finding a test makes, if any, before the rest
-def hit(mm: Maybe<&2, Hit>, +path: String, more: List<&2, F.Finding>) -> List<&2, F.Finding>:
-  match mm:
+def hit(m: Maybe<&2, Hit>, +path: String, more: List<&2, F.Finding>) -> List<&2, F.Finding>:
+  match m:
     case None{}:
       more
-    case Some{Hit{ll, cc, msg}}:
-      F.Finding{path, ll, cc, 9, "empty", msg} <> more
+    case Some{Hit{l, c, msg}}:
+      F.Finding{path, l, c, 9, "empty", msg} <> more
 
 # what the two tokens after a def's parameters say: a `:` (no type: the
 # def fills a law) or `->` then `{` (it returns a proof)
@@ -293,10 +293,10 @@ def proofy.end(toks: List<&2, Lex.Tok>) -> Bool:
       False{}
 
 # does the token close the parameters: a bracket closing at depth one?
-def proofy.fin(kk: Lex.TokKind, dd: Nat) -> Bool:
-  match kk:
+def proofy.fin(k: Lex.TokKind, d: Nat) -> Bool:
+  match k:
     case Lex.TClose{}:
-      match dd:
+      match d:
         case 1n:
           True{}
         case other:
@@ -307,7 +307,7 @@ def proofy.fin(kk: Lex.TokKind, dd: Nat) -> Bool:
 # is the def these tokens head (after `def`) a proof? Its tokens are read to
 # the bracket that closes its parameters, at depth zero; fin carries whether
 # the last token read was that bracket
-def proofy(toks: List<&2, Lex.Tok>, +dd: Nat, fin: Bool) -> Bool:
+def proofy(toks: List<&2, Lex.Tok>, +d: Nat, fin: Bool) -> Bool:
   match toks:
     case Nil{}:
       False{}
@@ -316,7 +316,7 @@ def proofy(toks: List<&2, Lex.Tok>, +dd: Nat, fin: Bool) -> Bool:
         case True{}:
           proofy.end(Lex.Tok{k, t, l, c} <> rest)
         case False{}:
-          proofy(rest, close.depth(k, dd), proofy.fin(k, dd))
+          proofy(rest, close.depth(k, d), proofy.fin(k, d))
 
 # what is skipped after a token that is no def: inside a law, from `law` on;
 # code again from `type` or `import`; else as before
@@ -333,20 +333,20 @@ def item.word(isdef: Bool, +word: String, rest: List<&2, Lex.Tok>, skip: Bool) -
       item.other(word, skip)
 
 # what is skipped after a token: a law, and a def that is a proof, never run
-def item(+kk: Lex.TokKind, +tt: String, rest: List<&2, Lex.Tok>, skip: Bool) -> Bool:
-  match kk:
+def item(+k: Lex.TokKind, +t: String, rest: List<&2, Lex.Tok>, skip: Bool) -> Bool:
+  match k:
     case Lex.TKey{}:
-      item.word(String.eq(code(kk, tt), "def"), code(kk, tt), rest, skip)
+      item.word(String.eq(code(k, t), "def"), code(k, t), rest, skip)
     case other:
       skip
 
 # the kept test a token opens, if any, outside what is skipped
-def found(skip: Bool, kk: Lex.TokKind, rest: List<&2, Lex.Tok>) -> Maybe<&2, Hit>:
+def found(skip: Bool, k: Lex.TokKind, rest: List<&2, Lex.Tok>) -> Maybe<&2, Hit>:
   match skip:
     case True{}:
       None{}
     case False{}:
-      at(kk, rest)
+      at(k, rest)
 
 # every kept test among the tokens, in order; skip says whether the tokens
 # so far sit in a law or a def that is a proof
@@ -359,12 +359,12 @@ def walk(toks: List<&2, Lex.Tok>, +path: String, skip: Bool) -> List<&2, F.Findi
       hit(found(sk, k, rest), path, walk(rest, path, sk))
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{+path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{+path, text, toks, tree, bound, items} = s
   Lazy.stop(List<&2, F.Finding>, Paths.is_law_file(path), [], _u => walk(T.sig(toks), path, False{}))
 
 # the rule, told the file's role (src/role.bend): a law or proof file is
 # skipped
-def check.role(rr: Role.Role, ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
-  Lazy.stop(List<&2, F.Finding>, Role.is_law_file(rr), [], _u => walk(T.sig(toks), path, False{}))
+def check.role(r: Role.Role, s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
+  Lazy.stop(List<&2, F.Finding>, Role.is_law_file(r), [], _u => walk(T.sig(toks), path, False{}))

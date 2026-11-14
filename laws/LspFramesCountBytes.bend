@@ -4,8 +4,8 @@ import Base
 import ../src/lsp/frame.bend as Frame
 
 # a digit as its char
-def digit_char(dd: Frame.Digit) -> Char:
-  match dd:
+def digit_char(d: Frame.Digit) -> Char:
+  match d:
     case Frame.D0{}:
       '0'
     case Frame.D1{}:
@@ -28,8 +28,8 @@ def digit_char(dd: Frame.Digit) -> Char:
       '9'
 
 # a digit's value
-def digit_value(dd: Frame.Digit) -> Nat:
-  match dd:
+def digit_value(d: Frame.Digit) -> Nat:
+  match d:
     case Frame.D0{}:
       0n
     case Frame.D1{}:
@@ -76,8 +76,8 @@ def digits(ds: List<&2, Frame.Digit>) -> String:
       digits(t) ++ SCon{digit_char(d), SNil{}}
 
 # the bytes wrap(s) puts on the wire
-def wire(ss: String) -> List<&2, U32>:
-  Frame.encode(Frame.wrap(ss))
+def wire(s: String) -> List<&2, U32>:
+  Frame.encode(Frame.wrap(s))
 
 # LAW: Content-Length counts UTF-8 bytes: wrap heads the body with the
 # decimal text of a count whose value is the number of bytes the body takes
@@ -99,9 +99,9 @@ law frame_round:
 # is not yet a message
 law frame_waits:
   for +s: String
-  for kk: Nat
-  for h: {Nat.is_lt(kk, List.length(&2, U32, wire(s))) == True{} : Bool}
-  {Frame.cut(List.take(&2, U32, wire(s), kk)) == Frame.More{} : Frame.Cut}
+  for k: Nat
+  for h: {Nat.is_lt(k, List.length(&2, U32, wire(s))) == True{} : Bool}
+  {Frame.cut(List.take(&2, U32, wire(s), k)) == Frame.More{} : Frame.Cut}
 
 # What the transport reads next (Frame.next). bend's File.read_bytes waits
 # until it has all it was asked for, so a server that asks for more than the
@@ -140,20 +140,20 @@ law lack_of_none_held:
 
 # LAW: a digit's value is its char's code less the code of `0`
 law digit_value_is_its_char:
-  for dd: Frame.Digit
-  {(Frame.digit.value(dd) + 48 : U32) == Frame.digit.code(dd) : U32}
+  for d: Frame.Digit
+  {(Frame.digit.value(d) + 48 : U32) == Frame.digit.code(d) : U32}
 
 # LAW: a number past 65536 is held to it
 law held_caps:
-  for +nn: U32
-  for e: {U32.is_gt(nn, 65536) == True{} : Bool}
-  {Frame.held(nn) == 65536 : U32}
+  for +n: U32
+  for e: {U32.is_gt(n, 65536) == True{} : Bool}
+  {Frame.held(n) == 65536 : U32}
 
 # LAW: any other number is itself
 law held_keeps:
-  for +nn: U32
-  for e: {U32.is_gt(nn, 65536) == False{} : Bool}
-  {Frame.held(nn) == nn : U32}
+  for +n: U32
+  for e: {U32.is_gt(n, 65536) == False{} : Bool}
+  {Frame.held(n) == n : U32}
 
 # LAW: a count is read least significant digit first, each digit plus ten
 # times the rest, held at every step
@@ -169,12 +169,12 @@ law count_held_one_digit:
 
 # LAW: a read never asks for no bytes: none is asked as one
 law at_least_one_of_none:
-  for +nn: U32
-  for e: {U32.is_eq(nn, 0) == True{} : Bool}
-  {Frame.at_least_one(nn) == 1 : U32}
+  for +n: U32
+  for e: {U32.is_eq(n, 0) == True{} : Bool}
+  {Frame.at_least_one(n) == 1 : U32}
 
 # LAW: any other number of bytes is asked as it is
 law at_least_one_keeps:
-  for +nn: U32
-  for e: {U32.is_eq(nn, 0) == False{} : Bool}
-  {Frame.at_least_one(nn) == nn : U32}
+  for +n: U32
+  for e: {U32.is_eq(n, 0) == False{} : Bool}
+  {Frame.at_least_one(n) == n : U32}

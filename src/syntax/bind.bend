@@ -73,8 +73,8 @@ type Pos is Data:
 # -----------------
 
 # a name that can be declared: plain, capitalized or dotted
-def declared.is_name(kk: Lex.TokKind) -> Bool:
-  match kk:
+def declared.is_name(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TName{}:
       True{}
     case Lex.TUpper{}:
@@ -85,8 +85,8 @@ def declared.is_name(kk: Lex.TokKind) -> Bool:
       False{}
 
 # a leaf's name, when its kind is one: the kind is tested, the text only kept
-def declared.name(nn: Tree.Node) -> Maybe<&2, String>:
-  match nn:
+def declared.name(n: Tree.Node) -> Maybe<&2, String>:
+  match n:
     case Tree.Leaf{Lex.Tok{k, t, l, c}}:
       Bool.pick(Maybe<&2, String>, declared.is_name(k), Some{t}, None{})
     case other:
@@ -101,16 +101,16 @@ def declared.go(kids: Tree.Node) -> Maybe<&2, String>:
       None{}
 
 # a keyword?
-def declared.is_key(kk: Lex.TokKind) -> Bool:
-  match kk:
+def declared.is_key(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TKey{}:
       True{}
     case other:
       False{}
 
 # a keyword leaf? its kind is read, never its text
-def declared.key(nn: Tree.Node) -> Bool:
-  match nn:
+def declared.key(n: Tree.Node) -> Bool:
+  match n:
     case Tree.Leaf{Lex.Tok{k, t, l, c}}:
       declared.is_key(k)
     case other:
@@ -129,14 +129,14 @@ def push_name.again(acc: List<&2, String>, +name: String) -> Bool:
   match acc:
     case Nil{}:
       False{}
-    case Con{hh, _rest}:
-      String.eq(hh, name)
+    case Con{h, _rest}:
+      String.eq(h, name)
 
 # a name, when there is one, onto a list, unless it is the name just put
 # there: a proof file's `law x` and its `def x` are one item, and every use
 # no binder holds is looked for in this list
-def push_name(mm: Maybe<&2, String>, +acc: List<&2, String>) -> List<&2, String>:
-  match mm:
+def push_name(m: Maybe<&2, String>, +acc: List<&2, String>) -> List<&2, String>:
+  match m:
     case None{}:
       acc
     case Some{+name}:
@@ -230,8 +230,8 @@ def has(names: List<&2, String>, +name: String) -> Bool:
 
 # two names alike, char by char, stopping at the first that differs:
 # String.eq, without the pairs String.cmp builds on every step
-def same(aa: String, bb: String) -> Bool:
-  match aa bb:
+def same(a: String, b: String) -> Bool:
+  match a b:
     case SNil{} SNil{}:
       True{}
     case SNil{} SCon{_h2, _t2}:
@@ -247,8 +247,8 @@ def has_item(names: List<&2, String>, +name: String) -> Bool:
   match names:
     case Nil{}:
       False{}
-    case Con{hh, rest}:
-      Lazy.or_else(same(hh, name), _u => has_item(rest, name))
+    case Con{h, rest}:
+      Lazy.or_else(same(h, name), _u => has_item(rest, name))
 
 # The index of a file's items. Every use no binder holds asks whether its
 # name is an item, and a scan of the items for each one is the uses times
@@ -289,45 +289,45 @@ def index.names(ix: Index) -> List<&2, String>:
       Nil{}
 
 # the low half for a set bit, the high half else
-def index.pick(bb: Bool, lo: Index, hi: Index) -> Index:
-  match bb:
+def index.pick(b: Bool, lo: Index, hi: Index) -> Index:
+  match b:
     case True{}:
       lo
     case False{}:
       hi
 
 # the half of a node a bit goes down, empty elsewhere
-def index.near(bb: Bool, ix: Index) -> Index:
+def index.near(b: Bool, ix: Index) -> Index:
   match ix:
     case XNode{lo, hi}:
-      index.pick(bb, lo, hi)
+      index.pick(b, lo, hi)
     case other:
       XNone{}
 
 # a node whose half down a bit is sub, and the other half far
-def index.join(bb: Bool, sub: Index, far: Index) -> Index:
-  match bb:
+def index.join(b: Bool, sub: Index, far: Index) -> Index:
+  match b:
     case True{}:
       XNode{sub, far}
     case False{}:
       XNode{far, sub}
 
 # the index with one more name, down the low bits of its number
-def index.put(dd: Nat, +kk: U32, +ix: Index, name: String) -> Index:
-  match dd:
+def index.put(d: Nat, +k: U32, +ix: Index, name: String) -> Index:
+  match d:
     case 0n:
       XLeaf{name <> index.names(ix)}
     case 1n+p:
-      index.join(U32.is_even(kk), index.put(p, U32.shr(kk), index.near(U32.is_even(kk), ix), name),
-        index.near(Bool.not(U32.is_even(kk)), ix))
+      index.join(U32.is_even(k), index.put(p, U32.shr(k), index.near(U32.is_even(k), ix), name),
+        index.near(Bool.not(U32.is_even(k)), ix))
 
 # is the name at the end of its number's way down the index?
-def index.has(dd: Nat, +kk: U32, ix: Index, +name: String) -> Bool:
-  match dd:
+def index.has(d: Nat, +k: U32, ix: Index, +name: String) -> Bool:
+  match d:
     case 0n:
       has_item(index.names(ix), name)
     case 1n+p:
-      index.has(p, U32.shr(kk), index.near(U32.is_even(kk), ix), name)
+      index.has(p, U32.shr(k), index.near(U32.is_even(k), ix), name)
 
 # the index of these names
 def index(names: List<&2, String>) -> Index:
@@ -350,8 +350,8 @@ type Names is Data:
 def names_of(+its: List<&2, String>, als: List<&2, String>) -> Names:
   Names{its, als, index(its)}
 
-def resolve.local(mm: Maybe<&2, Bind>, +name: String, ns: Names) -> Target:
-  match mm:
+def resolve.local(m: Maybe<&2, Bind>, +name: String, ns: Names) -> Target:
+  match m:
     case Some{Bind{n, l, c, k, note}}:
       TLocal{l, c}
     case None{}:
@@ -398,9 +398,9 @@ type W is Data:
 
 # a declaration as written: `+x: List<&2, U32>`, `~f: U32 -> U32`. A space
 # follows `:` and `,`, spaces surround `->`, everything else is glued
-def spaced(+tt: String) -> String:
-  Bool.pick(String, String.eq(tt, "->"), " -> ",
-    Bool.pick(String, Bool.or(String.eq(tt, ":"), String.eq(tt, ",")), tt ++ " ", tt))
+def spaced(+t: String) -> String:
+  Bool.pick(String, String.eq(t, "->"), " -> ",
+    Bool.pick(String, Bool.or(String.eq(t, ":"), String.eq(t, ",")), t ++ " ", t))
 
 # a group's close bracket, "" when it never closed
 def render_close(close: Maybe<&2, Lex.Tok>) -> String:
@@ -411,8 +411,8 @@ def render_close(close: Maybe<&2, Lex.Tok>) -> String:
       t
 
 # the text of a whole chain
-def render_all(nn: Tree.Node) -> String:
-  match nn:
+def render_all(n: Tree.Node) -> String:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, rest}:
       spaced(t) ++ render_all(rest)
     case Tree.NCons{Tree.Group{Lex.Tok{k, t, l, c}, kids, close}, rest}:
@@ -421,8 +421,8 @@ def render_all(nn: Tree.Node) -> String:
       ""
 
 # the text of a chain up to its first comma
-def render(nn: Tree.Node) -> String:
-  match nn:
+def render(n: Tree.Node) -> String:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}, rest}:
       ""
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, rest}:
@@ -444,18 +444,18 @@ def mark(line: U32, +env: List<&2, Bind>, out: Out) -> Out:
 
 # what the names of a telescope bind as, by its bracket: `(` parameters,
 # `<` type parameters, `{` fields
-def tele_kind(+oo: String) -> BindKind:
-  Bool.pick(BindKind, String.eq(oo, "("), KParam{},
-    Bool.pick(BindKind, String.eq(oo, "<"), KTypeParam{}, KField{}))
+def tele_kind(+o: String) -> BindKind:
+  Bool.pick(BindKind, String.eq(o, "("), KParam{},
+    Bool.pick(BindKind, String.eq(o, "<"), KTypeParam{}, KField{}))
 
 # a result's environment
-def env_of(ww: W) -> List<&2, Bind>:
-  W{env, out} = ww
+def env_of(w: W) -> List<&2, Bind>:
+  W{env, out} = w
   env
 
 # a result's output
-def out_of(ww: W) -> Out:
-  W{env, out} = ww
+def out_of(w: W) -> Out:
+  W{env, out} = w
   out
 
 # the plan of a step
@@ -565,8 +565,8 @@ def plan.skip(mode: Mode) -> Mode:
       MStop{}
 
 # the mode the rest is read in after a leaf of kind k
-def plan.lmode(mode: Mode, kk: Lex.TokKind, +rest: Tree.Node) -> Mode:
-  match mode kk:
+def plan.lmode(mode: Mode, k: Lex.TokKind, +rest: Tree.Node) -> Mode:
+  match mode k:
     case MHead{} Lex.TKey{}:
       MName{}
     case MTele{+kind} Lex.TOp{}:
@@ -601,25 +601,25 @@ def plan.lmode(mode: Mode, kk: Lex.TokKind, +rest: Tree.Node) -> Mode:
 # the mode the rest of a term is read in after a leaf of kind k saying t: a
 # `%` with a name and an `@` behind it starts a named rewrite (`%h@e : P`),
 # and its name and `@` are stepped over; any other leaf is read by its kind
-def plan.after.term(kk: Lex.TokKind, +tt: String, +rest: Tree.Node) -> Mode:
-  match kk:
+def plan.after.term(k: Lex.TokKind, +t: String, +rest: Tree.Node) -> Mode:
+  match k:
     case Lex.TOp{}:
-      Bool.pick(Mode, Bool.and(String.eq(tt, "%"), plan.rewrites(rest)), MSkip{MSkip{MTerm{}}}, MTerm{})
+      Bool.pick(Mode, Bool.and(String.eq(t, "%"), plan.rewrites(rest)), MSkip{MSkip{MTerm{}}}, MTerm{})
     case other:
       plan.lmode(MTerm{}, other, rest)
 
 # the mode the rest is read in after a leaf of kind k saying t: by its kind
 # (plan.lmode), but for the `%` of a named rewrite in a term
-def plan.after(mode: Mode, kk: Lex.TokKind, +tt: String, +rest: Tree.Node) -> Mode:
+def plan.after(mode: Mode, k: Lex.TokKind, +t: String, +rest: Tree.Node) -> Mode:
   match mode:
     case MTerm{}:
-      plan.after.term(kk, tt, rest)
+      plan.after.term(k, t, rest)
     case other:
-      plan.lmode(other, kk, rest)
+      plan.lmode(other, k, rest)
 
 # does a leaf of kind k record a binder?
-def plan.rec(mode: Mode, kk: Lex.TokKind, +rest: Tree.Node) -> Bool:
-  match mode kk:
+def plan.rec(mode: Mode, k: Lex.TokKind, +rest: Tree.Node) -> Bool:
+  match mode k:
     case MCtor{} Lex.TUpper{}:
       True{}
     case MName{} Lex.TName{}:
@@ -651,18 +651,18 @@ def plan.rec(mode: Mode, kk: Lex.TokKind, +rest: Tree.Node) -> Bool:
 
 # does the binder a leaf records go into the environment too? All do but an
 # item's name and a constructor's, which the file's items hold
-def plan.push(mode: Mode, kk: Lex.TokKind, rest: Tree.Node) -> Bool:
+def plan.push(mode: Mode, k: Lex.TokKind, rest: Tree.Node) -> Bool:
   match mode:
     case MCtor{}:
       False{}
     case MName{}:
       False{}
     case other:
-      plan.rec(other, kk, rest)
+      plan.rec(other, k, rest)
 
 # does a leaf of kind k use a name?
-def plan.use(mode: Mode, kk: Lex.TokKind, +rest: Tree.Node) -> Bool:
-  match mode kk:
+def plan.use(mode: Mode, k: Lex.TokKind, +rest: Tree.Node) -> Bool:
+  match mode k:
     case MTeleType{_kind} Lex.TName{}:
       True{}
     case MTeleType{_kind} Lex.TUpper{}:
@@ -690,8 +690,8 @@ def plan.use(mode: Mode, kk: Lex.TokKind, +rest: Tree.Node) -> Bool:
 
 # is a leaf of kind k the `=` or `<-` of a let, whose right side sees the
 # names outside the let?
-def plan.keep(mode: Mode, kk: Lex.TokKind) -> Bool:
-  match mode kk:
+def plan.keep(mode: Mode, k: Lex.TokKind) -> Bool:
+  match mode k:
     case MLhs{_outer, _kind} Lex.TEq{}:
       True{}
     case MLhs{_outer, _kind} Lex.TBind{}:
@@ -727,41 +727,41 @@ def plan.ahead_name(tok: Lex.Tok) -> String:
 
 # the binder a leaf records: its own name, or for `op name`, `@x:` and `&x:`
 # the name after it. A telescope's binder notes its declaration
-def plan.binder(mode: Mode, kk: Lex.TokKind, +tt: String, ll: U32, cc: U32, +rest: Tree.Node) -> Bind:
-  match mode kk:
+def plan.binder(mode: Mode, k: Lex.TokKind, +t: String, l: U32, c: U32, +rest: Tree.Node) -> Bind:
+  match mode k:
     case MCtor{} _k:
-      Bind{tt, ll, cc, KCtor{}, ""}
+      Bind{t, l, c, KCtor{}, ""}
     case MName{} _k:
-      Bind{tt, ll, cc, KItem{}, ""}
+      Bind{t, l, c, KItem{}, ""}
     case MTele{kind} Lex.TOp{}:
-      plan.ahead(plan.peek(rest), kind, tt ++ plan.ahead_name(plan.peek(rest)) ++ render(plan.tail(rest)))
+      plan.ahead(plan.peek(rest), kind, t ++ plan.ahead_name(plan.peek(rest)) ++ render(plan.tail(rest)))
     case MTele{kind} _k:
-      Bind{tt, ll, cc, kind, "" ++ tt ++ render(rest)}
+      Bind{t, l, c, kind, "" ++ t ++ render(rest)}
     case MTeleType{_kind} _k:
       plan.ahead(plan.peek(rest), KTypeVar{}, "")
     case MLhs{_outer, kind} _k:
-      Bind{tt, ll, cc, kind, ""}
+      Bind{t, l, c, kind, ""}
     case MTerm{} Lex.TName{}:
-      Bind{tt, ll, cc, KLocal{}, ""}
+      Bind{t, l, c, KLocal{}, ""}
     case MTerm{} _k:
       plan.ahead(plan.peek(rest), KTypeVar{}, "")
     case _other _k:
-      Bind{tt, ll, cc, KLocal{}, ""}
+      Bind{t, l, c, KLocal{}, ""}
 
 # a binder onto the environment, when there is one
-def plan.pushed(push: Bool, +bb: Bind, env: List<&2, Bind>) -> List<&2, Bind>:
+def plan.pushed(push: Bool, +b: Bind, env: List<&2, Bind>) -> List<&2, Bind>:
   match push:
     case True{}:
-      bb <> env
+      b <> env
     case False{}:
       env
 
 # a binder onto the output, when there is one
-def plan.recorded(rec: Bool, +bb: Bind, out: Out) -> Out:
+def plan.recorded(rec: Bool, +b: Bind, out: Out) -> Out:
   match rec:
     case True{}:
       Out{binds, uses, scopes} = out
-      Out{bb <> binds, uses, scopes}
+      Out{b <> binds, uses, scopes}
     case False{}:
       out
 
@@ -779,14 +779,14 @@ def plan.enter(
   keep: Bool,
   outer: List<&2, Bind>,
   push: Bool,
-  +bb: Bind,
+  +b: Bind,
   env: List<&2, Bind>
 ) -> List<&2, Bind>:
   match keep:
     case True{}:
       outer
     case False{}:
-      plan.pushed(push, bb, env)
+      plan.pushed(push, b, env)
 
 # the mode a group's insides are read in; MStop when they mean nothing here
 def plan.ginner(mode: Mode, +gt: String) -> Mode:
@@ -938,8 +938,8 @@ def plan.last(kids: Tree.Node) -> Lex.TokKind:
       Lex.TSpace{}
 
 # what a let's last token says of the lines under it
-def plan.wraps.by(kk: Lex.TokKind) -> Under:
-  match kk:
+def plan.wraps.by(k: Lex.TokKind) -> Under:
+  match k:
     case Lex.TEq{}:
       UValue{}
     case Lex.TBind{}:
@@ -973,12 +973,12 @@ def plan.wraps(mode: Mode, sk: Tree.StmtKind, kids: Tree.Node, body: Tree.Node) 
 # the lambda's parameters: what the let's own line leaves when it is read as
 # a term (inner)
 def plan.under(
-  uu: Under,
+  u: Under,
   outer: List<&2, Bind>,
   after: List<&2, Bind>,
   inner: Unit -> List<&2, Bind>
 ) -> List<&2, Bind>:
-  match uu:
+  match u:
     case UNext{}:
       after
     case UValue{}:
@@ -990,8 +990,8 @@ def plan.under(
 # apart as far as its head, and the plan above says what the head does in
 # this mode. Every recursive call is on a subtree (kids, body, gkids or
 # rest), never on n itself
-def walk(nn: Tree.Node, +mode: Mode, +env: List<&2, Bind>, +ns: Names, out: Out) -> W:
-  match nn:
+def walk(n: Tree.Node, +mode: Mode, +env: List<&2, Bind>, +ns: Names, out: Out) -> W:
+  match n:
     case Tree.NCons{hd, +rest}:
       match hd:
         case Tree.Leaf{Lex.Tok{+k, +t, +l, +c}}:
@@ -1082,8 +1082,8 @@ def annotate(binds: List<&2, Bind>, +lines: List<&2, String>) -> List<&2, Bind>:
 # -------------------
 
 # the gathered output, in source order and annotated
-def finish(oo: Out, lines: List<&2, String>) -> Bound:
-  Out{binds, uses, scopes} = oo
+def finish(o: Out, lines: List<&2, String>) -> Bound:
+  Out{binds, uses, scopes} = o
   Bound{annotate(List.reverse(&2, Bind, binds), lines), List.reverse(&2, Use, uses), List.reverse(&2, Scope, scopes)}
 
 # the binding structure of a parsed source
@@ -1144,16 +1144,16 @@ def use_at.go(uses: List<&2, Use>, +line: U32, +col: U32, hit: Maybe<&2, Site>) 
 def use_at(uses: List<&2, Use>, +line: U32, +col: U32) -> Maybe<&2, Site>:
   use_at.go(uses, line, col, None{})
 
-def at.or(mm: Maybe<&2, Site>, uses: List<&2, Use>, line: U32, col: U32) -> Maybe<&2, Site>:
-  match mm:
+def at.or(m: Maybe<&2, Site>, uses: List<&2, Use>, line: U32, col: U32) -> Maybe<&2, Site>:
+  match m:
     case Some{site}:
       Some{site}
     case None{}:
       use_at(uses, line, col)
 
 # the site at a position
-def at(bb: Bound, +line: U32, +col: U32) -> Maybe<&2, Site>:
-  Bound{binds, uses, scopes} = bb
+def at(b: Bound, +line: U32, +col: U32) -> Maybe<&2, Site>:
+  Bound{binds, uses, scopes} = b
   at.or(bind_at(binds, line, col), uses, line, col)
 
 # the binder at a position (a use's target, or the binder itself); hit: the
@@ -1185,10 +1185,10 @@ def visible.go(scopes: List<&2, Scope>, +qline: U32, best: List<&2, Bind>) -> Li
       visible.go(rest, qline, Bool.pick(List<&2, Bind>, hit, env, best))
 
 # the scopes hold binders before their notes were filled: read each back
-def noted(mm: Maybe<&2, Bind>, bb: Bind) -> Bind:
-  match mm:
+def noted(m: Maybe<&2, Bind>, b: Bind) -> Bind:
+  match m:
     case None{}:
-      bb
+      b
     case Some{full}:
       full
 
@@ -1255,8 +1255,8 @@ def refresh(env: List<&2, Bind>, +binds: List<&2, Bind>) -> List<&2, Bind>:
 
 # the names in scope at a line: those of the statement on it, else of the
 # nearest statement above
-def visible(bb: Bound, qline: U32) -> List<&2, Bind>:
-  Bound{binds, uses, scopes} = bb
+def visible(b: Bound, qline: U32) -> List<&2, Bind>:
+  Bound{binds, uses, scopes} = b
   refresh(visible.go(scopes, qline, []), binds)
 
 # every position a binder is named at: its own, then its uses'
@@ -1271,8 +1271,8 @@ def sites.go(uses: List<&2, Use>, +line: U32, +col: U32) -> List<&2, Pos>:
       sites.go(rest, line, col)
 
 # every position a binder is named at: its own, then its uses'
-def sites(bb: Bound, +line: U32, +col: U32) -> List<&2, Pos>:
-  Bound{binds, uses, scopes} = bb
+def sites(b: Bound, +line: U32, +col: U32) -> List<&2, Pos>:
+  Bound{binds, uses, scopes} = b
   Pos{line, col} <> sites.go(uses, line, col)
 
 # every position an item of the file is named at: its declaration, then its
@@ -1302,8 +1302,8 @@ def item_sites.uses(uses: List<&2, Use>, +name: String) -> List<&2, Pos>:
 
 # every position an item of the file is named at: its declaration, then its
 # uses
-def item_sites(bb: Bound, +name: String) -> List<&2, Pos>:
-  Bound{binds, uses, scopes} = bb
+def item_sites(b: Bound, +name: String) -> List<&2, Pos>:
+  Bound{binds, uses, scopes} = b
   List.append(&2, Pos, item_sites.binds(binds, name), item_sites.uses(uses, name))
 
 # every position a name not of this file is used at (Base, or through an
@@ -1320,6 +1320,6 @@ def named_sites.go(uses: List<&2, Use>, +name: String) -> List<&2, Pos>:
 
 # every position a name not of this file is used at (Base, or through an
 # alias)
-def named_sites(bb: Bound, +name: String) -> List<&2, Pos>:
-  Bound{binds, uses, scopes} = bb
+def named_sites(b: Bound, +name: String) -> List<&2, Pos>:
+  Bound{binds, uses, scopes} = b
   named_sites.go(uses, name)

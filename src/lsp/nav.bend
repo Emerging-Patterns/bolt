@@ -21,8 +21,8 @@ type Found is Data:
   Here{uri: String, bind: Bind.Bind}
 
 # an item, when there is one, in a document
-def found(mm: Maybe<&2, Outline.Item>, uri: String) -> Maybe<&2, Found>:
-  match mm:
+def found(m: Maybe<&2, Outline.Item>, uri: String) -> Maybe<&2, Found>:
+  match m:
     case None{}:
       None{}
     case Some{item}:
@@ -60,12 +60,12 @@ def in_base(~fs: F.Files, docs: List<&2, Docs.Doc>, name: String) -> IO(Maybe<&2
 # an item of the document, else of Base
 def own(
   ~fs: F.Files,
-  mm: Maybe<&2, Outline.Item>,
+  m: Maybe<&2, Outline.Item>,
   docs: List<&2, Docs.Doc>,
   uri: String,
   name: String
 ) -> IO(Maybe<&2, Found>):
-  match mm:
+  match m:
     case Some{item}:
       IO.pure(Maybe<&2, Found>, Some{Found{uri, item}})
     case None{}:
@@ -103,8 +103,8 @@ def resolve(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, name: String)
     among(~fs, Outline.items(text), docs, uri, name)
 
 # a binder, when there is one, in a document
-def here(mm: Maybe<&2, Bind.Bind>, uri: String) -> Maybe<&2, Found>:
-  match mm:
+def here(m: Maybe<&2, Bind.Bind>, uri: String) -> Maybe<&2, Found>:
+  match m:
     case None{}:
       None{}
     case Some{b}:
@@ -173,7 +173,7 @@ def at.site(
 
 def at.bound(
   ~fs: F.Files,
-  bb: Bind.Bound,
+  b: Bind.Bound,
   items: List<&2, Outline.Item>,
   docs: List<&2, Docs.Doc>,
   uri: String,
@@ -181,7 +181,7 @@ def at.bound(
   +line: U32,
   +col: U32
 ) -> IO(Maybe<&2, Found>):
-  Bind.Bound{+binds, uses, scopes} = bb
+  Bind.Bound{+binds, uses, scopes} = b
   at.site(~fs, Bind.at(Bind.Bound{binds, uses, scopes}, line, col), binds, items, docs, uri, name)
 
 def at.in(
@@ -201,22 +201,22 @@ def at(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, line: U32, col: U3
     at.in(~fs, text, docs, uri, line, col)
 
 # the binder, when the outline has nothing for that name
-def hover.binder(mm: Maybe<&2, Found>, uri: String, bb: Bind.Bind) -> Maybe<&2, Found>:
-  match mm:
+def hover.binder(m: Maybe<&2, Found>, uri: String, b: Bind.Bind) -> Maybe<&2, Found>:
+  match m:
     case Some{f}:
       Some{f}
     case None{}:
-      Some{Here{uri, bb}}
+      Some{Here{uri, b}}
 
 # an outline item when the name resolved, else one in this document, else the
 # binder. A comment above a law stays on that law: a file header separated by
 # an import or a blank line is not part of it
-def hover.pick(mm: Maybe<&2, Found>, local: Maybe<&2, Found>, uri: String, bb: Bind.Bind) -> Maybe<&2, Found>:
-  match mm:
+def hover.pick(m: Maybe<&2, Found>, local: Maybe<&2, Found>, uri: String, b: Bind.Bind) -> Maybe<&2, Found>:
+  match m:
     case Some{f}:
       Some{f}
     case None{}:
-      hover.binder(local, uri, bb)
+      hover.binder(local, uri, b)
 
 # the outline item a top-level name hovers as. `Alias.law` is the law in the
 # file behind Alias (the comment lives there); a bare name is this document's
@@ -226,11 +226,11 @@ def hover.item(
   items: List<&2, Outline.Item>,
   docs: List<&2, Docs.Doc>,
   +uri: String,
-  bb: Bind.Bind
+  b: Bind.Bind
 ) -> IO(Maybe<&2, Found>):
   do IO<Maybe<&2, Found>>:
     m : Maybe<&2, Found> <- resolve(~fs, docs, uri, name)
-    return hover.pick(m, found(Outline.find(items, name), uri), uri, bb)
+    return hover.pick(m, found(Outline.find(items, name), uri), uri, b)
 
 # a def, law or type is its outline item; any other binder is itself
 def hover.kind(
@@ -240,23 +240,23 @@ def hover.kind(
   items: List<&2, Outline.Item>,
   docs: List<&2, Docs.Doc>,
   uri: String,
-  bb: Bind.Bind
+  b: Bind.Bind
 ) -> IO(Maybe<&2, Found>):
   match kind:
     case Bind.KItem{}:
-      hover.item(~fs, name, items, docs, uri, bb)
+      hover.item(~fs, name, items, docs, uri, b)
     case other:
-      IO.pure(Maybe<&2, Found>, Some{Here{uri, bb}})
+      IO.pure(Maybe<&2, Found>, Some{Here{uri, b}})
 
 # the binder under the cursor, read for hover
 def hover.bind(
   ~fs: F.Files,
-  bb: Bind.Bind,
+  b: Bind.Bind,
   items: List<&2, Outline.Item>,
   docs: List<&2, Docs.Doc>,
   uri: String
 ) -> IO(Maybe<&2, Found>):
-  Bind.Bind{+name, line, col, +kind, note} = bb
+  Bind.Bind{+name, line, col, +kind, note} = b
   hover.kind(~fs, kind, name, items, docs, uri, Bind.Bind{name, line, col, kind, note})
 
 # a binder of an item is the outline item (signature, then the comment above
@@ -280,7 +280,7 @@ def hover.site(
 # hover at a binding site of a parsed document
 def hover.bound(
   ~fs: F.Files,
-  bb: Bind.Bound,
+  b: Bind.Bound,
   items: List<&2, Outline.Item>,
   docs: List<&2, Docs.Doc>,
   uri: String,
@@ -288,7 +288,7 @@ def hover.bound(
   +line: U32,
   +col: U32
 ) -> IO(Maybe<&2, Found>):
-  Bind.Bound{+binds, uses, scopes} = bb
+  Bind.Bound{+binds, uses, scopes} = b
   hover.site(~fs, Bind.at(Bind.Bound{binds, uses, scopes}, line, col), items, binds, docs, uri, name)
 
 # hover at a position of a document's text
@@ -317,22 +317,22 @@ def hover(~fs: F.Files, +docs: List<&2, Docs.Doc>, +uri: String, line: U32, col:
 type Sites is Data:
   Sites{mine: Bool, at: List<&2, Bind.Pos>}
 
-def sites.of(site: Maybe<&2, Bind.Site>, +bb: Bind.Bound) -> Sites:
+def sites.of(site: Maybe<&2, Bind.Site>, +b: Bind.Bound) -> Sites:
   match site:
     case None{}:
       Sites{False{}, []}
     case Some{Bind.SBind{Bind.Bind{name, l, c, Bind.KItem{}, note}}}:
-      Sites{True{}, Bind.item_sites(bb, name)}
+      Sites{True{}, Bind.item_sites(b, name)}
     case Some{Bind.SBind{Bind.Bind{name, l, c, Bind.KCtor{}, note}}}:
-      Sites{True{}, Bind.item_sites(bb, name)}
+      Sites{True{}, Bind.item_sites(b, name)}
     case Some{Bind.SBind{Bind.Bind{name, l, c, k, note}}}:
-      Sites{True{}, Bind.sites(bb, l, c)}
+      Sites{True{}, Bind.sites(b, l, c)}
     case Some{Bind.SUse{Bind.Use{n, l, c, Bind.TLocal{tl, tc}}}}:
-      Sites{True{}, Bind.sites(bb, tl, tc)}
+      Sites{True{}, Bind.sites(b, tl, tc)}
     case Some{Bind.SUse{Bind.Use{n, l, c, Bind.TItem{name}}}}:
-      Sites{True{}, Bind.item_sites(bb, name)}
+      Sites{True{}, Bind.item_sites(b, name)}
     case Some{Bind.SUse{Bind.Use{n, l, c, other}}}:
-      Sites{False{}, Bind.named_sites(bb, n)}
+      Sites{False{}, Bind.named_sites(b, n)}
 
 def sites.in(+text: String, +line: U32, +col: U32) -> Sites:
   +b = Bind.bound(text)

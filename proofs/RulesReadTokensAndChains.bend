@@ -153,8 +153,8 @@ def Laws.arms_skip_after_item(_rest):
 def Laws.arms_skip_after_word(_rest):
   {==}
 
-def Laws.arms_told_needs_wide_arm(aa):
-  match aa:
+def Laws.arms_told_needs_wide_arm(a):
+  match a:
     case Arms.APlus{_j, _t, _l, _c, _n}:
       {==}
     case Arms.ALit{_m, _l, _c, _n}:
@@ -176,10 +176,10 @@ def Laws.escape_syms_in_order(_c, _t):
 def Laws.pick_lone_is_one_leaf(_k, _t, _l, _c, _rest, _xx):
   {==}
 
-def Laws.pick_lone_needs_a_chain(nn, xx, e):
-  match nn:
+def Laws.pick_lone_needs_a_chain(n, x, e):
+  match n:
     case Tree.NCons{h, r}:
-      Empty.absurd({Pick.search.lone(Tree.NCons{h, r}, xx) == False{} : Bool}, M1.true_false(e))
+      Empty.absurd({Pick.search.lone(Tree.NCons{h, r}, x) == False{} : Bool}, M1.true_false(e))
     case Tree.NNil{}:
       {==}
     case Tree.Leaf{_tok}:
@@ -205,8 +205,8 @@ def Laws.strings_opened_needs_chars(cs, e):
     case Con{_h, _t}:
       Empty.absurd({Strings.opened(cs) == False{} : Bool}, M1.false_true(e))
 
-def Laws.blank_lit_is_two_quotes(kk, _tt):
-  match kk:
+def Laws.blank_lit_is_two_quotes(k, _tt):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -383,8 +383,8 @@ def Laws.wrap_separators(act):
 def Laws.concat_plus_first_operator(_h, _rest):
   {==}
 
-def Laws.concat_plus_needs_a_chain(pp, e):
-  match pp:
+def Laws.concat_plus_needs_a_chain(p, e):
+  match p:
     case Tree.NCons{h, r}:
       Empty.absurd({Concat.plus(Tree.NCons{h, r}) == False{} : Bool}, M1.true_false(e))
     case Tree.NNil{}:
@@ -402,8 +402,8 @@ def Laws.table_top_has_skips_groups(_open, _kids, _close, _rest, _want):
 def Laws.table_top_has_reads_leaves(_k, _t, _l, _c, _rest, _want):
   {==}
 
-def Laws.table_top_has_needs_a_chain(nn, want, e):
-  match nn:
+def Laws.table_top_has_needs_a_chain(n, want, e):
+  match n:
     case Tree.NCons{h, r}:
       Empty.absurd({Table.top_has(Tree.NCons{h, r}, want) == False{} : Bool}, M1.true_false(e))
     case Tree.NNil{}:
@@ -415,8 +415,8 @@ def Laws.table_top_has_needs_a_chain(nn, want, e):
     case Tree.Stmt{_kd, _ks, _b}:
       {==}
 
-def Laws.table_array_sized_needs_a_chain(nn, e):
-  match nn:
+def Laws.table_array_sized_needs_a_chain(n, e):
+  match n:
     case Tree.NCons{h, r}:
       Empty.absurd({Table.array_sized(Tree.NCons{h, r}) == False{} : Bool}, M1.true_false(e))
     case Tree.NNil{}:
@@ -428,8 +428,8 @@ def Laws.table_array_sized_needs_a_chain(nn, e):
     case Tree.Stmt{_kd, _ks, _b}:
       {==}
 
-def Laws.table_built_needs_a_chain(nn, e):
-  match nn:
+def Laws.table_built_needs_a_chain(n, e):
+  match n:
     case Tree.NCons{h, r}:
       Empty.absurd({Table.built(Tree.NCons{h, r}) == False{} : Bool}, M1.true_false(e))
     case Tree.NNil{}:
@@ -444,8 +444,8 @@ def Laws.table_built_needs_a_chain(nn, e):
 def Laws.table_lone_num_one_number(_t, _l, _c):
   {==}
 
-def Laws.table_lone_num_needs_a_chain(nn, e):
-  match nn:
+def Laws.table_lone_num_needs_a_chain(n, e):
+  match n:
     case Tree.NCons{h, r}:
       Empty.absurd({Table.lone_num(Tree.NCons{h, r}) == False{} : Bool}, M1.true_false(e))
     case Tree.NNil{}:
@@ -470,8 +470,8 @@ def Laws.table_range_count_needs_arguments(as, e):
 def Laws.table_hits_get_and_set(_open, _tt, _kids, _fixed, _path, _line, _col):
   {==}
 
-def Laws.empty_close_here_at_depth_zero(kk):
-  match kk:
+def Laws.empty_close_here_at_depth_zero(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -517,8 +517,8 @@ def Laws.empty_close_here_at_depth_zero(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.empty_close_here_not_deeper(kk, _p):
-  match kk:
+def Laws.empty_close_here_not_deeper(k, _p):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -642,8 +642,8 @@ def Laws.empty_proofy_end_needs_token(toks, e):
     case Con{_h, _t}:
       Empty.absurd({Empty.proofy.end(toks) == False{} : Bool}, M1.false_true(e))
 
-def Laws.empty_proofy_fin_at_depth_one(kk):
-  match kk:
+def Laws.empty_proofy_fin_at_depth_one(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -689,8 +689,8 @@ def Laws.empty_proofy_fin_at_depth_one(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.empty_proofy_fin_not_at_zero(kk):
-  match kk:
+def Laws.empty_proofy_fin_not_at_zero(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -736,8 +736,8 @@ def Laws.empty_proofy_fin_not_at_zero(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.empty_proofy_fin_not_deeper(kk, _p):
-  match kk:
+def Laws.empty_proofy_fin_not_deeper(k, _p):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -789,12 +789,12 @@ def Laws.empty_proofy_decides_after_parameters(_k, _t, _l, _c, _rest, _dd):
 def Laws.empty_proofy_reads_on(_k, _t, _l, _c, _rest, _dd):
   {==}
 
-def Laws.empty_proofy_needs_tokens(toks, dd, fin, e):
+def Laws.empty_proofy_needs_tokens(toks, d, fin, e):
   match toks:
     case Nil{}:
       {==}
     case Con{_h, _t}:
-      Empty.absurd({Empty.proofy(toks, dd, fin) == False{} : Bool}, M1.false_true(e))
+      Empty.absurd({Empty.proofy(toks, d, fin) == False{} : Bool}, M1.false_true(e))
 
 def Laws.empty_item_other_by_keyword(_word, _skip):
   {==}
@@ -811,33 +811,33 @@ def Laws.arms_plus_is_no_part(_more):
 def Laws.arms_cons_is_a_part(_more):
   {==}
 
-def Laws.arms_other_operator_is_bad(tt, more, e1, e2):
-  %Equal.sym(Bool, String.eq(tt, "+"), False{}, e1) :
+def Laws.arms_other_operator_is_bad(t, more, e1, e2):
+  %Equal.sym(Bool, String.eq(t, "+"), False{}, e1) :
     {Bool.pick(List<&2, Arms.Part>, _, more,
-      Bool.pick(Arms.Part, String.eq(tt, "<>"), Arms.PCons{}, Arms.PBad{}) <> more)
+      Bool.pick(Arms.Part, String.eq(t, "<>"), Arms.PCons{}, Arms.PBad{}) <> more)
       == Arms.PBad{} <> more : List<&2, Arms.Part>}
-  %Equal.sym(Bool, String.eq(tt, "<>"), False{}, e2) :
+  %Equal.sym(Bool, String.eq(t, "<>"), False{}, e2) :
     {Bool.pick(Arms.Part, _, Arms.PCons{}, Arms.PBad{}) <> more == Arms.PBad{} <> more : List<&2, Arms.Part>}
   {==}
 
-def Laws.concat_uses_counts_the_name(tt, _ll, _cc, name, e):
-  %Equal.sym(Bool, String.eq(tt, name), True{}, e) : {Bool.pick(Nat, _, 1n, 0n) == 1n : Nat}
+def Laws.concat_uses_counts_the_name(t, _ll, _cc, name, e):
+  %Equal.sym(Bool, String.eq(t, name), True{}, e) : {Bool.pick(Nat, _, 1n, 0n) == 1n : Nat}
   {==}
 
-def Laws.concat_uses_skips_other_names(tt, _ll, _cc, name, e):
-  %Equal.sym(Bool, String.eq(tt, name), False{}, e) : {Bool.pick(Nat, _, 1n, 0n) == 0n : Nat}
+def Laws.concat_uses_skips_other_names(t, _ll, _cc, name, e):
+  %Equal.sym(Bool, String.eq(t, name), False{}, e) : {Bool.pick(Nat, _, 1n, 0n) == 0n : Nat}
   {==}
 
-def Laws.table_drop_takes_the_name(hh, rest, nm, e):
-  %Equal.sym(Bool, String.eq(hh, nm), True{}, e) :
-    {Bool.pick(List<&2, String>, _, Table.drop(rest, nm), hh <> Table.drop(rest, nm))
+def Laws.table_drop_takes_the_name(h, rest, nm, e):
+  %Equal.sym(Bool, String.eq(h, nm), True{}, e) :
+    {Bool.pick(List<&2, String>, _, Table.drop(rest, nm), h <> Table.drop(rest, nm))
       == Table.drop(rest, nm) : List<&2, String>}
   {==}
 
-def Laws.table_drop_keeps_other_names(hh, rest, nm, e):
-  %Equal.sym(Bool, String.eq(hh, nm), False{}, e) :
-    {Bool.pick(List<&2, String>, _, Table.drop(rest, nm), hh <> Table.drop(rest, nm))
-      == hh <> Table.drop(rest, nm) : List<&2, String>}
+def Laws.table_drop_keeps_other_names(h, rest, nm, e):
+  %Equal.sym(Bool, String.eq(h, nm), False{}, e) :
+    {Bool.pick(List<&2, String>, _, Table.drop(rest, nm), h <> Table.drop(rest, nm))
+      == h <> Table.drop(rest, nm) : List<&2, String>}
   {==}
 
 def Laws.wrap_gt_run_closes_angles(tx, glued, e):

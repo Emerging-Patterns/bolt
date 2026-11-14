@@ -20,15 +20,15 @@ import ../../syntax/lex.bend as Lex
 import ../tokens.bend as T
 
 # are the four texts `String.from_list`, `(`, `List.reverse` and `(`?
-def shape(+tt: String, +aa: String, +bb: String, +dd: String) -> Bool:
-  Bool.and(String.eq(tt, "String.from_list"),
-    Bool.and(String.eq(aa, "("), Bool.and(String.eq(bb, "List.reverse"), String.eq(dd, "("))))
+def shape(+t: String, +a: String, +b: String, +d: String) -> Bool:
+  Bool.and(String.eq(t, "String.from_list"),
+    Bool.and(String.eq(a, "("), Bool.and(String.eq(b, "List.reverse"), String.eq(d, "("))))
 
-# a token of text tt, then these: do the four open the shape?
-def at(+tt: String, toks: List<&2, Lex.Tok>) -> Bool:
+# a token of text t, then these: do the four open the shape?
+def at(+t: String, toks: List<&2, Lex.Tok>) -> Bool:
   match toks:
-    case Con{Lex.Tok{k1, +aa, l1, c1}, Con{Lex.Tok{k2, +bb, l2, c2}, Con{Lex.Tok{k3, +dd, l3, c3}, rest}}}:
-      shape(tt, aa, bb, dd)
+    case Con{Lex.Tok{k1, +a, l1, c1}, Con{Lex.Tok{k2, +b, l2, c2}, Con{Lex.Tok{k3, +d, l3, c3}, rest}}}:
+      shape(t, a, b, d)
     case other:
       False{}
 
@@ -45,12 +45,12 @@ def walk(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
         more)
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{+path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{+path, text, toks, tree, bound, items} = s
   Lazy.stop(List<&2, F.Finding>, Paths.is_law_file(path), [], _u => walk(T.sig(toks), path))
 
 # the rule, told the file's role (src/role.bend): a law or proof file is
 # skipped
-def check.role(rr: Role.Role, ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
-  Lazy.stop(List<&2, F.Finding>, Role.is_law_file(rr), [], _u => walk(T.sig(toks), path))
+def check.role(r: Role.Role, s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
+  Lazy.stop(List<&2, F.Finding>, Role.is_law_file(r), [], _u => walk(T.sig(toks), path))

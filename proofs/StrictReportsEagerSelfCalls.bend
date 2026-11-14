@@ -71,11 +71,11 @@ def strict.segk(k, t, _l, _c, rest, ih):
 
 # `&&` or `||` in a stretch, to the rule and to the law
 law strict.seg:
-  for nn: Tree.Node
-  {Strict.seg_op(nn) == Laws.strict.ops(nn) : Bool}
+  for n: Tree.Node
+  {Strict.seg_op(n) == Laws.strict.ops(n) : Bool}
 
-def strict.seg(nn):
-  match nn:
+def strict.seg(n):
+  match n:
     case Tree.NCons{h, +rest}:
       match h:
         case Tree.Leaf{tok}:
@@ -101,21 +101,21 @@ def strict.seg(nn):
 
 # the walk at a hot the law's count reaches another way
 law strict.hot:
-  for +nn: Tree.Node
+  for +n: Tree.Node
   for +name: String
   for +path: String
   for +outer: Bool
   for +h1: Bool
   for +h2: Bool
   for e: {h1 == h2 : Bool}
-  for ih: {List.length(&2, F.Finding, Strict.walk(nn, name, path, outer, h1))
-    == Laws.strict.count(nn, name, outer, h1) : Nat}
-  {List.length(&2, F.Finding, Strict.walk(nn, name, path, outer, h1)) == Laws.strict.count(nn, name, outer, h2) : Nat}
+  for ih: {List.length(&2, F.Finding, Strict.walk(n, name, path, outer, h1))
+    == Laws.strict.count(n, name, outer, h1) : Nat}
+  {List.length(&2, F.Finding, Strict.walk(n, name, path, outer, h1)) == Laws.strict.count(n, name, outer, h2) : Nat}
 
-def strict.hot(nn, name, path, outer, h1, h2, e, ih):
-  Equal.trans(Nat, List.length(&2, F.Finding, Strict.walk(nn, name, path, outer, h1)), Laws.strict.count(nn, name,
-    outer, h1), Laws.strict.count(nn, name, outer, h2), ih,
-    Equal.cong(Bool, Nat, hh => Laws.strict.count(nn, name, outer, hh), h1, h2, e))
+def strict.hot(n, name, path, outer, h1, h2, e, ih):
+  Equal.trans(Nat, List.length(&2, F.Finding, Strict.walk(n, name, path, outer, h1)), Laws.strict.count(n, name,
+    outer, h1), Laws.strict.count(n, name, outer, h2), ih,
+    Equal.cong(Bool, Nat, h => Laws.strict.count(n, name, outer, h), h1, h2, e))
 
 # past a comma: the next stretch is hot in an operand or by its own `&&`/`||`
 law strict.comma:
@@ -198,8 +198,8 @@ def strict.call(t, l, c, _ok, o, _ol, _oc, kids, _close, r2, name, path, outer, 
           strict.seg(kids)), ik),
       M2.pick.last(fr, cr, ir)))
 
-def Laws.strict_walk_counts(nn, name, path, outer, hot):
-  match nn:
+def Laws.strict_walk_counts(n, name, path, outer, hot):
+  match n:
     case Tree.NCons{h, +rest}:
       match h:
         case Tree.Leaf{tok}:

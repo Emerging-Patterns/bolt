@@ -45,20 +45,20 @@ def pub.get_head(uri, text, _ds, _ms, rest):
 
 # one document onto the rest, the URI's removed: none of its errors survive
 law pub.del.step:
-  for bb: Bool
+  for b: Bool
   for +u: String
   for +uri: String
   for -t: String
   for -e: List<&2, Rep.Diag>
   for -m: List<&2, Role.Mark>
   for +rest: List<&2, Docs.Doc>
-  for h: {String.eq(u, uri) == bb : Bool}
+  for h: {String.eq(u, uri) == b : Bool}
   for ih: {Docs.errors(rest, uri) == [] : List<&2, Rep.Diag>}
-  {Docs.errors(Bool.pick(List<&2, Docs.Doc>, bb, rest, Docs.Doc{u, t, e, m} <> rest), uri) == []
+  {Docs.errors(Bool.pick(List<&2, Docs.Doc>, b, rest, Docs.Doc{u, t, e, m} <> rest), uri) == []
     : List<&2, Rep.Diag>}
 
-def pub.del.step(bb, u, uri, _t, e, _m, rest, h, ih):
-  match bb:
+def pub.del.step(b, u, uri, _t, e, _m, rest, h, ih):
+  match b:
     case True{}:
       ih
     case False{}:

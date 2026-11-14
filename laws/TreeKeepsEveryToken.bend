@@ -28,12 +28,12 @@ def only_gt(cs: List<&2, Char>) -> Bool:
 # `>` and nothing else (`>`, `>>`), whatever is open when it comes; also a
 # close bracket whose text starts with `>`, which the lexer never makes (its
 # close brackets are `)`, `]` and `}`)
-def gt_run(kk: Lex.TokKind, +tt: String) -> Bool:
-  match kk:
+def gt_run(k: Lex.TokKind, +t: String) -> Bool:
+  match k:
     case Lex.TOp{}:
-      Bool.and(Bool.not(String.is_empty(tt)), only_gt(String.to_list(tt)))
+      Bool.and(Bool.not(String.is_empty(t)), only_gt(String.to_list(t)))
     case Lex.TClose{}:
-      String.starts_with(tt, ">")
+      String.starts_with(t, ">")
     case other:
       False{}
 

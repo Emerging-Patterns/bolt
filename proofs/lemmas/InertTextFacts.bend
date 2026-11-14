@@ -15,8 +15,8 @@ import ./RoleProofPicked.bend as M1
 # equals it. A kind is split only where the rule itself matches on one.
 
 # Unit for False, Empty for True
-def inert.false_ty(bb: Bool) -> Type:
-  match bb:
+def inert.false_ty(b: Bool) -> Type:
+  match b:
     case False{}: Unit
     case True{}: Empty
 
@@ -66,8 +66,8 @@ def inert.and_both(a, b, ea, eb):
   eb
 
 # Unit for LT and GT, Empty for EQ
-def inert.cmp_ty(cc: Cmp) -> Type:
-  match cc:
+def inert.cmp_ty(c: Cmp) -> Type:
+  match c:
     case LT{}: Unit
     case EQ{}: Empty
     case GT{}: Unit
@@ -94,8 +94,8 @@ def inert.gt_eq(e):
 law inert.fin_eq:
   for t: Cmp
   for -ab: Bool
-  for -bb: Bool
-  for e: {Word.cmp.fin(ab, bb, t) == EQ{} : Cmp}
+  for -b: Bool
+  for e: {Word.cmp.fin(ab, b, t) == EQ{} : Cmp}
   {t == EQ{} : Cmp}
 
 def inert.fin_eq(t, _ab, _bb, e):
@@ -108,16 +108,16 @@ def inert.fin_eq(t, _ab, _bb, e):
 law inert.fin_bit:
   for t: Cmp
   for ab: Bool
-  for bb: Bool
-  for e: {Word.cmp.fin(ab, bb, t) == EQ{} : Cmp}
-  {ab == bb : Bool}
+  for b: Bool
+  for e: {Word.cmp.fin(ab, b, t) == EQ{} : Cmp}
+  {ab == b : Bool}
 
-def inert.fin_bit(t, ab, bb, e):
+def inert.fin_bit(t, ab, b, e):
   match t:
-    case LT{}: Empty.absurd({ab == bb : Bool}, inert.lt_eq(e))
-    case GT{}: Empty.absurd({ab == bb : Bool}, inert.gt_eq(e))
+    case LT{}: Empty.absurd({ab == b : Bool}, inert.lt_eq(e))
+    case GT{}: Empty.absurd({ab == b : Bool}, inert.gt_eq(e))
     case EQ{}:
-      match ab bb:
+      match ab b:
         case False{} False{}: {==}
         case False{} True{}: Empty.absurd({False{} == True{} : Bool}, inert.lt_eq(e))
         case True{} False{}: Empty.absurd({True{} == False{} : Bool}, inert.gt_eq(e))

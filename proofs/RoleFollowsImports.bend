@@ -186,13 +186,13 @@ def Laws.marks_follow_imports(fs):
 def Laws.marks_of_run(_ss):
   {==}
 
-def Laws.role_of_first_mark(ms, nn):
+def Laws.role_of_first_mark(ms, n):
   match ms:
     case Nil{}:
       {==}
     case Con{Role.Mark{+norm, +role}, +rest}:
-      rf.either(String.eq(norm, nn), role, Role.of.norm(rest, nn), Laws.role.first(rest, nn),
-        Laws.role_of_first_mark(rest, nn))
+      rf.either(String.eq(norm, n), role, Role.of.norm(rest, n), Laws.role.first(rest, n),
+        Laws.role_of_first_mark(rest, n))
 
 def Laws.role_of_path(ms, path):
   %Laws.role_of_first_mark(ms, Imports.norm(path)) :

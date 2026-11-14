@@ -6,15 +6,15 @@ import ../laws/ScopeConfigIsNeverLinted.bend as Laws
 # one path onto a list with no bolt.bend, kept or dropped as the planner
 # decides
 law lint.no_config.pick:
-  for bb: Bool
+  for b: Bool
   for +p: String
   for +more: List<&2, String>
-  for h: {Plan.is_config(p) == bb : Bool}
+  for h: {Plan.is_config(p) == b : Bool}
   for ih: {Laws.no_config(more) == True{} : Bool}
-  {Laws.no_config(Bool.pick(List<&2, String>, bb, more, p <> more)) == True{} : Bool}
+  {Laws.no_config(Bool.pick(List<&2, String>, b, more, p <> more)) == True{} : Bool}
 
-def lint.no_config.pick(bb, p, more, h, ih):
-  match bb:
+def lint.no_config.pick(b, p, more, h, ih):
+  match b:
     case True{}:
       ih
     case False{}:

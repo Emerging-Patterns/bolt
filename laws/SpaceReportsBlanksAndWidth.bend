@@ -45,8 +45,8 @@ def space_count(lines: List<&2, String>) -> Nat:
 law space_line_counts:
   for lines: List<&2, String>
   for +path: String
-  for +nn: U32
-  {List.length(&2, F.Finding, Space.check.go(lines, path, nn)) == space_count(lines) : Nat}
+  for +n: U32
+  {List.length(&2, F.Finding, Space.check.go(lines, path, n)) == space_count(lines) : Nat}
 
 # how many lines are over 120 columns, the first already acc wide; a newline
 # token closes a line
@@ -65,9 +65,9 @@ def wide_count(toks: List<&2, Lex.Tok>, +acc: U32) -> Nat:
 law space_width_counts:
   for toks: List<&2, Lex.Tok>
   for +path: String
-  for +nn: U32
+  for +n: U32
   for +acc: U32
-  {List.length(&2, F.Finding, Space.widths(toks, path, nn, acc)) == wide_count(toks, acc) : Nat}
+  {List.length(&2, F.Finding, Space.widths(toks, path, n, acc)) == wide_count(toks, acc) : Nat}
 
 # LAW: space reports exactly those two: the lines of the text with trailing
 # whitespace or a tab, then the lines of the tokens over 120 columns, an

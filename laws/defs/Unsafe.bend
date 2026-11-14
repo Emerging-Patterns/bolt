@@ -6,14 +6,14 @@ import ../../src/rules/imports.bend as Imports
 
 # a token's columns: a string literal two, a `#|` comment none, a comment
 # otherwise at its full width, and any other token its length
-def share(kk: Lex.TokKind, +tt: String) -> U32:
-  match kk:
+def share(k: Lex.TokKind, +t: String) -> U32:
+  match k:
     case Lex.TStr{}:
       2
     case Lex.TComment{}:
-      Bool.pick(U32, String.starts_with(tt, "#|"), 0, U32.from_nat(String.length(tt)))
+      Bool.pick(U32, String.starts_with(t, "#|"), 0, U32.from_nat(String.length(t)))
     case other:
-      U32.from_nat(String.length(tt))
+      U32.from_nat(String.length(t))
 
 # the count more, one higher when a line is over 120 columns wide
 def over(+width: U32, +more: Nat) -> Nat:
@@ -38,39 +38,39 @@ def unsafe.closure(+all: List<&2, Digest.Digest>, from: String) -> List<&2, Stri
 # that one of its files imports is in it. The walk counts down a fuel of one
 # per digest; unsafe_shut says it never runs out.
 
-# what the file at pp imports relatively, as the first digest of that path
+# what the file at p imports relatively, as the first digest of that path
 # records it; nothing when no digest has the path
-def unsafe.imports(ds: List<&2, Digest.Digest>, +pp: String) -> List<&2, String>:
+def unsafe.imports(ds: List<&2, Digest.Digest>, +p: String) -> List<&2, String>:
   match ds:
     case Nil{}:
       Nil{}
     case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, rest}:
-      +more = unsafe.imports(rest, pp)
-      Bool.pick(List<&2, String>, String.eq(norm, pp), deps, more)
+      +more = unsafe.imports(rest, p)
+      Bool.pick(List<&2, String>, String.eq(norm, p), deps, more)
 
-# is the file at pp in the run: does a digest have that path?
-def unsafe.read(ds: List<&2, Digest.Digest>, +pp: String) -> Bool:
+# is the file at p in the run: does a digest have that path?
+def unsafe.read(ds: List<&2, Digest.Digest>, +p: String) -> Bool:
   match ds:
     case Nil{}:
       False{}
     case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, rest}:
-      +more = unsafe.read(rest, pp)
-      Bool.or(String.eq(norm, pp), more)
+      +more = unsafe.read(rest, p)
+      Bool.or(String.eq(norm, p), more)
 
-# every path of xs that is in the run is in ss
-def unsafe.held(+ds: List<&2, Digest.Digest>, +ss: List<&2, String>, xs: List<&2, String>) -> Bool:
+# every path of xs that is in the run is in s
+def unsafe.held(+ds: List<&2, Digest.Digest>, +s: List<&2, String>, xs: List<&2, String>) -> Bool:
   match xs:
     case Nil{}:
       True{}
     case Con{+x, rest}:
-      +more = unsafe.held(ds, ss, rest)
-      Bool.and(Bool.or(Bool.not(unsafe.read(ds, x)), Imports.has(ss, x)), more)
+      +more = unsafe.held(ds, s, rest)
+      Bool.and(Bool.or(Bool.not(unsafe.read(ds, x)), Imports.has(s, x)), more)
 
-# ss is shut over ps: every file in the run that a file of ps imports is in ss
-def unsafe.shut(+ds: List<&2, Digest.Digest>, +ss: List<&2, String>, ps: List<&2, String>) -> Bool:
+# s is shut over ps: every file in the run that a file of ps imports is in s
+def unsafe.shut(+ds: List<&2, Digest.Digest>, +s: List<&2, String>, ps: List<&2, String>) -> Bool:
   match ps:
     case Nil{}:
       True{}
     case Con{+p, rest}:
-      +more = unsafe.shut(ds, ss, rest)
-      Bool.and(unsafe.held(ds, ss, unsafe.imports(ds, p)), more)
+      +more = unsafe.shut(ds, s, rest)
+      Bool.and(unsafe.held(ds, s, unsafe.imports(ds, p)), more)

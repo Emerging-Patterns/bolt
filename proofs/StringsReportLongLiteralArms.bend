@@ -111,14 +111,14 @@ law strings.base:
   for +nn: U32
   for +ch: U32
   for +path: String
-  for +ll: U32
-  for +cc: U32
-  {List.length(&2, F.Finding, Strings.report(Strings.Tally{nn, ch}, path, ll, cc))
+  for +l: U32
+  for +c: U32
+  {List.length(&2, F.Finding, Strings.report(Strings.Tally{nn, ch}, path, l, c))
     == Bool.pick(Nat, U32.is_gt(ch, 64), 1n, 0n) : Nat}
 
-def strings.base(nn, ch, path, ll, cc):
-  M2.chars.one(U32.is_gt(ch, 64), F.Finding{path, ll, cc, 5, "strings",
-    "This match has " ++ U32.show(nn) ++ " string-literal cases totalling " ++ U32.show(ch)
+def strings.base(n, ch, path, l, c):
+  M2.chars.one(U32.is_gt(ch, 64), F.Finding{path, l, c, 5, "strings",
+    "This match has " ++ U32.show(n) ++ " string-literal cases totalling " ++ U32.show(ch)
     ++ " characters, over the limit of 64, which blows up compile time and memory;"
     ++ " map the string to a sum type once and match on that."})
 
@@ -129,23 +129,23 @@ law strings.step:
   for +ch: U32
   for +kids: Tree.Node
   for +path: String
-  for +ll: U32
-  for +cc: U32
+  for +l: U32
+  for +c: U32
   for ih: {List.length(&2, F.Finding, Strings.report(Strings.tally(rest,
       (nn + Strings.one(Strings.literal(T.pattern(kids))) : U32),
-      (ch + Strings.size(Strings.literal(T.pattern(kids))) : U32)), path, ll, cc))
+      (ch + Strings.size(Strings.literal(T.pattern(kids))) : U32)), path, l, c))
     == Bool.pick(Nat, U32.is_gt(Laws.strings.total(rest, (ch + Strings.size(Strings.literal(T.pattern(kids))) : U32)),
       64), 1n, 0n) : Nat}
   {List.length(&2, F.Finding, Strings.report(Strings.tally(rest,
       (nn + Strings.one(Strings.literal(T.pattern(kids))) : U32),
-      (ch + Strings.size(Strings.literal(T.pattern(kids))) : U32)), path, ll, cc))
+      (ch + Strings.size(Strings.literal(T.pattern(kids))) : U32)), path, l, c))
     == Bool.pick(Nat, U32.is_gt(Laws.strings.total(rest, (ch + Laws.strings.size(kids) : U32)), 64), 1n, 0n) : Nat}
 
-def strings.step(rest, nn, ch, kids, path, ll, cc, ih):
+def strings.step(rest, nn, ch, kids, path, l, c, ih):
   Equal.trans(Nat,
     List.length(&2, F.Finding, Strings.report(Strings.tally(rest,
       (nn + Strings.one(Strings.literal(T.pattern(kids))) : U32),
-      (ch + Strings.size(Strings.literal(T.pattern(kids))) : U32)), path, ll, cc)),
+      (ch + Strings.size(Strings.literal(T.pattern(kids))) : U32)), path, l, c)),
     Bool.pick(Nat, U32.is_gt(Laws.strings.total(rest, (ch + Strings.size(Strings.literal(T.pattern(kids))) : U32)),
       64), 1n, 0n),
     Bool.pick(Nat, U32.is_gt(Laws.strings.total(rest, (ch + Laws.strings.size(kids) : U32)), 64), 1n, 0n),
@@ -159,51 +159,51 @@ law strings.tally:
   for +nn: U32
   for +ch: U32
   for +path: String
-  for +ll: U32
-  for +cc: U32
-  {List.length(&2, F.Finding, Strings.report(Strings.tally(body, nn, ch), path, ll, cc))
+  for +l: U32
+  for +c: U32
+  {List.length(&2, F.Finding, Strings.report(Strings.tally(body, nn, ch), path, l, c))
     == Bool.pick(Nat, U32.is_gt(Laws.strings.total(body, ch), 64), 1n, 0n) : Nat}
 
-def strings.tally(body, nn, ch, path, ll, cc):
+def strings.tally(body, n, ch, path, l, c):
   match body:
     case Tree.Leaf{tok}:
-      strings.base(nn, ch, path, ll, cc)
+      strings.base(n, ch, path, l, c)
     case Tree.Group{o, gk, cl}:
-      strings.base(nn, ch, path, ll, cc)
+      strings.base(n, ch, path, l, c)
     case Tree.Stmt{kind, sk, sb}:
-      strings.base(nn, ch, path, ll, cc)
+      strings.base(n, ch, path, l, c)
     case Tree.NNil{}:
-      strings.base(nn, ch, path, ll, cc)
+      strings.base(n, ch, path, l, c)
     case Tree.NCons{h, +rest}:
       match h:
         case Tree.Leaf{tok}:
-          strings.tally(rest, nn, ch, path, ll, cc)
+          strings.tally(rest, n, ch, path, l, c)
         case Tree.Group{o, gk, cl}:
-          strings.tally(rest, nn, ch, path, ll, cc)
+          strings.tally(rest, n, ch, path, l, c)
         case Tree.Stmt{kind, +kids, b}:
           match kind:
             case Tree.SDef{}:
-              strings.tally(rest, nn, ch, path, ll, cc)
+              strings.tally(rest, n, ch, path, l, c)
             case Tree.SType{}:
-              strings.tally(rest, nn, ch, path, ll, cc)
+              strings.tally(rest, n, ch, path, l, c)
             case Tree.SLaw{}:
-              strings.tally(rest, nn, ch, path, ll, cc)
+              strings.tally(rest, n, ch, path, l, c)
             case Tree.SImport{}:
-              strings.tally(rest, nn, ch, path, ll, cc)
+              strings.tally(rest, n, ch, path, l, c)
             case Tree.SCase{}:
-              strings.step(rest, nn, ch, kids, path, ll, cc,
-                strings.tally(rest, (nn + Strings.one(Strings.literal(T.pattern(kids))) : U32),
-                  (ch + Strings.size(Strings.literal(T.pattern(kids))) : U32), path, ll, cc))
+              strings.step(rest, n, ch, kids, path, l, c,
+                strings.tally(rest, (n + Strings.one(Strings.literal(T.pattern(kids))) : U32),
+                  (ch + Strings.size(Strings.literal(T.pattern(kids))) : U32), path, l, c))
             case Tree.SFor{}:
-              strings.tally(rest, nn, ch, path, ll, cc)
+              strings.tally(rest, n, ch, path, l, c)
             case Tree.SLet{}:
-              strings.tally(rest, nn, ch, path, ll, cc)
+              strings.tally(rest, n, ch, path, l, c)
             case Tree.STerm{}:
-              strings.tally(rest, nn, ch, path, ll, cc)
+              strings.tally(rest, n, ch, path, l, c)
         case Tree.NNil{}:
-          strings.tally(rest, nn, ch, path, ll, cc)
+          strings.tally(rest, n, ch, path, l, c)
         case Tree.NCons{nh, nt}:
-          strings.tally(rest, nn, ch, path, ll, cc)
+          strings.tally(rest, n, ch, path, l, c)
 
 # a statement's own finding: one when it is a match whose closed string arms
 # total over 64 chars
@@ -228,9 +228,9 @@ def strings.stmt(kids, body, path):
 
 # strings' walk counts the matches the law counts
 law strings.walk:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +path: String
-  {List.length(&2, F.Finding, Strings.walk(nn, path)) == Laws.strings.count(nn) : Nat}
+  {List.length(&2, F.Finding, Strings.walk(n, path)) == Laws.strings.count(n) : Nat}
 
 def strings.walk(nn, path):
   match nn:

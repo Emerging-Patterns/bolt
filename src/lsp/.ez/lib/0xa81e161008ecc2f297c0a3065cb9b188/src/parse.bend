@@ -63,8 +63,8 @@ def put.text(key: Key) -> V.Json:
       V.JSpan{src, n}
 
 # a finished value lands in the innermost open frame, or becomes the root
-def put(stack: List<&2, Frame>, root: Maybe<&2, V.Json>, vv: V.Json, bad: Bool) -> P:
-  match stack root vv:
+def put(stack: List<&2, Frame>, root: Maybe<&2, V.Json>, v: V.Json, bad: Bool) -> P:
+  match stack root v:
     case Nil{} None{} val:
       P{bad, Some{val}, Nil{}}
     case Nil{} Some{r} val:
@@ -162,10 +162,10 @@ def step.span.ok(+raw: String, ok: Bool) -> (V.Json & Bool):
 def step.span.use(+raw: String) -> (V.Json & Bool):
   step.span.ok(raw, V.num.ok(raw))
 
-def step.span.chk(src: String, +nn: U32) -> (V.Json & Bool):
-  step.span.use(V.span.str(src, nn, U32.is_zero(nn)))
+def step.span.chk(src: String, +n: U32) -> (V.Json & Bool):
+  step.span.use(V.span.str(src, n, U32.is_zero(n)))
 
-def step.span.go(src: String, nn: U32, is_null: Bool, is_true: Bool, is_false: Bool) -> (V.Json & Bool):
+def step.span.go(src: String, n: U32, is_null: Bool, is_true: Bool, is_false: Bool) -> (V.Json & Bool):
   match is_null is_true is_false:
     case True{} x y:
       (V.JNull{}, True{})
@@ -174,7 +174,7 @@ def step.span.go(src: String, nn: U32, is_null: Bool, is_true: Bool, is_false: B
     case False{} False{} True{}:
       (V.JBool{False{}}, True{})
     case False{} False{} False{}:
-      step.span.chk(src, nn)
+      step.span.chk(src, n)
 
 def step.span.use2(st: P, val: V.Json, ok: Bool) -> P:
   P{bad, root, stack} = st
@@ -188,9 +188,9 @@ def step.span.open(st: P, got: (V.Json & Bool)) -> P:
   (v, ok) = got
   step.span.use2(st, v, ok)
 
-def step.span(+src: String, +nn: U32, st: P) -> P:
-  step.span.open(st, step.span.go(src, nn, V.span.eq(src, nn, "null"),
-    V.span.eq(src, nn, "true"), V.span.eq(src, nn, "false")))
+def step.span(+src: String, +n: U32, st: P) -> P:
+  step.span.open(st, step.span.go(src, n, V.span.eq(src, n, "null"),
+    V.span.eq(src, n, "true"), V.span.eq(src, n, "false")))
 
 # one token
 def step(tok: Lex.Tok, st: P) -> P:

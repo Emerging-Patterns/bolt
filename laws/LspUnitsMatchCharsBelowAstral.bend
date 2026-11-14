@@ -10,16 +10,16 @@ law enc_narrow:
   for +lines: List<&2, String>
   for h: {Enc.wide_any(lines) == False{} : Bool}
   for +line: U32
-  for +nn: Nat
-  {Enc.out.of(Enc.Utf16{}, Enc.chars(lines, line), nn) == nn : Nat}
-    & {Enc.into.of(Enc.Utf16{}, Enc.chars(lines, line), nn) == nn : Nat}
+  for +n: Nat
+  {Enc.out.of(Enc.Utf16{}, Enc.chars(lines, line), n) == n : Nat}
+    & {Enc.into.of(Enc.Utf16{}, Enc.chars(lines, line), n) == n : Nat}
 
 # LAW: a char takes two UTF-16 code units exactly when its code point is
 # U+10000 (65536) or above: the first one past the Basic Multilingual Plane
 # is itself two units
 law wide_from_u10000:
-  for +xx: U32
-  {Enc.wide(Chr{xx}) == U32.is_le(65536, xx) : Bool}
+  for +x: U32
+  {Enc.wide(Chr{x}) == U32.is_le(65536, x) : Bool}
 
 # LAW: a UTF-16 document that holds such a char on some line keeps
 # converting as UTF-16

@@ -9,14 +9,14 @@ import ./lemmas/PlannerOutputOrder.bend as M1
 
 # one graded finding onto whether any is an error
 law lint.has_error.step:
-  for ll: Config.Level
+  for l: Config.Level
   for -a: Bool
-  for -bb: Bool
-  for e: {a == bb : Bool}
-  {Bool.or(Config.is_error(ll), a) == Laws.any_error.one(ll, bb) : Bool}
+  for -b: Bool
+  for e: {a == b : Bool}
+  {Bool.or(Config.is_error(l), a) == Laws.any_error.one(l, b) : Bool}
 
-def lint.has_error.step(ll, _a, _bb, e):
-  match ll:
+def lint.has_error.step(l, _a, _bb, e):
+  match l:
     case Config.Off{}:
       e
     case Config.Warn{}:
@@ -33,8 +33,8 @@ def lint.has_error(gs):
   match gs:
     case Nil{}:
       {==}
-    case Con{F.Graded{ll, _ff}, +tl}:
-      lint.has_error.step(ll, Plan.has_error(tl), Laws.any_error(tl), lint.has_error(tl))
+    case Con{F.Graded{l, _ff}, +tl}:
+      lint.has_error.step(l, Plan.has_error(tl), Laws.any_error(tl), lint.has_error(tl))
 
 def Laws.exit_on_error(world):
   e = Equal.sym(List<&2, F.Graded>, Plan.final.live(world), D1.run_graded(world), M1.lint.final.live(world))

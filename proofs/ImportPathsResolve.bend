@@ -34,29 +34,29 @@ def Laws.put_skips_empty(acc):
     case Con{_h, _t}:
       {==}
 
-def Laws.put_keeps(ss, acc, e1, e2, e3):
+def Laws.put_keeps(s, acc, e1, e2, e3):
   match acc:
     case Nil{}:
-      %Equal.sym(Bool, String.eq(ss, ".."), False{}, e1) :
-        {Bool.pick(List<&2, String>, Bool.or(_, Bool.or(String.eq(ss, "."), String.is_empty(ss))), [], [ss])
-          == ss <> Nil{} : List<&2, String>}
-      %Equal.sym(Bool, String.eq(ss, "."), False{}, e2) :
-        {Bool.pick(List<&2, String>, Bool.or(False{}, Bool.or(_, String.is_empty(ss))), [], [ss])
-          == ss <> Nil{} : List<&2, String>}
-      %Equal.sym(Bool, String.is_empty(ss), False{}, e3) :
-        {Bool.pick(List<&2, String>, Bool.or(False{}, Bool.or(False{}, _)), [], [ss]) == ss <> Nil{}
+      %Equal.sym(Bool, String.eq(s, ".."), False{}, e1) :
+        {Bool.pick(List<&2, String>, Bool.or(_, Bool.or(String.eq(s, "."), String.is_empty(s))), [], [s])
+          == s <> Nil{} : List<&2, String>}
+      %Equal.sym(Bool, String.eq(s, "."), False{}, e2) :
+        {Bool.pick(List<&2, String>, Bool.or(False{}, Bool.or(_, String.is_empty(s))), [], [s])
+          == s <> Nil{} : List<&2, String>}
+      %Equal.sym(Bool, String.is_empty(s), False{}, e3) :
+        {Bool.pick(List<&2, String>, Bool.or(False{}, Bool.or(False{}, _)), [], [s]) == s <> Nil{}
           : List<&2, String>}
       {==}
     case Con{+h, +t}:
-      %Equal.sym(Bool, String.eq(ss, ".."), False{}, e1) :
+      %Equal.sym(Bool, String.eq(s, ".."), False{}, e1) :
         {Bool.pick(List<&2, String>, _, t,
-          Bool.pick(List<&2, String>, Bool.or(String.eq(ss, "."), String.is_empty(ss)), h <> t, ss <> (h <> t)))
-          == ss <> (h <> t) : List<&2, String>}
-      %Equal.sym(Bool, String.eq(ss, "."), False{}, e2) :
-        {Bool.pick(List<&2, String>, Bool.or(_, String.is_empty(ss)), h <> t, ss <> (h <> t)) == ss <> (h <> t)
+          Bool.pick(List<&2, String>, Bool.or(String.eq(s, "."), String.is_empty(s)), h <> t, s <> (h <> t)))
+          == s <> (h <> t) : List<&2, String>}
+      %Equal.sym(Bool, String.eq(s, "."), False{}, e2) :
+        {Bool.pick(List<&2, String>, Bool.or(_, String.is_empty(s)), h <> t, s <> (h <> t)) == s <> (h <> t)
           : List<&2, String>}
-      %Equal.sym(Bool, String.is_empty(ss), False{}, e3) :
-        {Bool.pick(List<&2, String>, Bool.or(False{}, _), h <> t, ss <> (h <> t)) == ss <> (h <> t)
+      %Equal.sym(Bool, String.is_empty(s), False{}, e3) :
+        {Bool.pick(List<&2, String>, Bool.or(False{}, _), h <> t, s <> (h <> t)) == s <> (h <> t)
           : List<&2, String>}
       {==}
 
@@ -95,8 +95,8 @@ def Laws.targets_skip_packages(_name, _line, _sig, _doc, path, rest, from, e):
       == Imports.targets(rest, from) : List<&2, String>}
   {==}
 
-def Laws.targets_skip_other_items(kk, name, line, sig, doc, path, rest, from, e):
-  match kk:
+def Laws.targets_skip_other_items(k, name, line, sig, doc, path, rest, from, e):
+  match k:
     case Outline.IImport{}:
       Empty.absurd({Imports.targets(Outline.Item{Outline.IImport{}, name, line, sig, doc, path} <> rest, from)
         == Imports.targets(rest, from) : List<&2, String>}, M1.true_false(e))

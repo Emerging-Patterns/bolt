@@ -47,11 +47,11 @@ def check.on(toks: List<&2, Lex.Tok>, +path: String) -> List<&2, F.Finding>:
   Lazy.stop(List<&2, F.Finding>, Paths.is_laws(path), [], _u => check.go(toks, path))
 
 # the rule, told the file's role (src/role.bend): a law file is skipped
-def check.role(rr: Role.Role, ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
-  Lazy.stop(List<&2, F.Finding>, Role.is_laws(rr), [], _u => check.go(toks, path))
+def check.role(r: Role.Role, s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
+  Lazy.stop(List<&2, F.Finding>, Role.is_laws(r), [], _u => check.go(toks, path))
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
   check.on(toks, path)

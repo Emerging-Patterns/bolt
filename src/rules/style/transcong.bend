@@ -33,48 +33,48 @@ import ../../syntax/lex.bend as Lex
 import ../../syntax/tree.bend as Tree
 
 # is the node a leaf of a name kind with this text?
-def named(nn: Tree.Node, +tt: String) -> Bool:
-  match nn:
+def named(n: Tree.Node, +tt: String) -> Bool:
+  match n:
     case Tree.Leaf{Lex.Tok{k, t, _l, _c}}:
       Bool.and(Lex.is_name(k), String.eq(t, tt))
     case _other:
       False{}
 
 # is the node a group opened by `(`?
-def paren(nn: Tree.Node) -> Bool:
-  match nn:
+def paren(n: Tree.Node) -> Bool:
+  match n:
     case Tree.Group{Lex.Tok{_k, o, _l, _c}, _kids, _cl}:
       String.eq(o, "(")
     case _other:
       False{}
 
 # is the node a comma leaf?
-def comma(nn: Tree.Node) -> Bool:
-  match nn:
+def comma(n: Tree.Node) -> Bool:
+  match n:
     case Tree.Leaf{Lex.Tok{k, _t, _l, _c}}:
       Lex.is_comma(k)
     case _other:
       False{}
 
 # does the chain end here, or go on with a comma?
-def ends(nn: Tree.Node) -> Bool:
-  match nn:
+def ends(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NCons{h, _t}:
       comma(h)
     case _other:
       True{}
 
 # past the `Equal.cong` leaf: a `(` group, then the argument's end
-def cong.call(nn: Tree.Node) -> Bool:
-  match nn:
+def cong.call(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NCons{g, after}:
       Bool.and(paren(g), ends(after))
     case _other:
       False{}
 
 # does the chain open an argument that is exactly an `Equal.cong` call?
-def cong(nn: Tree.Node) -> Bool:
-  match nn:
+def cong(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NCons{h, t}:
       Bool.and(named(h, "Equal.cong"), cong.call(t))
     case _other:
@@ -109,21 +109,21 @@ def shape(+kids: Tree.Node) -> Bool:
   Bool.and(Nat.is_eq(commas(kids), 5n), fed(kids, 0n, True{}, False{}))
 
 # past the `Equal.trans` leaf: a `(` group of that shape
-def args(nn: Tree.Node) -> Bool:
-  match nn:
+def args(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NCons{Tree.Group{Lex.Tok{_k, o, _l, _c}, kids, _cl}, _after}:
       Bool.and(String.eq(o, "("), shape(kids))
     case _other:
       False{}
 
 # the finding at the `Equal.trans` leaf
-def cite(+ll: U32, +cc: U32, +path: String) -> F.Finding:
-  F.Finding{path, ll, cc, 11, "transcong",
+def cite(+l: U32, +c: U32, +path: String) -> F.Finding:
+  F.Finding{path, l, c, 11, "transcong",
     "this Equal.trans is fed an Equal.cong: rewrite instead, `%e : {F(_) == c : T}` with the other proof below it, which names the motive once and drops the middle term."}
 
 # the finding when a node and the chain after it open the shape
-def site(hh: Tree.Node, rest: Tree.Node, +path: String) -> List<&2, F.Finding>:
-  match hh:
+def site(h: Tree.Node, rest: Tree.Node, +path: String) -> List<&2, F.Finding>:
+  match h:
     case Tree.Leaf{Lex.Tok{k, t, +l, +c}}:
       Bool.pick(List<&2, F.Finding>, Bool.and(Bool.and(Lex.is_name(k), String.eq(t, "Equal.trans")), args(rest)),
         [cite(l, c, path)], [])
@@ -131,8 +131,8 @@ def site(hh: Tree.Node, rest: Tree.Node, +path: String) -> List<&2, F.Finding>:
       []
 
 # is the node a `=` or `<-` leaf, a let's?
-def binds(nn: Tree.Node) -> Bool:
-  match nn:
+def binds(n: Tree.Node) -> Bool:
+  match n:
     case Tree.Leaf{Lex.Tok{Lex.TEq{}, _t, _l, _c}}:
       True{}
     case Tree.Leaf{Lex.Tok{Lex.TBind{}, _t, _l, _c}}:
@@ -150,8 +150,8 @@ def is_let(sk: Tree.StmtKind) -> Bool:
 
 # every site under the node, at any depth; top: the node is not among a
 # let's own nodes, nor after a `=` or `<-` leaf in its chain
-def walk(nn: Tree.Node, +top: Bool, +path: String) -> List<&2, F.Finding>:
-  match nn:
+def walk(n: Tree.Node, +top: Bool, +path: String) -> List<&2, F.Finding>:
+  match n:
     case Tree.NCons{+h, +rest}:
       +here = site(h, rest, path)
       List.concat(&2, F.Finding, [Bool.pick(List<&2, F.Finding>, top, here, []), walk(h, True{}, path),
@@ -164,6 +164,6 @@ def walk(nn: Tree.Node, +top: Bool, +path: String) -> List<&2, F.Finding>:
       Nil{}
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, _text, _toks, tree, _bound, _items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, _text, _toks, tree, _bound, _items} = s
   walk(tree, True{}, path)

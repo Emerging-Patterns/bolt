@@ -25,19 +25,19 @@ import ../../src/args.bend as Args
 
 # a word bolt reads as a file after a command: neither `--` nor `help`, and
 # not starting with `-` (a flag)
-def plain_word(+ww: String) -> Bool:
-  Bool.not(Bool.or(String.eq(ww, "--"), Bool.or(String.eq(ww, "help"), String.starts_with(ww, "-"))))
+def plain_word(+w: String) -> Bool:
+  Bool.not(Bool.or(String.eq(w, "--"), Bool.or(String.eq(w, "help"), String.starts_with(w, "-"))))
 
 # a word bolt reads as a file with no command before it: a plain word that
 # names no subcommand
-def loose_word(+ww: String) -> Bool:
-  Bool.and(plain_word(ww),
-    Bool.not(Bool.or(String.eq("lint", ww), Bool.or(String.eq("check", ww), String.eq("lsp", ww)))))
+def loose_word(+w: String) -> Bool:
+  Bool.and(plain_word(w),
+    Bool.not(Bool.or(String.eq("lint", w), Bool.or(String.eq("check", w), String.eq("lsp", w)))))
 
 # whether every word is loose
 def all_loose(ws: List<&2, String>) -> Bool:
   match ws:
     case Nil{}:
       True{}
-    case Con{+ww, rest}:
-      Bool.and(loose_word(ww), all_loose(rest))
+    case Con{+w, rest}:
+      Bool.and(loose_word(w), all_loose(rest))

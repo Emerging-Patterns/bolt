@@ -10,12 +10,12 @@ import ../src/rules/suspicious/empty.bend as Empty
 
 # LAW: empty reports nothing in a law or proof file, whatever the source holds
 law role_empty_exempt:
-  for rr: Role.Role
-  for e: {Role.is_law_file(rr) == True{} : Bool}
+  for r: Role.Role
+  for e: {Role.is_law_file(r) == True{} : Bool}
   for +path: String
   for +text: String
   for +toks: List<&2, Lex.Tok>
   for +tree: Tree.Node
   for +bound: Bind.Bound
   for +items: List<&2, Outline.Item>
-  {Empty.check.role(rr, Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+  {Empty.check.role(r, Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}

@@ -64,9 +64,9 @@ law sp.line:
   for +line: String
   for +rest: List<&2, String>
   for +path: String
-  for +nn: U32
-  for ih: {List.length(&2, F.Finding, Space.check.go(rest, path, (nn + 1 : U32))) == Laws.space_count(rest) : Nat}
-  {List.length(&2, F.Finding, Space.check.go(line <> rest, path, nn)) == Laws.space_count(line <> rest) : Nat}
+  for +n: U32
+  for ih: {List.length(&2, F.Finding, Space.check.go(rest, path, (n + 1 : U32))) == Laws.space_count(rest) : Nat}
+  {List.length(&2, F.Finding, Space.check.go(line <> rest, path, n)) == Laws.space_count(line <> rest) : Nat}
 
 def sp.line(line, rest, path, nn, ih):
   Equal.trans(Nat,
@@ -94,34 +94,34 @@ def sp.line(line, rest, path, nn, ih):
           Laws.space_count(rest)),
         Space.has_tab(String.to_list(line)), Laws.tabbed(String.to_list(line)), sp.tab(String.to_list(line)))))
 
-def Laws.space_line_counts(lines, path, nn):
+def Laws.space_line_counts(lines, path, n):
   match lines:
     case Nil{}:
       {==}
     case Con{line, +rest}:
-      sp.line(line, rest, path, nn, Laws.space_line_counts(rest, path, (nn + 1 : U32)))
+      sp.line(line, rest, path, n, Laws.space_line_counts(rest, path, (n + 1 : U32)))
 
 # one token onto tokens the law holds for, at the width after it
 law sp.wstep:
-  for kk: Lex.TokKind
+  for k: Lex.TokKind
   for +t: String
   for l: U32
   for c: U32
   for +rest: List<&2, Lex.Tok>
   for +path: String
-  for +nn: U32
+  for +n: U32
   for +acc: U32
-  for nl: {List.length(&2, F.Finding, Space.widths(rest, path, (nn + 1 : U32), 0)) == Laws.wide_count(rest, 0) : Nat}
-  for ih: {List.length(&2, F.Finding, Space.widths(rest, path, nn, (acc + Space.width_of(kk, t) : U32)))
-    == Laws.wide_count(rest, (acc + Space.width_of(kk, t) : U32)) : Nat}
-  {List.length(&2, F.Finding, Space.widths(Lex.Tok{kk, t, l, c} <> rest, path, nn, acc))
-    == Laws.wide_count(Lex.Tok{kk, t, l, c} <> rest, acc) : Nat}
+  for nl: {List.length(&2, F.Finding, Space.widths(rest, path, (n + 1 : U32), 0)) == Laws.wide_count(rest, 0) : Nat}
+  for ih: {List.length(&2, F.Finding, Space.widths(rest, path, n, (acc + Space.width_of(k, t) : U32)))
+    == Laws.wide_count(rest, (acc + Space.width_of(k, t) : U32)) : Nat}
+  {List.length(&2, F.Finding, Space.widths(Lex.Tok{k, t, l, c} <> rest, path, n, acc))
+    == Laws.wide_count(Lex.Tok{k, t, l, c} <> rest, acc) : Nat}
 
-def sp.wstep(kk, _t, _l, _c, rest, path, nn, acc, nl, ih):
-  match kk:
+def sp.wstep(k, _t, _l, _c, rest, path, n, acc, nl, ih):
+  match k:
     case Lex.TNewline{}:
-      M1.nat.pick(U32.is_gt(acc, 120), F.Finding{path, nn, 120, 0, "space", "Line is longer than 120 characters."},
-        Space.widths(rest, path, (nn + 1 : U32), 0), Laws.wide_count(rest, 0), nl)
+      M1.nat.pick(U32.is_gt(acc, 120), F.Finding{path, n, 120, 0, "space", "Line is longer than 120 characters."},
+        Space.widths(rest, path, (n + 1 : U32), 0), Laws.wide_count(rest, 0), nl)
     case Lex.TStr{}:
       ih
     case Lex.TComment{}:
@@ -170,9 +170,9 @@ def Laws.space_width_counts(toks, path, nn, acc):
     case Nil{}:
       M1.nat.pick(U32.is_gt(acc, 120), F.Finding{path, nn, 120, 0, "space", "Line is longer than 120 characters."},
         [], 0n, {==})
-    case Con{Lex.Tok{+kk, +t, l, c}, +rest}:
-      sp.wstep(kk, t, l, c, rest, path, nn, acc, Laws.space_width_counts(rest, path, (nn + 1 : U32), 0),
-        Laws.space_width_counts(rest, path, nn, (acc + Space.width_of(kk, t) : U32)))
+    case Con{Lex.Tok{+k, +t, l, c}, +rest}:
+      sp.wstep(k, t, l, c, rest, path, nn, acc, Laws.space_width_counts(rest, path, (nn + 1 : U32), 0),
+        Laws.space_width_counts(rest, path, nn, (acc + Space.width_of(k, t) : U32)))
 
 def Laws.space_counts(path, text, toks, tree, bound, items):
   Equal.trans(Nat,

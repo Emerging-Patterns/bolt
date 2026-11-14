@@ -14,19 +14,19 @@ law set_level_none:
 law set_level_first:
   for sets: List<&2, Config.LevelSet>
   for +name: String
-  for +nn: String
-  for ll: Config.Level
-  for h: {String.eq(nn, name) == True{} : Bool}
-  {Config.set_level(Config.LevelSet{nn, ll} <> sets, name) == Some{ll} : Maybe<&2, Config.Level>}
+  for +n: String
+  for l: Config.Level
+  for h: {String.eq(n, name) == True{} : Bool}
+  {Config.set_level(Config.LevelSet{n, l} <> sets, name) == Some{l} : Maybe<&2, Config.Level>}
 
 # LAW: a setting of another name is passed over
 law set_level_skip:
   for +sets: List<&2, Config.LevelSet>
   for +name: String
-  for +nn: String
-  for ll: Config.Level
-  for h: {String.eq(nn, name) == False{} : Bool}
-  {Config.set_level(Config.LevelSet{nn, ll} <> sets, name) == Config.set_level(sets, name)
+  for +n: String
+  for l: Config.Level
+  for h: {String.eq(n, name) == False{} : Bool}
+  {Config.set_level(Config.LevelSet{n, l} <> sets, name) == Config.set_level(sets, name)
     : Maybe<&2, Config.Level>}
 
 # LAW: a rule with no setting of its own, and not opt-in, is at its group's

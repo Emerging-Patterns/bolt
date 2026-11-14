@@ -90,8 +90,8 @@ def unused.seen(uses: List<&2, Bind.Use>, +line: U32, +col: U32) -> Bool:
 # is a binder of this kind one the rule speaks for? A let, do-bind or lambda
 # binder is; a parameter is unless erased or on a foreign header line;
 # nothing else is
-def unused.kept(kk: Bind.BindKind, +note: String, +line: U32, +fl: List<&2, U32>) -> Bool:
-  match kk:
+def unused.kept(k: Bind.BindKind, +note: String, +line: U32, +fl: List<&2, U32>) -> Bool:
+  match k:
     case Bind.KItem{}:
       False{}
     case Bind.KCtor{}:
@@ -116,9 +116,9 @@ def unused.count(binds: List<&2, Bind.Bind>, +uses: List<&2, Bind.Use>, +fl: Lis
   match binds:
     case Nil{}:
       0n
-    case Con{Bind.Bind{+name, +line, +col, kk, +note}, rest}:
+    case Con{Bind.Bind{+name, +line, +col, k, +note}, rest}:
       +m = unused.count(rest, uses, fl)
-      Bool.pick(Nat, Bool.and(Bool.and(unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+      Bool.pick(Nat, Bool.and(Bool.and(unused.kept(k, note, line, fl), Bool.not(String.starts_with(name, "_"))),
         Bool.not(unused.seen(uses, line, col))), 1n+m, m)
 
 # LAW: unused reports one finding for each let, do-bind, lambda binder or

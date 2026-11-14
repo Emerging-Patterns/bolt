@@ -8,18 +8,18 @@ type Script is Type:  # noqa: L001 transport effect
   Script{inbox: List<&2, String>}
 
 # the next canned message, or None when they are over
-def recv(hh: Script) -> IO(Script & Maybe<&2, String>):  # noqa: L001 transport effect
-  match hh:
+def recv(h: Script) -> IO(Script & Maybe<&2, String>):  # noqa: L001 transport effect
+  match h:
     case Script{Nil{}}:
       IO.pure(Script & Maybe<&2, String>, (Script{Nil{}}, None{}))
     case Script{Con{m, t}}:
       IO.pure(Script & Maybe<&2, String>, (Script{t}, Some{m}))
 
 # a body printed, as its own line
-def send(hh: Script, body: String) -> IO(Script):  # noqa: L001 transport effect
+def send(h: Script, body: String) -> IO(Script):  # noqa: L001 transport effect
   do IO<Script>:
     IO.print(body)
-    return hh
+    return h
 
 # the canned transport
 def new() -> S.Transport<Script>:  # noqa: L001 effect record

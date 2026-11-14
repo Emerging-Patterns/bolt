@@ -172,14 +172,14 @@ def unused.foreign(root):
 
 # the rule's kind test is the law's
 law unused.kind:
-  for kk: Bind.BindKind
+  for k: Bind.BindKind
   for +note: String
   for +line: U32
   for +fl: List<&2, U32>
-  {Unused.reportable(kk, note, line, fl) == Laws.unused.kept(kk, note, line, fl) : Bool}
+  {Unused.reportable(k, note, line, fl) == Laws.unused.kept(k, note, line, fl) : Bool}
 
-def unused.kind(kk, _note, _line, _fl):
-  match kk:
+def unused.kind(k, _note, _line, _fl):
+  match k:
     case Bind.KItem{}:
       {==}
     case Bind.KCtor{}:
@@ -201,13 +201,13 @@ def unused.kind(kk, _note, _line, _fl):
 
 # nothing is found in the empty index, whatever the path
 law unused.none:
-  for qq: List<&2, Bool>
+  for q: List<&2, Bool>
   for +line: U32
   for +col: U32
-  {Unused.find(qq, Unused.HNone{}, line, col) == False{} : Bool}
+  {Unused.find(q, Unused.HNone{}, line, col) == False{} : Bool}
 
-def unused.none(qq, line, col):
-  match qq:
+def unused.none(q, line, col):
+  match q:
     case Nil{}:
       {==}
     case Con{b, r}:
@@ -224,13 +224,13 @@ law unused.level:
   for b1: Bool
   for b2: Bool
   for -sub: Unused.Hits
-  for -hh: Unused.Hits
+  for -h: Unused.Hits
   for -rest: Bool
-  for -mm: Bool
+  for -m: Bool
   for -fs: Unused.Hits -> Bool
-  for ih: {fs(sub) == Bool.or(Bool.and(rest, mm), fs(Unused.hits.near(b1, hh))) : Bool}
-  {fs(Unused.hits.near(b2, Unused.hits.join(b1, sub, Unused.hits.near(Bool.not(b1), hh))))
-    == Bool.or(Bool.and(Bool.and(M4.ix.bit(b1, b2), rest), mm), fs(Unused.hits.near(b2, hh))) : Bool}
+  for ih: {fs(sub) == Bool.or(Bool.and(rest, m), fs(Unused.hits.near(b1, h))) : Bool}
+  {fs(Unused.hits.near(b2, Unused.hits.join(b1, sub, Unused.hits.near(Bool.not(b1), h))))
+    == Bool.or(Bool.and(Bool.and(M4.ix.bit(b1, b2), rest), m), fs(Unused.hits.near(b2, h))) : Bool}
 
 def unused.level(b1, b2, _sub, _hh, _rest, _mm, _fs, ih):
   match b1 b2:
@@ -246,29 +246,29 @@ def unused.level(b1, b2, _sub, _hh, _rest, _mm, _fs, ih):
 # a lookup after a cell goes in: that cell, when the two lines agree in the
 # bits walked and it is the binder asked for, or what was found before
 law unused.at:
-  for dd: Nat
+  for d: Nat
   for +k1: U32
   for +k2: U32
-  for +hh: Unused.Hits
+  for +h: Unused.Hits
   for +l1: U32
   for +c1: U32
   for +l2: U32
   for +c2: U32
-  {Unused.find(Unused.path(dd, k2), Unused.put(Unused.path(dd, k1), hh, Unused.Cell{l1, c1}), l2, c2)
-    == Bool.or(Bool.and(M4.ix.bits(dd, k1, k2), Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2))),
-      Unused.find(Unused.path(dd, k2), hh, l2, c2)) : Bool}
+  {Unused.find(Unused.path(d, k2), Unused.put(Unused.path(d, k1), h, Unused.Cell{l1, c1}), l2, c2)
+    == Bool.or(Bool.and(M4.ix.bits(d, k1, k2), Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2))),
+      Unused.find(Unused.path(d, k2), h, l2, c2)) : Bool}
 
-def unused.at(dd, k1, k2, hh, l1, c1, l2, c2):
-  match dd:
+def unused.at(d, k1, k2, h, l1, c1, l2, c2):
+  match d:
     case 0n:
-      M3.unused.or(Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)), Unused.hits.any(Unused.hits.cells(hh), l2, c2),
-        Unused.hits.any(Unused.hits.cells(hh), l2, c2), {==})
+      M3.unused.or(Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)), Unused.hits.any(Unused.hits.cells(h), l2, c2),
+        Unused.hits.any(Unused.hits.cells(h), l2, c2), {==})
     case 1n+p:
       unused.level(U32.is_even(k1), U32.is_even(k2),
-        Unused.put(Unused.path(p, U32.shr(k1)), Unused.hits.near(U32.is_even(k1), hh), Unused.Cell{l1, c1}), hh,
+        Unused.put(Unused.path(p, U32.shr(k1)), Unused.hits.near(U32.is_even(k1), h), Unused.Cell{l1, c1}), h,
         M4.ix.bits(p, U32.shr(k1), U32.shr(k2)), Bool.and(U32.is_eq(l1, l2), U32.is_eq(c1, c2)),
         x => Unused.find(Unused.path(p, U32.shr(k2)), x, l2, c2),
-        unused.at(p, U32.shr(k1), U32.shr(k2), Unused.hits.near(U32.is_even(k1), hh), l1, c1, l2, c2))
+        unused.at(p, U32.shr(k1), U32.shr(k2), Unused.hits.near(U32.is_even(k1), h), l1, c1, l2, c2))
 
 # a cell that is the binder asked for went down the way the lookup walks:
 # its line is the line asked, so the two agree in every bit
@@ -301,21 +301,21 @@ def unused.exact(uses, line, col):
     case Con{Bind.Use{n, l, c, tg}, +rest}:
       match tg:
         case Bind.TLocal{+tl, +tc}:
-          +mm = Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col))
+          +m = Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col))
           +fr = Unused.find(Unused.path(Unused.depth(), line), Unused.index(rest), line, col)
           Equal.trans(Bool,
             Unused.find(Unused.path(Unused.depth(), line),
               Unused.put(Unused.path(Unused.depth(), tl), Unused.index(rest), Unused.Cell{tl, tc}), line, col),
-            Bool.or(Bool.and(M4.ix.bits(Unused.depth(), tl, line), mm), fr),
-            Bool.or(mm, Laws.unused.seen(rest, line, col)),
+            Bool.or(Bool.and(M4.ix.bits(Unused.depth(), tl, line), m), fr),
+            Bool.or(m, Laws.unused.seen(rest, line, col)),
             unused.at(Unused.depth(), tl, line, Unused.index(rest), tl, tc, line, col),
             Equal.trans(Bool,
-              Bool.or(Bool.and(M4.ix.bits(Unused.depth(), tl, line), mm), fr),
-              Bool.or(mm, fr),
-              Bool.or(mm, Laws.unused.seen(rest, line, col)),
-              Equal.cong(Bool, Bool, z => Bool.or(z, fr), Bool.and(M4.ix.bits(Unused.depth(), tl, line), mm), mm,
-                M4.ix.guard(M4.ix.bits(Unused.depth(), tl, line), mm, e => unused.alike(tl, line, tc, col, e))),
-              Equal.cong(Bool, Bool, z => Bool.or(mm, z), fr, Laws.unused.seen(rest, line, col),
+              Bool.or(Bool.and(M4.ix.bits(Unused.depth(), tl, line), m), fr),
+              Bool.or(m, fr),
+              Bool.or(m, Laws.unused.seen(rest, line, col)),
+              Equal.cong(Bool, Bool, z => Bool.or(z, fr), Bool.and(M4.ix.bits(Unused.depth(), tl, line), m), m,
+                M4.ix.guard(M4.ix.bits(Unused.depth(), tl, line), m, e => unused.alike(tl, line, tc, col, e))),
+              Equal.cong(Bool, Bool, z => Bool.or(m, z), fr, Laws.unused.seen(rest, line, col),
                 unused.exact(rest, line, col))))
         case Bind.TItem{nm}:
           unused.exact(rest, line, col)
@@ -349,41 +349,41 @@ def unused.and(a, _b):
 
 # the rule's finding test for a binder is the law's
 law unused.hit:
-  for +kk: Bind.BindKind
+  for +k: Bind.BindKind
   for +name: String
   for +note: String
   for +line: U32
   for +col: U32
   for +uses: List<&2, Bind.Use>
   for +fl: List<&2, U32>
-  {Lazy.and_then(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+  {Lazy.and_then(Bool.and(Unused.reportable(k, note, line, fl), Bool.not(String.starts_with(name, "_"))),
       _u => Bool.not(Unused.seen(Unused.index(uses), line, col)))
-    == Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+    == Bool.and(Bool.and(Laws.unused.kept(k, note, line, fl), Bool.not(String.starts_with(name, "_"))),
       Bool.not(Laws.unused.seen(uses, line, col))) : Bool}
 
-def unused.hit(kk, name, note, line, col, uses, fl):
+def unused.hit(k, name, note, line, col, uses, fl):
   +sr = Unused.seen(Unused.index(uses), line, col)
   Equal.trans(Bool,
-    Lazy.and_then(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+    Lazy.and_then(Bool.and(Unused.reportable(k, note, line, fl), Bool.not(String.starts_with(name, "_"))),
       _u => Bool.not(sr)),
-    Bool.and(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+    Bool.and(Bool.and(Unused.reportable(k, note, line, fl), Bool.not(String.starts_with(name, "_"))),
       Bool.not(sr)),
-    Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+    Bool.and(Bool.and(Laws.unused.kept(k, note, line, fl), Bool.not(String.starts_with(name, "_"))),
       Bool.not(Laws.unused.seen(uses, line, col))),
-    unused.and(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+    unused.and(Bool.and(Unused.reportable(k, note, line, fl), Bool.not(String.starts_with(name, "_"))),
       Bool.not(sr)),
     Equal.trans(Bool,
-      Bool.and(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+      Bool.and(Bool.and(Unused.reportable(k, note, line, fl), Bool.not(String.starts_with(name, "_"))),
         Bool.not(sr)),
-      Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+      Bool.and(Bool.and(Laws.unused.kept(k, note, line, fl), Bool.not(String.starts_with(name, "_"))),
         Bool.not(sr)),
-      Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+      Bool.and(Bool.and(Laws.unused.kept(k, note, line, fl), Bool.not(String.starts_with(name, "_"))),
         Bool.not(Laws.unused.seen(uses, line, col))),
       Equal.cong(Bool, Bool,
         z => Bool.and(Bool.and(z, Bool.not(String.starts_with(name, "_"))), Bool.not(sr)),
-        Unused.reportable(kk, note, line, fl), Laws.unused.kept(kk, note, line, fl), unused.kind(kk, note, line, fl)),
+        Unused.reportable(k, note, line, fl), Laws.unused.kept(k, note, line, fl), unused.kind(k, note, line, fl)),
       Equal.cong(Bool, Bool,
-        z => Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+        z => Bool.and(Bool.and(Laws.unused.kept(k, note, line, fl), Bool.not(String.starts_with(name, "_"))),
           Bool.not(z)),
         sr, Laws.unused.seen(uses, line, col), unused.seen(uses, line, col))))
 
@@ -400,22 +400,22 @@ def unused.go(binds, uses, fl, path):
   match binds:
     case Nil{}:
       {==}
-    case Con{Bind.Bind{+name, +line, +col, +kk, +note}, +rest}:
+    case Con{Bind.Bind{+name, +line, +col, +k, +note}, +rest}:
       +m = Laws.unused.count(rest, uses, fl)
-      +b = Lazy.and_then(Bool.and(Unused.reportable(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+      +b = Lazy.and_then(Bool.and(Unused.reportable(k, note, line, fl), Bool.not(String.starts_with(name, "_"))),
         _u => Bool.not(Unused.seen(Unused.index(uses), line, col)))
       Equal.trans(Nat,
         List.length(&2, F.Finding,
-          Unused.check.go(Bind.Bind{name, line, col, kk, note} <> rest, Unused.index(uses), fl, path)),
+          Unused.check.go(Bind.Bind{name, line, col, k, note} <> rest, Unused.index(uses), fl, path)),
         Bool.pick(Nat, b, 1n+m, m),
-        Laws.unused.count(Bind.Bind{name, line, col, kk, note} <> rest, uses, fl),
+        Laws.unused.count(Bind.Bind{name, line, col, k, note} <> rest, uses, fl),
         M1.nat.pick(b, F.Finding{path, line, col, U32.from_nat(String.length(name)), "unused",
-            Unused.what(kk) ++ " " ++ name ++ " is never used."},
+            Unused.what(k) ++ " " ++ name ++ " is never used."},
           Unused.check.go(rest, Unused.index(uses), fl, path), m, unused.go(rest, uses, fl, path)),
         Equal.cong(Bool, Nat, z => Bool.pick(Nat, z, 1n+m, m), b,
-          Bool.and(Bool.and(Laws.unused.kept(kk, note, line, fl), Bool.not(String.starts_with(name, "_"))),
+          Bool.and(Bool.and(Laws.unused.kept(k, note, line, fl), Bool.not(String.starts_with(name, "_"))),
             Bool.not(Laws.unused.seen(uses, line, col))),
-          unused.hit(kk, name, note, line, col, uses, fl)))
+          unused.hit(k, name, note, line, col, uses, fl)))
 
 def Laws.unused_counts(path, _text, _toks, tree, binds, uses, _scopes, _items):
   Equal.trans(Nat,

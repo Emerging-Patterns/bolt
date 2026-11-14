@@ -13,8 +13,8 @@ import ../src/rules/imports.bend as Imports
 import ../src/syntax/outline.bend as Outline
 
 # is the item an import? Law vocabulary: bolt never calls it
-def paths.is_import(kk: Outline.ItemKind) -> Bool:
-  match kk:
+def paths.is_import(k: Outline.ItemKind) -> Bool:
+  match k:
     case Outline.IImport{}:
       True{}
     case other:
@@ -46,12 +46,12 @@ law put_skips_empty:
 # LAW: any other segment is kept, in front of those before it (the path is
 # held last segment first while it is read)
 law put_keeps:
-  for +ss: String
+  for +s: String
   for acc: List<&2, String>
-  for e1: {String.eq(ss, "..") == False{} : Bool}
-  for e2: {String.eq(ss, ".") == False{} : Bool}
-  for e3: {String.is_empty(ss) == False{} : Bool}
-  {Imports.norm.put(ss, acc) == ss <> acc : List<&2, String>}
+  for e1: {String.eq(s, "..") == False{} : Bool}
+  for e2: {String.eq(s, ".") == False{} : Bool}
+  for e3: {String.is_empty(s) == False{} : Bool}
+  {Imports.norm.put(s, acc) == s <> acc : List<&2, String>}
 
 # LAW: the segments are read left to right, each put onto those before it
 law go_reads_in_order:
@@ -129,7 +129,7 @@ law targets_skip_packages:
 
 # LAW: an item that is not an import is no target
 law targets_skip_other_items:
-  for kk: Outline.ItemKind
+  for k: Outline.ItemKind
   for name: String
   for line: U32
   for sig: String
@@ -137,6 +137,6 @@ law targets_skip_other_items:
   for path: String
   for rest: List<&2, Outline.Item>
   for +from: String
-  for e: {paths.is_import(kk) == False{} : Bool}
-  {Imports.targets(Outline.Item{kk, name, line, sig, doc, path} <> rest, from)
+  for e: {paths.is_import(k) == False{} : Bool}
+  {Imports.targets(Outline.Item{k, name, line, sig, doc, path} <> rest, from)
     == Imports.targets(rest, from) : List<&2, String>}

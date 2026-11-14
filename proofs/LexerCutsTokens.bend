@@ -4,8 +4,8 @@ import ../src/syntax/lex.bend as Lex
 import ../laws/LexerCutsTokens.bend as Laws
 import ./lemmas/BoolEmptiness.bend as M1
 
-def Laws.continues_by_mode_and_class(mm, cls):
-  match mm:
+def Laws.continues_by_mode_and_class(m, cls):
+  match m:
     case Lex.Fresh{}:
       match cls:
         case Lex.CAlpha{}:

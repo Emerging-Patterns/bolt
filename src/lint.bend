@@ -19,8 +19,8 @@ import ./status.bend as Status
 import ./lazy/lazy.bend as Lazy
 
 # a file's text as an answer
-def read.answer(mm: Maybe<&2, String>) -> W.Answer:
-  match mm:
+def read.answer(m: Maybe<&2, String>) -> W.Answer:
+  match m:
     case None{}:
       W.Unread{}
     case Some{text}:
@@ -33,8 +33,8 @@ def text.answer(dir: Bool, path: String) -> IO(W.Answer):
       IO.pure(W.Answer, W.Directory{})
     case False{}:
       do IO<W.Answer>:
-        mm : Maybe<&2, String> <- Disk.read(path)
-        return read.answer(mm)
+        m : Maybe<&2, String> <- Disk.read(path)
+        return read.answer(m)
 
 # one question, answered
 def answer(ask: W.Ask) -> IO(W.Answer):  # noqa: L001 IO driver
@@ -100,7 +100,7 @@ def loop(fuel: Nat, +world: W.World) -> IO(W.World):  # noqa: L001 IO driver
     case 0n:
       IO.die(W.World, 1, "bolt: the lint kept asking")
     case 1n+f:
-      loop.step(Plan.wants(world), world, ww => loop(f, ww))
+      loop.step(Plan.wants(world), world, w => loop(f, w))
 
 # the World filled from a working directory; none that can be named is
 # fatal, as no relative path could be resolved against it

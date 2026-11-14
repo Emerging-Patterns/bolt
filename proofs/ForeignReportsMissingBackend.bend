@@ -42,13 +42,13 @@ def Laws.foreign_native(lines):
 
 # a body with no more imports ends with the lanes gathered so far
 law foreign.done:
-  for cc: Bool
+  for c: Bool
   for js: Bool
-  {Some{Foreign.Lanes{cc, js}} == Some{Foreign.Lanes{Bool.or(cc, False{}), Bool.or(js, False{})}}
+  {Some{Foreign.Lanes{c, js}} == Some{Foreign.Lanes{Bool.or(c, False{}), Bool.or(js, False{})}}
     : Maybe<&2, Foreign.Lanes>}
 
-def foreign.done(cc, js):
-  match cc:
+def foreign.done(c, js):
+  match c:
     case True{}:
       match js:
         case True{}:
@@ -94,14 +94,14 @@ def foreign.shift(_i, a, _b, _c, d, _e, _f):
 # the rule's lanes of the imports after the first, onto the lanes so far
 law foreign.lgo:
   for body: Tree.Node
-  for +cc: Bool
+  for +c: Bool
   for +js: Bool
-  {Foreign.lanes.go(body, cc, js)
+  {Foreign.lanes.go(body, c, js)
     == Bool.pick(Maybe<&2, Foreign.Lanes>, Laws.foreign.imports(body),
-      Some{Foreign.Lanes{Bool.or(cc, Laws.foreign.has(body, ".c\"")), Bool.or(js, Laws.foreign.has(body, ".js\""))}},
+      Some{Foreign.Lanes{Bool.or(c, Laws.foreign.has(body, ".c\"")), Bool.or(js, Laws.foreign.has(body, ".js\""))}},
       None{}) : Maybe<&2, Foreign.Lanes>}
 
-def foreign.lgo(body, cc, js):
+def foreign.lgo(body, c, js):
   match body:
     case Tree.NCons{h, +rest}:
       match h:
@@ -110,15 +110,15 @@ def foreign.lgo(body, cc, js):
             case Tree.SImport{}:
               +ec = String.ends_with(Foreign.target(kids), ".c\"")
               +ej = String.ends_with(Foreign.target(kids), ".js\"")
-              Equal.trans(Maybe<&2, Foreign.Lanes>, Foreign.lanes.go(rest, Bool.or(cc, ec), Bool.or(js, ej)),
+              Equal.trans(Maybe<&2, Foreign.Lanes>, Foreign.lanes.go(rest, Bool.or(c, ec), Bool.or(js, ej)),
                 Bool.pick(Maybe<&2, Foreign.Lanes>, Laws.foreign.imports(rest),
-                  Some{Foreign.Lanes{Bool.or(Bool.or(cc, ec), Laws.foreign.has(rest, ".c\"")),
+                  Some{Foreign.Lanes{Bool.or(Bool.or(c, ec), Laws.foreign.has(rest, ".c\"")),
                     Bool.or(Bool.or(js, ej), Laws.foreign.has(rest, ".js\""))}}, None{}),
                 Bool.pick(Maybe<&2, Foreign.Lanes>, Laws.foreign.imports(rest),
-                  Some{Foreign.Lanes{Bool.or(cc, Bool.or(ec, Laws.foreign.has(rest, ".c\""))),
+                  Some{Foreign.Lanes{Bool.or(c, Bool.or(ec, Laws.foreign.has(rest, ".c\""))),
                     Bool.or(js, Bool.or(ej, Laws.foreign.has(rest, ".js\"")))}}, None{}),
-                foreign.lgo(rest, Bool.or(cc, ec), Bool.or(js, ej)),
-                foreign.shift(Laws.foreign.imports(rest), cc, ec, Laws.foreign.has(rest, ".c\""), js, ej,
+                foreign.lgo(rest, Bool.or(c, ec), Bool.or(js, ej)),
+                foreign.shift(Laws.foreign.imports(rest), c, ec, Laws.foreign.has(rest, ".c\""), js, ej,
                   Laws.foreign.has(rest, ".js\"")))
             case Tree.SDef{}:
               {==}
@@ -143,13 +143,13 @@ def foreign.lgo(body, cc, js):
         case Tree.NCons{a, b}:
           {==}
     case Tree.Leaf{x}:
-      foreign.done(cc, js)
+      foreign.done(c, js)
     case Tree.Group{a, b, d}:
-      foreign.done(cc, js)
+      foreign.done(c, js)
     case Tree.Stmt{a, b, d}:
-      foreign.done(cc, js)
+      foreign.done(c, js)
     case Tree.NNil{}:
-      foreign.done(cc, js)
+      foreign.done(c, js)
 
 # the rule's lanes of a def's body: the law's lanes of a foreign def, else none
 law foreign.lanes:

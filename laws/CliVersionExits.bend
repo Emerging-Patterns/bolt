@@ -8,8 +8,8 @@ import shake@0.6.0.0/main.bend as Shake
 # release and the commit, and exits 0, whatever else it names
 law cli_version_exits:
   for +av: List<&2, String>
-  for +mm: Shake.Matched
-  for h: {Args.parse(av) == Done{mm} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
-  for h_ver: {Shake.on(mm, "version") == True{} : Bool}
+  for +m: Shake.Matched
+  for h: {Args.parse(av) == Done{m} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for h_ver: {Shake.on(m, "version") == True{} : Bool}
   {Args.out(Args.parse(av))
     == Args.Stop{Args.Line{}, "bolt " ++ Args.version.at(Ver.text(), Rev.text()), 0} : Args.Out}

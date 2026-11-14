@@ -41,57 +41,57 @@ def off.drop(cfg, slug, path, fs, e):
             <> Rules.graded(cfg, Rules.on.at(path, Rules.on.slug(slug, rest)))) == Nil{} : List<&2, F.Graded>}
       off.drop(cfg, slug, path, rest, e)
 
-# an entry left out when its rule is off grades as the entry run: bb is
+# an entry left out when its rule is off grades as the entry run: b is
 # whether the rule is off
 law off.gate.at:
-  for bb: Bool
+  for b: Bool
   for +cfg: Config.Config
   for +slug: String
   for +path: String
-  for +ww: Rules.Which
-  for +rr: Role.Role
-  for +ss: Src.Src
-  for +eb: {Rules.on.off(cfg, slug) == bb : Bool}
-  {Rules.graded(cfg, Rules.on.at(path, Rules.on.gate(bb, slug, ww, rr, ss)))
-    == Rules.graded(cfg, Rules.on.at(path, Rules.on.slug(slug, Rules.on.run(ww, rr, ss)))) : List<&2, F.Graded>}
+  for +w: Rules.Which
+  for +r: Role.Role
+  for +s: Src.Src
+  for +eb: {Rules.on.off(cfg, slug) == b : Bool}
+  {Rules.graded(cfg, Rules.on.at(path, Rules.on.gate(b, slug, w, r, s)))
+    == Rules.graded(cfg, Rules.on.at(path, Rules.on.slug(slug, Rules.on.run(w, r, s)))) : List<&2, F.Graded>}
 
-def off.gate.at(bb, cfg, slug, path, ww, rr, ss, eb):
-  match bb:
+def off.gate.at(b, cfg, slug, path, w, r, s, eb):
+  match b:
     case True{}:
       Equal.sym(List<&2, F.Graded>,
-        Rules.graded(cfg, Rules.on.at(path, Rules.on.slug(slug, Rules.on.run(ww, rr, ss)))), Nil{},
-        off.drop(cfg, slug, path, Rules.on.run(ww, rr, ss), eb))
+        Rules.graded(cfg, Rules.on.at(path, Rules.on.slug(slug, Rules.on.run(w, r, s)))), Nil{},
+        off.drop(cfg, slug, path, Rules.on.run(w, r, s), eb))
     case False{}:
       {==}
 
 # putting findings at a path goes through an append
 law off.at.app:
   for +path: String
-  for aa: List<&2, F.Finding>
-  for +bb: List<&2, F.Finding>
-  {Rules.on.at(path, List.append(&2, F.Finding, aa, bb))
-    == List.append(&2, F.Finding, Rules.on.at(path, aa), Rules.on.at(path, bb)) : List<&2, F.Finding>}
+  for a: List<&2, F.Finding>
+  for +b: List<&2, F.Finding>
+  {Rules.on.at(path, List.append(&2, F.Finding, a, b))
+    == List.append(&2, F.Finding, Rules.on.at(path, a), Rules.on.at(path, b)) : List<&2, F.Finding>}
 
-def off.at.app(path, aa, bb):
-  match aa:
+def off.at.app(path, a, b):
+  match a:
     case Nil{}:
       {==}
     case Con{F.Finding{p, l, c, n, r, m}, +rest}:
       Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>, z => F.Finding{path, l, c, n, r, m} <> z,
-        Rules.on.at(path, List.append(&2, F.Finding, rest, bb)),
-        List.append(&2, F.Finding, Rules.on.at(path, rest), Rules.on.at(path, bb)), off.at.app(path, rest, bb))
+        Rules.on.at(path, List.append(&2, F.Finding, rest, b)),
+        List.append(&2, F.Finding, Rules.on.at(path, rest), Rules.on.at(path, b)), off.at.app(path, rest, b))
 
 # a pick between a list and one more in front of it goes through an append
 law off.pick.app:
-  for bb: Bool
-  for -gg: F.Graded
+  for b: Bool
+  for -g: F.Graded
   for -xs: List<&2, F.Graded>
   for -ys: List<&2, F.Graded>
-  {Bool.pick(List<&2, F.Graded>, bb, List.append(&2, F.Graded, xs, ys), gg <> List.append(&2, F.Graded, xs, ys))
-    == List.append(&2, F.Graded, Bool.pick(List<&2, F.Graded>, bb, xs, gg <> xs), ys) : List<&2, F.Graded>}
+  {Bool.pick(List<&2, F.Graded>, b, List.append(&2, F.Graded, xs, ys), g <> List.append(&2, F.Graded, xs, ys))
+    == List.append(&2, F.Graded, Bool.pick(List<&2, F.Graded>, b, xs, g <> xs), ys) : List<&2, F.Graded>}
 
-def off.pick.app(bb, _gg, _xs, _ys):
-  match bb:
+def off.pick.app(b, _gg, _xs, _ys):
+  match b:
     case True{}:
       {==}
     case False{}:
@@ -100,45 +100,45 @@ def off.pick.app(bb, _gg, _xs, _ys):
 # grading goes through an append
 law off.graded.app:
   for +cfg: Config.Config
-  for aa: List<&2, F.Finding>
-  for +bb: List<&2, F.Finding>
-  {Rules.graded(cfg, List.append(&2, F.Finding, aa, bb))
-    == List.append(&2, F.Graded, Rules.graded(cfg, aa), Rules.graded(cfg, bb)) : List<&2, F.Graded>}
+  for a: List<&2, F.Finding>
+  for +b: List<&2, F.Finding>
+  {Rules.graded(cfg, List.append(&2, F.Finding, a, b))
+    == List.append(&2, F.Graded, Rules.graded(cfg, a), Rules.graded(cfg, b)) : List<&2, F.Graded>}
 
-def off.graded.app(cfg, aa, bb):
-  match aa:
+def off.graded.app(cfg, a, b):
+  match a:
     case Nil{}:
       {==}
     case Con{F.Finding{+p, +l, +c, +n, +r, +m}, +rest}:
-      %Equal.sym(List<&2, F.Graded>, Rules.graded(cfg, List.append(&2, F.Finding, rest, bb)),
-        List.append(&2, F.Graded, Rules.graded(cfg, rest), Rules.graded(cfg, bb)), off.graded.app(cfg, rest, bb)) :
+      %Equal.sym(List<&2, F.Graded>, Rules.graded(cfg, List.append(&2, F.Finding, rest, b)),
+        List.append(&2, F.Graded, Rules.graded(cfg, rest), Rules.graded(cfg, b)), off.graded.app(cfg, rest, b)) :
         {Bool.pick(List<&2, F.Graded>, Config.is_off(Config.level(cfg, Rules.group(r), r)), _,
           F.Graded{Config.level(cfg, Rules.group(r), r), F.Finding{p, l, c, n, r, m}} <> _)
-          == List.append(&2, F.Graded, Rules.graded(cfg, F.Finding{p, l, c, n, r, m} <> rest), Rules.graded(cfg, bb))
+          == List.append(&2, F.Graded, Rules.graded(cfg, F.Finding{p, l, c, n, r, m} <> rest), Rules.graded(cfg, b))
           : List<&2, F.Graded>}
       off.pick.app(Config.is_off(Config.level(cfg, Rules.group(r), r)),
         F.Graded{Config.level(cfg, Rules.group(r), r), F.Finding{p, l, c, n, r, m}},
-        Rules.graded(cfg, rest), Rules.graded(cfg, bb))
+        Rules.graded(cfg, rest), Rules.graded(cfg, b))
 
 # grading findings put at a path goes through an append
 law off.both.app:
   for +cfg: Config.Config
   for +path: String
-  for +aa: List<&2, F.Finding>
-  for +bb: List<&2, F.Finding>
-  {Rules.graded(cfg, Rules.on.at(path, List.append(&2, F.Finding, aa, bb)))
-    == List.append(&2, F.Graded, Rules.graded(cfg, Rules.on.at(path, aa)), Rules.graded(cfg, Rules.on.at(path, bb)))
+  for +a: List<&2, F.Finding>
+  for +b: List<&2, F.Finding>
+  {Rules.graded(cfg, Rules.on.at(path, List.append(&2, F.Finding, a, b)))
+    == List.append(&2, F.Graded, Rules.graded(cfg, Rules.on.at(path, a)), Rules.graded(cfg, Rules.on.at(path, b)))
     : List<&2, F.Graded>}
 
-def off.both.app(cfg, path, aa, bb):
+def off.both.app(cfg, path, a, b):
   Equal.trans(List<&2, F.Graded>,
-    Rules.graded(cfg, Rules.on.at(path, List.append(&2, F.Finding, aa, bb))),
-    Rules.graded(cfg, List.append(&2, F.Finding, Rules.on.at(path, aa), Rules.on.at(path, bb))),
-    List.append(&2, F.Graded, Rules.graded(cfg, Rules.on.at(path, aa)), Rules.graded(cfg, Rules.on.at(path, bb))),
+    Rules.graded(cfg, Rules.on.at(path, List.append(&2, F.Finding, a, b))),
+    Rules.graded(cfg, List.append(&2, F.Finding, Rules.on.at(path, a), Rules.on.at(path, b))),
+    List.append(&2, F.Graded, Rules.graded(cfg, Rules.on.at(path, a)), Rules.graded(cfg, Rules.on.at(path, b))),
     Equal.cong(List<&2, F.Finding>, List<&2, F.Graded>, z => Rules.graded(cfg, z),
-      Rules.on.at(path, List.append(&2, F.Finding, aa, bb)),
-      List.append(&2, F.Finding, Rules.on.at(path, aa), Rules.on.at(path, bb)), off.at.app(path, aa, bb)),
-    off.graded.app(cfg, Rules.on.at(path, aa), Rules.on.at(path, bb)))
+      Rules.on.at(path, List.append(&2, F.Finding, a, b)),
+      List.append(&2, F.Finding, Rules.on.at(path, a), Rules.on.at(path, b)), off.at.app(path, a, b)),
+    off.graded.app(cfg, Rules.on.at(path, a), Rules.on.at(path, b)))
 
 # two appends equal part by part are equal
 law off.two:
@@ -162,20 +162,20 @@ law off.table:
   for rs: List<&2, Rules.Run>
   for +cfg: Config.Config
   for +path: String
-  for +rr: Role.Role
-  for +ss: Src.Src
-  {Rules.graded(cfg, Rules.on.at(path, Rules.on.live(rs, cfg, rr, ss)))
-    == Rules.graded(cfg, Rules.on.at(path, Rules.on.all(rs, rr, ss))) : List<&2, F.Graded>}
+  for +r: Role.Role
+  for +s: Src.Src
+  {Rules.graded(cfg, Rules.on.at(path, Rules.on.live(rs, cfg, r, s)))
+    == Rules.graded(cfg, Rules.on.at(path, Rules.on.all(rs, r, s))) : List<&2, F.Graded>}
 
-def off.table(rs, cfg, path, rr, ss):
+def off.table(rs, cfg, path, r, s):
   match rs:
     case Nil{}:
       {==}
-    case Con{Rules.Run{+slug, +ww}, +rest}:
-      +ga = Rules.on.gate(Rules.on.off(cfg, slug), slug, ww, rr, ss)
-      +ra = Rules.on.slug(slug, Rules.on.run(ww, rr, ss))
-      +gb = Rules.on.live(rest, cfg, rr, ss)
-      +rb = Rules.on.all(rest, rr, ss)
+    case Con{Rules.Run{+slug, +w}, +rest}:
+      +ga = Rules.on.gate(Rules.on.off(cfg, slug), slug, w, r, s)
+      +ra = Rules.on.slug(slug, Rules.on.run(w, r, s))
+      +gb = Rules.on.live(rest, cfg, r, s)
+      +rb = Rules.on.all(rest, r, s)
       Equal.trans(List<&2, F.Graded>,
         Rules.graded(cfg, Rules.on.at(path, List.append(&2, F.Finding, ga, gb))),
         List.append(&2, F.Graded, Rules.graded(cfg, Rules.on.at(path, ga)), Rules.graded(cfg, Rules.on.at(path, gb))),
@@ -187,16 +187,16 @@ def off.table(rs, cfg, path, rr, ss):
           Rules.graded(cfg, Rules.on.at(path, List.append(&2, F.Finding, ra, rb))),
           off.two(Rules.graded(cfg, Rules.on.at(path, ga)), Rules.graded(cfg, Rules.on.at(path, ra)),
             Rules.graded(cfg, Rules.on.at(path, gb)), Rules.graded(cfg, Rules.on.at(path, rb)),
-            off.gate.at(Rules.on.off(cfg, slug), cfg, slug, path, ww, rr, ss, {==}),
-            off.table(rest, cfg, path, rr, ss)),
+            off.gate.at(Rules.on.off(cfg, slug), cfg, slug, path, w, r, s, {==}),
+            off.table(rest, cfg, path, r, s)),
           Equal.sym(List<&2, F.Graded>,
             Rules.graded(cfg, Rules.on.at(path, List.append(&2, F.Finding, ra, rb))),
             List.append(&2, F.Graded, Rules.graded(cfg, Rules.on.at(path, ra)),
               Rules.graded(cfg, Rules.on.at(path, rb))),
             off.both.app(cfg, path, ra, rb))))
 
-def L1.live_grades_alike(cfg, rr, ss):
-  off.table(Rules.on.tuned(Rules.on.table(), cfg), cfg, Rules.on.path(ss), rr, ss)
+def L1.live_grades_alike(cfg, r, s):
+  off.table(Rules.on.tuned(Rules.on.table(), cfg), cfg, Rules.on.path(s), r, s)
 
 # the planner
 # -----------
@@ -222,28 +222,28 @@ def pl.assoc(xs, ys, zs):
 law pl.grade.app:
   for +cs: List<&2, Plan.Conf>
   for +world: W.World
-  for aa: List<&2, F.Finding>
-  for +bb: List<&2, F.Finding>
-  {Plan.grade(cs, world, List.append(&2, F.Finding, aa, bb))
-    == List.append(&2, F.Graded, Plan.grade(cs, world, aa), Plan.grade(cs, world, bb)) : List<&2, F.Graded>}
+  for a: List<&2, F.Finding>
+  for +b: List<&2, F.Finding>
+  {Plan.grade(cs, world, List.append(&2, F.Finding, a, b))
+    == List.append(&2, F.Graded, Plan.grade(cs, world, a), Plan.grade(cs, world, b)) : List<&2, F.Graded>}
 
-def pl.grade.app(cs, world, aa, bb):
-  match aa:
+def pl.grade.app(cs, world, a, b):
+  match a:
     case Nil{}:
       {==}
     case Con{F.Finding{+p, +l, +c, +n, +r, +m}, +rest}:
-      +xx = Rules.graded(Plan.config.at(cs, world, p), [F.Finding{p, l, c, n, r, m}])
+      +x = Rules.graded(Plan.config.at(cs, world, p), [F.Finding{p, l, c, n, r, m}])
       Equal.trans(List<&2, F.Graded>,
-        List.append(&2, F.Graded, xx, Plan.grade(cs, world, List.append(&2, F.Finding, rest, bb))),
-        List.append(&2, F.Graded, xx,
-          List.append(&2, F.Graded, Plan.grade(cs, world, rest), Plan.grade(cs, world, bb))),
-        List.append(&2, F.Graded, List.append(&2, F.Graded, xx, Plan.grade(cs, world, rest)),
-          Plan.grade(cs, world, bb)),
-        Equal.cong(List<&2, F.Graded>, List<&2, F.Graded>, z => List.append(&2, F.Graded, xx, z),
-          Plan.grade(cs, world, List.append(&2, F.Finding, rest, bb)),
-          List.append(&2, F.Graded, Plan.grade(cs, world, rest), Plan.grade(cs, world, bb)),
-          pl.grade.app(cs, world, rest, bb)),
-        pl.assoc(xx, Plan.grade(cs, world, rest), Plan.grade(cs, world, bb)))
+        List.append(&2, F.Graded, x, Plan.grade(cs, world, List.append(&2, F.Finding, rest, b))),
+        List.append(&2, F.Graded, x,
+          List.append(&2, F.Graded, Plan.grade(cs, world, rest), Plan.grade(cs, world, b))),
+        List.append(&2, F.Graded, List.append(&2, F.Graded, x, Plan.grade(cs, world, rest)),
+          Plan.grade(cs, world, b)),
+        Equal.cong(List<&2, F.Graded>, List<&2, F.Graded>, z => List.append(&2, F.Graded, x, z),
+          Plan.grade(cs, world, List.append(&2, F.Finding, rest, b)),
+          List.append(&2, F.Graded, Plan.grade(cs, world, rest), Plan.grade(cs, world, b)),
+          pl.grade.app(cs, world, rest, b)),
+        pl.assoc(x, Plan.grade(cs, world, rest), Plan.grade(cs, world, b)))
 
 # findings at one path are graded by that path's config, all of them
 law pl.at:
@@ -260,40 +260,40 @@ def pl.at(cs, world, path, fs):
       {==}
     case Con{F.Finding{p, +l, +c, +n, +r, +m}, +rest}:
       +cfg = Plan.config.at(cs, world, path)
-      +ff = {F.Finding{path, l, c, n, r, m} : F.Finding}
+      +f = {F.Finding{path, l, c, n, r, m} : F.Finding}
       Equal.trans(List<&2, F.Graded>,
-        List.append(&2, F.Graded, Rules.graded(cfg, [ff]), Plan.grade(cs, world, Rules.on.at(path, rest))),
-        List.append(&2, F.Graded, Rules.graded(cfg, [ff]), Rules.graded(cfg, Rules.on.at(path, rest))),
-        Rules.graded(cfg, ff <> Rules.on.at(path, rest)),
-        Equal.cong(List<&2, F.Graded>, List<&2, F.Graded>, z => List.append(&2, F.Graded, Rules.graded(cfg, [ff]), z),
+        List.append(&2, F.Graded, Rules.graded(cfg, [f]), Plan.grade(cs, world, Rules.on.at(path, rest))),
+        List.append(&2, F.Graded, Rules.graded(cfg, [f]), Rules.graded(cfg, Rules.on.at(path, rest))),
+        Rules.graded(cfg, f <> Rules.on.at(path, rest)),
+        Equal.cong(List<&2, F.Graded>, List<&2, F.Graded>, z => List.append(&2, F.Graded, Rules.graded(cfg, [f]), z),
           Plan.grade(cs, world, Rules.on.at(path, rest)), Rules.graded(cfg, Rules.on.at(path, rest)),
           pl.at(cs, world, path, rest)),
-        Equal.sym(List<&2, F.Graded>, Rules.graded(cfg, List.append(&2, F.Finding, [ff], Rules.on.at(path, rest))),
-          List.append(&2, F.Graded, Rules.graded(cfg, [ff]), Rules.graded(cfg, Rules.on.at(path, rest))),
-          off.graded.app(cfg, [ff], Rules.on.at(path, rest))))
+        Equal.sym(List<&2, F.Graded>, Rules.graded(cfg, List.append(&2, F.Finding, [f], Rules.on.at(path, rest))),
+          List.append(&2, F.Graded, Rules.graded(cfg, [f]), Rules.graded(cfg, Rules.on.at(path, rest))),
+          off.graded.app(cfg, [f], Rules.on.at(path, rest))))
 
 # one file: its findings with its off rules left out grade as all of them
 law pl.file:
   for +cs: List<&2, Plan.Conf>
   for +world: W.World
-  for +rr: Role.Role
+  for +r: Role.Role
   for +path: String
   for +text: String
   for +toks: List<&2, Lex.Tok>
   for +tree: Tree.Node
   for +bound: Bind.Bound
   for +items: List<&2, Outline.Item>
-  {Plan.grade(cs, world, Rules.on.role.live(Plan.config.at(cs, world, path), rr,
+  {Plan.grade(cs, world, Rules.on.role.live(Plan.config.at(cs, world, path), r,
       Src.Src{path, text, toks, tree, bound, items}))
-    == Plan.grade(cs, world, Rules.on.role(Plan.config.at(cs, world, path), rr,
+    == Plan.grade(cs, world, Rules.on.role(Plan.config.at(cs, world, path), r,
       Src.Src{path, text, toks, tree, bound, items}))
     : List<&2, F.Graded>}
 
-def pl.file(cs, world, rr, path, text, toks, tree, bound, items):
+def pl.file(cs, world, r, path, text, toks, tree, bound, items):
   +cfg = Plan.config.at(cs, world, path)
-  +ss = {Src.Src{path, text, toks, tree, bound, items} : Src.Src}
-  +lv = Rules.on.live(Rules.on.tuned(Rules.on.table(), cfg), cfg, rr, ss)
-  +al = Rules.on.all(Rules.on.tuned(Rules.on.table(), cfg), rr, ss)
+  +s = {Src.Src{path, text, toks, tree, bound, items} : Src.Src}
+  +lv = Rules.on.live(Rules.on.tuned(Rules.on.table(), cfg), cfg, r, s)
+  +al = Rules.on.all(Rules.on.tuned(Rules.on.table(), cfg), r, s)
   Equal.trans(List<&2, F.Graded>,
     Plan.grade(cs, world, Rules.on.at(path, lv)),
     Rules.graded(cfg, Rules.on.at(path, lv)),
@@ -303,7 +303,7 @@ def pl.file(cs, world, rr, path, text, toks, tree, bound, items):
       Rules.graded(cfg, Rules.on.at(path, lv)),
       Rules.graded(cfg, Rules.on.at(path, al)),
       Plan.grade(cs, world, Rules.on.at(path, al)),
-      off.table(Rules.on.tuned(Rules.on.table(), cfg), cfg, path, rr, ss),
+      off.table(Rules.on.tuned(Rules.on.table(), cfg), cfg, path, r, s),
       Equal.sym(List<&2, F.Graded>, Plan.grade(cs, world, Rules.on.at(path, al)),
         Rules.graded(cfg, Rules.on.at(path, al)), pl.at(cs, world, path, al))))
 
@@ -311,23 +311,23 @@ def pl.file(cs, world, rr, path, text, toks, tree, bound, items):
 law pl.pair:
   for +cs: List<&2, Plan.Conf>
   for +world: W.World
-  for +aa: List<&2, F.Finding>
-  for +bb: List<&2, F.Finding>
-  {Plan.grade(cs, world, List.concat(&2, F.Finding, [aa, bb]))
-    == List.append(&2, F.Graded, Plan.grade(cs, world, aa),
-      List.append(&2, F.Graded, Plan.grade(cs, world, bb), Nil{})) : List<&2, F.Graded>}
+  for +a: List<&2, F.Finding>
+  for +b: List<&2, F.Finding>
+  {Plan.grade(cs, world, List.concat(&2, F.Finding, [a, b]))
+    == List.append(&2, F.Graded, Plan.grade(cs, world, a),
+      List.append(&2, F.Graded, Plan.grade(cs, world, b), Nil{})) : List<&2, F.Graded>}
 
-def pl.pair(cs, world, aa, bb):
+def pl.pair(cs, world, a, b):
   Equal.trans(List<&2, F.Graded>,
-    Plan.grade(cs, world, List.append(&2, F.Finding, aa, List.append(&2, F.Finding, bb, Nil{}))),
-    List.append(&2, F.Graded, Plan.grade(cs, world, aa),
-      Plan.grade(cs, world, List.append(&2, F.Finding, bb, Nil{}))),
-    List.append(&2, F.Graded, Plan.grade(cs, world, aa),
-      List.append(&2, F.Graded, Plan.grade(cs, world, bb), Nil{})),
-    pl.grade.app(cs, world, aa, List.append(&2, F.Finding, bb, Nil{})),
-    Equal.cong(List<&2, F.Graded>, List<&2, F.Graded>, z => List.append(&2, F.Graded, Plan.grade(cs, world, aa), z),
-      Plan.grade(cs, world, List.append(&2, F.Finding, bb, Nil{})),
-      List.append(&2, F.Graded, Plan.grade(cs, world, bb), Nil{}), pl.grade.app(cs, world, bb, Nil{})))
+    Plan.grade(cs, world, List.append(&2, F.Finding, a, List.append(&2, F.Finding, b, Nil{}))),
+    List.append(&2, F.Graded, Plan.grade(cs, world, a),
+      Plan.grade(cs, world, List.append(&2, F.Finding, b, Nil{}))),
+    List.append(&2, F.Graded, Plan.grade(cs, world, a),
+      List.append(&2, F.Graded, Plan.grade(cs, world, b), Nil{})),
+    pl.grade.app(cs, world, a, List.append(&2, F.Finding, b, Nil{})),
+    Equal.cong(List<&2, F.Graded>, List<&2, F.Graded>, z => List.append(&2, F.Graded, Plan.grade(cs, world, a), z),
+      Plan.grade(cs, world, List.append(&2, F.Finding, b, Nil{})),
+      List.append(&2, F.Graded, Plan.grade(cs, world, b), Nil{}), pl.grade.app(cs, world, b, Nil{})))
 
 # every file: the per-file findings with off rules left out grade as all of
 # them
@@ -335,12 +335,12 @@ law pl.files:
   for +cs: List<&2, Plan.Conf>
   for +world: W.World
   for +ms: List<&2, Role.Mark>
-  for ss: List<&2, Src.Src>
-  {Plan.grade(cs, world, Plan.per_file.live(cs, world, ms, ss))
-    == Plan.grade(cs, world, Plan.per_file.role(cs, world, ms, ss)) : List<&2, F.Graded>}
+  for s: List<&2, Src.Src>
+  {Plan.grade(cs, world, Plan.per_file.live(cs, world, ms, s))
+    == Plan.grade(cs, world, Plan.per_file.role(cs, world, ms, s)) : List<&2, F.Graded>}
 
-def pl.files(cs, world, ms, ss):
-  match ss:
+def pl.files(cs, world, ms, s):
+  match s:
     case Nil{}:
       {==}
     case Con{Src.Src{+path, +text, +toks, +tree, +bound, +items}, +rest}:
@@ -379,70 +379,70 @@ law pl.mid:
   for +world: W.World
   for +a1: List<&2, F.Finding>
   for +a2: List<&2, F.Finding>
-  for +yy: List<&2, F.Finding>
+  for +y: List<&2, F.Finding>
   for e: {Plan.grade(cs, world, a1) == Plan.grade(cs, world, a2) : List<&2, F.Graded>}
-  {Plan.grade(cs, world, List.append(&2, F.Finding, a1, yy))
-    == Plan.grade(cs, world, List.append(&2, F.Finding, a2, yy)) : List<&2, F.Graded>}
+  {Plan.grade(cs, world, List.append(&2, F.Finding, a1, y))
+    == Plan.grade(cs, world, List.append(&2, F.Finding, a2, y)) : List<&2, F.Graded>}
 
-def pl.mid(cs, world, a1, a2, yy, e):
+def pl.mid(cs, world, a1, a2, y, e):
   Equal.trans(List<&2, F.Graded>,
-    Plan.grade(cs, world, List.append(&2, F.Finding, a1, yy)),
-    List.append(&2, F.Graded, Plan.grade(cs, world, a1), Plan.grade(cs, world, yy)),
-    Plan.grade(cs, world, List.append(&2, F.Finding, a2, yy)),
-    pl.grade.app(cs, world, a1, yy),
+    Plan.grade(cs, world, List.append(&2, F.Finding, a1, y)),
+    List.append(&2, F.Graded, Plan.grade(cs, world, a1), Plan.grade(cs, world, y)),
+    Plan.grade(cs, world, List.append(&2, F.Finding, a2, y)),
+    pl.grade.app(cs, world, a1, y),
     Equal.trans(List<&2, F.Graded>,
-      List.append(&2, F.Graded, Plan.grade(cs, world, a1), Plan.grade(cs, world, yy)),
-      List.append(&2, F.Graded, Plan.grade(cs, world, a2), Plan.grade(cs, world, yy)),
-      Plan.grade(cs, world, List.append(&2, F.Finding, a2, yy)),
-      Equal.cong(List<&2, F.Graded>, List<&2, F.Graded>, z => List.append(&2, F.Graded, z, Plan.grade(cs, world, yy)),
+      List.append(&2, F.Graded, Plan.grade(cs, world, a1), Plan.grade(cs, world, y)),
+      List.append(&2, F.Graded, Plan.grade(cs, world, a2), Plan.grade(cs, world, y)),
+      Plan.grade(cs, world, List.append(&2, F.Finding, a2, y)),
+      Equal.cong(List<&2, F.Graded>, List<&2, F.Graded>, z => List.append(&2, F.Graded, z, Plan.grade(cs, world, y)),
         Plan.grade(cs, world, a1), Plan.grade(cs, world, a2), e),
-      Equal.sym(List<&2, F.Graded>, Plan.grade(cs, world, List.append(&2, F.Finding, a2, yy)),
-        List.append(&2, F.Graded, Plan.grade(cs, world, a2), Plan.grade(cs, world, yy)),
-        pl.grade.app(cs, world, a2, yy))))
+      Equal.sym(List<&2, F.Graded>, Plan.grade(cs, world, List.append(&2, F.Finding, a2, y)),
+        List.append(&2, F.Graded, Plan.grade(cs, world, a2), Plan.grade(cs, world, y)),
+        pl.grade.app(cs, world, a2, y))))
 
 # a run: everything found with off rules left out grades as everything found
 law pl.found:
   for +cs: List<&2, Plan.Conf>
   for +world: W.World
   for +gs: List<&2, Plan.Got>
-  for +ss: List<&2, Src.Src>
-  {Plan.grade(cs, world, Plan.found.live(cs, world, gs, ss))
-    == Plan.grade(cs, world, Plan.found.at(cs, world, gs, ss)) : List<&2, F.Graded>}
+  for +s: List<&2, Src.Src>
+  {Plan.grade(cs, world, Plan.found.live(cs, world, gs, s))
+    == Plan.grade(cs, world, Plan.found.at(cs, world, gs, s)) : List<&2, F.Graded>}
 
-def pl.found(cs, world, gs, ss):
-  +uu = Plan.unread(gs)
-  +ms = Plan.marks.run(W.paths.of(world), world, ss)
-  +pl = Plan.per_file.live(cs, world, ms, ss)
-  +pr = Plan.per_file.role(cs, world, ms, ss)
-  +yy = List.append(&2, F.Finding, Plan.settings(world),
-    List.append(&2, F.Finding, Rules.project(ss, Plan.packages(Plan.roots(world))), Nil{}))
+def pl.found(cs, world, gs, s):
+  +u = Plan.unread(gs)
+  +ms = Plan.marks.run(W.paths.of(world), world, s)
+  +pl = Plan.per_file.live(cs, world, ms, s)
+  +pr = Plan.per_file.role(cs, world, ms, s)
+  +y = List.append(&2, F.Finding, Plan.settings(world),
+    List.append(&2, F.Finding, Rules.project(s, Plan.packages(Plan.roots(world))), Nil{}))
   Equal.trans(List<&2, F.Graded>,
-    Plan.grade(cs, world, List.append(&2, F.Finding, uu, List.append(&2, F.Finding, pl, yy))),
-    List.append(&2, F.Graded, Plan.grade(cs, world, uu), Plan.grade(cs, world, List.append(&2, F.Finding, pl, yy))),
-    Plan.grade(cs, world, List.append(&2, F.Finding, uu, List.append(&2, F.Finding, pr, yy))),
-    pl.grade.app(cs, world, uu, List.append(&2, F.Finding, pl, yy)),
+    Plan.grade(cs, world, List.append(&2, F.Finding, u, List.append(&2, F.Finding, pl, y))),
+    List.append(&2, F.Graded, Plan.grade(cs, world, u), Plan.grade(cs, world, List.append(&2, F.Finding, pl, y))),
+    Plan.grade(cs, world, List.append(&2, F.Finding, u, List.append(&2, F.Finding, pr, y))),
+    pl.grade.app(cs, world, u, List.append(&2, F.Finding, pl, y)),
     Equal.trans(List<&2, F.Graded>,
-      List.append(&2, F.Graded, Plan.grade(cs, world, uu),
-        Plan.grade(cs, world, List.append(&2, F.Finding, pl, yy))),
-      List.append(&2, F.Graded, Plan.grade(cs, world, uu),
-        Plan.grade(cs, world, List.append(&2, F.Finding, pr, yy))),
-      Plan.grade(cs, world, List.append(&2, F.Finding, uu, List.append(&2, F.Finding, pr, yy))),
-      Equal.cong(List<&2, F.Graded>, List<&2, F.Graded>, z => List.append(&2, F.Graded, Plan.grade(cs, world, uu), z),
-        Plan.grade(cs, world, List.append(&2, F.Finding, pl, yy)),
-        Plan.grade(cs, world, List.append(&2, F.Finding, pr, yy)),
-        pl.mid(cs, world, pl, pr, yy, pl.files(cs, world, ms, ss))),
+      List.append(&2, F.Graded, Plan.grade(cs, world, u),
+        Plan.grade(cs, world, List.append(&2, F.Finding, pl, y))),
+      List.append(&2, F.Graded, Plan.grade(cs, world, u),
+        Plan.grade(cs, world, List.append(&2, F.Finding, pr, y))),
+      Plan.grade(cs, world, List.append(&2, F.Finding, u, List.append(&2, F.Finding, pr, y))),
+      Equal.cong(List<&2, F.Graded>, List<&2, F.Graded>, z => List.append(&2, F.Graded, Plan.grade(cs, world, u), z),
+        Plan.grade(cs, world, List.append(&2, F.Finding, pl, y)),
+        Plan.grade(cs, world, List.append(&2, F.Finding, pr, y)),
+        pl.mid(cs, world, pl, pr, y, pl.files(cs, world, ms, s))),
       Equal.sym(List<&2, F.Graded>,
-        Plan.grade(cs, world, List.append(&2, F.Finding, uu, List.append(&2, F.Finding, pr, yy))),
-        List.append(&2, F.Graded, Plan.grade(cs, world, uu),
-          Plan.grade(cs, world, List.append(&2, F.Finding, pr, yy))),
-        pl.grade.app(cs, world, uu, List.append(&2, F.Finding, pr, yy)))))
+        Plan.grade(cs, world, List.append(&2, F.Finding, u, List.append(&2, F.Finding, pr, y))),
+        List.append(&2, F.Graded, Plan.grade(cs, world, u),
+          Plan.grade(cs, world, List.append(&2, F.Finding, pr, y))),
+        pl.grade.app(cs, world, u, List.append(&2, F.Finding, pr, y)))))
 
 def L1.final_live(world):
   +gs = Plan.gots(Plan.inputs(world), world)
-  +ss = Plan.srcs_of(gs)
+  +s = Plan.srcs_of(gs)
   +cs = Plan.confs(world)
   Equal.cong(List<&2, F.Graded>, List<&2, F.Graded>,
-    z => Plan.after(Noqa.of_srcs(ss), List.is_empty(&2, String, W.paths.of(world)), z,
+    z => Plan.after(Noqa.of_srcs(s), List.is_empty(&2, String, W.paths.of(world)), z,
       fs => Plan.grade(cs, world, fs)),
-    Plan.grade(cs, world, Plan.found.live(cs, world, gs, ss)), Plan.grade(cs, world, Plan.found.at(cs, world, gs, ss)),
-    pl.found(cs, world, gs, ss))
+    Plan.grade(cs, world, Plan.found.live(cs, world, gs, s)), Plan.grade(cs, world, Plan.found.at(cs, world, gs, s)),
+    pl.found(cs, world, gs, s))

@@ -15,8 +15,8 @@ import ../src/rules/calls.bend as Calls
 # does the chain, up to its first top-level comma or `=>`, hold a `&&` or
 # `||` operator (a stretch that is an operand of one)? A `=>` ends the
 # stretch on its left, so a lambda body's operators never reach back past it
-def strict.ops(nn: Tree.Node) -> Bool:
-  match nn:
+def strict.ops(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TComma{}, t, l, c}}, rest}:
       False{}
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TLam{}, t, l, c}}, rest}:
@@ -59,12 +59,12 @@ def strict.count(nn: Tree.Node, +name: String, +outer: Bool, +hot: Bool) -> Nat:
 # LAW: over any chain, strict reports one finding for each self-call in an
 # eager operand, matched by its exact text, and none for any other call
 law strict_walk_counts:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +name: String
   for +path: String
   for +outer: Bool
   for +hot: Bool
-  {List.length(&2, F.Finding, Strict.walk(nn, name, path, outer, hot)) == strict.count(nn, name, outer, hot) : Nat}
+  {List.length(&2, F.Finding, Strict.walk(n, name, path, outer, hot)) == strict.count(n, name, outer, hot) : Nat}
 
 # the self-calls in operands of each def of the list, none in an exempt one
 def strict.defs(ds: List<&2, Calls.Def>, +path: String) -> Nat:

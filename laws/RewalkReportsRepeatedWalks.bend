@@ -45,8 +45,8 @@ import ../src/rules/calls.bend as Calls
 # sites and the defs, is written here.
 
 # the name tokens under the node, pushed onto acc in order
-def rewalk.names(nn: Tree.Node, +acc: List<&2, String>) -> List<&2, String>:
-  match nn:
+def rewalk.names(n: Tree.Node, +acc: List<&2, String>) -> List<&2, String>:
+  match n:
     case Tree.Leaf{Lex.Tok{Lex.TName{}, +t, l, c}}:
       t <> acc
     case Tree.Group{open, kids, close}:
@@ -60,8 +60,8 @@ def rewalk.names(nn: Tree.Node, +acc: List<&2, String>) -> List<&2, String>:
 
 # the names a let binds, pushed onto acc: every name before its first
 # top-level `=` or `<-`, at any depth
-def rewalk.lhs(nn: Tree.Node, +acc: List<&2, String>) -> List<&2, String>:
-  match nn:
+def rewalk.lhs(n: Tree.Node, +acc: List<&2, String>) -> List<&2, String>:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}}, rest}:
       acc
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TBind{}, t, l, c}}, rest}:
@@ -78,8 +78,8 @@ def rewalk.lhs(nn: Tree.Node, +acc: List<&2, String>) -> List<&2, String>:
 # the lets of the piece, pushed onto acc in order: each let statement at any
 # statement depth outside a case arm, one binding per name it binds, at its
 # last token
-def rewalk.binds(nn: Tree.Node, +acc: List<&2, Rewalk.Bind>) -> List<&2, Rewalk.Bind>:
-  match nn:
+def rewalk.binds(n: Tree.Node, +acc: List<&2, Rewalk.Bind>) -> List<&2, Rewalk.Bind>:
+  match n:
     case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, body}, rest}:
       rewalk.binds(rest, acc)
     case Tree.NCons{Tree.Stmt{Tree.SLet{}, +kids, +body}, rest}:
@@ -113,12 +113,12 @@ def rewalk.stamp(ns: List<&2, String>, +bs: List<&2, Rewalk.Bind>, +line: U32, +
 # arm: its callee, its argument (text and stamp), its position, and a slot
 # when it is indexed on the spot, else wide
 def rewalk.gather(
-  nn: Tree.Node,
+  n: Tree.Node,
   +self: String,
   +lp: List<&2, String>,
   +bs: List<&2, Rewalk.Bind>
 ) -> List<&2, Rewalk.Site>:
-  match nn:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, +rest}}:
       +args = Tree.show(kids) ++ rewalk.stamp(rewalk.names(kids, []), bs, l, c)
       List.concat(&2, Rewalk.Site, [Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(rest), t, args, Rewalk.Spot{l,
@@ -146,8 +146,8 @@ def rewalk.retag(sites: List<&2, Rewalk.Site>, +note: Rewalk.Note) -> List<&2, R
         Rewalk.note_how_of(note), name, args, line, col, len) <> rewalk.retag(rest, note)
 
 # a let of one call retags that call
-def rewalk.relet(mm: Maybe<&2, Rewalk.Note>, sites: List<&2, Rewalk.Site>) -> List<&2, Rewalk.Site>:
-  match mm:
+def rewalk.relet(m: Maybe<&2, Rewalk.Note>, sites: List<&2, Rewalk.Site>) -> List<&2, Rewalk.Site>:
+  match m:
     case None{}:
       sites
     case Some{note}:
@@ -155,8 +155,8 @@ def rewalk.relet(mm: Maybe<&2, Rewalk.Note>, sites: List<&2, Rewalk.Site>) -> Li
 
 # each statement of the piece, in order, at any depth outside a case arm,
 # retags the call it binds (a field, or a let of that name)
-def rewalk.apply(nn: Tree.Node, sites: List<&2, Rewalk.Site>) -> List<&2, Rewalk.Site>:
-  match nn:
+def rewalk.apply(n: Tree.Node, sites: List<&2, Rewalk.Site>) -> List<&2, Rewalk.Site>:
+  match n:
     case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, body}, rest}:
       rewalk.apply(rest, sites)
     case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
@@ -169,8 +169,8 @@ def rewalk.apply(nn: Tree.Node, sites: List<&2, Rewalk.Site>) -> List<&2, Rewalk
       sites
 
 # the callees of accessors' collection arguments, at any depth
-def rewalk.marks(nn: Tree.Node) -> List<&2, Rewalk.Pos>:
-  match nn:
+def rewalk.marks(n: Tree.Node) -> List<&2, Rewalk.Pos>:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       List.concat(&2, Rewalk.Pos, [Bool.pick(List<&2, Rewalk.Pos>, String.eq(o, "("),
         Rewalk.mark_slot(Rewalk.slot_of(t), Calls.args(kids)), []), rewalk.marks(kids), rewalk.marks(rest)])
@@ -233,8 +233,8 @@ def rewalk.reads(nn: Tree.Node, +name: String, +hot: Bool, +left: Nat, +live: Bo
       Rewalk.none_hit()
 
 # is a result, so read, used for a single value over the piece?
-def rewalk.single(hh: Rewalk.How, +piece: Tree.Node) -> Bool:
-  match hh:
+def rewalk.single(h: Rewalk.How, +piece: Tree.Node) -> Bool:
+  match h:
     case Rewalk.HWide{}:
       False{}
     case Rewalk.HSlot{}:
@@ -248,15 +248,15 @@ def rewalk.single(hh: Rewalk.How, +piece: Tree.Node) -> Bool:
 def rewalk.twin(
   +nm: String,
   +as: String,
-  +ll: U32,
-  +cc: U32,
+  +l: U32,
+  +c: U32,
   +name: String,
   +args: String,
   +line: U32,
   +col: U32
 ) -> Bool:
   Bool.and(Bool.and(String.eq(nm, name), String.eq(as, args)),
-    Bool.not(Bool.and(U32.is_eq(ll, line), U32.is_eq(cc, col))))
+    Bool.not(Bool.and(U32.is_eq(l, line), U32.is_eq(c, col))))
 
 # does a twin among the sites keep its whole result?
 def rewalk.whole(
@@ -294,12 +294,12 @@ def rewalk.prior(
 # the sites keeps its whole result, and no twin before it (seen) is read for
 # a single value
 def rewalk.flag(
-  ss: Rewalk.Site,
+  s: Rewalk.Site,
   +all: List<&2, Rewalk.Site>,
   +piece: Tree.Node,
   +seen: List<&2, Rewalk.Site>
 ) -> Bool:
-  Rewalk.Site{+name, +args, +line, +col, len, how} = ss
+  Rewalk.Site{+name, +args, +line, +col, len, how} = s
   Bool.and(rewalk.whole(all, name, args, line, col, piece),
     Bool.and(rewalk.single(how, piece), Bool.not(rewalk.prior(seen, name, args, line, col, piece))))
 
@@ -319,13 +319,13 @@ def rewalk.count(
 
 # the sites of a piece: every call of a walk, read as its let, field, index
 # or accessor makes it
-def rewalk.sites(+nn: Tree.Node, +self: String, +lp: List<&2, String>) -> List<&2, Rewalk.Site>:
-  rewalk.pin(rewalk.marks(nn), rewalk.apply(nn, rewalk.gather(nn, self, lp, rewalk.binds(nn, []))))
+def rewalk.sites(+n: Tree.Node, +self: String, +lp: List<&2, String>) -> List<&2, Rewalk.Site>:
+  rewalk.pin(rewalk.marks(n), rewalk.apply(n, rewalk.gather(n, self, lp, rewalk.binds(n, []))))
 
 # the findings of one piece
-def rewalk.piece(+nn: Tree.Node, +self: String, +lp: List<&2, String>) -> Nat:
-  +ss = rewalk.sites(nn, self, lp)
-  rewalk.count(ss, ss, nn, [])
+def rewalk.piece(+n: Tree.Node, +self: String, +lp: List<&2, String>) -> Nat:
+  +s = rewalk.sites(n, self, lp)
+  rewalk.count(s, s, n, [])
 
 # the findings of every case arm's piece under the node, at any depth
 def rewalk.arms(nn: Tree.Node, +self: String, +lp: List<&2, String>) -> Nat:
@@ -342,8 +342,8 @@ def rewalk.arms(nn: Tree.Node, +self: String, +lp: List<&2, String>) -> Nat:
       0n
 
 # every name the node calls, in order: a token right before a `(` group
-def rewalk.called(nn: Tree.Node) -> List<&2, String>:
-  match nn:
+def rewalk.called(n: Tree.Node) -> List<&2, String>:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +more = List.concat(&2, String, [rewalk.called(kids), rewalk.called(rest)])
       Bool.pick(List<&2, String>, String.eq(o, "("), t <> more, more)
@@ -387,19 +387,19 @@ def rewalk.total(ds: List<&2, Calls.Def>, +lp: List<&2, String>, +path: String) 
 
 # LAW: over any piece, rewalk reports one finding for each site the law flags
 law rewalk_local_counts:
-  for +nn: Tree.Node
+  for +n: Tree.Node
   for +self: String
   for +lp: List<&2, String>
   for +path: String
-  {List.length(&2, F.Finding, Rewalk.local(nn, self, lp, path)) == rewalk.piece(nn, self, lp) : Nat}
+  {List.length(&2, F.Finding, Rewalk.local(n, self, lp, path)) == rewalk.piece(n, self, lp) : Nat}
 
 # LAW: under any node, rewalk reports each case arm's piece on its own
 law rewalk_visit_counts:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +self: String
   for +lp: List<&2, String>
   for +path: String
-  {List.length(&2, F.Finding, Rewalk.visit(nn, self, lp, path)) == rewalk.arms(nn, self, lp) : Nat}
+  {List.length(&2, F.Finding, Rewalk.visit(n, self, lp, path)) == rewalk.arms(n, self, lp) : Nat}
 
 # LAW: rewalk reports exactly those findings, def by def, over the defs of
 # the tree, with the looping defs the law finds

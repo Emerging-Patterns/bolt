@@ -15,14 +15,14 @@ import ./ReplyIndex.bend as M9
 # one candidate onto the first one read
 law c011.first.step:
   for +path: String
-  for mm: Maybe<&2, W.Answer>
+  for m: Maybe<&2, W.Answer>
   for gs: List<&2, Plan.Got>
   for -more: List<&2, String>
   for ih: {Plan.conf.first(gs) == more : List<&2, String>}
-  {Plan.conf.first(Plan.Got{path, W.text.got(mm)} <> gs) == D1.read_first.at(path, mm, more) : List<&2, String>}
+  {Plan.conf.first(Plan.Got{path, W.text.got(m)} <> gs) == D1.read_first.at(path, m, more) : List<&2, String>}
 
-def c011.first.step(_path, mm, _gs, _more, ih):
-  match mm:
+def c011.first.step(_path, m, _gs, _more, ih):
+  match m:
     case None{}:
       ih
     case Some{W.Listed{_names}}:
@@ -65,36 +65,36 @@ def c011.used(ds, world):
       %a : {List.append(&2, String, _, Plan.conf.used(tl, world))
         == D1.graders_all(world, d <> tl) : List<&2, String>}
       Equal.cong(List<&2, String>, List<&2, String>,
-        rr => List.append(&2, String, D1.read_first(world, Config.chain(Config.home(W.cwd.of(world), d))), rr),
+        r => List.append(&2, String, D1.read_first(world, Config.chain(Config.home(W.cwd.of(world), d))), r),
         Plan.conf.used(tl, world), D1.graders_all(world, tl), c011.used(tl, world))
 
 # the rule's findings on settings are the spec's
 law c011.found:
-  for ss: List<&2, Config.Setting>
+  for s: List<&2, Config.Setting>
   for +path: String
-  {Setting.found(ss, path) == D1.flagged(path, ss) : List<&2, F.Finding>}
+  {Setting.found(s, path) == D1.flagged(path, s) : List<&2, F.Finding>}
 
-def c011.found(ss, path):
-  match ss:
+def c011.found(s, path):
+  match s:
     case Nil{}:
       {==}
     case Con{Config.Setting{+n, _w, +line}, +tl}:
       Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
-        rr => F.Finding{path, line, 0, 0, "setting", "`" ++ n ++ "` names no rule, group or limit, so it sets nothing."} <> rr,
+        r => F.Finding{path, line, 0, 0, "setting", "`" ++ n ++ "` names no rule, group or limit, so it sets nothing."} <> r,
         Setting.found(tl, path), D1.flagged(path, tl), c011.found(tl, path))
 
 # one bolt.bend onto the rule's findings
 law c011.at.step:
   for +path: String
-  for mm: Maybe<&2, W.Answer>
+  for m: Maybe<&2, W.Answer>
   for gs: List<&2, Plan.Got>
   for -fs: List<&2, F.Finding>
   for ih: {Plan.settings.at(gs) == fs : List<&2, F.Finding>}
-  {Plan.settings.at(Plan.Got{path, W.text.got(mm)} <> gs) == List.append(&2, F.Finding, D1.flagged_at(path, mm), fs)
+  {Plan.settings.at(Plan.Got{path, W.text.got(m)} <> gs) == List.append(&2, F.Finding, D1.flagged_at(path, m), fs)
     : List<&2, F.Finding>}
 
-def c011.at.step(path, mm, gs, fs, ih):
-  match mm:
+def c011.at.step(path, m, gs, fs, ih):
+  match m:
     case None{}:
       ih
     case Some{W.Listed{_names}}:
@@ -107,7 +107,7 @@ def c011.at.step(path, mm, gs, fs, ih):
         == List.append(&2, F.Finding, D1.flagged(path, Config.unknown(Config.settings(text))), fs)
         : List<&2, F.Finding>}
       Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
-        rr => List.append(&2, F.Finding, D1.flagged(path, Config.unknown(Config.settings(text))), rr),
+        r => List.append(&2, F.Finding, D1.flagged(path, Config.unknown(Config.settings(text))), r),
         Plan.settings.at(gs), fs, ih)
     case Some{W.Unread{}}:
       ih

@@ -31,10 +31,10 @@ import ../tokens.bend as T
 import ../suspicious/empty.bend as Empty
 
 # the string literal `""`: a string token whose text is its two quotes
-def lit(kk: Lex.TokKind, tt: String) -> Bool:
-  match kk:
+def lit(k: Lex.TokKind, t: String) -> Bool:
+  match k:
     case Lex.TStr{}:
-      String.eq(tt, "\"\"")
+      String.eq(t, "\"\"")
     case other:
       False{}
 
@@ -45,10 +45,10 @@ def name(+ka: Lex.TokKind, +ta: String, +kb: Lex.TokKind, +tb: String) -> Maybe<
     Bool.pick(Maybe<&2, String>, Bool.and(lit(ka, ta), Empty.plain(kb)), Some{tb}, None{}))
 
 # the name, when the brackets and the comma are where they belong
-def at.go(ok: Bool, mm: Maybe<&2, String>) -> Maybe<&2, String>:
+def at.go(ok: Bool, m: Maybe<&2, String>) -> Maybe<&2, String>:
   match ok:
     case True{}:
-      mm
+      m
     case False{}:
       None{}
 
@@ -64,10 +64,10 @@ def at(toks: List<&2, Lex.Tok>) -> Maybe<&2, String>:
       None{}
 
 # a dotted `String.eq`?
-def named(kk: Lex.TokKind, tt: String) -> Bool:
-  match kk:
+def named(k: Lex.TokKind, t: String) -> Bool:
+  match k:
     case Lex.TDotted{}:
-      String.eq(tt, "String.eq")
+      String.eq(t, "String.eq")
     case other:
       False{}
 
@@ -80,22 +80,22 @@ def found.go(name: Bool, rest: List<&2, Lex.Tok>) -> Maybe<&2, String>:
       None{}
 
 # the name a token's test compares, outside a law and a def that is a proof
-def found(skip: Bool, kk: Lex.TokKind, tt: String, rest: List<&2, Lex.Tok>) -> Maybe<&2, String>:
+def found(skip: Bool, k: Lex.TokKind, t: String, rest: List<&2, Lex.Tok>) -> Maybe<&2, String>:
   match skip:
     case True{}:
       None{}
     case False{}:
-      found.go(named(kk, tt), rest)
+      found.go(named(k, t), rest)
 
 # what a finding says: the test, and the word for it
-def say(+xx: String) -> String:
-  "String.eq(" ++ xx ++ ", \"\") asks whether " ++ xx ++ " is empty; String.is_empty(" ++ xx ++ ") says so."
+def say(+x: String) -> String:
+  "String.eq(" ++ x ++ ", \"\") asks whether " ++ x ++ " is empty; String.is_empty(" ++ x ++ ") says so."
 
 # the finding a test makes, if any, before the rest
-def hit(mm: Maybe<&2, String>, +path: String, ll: U32, cc: U32, more: List<&2, F.Finding>) -> List<&2, F.Finding>:
-  match mm:
-    case Some{xx}:
-      F.Finding{path, ll, cc, 9, "blank", say(xx)} <> more
+def hit(m: Maybe<&2, String>, +path: String, l: U32, c: U32, more: List<&2, F.Finding>) -> List<&2, F.Finding>:
+  match m:
+    case Some{x}:
+      F.Finding{path, l, c, 9, "blank", say(x)} <> more
     case None{}:
       more
 
@@ -110,12 +110,12 @@ def walk(toks: List<&2, Lex.Tok>, +path: String, skip: Bool) -> List<&2, F.Findi
       hit(found(sk, k, t, rest), path, l, c, walk(rest, path, sk))
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{+path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{+path, text, toks, tree, bound, items} = s
   Lazy.stop(List<&2, F.Finding>, Paths.is_law_file(path), [], _u => walk(T.sig(toks), path, False{}))
 
 # the rule, told the file's role (src/role.bend): a law or proof file is
 # skipped
-def check.role(rr: Role.Role, ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
-  Lazy.stop(List<&2, F.Finding>, Role.is_law_file(rr), [], _u => walk(T.sig(toks), path, False{}))
+def check.role(r: Role.Role, s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
+  Lazy.stop(List<&2, F.Finding>, Role.is_law_file(r), [], _u => walk(T.sig(toks), path, False{}))

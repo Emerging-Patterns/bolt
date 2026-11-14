@@ -312,21 +312,21 @@ def finish(st: Lex) -> List<&2, Tok>:
       List.reverse(&2, Tok, TBad{} <> toks)
 
 # the first n chars of src, reversed, for the escape fallback's buffer
-def tokens.rev(src: String, +nn: U32, zero: Bool, acc: List<&2, Char>) -> List<&2, Char>:
+def tokens.rev(src: String, +n: U32, zero: Bool, acc: List<&2, Char>) -> List<&2, Char>:
   match src zero:
     case s True{}:
       acc
     case SNil{} False{}:
       acc
     case SCon{h, t} False{}:
-      tokens.rev(t, U32.sub(nn, 1), U32.is_zero(U32.sub(nn, 1)), h <> acc)
+      tokens.rev(t, U32.sub(n, 1), U32.is_zero(U32.sub(n, 1)), h <> acc)
 
-def tokens.push(cut: String, nn: U32, word: Bool, toks: List<&2, Tok>) -> List<&2, Tok>:
+def tokens.push(cut: String, n: U32, word: Bool, toks: List<&2, Tok>) -> List<&2, Tok>:
   match word:
     case True{}:
-      TWordS{cut, nn} <> toks
+      TWordS{cut, n} <> toks
     case False{}:
-      TStrS{cut, nn} <> toks
+      TStrS{cut, n} <> toks
 
 # what the span scanner is inside: nothing, a word, a string, or a rejected text
 type Span is Data:
@@ -345,7 +345,7 @@ def tokens.hit(
   +ch: Char,
   tail: String,
   cut: String,
-  +nn: U32,
+  +n: U32,
   mode: Span,
   toks: List<&2, Tok>,
   cls: Class,
@@ -353,42 +353,42 @@ def tokens.hit(
 ) -> Scan:
   match mode cls ctrl:
     case GIdle{} CSpace{} b:
-      Go{cut, nn, GIdle{}, toks}
+      Go{cut, n, GIdle{}, toks}
     case GIdle{} CPunct{p} b:
-      Go{cut, nn, GIdle{}, p <> toks}
+      Go{cut, n, GIdle{}, p <> toks}
     case GIdle{} CQuote{} b:
       Go{tail, 0, GStr{}, toks}
     case GIdle{} CBack{} b:
-      Go{cut, nn, GBad{}, toks}
+      Go{cut, n, GBad{}, toks}
     case GIdle{} COther{} b:
       Go{SCon{ch, tail}, 1, GWord{}, toks}
     case GWord{} COther{} b:
-      Go{cut, U32.add(nn, 1), GWord{}, toks}
+      Go{cut, U32.add(n, 1), GWord{}, toks}
     case GWord{} CPunct{p} b:
-      Go{"", 0, GIdle{}, p <> tokens.push(cut, nn, True{}, toks)}
+      Go{"", 0, GIdle{}, p <> tokens.push(cut, n, True{}, toks)}
     case GWord{} CQuote{} b:
-      Go{tail, 0, GStr{}, tokens.push(cut, nn, True{}, toks)}
+      Go{tail, 0, GStr{}, tokens.push(cut, n, True{}, toks)}
     case GWord{} CBack{} b:
-      Go{cut, nn, GBad{}, toks}
+      Go{cut, n, GBad{}, toks}
     case GWord{} k b:
-      Go{"", 0, GIdle{}, tokens.push(cut, nn, True{}, toks)}
+      Go{"", 0, GIdle{}, tokens.push(cut, n, True{}, toks)}
     case GStr{} k True{}:
-      Go{cut, nn, GBad{}, toks}
+      Go{cut, n, GBad{}, toks}
     case GStr{} CQuote{} False{}:
-      Go{"", 0, GIdle{}, tokens.push(cut, nn, False{}, toks)}
+      Go{"", 0, GIdle{}, tokens.push(cut, n, False{}, toks)}
     case GStr{} CBack{} False{}:
-      Old{feed('\\', Lex{Str{}, tokens.rev(cut, nn, U32.is_zero(nn), []), toks})}
+      Old{feed('\\', Lex{Str{}, tokens.rev(cut, n, U32.is_zero(n), []), toks})}
     case GStr{} k False{}:
-      Go{cut, U32.add(nn, 1), GStr{}, toks}
+      Go{cut, U32.add(n, 1), GStr{}, toks}
     case GBad{} k b:
-      Go{cut, nn, GBad{}, toks}
+      Go{cut, n, GBad{}, toks}
 
-def tokens.done(cut: String, nn: U32, mode: Span, toks: List<&2, Tok>) -> List<&2, Tok>:
+def tokens.done(cut: String, n: U32, mode: Span, toks: List<&2, Tok>) -> List<&2, Tok>:
   match mode:
     case GIdle{}:
       List.reverse(&2, Tok, toks)
     case GWord{}:
-      List.reverse(&2, Tok, tokens.push(cut, nn, True{}, toks))
+      List.reverse(&2, Tok, tokens.push(cut, n, True{}, toks))
     case _:
       List.reverse(&2, Tok, TBad{} <> toks)
 

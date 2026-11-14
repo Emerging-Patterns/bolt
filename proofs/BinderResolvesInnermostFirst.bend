@@ -51,16 +51,16 @@ def rs.find(env, name):
         rs.find(t, name))
 
 # is there a part after a dot?
-def rs.ok(mm: Maybe<&2, String>) -> Bool:
-  match mm:
+def rs.ok(m: Maybe<&2, String>) -> Bool:
+  match m:
     case None{}:
       False{}
     case Some{_r}:
       True{}
 
 # the part after a dot, "" when there is none
-def rs.dflt(mm: Maybe<&2, String>) -> String:
-  match mm:
+def rs.dflt(m: Maybe<&2, String>) -> String:
+  match m:
     case None{}:
       ""
     case Some{r}:
@@ -179,15 +179,15 @@ def rs.alias(c, _q, _r):
 
 # the binder's alias test, by whether the name has a part after a dot
 law rs.qual:
-  for +mm: Maybe<&2, String>
+  for +m: Maybe<&2, String>
   for +q: String
   for +als: List<&2, String>
-  {Lazy.stop(Bind.Target, Bool.not(Bool.and(rs.ok(mm), Bind.has(als, q))), Bind.TFree{},
-      _u => Bind.TQual{q, rs.dflt(mm)})
-    == Laws.res.qual(mm, q, als) : Bind.Target}
+  {Lazy.stop(Bind.Target, Bool.not(Bool.and(rs.ok(m), Bind.has(als, q))), Bind.TFree{},
+      _u => Bind.TQual{q, rs.dflt(m)})
+    == Laws.res.qual(m, q, als) : Bind.Target}
 
-def rs.qual(mm, q, als):
-  match mm:
+def rs.qual(m, q, als):
+  match m:
     case None{}:
       {==}
     case Some{+r}:
@@ -199,19 +199,19 @@ law rs.qual.at:
   for +c: Bool
   for +q: String
   for +r: String
-  for +mm: Maybe<&2, String>
+  for +m: Maybe<&2, String>
   for +als: List<&2, String>
-  for e1: {c == rs.ok(mm) : Bool}
-  for e2: {r == rs.dflt(mm) : String}
+  for e1: {c == rs.ok(m) : Bool}
+  for e2: {r == rs.dflt(m) : String}
   {Lazy.stop(Bind.Target, Bool.not(Bool.and(c, Bind.has(als, q))), Bind.TFree{}, _u => Bind.TQual{q, r})
-    == Laws.res.qual(mm, q, als) : Bind.Target}
+    == Laws.res.qual(m, q, als) : Bind.Target}
 
-def rs.qual.at(c, q, r, mm, als, e1, e2):
-  %Equal.sym(Bool, c, rs.ok(mm), e1) : {Lazy.stop(Bind.Target, Bool.not(Bool.and(_, Bind.has(als, q))), Bind.TFree{},
-      _u => Bind.TQual{q, r}) == Laws.res.qual(mm, q, als) : Bind.Target}
-  %Equal.sym(String, r, rs.dflt(mm), e2) : {Lazy.stop(Bind.Target, Bool.not(Bool.and(rs.ok(mm), Bind.has(als, q))),
-      Bind.TFree{}, _u => Bind.TQual{q, _}) == Laws.res.qual(mm, q, als) : Bind.Target}
-  rs.qual(mm, q, als)
+def rs.qual.at(c, q, r, m, als, e1, e2):
+  %Equal.sym(Bool, c, rs.ok(m), e1) : {Lazy.stop(Bind.Target, Bool.not(Bool.and(_, Bind.has(als, q))), Bind.TFree{},
+      _u => Bind.TQual{q, r}) == Laws.res.qual(m, q, als) : Bind.Target}
+  %Equal.sym(String, r, rs.dflt(m), e2) : {Lazy.stop(Bind.Target, Bool.not(Bool.and(rs.ok(m), Bind.has(als, q))),
+      Bind.TFree{}, _u => Bind.TQual{q, _}) == Laws.res.qual(m, q, als) : Bind.Target}
+  rs.qual(m, q, als)
 
 # what the binder makes of a name no binder holds and no item has
 def rs.code(+name: String, als: List<&2, String>) -> Bind.Target:
@@ -247,15 +247,15 @@ def rs.none(name, its, als):
 
 # whatever the search found, the binder and the spec make the same of it
 law rs.local:
-  for +mm: Maybe<&2, Bind.Bind>
+  for +m: Maybe<&2, Bind.Bind>
   for +name: String
   for +its: List<&2, String>
   for +als: List<&2, String>
-  {Bind.resolve.local(mm, name, Bind.Names{its, als, Bind.index(its)}) == Laws.res.found(mm, name, its, als)
+  {Bind.resolve.local(m, name, Bind.Names{its, als, Bind.index(its)}) == Laws.res.found(m, name, its, als)
     : Bind.Target}
 
-def rs.local(mm, name, its, als):
-  match mm:
+def rs.local(m, name, its, als):
+  match m:
     case Some{Bind.Bind{_n, _l, _c, _k, _note}}:
       {==}
     case None{}:
@@ -277,8 +277,8 @@ def Laws.uses(name, line, col, env, its, als, binds, us, scopes):
 # the environment the walk threads (laws/BinderResolvesInnermostFirst.bend)
 # ---------------------------------------------
 
-def Laws.restores(kk, kids, body, rest, env, ns, out, e):
-  match kk:
+def Laws.restores(k, kids, body, rest, env, ns, out, e):
+  match k:
     case Tree.SDef{}:
       +h = Bind.walk(kids, Bind.MHead{}, env, ns, out)
       (Bind.out_of(Bind.walk(body, Bind.MBlock{}, Bind.env_of(h), ns,
@@ -374,19 +374,19 @@ law rs.leaf:
   for +kp: Bool
   for +ou: List<&2, Bind.Bind>
   for +ps: Bool
-  for +bb: Bind.Bind
+  for +b: Bind.Bind
   for +env: List<&2, Bind.Bind>
   for +x: List<&2, Bind.Bind>
-  rs.Ext(x, Bind.plan.enter(kp, ou, ps, bb, env)) -> rs.Ext(Bool.pick(List<&2, Bind.Bind>, kp, env, x), env)
+  rs.Ext(x, Bind.plan.enter(kp, ou, ps, b, env)) -> rs.Ext(Bool.pick(List<&2, Bind.Bind>, kp, env, x), env)
 
-def rs.leaf(kp, _ou, ps, bb, env, x):
+def rs.leaf(kp, _ou, ps, b, env, x):
   match kp:
     case True{}:
       _ih => rs.same(env)
     case False{}:
       match ps:
         case True{}:
-          ih => rs.chain(env, bb <> env, x, ([bb], {==}), ih)
+          ih => rs.chain(env, b <> env, x, ([b], {==}), ih)
         case False{}:
           ih => ih
 
@@ -418,8 +418,8 @@ def rs.scoped(b, _x, env):
     case False{}:
       w => w
 
-def Laws.extends(nn, mode, env, ns, out):
-  match nn:
+def Laws.extends(n, mode, env, ns, out):
+  match n:
     case Tree.NCons{hd, +rest}:
       match hd:
         case Tree.Leaf{tok}:
@@ -517,9 +517,9 @@ def rs.lets.arm(rest, env, ns, hv, o, w):
   (xs, o, Equal.cong(List<&2, Bind.Bind>, Bind.W, y => Bind.walk(rest, Bind.MBlock{}, y, ns, o),
     hv, List.append(&2, Bind.Bind, xs, env), e))
 
-# what `lets` claims of a statement of kind kk
+# what `lets` claims of a statement of kind k
 def rs.lets.ty(
-  kk: Tree.StmtKind,
+  k: Tree.StmtKind,
   kids: Tree.Node,
   body: Tree.Node,
   +rest: Tree.Node,
@@ -528,11 +528,11 @@ def rs.lets.ty(
   out: Bind.Out
 ) -> Type:
   (&ext: List<&2, Bind.Bind> -> &o: Bind.Out
-    -> {Bind.walk(Tree.NCons{Tree.Stmt{kk, kids, body}, rest}, Bind.MBlock{}, env, ns, out)
+    -> {Bind.walk(Tree.NCons{Tree.Stmt{k, kids, body}, rest}, Bind.MBlock{}, env, ns, out)
       == Bind.walk(rest, Bind.MBlock{}, List.append(&2, Bind.Bind, ext, env), ns, o) : Bind.W})
 
-def Laws.lets(kk, kids, body, rest, env, ns, out, e):
-  match kk:
+def Laws.lets(k, kids, body, rest, env, ns, out, e):
+  match k:
     case Tree.SFor{}:
       +o1 = Bind.mark(Tree.line(kids), env, out)
       +h = Bind.walk(kids, Bind.MLhs{env, Bind.KFor{}}, env, ns, o1)

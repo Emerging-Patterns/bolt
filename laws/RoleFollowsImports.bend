@@ -93,13 +93,13 @@ def role.marks(
         Role.Mark{norm, role.given(named, List.contains(~String, ~String.eq, lawful, norm))} <> more, more)
 
 # the role of the first mark at a path; neither when no mark is at it
-def role.first(ms: List<&2, Role.Mark>, +nn: String) -> Role.Role:
+def role.first(ms: List<&2, Role.Mark>, +n: String) -> Role.Role:
   match ms:
     case Nil{}:
       Role.Plain{}
     case Con{Role.Mark{+norm, role}, rest}:
-      +more = role.first(rest, nn)
-      Bool.pick(Role.Role, String.eq(norm, nn), role, more)
+      +more = role.first(rest, n)
+      Bool.pick(Role.Role, String.eq(norm, n), role, more)
 
 # LAW: a parsed file is read down to its normalized path, the relative
 # imports of its outline resolved against that path, its role by name, and
@@ -151,15 +151,15 @@ law marks_follow_imports:
 
 # LAW: the marks of a run are the marks of its files' facts
 law marks_of_run:
-  for ss: List<&2, Src.Src>
-  {Role.marks(ss) == Role.marks.facts(Role.facts(ss)) : List<&2, Role.Mark>}
+  for s: List<&2, Src.Src>
+  {Role.marks(s) == Role.marks.facts(Role.facts(s)) : List<&2, Role.Mark>}
 
 # LAW: a normalized path's role among any marks is the first mark's at that
 # path, and neither when no mark is at it
 law role_of_first_mark:
   for ms: List<&2, Role.Mark>
-  for +nn: String
-  {Role.of.norm(ms, nn) == role.first(ms, nn) : Role.Role}
+  for +n: String
+  {Role.of.norm(ms, n) == role.first(ms, n) : Role.Role}
 
 # LAW: a file's role among any marks is its role by name when it is a
 # LAWS.bend or a PROOF.bend, and else the first mark's at its normalized path

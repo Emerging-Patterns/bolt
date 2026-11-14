@@ -37,8 +37,8 @@ def nav.or_else_right(a, f, h):
 law nav.units_narrow:
   for cs: List<&2, Char>
   for +h: {Enc.wide_in(cs) == False{} : Bool}
-  for nn: Nat
-  {Enc.units(cs, nn) == nn : Nat}
+  for n: Nat
+  {Enc.units(cs, n) == n : Nat}
 
 def nav.units_narrow(cs, h, nn):
   match cs:
@@ -58,8 +58,8 @@ def nav.units_narrow(cs, h, nn):
 law nav.points_narrow:
   for cs: List<&2, Char>
   for +h: {Enc.wide_in(cs) == False{} : Bool}
-  for nn: Nat
-  {Enc.points(cs, nn) == nn : Nat}
+  for n: Nat
+  {Enc.points(cs, n) == n : Nat}
 
 def nav.points_narrow(cs, h, nn):
   match cs:
@@ -79,23 +79,23 @@ def nav.points_narrow(cs, h, nn):
 law nav.chars_narrow:
   for lines: List<&2, String>
   for h: {Enc.wide_any(lines) == False{} : Bool}
-  for ii: Nat
-  {Enc.wide_in(String.to_list(Maybe.default(&2, String, List.get(&2, String, lines, ii), ""))) == False{} : Bool}
+  for i: Nat
+  {Enc.wide_in(String.to_list(Maybe.default(&2, String, List.get(&2, String, lines, i), ""))) == False{} : Bool}
 
-def nav.chars_narrow(lines, h, ii):
+def nav.chars_narrow(lines, h, i):
   match lines:
     case Nil{}:
       {==}
     case Con{+l, +t}:
-      match ii:
+      match i:
         case 0n:
           nav.or_else_left(Enc.wide_in(String.to_list(l)), _u => Enc.wide_any(t), h)
         case 1n+p:
           nav.chars_narrow(t, nav.or_else_right(Enc.wide_in(String.to_list(l)), _u => Enc.wide_any(t), h), p)
 
-def Laws.enc_narrow(lines, h, line, nn):
+def Laws.enc_narrow(lines, h, line, n):
   +hc = nav.chars_narrow(lines, h, U32.to_nat(line))
-  (nav.units_narrow(Enc.chars(lines, line), hc, nn), nav.points_narrow(Enc.chars(lines, line), hc, nn))
+  (nav.units_narrow(Enc.chars(lines, line), hc, n), nav.points_narrow(Enc.chars(lines, line), hc, n))
 
 def Laws.wide_from_u10000(_xx):
   {==}

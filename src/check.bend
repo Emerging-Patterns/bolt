@@ -85,8 +85,8 @@ def print_all(lines: List<&2, String>) -> IO(Unit):  # noqa: L001 IO driver
         print_all(t)
 
 # a file's run, from the checker's answer for it
-def run_of(path: String, aa: Checker.Answer) -> Run:
-  match aa:
+def run_of(path: String, a: Checker.Answer) -> Run:
+  match a:
     case Checker.Checked{ds}:
       Run{path, ds}
     case Checker.Unrun{}:
@@ -99,13 +99,13 @@ def check_all(~ck: Checker.Checker, paths: List<&2, String>) -> IO(List<&2, Run>
       IO.pure(List<&2, Run>, [])
     case Con{+path, rest}:
       do IO<List<&2, Run>>:
-        aa : Checker.Answer <- Checker.check(ck, path)
+        a : Checker.Answer <- Checker.check(ck, path)
         more : List<&2, Run> <- check_all(~ck, rest)
-        return run_of(path, aa) <> more
+        return run_of(path, a) <> more
 
 # what out decided, done (trusted in src/lint.bend): its lines printed, then its code
-def perform(oo: Out) -> IO(Unit):  # noqa: L001 IO driver
-  Out{lines, code} = oo
+def perform(o: Out) -> IO(Unit):  # noqa: L001 IO driver
+  Out{lines, code} = o
   do IO<Unit>:
     print_all(lines)
     Status.stop(U32.is_gt(code, 0))

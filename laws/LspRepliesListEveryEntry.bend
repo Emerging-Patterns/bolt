@@ -31,12 +31,12 @@ import ../src/syntax/lex.bend as Lex
 # hover, definition, document symbols, completion on `.`, references,
 # rename, and full semantic tokens over the legend
 law lsp_capabilities:
-  for ee: Enc.Enc
-  {Proto.capabilities(ee)
+  for e: Enc.Enc
+  {Proto.capabilities(e)
     ==
       Ezjson.obj([
         ("capabilities", Ezjson.obj([
-          ("positionEncoding", J.JStr{Enc.name(ee)}),
+          ("positionEncoding", J.JStr{Enc.name(e)}),
           ("textDocumentSync", Ezjson.obj([("openClose", J.JBool{True{}}), ("change", J.JNum{U32.show(1)}), ("save", J.JBool{True{}})])),
           ("hoverProvider", J.JBool{True{}}),
           ("definitionProvider", J.JBool{True{}}),
@@ -54,45 +54,45 @@ law lsp_capabilities:
 law lsp_diagnostics_each:
   for d: Rep.Diag
   for t: List<&2, Rep.Diag>
-  for +cc: Enc.Cols
-  {Proto.diagnostics(d <> t, cc) == Proto.diagnostic(cc, d) <> Proto.diagnostics(t, cc) : List<&2, J.Json>}
+  for +c: Enc.Cols
+  {Proto.diagnostics(d <> t, c) == Proto.diagnostic(c, d) <> Proto.diagnostics(t, c) : List<&2, J.Json>}
 
 # LAW: every finding is sent, in order
 law lsp_findings_each:
   for d: Lint.Graded
   for t: List<&2, Lint.Graded>
-  for +cc: Enc.Cols
-  {Proto.findings(d <> t, cc) == Proto.finding(cc, d) <> Proto.findings(t, cc) : List<&2, J.Json>}
+  for +c: Enc.Cols
+  {Proto.findings(d <> t, c) == Proto.finding(c, d) <> Proto.findings(t, c) : List<&2, J.Json>}
 
 # LAW: every item, as a symbol is sent, in order
 law lsp_symbols_each:
   for d: Outline.Item
   for t: List<&2, Outline.Item>
-  for +cc: Enc.Cols
-  {Proto.symbols.go(d <> t, cc) == Proto.symbol(cc, d) <> Proto.symbols.go(t, cc) : List<&2, J.Json>}
+  for +c: Enc.Cols
+  {Proto.symbols.go(d <> t, c) == Proto.symbol(c, d) <> Proto.symbols.go(t, c) : List<&2, J.Json>}
 
 # LAW: every candidate is sent as a completion, in order
 law lsp_completions_each:
   for item: Outline.Item
   for t: List<&2, Outline.Item>
-  for +cc: Enc.Cols
+  for +c: Enc.Cols
   for +line: U32
   for +start: U32
   for +col: U32
-  {Proto.completions.go(item <> t, cc, line, start, col)
-    == Proto.completion(cc, item, line, start, col) <> Proto.completions.go(t, cc, line, start, col) : List<&2, J.Json>}
+  {Proto.completions.go(item <> t, c, line, start, col)
+    == Proto.completion(c, item, line, start, col) <> Proto.completions.go(t, c, line, start, col) : List<&2, J.Json>}
 
 # LAW: a completion list says it is incomplete, so the editor asks again as
 # the prefix grows, and holds its items
 law lsp_completions_incomplete:
-  for cc: Enc.Cols
+  for c: Enc.Cols
   for items: List<&2, Outline.Item>
   for line: U32
   for start: U32
   for col: U32
-  {Proto.completions(cc, items, line, start, col)
+  {Proto.completions(c, items, line, start, col)
     == Ezjson.obj([("isIncomplete", J.JBool{True{}}),
-      ("items", Ezjson.arr(Proto.completions.go(items, cc, line, start, col)))]) : J.Json}
+      ("items", Ezjson.arr(Proto.completions.go(items, c, line, start, col)))]) : J.Json}
 
 # LAW: every position a name is at is sent as a location in the document,
 # over the name, in order
@@ -306,13 +306,13 @@ law sem_path_low_bits_first:
 # LAW: an entry is put down its path: into the half its bit names, the other
 # half kept as it was
 law sem_idx_put_down_the_path:
-  for +bb: Bool
+  for +b: Bool
   for rest: List<&2, Bool>
-  for +ii: Semantic.Index
-  for +ee: Semantic.Entry
-  {Semantic.idx.put(bb <> rest, ii, ee)
-    == Semantic.idx.join(bb, Semantic.idx.put(rest, Semantic.idx.near(bb, ii), ee),
-      Semantic.idx.near(Bool.not(bb), ii)) : Semantic.Index}
+  for +i: Semantic.Index
+  for +e: Semantic.Entry
+  {Semantic.idx.put(b <> rest, i, e)
+    == Semantic.idx.join(b, Semantic.idx.put(rest, Semantic.idx.near(b, i), e),
+      Semantic.idx.near(Bool.not(b), i)) : Semantic.Index}
 
 # LAW: among a leaf's entries, the one at a position is the first that
 # starts exactly there
@@ -352,11 +352,11 @@ law sem_sent_each_token:
   for len: U32
   for typ: U32
   for rest: List<&2, Semantic.Sem>
-  for +ee: Enc.Enc
+  for +e: Enc.Enc
   for lines: List<&2, String>
   for cur: U32
-  {Semantic.sent(Semantic.Sem{line, col, len, typ} <> rest, ee, lines, cur)
-    == Semantic.sent.one(ee,
+  {Semantic.sent(Semantic.Sem{line, col, len, typ} <> rest, e, lines, cur)
+    == Semantic.sent.one(e,
       String.to_list(Maybe.default(&2, String, List.head(&2, String, Semantic.sent.seek(lines, cur, line)), "")),
       Semantic.Sem{line, col, len, typ})
-      <> Semantic.sent(rest, ee, Semantic.sent.seek(lines, cur, line), line) : List<&2, Semantic.Sem>}
+      <> Semantic.sent(rest, e, Semantic.sent.seek(lines, cur, line), line) : List<&2, Semantic.Sem>}

@@ -21,19 +21,19 @@ def Laws.token_on_a_new_line(line, col, len, typ, rest, pl, pc, e):
 
 # an item's index names its entry, whichever way the capital test goes
 law item_entry:
-  for bb: Bool
-  {Laws.semantic.entry(Bool.pick(U32, bb, 2, 1)) == Some{Bool.pick(String, bb, "type", "function")}
+  for b: Bool
+  {Laws.semantic.entry(Bool.pick(U32, b, 2, 1)) == Some{Bool.pick(String, b, "type", "function")}
     : Maybe<&2, String>}
 
-def item_entry(bb):
-  match bb:
+def item_entry(b):
+  match b:
     case True{}:
       {==}
     case False{}:
       {==}
 
-def Laws.kind_names_its_legend_entry(kk, name):
-  match kk:
+def Laws.kind_names_its_legend_entry(k, name):
+  match k:
     case Bind.KItem{}:
       item_entry(Semantic.upper_first(String.to_list(name)))
     case Bind.KCtor{}:

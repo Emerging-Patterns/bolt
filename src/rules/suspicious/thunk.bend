@@ -37,26 +37,26 @@ import ../../lazy/lazy.bend as Lazy
 
 # does a name leaf under the node read the parameter: its text, or its text
 # then a dot?
-def reads(nn: Tree.Node, +pp: String) -> Bool:
-  match nn:
+def reads(n: Tree.Node, +p: String) -> Bool:
+  match n:
     case Tree.Leaf{Lex.Tok{k, +t, _l, _c}}:
-      Bool.and(Lex.is_name(k), Bool.or(String.eq(t, pp), String.starts_with(t, pp ++ ".")))
+      Bool.and(Lex.is_name(k), Bool.or(String.eq(t, p), String.starts_with(t, p ++ ".")))
     case Tree.Group{_o, kids, _cl}:
-      reads(kids, pp)
+      reads(kids, p)
     case Tree.Stmt{_k, kids, body}:
-      +a = reads(kids, pp)
-      +b = reads(body, pp)
+      +a = reads(kids, p)
+      +b = reads(body, p)
       Bool.or(a, b)
     case Tree.NCons{h, t}:
-      +a = reads(h, pp)
-      +b = reads(t, pp)
+      +a = reads(h, p)
+      +b = reads(t, p)
       Bool.or(a, b)
     case Tree.NNil{}:
       False{}
 
 # does the lambda's body end after the call: the chain ends, or a comma?
-def ends(nn: Tree.Node) -> Bool:
-  match nn:
+def ends(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, _t, _l, _c}}, _rest}:
       Lex.is_comma(k)
     case Tree.NCons{_h, _rest}:
@@ -70,57 +70,57 @@ def hit(+lead: Bool, +arrow: Bool, +own: Bool, +call: Bool, +end: Bool) -> Bool:
   Bool.and(lead, Bool.and(arrow, Bool.and(own, Bool.and(call, end))))
 
 # the finding at the self-call's name
-def cite(+ll: U32, +cc: U32, +name: String, +path: String) -> F.Finding:
-  F.Finding{path, ll, cc, U32.from_nat(String.length(name)), "thunk",
+def cite(+l: U32, +c: U32, +name: String, +path: String) -> F.Finding:
+  F.Finding{path, l, c, U32.from_nat(String.length(name)), "thunk",
     name ++ " calls itself inside a thunk, which allocates a closure and leaves the loop on every step; carry the test as a Bool into the next call (`go(rest, k, test(h))`) and match on it first, so the search stays a loop."}
 
 # after the parameter, `=>`, the token that names the call and its `(`
 # group: the finding when they make a thunk of a self-call
 def site.group(
   kp: Lex.TokKind,
-  +pp: String,
-  +aa: String,
+  +p: String,
+  +a: String,
   callee: Lex.Tok,
   r3: Tree.Node,
   +name: String,
   +path: String
 ) -> List<&2, F.Finding>:
-  Lex.Tok{_kn, +nm, +ll, +cc} = callee
+  Lex.Tok{_kn, +nm, +l, +c} = callee
   match r3:
     case Tree.NCons{Tree.Group{Lex.Tok{_ko, +o, _lo, _co}, kids, _cl}, after}:
-      +lead = Bool.and(Lex.is_name(kp), Bool.not(reads(kids, pp)))
+      +lead = Bool.and(Lex.is_name(kp), Bool.not(reads(kids, p)))
       Bool.pick(List<&2, F.Finding>,
-        hit(lead, String.eq(aa, "=>"), String.eq(nm, name), String.eq(o, "("), ends(after)),
-        [cite(ll, cc, name, path)], [])
+        hit(lead, String.eq(a, "=>"), String.eq(nm, name), String.eq(o, "("), ends(after)),
+        [cite(l, c, name, path)], [])
     case _other:
       []
 
 # after the parameter and `=>`: the leaf that names the call
 def site.name(
   kp: Lex.TokKind,
-  +pp: String,
-  +aa: String,
+  +p: String,
+  +a: String,
   r2: Tree.Node,
   +name: String,
   +path: String
 ) -> List<&2, F.Finding>:
   match r2:
     case Tree.NCons{Tree.Leaf{callee}, r3}:
-      site.group(kp, pp, aa, callee, r3, name, path)
+      site.group(kp, p, a, callee, r3, name, path)
     case _other:
       []
 
 # after the parameter: the leaf that should be `=>`
-def site.lam(kp: Lex.TokKind, +pp: String, rest: Tree.Node, +name: String, +path: String) -> List<&2, F.Finding>:
+def site.lam(kp: Lex.TokKind, +p: String, rest: Tree.Node, +name: String, +path: String) -> List<&2, F.Finding>:
   match rest:
     case Tree.NCons{Tree.Leaf{Lex.Tok{_ka, +a, _la, _ca}}, r2}:
-      site.name(kp, pp, a, r2, name, path)
+      site.name(kp, p, a, r2, name, path)
     case _other:
       []
 
 # the finding when a node and the chain after it open a thunk of a self-call
-def site(hh: Tree.Node, rest: Tree.Node, +name: String, +path: String) -> List<&2, F.Finding>:
-  match hh:
+def site(h: Tree.Node, rest: Tree.Node, +name: String, +path: String) -> List<&2, F.Finding>:
+  match h:
     case Tree.Leaf{Lex.Tok{kp, +p, _l, _c}}:
       site.lam(kp, p, rest, name, path)
     case _other:
@@ -140,13 +140,13 @@ def lams(nn: Tree.Node, +seen: Bool) -> Nat:
       Bool.pick(Nat, seen, 1n, 0n)
 
 # is a group with this open and these kids a call given exactly one lambda?
-def only(+oo: String, +kids: Tree.Node) -> Bool:
-  Bool.and(String.eq(oo, "("), Nat.is_eq(lams(kids, False{}), 1n))
+def only(+o: String, +kids: Tree.Node) -> Bool:
+  Bool.and(String.eq(o, "("), Nat.is_eq(lams(kids, False{}), 1n))
 
 # every thunk of a self-call under the node, at any depth; lone: the node is
 # the rest of the kids of a call given exactly one lambda
-def walk(nn: Tree.Node, +lone: Bool, +name: String, +path: String) -> List<&2, F.Finding>:
-  match nn:
+def walk(n: Tree.Node, +lone: Bool, +name: String, +path: String) -> List<&2, F.Finding>:
+  match n:
     case Tree.NCons{+h, +rest}:
       +here = site(h, rest, name, path)
       List.concat(&2, F.Finding, [Bool.pick(List<&2, F.Finding>, lone, here, []),
@@ -167,6 +167,6 @@ def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Fi
         Lazy.stop(List<&2, F.Finding>, Calls.exempt(path, sig), [], _u => walk(body, False{}, name, path)) <> acc)
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
   check.go(Calls.defs(tree), path, [])

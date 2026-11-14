@@ -13,8 +13,8 @@ def opt_ins() -> List<&2, String>:
 
 # does bolt hold a code table row's rule opt-in exactly when the law lists
 # it? past the end holds
-def opt_in.agrees(mm: Maybe<&2, Codes.Entry>) -> Bool:
-  match mm:
+def opt_in.agrees(m: Maybe<&2, Codes.Entry>) -> Bool:
+  match m:
     case None{}:
       True{}
     case Some{Codes.Entry{+slug, _id, _grp}}:

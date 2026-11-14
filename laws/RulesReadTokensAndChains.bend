@@ -51,9 +51,9 @@ law arms_ended_needs_colon:
 # that kind and has that text
 law arms_opens_as_kind_and_text:
   for want: Bool
-  for +tt: String
+  for +t: String
   for +text: String
-  {Arms.opens.as(want, tt, text) == Bool.and(want, String.eq(tt, text)) : Bool}
+  {Arms.opens.as(want, t, text) == Bool.and(want, String.eq(t, text)) : Bool}
 
 # LAW: tokens open with the operator `+` when their first token is one
 law arms_opens_plus_first:
@@ -85,8 +85,8 @@ law arms_skip_after_word:
 
 # LAW: with no n+p arm above, the Nat check reports no arm
 law arms_told_needs_wide_arm:
-  for aa: Arms.Arm
-  {Arms.told(None{}, aa) == False{} : Bool}
+  for a: Arms.Arm
+  {Arms.told(None{}, a) == False{} : Bool}
 
 # LAW: an arm that is neither a literal nor an n+p is never reported by it
 law arms_told_skips_other_arms:
@@ -97,24 +97,24 @@ law arms_told_skips_other_arms:
 # exactly when it starts at k or above: every Nat it matches is matched
 # already
 law arms_told_plus_from_k:
-  for +kk: U32
+  for +k: U32
   for text: String
-  for +jj: U32
-  for tt: String
-  for ll: U32
-  for cc: U32
-  for nn: U32
-  {Arms.told(Some{Arms.Wide{kk, text}}, Arms.APlus{jj, tt, ll, cc, nn}) == U32.is_ge(jj, kk) : Bool}
+  for +j: U32
+  for t: String
+  for l: U32
+  for c: U32
+  for n: U32
+  {Arms.told(Some{Arms.Wide{k, text}}, Arms.APlus{j, t, l, c, n}) == U32.is_ge(j, k) : Bool}
 
 # LAW: and a later literal arm exactly when the literal is k or above
 law arms_told_literal_from_k:
-  for +kk: U32
+  for +k: U32
   for text: String
-  for +mm: U32
-  for ll: U32
-  for cc: U32
-  for nn: U32
-  {Arms.told(Some{Arms.Wide{kk, text}}, Arms.ALit{mm, ll, cc, nn}) == U32.is_ge(mm, kk) : Bool}
+  for +m: U32
+  for l: U32
+  for c: U32
+  for n: U32
+  {Arms.told(Some{Arms.Wide{k, text}}, Arms.ALit{m, l, c, n}) == U32.is_ge(m, k) : Bool}
 
 # arms: an operator in a pattern, as the part it is
 # LAW: a `+` (a quantity mark, or the plus of `kn+`) is no part of its own
@@ -129,11 +129,11 @@ law arms_cons_is_a_part:
 
 # LAW: any other operator is not understood, so the pattern covers nothing
 law arms_other_operator_is_bad:
-  for +tt: String
+  for +t: String
   for +more: List<&2, Arms.Part>
-  for e1: {String.eq(tt, "+") == False{} : Bool}
-  for e2: {String.eq(tt, "<>") == False{} : Bool}
-  {Arms.part.op(tt, more) == Arms.PBad{} <> more : List<&2, Arms.Part>}
+  for e1: {String.eq(t, "+") == False{} : Bool}
+  for e2: {String.eq(t, "<>") == False{} : Bool}
+  {Arms.part.op(t, more) == Arms.PBad{} <> more : List<&2, Arms.Part>}
 
 # escape: a literal's chars as the four things the rule tells apart
 # LAW: a backslash, a `0`, a digit from 1 to 9, and any other char
@@ -160,17 +160,17 @@ law pick_lone_is_one_leaf:
   for l: U32
   for c: U32
   for rest: Tree.Node
-  for +xx: String
-  {Pick.search.lone(Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, rest}, xx)
-    == Bool.and(String.eq(t, xx), Pick.search.empty(rest))
+  for +x: String
+  {Pick.search.lone(Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, rest}, x)
+    == Bool.and(String.eq(t, x), Pick.search.empty(rest))
     : Bool}
 
 # LAW: what is no chain is no name
 law pick_lone_needs_a_chain:
-  for nn: Tree.Node
-  for +xx: String
-  for e: {D2.chains.is_cons(nn) == False{} : Bool}
-  {Pick.search.lone(nn, xx) == False{} : Bool}
+  for n: Tree.Node
+  for +x: String
+  for e: {D2.chains.is_cons(n) == False{} : Bool}
+  {Pick.search.lone(n, x) == False{} : Bool}
 
 # strings: is a string token closed
 # LAW: reading a char, the next is escaped when this one is an unescaped
@@ -206,9 +206,9 @@ law strings_opened_needs_chars:
 # blank: a test against the empty string literal
 # LAW: the literal `""` is a string token whose text is its two quotes
 law blank_lit_is_two_quotes:
-  for kk: Lex.TokKind
-  for tt: String
-  {Blank.lit(kk, tt) == Bool.and(D1.kinds.among(kk, [Lex.TStr{}]), String.eq(tt, "\"\"")) : Bool}
+  for k: Lex.TokKind
+  for t: String
+  {Blank.lit(k, t) == Bool.and(D1.kinds.among(k, [Lex.TStr{}]), String.eq(t, "\"\"")) : Bool}
 
 # LAW: the name compared is the first argument when it is a plain name and
 # the second is `""`, else the second when the first is `""` and it is a
@@ -333,9 +333,9 @@ law concat_plus_first_operator:
 
 # LAW: what is no chain opens with nothing
 law concat_plus_needs_a_chain:
-  for pp: Tree.Node
-  for e: {D2.chains.is_cons(pp) == False{} : Bool}
-  {Concat.plus(pp) == False{} : Bool}
+  for p: Tree.Node
+  for e: {D2.chains.is_cons(p) == False{} : Bool}
+  {Concat.plus(p) == False{} : Bool}
 
 # table: what a fixed table looks like
 # LAW: a top-level token is not looked for inside a group
@@ -361,22 +361,22 @@ law table_top_has_reads_leaves:
 
 # LAW: what is no chain holds no token
 law table_top_has_needs_a_chain:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +want: String
-  for e: {D2.chains.is_cons(nn) == False{} : Bool}
-  {Table.top_has(nn, want) == False{} : Bool}
+  for e: {D2.chains.is_cons(n) == False{} : Bool}
+  {Table.top_has(n, want) == False{} : Bool}
 
 # LAW: what is no chain is no sized array
 law table_array_sized_needs_a_chain:
-  for nn: Tree.Node
-  for e: {D2.chains.is_cons(nn) == False{} : Bool}
-  {Table.array_sized(nn) == False{} : Bool}
+  for n: Tree.Node
+  for e: {D2.chains.is_cons(n) == False{} : Bool}
+  {Table.array_sized(n) == False{} : Bool}
 
 # LAW: what is no chain is no built table
 law table_built_needs_a_chain:
-  for nn: Tree.Node
-  for e: {D2.chains.is_cons(nn) == False{} : Bool}
-  {Table.built(nn) == False{} : Bool}
+  for n: Tree.Node
+  for e: {D2.chains.is_cons(n) == False{} : Bool}
+  {Table.built(n) == False{} : Bool}
 
 # LAW: a chain of one number leaf is a lone number
 law table_lone_num_one_number:
@@ -387,9 +387,9 @@ law table_lone_num_one_number:
 
 # LAW: what is no chain is no number
 law table_lone_num_needs_a_chain:
-  for nn: Tree.Node
-  for e: {D2.chains.is_cons(nn) == False{} : Bool}
-  {Table.lone_num(nn) == False{} : Bool}
+  for n: Tree.Node
+  for e: {D2.chains.is_cons(n) == False{} : Bool}
+  {Table.lone_num(n) == False{} : Bool}
 
 # LAW: `List.range`'s count is its last argument: one argument is a count
 # when it is a lone number
@@ -408,32 +408,32 @@ law table_range_count_needs_arguments:
 # ones; the finding is the call's, over its name
 law table_hits_get_and_set:
   for +open: Bool
-  for +tt: String
+  for +t: String
   for kids: Tree.Node
   for +fixed: List<&2, String>
   for +path: String
   for +line: U32
   for +col: U32
-  {Table.hit(open, tt, kids, fixed, path, line, col)
+  {Table.hit(open, t, kids, fixed, path, line, col)
     == Bool.pick(List<&2, F.Finding>,
-      Bool.and(Bool.and(open, Bool.or(String.eq(tt, "List.get"), String.eq(tt, "List.set"))),
+      Bool.and(Bool.and(open, Bool.or(String.eq(t, "List.get"), String.eq(t, "List.set"))),
         Bool.and(Bool.not(Table.literal(Calls.arg(Calls.args(kids), 3n))),
           Table.owns(Calls.arg(Calls.args(kids), 2n), fixed))),
-      [Table.cite(String.eq(tt, "List.get"), path, line, col, U32.from_nat(String.length(tt)))], [])
+      [Table.cite(String.eq(t, "List.get"), path, line, col, U32.from_nat(String.length(t)))], [])
     : List<&2, F.Finding>}
 
 # empty: is the value read again after the test
 # LAW: a token closes the arguments at depth zero when it is a closing
 # bracket
 law empty_close_here_at_depth_zero:
-  for kk: Lex.TokKind
-  {Empty.close.here(kk, 0n) == D1.kinds.among(kk, [Lex.TClose{}]) : Bool}
+  for k: Lex.TokKind
+  {Empty.close.here(k, 0n) == D1.kinds.among(k, [Lex.TClose{}]) : Bool}
 
 # LAW: and no token closes them deeper in
 law empty_close_here_not_deeper:
-  for kk: Lex.TokKind
+  for k: Lex.TokKind
   for p: Nat
-  {Empty.close.here(kk, 1n+p) == False{} : Bool}
+  {Empty.close.here(k, 1n+p) == False{} : Bool}
 
 # LAW: once the value has been read, it is kept
 law empty_kept_once_found:
@@ -442,10 +442,10 @@ law empty_kept_once_found:
   for l: U32
   for c: U32
   for rest: List<&2, Lex.Tok>
-  for +xx: String
-  for +dd: Nat
+  for +x: String
+  for +d: Nat
   for live: Bool
-  {Empty.kept(Lex.Tok{k, t, l, c} <> rest, xx, dd, True{}, live) == True{} : Bool}
+  {Empty.kept(Lex.Tok{k, t, l, c} <> rest, x, d, True{}, live) == True{} : Bool}
 
 # LAW: past the bracket that closes the group, it is not looked for
 law empty_kept_stops_at_close:
@@ -454,9 +454,9 @@ law empty_kept_stops_at_close:
   for l: U32
   for c: U32
   for rest: List<&2, Lex.Tok>
-  for +xx: String
-  for +dd: Nat
-  {Empty.kept(Lex.Tok{k, t, l, c} <> rest, xx, dd, False{}, False{}) == False{} : Bool}
+  for +x: String
+  for +d: Nat
+  {Empty.kept(Lex.Tok{k, t, l, c} <> rest, x, d, False{}, False{}) == False{} : Bool}
 
 # LAW: before it, each token is read: is it the value, and is it the bracket
 # that closes the group
@@ -466,18 +466,18 @@ law empty_kept_reads_on:
   for l: U32
   for c: U32
   for rest: List<&2, Lex.Tok>
-  for +xx: String
-  for +dd: Nat
-  {Empty.kept(Lex.Tok{k, t, l, c} <> rest, xx, dd, False{}, True{})
-    == Empty.kept(rest, xx, Empty.close.depth(k, dd), Empty.same(k, t, xx), Bool.not(Empty.close.here(k, dd))) : Bool}
+  for +x: String
+  for +d: Nat
+  {Empty.kept(Lex.Tok{k, t, l, c} <> rest, x, d, False{}, True{})
+    == Empty.kept(rest, x, Empty.close.depth(k, d), Empty.same(k, t, x), Bool.not(Empty.close.here(k, d))) : Bool}
 
 # LAW: with no token left, the value is kept when the last token was it
 law empty_kept_at_the_end:
-  for +xx: String
-  for +dd: Nat
+  for +x: String
+  for +d: Nat
   for found: Bool
   for live: Bool
-  {Empty.kept(Nil{}, xx, dd, found, live) == found : Bool}
+  {Empty.kept(Nil{}, x, d, found, live) == found : Bool}
 
 # LAW: a def whose parameters are followed by `:` writes no return type, so
 # it is a proof
@@ -531,19 +531,19 @@ law empty_proofy_end_needs_token:
 # LAW: a token closes the parameters when it is a closing bracket at depth
 # one
 law empty_proofy_fin_at_depth_one:
-  for kk: Lex.TokKind
-  {Empty.proofy.fin(kk, 1n) == D1.kinds.among(kk, [Lex.TClose{}]) : Bool}
+  for k: Lex.TokKind
+  {Empty.proofy.fin(k, 1n) == D1.kinds.among(k, [Lex.TClose{}]) : Bool}
 
 # LAW: not at depth zero
 law empty_proofy_fin_not_at_zero:
-  for kk: Lex.TokKind
-  {Empty.proofy.fin(kk, 0n) == False{} : Bool}
+  for k: Lex.TokKind
+  {Empty.proofy.fin(k, 0n) == False{} : Bool}
 
 # LAW: and not deeper than one
 law empty_proofy_fin_not_deeper:
-  for kk: Lex.TokKind
+  for k: Lex.TokKind
   for p: Nat
-  {Empty.proofy.fin(kk, 1n+1n+p) == False{} : Bool}
+  {Empty.proofy.fin(k, 1n+1n+p) == False{} : Bool}
 
 # LAW: right after the bracket that closes the parameters, the header's end
 # decides
@@ -553,8 +553,8 @@ law empty_proofy_decides_after_parameters:
   for l: U32
   for c: U32
   for +rest: List<&2, Lex.Tok>
-  for +dd: Nat
-  {Empty.proofy(Lex.Tok{k, t, l, c} <> rest, dd, True{}) == Empty.proofy.end(Lex.Tok{k, t, l, c} <> rest) : Bool}
+  for +d: Nat
+  {Empty.proofy(Lex.Tok{k, t, l, c} <> rest, d, True{}) == Empty.proofy.end(Lex.Tok{k, t, l, c} <> rest) : Bool}
 
 # LAW: before it, each token is read for its depth and for whether it is
 # that bracket
@@ -564,17 +564,17 @@ law empty_proofy_reads_on:
   for l: U32
   for c: U32
   for +rest: List<&2, Lex.Tok>
-  for +dd: Nat
-  {Empty.proofy(Lex.Tok{k, t, l, c} <> rest, dd, False{})
-    == Empty.proofy(rest, Empty.close.depth(k, dd), Empty.proofy.fin(k, dd)) : Bool}
+  for +d: Nat
+  {Empty.proofy(Lex.Tok{k, t, l, c} <> rest, d, False{})
+    == Empty.proofy(rest, Empty.close.depth(k, d), Empty.proofy.fin(k, d)) : Bool}
 
 # LAW: a header with no tokens is no proof
 law empty_proofy_needs_tokens:
   for toks: List<&2, Lex.Tok>
-  for +dd: Nat
+  for +d: Nat
   for fin: Bool
   for e: {List.is_empty(&2, Lex.Tok, toks) == True{} : Bool}
-  {Empty.proofy(toks, dd, fin) == False{} : Bool}
+  {Empty.proofy(toks, d, fin) == False{} : Bool}
 
 # LAW: after a keyword that is no def, tokens are skipped from `law` on, read
 # again from `type` or `import`, and otherwise as before
@@ -588,38 +588,38 @@ law empty_item_other_by_keyword:
 # concat: how many times a plain name is read
 # LAW: a name leaf that spells the name is one read of it
 law concat_uses_counts_the_name:
-  for +tt: String
-  for ll: U32
-  for cc: U32
+  for +t: String
+  for l: U32
+  for c: U32
   for +name: String
-  for e: {String.eq(tt, name) == True{} : Bool}
-  {Concat.uses(Tree.Leaf{Lex.Tok{Lex.TName{}, tt, ll, cc}}, name) == 1n : Nat}
+  for e: {String.eq(t, name) == True{} : Bool}
+  {Concat.uses(Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, name) == 1n : Nat}
 
 # LAW: a name leaf that spells another name is none
 law concat_uses_skips_other_names:
-  for +tt: String
-  for ll: U32
-  for cc: U32
+  for +t: String
+  for l: U32
+  for c: U32
   for +name: String
-  for e: {String.eq(tt, name) == False{} : Bool}
-  {Concat.uses(Tree.Leaf{Lex.Tok{Lex.TName{}, tt, ll, cc}}, name) == 0n : Nat}
+  for e: {String.eq(t, name) == False{} : Bool}
+  {Concat.uses(Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, name) == 0n : Nat}
 
 # table: the names in scope without one
 # LAW: the name itself is dropped, wherever it stands
 law table_drop_takes_the_name:
-  for +hh: String
+  for +h: String
   for +rest: List<&2, String>
   for +nm: String
-  for e: {String.eq(hh, nm) == True{} : Bool}
-  {Table.drop(hh <> rest, nm) == Table.drop(rest, nm) : List<&2, String>}
+  for e: {String.eq(h, nm) == True{} : Bool}
+  {Table.drop(h <> rest, nm) == Table.drop(rest, nm) : List<&2, String>}
 
 # LAW: every other name stays, in order
 law table_drop_keeps_other_names:
-  for +hh: String
+  for +h: String
   for +rest: List<&2, String>
   for +nm: String
-  for e: {String.eq(hh, nm) == False{} : Bool}
-  {Table.drop(hh <> rest, nm) == hh <> Table.drop(rest, nm) : List<&2, String>}
+  for e: {String.eq(h, nm) == False{} : Bool}
+  {Table.drop(h <> rest, nm) == h <> Table.drop(rest, nm) : List<&2, String>}
 
 # wrap: an operator's angle motion in a header
 # LAW: a run of `>` closes angles, unless the operator opens one
@@ -641,26 +641,26 @@ law wrap_other_operator_moves_no_angle:
 # pick: a term's text, as two searches are compared by it
 # LAW: a leaf is its token and then a space
 law pick_search_text_of_a_leaf:
-  for kk: Lex.TokKind
-  for tt: String
-  for ll: U32
-  for cc: U32
-  {Pick.search.text(Tree.Leaf{Lex.Tok{kk, tt, ll, cc}}) == tt ++ " " : String}
+  for k: Lex.TokKind
+  for t: String
+  for l: U32
+  for c: U32
+  {Pick.search.text(Tree.Leaf{Lex.Tok{k, t, l, c}}) == t ++ " " : String}
 
 # LAW: a group is its open bracket, a space, and then what it holds
 law pick_search_text_of_a_group:
-  for kk: Lex.TokKind
-  for oo: String
-  for ll: U32
-  for cc: U32
+  for k: Lex.TokKind
+  for o: String
+  for l: U32
+  for c: U32
   for kids: Tree.Node
   for cl: Maybe<&2, Lex.Tok>
-  {Pick.search.text(Tree.Group{Lex.Tok{kk, oo, ll, cc}, kids, cl}) == oo ++ " " ++ Pick.search.text(kids) : String}
+  {Pick.search.text(Tree.Group{Lex.Tok{k, o, l, c}, kids, cl}) == o ++ " " ++ Pick.search.text(kids) : String}
 
 # table: one use of a name, told apart from its other uses
 # LAW: a use's key is its name, an `@`, and where it stands
 law table_key_is_name_and_place:
-  for +tt: String
+  for +t: String
   for +line: U32
   for +col: U32
-  {Table.key(tt, line, col) == tt ++ "@" ++ U32.show(line) ++ ":" ++ U32.show(col) : String}
+  {Table.key(t, line, col) == t ++ "@" ++ U32.show(line) ++ ":" ++ U32.show(col) : String}

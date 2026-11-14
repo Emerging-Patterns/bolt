@@ -25,25 +25,25 @@ import ../src/syntax/outline.bend as Outline
 import ../src/rules/correctness/pick.bend as Pick
 import ../src/rules/calls.bend as Calls
 
-# does a name leaf under the node spell xx?
-def search.reads(nn: Tree.Node, +xx: String) -> Bool:
-  match nn:
+# does a name leaf under the node spell x?
+def search.reads(n: Tree.Node, +x: String) -> Bool:
+  match n:
     case Tree.Leaf{Lex.Tok{k, +t, l, c}}:
-      Bool.and(Lex.is_name(k), String.eq(t, xx))
+      Bool.and(Lex.is_name(k), String.eq(t, x))
     case Tree.Group{o, kids, cl}:
-      search.reads(kids, xx)
+      search.reads(kids, x)
     case Tree.Stmt{sk, kids, body}:
-      Bool.or(search.reads(kids, xx), search.reads(body, xx))
+      Bool.or(search.reads(kids, x), search.reads(body, x))
     case Tree.NCons{h, t}:
-      Bool.or(search.reads(h, xx), search.reads(t, xx))
+      Bool.or(search.reads(h, x), search.reads(t, x))
     case Tree.NNil{}:
       False{}
 
-# the first node of the chain that reads xx, NNil when none does
-def search.first(nn: Tree.Node, +xx: String) -> Tree.Node:
-  match nn:
+# the first node of the chain that reads x, NNil when none does
+def search.first(n: Tree.Node, +x: String) -> Tree.Node:
+  match n:
     case Tree.NCons{+h, t}:
-      Bool.pick(Tree.Node, search.reads(h, xx), h, search.first(t, xx))
+      Bool.pick(Tree.Node, search.reads(h, x), h, search.first(t, x))
     case other:
       Tree.NNil{}
 
@@ -65,26 +65,26 @@ def search.same(nn: Tree.Node, +cond: String) -> Bool:
       False{}
 
 # is the chain empty?
-def search.none(nn: Tree.Node) -> Bool:
-  match nn:
+def search.none(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NNil{}:
       True{}
     case other:
       False{}
 
-# is a pick's argument list (as) one that reads xx in its else branch only?
-def search.only(+as: List<&2, Tree.Node>, +xx: String) -> Bool:
-  Bool.and(Bool.not(Bool.or(search.reads(Calls.arg(as, 1n), xx), search.reads(Calls.arg(as, 2n), xx))),
-    search.reads(Calls.arg(as, 3n), xx))
+# is a pick's argument list (as) one that reads x in its else branch only?
+def search.only(+as: List<&2, Tree.Node>, +x: String) -> Bool:
+  Bool.and(Bool.not(Bool.or(search.reads(Calls.arg(as, 1n), x), search.reads(Calls.arg(as, 2n), x))),
+    search.reads(Calls.arg(as, 3n), x))
 
-# is the statement a `Bool.pick(..)` alone that reads xx in its else branch
+# is the statement a `Bool.pick(..)` alone that reads x in its else branch
 # only, on a condition no pick in the self-call's group (args) has?
-def search.pick(ss: Tree.Node, +xx: String, +args: Tree.Node) -> Bool:
-  match ss:
+def search.pick(s: Tree.Node, +x: String, +args: Tree.Node) -> Bool:
+  match s:
     case Tree.Stmt{sk, Tree.NCons{Tree.Leaf{Lex.Tok{kt, +t, lt, ct}}, Tree.NCons{Tree.Group{Lex.Tok{ko, +o, lo, co},
       +kids, cl}, after}}, body}:
       Bool.and(Bool.and(Bool.and(Bool.and(String.eq(t, "Bool.pick"), String.eq(o, "(")), search.none(after)),
-        search.only(Calls.args(kids), xx)),
+        search.only(Calls.args(kids), x)),
         Bool.not(search.same(args, Pick.search.text(Calls.arg(Calls.args(kids), 1n)))))
     case other:
       False{}
@@ -92,19 +92,19 @@ def search.pick(ss: Tree.Node, +xx: String, +args: Tree.Node) -> Bool:
 # past a let's bound name: `=`, the def's name, a `(` group and nothing
 # after it, and the first reader of the name in rest a pick that the bound
 # call makes a search of
-def search.call(kx: Lex.TokKind, +xx: String, r1: Tree.Node, rest: Tree.Node, +name: String) -> Bool:
+def search.call(kx: Lex.TokKind, +x: String, r1: Tree.Node, rest: Tree.Node, +name: String) -> Bool:
   match r1:
     case Tree.NCons{Tree.Leaf{Lex.Tok{ke, +e, le, ce}}, Tree.NCons{Tree.Leaf{Lex.Tok{kn, +n, ln, cn}},
       Tree.NCons{Tree.Group{Lex.Tok{ko, +o, lo, co}, +args, cl}, after}}}:
       Bool.and(Bool.and(Bool.and(Lex.is_name(kx), String.eq(e, "=")),
         Bool.and(Bool.and(String.eq(n, name), String.eq(o, "(")), search.none(after))),
-        search.pick(search.first(rest, xx), xx, args))
+        search.pick(search.first(rest, x), x, args))
     case other:
       False{}
 
 # a let's own tokens past a leading `+`: the bound name, then the call
-def search.bound(nn: Tree.Node, rest: Tree.Node, +name: String) -> Bool:
-  match nn:
+def search.bound(n: Tree.Node, rest: Tree.Node, +name: String) -> Bool:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{kx, +x, lx, cx}}, r1}:
       search.call(kx, x, r1, rest, name)
     case other:
@@ -142,10 +142,10 @@ def search.count(nn: Tree.Node, +name: String) -> Nat:
 # LAW: over any chain, pick reports one finding for each let that binds a
 # search above its pick, and nothing else
 law pick_search_walk_counts:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +name: String
   for +path: String
-  {List.length(&2, F.Finding, Pick.search.walk(nn, name, path)) == search.count(nn, name) : Nat}
+  {List.length(&2, F.Finding, Pick.search.walk(n, name, path)) == search.count(n, name) : Nat}
 
 # the searches bound above their picks in each def of the list that is not
 # exempt

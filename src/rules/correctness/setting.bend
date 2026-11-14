@@ -20,8 +20,8 @@ import ../../finding.bend as F
 import ../../config.bend as Config
 
 # each setting as a finding at the bolt.bend's path and its def's line
-def found(ss: List<&2, Config.Setting>, +path: String) -> List<&2, F.Finding>:
-  match ss:
+def found(s: List<&2, Config.Setting>, +path: String) -> List<&2, F.Finding>:
+  match s:
     case Nil{}:
       Nil{}
     case Con{Config.Setting{n, _w, line}, rest}:

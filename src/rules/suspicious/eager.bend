@@ -30,8 +30,8 @@ import ../calls.bend as Calls
 import ../../syntax/bind.bend as Bind
 
 # every name a node calls, `f(..)`, at any depth
-def called(nn: Tree.Node) -> List<&2, String>:
-  match nn:
+def called(n: Tree.Node) -> List<&2, String>:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +more = List.concat(&2, String, [called(kids), called(rest)])
       Bool.pick(List<&2, String>, String.eq(o, "("), t <> more, more)
@@ -95,8 +95,8 @@ def loops(ds: List<&2, Calls.Def>) -> List<&2, String>:
 # comma of a pick's own group moves to its next argument, hot from the third
 # on (0 the type, 1 the condition, 2 and 3 the branches), and a comma of any
 # other group returns it to keep; any other leaf leaves it as it was
-def work.hot(kk: Lex.TokKind, +hot: Bool, +seg: U32, +keep: Bool) -> Bool:
-  match kk:
+def work.hot(k: Lex.TokKind, +hot: Bool, +seg: U32, +keep: Bool) -> Bool:
+  match k:
     case Lex.TLam{}:
       False{}
     case Lex.TComma{}:
@@ -107,16 +107,16 @@ def work.hot(kk: Lex.TokKind, +hot: Bool, +seg: U32, +keep: Bool) -> Bool:
       hot
 
 # the argument a leaf leaves behind: a comma of a pick's own group moves on
-def work.seg(kk: Lex.TokKind, +seg: U32) -> U32:
-  match kk:
+def work.seg(k: Lex.TokKind, +seg: U32) -> U32:
+  match k:
     case Lex.TComma{}:
       Bool.pick(U32, U32.is_lt(seg, 9), (seg + 1 : U32), seg)
     case other:
       seg
 
 # can the leaf name a call (it is neither a `=>` nor a comma)?
-def work.name(kk: Lex.TokKind) -> Bool:
-  match kk:
+def work.name(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TLam{}:
       False{}
     case Lex.TComma{}:
@@ -133,7 +133,7 @@ def work.name(kk: Lex.TokKind) -> Bool:
 # leaf moves the state by its kind (work.hot, work.seg); a `=>` or a comma
 # before a group names no call, so that group is walked as any other
 def work(
-  nn: Tree.Node,
+  n: Tree.Node,
   +ns: List<&2, String>,
   +self: String,
   +path: String,
@@ -141,7 +141,7 @@ def work(
   +seg: U32,
   +keep: Bool
 ) -> List<&2, F.Finding>:
-  match nn:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{+k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +now = work.hot(k, hot, seg, keep)
       +call = Bool.and(work.name(k), String.eq(o, "("))
@@ -186,7 +186,7 @@ def check.go(
           _u => work(body, ns, name, path, False{}, 9, False{})) <> acc)
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
   +ds = Calls.defs(tree)
   check.go(ds, loops(ds), path, [])

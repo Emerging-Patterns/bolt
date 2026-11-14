@@ -19,18 +19,18 @@ import ./lemmas/LoopSetIndex.bend as LP
 
 # work finds what the law's count counts, node by node, in every state
 law eager.work:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +ns: List<&2, String>
   for +self: String
   for +path: String
   for +hot: Bool
   for +seg: U32
   for +keep: Bool
-  {List.length(&2, F.Finding, Eager.work(nn, ns, self, path, hot, seg, keep))
-    == Laws.eager.count(nn, ns, self, hot, seg, keep) : Nat}
+  {List.length(&2, F.Finding, Eager.work(n, ns, self, path, hot, seg, keep))
+    == Laws.eager.count(n, ns, self, hot, seg, keep) : Nat}
 
-def eager.work(nn, ns, self, path, hot, seg, keep):
-  match nn:
+def eager.work(n, ns, self, path, hot, seg, keep):
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{+k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, +rest}}:
       +now = Eager.work.hot(k, hot, seg, keep)
       +call = Bool.and(Eager.work.name(k), String.eq(o, "("))
@@ -143,8 +143,8 @@ def Laws.eager_comma(_hot, _keep):
   {==}
 
 # Unit for False, Empty for True
-def eager.false_ty(bb: Bool) -> Type:
-  match bb:
+def eager.false_ty(b: Bool) -> Type:
+  match b:
     case False{}:
       Unit
     case True{}:
@@ -159,8 +159,8 @@ def eager.false_true(e):
   %e : eager.false_ty(_)
   Unit{}
 
-def Laws.eager_plain(kk, hot, seg, keep, e):
-  match kk:
+def Laws.eager_plain(k, hot, seg, keep, e):
+  match k:
     case Lex.TLam{}:
       Empty.absurd(
         {(Eager.work.hot(Lex.TLam{}, hot, seg, keep), Eager.work.seg(Lex.TLam{}, seg), Eager.work.name(Lex.TLam{}))

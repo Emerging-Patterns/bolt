@@ -10,12 +10,12 @@ import ../src/syntax/outline.bend as Outline
 
 # LAW: hole reports nothing in a law file, whatever the source holds
 law role_hole_exempt:
-  for rr: Role.Role
-  for e: {Role.is_laws(rr) == True{} : Bool}
+  for r: Role.Role
+  for e: {Role.is_laws(r) == True{} : Bool}
   for +path: String
   for +text: String
   for +toks: List<&2, Lex.Tok>
   for +tree: Tree.Node
   for +bound: Bind.Bound
   for +items: List<&2, Outline.Item>
-  {Hole.check.role(rr, Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+  {Hole.check.role(r, Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}

@@ -37,8 +37,8 @@ law enc_advertised:
     "positionEncoding") == J.JStr{Enc.name(Enc.negotiate(params))} : J.Json}
 
 # is this method initialize?
-def nav.is_init(mm: Server.Method) -> Bool:
-  match mm:
+def nav.is_init(m: Server.Method) -> Bool:
+  match m:
     case Server.MInitialize{}:
       True{}
     case _other:
@@ -46,46 +46,46 @@ def nav.is_init(mm: Server.Method) -> Bool:
 
 # LAW: every message but initialize leaves the encoding as it was
 law enc_kept:
-  for mm: Server.Method
-  for h: {nav.is_init(mm) == False{} : Bool}
+  for m: Server.Method
+  for h: {nav.is_init(m) == False{} : Bool}
   for params: J.Json
-  for +ee: Enc.Enc
-  {Server.encoding(mm, params, ee) == ee : Enc.Enc}
+  for +e: Enc.Enc
+  {Server.encoding(m, params, e) == e : Enc.Enc}
 
 # LAW: the helper round-trips: a code-point column sent in an encoding and
 # read back in it is the same column, on every line
 law enc_round:
-  for +ee: Enc.Enc
+  for +e: Enc.Enc
   for +cs: List<&2, Char>
-  for nn: Nat
-  {Enc.into.of(ee, cs, Enc.out.of(ee, cs, nn)) == nn : Nat}
+  for n: Nat
+  {Enc.into.of(e, cs, Enc.out.of(e, cs, n)) == n : Nat}
 
 # LAW: every position the server sends carries its character in the
 # negotiated encoding
 law enc_sent:
-  for +cc: Enc.Cols
+  for +c: Enc.Cols
   for +line: U32
   for ch: U32
-  {Proto.position(cc, line, ch) == Proto.position.at(line, Enc.out(cc, line, ch)) : J.Json}
+  {Proto.position(c, line, ch) == Proto.position.at(line, Enc.out(c, line, ch)) : J.Json}
 
 # LAW: every position the server reads is read in the negotiated encoding
 law enc_read:
-  for cc: Enc.Cols
+  for c: Enc.Cols
   for +params: J.Json
-  {Server.col_in(cc, params) == Enc.into(cc, Server.line_of(params), Server.col_of(params)) : U32}
+  {Server.col_in(c, params) == Enc.into(c, Server.line_of(params), Server.col_of(params)) : U32}
 
 # LAW: every semantic token's column and length are sent in the negotiated
 # encoding
 law enc_tokens:
-  for +ee: Enc.Enc
+  for +e: Enc.Enc
   for +cs: List<&2, Char>
   for line: U32
   for +col: U32
   for +len: U32
   for typ: U32
-  {Semantic.sent.one(ee, cs, Semantic.Sem{line, col, len, typ})
-    == Semantic.Sem{line, Enc.out.col(ee, cs, col),
-      (Enc.out.col(ee, cs, (col + len : U32)) - Enc.out.col(ee, cs, col) : U32), typ} : Semantic.Sem}
+  {Semantic.sent.one(e, cs, Semantic.Sem{line, col, len, typ})
+    == Semantic.Sem{line, Enc.out.col(e, cs, col),
+      (Enc.out.col(e, cs, (col + len : U32)) - Enc.out.col(e, cs, col) : U32), typ} : Semantic.Sem}
 
 # LAW: in utf-32 a column crosses the boundary unchanged
 law enc_utf32:

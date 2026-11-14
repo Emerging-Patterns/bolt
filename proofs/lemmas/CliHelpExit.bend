@@ -11,5 +11,5 @@ def L1.cli_help_exits(av, ee, ps, h, h_help):
   %q : {Args.out.fail.at(_, ee) == Args.Stop{Args.Page{}, Args.help_text(ps), 0} : Args.Out}
   {==}
 
-def L1.cli_help(ps, ee, hp, hh):
-  L1.cli_help_exits("help" <> ps, ee, ps, hp, hh)
+def L1.cli_help(ps, e, hp, h):
+  L1.cli_help_exits("help" <> ps, e, ps, hp, h)

@@ -21,7 +21,7 @@ def lint.app_nil(A, xs):
     case Nil{}:
       {==}
     case Con{hd, +tl}:
-      Equal.cong(List<&2, A>, List<&2, A>, rr => hd <> rr, List.append(&2, A, tl, []), tl, lint.app_nil(A, tl))
+      Equal.cong(List<&2, A>, List<&2, A>, r => hd <> r, List.append(&2, A, tl, []), tl, lint.app_nil(A, tl))
 
 # The walk (laws/ScopeWalksWholeTree.bend). The planner's walk threads the files it has found
 # so far through its loop; the search reads its directories first. A lemma
@@ -42,7 +42,7 @@ def scope1.assoc(xs, ys, zs):
     case Nil{}:
       {==}
     case Con{hd, +tl}:
-      Equal.cong(List<&2, String>, List<&2, String>, rr => hd <> rr,
+      Equal.cong(List<&2, String>, List<&2, String>, r => hd <> r,
         List.append(&2, String, List.append(&2, String, tl, ys), zs),
         List.append(&2, String, tl, List.append(&2, String, ys, zs)), scope1.assoc(tl, ys, zs))
 
@@ -56,9 +56,9 @@ def scope1.dirs(es, dir):
   match es:
     case Nil{}:
       {==}
-    case Con{+ee, +tl}:
+    case Con{+e, +tl}:
       Equal.cong(List<&2, String>, List<&2, String>,
-        mm => Bool.pick(List<&2, String>, D1.descends(ee), (dir ++ "/" ++ D1.entry_name(ee)) <> mm, mm),
+        m => Bool.pick(List<&2, String>, D1.descends(e), (dir ++ "/" ++ D1.entry_name(e)) <> m, m),
         Plan.walk.dirs(tl, dir), D1.subdirs(tl, dir), scope1.dirs(tl, dir))
 
 # the walk finds the `.bend` files the search does
@@ -71,9 +71,9 @@ def scope1.bends(es, dir):
   match es:
     case Nil{}:
       {==}
-    case Con{+ee, +tl}:
+    case Con{+e, +tl}:
       Equal.cong(List<&2, String>, List<&2, String>,
-        mm => Bool.pick(List<&2, String>, String.ends_with(ee, ".bend"), (dir ++ "/" ++ ee) <> mm, mm),
+        m => Bool.pick(List<&2, String>, String.ends_with(e, ".bend"), (dir ++ "/" ++ e) <> m, m),
         Plan.walk.bends(tl, dir), D1.bends_in(tl, dir), scope1.bends(tl, dir))
 
 # one directory read: what the rest of the walk finds, onto its files and
@@ -107,34 +107,34 @@ def scope1.walk(fuel, world, queue, acc, seen):
   match fuel:
     case 0n:
       {==}
-    case 1n+ff:
+    case 1n+f:
       match queue:
         case Nil{}:
           {==}
         case Con{+dd, +rest}:
           d = scope1.dirs(W.listing(world, dd), dd)
-          %d : {Plan.walk.found(Plan.walk(ff, world,
+          %d : {Plan.walk.found(Plan.walk(f, world,
               List.append(&2, String, rest, Plan.walk.dirs(W.listing(world, dd), dd)),
               List.append(&2, String, Plan.walk.bends(W.listing(world, dd), dd), acc), dd <> seen))
             == List.append(&2, String, List.append(&2, String,
-              D1.found_in(D1.bfs(ff, world, List.append(&2, String, rest, _)), world),
+              D1.found_in(D1.bfs(f, world, List.append(&2, String, rest, _)), world),
               D1.bends_in(W.listing(world, dd), dd)), acc) : List<&2, String>}
           b = scope1.bends(W.listing(world, dd), dd)
-          %b : {Plan.walk.found(Plan.walk(ff, world,
+          %b : {Plan.walk.found(Plan.walk(f, world,
               List.append(&2, String, rest, Plan.walk.dirs(W.listing(world, dd), dd)),
               List.append(&2, String, Plan.walk.bends(W.listing(world, dd), dd), acc), dd <> seen))
             == List.append(&2, String, List.append(&2, String,
-              D1.found_in(D1.bfs(ff, world,
+              D1.found_in(D1.bfs(f, world,
                 List.append(&2, String, rest, Plan.walk.dirs(W.listing(world, dd), dd))), world),
               _), acc) : List<&2, String>}
           scope1.walk.step(
-            D1.found_in(D1.bfs(ff, world,
+            D1.found_in(D1.bfs(f, world,
               List.append(&2, String, rest, Plan.walk.dirs(W.listing(world, dd), dd))), world),
             Plan.walk.bends(W.listing(world, dd), dd), acc,
-            Plan.walk.found(Plan.walk(ff, world,
+            Plan.walk.found(Plan.walk(f, world,
               List.append(&2, String, rest, Plan.walk.dirs(W.listing(world, dd), dd)),
               List.append(&2, String, Plan.walk.bends(W.listing(world, dd), dd), acc), dd <> seen)),
-            scope1.walk(ff, world, List.append(&2, String, rest, Plan.walk.dirs(W.listing(world, dd), dd)),
+            scope1.walk(f, world, List.append(&2, String, rest, Plan.walk.dirs(W.listing(world, dd), dd)),
               List.append(&2, String, Plan.walk.bends(W.listing(world, dd), dd), acc), dd <> seen))
 
 def L1.walk_bfs(reads, world):

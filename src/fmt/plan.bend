@@ -32,8 +32,8 @@ def edit(same: Bool, path: String, text: String, more: List<&2, Edit>) -> List<&
       Edit{path, text} <> more
 
 # one file's edit, if formatting changes it; a path with no text has none
-def edits.one(path: String, mm: Maybe<&2, String>, more: List<&2, Edit>) -> List<&2, Edit>:
-  match mm:
+def edits.one(path: String, m: Maybe<&2, String>, more: List<&2, Edit>) -> List<&2, Edit>:
+  match m:
     case None{}:
       more
     case Some{+text}:
@@ -45,8 +45,8 @@ def edits(gs: List<&2, Lint.Got>) -> List<&2, Edit>:
   match gs:
     case Nil{}:
       Nil{}
-    case Con{Lint.Got{path, mm}, rest}:
-      edits.one(path, mm, edits(rest))
+    case Con{Lint.Got{path, m}, rest}:
+      edits.one(path, m, edits(rest))
 
 # the paths the World could not read, in order
 def unread(gs: List<&2, Lint.Got>) -> List<&2, String>:

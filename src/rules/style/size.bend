@@ -68,8 +68,8 @@ def limit(dim: Dim) -> U32:
       6
 
 # the greater of two
-def most(+aa: U32, +bb: U32) -> U32:
-  Bool.pick(U32, U32.is_gt(aa, bb), aa, bb)
+def most(+a: U32, +b: U32) -> U32:
+  Bool.pick(U32, U32.is_gt(a, b), a, b)
 
 # one more when the parameter has a name of its own
 def arity.one(name: String, +acc: U32) -> U32:
@@ -80,8 +80,8 @@ def arity.go(ps: List<&2, Tree.Node>, acc: U32) -> U32:
   match ps:
     case Nil{}:
       acc
-    case Con{pp, rest}:
-      arity.go(rest, arity.one(Calls.param_name(pp), acc))
+    case Con{p, rest}:
+      arity.go(rest, arity.one(Calls.param_name(p), acc))
 
 # a def's parameters, type parameters aside
 def arity(sig: Tree.Node) -> U32:
@@ -96,8 +96,8 @@ def last.close(close: Maybe<&2, Lex.Tok>, best: U32) -> U32:
       most(l, best)
 
 # the greatest line of a token under the node, or best when it is greater
-def last(nn: Tree.Node, best: U32) -> U32:
-  match nn:
+def last(n: Tree.Node, best: U32) -> U32:
+  match n:
     case Tree.Leaf{Lex.Tok{_k, _t, l, _c}}:
       most(l, best)
     case Tree.Group{Lex.Tok{_k, _t, l, _c}, kids, close}:
@@ -125,8 +125,8 @@ def depth.under(opens: Bool, at: U32) -> U32:
 
 # the deepest level of a statement among these, which sit at level `at`, or
 # best when it is deeper
-def depth(nn: Tree.Node, +at: U32, best: U32) -> U32:
-  match nn:
+def depth(n: Tree.Node, +at: U32, best: U32) -> U32:
+  match n:
     case Tree.NCons{Tree.Stmt{_kind, kids, body}, rest}:
       depth(rest, at, depth(body, depth.under(Calls.has_colon(kids), at), most(at, best)))
     case Tree.NCons{_h, rest}:
@@ -197,6 +197,6 @@ def check.go(ds: List<&2, Calls.Def>, +dim: Dim, +path: String, +max: U32) -> Li
         _u => sized(dim, name, Tree.line(sig), measure(dim, sig, body), max, path, more))
 
 # a rule of the family, at a limit
-def check(dim: Dim, ss: Src.Src, max: U32) -> List<&2, F.Finding>:
-  Src.Src{path, _text, _toks, tree, _bound, _items} = ss
+def check(dim: Dim, s: Src.Src, max: U32) -> List<&2, F.Finding>:
+  Src.Src{path, _text, _toks, tree, _bound, _items} = s
   check.go(Calls.defs(tree), dim, path, max)

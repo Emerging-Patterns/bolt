@@ -163,7 +163,7 @@ law arrow_below_is_proof:
   for +bz: Maybe<&2, Lex.Tok>
   for +ct: String
   for +cl: U32
-  for +cc: U32
+  for +c: U32
   for +below: Tree.Node
   for +rest: Tree.Node
   {Calls.proof(Calls.header(
@@ -172,7 +172,7 @@ law arrow_below_is_proof:
     Tree.NCons{Tree.Stmt{kind,
       Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TArrow{}, at, al, ac}},
         Tree.NCons{Tree.Group{Lex.Tok{Lex.TOpen{}, "{", bl, bc}, bk, bz},
-          Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, ct, cl, cc}}, Tree.NNil{}}}},
+          Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, ct, cl, c}}, Tree.NNil{}}}},
       below}, rest})) == True{} : Bool}
 
 # LAW: a def whose own line ends in `->` with `{..}:` on the next is a
@@ -198,7 +198,7 @@ law type_below_is_proof:
   for +bz: Maybe<&2, Lex.Tok>
   for +ct: String
   for +cl: U32
-  for +cc: U32
+  for +c: U32
   for +below: Tree.Node
   for +rest: Tree.Node
   {Calls.proof(Calls.header(
@@ -208,5 +208,5 @@ law type_below_is_proof:
           Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TArrow{}, at, al, ac}}, Tree.NNil{}}}}},
     Tree.NCons{Tree.Stmt{kind,
       Tree.NCons{Tree.Group{Lex.Tok{Lex.TOpen{}, "{", bl, bc}, bk, bz},
-        Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, ct, cl, cc}}, Tree.NNil{}}},
+        Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, ct, cl, c}}, Tree.NNil{}}},
       below}, rest})) == True{} : Bool}

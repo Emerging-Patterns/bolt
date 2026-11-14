@@ -31,22 +31,22 @@ import ../src/rules/calls.bend as Calls
 # counts the thunks of its body.
 
 # does a name leaf under the node spell the parameter, or it then a dot?
-def thunk.reads(nn: Tree.Node, +pp: String) -> Bool:
-  match nn:
+def thunk.reads(n: Tree.Node, +p: String) -> Bool:
+  match n:
     case Tree.Leaf{Lex.Tok{k, +t, l, c}}:
-      Bool.and(Lex.is_name(k), Bool.or(String.eq(t, pp), String.starts_with(t, pp ++ ".")))
+      Bool.and(Lex.is_name(k), Bool.or(String.eq(t, p), String.starts_with(t, p ++ ".")))
     case Tree.Group{o, kids, cl}:
-      thunk.reads(kids, pp)
+      thunk.reads(kids, p)
     case Tree.Stmt{sk, kids, body}:
-      Bool.or(thunk.reads(kids, pp), thunk.reads(body, pp))
+      Bool.or(thunk.reads(kids, p), thunk.reads(body, p))
     case Tree.NCons{h, t}:
-      Bool.or(thunk.reads(h, pp), thunk.reads(t, pp))
+      Bool.or(thunk.reads(h, p), thunk.reads(t, p))
     case Tree.NNil{}:
       False{}
 
 # is what follows the call the chain's end, or a comma?
-def thunk.last(nn: Tree.Node) -> Bool:
-  match nn:
+def thunk.last(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NCons{h, t}:
       Calls.kind.leaf(~Lex.is_comma, h)
     case other:
@@ -54,35 +54,35 @@ def thunk.last(nn: Tree.Node) -> Bool:
 
 # the rest past the name: a `(` group that does not read the parameter, then
 # the body's end
-def thunk.call(kp: Lex.TokKind, +pp: String, +aa: String, +nm: String, r3: Tree.Node, +name: String) -> Bool:
+def thunk.call(kp: Lex.TokKind, +p: String, +a: String, +nm: String, r3: Tree.Node, +name: String) -> Bool:
   match r3:
     case Tree.NCons{Tree.Group{Lex.Tok{ko, o, lo, co}, kids, cl}, after}:
-      Bool.and(Bool.and(Lex.is_name(kp), Bool.not(thunk.reads(kids, pp))),
-        Bool.and(String.eq(aa, "=>"), Bool.and(String.eq(nm, name), Bool.and(String.eq(o, "("), thunk.last(after)))))
+      Bool.and(Bool.and(Lex.is_name(kp), Bool.not(thunk.reads(kids, p))),
+        Bool.and(String.eq(a, "=>"), Bool.and(String.eq(nm, name), Bool.and(String.eq(o, "("), thunk.last(after)))))
     case other:
       False{}
 
 # the rest past `=>`: a leaf, the name called
-def thunk.callee(kp: Lex.TokKind, +pp: String, +aa: String, r2: Tree.Node, +name: String) -> Bool:
+def thunk.callee(kp: Lex.TokKind, +p: String, +a: String, r2: Tree.Node, +name: String) -> Bool:
   match r2:
     case Tree.NCons{Tree.Leaf{Lex.Tok{kn, n, ln, cn}}, r3}:
-      thunk.call(kp, pp, aa, n, r3, name)
+      thunk.call(kp, p, a, n, r3, name)
     case other:
       False{}
 
 # the rest past the parameter: a leaf, the arrow
-def thunk.lam(kp: Lex.TokKind, +pp: String, rr: Tree.Node, +name: String) -> Bool:
-  match rr:
+def thunk.lam(kp: Lex.TokKind, +p: String, r: Tree.Node, +name: String) -> Bool:
+  match r:
     case Tree.NCons{Tree.Leaf{Lex.Tok{ka, a, la, ca}}, r2}:
-      thunk.callee(kp, pp, a, r2, name)
+      thunk.callee(kp, p, a, r2, name)
     case other:
       False{}
 
 # does the chain open with a thunk of a self-call of the name?
-def thunk.at(nn: Tree.Node, +name: String) -> Bool:
-  match nn:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{kp, p, lp, cp}}, rr}:
-      thunk.lam(kp, p, rr, name)
+def thunk.at(n: Tree.Node, +name: String) -> Bool:
+  match n:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{kp, p, lp, cp}}, r}:
+      thunk.lam(kp, p, r, name)
     case other:
       False{}
 
@@ -98,9 +98,9 @@ def thunk.args(nn: Tree.Node, +seen: Bool) -> Nat:
     case other:
       Bool.pick(Nat, seen, 1n, 0n)
 
-# is a group opened by oo over the kids a call given exactly one lambda?
-def thunk.lone(+oo: String, +kids: Tree.Node) -> Bool:
-  Bool.and(String.eq(oo, "("), Nat.is_eq(thunk.args(kids, False{}), 1n))
+# is a group opened by o over the kids a call given exactly one lambda?
+def thunk.lone(+o: String, +kids: Tree.Node) -> Bool:
+  Bool.and(String.eq(o, "("), Nat.is_eq(thunk.args(kids, False{}), 1n))
 
 # how many thunks of a self-call of the name the node holds, at any depth,
 # each in the kids of a call given one lambda; lone: the node is the rest of
@@ -120,11 +120,11 @@ def thunk.count(nn: Tree.Node, +lone: Bool, +name: String) -> Nat:
 # LAW: over any node, thunk reports one finding for each thunk of a
 # self-call passed as the one lambda of a call, and none for anything else
 law thunk_walk_counts:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +lone: Bool
   for +name: String
   for +path: String
-  {List.length(&2, F.Finding, Thunk.walk(nn, lone, name, path)) == thunk.count(nn, lone, name) : Nat}
+  {List.length(&2, F.Finding, Thunk.walk(n, lone, name, path)) == thunk.count(n, lone, name) : Nat}
 
 # the thunks of a self-call in each def of the list that is not exempt
 def thunk.defs(ds: List<&2, Calls.Def>, +path: String) -> Nat:

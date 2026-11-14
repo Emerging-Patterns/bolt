@@ -20,12 +20,12 @@ import ../calls.bend as Calls
 import ../../lazy/lazy.bend as Lazy
 
 # is the operator `&&` or `||`?
-def logic(+tt: String) -> Bool:
-  Bool.or(String.eq(tt, "&&"), String.eq(tt, "||"))
+def logic(+t: String) -> Bool:
+  Bool.or(String.eq(t, "&&"), String.eq(t, "||"))
 
 # a comma or a `=>`: the end of a stretch
-def seg_op.ends(kk: Lex.TokKind) -> Bool:
-  match kk:
+def seg_op.ends(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TComma{}:
       True{}
     case Lex.TLam{}:
@@ -38,8 +38,8 @@ def seg_op.or(+here: Bool, more: Bool) -> Bool:
   Bool.or(here, more)
 
 # does the chain, up to its first top-level comma or `=>`, hold `&&` or `||`?
-def seg_op(nn: Tree.Node) -> Bool:
-  match nn:
+def seg_op(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NCons{+h, rest}:
       Lazy.stop(Bool, Calls.kind.leaf(~seg_op.ends, h), False{},
         _u => seg_op.or(Bool.and(Calls.kind.leaf(~Calls.kind.oper, h), logic(Calls.leaf.text(h))), seg_op(rest)))
@@ -48,37 +48,37 @@ def seg_op(nn: Tree.Node) -> Bool:
 
 # is the group after a name an operand: the stretch is hot, or it is the `(`
 # of `Bool.and` or `Bool.or`
-def inner(+hot: Bool, +oo: String, +tt: String) -> Bool:
-  Bool.or(hot, Bool.and(String.eq(oo, "("), Bool.or(String.eq(tt, "Bool.and"), String.eq(tt, "Bool.or"))))
+def inner(+hot: Bool, +o: String, +t: String) -> Bool:
+  Bool.or(hot, Bool.and(String.eq(o, "("), Bool.or(String.eq(t, "Bool.and"), String.eq(t, "Bool.or"))))
 
 # a name's token, then a group: a finding when the name is the def, the
 # group a `(` call and the stretch hot, then what the group and the rest
 # report
 def call(
   tok: Lex.Tok,
-  +oo: String,
+  +o: String,
   +name: String,
   +path: String,
   +hot: Bool,
   kids: List<&2, F.Finding>,
   rest: List<&2, F.Finding>
 ) -> List<&2, F.Finding>:
-  Lex.Tok{_kk, tt, ll, cc} = tok
+  Lex.Tok{_kk, t, l, c} = tok
   +more = List.concat(&2, F.Finding, [kids, rest])
-  Bool.pick(List<&2, F.Finding>, Bool.and(Bool.and(String.eq(oo, "("), String.eq(tt, name)), hot),
-    F.Finding{path, ll, cc, U32.from_nat(String.length(name)), "strict",
+  Bool.pick(List<&2, F.Finding>, Bool.and(Bool.and(String.eq(o, "("), String.eq(t, name)), hot),
+    F.Finding{path, l, c, U32.from_nat(String.length(name)), "strict",
       name ++ " calls itself inside Bool.and or Bool.or, which evaluate both sides, so there is no short-circuit; match on the Bool in a helper."} <> more,
     more)
 
 # a leaf read by its kind: past a comma, past a `=>`, or past any other
 # token; only the branch taken runs
 def leaf(
-  kk: Lex.TokKind,
+  k: Lex.TokKind,
   comma: Unit -> List<&2, F.Finding>,
   lam: Unit -> List<&2, F.Finding>,
   plain: Unit -> List<&2, F.Finding>
 ) -> List<&2, F.Finding>:
-  match kk:
+  match k:
     case Lex.TComma{}:
       comma(Unit{})
     case Lex.TLam{}:
@@ -90,8 +90,8 @@ def leaf(
 # operand, hot whether the current comma segment is; a `=>` starts a lambda
 # body, hot only by its own `&&`/`||`. A leaf is read by its kind in `leaf`,
 # once the cell after it is known
-def walk(nn: Tree.Node, +name: String, +path: String, +outer: Bool, +hot: Bool) -> List<&2, F.Finding>:
-  match nn:
+def walk(n: Tree.Node, +name: String, +path: String, +outer: Bool, +hot: Bool) -> List<&2, F.Finding>:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{+k, +t, +l, +c}}, +rest}:
       match rest:
         case Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, r2}:
@@ -125,6 +125,6 @@ def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Fi
           _u => walk(body, name, path, False{}, False{})) <> acc)
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
   check.go(Calls.defs(tree), path, [])

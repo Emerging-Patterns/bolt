@@ -151,8 +151,8 @@ def files(+world: W.World) -> List<&2, String>:
   files.named(W.paths.of(world), world)
 
 # a bolt.bend is configuration, not source
-def is_config(+pp: String) -> Bool:
-  Bool.or(String.eq(pp, "bolt.bend"), String.ends_with(pp, "/bolt.bend"))
+def is_config(+p: String) -> Bool:
+  Bool.or(String.eq(p, "bolt.bend"), String.ends_with(p, "/bolt.bend"))
 
 # the paths that are source
 def sources(ps: List<&2, String>) -> List<&2, String>:
@@ -344,8 +344,8 @@ def unanswered.paths(rs: List<&2, W.Reply>) -> List<&2, String>:
     case Con{W.Reply{W.Contents{p}, _a}, rest}:
       p <> unanswered.paths(rest)
 
-def unanswered.hit(aa: W.Ask, +dx: Bind.Index, +px: Bind.Index) -> Bool:
-  match aa:
+def unanswered.hit(a: W.Ask, +dx: Bind.Index, +px: Bind.Index) -> Bool:
+  match a:
     case W.Entries{+d}:
       Bind.indexed(dx, d)
     case W.Contents{+p}:
@@ -539,10 +539,10 @@ def marks.named(+world: W.World) -> List<&2, Role.Mark>:
 # own; over files named on the line, the graph's, every file of the tree
 # read for its imports, so the main.bend that imports a named file makes it
 # code even when it is not named
-def marks.run(paths: List<&2, String>, +world: W.World, +ss: List<&2, Src.Src>) -> List<&2, Role.Mark>:
+def marks.run(paths: List<&2, String>, +world: W.World, +s: List<&2, Src.Src>) -> List<&2, Role.Mark>:
   match paths:
     case Nil{}:
-      Role.marks(ss)
+      Role.marks(s)
     case Con{_p, _rest}:
       marks.named(world)
 
@@ -602,10 +602,10 @@ def found.at(
   +cs: List<&2, Conf>,
   +world: W.World,
   +gs: List<&2, Got>,
-  +ss: List<&2, Src.Src>
+  +s: List<&2, Src.Src>
 ) -> List<&2, F.Finding>:
-  List.concat(&2, F.Finding, [unread(gs), per_file.role(cs, world, marks.run(W.paths.of(world), world, ss), ss),
-    settings(world), Rules.project(ss, packages(roots(world)))])
+  List.concat(&2, F.Finding, [unread(gs), per_file.role(cs, world, marks.run(W.paths.of(world), world, s), s),
+    settings(world), Rules.project(s, packages(roots(world)))])
 
 # every finding of every rule, ungraded
 def found(+world: W.World) -> List<&2, F.Finding>:
@@ -647,10 +647,10 @@ def found.live(
   +cs: List<&2, Conf>,
   +world: W.World,
   +gs: List<&2, Got>,
-  +ss: List<&2, Src.Src>
+  +s: List<&2, Src.Src>
 ) -> List<&2, F.Finding>:
-  List.concat(&2, F.Finding, [unread(gs), per_file.live(cs, world, marks.run(W.paths.of(world), world, ss), ss),
-    settings(world), Rules.project(ss, packages(roots(world)))])
+  List.concat(&2, F.Finding, [unread(gs), per_file.live(cs, world, marks.run(W.paths.of(world), world, s), s),
+    settings(world), Rules.project(s, packages(roots(world)))])
 
 # ---------------------------------------------------------------------------
 # silencing, then the `noqa` rule
@@ -679,26 +679,26 @@ def after(
 # the run is the whole tree. The sources are parsed once for both.
 def final(+world: W.World) -> List<&2, F.Graded>:
   +gs = gots(inputs(world), world)
-  +ss = srcs_of(gs)
+  +s = srcs_of(gs)
   +cs = confs(world)
-  after(Noqa.of_srcs(ss), List.is_empty(&2, String, W.paths.of(world)), grade(cs, world, found.at(cs, world, gs, ss)),
+  after(Noqa.of_srcs(s), List.is_empty(&2, String, W.paths.of(world)), grade(cs, world, found.at(cs, world, gs, s)),
     fs => grade(cs, world, fs))
 
 # final, a per-file rule its file's config sets off not run: the same graded
 # findings (laws/OffRulesAreNotRun.bend)
 def final.live(+world: W.World) -> List<&2, F.Graded>:
   +gs = gots(inputs(world), world)
-  +ss = srcs_of(gs)
+  +s = srcs_of(gs)
   +cs = confs(world)
-  after(Noqa.of_srcs(ss), List.is_empty(&2, String, W.paths.of(world)),
-    grade(cs, world, found.live(cs, world, gs, ss)), fs => grade(cs, world, fs))
+  after(Noqa.of_srcs(s), List.is_empty(&2, String, W.paths.of(world)),
+    grade(cs, world, found.live(cs, world, gs, s)), fs => grade(cs, world, fs))
 
 # ---------------------------------------------------------------------------
 # the plan
 
 # one more at error, or the count as it was
-def errors.at(ll: Config.Level, more: U32) -> U32:
-  match ll:
+def errors.at(l: Config.Level, more: U32) -> U32:
+  match l:
     case Config.Off{}:
       more
     case Config.Warn{}:
@@ -711,12 +711,12 @@ def errors(gs: List<&2, F.Graded>) -> U32:
   match gs:
     case Nil{}:
       0
-    case Con{F.Graded{ll, _ff}, rest}:
-      errors.at(ll, errors(rest))
+    case Con{F.Graded{l, _ff}, rest}:
+      errors.at(l, errors(rest))
 
 # one more below error, or the count as it was
-def warnings.at(ll: Config.Level, more: U32) -> U32:
-  match ll:
+def warnings.at(l: Config.Level, more: U32) -> U32:
+  match l:
     case Config.Off{}:
       U32.inc(more)
     case Config.Warn{}:
@@ -729,21 +729,21 @@ def warnings(gs: List<&2, F.Graded>) -> U32:
   match gs:
     case Nil{}:
       0
-    case Con{F.Graded{ll, _ff}, rest}:
-      warnings.at(ll, warnings(rest))
+    case Con{F.Graded{l, _ff}, rest}:
+      warnings.at(l, warnings(rest))
 
 # whether any is an error
 def has_error(gs: List<&2, F.Graded>) -> Bool:
   match gs:
     case Nil{}:
       False{}
-    case Con{F.Graded{ll, _ff}, rest}:
+    case Con{F.Graded{l, _ff}, rest}:
       +more = has_error(rest)
-      Bool.or(Config.is_error(ll), more)
+      Bool.or(Config.is_error(l), more)
 
 # `1 error`, `2 errors`
-def count(+nn: U32, +what: String) -> String:
-  U32.show(nn) ++ " " ++ what ++ Bool.pick(String, U32.is_eq(nn, 1), "", "s")
+def count(+n: U32, +what: String) -> String:
+  U32.show(n) ++ " " ++ what ++ Bool.pick(String, U32.is_eq(n, 1), "", "s")
 
 # `clean`, or the counts
 def summary(+gs: List<&2, F.Graded>) -> String:

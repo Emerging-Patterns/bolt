@@ -25,8 +25,8 @@ import ../src/rules/calls.bend as Calls
 # for the statements after it in its chain, and for everything under them.
 
 # True when the argument appends onto a name and that name is the slot's
-def concat.is(mm: Maybe<&2, Lex.Tok>, +slot: String) -> Bool:
-  match mm:
+def concat.is(m: Maybe<&2, Lex.Tok>, +slot: String) -> Bool:
+  match m:
     case None{}:
       False{}
     case Some{Lex.Tok{k, +t, l, c}}:
@@ -88,18 +88,18 @@ law concat_paren:
 # a let of the name shadows every one after it
 law concat_nearest:
   for +name: String
-  for mm: Maybe<&2, Lex.Tok>
+  for m: Maybe<&2, Lex.Tok>
   for lets: List<&2, Concat.Let>
-  {Concat.find(Concat.Let{name, mm} <> lets, name) == mm : Maybe<&2, Lex.Tok>}
+  {Concat.find(Concat.Let{name, m} <> lets, name) == m : Maybe<&2, Lex.Tok>}
 
 # LAW: a let of another name is passed over
 law concat_other:
   for +nm: String
   for +name: String
-  for mm: Maybe<&2, Lex.Tok>
+  for m: Maybe<&2, Lex.Tok>
   for lets: List<&2, Concat.Let>
   for e: {String.eq(nm, name) == False{} : Bool}
-  {Concat.find(Concat.Let{nm, mm} <> lets, name) == Concat.find(lets, name) : Maybe<&2, Lex.Tok>}
+  {Concat.find(Concat.Let{nm, m} <> lets, name) == Concat.find(lets, name) : Maybe<&2, Lex.Tok>}
 
 # LAW: a lone name is read through the lets
 law concat_via:
@@ -112,11 +112,11 @@ law concat_via:
 
 # LAW: an append written in place is read in place, whatever the lets say
 law concat_in_place:
-  for +aa: Tree.Node
+  for +a: Tree.Node
   for tok: Lex.Tok
   for lets: List<&2, Concat.Let>
-  for e: {Concat.onto(aa) == Some{tok} : Maybe<&2, Lex.Tok>}
-  {Concat.seen(aa, lets) == Some{tok} : Maybe<&2, Lex.Tok>}
+  for e: {Concat.onto(a) == Some{tok} : Maybe<&2, Lex.Tok>}
+  {Concat.seen(a, lets) == Some{tok} : Maybe<&2, Lex.Tok>}
 
 # LAW: a let statement that binds one plain name puts it in scope, nearest
 # first, for the statements after it

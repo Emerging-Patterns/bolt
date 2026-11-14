@@ -23,8 +23,8 @@ law texts_asked_in_order:
 # LAW: a path is a bolt.bend exactly when it is `bolt.bend` or ends in
 # `/bolt.bend`
 law config_by_name:
-  for +pp: String
-  {Plan.is_config(pp) == Bool.or(String.eq(pp, "bolt.bend"), String.ends_with(pp, "/bolt.bend")) : Bool}
+  for +p: String
+  {Plan.is_config(p) == Bool.or(String.eq(p, "bolt.bend"), String.ends_with(p, "/bolt.bend")) : Bool}
 
 # LAW: a bolt.bend is not a source
 law sources_drop_config:
@@ -43,8 +43,8 @@ law sources_keep_files:
 # LAW: the bolt.bend candidates are asked for directory by directory, in the
 # order of the directories: a directory's own chain before the next one's
 law conf_cands_in_directory_order:
-  for dd: String
+  for d: String
   for rest: List<&2, String>
   for +world: W.World
-  {Plan.conf.cands(dd <> rest, world)
-    == List.append(&2, String, Plan.conf.chain(world, dd), Plan.conf.cands(rest, world)) : List<&2, String>}
+  {Plan.conf.cands(d <> rest, world)
+    == List.append(&2, String, Plan.conf.chain(world, d), Plan.conf.cands(rest, world)) : List<&2, String>}

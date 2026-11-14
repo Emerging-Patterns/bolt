@@ -10,17 +10,17 @@ import ../../syntax/outline.bend as Outline
 import ../../lazy/lazy.bend as Lazy
 
 # a path without its leading `./`s
-def ns.lead(ss: String) -> String:
-  match ss:
-    case SCon{'.', SCon{'/', tt}}:
-      ns.lead(tt)
+def ns.lead(s: String) -> String:
+  match s:
+    case SCon{'.', SCon{'/', t}}:
+      ns.lead(t)
     case other:
       other
 
 # an import's namespace: its path, without a leading `./` or its `.bend`
 def ns(path: String) -> String:
-  +pp = ns.lead(path)
-  Bool.pick(String, String.ends_with(pp, ".bend"), String.take(pp, Nat.sub(String.length(pp), 5n)), pp)
+  +p = ns.lead(path)
+  Bool.pick(String, String.ends_with(p, ".bend"), String.take(p, Nat.sub(String.length(p), 5n)), p)
 
 # the key of a name that opens with `head.`: through the import aliased head
 # when there is one, else the name as written
@@ -34,8 +34,8 @@ def key.of(alias: Maybe<&2, String>, +name: String, +rest: String) -> String:
 # an item's key, among the file's items
 def key.parts(items: List<&2, Outline.Item>, +name: String, parts: List<&2, String>) -> String:
   match parts:
-    case Con{+head, Con{rr, more}}:
-      key.of(Outline.import_path(items, head), name, String.join(rr <> more, "."))
+    case Con{+head, Con{r, more}}:
+      key.of(Outline.import_path(items, head), name, String.join(r <> more, "."))
     case other:
       name
 
@@ -48,12 +48,12 @@ def keys(its: List<&2, Outline.Item>, +items: List<&2, Outline.Item>, +acc: List
   match its:
     case Nil{}:
       acc
-    case Con{Outline.Item{+kk, +nn, _line, _sig, _doc, _path}, rest}:
-      keys(rest, items, Lazy.stop(List<&2, String>, Outline.is_import(kk), acc, _u => key(items, nn) <> acc))
+    case Con{Outline.Item{+k, +n, _line, _sig, _doc, _path}, rest}:
+      keys(rest, items, Lazy.stop(List<&2, String>, Outline.is_import(k), acc, _u => key(items, n) <> acc))
 
 # the names bend gives a file's items, when its text could be read
-def of(mm: Maybe<&2, String>) -> Maybe<&2, List<&2, String>>:
-  match mm:
+def of(m: Maybe<&2, String>) -> Maybe<&2, List<&2, String>>:
+  match m:
     case None{}:
       None{}
     case Some{text}:

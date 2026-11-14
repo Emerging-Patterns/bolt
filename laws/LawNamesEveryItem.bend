@@ -76,17 +76,17 @@ def coverage.alias(items: List<&2, Outline.Item>, +name: String, +from: String) 
       coverage.alias(rest, name, from)
 
 # the item behind an alias, when an import names it
-def coverage.behind(mm: Maybe<&2, String>, name: String) -> List<&2, Digest.Mention>:
-  match mm:
+def coverage.behind(m: Maybe<&2, String>, name: String) -> List<&2, Digest.Mention>:
+  match m:
     case None{}:
       []
-    case Some{pp}:
-      [Digest.Mention{pp, name}]
+    case Some{p}:
+      [Digest.Mention{p, name}]
 
 # what a use the binder resolved names: an item of the file, or an item
 # behind an import alias; a binder or a free name names nothing
-def coverage.target(tt: Bind.Target, items: List<&2, Outline.Item>, +file: String) -> List<&2, Digest.Mention>:
-  match tt:
+def coverage.target(t: Bind.Target, items: List<&2, Outline.Item>, +file: String) -> List<&2, Digest.Mention>:
+  match t:
     case Bind.TItem{name}:
       [Digest.Mention{file, name}]
     case Bind.TQual{al, name}:
@@ -116,14 +116,14 @@ def coverage.said(
   match us:
     case Nil{}:
       []
-    case Con{Bind.Use{_n, ln, _c, tt}, rest}:
+    case Con{Bind.Use{_n, ln, _c, t}, rest}:
       +more = coverage.said(rest, root, items, file)
       Bool.pick(List<&2, Digest.Mention>, coverage.in_law(root, ln),
-        List.append(&2, Digest.Mention, coverage.target(tt, items, file), more), more)
+        List.append(&2, Digest.Mention, coverage.target(t, items, file), more), more)
 
 # the uses the binder recorded
-def coverage.uses(bb: Bind.Bound) -> List<&2, Bind.Use>:
-  match bb:
+def coverage.uses(b: Bind.Bound) -> List<&2, Bind.Use>:
+  match b:
     case Bind.Bound{_bs, us, _scs}:
       us
 
@@ -132,8 +132,8 @@ type CoverageView is Data:
   CoverageView{norm: String, is_laws: Bool, exempt: Bool, tops: List<&2, Digest.Top>, says: List<&2, Digest.Mention>}
 
 # a digest as the coverage rule reads it
-def coverage.view(dd: Digest.Digest) -> CoverageView:
-  match dd:
+def coverage.view(d: Digest.Digest) -> CoverageView:
+  match d:
     case Digest.Digest{_path, norm, _dir, is_laws, _is_law_file, exempt, tops, says, _deps, _laws}:
       CoverageView{norm, is_laws, exempt, tops, says}
 
@@ -153,41 +153,41 @@ def coverage.view(dd: Digest.Digest) -> CoverageView:
 # LAWS.bend that a law names carries the reach to what it calls.
 
 # an item's key: its name, a space, its file's path
-def reach.key(+pp: String, name: String) -> String:
-  name ++ " " ++ pp
+def reach.key(+p: String, name: String) -> String:
+  name ++ " " ++ p
 
 # the keys of what the mentions name
 def reach.keys(ms: List<&2, Digest.Mention>) -> List<&2, String>:
   match ms:
     case Nil{}:
       []
-    case Con{Digest.Mention{pp, name}, rest}:
-      reach.key(pp, name) <> reach.keys(rest)
+    case Con{Digest.Mention{p, name}, rest}:
+      reach.key(p, name) <> reach.keys(rest)
 
 # a node: a digest with only a key and what it leads to
-def reach.node(+kk: String, to: List<&2, String>) -> Digest.Digest:
-  Digest.Digest{kk, kk, "", False{}, False{}, True{}, [], [], to, []}
+def reach.node(+k: String, to: List<&2, String>) -> Digest.Digest:
+  Digest.Digest{k, k, "", False{}, False{}, True{}, [], [], to, []}
 
 # each constructor as a node that leads nowhere, onto the others
-def reach.ctors(cs: List<&2, String>, +pp: String, more: List<&2, Digest.Digest>) -> List<&2, Digest.Digest>:
+def reach.ctors(cs: List<&2, String>, +p: String, more: List<&2, Digest.Digest>) -> List<&2, Digest.Digest>:
   match cs:
     case Nil{}:
       more
     case Con{name, rest}:
-      reach.node(reach.key(pp, name), []) <> reach.ctors(rest, pp, more)
+      reach.node(reach.key(p, name), []) <> reach.ctors(rest, p, more)
 
 # the defs and types of a file as nodes, onto the others: a def leads to
 # what its calls name, a type (then each of its constructors) nowhere
-def reach.nodes(ts: List<&2, Digest.Top>, +pp: String, more: List<&2, Digest.Digest>) -> List<&2, Digest.Digest>:
+def reach.nodes(ts: List<&2, Digest.Top>, +p: String, more: List<&2, Digest.Digest>) -> List<&2, Digest.Digest>:
   match ts:
     case Nil{}:
       more
     case Con{Digest.Top{Outline.IDef{}, name, _line, _cs, calls}, rest}:
-      reach.node(reach.key(pp, name), reach.keys(calls)) <> reach.nodes(rest, pp, more)
+      reach.node(reach.key(p, name), reach.keys(calls)) <> reach.nodes(rest, p, more)
     case Con{Digest.Top{Outline.IType{}, name, _line, cs, _calls}, rest}:
-      reach.node(reach.key(pp, name), []) <> reach.ctors(cs, pp, reach.nodes(rest, pp, more))
+      reach.node(reach.key(p, name), []) <> reach.ctors(cs, p, reach.nodes(rest, p, more))
     case Con{_other, rest}:
-      reach.nodes(rest, pp, more)
+      reach.nodes(rest, p, more)
 
 # the items of every file as nodes
 def reach.items(ds: List<&2, Digest.Digest>) -> List<&2, Digest.Digest>:
@@ -217,32 +217,32 @@ def reach.closure(+ds: List<&2, Digest.Digest>) -> List<&2, String>:
   D1.unsafe.closure(reach.graph(ds), "")
 
 # is one of the names (a type's constructors) of the file reached?
-def reach.any(ns: List<&2, String>, +cl: List<&2, String>, +pp: String) -> Bool:
+def reach.any(ns: List<&2, String>, +cl: List<&2, String>, +p: String) -> Bool:
   match ns:
     case Nil{}:
       False{}
     case Con{name, rest}:
-      Bool.or(Imports.has(cl, reach.key(pp, name)), reach.any(rest, cl, pp))
+      Bool.or(Imports.has(cl, reach.key(p, name)), reach.any(rest, cl, p))
 
 # the items of a file the closure does not hold, in order: a def whose name
 # has no dot (a helper's has), and a type when neither it nor any of its
 # constructors is held
-def reach.gaps(ts: List<&2, Digest.Top>, +cl: List<&2, String>, +pp: String, +path: String) -> List<&2, F.Finding>:
+def reach.gaps(ts: List<&2, Digest.Top>, +cl: List<&2, String>, +p: String, +path: String) -> List<&2, F.Finding>:
   match ts:
     case Nil{}:
       []
     case Con{Digest.Top{Outline.IDef{}, +name, +line, _cs, _calls}, rest}:
-      +more = reach.gaps(rest, cl, pp, path)
-      Bool.pick(List<&2, F.Finding>, Bool.or(String.contains(name, "."), Imports.has(cl, reach.key(pp, name))), more,
+      +more = reach.gaps(rest, cl, p, path)
+      Bool.pick(List<&2, F.Finding>, Bool.or(String.contains(name, "."), Imports.has(cl, reach.key(p, name))), more,
         F.Finding{path, line, 0, 0, "coverage", "No quantified law reaches def " ++ name ++ "."} <> more)
     case Con{Digest.Top{Outline.IType{}, +name, +line, cs, _calls}, rest}:
-      +more = reach.gaps(rest, cl, pp, path)
-      Bool.pick(List<&2, F.Finding>, Bool.or(Imports.has(cl, reach.key(pp, name)), reach.any(cs, cl, pp)), more,
+      +more = reach.gaps(rest, cl, p, path)
+      Bool.pick(List<&2, F.Finding>, Bool.or(Imports.has(cl, reach.key(p, name)), reach.any(cs, cl, p)), more,
         F.Finding{path, line, 0, 0, "coverage",
             "No quantified law reaches type " ++ name ++ " or any of its constructors."}
           <> more)
     case Con{_other, rest}:
-      reach.gaps(rest, cl, pp, path)
+      reach.gaps(rest, cl, p, path)
 
 # the gaps of every file of fs that is not a law file or a test
 def reach.files(fs: List<&2, Digest.Digest>, +cl: List<&2, String>) -> List<&2, F.Finding>:
@@ -285,28 +285,28 @@ law reach_shut:
 # items a chain of calls from what a law names leads to
 law reach_least:
   for +ds: List<&2, Digest.Digest>
-  for +ss: List<&2, String>
-  for +kk: String
-  for hf: {Imports.has(ss, "") == True{} : Bool}
-  for hs: {D1.unsafe.shut(reach.graph(ds), ss, ss) == True{} : Bool}
-  for hk: {Imports.has(reach.closure(ds), kk) == True{} : Bool}
-  {Imports.has(ss, kk) == True{} : Bool}
+  for +s: List<&2, String>
+  for +k: String
+  for hf: {Imports.has(s, "") == True{} : Bool}
+  for hs: {D1.unsafe.shut(reach.graph(ds), s, s) == True{} : Bool}
+  for hk: {Imports.has(reach.closure(ds), k) == True{} : Bool}
+  {Imports.has(s, k) == True{} : Bool}
 
 # the uses, in order, before the first one at or past the line
 def reach.before(us: List<&2, Bind.Use>, +at: U32) -> List<&2, Bind.Use>:
   match us:
     case Nil{}:
       []
-    case Con{Bind.Use{nm, +ln, cc, tt}, rest}:
-      Bool.pick(List<&2, Bind.Use>, U32.is_le(at, ln), [], Bind.Use{nm, ln, cc, tt} <> reach.before(rest, at))
+    case Con{Bind.Use{nm, +ln, c, t}, rest}:
+      Bool.pick(List<&2, Bind.Use>, U32.is_le(at, ln), [], Bind.Use{nm, ln, c, t} <> reach.before(rest, at))
 
 # the uses from the first one at or past the line on
 def reach.after(us: List<&2, Bind.Use>, +at: U32) -> List<&2, Bind.Use>:
   match us:
     case Nil{}:
       []
-    case Con{Bind.Use{nm, +ln, cc, tt}, +rest}:
-      Bool.pick(List<&2, Bind.Use>, U32.is_le(at, ln), Bind.Use{nm, ln, cc, tt} <> rest, reach.after(rest, at))
+    case Con{Bind.Use{nm, +ln, c, t}, +rest}:
+      Bool.pick(List<&2, Bind.Use>, U32.is_le(at, ln), Bind.Use{nm, ln, c, t} <> rest, reach.after(rest, at))
 
 # the line of the next item that is not a constructor, when there is one
 def reach.next(items: List<&2, Outline.Item>) -> Maybe<&2, U32>:
@@ -319,16 +319,16 @@ def reach.next(items: List<&2, Outline.Item>) -> Maybe<&2, U32>:
       Some{line}
 
 # the uses an item takes: those before the next item's line, or all of them
-def reach.upto(us: List<&2, Bind.Use>, mm: Maybe<&2, U32>) -> List<&2, Bind.Use>:
-  match mm:
+def reach.upto(us: List<&2, Bind.Use>, m: Maybe<&2, U32>) -> List<&2, Bind.Use>:
+  match m:
     case None{}:
       us
     case Some{at}:
       reach.before(us, at)
 
 # the uses an item leaves to the items after it
-def reach.past(us: List<&2, Bind.Use>, mm: Maybe<&2, U32>) -> List<&2, Bind.Use>:
-  match mm:
+def reach.past(us: List<&2, Bind.Use>, m: Maybe<&2, U32>) -> List<&2, Bind.Use>:
+  match m:
     case None{}:
       []
     case Some{at}:
@@ -339,12 +339,12 @@ def reach.calls(us: List<&2, Bind.Use>, +all: List<&2, Outline.Item>, +file: Str
   match us:
     case Nil{}:
       []
-    case Con{Bind.Use{_n, _l, _c, tt}, rest}:
-      List.append(&2, Digest.Mention, coverage.target(tt, all, file), reach.calls(rest, all, file))
+    case Con{Bind.Use{_n, _l, _c, t}, rest}:
+      List.append(&2, Digest.Mention, coverage.target(t, all, file), reach.calls(rest, all, file))
 
 # a def's name onto the others, when it has one and is a proof
-def reach.proof(mm: Maybe<&2, String>, is_proof: Bool, +more: List<&2, String>) -> List<&2, String>:
-  match mm:
+def reach.proof(m: Maybe<&2, String>, is_proof: Bool, +more: List<&2, String>) -> List<&2, String>:
+  match m:
     case None{}:
       more
     case Some{name}:
@@ -429,20 +429,20 @@ law reach_digest:
 # the outline imports and, for a law file's role, the tree's laws. No field
 # is left to the code alone
 law reach_digest_role:
-  for +rr: Role.Role
+  for +r: Role.Role
   for +path: String
   for text: String
   for toks: List<&2, Lex.Tok>
   for +tree: Tree.Node
   for +bound: Bind.Bound
   for +items: List<&2, Outline.Item>
-  {Digest.of.role(rr, Src.Src{path, text, toks, tree, bound, items})
-    == Digest.Digest{path, Imports.norm(path), Imports.dir_of(path), Role.is_laws(rr), Role.is_law_file(rr),
-      Bool.or(Role.is_law_file(rr), Paths.is_test(Imports.norm(path))),
+  {Digest.of.role(r, Src.Src{path, text, toks, tree, bound, items})
+    == Digest.Digest{path, Imports.norm(path), Imports.dir_of(path), Role.is_laws(r), Role.is_law_file(r),
+      Bool.or(Role.is_law_file(r), Paths.is_test(Imports.norm(path))),
       reach.tops(items, items, coverage.uses(bound), Imports.norm(path), reach.proofs(tree)),
-      Bool.pick(List<&2, Digest.Mention>, Role.is_laws(rr),
+      Bool.pick(List<&2, Digest.Mention>, Role.is_laws(r),
         coverage.said(coverage.uses(bound), tree, items, Imports.norm(path)), []),
-      Imports.targets(items, Imports.norm(path)), Digest.laws.in(Role.is_laws(rr), tree, items)}
+      Imports.targets(items, Imports.norm(path)), Digest.laws.in(Role.is_laws(r), tree, items)}
     : Digest.Digest}
 
 # LAW: over the files of a run, each file's digest is told the role the
@@ -455,9 +455,9 @@ law reach_digest_marks:
   for tree: Tree.Node
   for bound: Bind.Bound
   for items: List<&2, Outline.Item>
-  for ss: List<&2, Src.Src>
-  {Digest.all.role(ms, Src.Src{path, text, toks, tree, bound, items} <> ss)
-    == Digest.of.role(Role.of(ms, path), Src.Src{path, text, toks, tree, bound, items}) <> Digest.all.role(ms, ss)
+  for s: List<&2, Src.Src>
+  {Digest.all.role(ms, Src.Src{path, text, toks, tree, bound, items} <> s)
+    == Digest.of.role(Role.of(ms, path), Src.Src{path, text, toks, tree, bound, items}) <> Digest.all.role(ms, s)
     : List<&2, Digest.Digest>}
 
 # LAW: read from its path and text as the linter reads every file, a file's
@@ -482,15 +482,15 @@ law reach_binder:
 # LAW: a law's doc is looked for from the first item at or after its line: an
 # item sits there when the line is at or before the item's own
 law from_line_stops_at_item:
-  for kk: Outline.ItemKind
-  for nn: String
+  for k: Outline.ItemKind
+  for n: String
   for +ln: U32
   for sig: String
   for doc: String
-  for pp: String
+  for p: String
   for rest: List<&2, Outline.Item>
   for +at: U32
-  {Digest.from_line.stop(Outline.Item{kk, nn, ln, sig, doc, pp} <> rest, at) == U32.is_le(at, ln) : Bool}
+  {Digest.from_line.stop(Outline.Item{k, n, ln, sig, doc, p} <> rest, at) == U32.is_le(at, ln) : Bool}
 
 # LAW: with no item left, the search stops
 law from_line_stops_at_end:
@@ -502,45 +502,45 @@ law from_line_stops_at_end:
 # LAW: the doc of the item on a line is the doc of the first item at or after
 # that line when it sits on the line itself
 law doc_at_takes_the_item_on_the_line:
-  for kk: Outline.ItemKind
-  for nn: String
+  for k: Outline.ItemKind
+  for n: String
   for +ln: U32
   for sig: String
   for +doc: String
-  for pp: String
+  for p: String
   for +rest: List<&2, Outline.Item>
   for +at: U32
   for e1: {U32.is_le(at, ln) == True{} : Bool}
   for e2: {U32.is_eq(ln, at) == True{} : Bool}
-  {Digest.doc_at(Outline.Item{kk, nn, ln, sig, doc, pp} <> rest, at) == doc : String}
+  {Digest.doc_at(Outline.Item{k, n, ln, sig, doc, p} <> rest, at) == doc : String}
 
 # LAW: and no doc at all when that item sits past the line: the items are in
 # line order, so no later one is on it
 law doc_at_stops_past_the_line:
-  for kk: Outline.ItemKind
-  for nn: String
+  for k: Outline.ItemKind
+  for n: String
   for +ln: U32
   for sig: String
   for +doc: String
-  for pp: String
+  for p: String
   for +rest: List<&2, Outline.Item>
   for +at: U32
   for e1: {U32.is_le(at, ln) == True{} : Bool}
   for e2: {U32.is_eq(ln, at) == False{} : Bool}
-  {Digest.doc_at(Outline.Item{kk, nn, ln, sig, doc, pp} <> rest, at) == "" : String}
+  {Digest.doc_at(Outline.Item{k, n, ln, sig, doc, p} <> rest, at) == "" : String}
 
 # LAW: an item before the line is passed over
 law doc_at_passes_earlier_items:
-  for kk: Outline.ItemKind
-  for nn: String
+  for k: Outline.ItemKind
+  for n: String
   for +ln: U32
   for sig: String
   for +doc: String
-  for pp: String
+  for p: String
   for +rest: List<&2, Outline.Item>
   for +at: U32
   for e1: {U32.is_le(at, ln) == False{} : Bool}
-  {Digest.doc_at(Outline.Item{kk, nn, ln, sig, doc, pp} <> rest, at) == Digest.doc_at(rest, at) : String}
+  {Digest.doc_at(Outline.Item{k, n, ln, sig, doc, p} <> rest, at) == Digest.doc_at(rest, at) : String}
 
 # LAW: every law statement of a tree is one of its laws, in order: its
 # declared name, its line, whether its body binds, and the doc of the item

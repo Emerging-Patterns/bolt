@@ -66,8 +66,8 @@ def ol.take(b, _x, _f, _a, _c):
     case False{}:
       {==}
 
-def Laws.is_import_only_imports(kk):
-  match kk:
+def Laws.is_import_only_imports(k):
+  match k:
     case Outline.IImport{}:
       {==}
     case Outline.IDef{}:

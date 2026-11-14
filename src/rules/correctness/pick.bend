@@ -58,8 +58,8 @@ def mute(+quiet: Bool, +hush: Bool, nth: Nat) -> Bool:
       quiet
 
 # the argument a token leaves the walk in: one further past a top-level comma
-def next(kk: Lex.TokKind, nth: Nat) -> Nat:
-  match kk:
+def next(k: Lex.TokKind, nth: Nat) -> Nat:
+  match k:
     case Lex.TComma{}:
       1n+nth
     case other:
@@ -116,8 +116,8 @@ def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Fi
           _u => picks(body, name, path, False{})) <> acc)
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
   check.go(Calls.defs(tree), path, [])
 
 # A search bound above its pick (laws/PickReportsBoundSearches.bend). In one
@@ -130,27 +130,27 @@ def check(ss: Src.Src) -> List<&2, F.Finding>:
 # `Bool.pick` on the pick's own condition (it makes the call cheap on
 # purpose) are left alone.
 
-# does a name leaf under the node spell xx?
-def search.reads(nn: Tree.Node, +xx: String) -> Bool:
-  match nn:
+# does a name leaf under the node spell x?
+def search.reads(n: Tree.Node, +x: String) -> Bool:
+  match n:
     case Tree.Leaf{Lex.Tok{k, +t, _l, _c}}:
-      Bool.and(Lex.is_name(k), String.eq(t, xx))
+      Bool.and(Lex.is_name(k), String.eq(t, x))
     case Tree.Group{_o, kids, _cl}:
-      search.reads(kids, xx)
+      search.reads(kids, x)
     case Tree.Stmt{_k, kids, body}:
-      +a = search.reads(kids, xx)
-      +b = search.reads(body, xx)
+      +a = search.reads(kids, x)
+      +b = search.reads(body, x)
       Bool.or(a, b)
     case Tree.NCons{h, t}:
-      +a = search.reads(h, xx)
-      +b = search.reads(t, xx)
+      +a = search.reads(h, x)
+      +b = search.reads(t, x)
       Bool.or(a, b)
     case Tree.NNil{}:
       False{}
 
 # the node's tokens, each then a space (a group's open, not its close)
-def search.text(nn: Tree.Node) -> String:
-  match nn:
+def search.text(n: Tree.Node) -> String:
+  match n:
     case Tree.Leaf{Lex.Tok{_k, t, _l, _c}}:
       t ++ " "
     case Tree.Group{Lex.Tok{_k, o, _l, _c}, kids, _cl}:
@@ -191,45 +191,45 @@ def search.cheap(nn: Tree.Node, +cond: String) -> Bool:
       False{}
 
 # is the chain empty?
-def search.empty(nn: Tree.Node) -> Bool:
-  match nn:
+def search.empty(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NNil{}:
       True{}
     case _other:
       False{}
 
-# is the chain the one name xx alone?
-def search.lone(nn: Tree.Node, +xx: String) -> Bool:
-  match nn:
+# is the chain the one name x alone?
+def search.lone(n: Tree.Node, +x: String) -> Bool:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{_k, +t, _l, _c}}, rest}:
-      Bool.and(String.eq(t, xx), search.empty(rest))
+      Bool.and(String.eq(t, x), search.empty(rest))
     case _other:
       False{}
 
 # the finding at the bound self-call; tail: the else branch is the bound
 # name alone, so the call can carry the test instead
-def search.cite(+ll: U32, +cc: U32, +name: String, +path: String, tail: Bool) -> F.Finding:
+def search.cite(+l: U32, +c: U32, +name: String, +path: String, tail: Bool) -> F.Finding:
   match tail:
     case True{}:
-      F.Finding{path, ll, cc, U32.from_nat(String.length(name)), "pick",
+      F.Finding{path, l, c, U32.from_nat(String.length(name)), "pick",
         name ++ " binds its own call above a Bool.pick that reads it only in the else branch, so the walk runs even when the condition holds and the search never stops early; carry the test as a Bool into the next call (`go(rest, k, test(h))`) and `match hit` first, so the search stops and stays a loop."}
     case False{}:
-      F.Finding{path, ll, cc, U32.from_nat(String.length(name)), "pick",
+      F.Finding{path, l, c, U32.from_nat(String.length(name)), "pick",
         name ++ " binds its own call above a Bool.pick that reads it only in the else branch, so the walk runs even when the condition holds and the search never stops early; branch with `match` on the condition in a helper that takes it as a parameter, so the call runs only in the branch that needs it."}
 
 # the statement that reads the bound name first: a finding when it is a
 # `Bool.pick(..)` alone that reads the name only in its else branch, and the
 # self-call (its arguments args) holds no pick on the same condition
 def search.judge(
-  ss: Tree.Node,
-  +xx: String,
+  s: Tree.Node,
+  +x: String,
   +args: Tree.Node,
-  +ll: U32,
-  +cc: U32,
+  +l: U32,
+  +c: U32,
   +name: String,
   +path: String
 ) -> List<&2, F.Finding>:
-  match ss:
+  match s:
     case Tree.Stmt{_k, Tree.NCons{Tree.Leaf{Lex.Tok{_kt, +t, _lt, _ct}}, Tree.NCons{Tree.Group{Lex.Tok{_ko, +o, _lo,
       _co}, +kids, _cl}, after}}, _body}:
       +as = Calls.args(kids)
@@ -237,23 +237,23 @@ def search.judge(
       +yes = Calls.arg(as, 2n)
       +no = Calls.arg(as, 3n)
       +shape = Bool.and(Bool.and(String.eq(t, "Bool.pick"), String.eq(o, "(")), search.empty(after))
-      +only = Bool.and(Bool.not(Bool.or(search.reads(cond, xx), search.reads(yes, xx))), search.reads(no, xx))
+      +only = Bool.and(Bool.not(Bool.or(search.reads(cond, x), search.reads(yes, x))), search.reads(no, x))
       Bool.pick(List<&2, F.Finding>,
         Bool.and(Bool.and(shape, only), Bool.not(search.cheap(args, search.text(cond)))),
-        [search.cite(ll, cc, name, path, search.lone(no, xx))], [])
+        [search.cite(l, c, name, path, search.lone(no, x))], [])
     case _other:
       []
 
-# the first statement of the chain that reads xx, the chain's end (NNil)
+# the first statement of the chain that reads x, the chain's end (NNil)
 # when none does; hit: prev, the one before the chain, did
-def search.first(nn: Tree.Node, +xx: String, prev: Tree.Node, hit: Bool) -> Tree.Node:
-  match nn:
+def search.first(n: Tree.Node, +x: String, prev: Tree.Node, hit: Bool) -> Tree.Node:
+  match n:
     case Tree.NCons{+h, t}:
       match hit:
         case True{}:
           prev
         case False{}:
-          search.first(t, xx, h, search.reads(h, xx))
+          search.first(t, x, h, search.reads(h, x))
     case _other:
       match hit:
         case True{}:
@@ -266,29 +266,29 @@ def search.first(nn: Tree.Node, +xx: String, prev: Tree.Node, hit: Bool) -> Tree
 # the name gives
 def search.call(
   kx: Lex.TokKind,
-  +xx: String,
-  +ee: String,
+  +x: String,
+  +e: String,
   callee: Lex.Tok,
   r3: Tree.Node,
   rest: Tree.Node,
   +name: String,
   +path: String
 ) -> List<&2, F.Finding>:
-  Lex.Tok{_kn, +nn, +ll, +cc} = callee
+  Lex.Tok{_kn, +n, +l, +c} = callee
   match r3:
     case Tree.NCons{Tree.Group{Lex.Tok{_ko, +o, _lo, _co}, +args, _cl}, after}:
-      +ok = Bool.and(Bool.and(Lex.is_name(kx), String.eq(ee, "=")),
-        Bool.and(Bool.and(String.eq(nn, name), String.eq(o, "(")), search.empty(after)))
+      +ok = Bool.and(Bool.and(Lex.is_name(kx), String.eq(e, "=")),
+        Bool.and(Bool.and(String.eq(n, name), String.eq(o, "(")), search.empty(after)))
       Lazy.stop(List<&2, F.Finding>, Bool.not(ok), [],
-        _u => search.judge(search.first(rest, xx, Tree.NNil{}, False{}), xx, args, ll, cc, name, path))
+        _u => search.judge(search.first(rest, x, Tree.NNil{}, False{}), x, args, l, c, name, path))
     case _other:
       []
 
 # past the bound name and `=`: the leaf that names the call
 def search.callee(
   kx: Lex.TokKind,
-  +xx: String,
-  +ee: String,
+  +x: String,
+  +e: String,
   r2: Tree.Node,
   rest: Tree.Node,
   +name: String,
@@ -296,14 +296,14 @@ def search.callee(
 ) -> List<&2, F.Finding>:
   match r2:
     case Tree.NCons{Tree.Leaf{callee}, r3}:
-      search.call(kx, xx, ee, callee, r3, rest, name, path)
+      search.call(kx, x, e, callee, r3, rest, name, path)
     case _other:
       []
 
 # past the bound name: the leaf that should be `=`
 def search.eq(
   kx: Lex.TokKind,
-  +xx: String,
+  +x: String,
   r1: Tree.Node,
   rest: Tree.Node,
   +name: String,
@@ -311,13 +311,13 @@ def search.eq(
 ) -> List<&2, F.Finding>:
   match r1:
     case Tree.NCons{Tree.Leaf{Lex.Tok{_ke, +e, _le, _ce}}, r2}:
-      search.callee(kx, xx, e, r2, rest, name, path)
+      search.callee(kx, x, e, r2, rest, name, path)
     case _other:
       []
 
 # a let's own tokens past any `+`: the leaf of the bound name
-def search.bound(nn: Tree.Node, rest: Tree.Node, +name: String, +path: String) -> List<&2, F.Finding>:
-  match nn:
+def search.bound(n: Tree.Node, rest: Tree.Node, +name: String, +path: String) -> List<&2, F.Finding>:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{kx, +x, _lx, _cx}}, r1}:
       search.eq(kx, x, r1, rest, name, path)
     case _other:
@@ -349,8 +349,8 @@ def search.stmt(
 
 # every search bound above its pick in a chain of statements and in the
 # chains under them
-def search.walk(nn: Tree.Node, +name: String, +path: String) -> List<&2, F.Finding>:
-  match nn:
+def search.walk(n: Tree.Node, +name: String, +path: String) -> List<&2, F.Finding>:
+  match n:
     case Tree.NCons{Tree.Stmt{kind, kids, body}, +rest}:
       List.concat(&2, F.Finding, [search.stmt(kind, kids, rest, name, path), search.walk(body, name, path),
         search.walk(rest, name, path)])
@@ -369,6 +369,6 @@ def search.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.F
 
 # the rule's other half, run beside check: every search bound above its
 # pick, def by def
-def search(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
+def search(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
   search.go(Calls.defs(tree), path, [])

@@ -16,8 +16,8 @@ import ../src/rules/correctness/arms.bend as Arms
 # after `case` in the tree (T.pattern), the first match column first.
 
 # a name or `_`: what `Succ{..}` or `kn+` binds when the arm matches every Nat from there up
-def arms.binder(kk: Lex.TokKind) -> Bool:
-  match kk:
+def arms.binder(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TName{}:
       True{}
     case Lex.TWild{}:
@@ -44,12 +44,12 @@ def arms.exact(rest: Tree.Node) -> Bool:
       False{}
 
 # `Succ{x}` with x one name or `_`: every Nat from 1 up
-def arms.succ(+tt: String, kk: Lex.TokKind) -> Bool:
-  Bool.and(String.eq(tt, "Succ"), arms.binder(kk))
+def arms.succ(+t: String, k: Lex.TokKind) -> Bool:
+  Bool.and(String.eq(t, "Succ"), arms.binder(k))
 
 # a Nat literal's value k, when what follows it makes the arm one that counts
-def arms.num(mm: Maybe<&2, U32>, +when: Bool) -> Maybe<&2, U32>:
-  match mm:
+def arms.num(m: Maybe<&2, U32>, +when: Bool) -> Maybe<&2, U32>:
+  match m:
     case None{}:
       None{}
     case Some{k}:

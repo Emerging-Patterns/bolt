@@ -15,12 +15,12 @@ import ./lemmas/Pick.bend as M1
 
 # the rule's name leaf is the law's
 law transcong.name:
-  for nn: Tree.Node
-  for +tt: String
-  {Transcong.named(nn, tt) == Laws.transcong.name(nn, tt) : Bool}
+  for n: Tree.Node
+  for +t: String
+  {Transcong.named(n, t) == Laws.transcong.name(n, t) : Bool}
 
-def transcong.name(nn, _tt):
-  match nn:
+def transcong.name(n, _tt):
+  match n:
     case Tree.Leaf{tok}:
       match tok:
         case Lex.Tok{k, t, l, c}: {==}
@@ -31,11 +31,11 @@ def transcong.name(nn, _tt):
 
 # the rule's `(` group is the law's
 law transcong.open:
-  for nn: Tree.Node
-  {Transcong.paren(nn) == Laws.transcong.open(nn) : Bool}
+  for n: Tree.Node
+  {Transcong.paren(n) == Laws.transcong.open(n) : Bool}
 
-def transcong.open(nn):
-  match nn:
+def transcong.open(n):
+  match n:
     case Tree.Group{open, kids, cl}:
       match open:
         case Lex.Tok{k, o, l, c}: {==}
@@ -46,11 +46,11 @@ def transcong.open(nn):
 
 # the rule's comma leaf is the law's
 law transcong.comma:
-  for nn: Tree.Node
-  {Transcong.comma(nn) == Laws.transcong.comma(nn) : Bool}
+  for n: Tree.Node
+  {Transcong.comma(n) == Laws.transcong.comma(n) : Bool}
 
-def transcong.comma(nn):
-  match nn:
+def transcong.comma(n):
+  match n:
     case Tree.Leaf{tok}:
       match tok:
         case Lex.Tok{k, t, l, c}: {==}
@@ -61,11 +61,11 @@ def transcong.comma(nn):
 
 # the rule's end of an argument is the law's
 law transcong.last:
-  for nn: Tree.Node
-  {Transcong.ends(nn) == Laws.transcong.last(nn) : Bool}
+  for n: Tree.Node
+  {Transcong.ends(n) == Laws.transcong.last(n) : Bool}
 
-def transcong.last(nn):
-  match nn:
+def transcong.last(n):
+  match n:
     case Tree.NCons{h, t}: transcong.comma(h)
     case Tree.Leaf{x}: {==}
     case Tree.Group{x, y, z}: {==}
@@ -74,11 +74,11 @@ def transcong.last(nn):
 
 # the rule's cong call past its name is the law's
 law transcong.call:
-  for nn: Tree.Node
-  {Transcong.cong.call(nn) == Laws.transcong.call(nn) : Bool}
+  for n: Tree.Node
+  {Transcong.cong.call(n) == Laws.transcong.call(n) : Bool}
 
-def transcong.call(nn):
-  match nn:
+def transcong.call(n):
+  match n:
     case Tree.NCons{+g, +after}:
       %transcong.open(g) : {Bool.and(Transcong.paren(g), Transcong.ends(after)) == Bool.and(_,
           Laws.transcong.last(after))
@@ -93,11 +93,11 @@ def transcong.call(nn):
 
 # the rule's cong argument is the law's
 law transcong.cong:
-  for nn: Tree.Node
-  {Transcong.cong(nn) == Laws.transcong.cong(nn) : Bool}
+  for n: Tree.Node
+  {Transcong.cong(n) == Laws.transcong.cong(n) : Bool}
 
-def transcong.cong(nn):
-  match nn:
+def transcong.cong(n):
+  match n:
     case Tree.NCons{+h, +t}:
       %transcong.name(h, "Equal.cong") : {Bool.and(Transcong.named(h, "Equal.cong"), Transcong.cong.call(t))
         == Bool.and(_, Laws.transcong.call(t)) : Bool}
@@ -111,8 +111,8 @@ def transcong.cong(nn):
 
 # the rule's comma count is the law's
 law transcong.commas:
-  for nn: Tree.Node
-  {Transcong.commas(nn) == Laws.transcong.commas(nn) : Nat}
+  for n: Tree.Node
+  {Transcong.commas(n) == Laws.transcong.commas(n) : Nat}
 
 def transcong.commas(nn):
   match nn:
@@ -156,8 +156,8 @@ def transcong.fed(nn, n, fresh, seen):
 
 # the rule's arguments past `Equal.trans` are the law's
 law transcong.args:
-  for nn: Tree.Node
-  {Transcong.args(nn) == Laws.transcong.args(nn) : Bool}
+  for n: Tree.Node
+  {Transcong.args(n) == Laws.transcong.args(n) : Bool}
 
 def transcong.args(nn):
   match nn:
@@ -183,14 +183,14 @@ def transcong.args(nn):
 
 # a site: the rule's finding is the law's count
 law transcong.site:
-  for hh: Tree.Node
+  for h: Tree.Node
   for +rest: Tree.Node
   for +path: String
-  {List.length(&2, F.Finding, Transcong.site(hh, rest, path)) == Bool.pick(Nat, Laws.transcong.at(hh, rest), 1n,
+  {List.length(&2, F.Finding, Transcong.site(h, rest, path)) == Bool.pick(Nat, Laws.transcong.at(h, rest), 1n,
       0n) : Nat}
 
-def transcong.site(hh, rest, path):
-  match hh:
+def transcong.site(h, rest, path):
+  match h:
     case Tree.Leaf{tok}:
       match tok:
         case Lex.Tok{+k, +t, l, c}:
@@ -207,15 +207,15 @@ def transcong.site(hh, rest, path):
 # a site gated by top: the rule's finding is the law's count
 law transcong.gate:
   for +top: Bool
-  for hh: Tree.Node
+  for h: Tree.Node
   for +rest: Tree.Node
   for +path: String
-  {List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, top, Transcong.site(hh, rest, path), []))
-    == Bool.pick(Nat, Bool.and(top, Laws.transcong.at(hh, rest)), 1n, 0n) : Nat}
+  {List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, top, Transcong.site(h, rest, path), []))
+    == Bool.pick(Nat, Bool.and(top, Laws.transcong.at(h, rest)), 1n, 0n) : Nat}
 
-def transcong.gate(top, hh, rest, path):
+def transcong.gate(top, h, rest, path):
   match top:
-    case True{}: transcong.site(hh, rest, path)
+    case True{}: transcong.site(h, rest, path)
     case False{}: {==}
 
 # the rule's let is the law's
@@ -236,11 +236,11 @@ def transcong.let(sk):
 
 # the rule's `=` / `<-` leaf is the law's
 law transcong.binds:
-  for nn: Tree.Node
-  {Transcong.binds(nn) == Laws.transcong.binds(nn) : Bool}
+  for n: Tree.Node
+  {Transcong.binds(n) == Laws.transcong.binds(n) : Bool}
 
-def transcong.binds(nn):
-  match nn:
+def transcong.binds(n):
+  match n:
     case Tree.Leaf{tok}:
       match tok:
         case Lex.Tok{k, t, l, c}:

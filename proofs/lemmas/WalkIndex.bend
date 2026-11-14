@@ -21,16 +21,16 @@ law wi.step:
   for b1: Bool
   for b2: Bool
   for -sub: Imports.EIx
-  for -tt: Imports.EIx
+  for -t: Imports.EIx
   for -rest: Bool
-  for -ee: Imports.Edge
+  for -e: Imports.Edge
   for -hs: Imports.EIx -> List<&2, Imports.Edge>
   for ih: {hs(sub)
-    == Bool.pick(List<&2, Imports.Edge>, rest, ee <> hs(Imports.edges.ix.near(b1, tt)),
-      hs(Imports.edges.ix.near(b1, tt))) : List<&2, Imports.Edge>}
-  {hs(Imports.edges.ix.near(b2, Imports.edges.ix.join(b1, sub, Imports.edges.ix.near(Bool.not(b1), tt))))
-    == Bool.pick(List<&2, Imports.Edge>, Bool.and(M1.ix.bit(b1, b2), rest), ee <> hs(Imports.edges.ix.near(b2, tt)),
-      hs(Imports.edges.ix.near(b2, tt))) : List<&2, Imports.Edge>}
+    == Bool.pick(List<&2, Imports.Edge>, rest, e <> hs(Imports.edges.ix.near(b1, t)),
+      hs(Imports.edges.ix.near(b1, t))) : List<&2, Imports.Edge>}
+  {hs(Imports.edges.ix.near(b2, Imports.edges.ix.join(b1, sub, Imports.edges.ix.near(Bool.not(b1), t))))
+    == Bool.pick(List<&2, Imports.Edge>, Bool.and(M1.ix.bit(b1, b2), rest), e <> hs(Imports.edges.ix.near(b2, t)),
+      hs(Imports.edges.ix.near(b2, t))) : List<&2, Imports.Edge>}
 
 def wi.step(b1, b2, _sub, _tt, _rest, _ee, _hs, ih):
   match b1 b2:
@@ -46,47 +46,47 @@ def wi.step(b1, b2, _sub, _tt, _rest, _ee, _hs, ih):
 # a lookup after a put: the edge put in, at the front, when the two numbers
 # agree in the bits walked, and what was there before
 law wi.put:
-  for dd: Nat
+  for d: Nat
   for +k1: U32
   for +k2: U32
-  for +tt: Imports.EIx
-  for +ee: Imports.Edge
-  {Imports.edges.ix.at(dd, k2, Imports.edges.ix.put(dd, k1, tt, ee))
-    == Bool.pick(List<&2, Imports.Edge>, M1.ix.bits(dd, k1, k2), ee <> Imports.edges.ix.at(dd, k2, tt),
-      Imports.edges.ix.at(dd, k2, tt)) : List<&2, Imports.Edge>}
+  for +t: Imports.EIx
+  for +e: Imports.Edge
+  {Imports.edges.ix.at(d, k2, Imports.edges.ix.put(d, k1, t, e))
+    == Bool.pick(List<&2, Imports.Edge>, M1.ix.bits(d, k1, k2), e <> Imports.edges.ix.at(d, k2, t),
+      Imports.edges.ix.at(d, k2, t)) : List<&2, Imports.Edge>}
 
-def wi.put(dd, k1, k2, tt, ee):
-  match dd:
+def wi.put(d, k1, k2, t, e):
+  match d:
     case 0n:
       {==}
     case 1n+p:
       wi.step(U32.is_even(k1), U32.is_even(k2),
-        Imports.edges.ix.put(p, U32.shr(k1), Imports.edges.ix.near(U32.is_even(k1), tt), ee), tt,
-        M1.ix.bits(p, U32.shr(k1), U32.shr(k2)), ee,
+        Imports.edges.ix.put(p, U32.shr(k1), Imports.edges.ix.near(U32.is_even(k1), t), e), t,
+        M1.ix.bits(p, U32.shr(k1), U32.shr(k2)), e,
         x => Imports.edges.ix.at(p, U32.shr(k2), x),
-        wi.put(p, U32.shr(k1), U32.shr(k2), Imports.edges.ix.near(U32.is_even(k1), tt), ee))
+        wi.put(p, U32.shr(k1), U32.shr(k2), Imports.edges.ix.near(U32.is_even(k1), t), e))
 
 # two paths that compare equal have numbers alike in every bit walked
 law wi.alike:
   for +ep: String
-  for +pp: String
-  for e: {String.eq(ep, pp) == True{} : Bool}
-  {M1.ix.bits(Bind.index.depth(), Bind.key(ep), Bind.key(pp)) == True{} : Bool}
+  for +p: String
+  for e: {String.eq(ep, p) == True{} : Bool}
+  {M1.ix.bits(Bind.index.depth(), Bind.key(ep), Bind.key(p)) == True{} : Bool}
 
-def wi.alike(ep, pp, e):
-  %M3.unsafe.seq(ep, pp, e) : {M1.ix.bits(Bind.index.depth(), Bind.key(ep), Bind.key(_)) == True{} : Bool}
+def wi.alike(ep, p, e):
+  %M3.unsafe.seq(ep, p, e) : {M1.ix.bits(Bind.index.depth(), Bind.key(ep), Bind.key(_)) == True{} : Bool}
   M1.ix.bits_refl(Bind.index.depth(), Bind.key(ep))
 
 # a test that cannot hold leaves a stop to its rest
 law wi.miss:
-  for ss: Bool
+  for s: Bool
   for -yes: List<&2, String>
   for -no: List<&2, String>
-  for imp: {ss == True{} : Bool} -> Empty
-  {no == Lazy.stop(List<&2, String>, ss, yes, _u => no) : List<&2, String>}
+  for imp: {s == True{} : Bool} -> Empty
+  {no == Lazy.stop(List<&2, String>, s, yes, _u => no) : List<&2, String>}
 
-def wi.miss(ss, yes, no, imp):
-  match ss:
+def wi.miss(s, yes, no, imp):
+  match s:
     case True{}:
       Empty.absurd({no == Lazy.stop(List<&2, String>, True{}, yes, _u => no) : List<&2, String>}, imp({==}))
     case False{}:
@@ -95,80 +95,80 @@ def wi.miss(ss, yes, no, imp):
 # a leaf that may hold the edge: the search of it is the search with the edge
 # first, since an edge it leaves out is one the search passes
 law wi.leaf:
-  for bb: Bool
-  for +pp: String
+  for b: Bool
+  for +p: String
   for +ep: String
   for +ds: List<&2, String>
   for +more: List<&2, Imports.Edge>
-  for imp: {String.eq(ep, pp) == True{} : Bool} -> {bb == True{} : Bool}
-  {Imports.deps.first(Bool.pick(List<&2, Imports.Edge>, bb, Imports.Edge{ep, ds} <> more, more), pp)
-    == Imports.deps.first(Imports.Edge{ep, ds} <> more, pp) : List<&2, String>}
+  for imp: {String.eq(ep, p) == True{} : Bool} -> {b == True{} : Bool}
+  {Imports.deps.first(Bool.pick(List<&2, Imports.Edge>, b, Imports.Edge{ep, ds} <> more, more), p)
+    == Imports.deps.first(Imports.Edge{ep, ds} <> more, p) : List<&2, String>}
 
-def wi.leaf(bb, pp, ep, ds, more, imp):
-  match bb:
+def wi.leaf(b, p, ep, ds, more, imp):
+  match b:
     case True{}:
       {==}
     case False{}:
-      wi.miss(String.eq(ep, pp), ds, Imports.deps.first(more, pp), e => M2.inert.false_true(imp(e)))
+      wi.miss(String.eq(ep, p), ds, Imports.deps.first(more, p), e => M2.inert.false_true(imp(e)))
 
 # what a file imports, off the edge index, is the search of the edges
 law wi.deps:
   for es: List<&2, Imports.Edge>
-  for +pp: String
-  {Imports.deps.ix(Imports.edges.ix.of(es), pp) == Imports.deps.first(es, pp) : List<&2, String>}
+  for +p: String
+  {Imports.deps.ix(Imports.edges.ix.of(es), p) == Imports.deps.first(es, p) : List<&2, String>}
 
-def wi.deps(es, pp):
+def wi.deps(es, p):
   match es:
     case Nil{}:
       {==}
     case Con{Imports.Edge{+ep, +ds}, +rest}:
-      +at = Imports.edges.ix.at(Bind.index.depth(), Bind.key(pp), Imports.edges.ix.of(rest))
+      +at = Imports.edges.ix.at(Bind.index.depth(), Bind.key(p), Imports.edges.ix.of(rest))
       %Equal.sym(List<&2, Imports.Edge>,
-        Imports.edges.ix.at(Bind.index.depth(), Bind.key(pp),
+        Imports.edges.ix.at(Bind.index.depth(), Bind.key(p),
           Imports.edges.ix.put(Bind.index.depth(), Bind.key(ep), Imports.edges.ix.of(rest), Imports.Edge{ep, ds})),
-        Bool.pick(List<&2, Imports.Edge>, M1.ix.bits(Bind.index.depth(), Bind.key(ep), Bind.key(pp)),
+        Bool.pick(List<&2, Imports.Edge>, M1.ix.bits(Bind.index.depth(), Bind.key(ep), Bind.key(p)),
           Imports.Edge{ep, ds} <> at, at),
-        wi.put(Bind.index.depth(), Bind.key(ep), Bind.key(pp), Imports.edges.ix.of(rest), Imports.Edge{ep, ds})) :
-        {Imports.deps.first(_, pp) == Imports.deps.first(Imports.Edge{ep, ds} <> rest, pp) : List<&2, String>}
+        wi.put(Bind.index.depth(), Bind.key(ep), Bind.key(p), Imports.edges.ix.of(rest), Imports.Edge{ep, ds})) :
+        {Imports.deps.first(_, p) == Imports.deps.first(Imports.Edge{ep, ds} <> rest, p) : List<&2, String>}
       %Equal.sym(List<&2, String>,
-        Imports.deps.first(Bool.pick(List<&2, Imports.Edge>, M1.ix.bits(Bind.index.depth(), Bind.key(ep), Bind.key(pp)),
-          Imports.Edge{ep, ds} <> at, at), pp),
-        Imports.deps.first(Imports.Edge{ep, ds} <> at, pp),
-        wi.leaf(M1.ix.bits(Bind.index.depth(), Bind.key(ep), Bind.key(pp)), pp, ep, ds, at,
-          e => wi.alike(ep, pp, e))) :
-        {_ == Imports.deps.first(Imports.Edge{ep, ds} <> rest, pp) : List<&2, String>}
-      %Equal.sym(List<&2, String>, Imports.deps.ix(Imports.edges.ix.of(rest), pp), Imports.deps.first(rest, pp),
-        wi.deps(rest, pp)) :
-        {Lazy.stop(List<&2, String>, String.eq(ep, pp), ds, _u => _)
-          == Imports.deps.first(Imports.Edge{ep, ds} <> rest, pp) : List<&2, String>}
+        Imports.deps.first(Bool.pick(List<&2, Imports.Edge>, M1.ix.bits(Bind.index.depth(), Bind.key(ep), Bind.key(p)),
+          Imports.Edge{ep, ds} <> at, at), p),
+        Imports.deps.first(Imports.Edge{ep, ds} <> at, p),
+        wi.leaf(M1.ix.bits(Bind.index.depth(), Bind.key(ep), Bind.key(p)), p, ep, ds, at,
+          e => wi.alike(ep, p, e))) :
+        {_ == Imports.deps.first(Imports.Edge{ep, ds} <> rest, p) : List<&2, String>}
+      %Equal.sym(List<&2, String>, Imports.deps.ix(Imports.edges.ix.of(rest), p), Imports.deps.first(rest, p),
+        wi.deps(rest, p)) :
+        {Lazy.stop(List<&2, String>, String.eq(ep, p), ds, _u => _)
+          == Imports.deps.first(Imports.Edge{ep, ds} <> rest, p) : List<&2, String>}
       {==}
 
 # the binder's scan is the walk's
 law wi.has:
   for xs: List<&2, String>
-  for +dd: String
-  {Bind.has_item(xs, dd) == Imports.seek(xs, dd) : Bool}
+  for +d: String
+  {Bind.has_item(xs, d) == Imports.seek(xs, d) : Bool}
 
-def wi.has(xs, dd):
+def wi.has(xs, d):
   match xs:
     case Nil{}:
       {==}
-    case Con{+hh, +rest}:
-      %Equal.sym(Bool, Bind.same(hh, dd), String.eq(hh, dd), M4.ic.alike(hh, dd)) :
-        {Lazy.or_else(_, _u => Bind.has_item(rest, dd)) == Imports.seek(hh <> rest, dd) : Bool}
-      %Equal.sym(Bool, Bind.has_item(rest, dd), Imports.seek(rest, dd), wi.has(rest, dd)) :
-        {Lazy.or_else(String.eq(hh, dd), _u => _) == Imports.seek(hh <> rest, dd) : Bool}
+    case Con{+h, +rest}:
+      %Equal.sym(Bool, Bind.same(h, d), String.eq(h, d), M4.ic.alike(h, d)) :
+        {Lazy.or_else(_, _u => Bind.has_item(rest, d)) == Imports.seek(h <> rest, d) : Bool}
+      %Equal.sym(Bool, Bind.has_item(rest, d), Imports.seek(rest, d), wi.has(rest, d)) :
+        {Lazy.or_else(String.eq(h, d), _u => _) == Imports.seek(h <> rest, d) : Bool}
       {==}
 
 # a path is in the index of some paths exactly when the walk's scan finds it
 law wi.seek:
   for +xs: List<&2, String>
-  for +dd: String
-  {Bind.indexed(Bind.index(xs), dd) == Imports.seek(xs, dd) : Bool}
+  for +d: String
+  {Bind.indexed(Bind.index(xs), d) == Imports.seek(xs, d) : Bool}
 
-def wi.seek(xs, dd):
-  Equal.trans(Bool, Bind.indexed(Bind.index(xs), dd), Bind.has_item(xs, dd), Imports.seek(xs, dd),
-    L1.index_finds(xs, dd), wi.has(xs, dd))
+def wi.seek(xs, d):
+  Equal.trans(Bool, Bind.indexed(Bind.index(xs), d), Bind.has_item(xs, d), Imports.seek(xs, d),
+    L1.index_finds(xs, d), wi.has(xs, d))
 
 # paths put onto the index of others are the index of them all
 law wi.onto:

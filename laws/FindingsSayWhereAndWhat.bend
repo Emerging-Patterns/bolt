@@ -51,10 +51,10 @@ law table_cites_set:
 law arms_cites_covered_arm:
   for line: U32
   for +path: String
-  for ll: U32
-  for cc: U32
+  for l: U32
+  for c: U32
   for more: List<&2, F.Finding>
-  {Arms.cover.hit(Some{line}, path, ll, cc, more) == F.Finding{path, ll, cc, 0, "arms",
+  {Arms.cover.hit(Some{line}, path, l, c, more) == F.Finding{path, l, c, 0, "arms",
     "Unreachable: the case on line " ++ U32.show((line + 1 : U32))
       ++ " already matches everything this one does; delete this arm, or move it above that one."} <> more
     : List<&2, F.Finding>}
@@ -62,10 +62,10 @@ law arms_cites_covered_arm:
 # LAW: an arm nothing covers adds nothing
 law arms_passes_uncovered_arm:
   for +path: String
-  for ll: U32
-  for cc: U32
+  for l: U32
+  for c: U32
   for more: List<&2, F.Finding>
-  {Arms.cover.hit(None{}, path, ll, cc, more) == more : List<&2, F.Finding>}
+  {Arms.cover.hit(None{}, path, l, c, more) == more : List<&2, F.Finding>}
 
 # LAW: escape cites a NUL escape with no digit after it over its three chars
 law escape_cites_lone_nul:
@@ -95,56 +95,56 @@ law escape_cites_nul_and_digits:
 # LAW: pick cites a search that binds its own call, at the name, over the
 # name's length; a tail call is told to carry the test
 law pick_cites_tail_search:
-  for +ll: U32
-  for +cc: U32
+  for +l: U32
+  for +c: U32
   for +name: String
   for +path: String
-  {Pick.search.cite(ll, cc, name, path, True{})
-    == F.Finding{path, ll, cc, U32.from_nat(String.length(name)), "pick",
+  {Pick.search.cite(l, c, name, path, True{})
+    == F.Finding{path, l, c, U32.from_nat(String.length(name)), "pick",
     name ++ " binds its own call above a Bool.pick that reads it only in the else branch, so the walk runs even when the condition holds and the search never stops early; carry the test as a Bool into the next call (`go(rest, k, test(h))`) and `match hit` first, so the search stops and stays a loop."} : F.Finding}
 
 # LAW: and any other is told to branch with `match`
 law pick_cites_other_search:
-  for +ll: U32
-  for +cc: U32
+  for +l: U32
+  for +c: U32
   for +name: String
   for +path: String
-  {Pick.search.cite(ll, cc, name, path, False{})
-    == F.Finding{path, ll, cc, U32.from_nat(String.length(name)), "pick",
+  {Pick.search.cite(l, c, name, path, False{})
+    == F.Finding{path, l, c, U32.from_nat(String.length(name)), "pick",
     name ++ " binds its own call above a Bool.pick that reads it only in the else branch, so the walk runs even when the condition holds and the search never stops early; branch with `match` on the condition in a helper that takes it as a parameter, so the call runs only in the branch that needs it."} : F.Finding}
 
 # LAW: blank says the test it found and the word for it
 law blank_says_the_test:
-  for +xx: String
-  {Blank.say(xx)
-    == "String.eq(" ++ xx ++ ", \"\") asks whether " ++ xx ++ " is empty; String.is_empty(" ++ xx ++ ") says so."
+  for +x: String
+  {Blank.say(x)
+    == "String.eq(" ++ x ++ ", \"\") asks whether " ++ x ++ " is empty; String.is_empty(" ++ x ++ ") says so."
     : String}
 
 # LAW: blank cites a test at the position it is handed, over the nine chars
 # of `String.eq`, before the rest
 law blank_cites_test:
-  for +xx: String
+  for +x: String
   for +path: String
-  for ll: U32
-  for cc: U32
+  for l: U32
+  for c: U32
   for more: List<&2, F.Finding>
-  {Blank.hit(Some{xx}, path, ll, cc, more) == F.Finding{path, ll, cc, 9, "blank", Blank.say(xx)} <> more
+  {Blank.hit(Some{x}, path, l, c, more) == F.Finding{path, l, c, 9, "blank", Blank.say(x)} <> more
     : List<&2, F.Finding>}
 
 # LAW: no test adds nothing
 law blank_passes_no_test:
   for +path: String
-  for ll: U32
-  for cc: U32
+  for l: U32
+  for c: U32
   for more: List<&2, F.Finding>
-  {Blank.hit(None{}, path, ll, cc, more) == more : List<&2, F.Finding>}
+  {Blank.hit(None{}, path, l, c, more) == more : List<&2, F.Finding>}
 
 # LAW: transcong cites the `Equal.trans` leaf over its eleven chars
 law transcong_cites_trans:
-  for +ll: U32
-  for +cc: U32
+  for +l: U32
+  for +c: U32
   for +path: String
-  {Transcong.cite(ll, cc, path) == F.Finding{path, ll, cc, 11, "transcong",
+  {Transcong.cite(l, c, path) == F.Finding{path, l, c, 11, "transcong",
     "this Equal.trans is fed an Equal.cong: rewrite instead, `%e : {F(_) == c : T}` with the other proof below it, which names the motive once and drops the middle term."} : F.Finding}
 
 # LAW: a `# noqa` that names no code is cited where the mark is, over the
@@ -161,11 +161,11 @@ law noqa_cites_bare_mark:
 
 # LAW: thunk cites the self-call at its name, over the name's length
 law thunk_cites_self_call:
-  for +ll: U32
-  for +cc: U32
+  for +l: U32
+  for +c: U32
   for +name: String
   for +path: String
-  {Thunk.cite(ll, cc, name, path) == F.Finding{path, ll, cc, U32.from_nat(String.length(name)), "thunk",
+  {Thunk.cite(l, c, name, path) == F.Finding{path, l, c, U32.from_nat(String.length(name)), "thunk",
     name ++ " calls itself inside a thunk, which allocates a closure and leaves the loop on every step; carry the test as a Bool into the next call (`go(rest, k, test(h))`) and match on it first, so the search stays a loop."} : F.Finding}
 
 # LAW: prefix cites a run at the position it is handed, over nine chars, with
@@ -173,29 +173,29 @@ law thunk_cites_self_call:
 law prefix_cites_run:
   for msg: String
   for +path: String
-  for +ll: U32
-  for +cc: U32
+  for +l: U32
+  for +c: U32
   for more: List<&2, F.Finding>
-  {Prefix.hit(Some{msg}, path, ll, cc, more) == F.Finding{path, ll, cc, 9, "prefix", msg} <> more
+  {Prefix.hit(Some{msg}, path, l, c, more) == F.Finding{path, l, c, 9, "prefix", msg} <> more
     : List<&2, F.Finding>}
 
 # LAW: no run adds nothing
 law prefix_passes_no_run:
   for +path: String
-  for +ll: U32
-  for +cc: U32
+  for +l: U32
+  for +c: U32
   for more: List<&2, F.Finding>
-  {Prefix.hit(None{}, path, ll, cc, more) == more : List<&2, F.Finding>}
+  {Prefix.hit(None{}, path, l, c, more) == more : List<&2, F.Finding>}
 
 # LAW: empty cites a test at the test's own position, over nine chars, with
 # the test's own words, before the rest
 law empty_cites_test:
-  for ll: U32
-  for cc: U32
+  for l: U32
+  for c: U32
   for msg: String
   for +path: String
   for more: List<&2, F.Finding>
-  {Empty.hit(Some{Empty.Hit{ll, cc, msg}}, path, more) == F.Finding{path, ll, cc, 9, "empty", msg} <> more
+  {Empty.hit(Some{Empty.Hit{l, c, msg}}, path, more) == F.Finding{path, l, c, 9, "empty", msg} <> more
     : List<&2, F.Finding>}
 
 # LAW: no test adds nothing
@@ -327,8 +327,8 @@ law wrap_cites_jammed_parameter_or_next:
 
 # the word doc opens its message with, by the item's kind: a type, a law, or
 # (a def and anything else) a def. Law vocabulary: bolt never calls it
-def says.item(kk: Outline.ItemKind) -> String:
-  match kk:
+def says.item(k: Outline.ItemKind) -> String:
+  match k:
     case Outline.IImport{}:
       "Def"
     case Outline.IDef{}:
@@ -344,8 +344,8 @@ def says.item(kk: Outline.ItemKind) -> String:
 
 # the word unused opens its message with, by the binder's kind: a parameter,
 # or (anything else a body binds) a local. Law vocabulary
-def says.binder(kk: Bind.BindKind) -> String:
-  match kk:
+def says.binder(k: Bind.BindKind) -> String:
+  match k:
     case Bind.KItem{}:
       "Local"
     case Bind.KCtor{}:
@@ -367,23 +367,23 @@ def says.binder(kk: Bind.BindKind) -> String:
 
 # LAW: doc names what lacks a comment by its kind: `Type`, `Law` or `Def`
 law doc_names_the_item_kind:
-  for kk: Outline.ItemKind
-  {Doc.what(kk) == says.item(kk) : String}
+  for k: Outline.ItemKind
+  {Doc.what(k) == says.item(k) : String}
 
 # LAW: unused names what is never used by its kind: `Parameter` or `Local`
 law unused_names_the_binder_kind:
-  for kk: Bind.BindKind
-  {Unused.what(kk) == says.binder(kk) : String}
+  for k: Bind.BindKind
+  {Unused.what(k) == says.binder(k) : String}
 
 # LAW: a law with no name is called `?` in closed's message
 law closed_names_a_nameless_law:
-  for mm: Maybe<&2, String>
-  {Closed.name.of(mm) == Maybe.default(&2, String, mm, "?") : String}
+  for m: Maybe<&2, String>
+  {Closed.name.of(m) == Maybe.default(&2, String, m, "?") : String}
 
 # LAW: a def with no name is called `?` in foreign's message
 law foreign_names_a_nameless_def:
-  for mm: Maybe<&2, String>
-  {Foreign.name.of(mm) == Maybe.default(&2, String, mm, "?") : String}
+  for m: Maybe<&2, String>
+  {Foreign.name.of(m) == Maybe.default(&2, String, m, "?") : String}
 
 # LAW: a `# noqa` that names no code is told to name one, whatever the mark
 # and the findings of its line
@@ -414,38 +414,38 @@ law noqa_tells_an_unknown_code:
 # LAW: empty says, of a list's length test, the test it found and the one to
 # write, both with the name tested
 law empty_says_the_list_test:
-  for +xx: String
-  {Empty.say(Empty.FList{}, xx)
-    == "Nat.is_eq(List.length(.., " ++ xx ++ "), 0n) counts every cell of " ++ xx ++ ", which is read again; List.is_empty(.., "
-        ++ xx ++ ") looks at one and gives the same answer." : String}
+  for +x: String
+  {Empty.say(Empty.FList{}, x)
+    == "Nat.is_eq(List.length(.., " ++ x ++ "), 0n) counts every cell of " ++ x ++ ", which is read again; List.is_empty(.., "
+        ++ x ++ ") looks at one and gives the same answer." : String}
 
 # LAW: and of a string's length test the same, in String's words
 law empty_says_the_string_test:
-  for +xx: String
-  {Empty.say(Empty.FStr{}, xx)
-    == "Nat.is_eq(String.length(" ++ xx ++ "), 0n) counts every char of " ++ xx ++ ", which is read again; String.is_empty("
-        ++ xx ++ ") looks at one and gives the same answer." : String}
+  for +x: String
+  {Empty.say(Empty.FStr{}, x)
+    == "Nat.is_eq(String.length(" ++ x ++ "), 0n) counts every char of " ++ x ++ ", which is read again; String.is_empty("
+        ++ x ++ ") looks at one and gives the same answer." : String}
 
 # LAW: prefix says the take it found and the starts_with to write, with the
 # string, the count and the literal as they were written
 law prefix_says_the_take:
-  for +ss: String
-  for +kk: String
+  for +s: String
+  for +k: String
   for +lit: String
-  {Prefix.say(ss, kk, lit)
-    == "String.eq(String.take(" ++ ss ++ ", " ++ kk ++ "), " ++ lit ++ ") copies " ++ kk
-    ++ " chars only to compare them; String.starts_with(" ++ ss ++ ", " ++ lit ++ ") gives the same answer in place."
+  {Prefix.say(s, k, lit)
+    == "String.eq(String.take(" ++ s ++ ", " ++ k ++ "), " ++ lit ++ ") copies " ++ k
+    ++ " chars only to compare them; String.starts_with(" ++ s ++ ", " ++ lit ++ ") gives the same answer in place."
     : String}
 
 # LAW: in that message a comma is written with a space after it
 law prefix_writes_a_comma:
-  for +tt: String
-  {Prefix.piece(Lex.TComma{}, tt) == ", " : String}
+  for +t: String
+  {Prefix.piece(Lex.TComma{}, t) == ", " : String}
 
 # LAW: and an operator with a space on each side
 law prefix_writes_an_operator:
-  for +tt: String
-  {Prefix.piece(Lex.TOp{}, tt) == " " ++ tt ++ " " : String}
+  for +t: String
+  {Prefix.piece(Lex.TOp{}, t) == " " ++ t ++ " " : String}
 
 # LAW: reach says the name and the limit it was read past
 law reach_says_the_name_and_limit:

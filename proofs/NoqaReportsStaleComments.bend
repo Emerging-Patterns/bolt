@@ -40,16 +40,16 @@ def nqp.len_app(xs, ys):
 
 # a finding put onto the rest, or not, counts one or none
 law nqp.len_pick:
-  for bb: Bool
-  for -ff: F.Finding
+  for b: Bool
+  for -f: F.Finding
   for -more: List<&2, F.Finding>
   for -m: Nat
   for ih: {List.length(&2, F.Finding, more) == m : Nat}
-  {List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, bb, ff <> more, more))
-    == Bool.pick(Nat, bb, 1n+m, m) : Nat}
+  {List.length(&2, F.Finding, Bool.pick(List<&2, F.Finding>, b, f <> more, more))
+    == Bool.pick(Nat, b, 1n+m, m) : Nat}
 
-def nqp.len_pick(bb, _ff, more, m, ih):
-  match bb:
+def nqp.len_pick(b, _ff, more, m, ih):
+  match b:
     case True{}:
       Equal.cong(Nat, Nat, k => 1n+k, List.length(&2, F.Finding, more), m, ih)
     case False{}:
@@ -101,8 +101,8 @@ def nqp.bad(whole, c, path, line, gs):
   nqp.and2(NoqaRule.judged(whole, c), Bool.or(whole, Bool.not(Laws.nq.project(c))),
     Bool.not(NoqaRule.used(gs, path, line, c)), Bool.not(Laws.nq.used(gs, path, line, c)),
     M1.nqp.or_else(whole, Bool.not(NoqaRule.project(c)), Bool.not(Laws.nq.project(c)),
-      Equal.cong(Bool, Bool, bb => Bool.not(bb), NoqaRule.project(c), Laws.nq.project(c), nqp.project(c))),
-    Equal.cong(Bool, Bool, bb => Bool.not(bb), NoqaRule.used(gs, path, line, c), Laws.nq.used(gs, path, line, c),
+      Equal.cong(Bool, Bool, b => Bool.not(b), NoqaRule.project(c), Laws.nq.project(c), nqp.project(c))),
+    Equal.cong(Bool, Bool, b => Bool.not(b), NoqaRule.used(gs, path, line, c), Laws.nq.used(gs, path, line, c),
       nqp.used(gs, path, line, c)))
 
 # a mark's codes: one finding per code the spec counts

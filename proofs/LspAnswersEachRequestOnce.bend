@@ -56,12 +56,12 @@ def unknown_ids(id, _more):
 # a response carries its request's id, a result or an error alike
 law respond_ids:
   for -id: J.Json
-  for aa: Server.Answer
+  for a: Server.Answer
   for -more: List<&2, Server.Reply>
-  {Laws.ids(Server.respond(id, aa) <> more) == id <> Laws.ids(more) : List<&2, J.Json>}
+  {Laws.ids(Server.respond(id, a) <> more) == id <> Laws.ids(more) : List<&2, J.Json>}
 
-def respond_ids(_id, aa, _more):
-  match aa:
+def respond_ids(_id, a, _more):
+  match a:
     case Server.Answer{r}:
       {==}
     case Server.Refusal{c, m}:
@@ -71,16 +71,16 @@ def respond_ids(_id, aa, _more):
 # was exit, whatever its work gave
 law turn_ids:
   for w: Server.Work
-  for mm: Server.Method
+  for m: Server.Method
   for id: J.Json
   for -more: List<&2, Server.Reply>
-  {Laws.ids(D1.then(Server.step(mm, id, w), more)) == Laws.owed_all.go(mm, id, Laws.ids(more))
+  {Laws.ids(D1.then(Server.step(m, id, w), more)) == Laws.owed_all.go(m, id, Laws.ids(more))
     : List<&2, J.Json>}
 
-def turn_ids(w, mm, id, more):
+def turn_ids(w, m, id, more):
   match w:
     case Server.Work{notes, answer, docs}:
-      match mm:
+      match m:
         case Server.MInitialize{}:
           respond_ids(id, answer, more)
         case Server.MShutdown{}:
@@ -116,15 +116,15 @@ def Laws.replies_pair(ts):
   match ts:
     case Nil{}:
       {==}
-    case Con{tt, rest}:
-      match tt:
+    case Con{t, rest}:
+      match t:
         case D1.Turn{+msg, w}:
-          +mm = Server.method(Server.name_of(msg))
+          +m = Server.method(Server.name_of(msg))
           +id = Server.id_of(msg)
-          Equal.trans(List<&2, J.Json>, Laws.ids(D1.then(Server.step(mm, id, w), D1.replies(rest))),
-            Laws.owed_all.go(mm, id, Laws.ids(D1.replies(rest))), Laws.owed_all.go(mm, id, Laws.owed_all(rest)),
-            turn_ids(w, mm, id, D1.replies(rest)),
-            Equal.cong(List<&2, J.Json>, List<&2, J.Json>, x => Laws.owed_all.go(mm, id, x),
+          Equal.trans(List<&2, J.Json>, Laws.ids(D1.then(Server.step(m, id, w), D1.replies(rest))),
+            Laws.owed_all.go(m, id, Laws.ids(D1.replies(rest))), Laws.owed_all.go(m, id, Laws.owed_all(rest)),
+            turn_ids(w, m, id, D1.replies(rest)),
+            Equal.cong(List<&2, J.Json>, List<&2, J.Json>, x => Laws.owed_all.go(m, id, x),
               Laws.ids(D1.replies(rest)), Laws.owed_all(rest), Laws.replies_pair(rest)))
 
 # the method the server does not know is refused with the id, or ignored

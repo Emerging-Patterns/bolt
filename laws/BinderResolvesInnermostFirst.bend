@@ -22,8 +22,8 @@ def res.all(env: List<&2, Bind.Bind>, +name: String) -> List<&2, Bind.Bind>:
       Bool.pick(List<&2, Bind.Bind>, String.eq(n, name), Bind.Bind{n, l, c, k, note} <> more, more)
 
 # a name's part before its first dot: all of it when it has none
-def res.before(ss: String) -> String:
-  match ss:
+def res.before(s: String) -> String:
+  match s:
     case SNil{}:
       SNil{}
     case SCon{+h, t}:
@@ -31,8 +31,8 @@ def res.before(ss: String) -> String:
       Bool.pick(String, Char.is_eq(h, '.'), SNil{}, SCon{h, more})
 
 # a name's part after its first dot, when it has one
-def res.after(ss: String) -> Maybe<&2, String>:
-  match ss:
+def res.after(s: String) -> Maybe<&2, String>:
+  match s:
     case SNil{}:
       None{}
     case SCon{+h, +t}:
@@ -49,8 +49,8 @@ def res.qual(after: Maybe<&2, String>, +before: String, als: List<&2, String>) -
       Bool.pick(Bind.Target, List.contains(~String, ~String.eq, als, before), Bind.TQual{before, rest}, Bind.TFree{})
 
 # what a name refers to once the innermost binder of it, if any, is found
-def res.found(mm: Maybe<&2, Bind.Bind>, +name: String, its: List<&2, String>, als: List<&2, String>) -> Bind.Target:
-  match mm:
+def res.found(m: Maybe<&2, Bind.Bind>, +name: String, its: List<&2, String>, als: List<&2, String>) -> Bind.Target:
+  match m:
     case Some{Bind.Bind{_n, l, c, _k, _note}}:
       Bind.TLocal{l, c}
     case None{}:
@@ -101,19 +101,19 @@ law uses:
 # LAW: whatever the walk reads, in whatever mode, the environment it leaves is
 # the one it was given with binders put in front
 law extends:
-  for +nn: Tree.Node
+  for +n: Tree.Node
   for +mode: Bind.Mode
   for +env: List<&2, Bind.Bind>
   for +ns: Bind.Names
   for +out: Bind.Out
   exs ext: List<&2, Bind.Bind>
-  {Bind.env_of(Bind.walk(nn, mode, env, ns, out)) == List.append(&2, Bind.Bind, ext, env) : List<&2, Bind.Bind>}
+  {Bind.env_of(Bind.walk(n, mode, env, ns, out)) == List.append(&2, Bind.Bind, ext, env) : List<&2, Bind.Bind>}
 
 # the first binder found, else the other
-def res.first(mm: Maybe<&2, Bind.Bind>, other: Maybe<&2, Bind.Bind>) -> Maybe<&2, Bind.Bind>:
-  match mm:
-    case Some{bb}:
-      Some{bb}
+def res.first(m: Maybe<&2, Bind.Bind>, other: Maybe<&2, Bind.Bind>) -> Maybe<&2, Bind.Bind>:
+  match m:
+    case Some{b}:
+      Some{b}
     case None{}:
       other
 
@@ -129,8 +129,8 @@ law shadows:
 
 # does a statement of this kind close its scope for the statements after it?
 # All but a let and a `for` do
-def scoped(kk: Tree.StmtKind) -> Bool:
-  match kk:
+def scoped(k: Tree.StmtKind) -> Bool:
+  match k:
     case Tree.SLet{}:
       False{}
     case Tree.SFor{}:
@@ -141,32 +141,32 @@ def scoped(kk: Tree.StmtKind) -> Bool:
 # LAW: the statements after a def, law, type, import, case or term statement
 # are read with the environment it was entered with
 law restores:
-  for +kk: Tree.StmtKind
+  for +k: Tree.StmtKind
   for +kids: Tree.Node
   for +body: Tree.Node
   for +rest: Tree.Node
   for +env: List<&2, Bind.Bind>
   for +ns: Bind.Names
   for +out: Bind.Out
-  for e: {scoped(kk) == True{} : Bool}
+  for e: {scoped(k) == True{} : Bool}
   exs o: Bind.Out
-  {Bind.walk(Tree.NCons{Tree.Stmt{kk, kids, body}, rest}, Bind.MBlock{}, env, ns, out)
+  {Bind.walk(Tree.NCons{Tree.Stmt{k, kids, body}, rest}, Bind.MBlock{}, env, ns, out)
     == Bind.walk(rest, Bind.MBlock{}, env, ns, o) : Bind.W}
 
 # LAW: the statements after a let or a `for` are read with the environment it
 # was entered with, its binders put in front
 law lets:
-  for +kk: Tree.StmtKind
+  for +k: Tree.StmtKind
   for +kids: Tree.Node
   for +body: Tree.Node
   for +rest: Tree.Node
   for +env: List<&2, Bind.Bind>
   for +ns: Bind.Names
   for +out: Bind.Out
-  for e: {scoped(kk) == False{} : Bool}
+  for e: {scoped(k) == False{} : Bool}
   exs ext: List<&2, Bind.Bind>
   exs o: Bind.Out
-  {Bind.walk(Tree.NCons{Tree.Stmt{kk, kids, body}, rest}, Bind.MBlock{}, env, ns, out)
+  {Bind.walk(Tree.NCons{Tree.Stmt{k, kids, body}, rest}, Bind.MBlock{}, env, ns, out)
     == Bind.walk(rest, Bind.MBlock{}, List.append(&2, Bind.Bind, ext, env), ns, o) : Bind.W}
 
 # LAW: the terms after a group are read with the environment it was entered

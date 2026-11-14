@@ -9,8 +9,8 @@ import ../src/finding.bend as F
 import ../src/rules/correctness/escape.bend as Esc
 
 # 1 when the Syms open with a digit (`0` included), else 0
-def nul_lead(ss: List<&2, Esc.Sym>) -> Nat:
-  match ss:
+def nul_lead(s: List<&2, Esc.Sym>) -> Nat:
+  match s:
     case Con{Esc.SZero{}, t}:
       1n
     case Con{Esc.SDigit{d}, t}:
@@ -46,11 +46,11 @@ def esc_count(toks: List<&2, Lex.Tok>) -> Nat:
 # LAW: escape reports one finding for each `\0` then a digit in a literal,
 # its escapes read a backslash and one char at a time, and none elsewhere in it
 law escape_scan_counts:
-  for ss: List<&2, Esc.Sym>
+  for s: List<&2, Esc.Sym>
   for +path: String
   for +line: U32
   for +col: U32
-  {List.length(&2, F.Finding, Esc.scan(ss, path, line, col)) == nul_count(ss) : Nat}
+  {List.length(&2, F.Finding, Esc.scan(s, path, line, col)) == nul_count(s) : Nat}
 
 # LAW: escape reports exactly those escapes of the string and char literals,
 # and nothing for any other token: a comment or code never has one
@@ -86,8 +86,8 @@ type Dig is Data:
   D9{}
 
 # an octal digit's value
-def oct.n(dd: Oct) -> Nat:
-  match dd:
+def oct.n(d: Oct) -> Nat:
+  match d:
     case O0{}:
       0n
     case O1{}:
@@ -106,8 +106,8 @@ def oct.n(dd: Oct) -> Nat:
       7n
 
 # an octal digit's char
-def oct.char(dd: Oct) -> Char:
-  match dd:
+def oct.char(d: Oct) -> Char:
+  match d:
     case O0{}:
       '0'
     case O1{}:
@@ -126,8 +126,8 @@ def oct.char(dd: Oct) -> Char:
       '7'
 
 # a decimal digit's char
-def dig.char(dd: Dig) -> Char:
-  match dd:
+def dig.char(d: Dig) -> Char:
+  match d:
     case D1{}:
       '1'
     case D2{}:
@@ -148,8 +148,8 @@ def dig.char(dd: Dig) -> Char:
       '9'
 
 # is a decimal digit an octal one?
-def dig.octal(dd: Dig) -> Bool:
-  match dd:
+def dig.octal(d: Dig) -> Bool:
+  match d:
     case D1{}:
       True{}
     case D2{}:
@@ -178,32 +178,32 @@ def hex.names() -> List<&2, String>:
    "32", "33", "34", "35", "36", "37", "38", "39", "3A", "3B", "3C", "3D", "3E", "3F"]
 
 # a name from the table; past its end, nothing
-def hex.at(mm: Maybe<&2, String>) -> String:
-  match mm:
+def hex.at(m: Maybe<&2, String>) -> String:
+  match m:
     case None{}:
       ""
     case Some{nm}:
       nm
 
 # a code point's name from the table
-def hex.named(nn: Nat) -> String:
-  hex.at(List.get(&2, String, hex.names(), nn))
+def hex.named(n: Nat) -> String:
+  hex.at(List.get(&2, String, hex.names(), n))
 
 # LAW: after `\0`, a decimal digit is read as part of the escape exactly when
 # it is an octal digit, `1` to `7`
 law escape_octal_digits:
-  for dd: Dig
-  {Esc.octal(Esc.SDigit{dig.char(dd)})
-    == Bool.pick(Maybe<&2, Char>, dig.octal(dd), Some{dig.char(dd)}, None{}) : Maybe<&2, Char>}
+  for d: Dig
+  {Esc.octal(Esc.SDigit{dig.char(d)})
+    == Bool.pick(Maybe<&2, Char>, dig.octal(d), Some{dig.char(d)}, None{}) : Maybe<&2, Char>}
 
 # LAW: the fix for `\0a` names code point a, in hex
 law escape_names_one_digit:
-  for aa: Oct
-  {Esc.hex(Esc.value([oct.char(aa)], 0)) == hex.named(oct.n(aa)) : String}
+  for a: Oct
+  {Esc.hex(Esc.value([oct.char(a)], 0)) == hex.named(oct.n(a)) : String}
 
 # LAW: the fix for `\0ab` names code point 8a + b, in hex: `\033` is `\u{1B}`
 law escape_names_two_digits:
-  for aa: Oct
-  for bb: Oct
-  {Esc.hex(Esc.value([oct.char(aa), oct.char(bb)], 0)) == hex.named(Nat.add(Nat.mul(oct.n(aa), 8n), oct.n(bb)))
+  for a: Oct
+  for b: Oct
+  {Esc.hex(Esc.value([oct.char(a), oct.char(b)], 0)) == hex.named(Nat.add(Nat.mul(oct.n(a), 8n), oct.n(b)))
     : String}

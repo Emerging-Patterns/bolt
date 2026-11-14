@@ -11,16 +11,16 @@ import ./lemmas/PutEarlyStop.bend as M3
 
 # a lone token: no call follows it
 law put.one:
-  for kk: Lex.TokKind
+  for k: Lex.TokKind
   for t: String
   for l: U32
   for c: U32
   for +path: String
-  {List.length(&2, F.Finding, Put.calls(Lex.Tok{kk, t, l, c} <> [], path))
-    == Laws.put_count(Lex.Tok{kk, t, l, c} <> []) : Nat}
+  {List.length(&2, F.Finding, Put.calls(Lex.Tok{k, t, l, c} <> [], path))
+    == Laws.put_count(Lex.Tok{k, t, l, c} <> []) : Nat}
 
-def put.one(kk, _t, _l, _c, _path):
-  match kk:
+def put.one(k, _t, _l, _c, _path):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -68,7 +68,7 @@ def put.one(kk, _t, _l, _c, _path):
 
 # a `Map.put` token, then any token, onto a list the law holds for
 law put.dot:
-  for kk: Lex.TokKind
+  for k: Lex.TokKind
   for +t: String
   for +o: String
   for +l: U32
@@ -77,14 +77,14 @@ law put.dot:
   for c2: U32
   for +r: List<&2, Lex.Tok>
   for +path: String
-  for ih1: {List.length(&2, F.Finding, Put.calls(Lex.Tok{kk, o, l2, c2} <> r, path))
-    == Laws.put_count(Lex.Tok{kk, o, l2, c2} <> r) : Nat}
+  for ih1: {List.length(&2, F.Finding, Put.calls(Lex.Tok{k, o, l2, c2} <> r, path))
+    == Laws.put_count(Lex.Tok{k, o, l2, c2} <> r) : Nat}
   for ih2: {List.length(&2, F.Finding, Put.calls(r, path)) == Laws.put_count(r) : Nat}
-  {List.length(&2, F.Finding, Put.calls(Lex.Tok{Lex.TDotted{}, t, l, c} <> Lex.Tok{kk, o, l2, c2} <> r, path))
-    == Laws.put_count(Lex.Tok{Lex.TDotted{}, t, l, c} <> Lex.Tok{kk, o, l2, c2} <> r) : Nat}
+  {List.length(&2, F.Finding, Put.calls(Lex.Tok{Lex.TDotted{}, t, l, c} <> Lex.Tok{k, o, l2, c2} <> r, path))
+    == Laws.put_count(Lex.Tok{Lex.TDotted{}, t, l, c} <> Lex.Tok{k, o, l2, c2} <> r) : Nat}
 
-def put.dot(kk, t, o, l, c, _l2, _c2, r, path, ih1, ih2):
-  match kk:
+def put.dot(k, t, o, l, c, _l2, _c2, r, path, ih1, ih2):
+  match k:
     case Lex.TName{}:
       ih1
     case Lex.TUpper{}:
@@ -135,7 +135,7 @@ def put.dot(kk, t, o, l, c, _l2, _c2, r, path, ih1, ih2):
 
 # two tokens onto a list the law holds for
 law put.pair:
-  for kk: Lex.TokKind
+  for k: Lex.TokKind
   for +t: String
   for +l: U32
   for +c: U32
@@ -148,11 +148,11 @@ law put.pair:
   for ih1: {List.length(&2, F.Finding, Put.calls(Lex.Tok{k2, o, l2, c2} <> r, path))
     == Laws.put_count(Lex.Tok{k2, o, l2, c2} <> r) : Nat}
   for ih2: {List.length(&2, F.Finding, Put.calls(r, path)) == Laws.put_count(r) : Nat}
-  {List.length(&2, F.Finding, Put.calls(Lex.Tok{kk, t, l, c} <> Lex.Tok{k2, o, l2, c2} <> r, path))
-    == Laws.put_count(Lex.Tok{kk, t, l, c} <> Lex.Tok{k2, o, l2, c2} <> r) : Nat}
+  {List.length(&2, F.Finding, Put.calls(Lex.Tok{k, t, l, c} <> Lex.Tok{k2, o, l2, c2} <> r, path))
+    == Laws.put_count(Lex.Tok{k, t, l, c} <> Lex.Tok{k2, o, l2, c2} <> r) : Nat}
 
-def put.pair(kk, t, l, c, k2, o, l2, c2, r, path, ih1, ih2):
-  match kk:
+def put.pair(k, t, l, c, k2, o, l2, c2, r, path, ih1, ih2):
+  match k:
     case Lex.TName{}:
       ih1
     case Lex.TUpper{}:
@@ -208,12 +208,12 @@ def put.calls(toks, path):
   match toks:
     case Nil{}:
       {==}
-    case Con{Lex.Tok{kk, t, l, c}, +rest}:
+    case Con{Lex.Tok{k, t, l, c}, +rest}:
       match rest:
         case Nil{}:
-          put.one(kk, t, l, c, path)
+          put.one(k, t, l, c, path)
         case Con{Lex.Tok{k2, o, l2, c2}, r}:
-          put.pair(kk, t, l, c, k2, o, l2, c2, r, path, put.calls(rest, path), put.calls(r, path))
+          put.pair(k, t, l, c, k2, o, l2, c2, r, path, put.calls(rest, path), put.calls(r, path))
 
 # the first token is `Map.put` the same way to the rule and to the law
 law put.named:
@@ -246,16 +246,16 @@ def put.key(t, rest, ih):
 
 # one token onto a list the law holds for
 law put.head:
-  for kk: Lex.TokKind
+  for k: Lex.TokKind
   for +t: String
   for l: U32
   for c: U32
   for +rest: List<&2, Lex.Tok>
   for ih: {Put.defines(rest) == Laws.put_defined(rest) : Bool}
-  {Put.defines(Lex.Tok{kk, t, l, c} <> rest) == Laws.put_defined(Lex.Tok{kk, t, l, c} <> rest) : Bool}
+  {Put.defines(Lex.Tok{k, t, l, c} <> rest) == Laws.put_defined(Lex.Tok{k, t, l, c} <> rest) : Bool}
 
-def put.head(kk, t, _l, _c, rest, ih):
-  match kk:
+def put.head(k, t, _l, _c, rest, ih):
+  match k:
     case Lex.TName{}:
       ih
     case Lex.TUpper{}:
@@ -310,8 +310,8 @@ def put.defines(toks):
   match toks:
     case Nil{}:
       {==}
-    case Con{Lex.Tok{kk, t, l, c}, +rest}:
-      put.head(kk, t, l, c, rest, put.defines(rest))
+    case Con{Lex.Tok{k, t, l, c}, +rest}:
+      put.head(k, t, l, c, rest, put.defines(rest))
 
 def Laws.put_counts(toks, path):
   Equal.trans(Nat,

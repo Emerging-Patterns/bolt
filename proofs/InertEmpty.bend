@@ -11,8 +11,8 @@ import ../laws/defs/InertText.bend as D1
 import ./lemmas/InertTextFacts.bend as M1
 
 # a found name with the tokens after it read that way
-def inert.empty.taken(mm: Maybe<&2, Empty.Taken>) -> Maybe<&2, Empty.Taken>:
-  match mm:
+def inert.empty.taken(m: Maybe<&2, Empty.Taken>) -> Maybe<&2, Empty.Taken>:
+  match m:
     case None{}:
       None{}
     case Some{Empty.Taken{x, r}}:
@@ -76,8 +76,8 @@ def inert.empty.code(k, _t):
 law inert.empty.last:
   for k: Lex.TokKind
   for +t: String
-  for +ll: Empty.Last
-  {Empty.last.step(k, D1.inert.keep(D1.inert.blanks(k), t), ll) == Empty.last.step(k, t, ll) : Empty.Last}
+  for +l: Empty.Last
+  {Empty.last.step(k, D1.inert.keep(D1.inert.blanks(k), t), l) == Empty.last.step(k, t, l) : Empty.Last}
 
 def inert.empty.last(k, _t, _ll):
   match k:
@@ -128,12 +128,12 @@ def inert.empty.last(k, _t, _ll):
 
 # the name a length's arguments end in, before tokens read that way
 law inert.empty.name:
-  for +ll: Empty.Last
+  for +l: Empty.Last
   for r: List<&2, Lex.Tok>
-  {Empty.last.name(ll, D1.inert.toks(r)) == inert.empty.taken(Empty.last.name(ll, r)) : Maybe<&2, Empty.Taken>}
+  {Empty.last.name(l, D1.inert.toks(r)) == inert.empty.taken(Empty.last.name(l, r)) : Maybe<&2, Empty.Taken>}
 
-def inert.empty.name(ll, _r):
-  match ll:
+def inert.empty.name(l, _r):
+  match l:
     case Empty.LComma{}:
       {==}
     case Empty.LName{_n}:
@@ -144,15 +144,15 @@ def inert.empty.name(ll, _r):
 # a pick of that name, or none
 law inert.empty.name_pick:
   for h: Bool
-  for +ll: Empty.Last
+  for +l: Empty.Last
   for r: List<&2, Lex.Tok>
-  {Bool.pick(Maybe<&2, Empty.Taken>, h, Empty.last.name(ll, D1.inert.toks(r)), None{})
-    == inert.empty.taken(Bool.pick(Maybe<&2, Empty.Taken>, h, Empty.last.name(ll, r), None{})) : Maybe<&2, Empty.Taken>}
+  {Bool.pick(Maybe<&2, Empty.Taken>, h, Empty.last.name(l, D1.inert.toks(r)), None{})
+    == inert.empty.taken(Bool.pick(Maybe<&2, Empty.Taken>, h, Empty.last.name(l, r), None{})) : Maybe<&2, Empty.Taken>}
 
-def inert.empty.name_pick(h, ll, r):
+def inert.empty.name_pick(h, l, r):
   match h:
     case True{}:
-      inert.empty.name(ll, r)
+      inert.empty.name(l, r)
     case False{}:
       {==}
 
@@ -191,11 +191,11 @@ def inert.empty.kept(ts, x, d, found, live):
 law inert.empty.list:
   for ts: List<&2, Lex.Tok>
   for +d: Nat
-  for +ll: Empty.Last
+  for +l: Empty.Last
   for done: Bool
   for got: Maybe<&2, Empty.Taken>
-  {Empty.close.list(D1.inert.toks(ts), d, ll, done, inert.empty.taken(got))
-    == inert.empty.taken(Empty.close.list(ts, d, ll, done, got)) : Maybe<&2, Empty.Taken>}
+  {Empty.close.list(D1.inert.toks(ts), d, l, done, inert.empty.taken(got))
+    == inert.empty.taken(Empty.close.list(ts, d, l, done, got)) : Maybe<&2, Empty.Taken>}
 
 def inert.empty.list(ts, d, ll, done, _got):
   match ts:
@@ -280,14 +280,14 @@ def inert.empty.taken_of(fm, ts):
 
 # the test's end and the read of x after it give the same finding
 law inert.empty.tail:
-  for mm: Maybe<&2, Empty.Taken>
+  for m: Maybe<&2, Empty.Taken>
   for +fm: Empty.Form
   for +l: U32
   for +c: U32
-  {Empty.tail(inert.empty.taken(mm), fm, l, c) == Empty.tail(mm, fm, l, c) : Maybe<&2, Empty.Hit>}
+  {Empty.tail(inert.empty.taken(m), fm, l, c) == Empty.tail(m, fm, l, c) : Maybe<&2, Empty.Hit>}
 
-def inert.empty.tail(mm, fm, l, c):
-  match mm:
+def inert.empty.tail(m, fm, l, c):
+  match m:
     case None{}:
       {==}
     case Some{Empty.Taken{+x, +r}}:

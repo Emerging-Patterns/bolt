@@ -27,8 +27,8 @@ def group_in(rows: List<&2, Codes.Entry>, +name: String) -> Bool:
 
 # the settings, in order, whose name is neither the slug nor the group of any
 # row of the code table, nor a limit's name
-def unknown_of(ss: List<&2, Config.Setting>) -> List<&2, Config.Setting>:
-  match ss:
+def unknown_of(s: List<&2, Config.Setting>) -> List<&2, Config.Setting>:
+  match s:
     case Nil{}:
       Nil{}
     case Con{Config.Setting{+n, w, line}, rest}:
@@ -41,5 +41,5 @@ def unknown_of(ss: List<&2, Config.Setting>) -> List<&2, Config.Setting>:
 # neither the slug nor the group of any row of the code table, nor a limit's
 # name, in file order, one each
 law unknown_exact:
-  for ss: List<&2, Config.Setting>
-  {Config.unknown(ss) == unknown_of(ss) : List<&2, Config.Setting>}
+  for s: List<&2, Config.Setting>
+  {Config.unknown(s) == unknown_of(s) : List<&2, Config.Setting>}

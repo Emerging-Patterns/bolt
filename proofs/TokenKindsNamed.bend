@@ -14,8 +14,8 @@ import ../src/syntax/bind.bend as Bind
 import ../src/syntax/outline.bend as Outline
 import ../laws/TokenKindsNamed.bend as Laws
 
-def Laws.calls_kind_arrow_kinds(kk):
-  match kk:
+def Laws.calls_kind_arrow_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -61,8 +61,8 @@ def Laws.calls_kind_arrow_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.calls_kind_colon_kinds(kk):
-  match kk:
+def Laws.calls_kind_colon_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -108,8 +108,8 @@ def Laws.calls_kind_colon_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.calls_kind_oper_kinds(kk):
-  match kk:
+def Laws.calls_kind_oper_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -155,8 +155,8 @@ def Laws.calls_kind_oper_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.calls_kind_upper_kinds(kk):
-  match kk:
+def Laws.calls_kind_upper_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -202,8 +202,8 @@ def Laws.calls_kind_upper_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.arms_binder_kinds(kk):
-  match kk:
+def Laws.arms_binder_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -249,8 +249,8 @@ def Laws.arms_binder_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.arms_opens_op_kinds(kk):
-  match kk:
+def Laws.arms_opens_op_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -296,8 +296,8 @@ def Laws.arms_opens_op_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.arms_opens_open_kinds(kk):
-  match kk:
+def Laws.arms_opens_open_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -343,8 +343,8 @@ def Laws.arms_opens_open_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.put_calls_dotted_kinds(kk):
-  match kk:
+def Laws.put_calls_dotted_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -390,8 +390,8 @@ def Laws.put_calls_dotted_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.put_defines_key_kinds(kk):
-  match kk:
+def Laws.put_defines_key_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -437,8 +437,8 @@ def Laws.put_defines_key_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.strict_seg_op_ends_kinds(kk):
-  match kk:
+def Laws.strict_seg_op_ends_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -484,8 +484,8 @@ def Laws.strict_seg_op_ends_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.wrap_check_is_arrow_kinds(kk):
-  match kk:
+def Laws.wrap_check_is_arrow_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -531,8 +531,8 @@ def Laws.wrap_check_is_arrow_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.wrap_check_is_colon_kinds(kk):
-  match kk:
+def Laws.wrap_check_is_colon_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -578,8 +578,8 @@ def Laws.wrap_check_is_colon_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.wrap_check_is_op_kinds(kk):
-  match kk:
+def Laws.wrap_check_is_op_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -625,8 +625,8 @@ def Laws.wrap_check_is_op_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.concat_bound_eq_kinds(kk):
-  match kk:
+def Laws.concat_bound_eq_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -672,8 +672,8 @@ def Laws.concat_bound_eq_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.eager_work_name_kinds(kk):
-  match kk:
+def Laws.eager_work_name_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -719,8 +719,8 @@ def Laws.eager_work_name_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.empty_dotted_kinds(kk):
-  match kk:
+def Laws.empty_dotted_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -766,8 +766,8 @@ def Laws.empty_dotted_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.empty_opener_kinds(kk):
-  match kk:
+def Laws.empty_opener_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -813,8 +813,8 @@ def Laws.empty_opener_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.empty_plain_kinds(kk):
-  match kk:
+def Laws.empty_plain_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -860,8 +860,8 @@ def Laws.empty_plain_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.prefix_dotted_kinds(kk):
-  match kk:
+def Laws.prefix_dotted_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -907,8 +907,8 @@ def Laws.prefix_dotted_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.bind_declared_is_key_kinds(kk):
-  match kk:
+def Laws.bind_declared_is_key_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -954,8 +954,8 @@ def Laws.bind_declared_is_key_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.bind_declared_is_name_kinds(kk):
-  match kk:
+def Laws.bind_declared_is_name_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -1001,8 +1001,8 @@ def Laws.bind_declared_is_name_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.lex_is_comma_kinds(kk):
-  match kk:
+def Laws.lex_is_comma_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -1048,8 +1048,8 @@ def Laws.lex_is_comma_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.lex_is_name_kinds(kk):
-  match kk:
+def Laws.lex_is_name_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -1095,8 +1095,8 @@ def Laws.lex_is_name_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.lex_is_nl_kinds(kk):
-  match kk:
+def Laws.lex_is_nl_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -1142,8 +1142,8 @@ def Laws.lex_is_nl_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.lex_is_open_kinds(kk):
-  match kk:
+def Laws.lex_is_open_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -1189,8 +1189,8 @@ def Laws.lex_is_open_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.lex_is_str_kinds(kk):
-  match kk:
+def Laws.lex_is_str_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -1236,8 +1236,8 @@ def Laws.lex_is_str_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.lex_significant_kinds(kk):
-  match kk:
+def Laws.lex_significant_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -1283,8 +1283,8 @@ def Laws.lex_significant_kinds(kk):
     case Lex.TComma{}:
       {==}
 
-def Laws.outline_ends_colon_is_kinds(kk):
-  match kk:
+def Laws.outline_ends_colon_is_kinds(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:

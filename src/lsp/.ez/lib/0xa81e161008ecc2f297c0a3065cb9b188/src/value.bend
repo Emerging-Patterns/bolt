@@ -33,19 +33,19 @@ type Num is Data:
   NExpD{}
   NBad{}
 
-# the first `nn` chars of `src` as their own string
-def span.str(src: String, +nn: U32, zero: Bool) -> String:
+# the first `n` chars of `src` as their own string
+def span.str(src: String, +n: U32, zero: Bool) -> String:
   match src zero:
     case s True{}:
       ""
     case SNil{} False{}:
       ""
     case SCon{h, t} False{}:
-      SCon{h, span.str(t, U32.sub(nn, 1), U32.is_zero(U32.sub(nn, 1)))}
+      SCon{h, span.str(t, U32.sub(n, 1), U32.is_zero(U32.sub(n, 1)))}
 
-# whether the first `nn` chars of `src` equal `key`, stopping at the first miss.
+# whether the first `n` chars of `src` equal `key`, stopping at the first miss.
 # A count past the end of `src` covers what there is, as span.str reads it
-def span.eq.go(src: String, same: Bool, zero: Bool, key: String, +nn: U32) -> Bool:
+def span.eq.go(src: String, same: Bool, zero: Bool, key: String, +n: U32) -> Bool:
   match src same zero key:
     case s False{} zero k:
       False{}
@@ -54,15 +54,15 @@ def span.eq.go(src: String, same: Bool, zero: Bool, key: String, +nn: U32) -> Bo
     case s True{} True{} k:
       False{}
     case SCon{+a, as} True{} False{} SCon{+b, bs}:
-      span.eq.go(as, Char.is_eq(a, b), U32.is_zero(U32.sub(nn, 1)), bs, U32.sub(nn, 1))
+      span.eq.go(as, Char.is_eq(a, b), U32.is_zero(U32.sub(n, 1)), bs, U32.sub(n, 1))
     case SNil{} True{} False{} SNil{}:
       True{}
     case s True{} False{} k:
       False{}
 
-# whether the first `nn` chars of `src` are `key`
-def span.eq(+src: String, +nn: U32, +key: String) -> Bool:
-  span.eq.go(src, True{}, U32.is_zero(nn), key, nn)
+# whether the first `n` chars of `src` are `key`
+def span.eq(+src: String, +n: U32, +key: String) -> Bool:
+  span.eq.go(src, True{}, U32.is_zero(n), key, n)
 
 # reverses a chain of JCons or JPair cells onto acc
 def reverse(cells: Json, acc: Json) -> Json:
@@ -303,8 +303,8 @@ def find.eq(lhs: String, rhs: String) -> Bool:
   find.eq.go(lhs, rhs, True{})
 
 # the matched value, or the next pair when the key differs
-def find.at(rest: Json, +key: String, eq: Bool, vv: Json) -> Json:
-  match rest key eq vv:
+def find.at(rest: Json, +key: String, eq: Bool, v: Json) -> Json:
+  match rest key eq v:
     case r k True{} val:
       val
     case JPair{k2, v2, r2} k False{} val:
@@ -379,10 +379,10 @@ def wf.go(val: Json, shape: Shape) -> Bool:
       Lazy.stop(Bool, Bool.not(wf.go(hd, WVal{})), False{}, _u => wf.go(tl, WArr{}))
     case JNil{} WObj{}:
       True{}
-    case JPair{_, vv, rr} WObj{}:
-      Lazy.stop(Bool, Bool.not(wf.go(vv, WVal{})), False{}, _u => wf.go(rr, WObj{}))
-    case JBind{_, _, vv, rr} WObj{}:
-      Lazy.stop(Bool, Bool.not(wf.go(vv, WVal{})), False{}, _u => wf.go(rr, WObj{}))
+    case JPair{_, v, r} WObj{}:
+      Lazy.stop(Bool, Bool.not(wf.go(v, WVal{})), False{}, _u => wf.go(r, WObj{}))
+    case JBind{_, _, v, r} WObj{}:
+      Lazy.stop(Bool, Bool.not(wf.go(v, WVal{})), False{}, _u => wf.go(r, WObj{}))
     case _ _:
       False{}
 
@@ -394,10 +394,10 @@ def wf(val: Json) -> Bool:
 # whether a chain of pairs has the key, stopping at the first match
 def has.go(cells: Json, +key: String) -> Bool:
   match cells:
-    case JPair{k2, _, rr}:
-      Lazy.stop(Bool, find.eq(k2, key), True{}, _u => has.go(rr, key))
-    case JBind{src, nn, _, rr}:
-      Lazy.stop(Bool, span.eq(src, nn, key), True{}, _u => has.go(rr, key))
+    case JPair{k2, _, r}:
+      Lazy.stop(Bool, find.eq(k2, key), True{}, _u => has.go(r, key))
+    case JBind{src, n, _, r}:
+      Lazy.stop(Bool, span.eq(src, n, key), True{}, _u => has.go(r, key))
     case _:
       False{}
 
@@ -414,10 +414,10 @@ def len.go(cells: Json) -> Nat:
   match cells:
     case JCons{_, tl}:
       1n+len.go(tl)
-    case JPair{_, _, rr}:
-      1n+len.go(rr)
-    case JBind{_, _, _, rr}:
-      1n+len.go(rr)
+    case JPair{_, _, r}:
+      1n+len.go(r)
+    case JBind{_, _, _, r}:
+      1n+len.go(r)
     case _:
       0n
 
@@ -503,18 +503,18 @@ def f32.top() -> F32:
 
 # a read that stayed finite; none when it did not. A JSON number never spells
 # infinity, so an infinite read is a number too large for F32
-def f32.fit.go(xx: F32, finite: Bool) -> Maybe<&2, F32>:
+def f32.fit.go(x: F32, finite: Bool) -> Maybe<&2, F32>:
   match finite:
     case True{}:
-      Some{xx}
+      Some{x}
     case False{}:
       None{}
 
 # a read that stayed finite, or none
 def f32.fit(got: Maybe<&2, F32>) -> Maybe<&2, F32>:
   match got:
-    case Some{+xx}:
-      f32.fit.go(xx, F32.is_le(F32.abs(xx), f32.top()))
+    case Some{+x}:
+      f32.fit.go(x, F32.is_le(F32.abs(x), f32.top()))
     case None{}:
       None{}
 

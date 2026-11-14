@@ -18,7 +18,7 @@ type Graded is Data:
   Graded{level: Config.Level, finding: Finding}
 
 # one line, `path:line:col: level: CODE: message`
-def show_graded(gg: Graded) -> String:
-  Graded{level, Finding{path, line, col, len, rule, msg}} = gg
+def show_graded(g: Graded) -> String:
+  Graded{level, Finding{path, line, col, len, rule, msg}} = g
   path ++ ":" ++ U32.show((line + 1 : U32)) ++ ":" ++ U32.show((col + 1 : U32)) ++ ": " ++ Config.show(level) ++ ": "
     ++ Codes.code(rule) ++ ": " ++ msg

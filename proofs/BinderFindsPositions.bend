@@ -37,8 +37,8 @@ def Laws.binder_first_wins(binds, _line, _col, _xx):
 def Laws.sites_take_local_uses(_name, _l, _c, _tl, _tc, _rest, _line, _col):
   {==}
 
-def Laws.sites_skip_other_uses(name, l, c, tt, rest, line, col, e):
-  match tt:
+def Laws.sites_skip_other_uses(name, l, c, t, rest, line, col, e):
+  match t:
     case Bind.TLocal{tl, tc}:
       Empty.absurd({Bind.sites.go(Bind.Use{name, l, c, Bind.TLocal{tl, tc}} <> rest, line, col)
         == Bind.sites.go(rest, line, col) : List<&2, Bind.Pos>}, M1.true_false(e))
@@ -138,8 +138,8 @@ def Laws.item_sites_binds_then_uses(_binds, _uses, _scopes, _name):
 def Laws.named_sites_skip_local_uses(_n, _l, _c, _tl, _tc, _rest, _name):
   {==}
 
-def Laws.named_sites_take_named_uses(n, l, c, tt, rest, name, e):
-  match tt:
+def Laws.named_sites_take_named_uses(n, l, c, t, rest, name, e):
+  match t:
     case Bind.TLocal{tl, tc}:
       Empty.absurd({Bind.named_sites.go(Bind.Use{n, l, c, Bind.TLocal{tl, tc}} <> rest, name)
         == Bool.pick(List<&2, Bind.Pos>, String.eq(n, name),
@@ -155,17 +155,17 @@ def Laws.named_sites_take_named_uses(n, l, c, tt, rest, name, e):
 def Laws.named_sites_read_uses(_binds, _uses, _scopes, _name):
   {==}
 
-def Laws.use_at_takes_the_use_that_covers(name, ll, cc, tg, rest, line, col, e):
-  %Equal.sym(Bool, Bind.covers(ll, cc, name, line, col), True{}, e) :
+def Laws.use_at_takes_the_use_that_covers(name, l, c, tg, rest, line, col, e):
+  %Equal.sym(Bool, Bind.covers(l, c, name, line, col), True{}, e) :
     {Bind.use_at.go(rest, line, col,
-      Bool.pick(Maybe<&2, Bind.Site>, _, Some{Bind.SUse{Bind.Use{name, ll, cc, tg}}}, None{}))
-      == Bind.use_at.go(rest, line, col, Some{Bind.SUse{Bind.Use{name, ll, cc, tg}}}) : Maybe<&2, Bind.Site>}
+      Bool.pick(Maybe<&2, Bind.Site>, _, Some{Bind.SUse{Bind.Use{name, l, c, tg}}}, None{}))
+      == Bind.use_at.go(rest, line, col, Some{Bind.SUse{Bind.Use{name, l, c, tg}}}) : Maybe<&2, Bind.Site>}
   {==}
 
-def Laws.use_at_passes_other_uses(name, ll, cc, tg, rest, line, col, e):
-  %Equal.sym(Bool, Bind.covers(ll, cc, name, line, col), False{}, e) :
+def Laws.use_at_passes_other_uses(name, l, c, tg, rest, line, col, e):
+  %Equal.sym(Bool, Bind.covers(l, c, name, line, col), False{}, e) :
     {Bind.use_at.go(rest, line, col,
-      Bool.pick(Maybe<&2, Bind.Site>, _, Some{Bind.SUse{Bind.Use{name, ll, cc, tg}}}, None{}))
+      Bool.pick(Maybe<&2, Bind.Site>, _, Some{Bind.SUse{Bind.Use{name, l, c, tg}}}, None{}))
       == Bind.use_at.go(rest, line, col, None{}) : Maybe<&2, Bind.Site>}
   {==}
 
@@ -209,28 +209,28 @@ def Laws.annotate_reads_back(name, line, col, kind, note, rest, lines, at, cur, 
         <> Bind.annotate.go(rest, lines, at, cur) : List<&2, Bind.Bind>}
   {==}
 
-def Laws.refresh_starts_over_for_an_earlier_binder(name, ll, cc, kind, note, rest, binds, cur, tl, tc, acc, e):
-  %Equal.sym(Bool, Bind.before(ll, cc, tl, tc), True{}, e) :
+def Laws.refresh_starts_over_for_an_earlier_binder(name, l, c, kind, note, rest, binds, cur, tl, tc, acc, e):
+  %Equal.sym(Bool, Bind.before(l, c, tl, tc), True{}, e) :
     {Bind.refresh.go(rest, binds,
-      Bind.seek(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), ll, cc,
-        Bind.seek.stop(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), ll, cc)), ll, cc,
-      Bind.noted(Bind.seek.head(Bind.seek(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), ll, cc,
-        Bind.seek.stop(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), ll, cc)), ll, cc),
-        Bind.Bind{name, ll, cc, kind, note}) <> acc)
-      == Bind.refresh.go(rest, binds, Bind.seek(binds, ll, cc, Bind.seek.stop(binds, ll, cc)), ll, cc,
-        Bind.noted(Bind.seek.head(Bind.seek(binds, ll, cc, Bind.seek.stop(binds, ll, cc)), ll, cc),
-          Bind.Bind{name, ll, cc, kind, note}) <> acc) : List<&2, Bind.Bind>}
+      Bind.seek(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), l, c,
+        Bind.seek.stop(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), l, c)), l, c,
+      Bind.noted(Bind.seek.head(Bind.seek(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), l, c,
+        Bind.seek.stop(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), l, c)), l, c),
+        Bind.Bind{name, l, c, kind, note}) <> acc)
+      == Bind.refresh.go(rest, binds, Bind.seek(binds, l, c, Bind.seek.stop(binds, l, c)), l, c,
+        Bind.noted(Bind.seek.head(Bind.seek(binds, l, c, Bind.seek.stop(binds, l, c)), l, c),
+          Bind.Bind{name, l, c, kind, note}) <> acc) : List<&2, Bind.Bind>}
   {==}
 
-def Laws.refresh_reads_on_for_a_later_binder(name, ll, cc, kind, note, rest, binds, cur, tl, tc, acc, e):
-  %Equal.sym(Bool, Bind.before(ll, cc, tl, tc), False{}, e) :
+def Laws.refresh_reads_on_for_a_later_binder(name, l, c, kind, note, rest, binds, cur, tl, tc, acc, e):
+  %Equal.sym(Bool, Bind.before(l, c, tl, tc), False{}, e) :
     {Bind.refresh.go(rest, binds,
-      Bind.seek(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), ll, cc,
-        Bind.seek.stop(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), ll, cc)), ll, cc,
-      Bind.noted(Bind.seek.head(Bind.seek(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), ll, cc,
-        Bind.seek.stop(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), ll, cc)), ll, cc),
-        Bind.Bind{name, ll, cc, kind, note}) <> acc)
-      == Bind.refresh.go(rest, binds, Bind.seek(cur, ll, cc, Bind.seek.stop(cur, ll, cc)), ll, cc,
-        Bind.noted(Bind.seek.head(Bind.seek(cur, ll, cc, Bind.seek.stop(cur, ll, cc)), ll, cc),
-          Bind.Bind{name, ll, cc, kind, note}) <> acc) : List<&2, Bind.Bind>}
+      Bind.seek(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), l, c,
+        Bind.seek.stop(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), l, c)), l, c,
+      Bind.noted(Bind.seek.head(Bind.seek(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), l, c,
+        Bind.seek.stop(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), l, c)), l, c),
+        Bind.Bind{name, l, c, kind, note}) <> acc)
+      == Bind.refresh.go(rest, binds, Bind.seek(cur, l, c, Bind.seek.stop(cur, l, c)), l, c,
+        Bind.noted(Bind.seek.head(Bind.seek(cur, l, c, Bind.seek.stop(cur, l, c)), l, c),
+          Bind.Bind{name, l, c, kind, note}) <> acc) : List<&2, Bind.Bind>}
   {==}

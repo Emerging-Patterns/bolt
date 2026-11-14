@@ -54,10 +54,10 @@ def foreign.has(body: Tree.Node, +ext: String) -> Bool:
 # a foreign def with a `.c` body and no `.js` one (in a file not native only),
 # or with a `.js` body and no `.c` one
 def foreign.bad(+body: Tree.Node, +native: Bool) -> Bool:
-  +cc = foreign.has(body, ".c\"")
+  +c = foreign.has(body, ".c\"")
   +js = foreign.has(body, ".js\"")
   Bool.and(foreign.only(body),
-    Bool.or(Bool.and(cc, Bool.and(Bool.not(js), Bool.not(native))), Bool.and(js, Bool.not(cc))))
+    Bool.or(Bool.and(c, Bool.and(Bool.not(js), Bool.not(native))), Bool.and(js, Bool.not(c))))
 
 # how many of the file's top-level defs are foreign defs missing a lane
 def foreign.count(root: Tree.Node, +native: Bool) -> Nat:

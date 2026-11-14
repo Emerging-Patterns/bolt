@@ -23,8 +23,8 @@ import ../src/rules/calls.bend as Calls
 # stepping to itself) is neither.
 
 # is the chain exactly one number token?
-def index.lit(nn: Tree.Node) -> Bool:
-  match nn:
+def index.lit(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, t, l, c}}, Tree.NNil{}}:
       True{}
     case other:
@@ -41,12 +41,12 @@ def index.fires(list: Bool, +ob: Bool, +sget: Bool, +as: List<&2, Tree.Node>, ta
     case False{}:
       Bool.and(ob, Bool.and(sget, Bool.not(index.lit(Calls.arg(as, 1n)))))
 
-# one when the name token tt at (ll, cc), then the rest, is a call index
+# one when the name token t at (l, c), then the rest, is a call index
 # reports in the def named self
 def index.site(
-  +tt: String,
-  +ll: U32,
-  +cc: U32,
+  +t: String,
+  +l: U32,
+  +c: U32,
   rest: Tree.Node,
   +path: String,
   +fixed: List<&2, String>,
@@ -54,10 +54,10 @@ def index.site(
 ) -> Nat:
   match rest:
     case Tree.NCons{Tree.Group{Lex.Tok{k, +o, ol, oc}, +kids, cl}, r}:
-      +other = Bool.not(String.eq(tt, self))
-      Bool.pick(Nat, index.fires(Bool.and(String.eq(tt, "List.get"), other), String.eq(o, "("),
-        Bool.and(String.eq(tt, "String.get"), other),
-        Calls.args(kids), Table.hit(String.eq(o, "("), "List.get", kids, fixed, path, ll, cc)), 1n, 0n)
+      +other = Bool.not(String.eq(t, self))
+      Bool.pick(Nat, index.fires(Bool.and(String.eq(t, "List.get"), other), String.eq(o, "("),
+        Bool.and(String.eq(t, "String.get"), other),
+        Calls.args(kids), Table.hit(String.eq(o, "("), "List.get", kids, fixed, path, l, c)), 1n, 0n)
     case other:
       0n
 

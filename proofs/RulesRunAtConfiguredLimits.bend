@@ -30,18 +30,18 @@ def Laws.tuned_keeps_slugs(rs, cfg):
   match rs:
     case Nil{}:
       {==}
-    case Con{Rules.Run{slug, ww}, rest}:
+    case Con{Rules.Run{slug, w}, rest}:
       Equal.cong(List<&2, String>, List<&2, String>, z => slug <> z, Laws.slugs(Rules.on.tuned(rest, cfg)),
         Laws.slugs(rest), Laws.tuned_keeps_slugs(rest, cfg))
 
 # a check tuned to a config with no limit is the check
 law tune.none:
-  for ww: Rules.Which
+  for w: Rules.Which
   for sets: List<&2, Config.LevelSet>
-  {Rules.on.tune(Config.Config{sets, Nil{}}, ww) == ww : Rules.Which}
+  {Rules.on.tune(Config.Config{sets, Nil{}}, w) == w : Rules.Which}
 
-def tune.none(ww, _sets):
-  match ww:
+def tune.none(w, _sets):
+  match w:
     case Rules.WReach{max}:
       {==}
     case Rules.WSize{dim, max}:
@@ -109,14 +109,14 @@ def Laws.tuned_without_limits(rs, sets):
   match rs:
     case Nil{}:
       {==}
-    case Con{Rules.Run{+slug, +ww}, +rest}:
+    case Con{Rules.Run{+slug, +w}, +rest}:
       Equal.trans(List<&2, Rules.Run>,
-        Rules.Run{slug, Rules.on.tune(Config.Config{sets, Nil{}}, ww)} <> Rules.on.tuned(rest, Config.Config{sets,
+        Rules.Run{slug, Rules.on.tune(Config.Config{sets, Nil{}}, w)} <> Rules.on.tuned(rest, Config.Config{sets,
           Nil{}}),
-        Rules.Run{slug, ww} <> Rules.on.tuned(rest, Config.Config{sets, Nil{}}),
-        Rules.Run{slug, ww} <> rest,
+        Rules.Run{slug, w} <> Rules.on.tuned(rest, Config.Config{sets, Nil{}}),
+        Rules.Run{slug, w} <> rest,
         Equal.cong(Rules.Which, List<&2, Rules.Run>,
           z => Rules.Run{slug, z} <> Rules.on.tuned(rest, Config.Config{sets, Nil{}}),
-          Rules.on.tune(Config.Config{sets, Nil{}}, ww), ww, tune.none(ww, sets)),
-        Equal.cong(List<&2, Rules.Run>, List<&2, Rules.Run>, z => Rules.Run{slug, ww} <> z,
+          Rules.on.tune(Config.Config{sets, Nil{}}, w), w, tune.none(w, sets)),
+        Equal.cong(List<&2, Rules.Run>, List<&2, Rules.Run>, z => Rules.Run{slug, w} <> z,
           Rules.on.tuned(rest, Config.Config{sets, Nil{}}), rest, Laws.tuned_without_limits(rest, sets)))

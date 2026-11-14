@@ -34,8 +34,8 @@ def wf.stop(c, _x):
 def Laws.name_chars(_cc):
   {==}
 
-def Laws.run_holds_its_columns(h, t, start, ii, col, hit):
-  wf.yes(Bool.and(U32.is_le(start, col), U32.is_le(col, ii)), h <> t, hit)
+def Laws.run_holds_its_columns(h, t, start, i, col, hit):
+  wf.yes(Bool.and(U32.is_le(start, col), U32.is_le(col, i)), h <> t, hit)
 
 def Laws.empty_run_is_no_name(_start, _ii, _col, _hit):
   {==}

@@ -36,8 +36,8 @@ def dispatch(cmd: Args.Cmd, paths: List<&2, String>) -> IO(Unit):  # noqa: L001 
       FmtRun.run(check, paths)
 
 # what a parsed line does, done
-def perform(oo: Args.Out) -> IO(Unit):  # noqa: L001 IO driver
-  match oo:
+def perform(o: Args.Out) -> IO(Unit):  # noqa: L001 IO driver
+  match o:
     case Args.Stop{to, text, code}:
       do IO<Unit>:
         Stop.say(to, text)

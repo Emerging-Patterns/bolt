@@ -9,6 +9,6 @@ law noqa_bare_text:
   for col: U32
   for len: U32
   for n: Nat
-  for tt: String
-  {Noqa.mark.text(line, col, len, "#" ++ D1.nq.spaces(n) ++ "noqa " ++ tt) == [Noqa.Mark{line, col, len, []}]
+  for t: String
+  {Noqa.mark.text(line, col, len, "#" ++ D1.nq.spaces(n) ++ "noqa " ++ t) == [Noqa.Mark{line, col, len, []}]
     : List<&2, Noqa.Mark>}

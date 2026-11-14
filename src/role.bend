@@ -30,24 +30,24 @@ def of_path(+path: String) -> Role:
   Bool.pick(Role, Paths.is_laws(path), Laws{}, Bool.pick(Role, Paths.is_proof(path), Proof{}, Plain{}))
 
 # is it a law file?
-def is_laws(rr: Role) -> Bool:
-  match rr:
+def is_laws(r: Role) -> Bool:
+  match r:
     case Laws{}:
       True{}
     case other:
       False{}
 
 # is it a proof file?
-def is_proof(rr: Role) -> Bool:
-  match rr:
+def is_proof(r: Role) -> Bool:
+  match r:
     case Proof{}:
       True{}
     case other:
       False{}
 
 # is it a law file or a proof file?
-def is_law_file(rr: Role) -> Bool:
-  match rr:
+def is_law_file(r: Role) -> Bool:
+  match r:
     case Plain{}:
       False{}
     case other:
@@ -55,8 +55,8 @@ def is_law_file(rr: Role) -> Bool:
 
 # a rule that has nothing to say of a law or proof file: its findings on a
 # file told its role, none on one of those
-def skip(+rr: Role, run: Unit -> List<&2, F.Finding>) -> List<&2, F.Finding>:
-  Lazy.stop(List<&2, F.Finding>, is_law_file(rr), [], run)
+def skip(+r: Role, run: Unit -> List<&2, F.Finding>) -> List<&2, F.Finding>:
+  Lazy.stop(List<&2, F.Finding>, is_law_file(r), [], run)
 
 # reading a file
 # --------------
@@ -72,16 +72,16 @@ type Fact is Data:
   Fact{norm: String, deps: List<&2, String>, named: Role, entry: Bool}
 
 # a parsed file read down to its fact
-def fact(ss: Src.Src) -> Fact:
-  Src.Src{+path, _text, _toks, _tree, _bound, items} = ss
-  +nn = Imports.norm(path)
-  Fact{nn, Imports.targets(items, nn), of_path(path), String.eq(Paths.base(path), "main.bend")}
+def fact(s: Src.Src) -> Fact:
+  Src.Src{+path, _text, _toks, _tree, _bound, items} = s
+  +n = Imports.norm(path)
+  Fact{n, Imports.targets(items, n), of_path(path), String.eq(Paths.base(path), "main.bend")}
 
 # a file's fact read from its text alone: lexed and outlined for its imports,
 # never parsed, so a file read only for its place in the graph costs little
 def fact.text(+path: String, +text: String) -> Fact:
-  +nn = Imports.norm(path)
-  Fact{nn, Imports.targets(Outline.of_tokens(text, Lex.tokens(text)), nn), of_path(path),
+  +n = Imports.norm(path)
+  Fact{n, Imports.targets(Outline.of_tokens(text, Lex.tokens(text)), n), of_path(path),
     String.eq(Paths.base(path), "main.bend")}
 
 # every file's fact, in order
@@ -186,16 +186,16 @@ def marks.facts(+fs: List<&2, Fact>) -> List<&2, Mark>:
 # the role of every file on the laws' side. Both walks are the one every
 # project rule takes over imports (src/rules/imports.bend), each from all its
 # roots at once
-def marks(ss: List<&2, Src.Src>) -> List<&2, Mark>:
-  marks.facts(facts(ss))
+def marks(s: List<&2, Src.Src>) -> List<&2, Mark>:
+  marks.facts(facts(s))
 
 # a normalized path's role among the marks: neither when it is not marked
-def of.norm(ms: List<&2, Mark>, +nn: String) -> Role:
+def of.norm(ms: List<&2, Mark>, +n: String) -> Role:
   match ms:
     case Nil{}:
       Plain{}
     case Con{Mark{+norm, role}, rest}:
-      Lazy.either(Role, String.eq(norm, nn), _u => role, _v => of.norm(rest, nn))
+      Lazy.either(Role, String.eq(norm, n), _u => role, _v => of.norm(rest, n))
 
 # a file's role among the marks: a LAWS.bend or PROOF.bend by its name, any
 # other file as marked, and neither when it is not marked

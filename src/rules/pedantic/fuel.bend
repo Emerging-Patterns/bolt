@@ -37,22 +37,22 @@ type Fuel is Data:
   Fuel{name: String, at: Nat}
 
 # is it a fuel parameter's name?
-def is_fuel(+nn: String) -> Bool:
-  Bool.or(String.starts_with(nn, "fuel"),
-    List.contains(~String, ~String.eq, ["gas", "steps", "budget"], nn))
+def is_fuel(+n: String) -> Bool:
+  Bool.or(String.starts_with(n, "fuel"),
+    List.contains(~String, ~String.eq, ["gas", "steps", "budget"], n))
 
 # the fuel parameters among a def's parameters, from position i on
-def fuels.params(ps: List<&2, Tree.Node>, +name: String, +ii: Nat) -> List<&2, Fuel>:
+def fuels.params(ps: List<&2, Tree.Node>, +name: String, +i: Nat) -> List<&2, Fuel>:
   match ps:
     case Nil{}:
       Nil{}
     case Con{p, rest}:
-      +more = fuels.params(rest, name, 1n+ii)
-      Bool.pick(List<&2, Fuel>, is_fuel(Calls.param_name(p)), Fuel{name, ii} <> more, more)
+      +more = fuels.params(rest, name, 1n+i)
+      Bool.pick(List<&2, Fuel>, is_fuel(Calls.param_name(p)), Fuel{name, i} <> more, more)
 
 # is the chain's first node the capitalized name `IO`?
-def effect.io(nn: Tree.Node) -> Bool:
-  match nn:
+def effect.io(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TUpper{}, +t, l, c}}, rest}:
       String.eq(t, "IO")
     case other:
@@ -95,8 +95,8 @@ def converted(kids: Tree.Node, ok: Bool, +ll: U32, +cc: U32, +path: String) -> L
 
 # an argument that is a Nat literal alone (digits, then `n`), or
 # `U32.to_nat` of a U32 literal alone, as a finding
-def literal(aa: Tree.Node, +path: String) -> List<&2, F.Finding>:
-  match aa:
+def literal(a: Tree.Node, +path: String) -> List<&2, F.Finding>:
+  match a:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, +t, l, c}}, Tree.NNil{}}:
       Bool.pick(List<&2, F.Finding>, T.nat_ok(String.to_list(t)),
         [F.Finding{path, l, c, U32.from_nat(String.length(t)), "fuel",
@@ -119,8 +119,8 @@ def call(fs: List<&2, Fuel>, +name: String, +as: List<&2, Tree.Node>, +path: Str
         _u => List.append(&2, F.Finding, literal(Calls.arg(as, at), path), more))
 
 # every call at any depth of a chain, but the def's own (self)
-def calls(nn: Tree.Node, +fs: List<&2, Fuel>, +self: String, +path: String) -> List<&2, F.Finding>:
-  match nn:
+def calls(n: Tree.Node, +fs: List<&2, Fuel>, +self: String, +path: String) -> List<&2, F.Finding>:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +more = List.concat(&2, F.Finding, [calls(kids, fs, self, path), calls(rest, fs, self, path)])
       +hit = Bool.and(Bool.and(Lex.is_name(k), String.eq(o, "(")), Bool.not(String.eq(t, self)))
@@ -137,8 +137,8 @@ def calls(nn: Tree.Node, +fs: List<&2, Fuel>, +self: String, +path: String) -> L
       Nil{}
 
 # a def's (or a law's) name, "" when it has none
-def own(mm: Maybe<&2, String>) -> String:
-  match mm:
+def own(m: Maybe<&2, String>) -> String:
+  match m:
     case None{}:
       ""
     case Some{n}:
@@ -158,6 +158,6 @@ def check.go(root: Tree.Node, +fs: List<&2, Fuel>, +path: String) -> List<&2, F.
       Nil{}
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, +tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, +tree, bound, items} = s
   check.go(tree, fuels(Calls.defs(tree)), path)

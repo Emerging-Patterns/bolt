@@ -35,16 +35,16 @@ law nav_open_text:
   {Nav.text_of(~fs, docs, uri, R, k) == k(text) : IO.OP<R>}
 
 # a binder the binder found, in the document
-def nav.local(mm: Maybe<&2, Bind.Bind>, uri: String) -> Maybe<&2, Nav.Found>:
-  match mm:
+def nav.local(m: Maybe<&2, Bind.Bind>, uri: String) -> Maybe<&2, Nav.Found>:
+  match m:
     case None{}:
       None{}
-    case Some{bb}:
-      Some{Nav.Here{uri, bb}}
+    case Some{b}:
+      Some{Nav.Here{uri, b}}
 
 # the binders the binder found in a text
-def nav.binds(bb: Bind.Bound) -> List<&2, Bind.Bind>:
-  Bind.Bound{binds, _uses, _scopes} = bb
+def nav.binds(b: Bind.Bound) -> List<&2, Bind.Bind>:
+  Bind.Bound{binds, _uses, _scopes} = b
   binds
 
 # LAW: definition on a binder of the open text is that binder
@@ -234,7 +234,7 @@ law nav_hover_item:
   for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
   {Nav.hover(~fs, docs, uri, line, col, R, k)
     == Nav.in_file(~fs, docs, Path.join(Path.dir(Proto.path(uri)), rel), Word.rest(name), R,
-      mm => k(Nav.hover.pick(mm, Nav.found(Outline.find(Outline.items(text), name), uri), uri,
+      m => k(Nav.hover.pick(m, Nav.found(Outline.find(Outline.items(text), name), uri), uri,
         Bind.Bind{name, bl, bc, Bind.KItem{}, note}))) : IO.OP<R>}
 
 # LAW: hover on an item's own name whose head names no import is the
@@ -262,37 +262,37 @@ law nav_hover_own:
 
 # the positions of a binder the binder found: an item's or a constructor's
 # declaration and uses, any other binder's own position and its uses'
-def nav.bind_sites(kind: Bind.BindKind, +name: String, +ll: U32, +cc: U32, +bb: Bind.Bound) -> Nav.Sites:
+def nav.bind_sites(kind: Bind.BindKind, +name: String, +l: U32, +c: U32, +b: Bind.Bound) -> Nav.Sites:
   match kind:
     case Bind.KItem{}:
-      Nav.Sites{True{}, Bind.item_sites(bb, name)}
+      Nav.Sites{True{}, Bind.item_sites(b, name)}
     case Bind.KCtor{}:
-      Nav.Sites{True{}, Bind.item_sites(bb, name)}
+      Nav.Sites{True{}, Bind.item_sites(b, name)}
     case _other:
-      Nav.Sites{True{}, Bind.sites(bb, ll, cc)}
+      Nav.Sites{True{}, Bind.sites(b, l, c)}
 
 # the positions of a use, by what the binder resolved it to: a binder's, an
 # item's, or for a name from Base or behind an alias its uses by that name,
 # which are not the document's own
-def nav.use_sites(tg: Bind.Target, +name: String, +bb: Bind.Bound) -> Nav.Sites:
+def nav.use_sites(tg: Bind.Target, +name: String, +b: Bind.Bound) -> Nav.Sites:
   match tg:
     case Bind.TLocal{tl, tc}:
-      Nav.Sites{True{}, Bind.sites(bb, tl, tc)}
+      Nav.Sites{True{}, Bind.sites(b, tl, tc)}
     case Bind.TItem{item}:
-      Nav.Sites{True{}, Bind.item_sites(bb, item)}
+      Nav.Sites{True{}, Bind.item_sites(b, item)}
     case _other:
-      Nav.Sites{False{}, Bind.named_sites(bb, name)}
+      Nav.Sites{False{}, Bind.named_sites(b, name)}
 
 # the positions references answers for the site the binder found, and
 # whether they are the document's own (only those rename)
-def nav.referenced(site: Maybe<&2, Bind.Site>, +bb: Bind.Bound) -> Nav.Sites:
+def nav.referenced(site: Maybe<&2, Bind.Site>, +b: Bind.Bound) -> Nav.Sites:
   match site:
     case None{}:
       Nav.Sites{False{}, []}
     case Some{Bind.SBind{Bind.Bind{name, l, c, kind, _note}}}:
-      nav.bind_sites(kind, name, l, c, bb)
+      nav.bind_sites(kind, name, l, c, b)
     case Some{Bind.SUse{Bind.Use{name, _l, _c, tg}}}:
-      nav.use_sites(tg, name, bb)
+      nav.use_sites(tg, name, b)
 
 # LAW: references answer from the binder over the open text: the positions
 # of the binder, item or name the binder finds at the position

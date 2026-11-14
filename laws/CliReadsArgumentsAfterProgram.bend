@@ -45,11 +45,11 @@ law cli_help_flag_path:
 # LAW: a line whose first word (other than `--help`) is a subcommand asks
 # about that subcommand
 law cli_help_cmd:
-  for +cc: String
+  for +c: String
   for ws: List<&2, String>
-  for h_cmd: {Args.is_cmd(cc) == True{} : Bool}
-  for h_not: {String.eq(cc, "--help") == False{} : Bool}
-  {Args.help_path(cc <> ws) == [cc] : List<&2, String>}
+  for h_cmd: {Args.is_cmd(c) == True{} : Bool}
+  for h_not: {String.eq(c, "--help") == False{} : Bool}
+  {Args.help_path(c <> ws) == [c] : List<&2, String>}
 
 # LAW: every word after the program is kept, in order
 law cli_args_kept:
@@ -60,22 +60,22 @@ law cli_args_kept:
 # LAW: the subcommands are `lint`, `check`, `fmt` and `lsp`, and no other
 # word
 law cli_commands_named:
-  for +ww: String
-  {Args.is_cmd(ww) == Bool.or(String.eq(ww, "lint"),
-      Bool.or(String.eq(ww, "check"), Bool.or(String.eq(ww, "fmt"), String.eq(ww, "lsp")))) : Bool}
+  for +w: String
+  {Args.is_cmd(w) == Bool.or(String.eq(w, "lint"),
+      Bool.or(String.eq(w, "check"), Bool.or(String.eq(w, "fmt"), String.eq(w, "lsp")))) : Bool}
 
 # LAW: a word that is neither `--` nor `--help` is passed over in looking
 # for `--help`
 law cli_help_passes_words:
-  for +ww: String
+  for +w: String
   for rest: List<&2, String>
-  for e1: {String.eq(ww, "--") == False{} : Bool}
-  for e2: {String.eq(ww, "--help") == False{} : Bool}
-  {Args.asks_help(ww <> rest) == Args.asks_help(rest) : Bool}
+  for e1: {String.eq(w, "--") == False{} : Bool}
+  for e2: {String.eq(w, "--help") == False{} : Bool}
+  {Args.asks_help(w <> rest) == Args.asks_help(rest) : Bool}
 
 # LAW: a line of one such word does not ask for help
 law cli_help_needs_flag:
-  for +ww: String
-  for e1: {String.eq(ww, "--") == False{} : Bool}
-  for e2: {String.eq(ww, "--help") == False{} : Bool}
-  {Args.asks_help(ww <> Nil{}) == False{} : Bool}
+  for +w: String
+  for e1: {String.eq(w, "--") == False{} : Bool}
+  for e2: {String.eq(w, "--help") == False{} : Bool}
+  {Args.asks_help(w <> Nil{}) == False{} : Bool}

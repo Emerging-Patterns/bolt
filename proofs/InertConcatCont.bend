@@ -129,12 +129,12 @@ def cont.mem(xs, b, t, ef, ep):
 
 # a parameter's name, from a chain the lexer made, is plain
 law cont.pname:
-  for pp: Tree.Node
-  for +e: {D1.inert.ok(pp) == True{} : Bool}
-  {Bool.not(D1.inert.marked(Calls.param_name(pp))) == True{} : Bool}
+  for p: Tree.Node
+  for +e: {D1.inert.ok(p) == True{} : Bool}
+  {Bool.not(D1.inert.marked(Calls.param_name(p))) == True{} : Bool}
 
-def cont.pname(pp, e):
-  match pp:
+def cont.pname(p, e):
+  match p:
     case Tree.NCons{h, +rest}:
       match h:
         case Tree.Leaf{tok}:
@@ -259,12 +259,12 @@ def cont.plain.conts(sig, e):
 
 # how often a name is read, the tree read that way: only names are counted
 law cont.uses:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +name: String
-  {Concat.uses(D1.inert.node(nn), name) == Concat.uses(nn, name) : Nat}
+  {Concat.uses(D1.inert.node(n), name) == Concat.uses(n, name) : Nat}
 
-def cont.uses(nn, name):
-  match nn:
+def cont.uses(n, name):
+  match n:
     case Tree.NCons{+h, +t}:
       %cont.uses(h, name) : {Nat.add(Concat.uses(D1.inert.node(h), name), Concat.uses(D1.inert.node(t), name))
         == Nat.add(_, Concat.uses(t, name)) : Nat}
@@ -308,11 +308,11 @@ def cont.uses(nn, name):
 
 # a parameter read that way is `+` as it was: only an operator's text is read
 law cont.plus:
-  for pp: Tree.Node
-  {Concat.plus(D1.inert.node(pp)) == Concat.plus(pp) : Bool}
+  for p: Tree.Node
+  {Concat.plus(D1.inert.node(p)) == Concat.plus(p) : Bool}
 
-def cont.plus(pp):
-  match pp:
+def cont.plus(p):
+  match p:
     case Tree.NCons{h, rest}:
       match h:
         case Tree.Leaf{tok}:
@@ -404,11 +404,11 @@ law cont.accs:
   {Concat.accs(D1.inert.node(sig), D1.inert.node(body)) == Concat.accs(sig, body) : List<&2, String>}
 
 def cont.accs(sig, body):
-  +pp = Calls.params.of(sig)
+  +p = Calls.params.of(sig)
   +ib = D1.inert.node(body)
   +lhs = Concat.accs(D1.inert.node(sig), ib)
-  %cont.accs.go(Calls.args(pp), body, []) : {lhs == _ : List<&2, String>}
-  %P.inert.args(pp) : {lhs == Concat.accs.go(_, ib, []) : List<&2, String>}
+  %cont.accs.go(Calls.args(p), body, []) : {lhs == _ : List<&2, String>}
+  %P.inert.args(p) : {lhs == Concat.accs.go(_, ib, []) : List<&2, String>}
   %P.inert.params.of(sig) : {lhs == Concat.accs.go(Calls.args(_), ib, []) : List<&2, String>}
   {==}
 
@@ -451,10 +451,10 @@ law cont.conts:
   {Concat.conts(D1.inert.node(sig)) == Concat.conts(sig) : List<&2, String>}
 
 def cont.conts(sig):
-  +pp = Calls.params.of(sig)
+  +p = Calls.params.of(sig)
   +lhs = Concat.conts(D1.inert.node(sig))
-  %cont.conts.go(Calls.args(pp), []) : {lhs == _ : List<&2, String>}
-  %P.inert.args(pp) : {lhs == Concat.conts.go(_, []) : List<&2, String>}
+  %cont.conts.go(Calls.args(p), []) : {lhs == _ : List<&2, String>}
+  %P.inert.args(p) : {lhs == Concat.conts.go(_, []) : List<&2, String>}
   %P.inert.params.of(sig) : {lhs == Concat.conts.go(Calls.args(_), []) : List<&2, String>}
   {==}
 
@@ -509,22 +509,22 @@ law cont.lg:
     : List<&2, F.Finding>}
 
 def cont.lg(b, t, o, conts, accs, lets, path, kids, r2, ef, ep, ek, ik, ir):
-  +aa = Calls.args(kids)
+  +a = Calls.args(kids)
   +hi = Concat.hits.cont(Calls.args(D1.inert.node(kids)), accs, lets, path, [])
-  +eh = Equal.trans(List<&2, F.Finding>, hi, Concat.hits.cont(P.inert.nodes(aa), accs, lets, path, []),
-    Concat.hits.cont(aa, accs, lets, path, []), Equal.cong(List<&2, Tree.Node>, List<&2, F.Finding>,
+  +eh = Equal.trans(List<&2, F.Finding>, hi, Concat.hits.cont(P.inert.nodes(a), accs, lets, path, []),
+    Concat.hits.cont(a, accs, lets, path, []), Equal.cong(List<&2, Tree.Node>, List<&2, F.Finding>,
       z => Concat.hits.cont(z, accs, lets, path, []),
-      Calls.args(D1.inert.node(kids)), P.inert.nodes(aa), P.inert.args(kids)),
-    cont.hits(aa, accs, lets, path, [], P.inert.ok.args.go(kids, Tree.NNil{}, [], ek, {==}, {==})))
+      Calls.args(D1.inert.node(kids)), P.inert.nodes(a), P.inert.args(kids)),
+    cont.hits(a, accs, lets, path, [], P.inert.ok.args.go(kids, Tree.NNil{}, [], ek, {==}, {==})))
   P.inert.cat3(Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(String.eq(o, "("), List.contains(~String,
     ~String.eq, conts, D1.inert.keep(b, t)))), [], _u => hi), Lazy.stop(List<&2, F.Finding>, Bool.not(Bool.and(
       String.eq(o, "("), List.contains(~String, ~String.eq, conts, t))), [],
-      _u => Concat.hits.cont(aa, accs, lets, path, [])),
+      _u => Concat.hits.cont(a, accs, lets, path, [])),
     Concat.cwalk(D1.inert.node(kids), conts, accs, lets, path), Concat.cwalk(kids, conts, accs, lets, path),
     Concat.cwalk(D1.inert.node(r2), conts, accs, lets, path), Concat.cwalk(r2, conts, accs, lets, path),
     P.inert.stop(Bool.not(Bool.and(String.eq(o, "("), List.contains(~String, ~String.eq, conts,
       D1.inert.keep(b, t)))), Bool.not(Bool.and(String.eq(o, "("), List.contains(~String, ~String.eq, conts, t))),
-      hi, Concat.hits.cont(aa, accs, lets, path, []),
+      hi, Concat.hits.cont(a, accs, lets, path, []),
       Equal.cong(Bool, Bool, z => Bool.not(Bool.and(String.eq(o, "("), z)),
         List.contains(~String, ~String.eq, conts, D1.inert.keep(b, t)), List.contains(~String, ~String.eq, conts, t),
         cont.mem(conts, b, t, ef, ep)), eh),
@@ -533,18 +533,18 @@ def cont.lg(b, t, o, conts, accs, lets, path, kids, r2, ef, ep, ek, ik, ir):
 # the continuation walk reads no string: a leaf's text is compared with the
 # continuations, which are plain, and an argument's appends only with names
 law cont.walk:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +conts: List<&2, String>
   for +accs: List<&2, String>
   for +lets: List<&2, Concat.Let>
   for +path: String
   for +ep: {cont.plain(conts) == True{} : Bool}
-  for +e: {D1.inert.ok(nn) == True{} : Bool}
-  {Concat.cwalk(D1.inert.node(nn), conts, accs, lets, path) == Concat.cwalk(nn, conts, accs, lets, path)
+  for +e: {D1.inert.ok(n) == True{} : Bool}
+  {Concat.cwalk(D1.inert.node(n), conts, accs, lets, path) == Concat.cwalk(n, conts, accs, lets, path)
     : List<&2, F.Finding>}
 
-def cont.walk(nn, conts, accs, lets, path, ep, e):
-  match nn:
+def cont.walk(n, conts, accs, lets, path, ep, e):
+  match n:
     case Tree.NCons{h, +rest}:
       match h:
         case Tree.Leaf{tok}:

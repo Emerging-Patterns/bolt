@@ -49,9 +49,9 @@ law noqa_codes:
   for col: U32
   for len: U32
   for n: Nat
-  for tt: String
-  {Noqa.mark.text(line, col, len, "#" ++ D1.nq.spaces(n) ++ "noqa:" ++ tt) == [Noqa.Mark{line, col, len,
-      Noqa.codes(tt)}]
+  for t: String
+  {Noqa.mark.text(line, col, len, "#" ++ D1.nq.spaces(n) ++ "noqa:" ++ t) == [Noqa.Mark{line, col, len,
+      Noqa.codes(t)}]
     : List<&2, Noqa.Mark>}
 
 # the codes hold this one
@@ -79,10 +79,10 @@ def nq.named(ms: List<&2, Noqa.Marks>, +path: String, +line: U32, +code: String)
       Bool.or(Bool.and(String.eq(p, path), nq.on(mks, line, code)), nq.named(rest, path, line, code))
 
 # a graded finding kept onto the rest, unless a mark names it
-def nq.kept.one(+ms: List<&2, Noqa.Marks>, gg: F.Graded, +rest: List<&2, F.Graded>) -> List<&2, F.Graded>:
-  F.Graded{ll, F.Finding{+path, +line, col, len, +rule, msg}} = gg
+def nq.kept.one(+ms: List<&2, Noqa.Marks>, g: F.Graded, +rest: List<&2, F.Graded>) -> List<&2, F.Graded>:
+  F.Graded{l, F.Finding{+path, +line, col, len, +rule, msg}} = g
   Bool.pick(List<&2, F.Graded>, nq.named(ms, path, line, Codes.code(rule)), rest,
-    F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> rest)
+    F.Graded{l, F.Finding{path, line, col, len, rule, msg}} <> rest)
 
 # the graded findings no mark names, in order
 def nq.kept(+ms: List<&2, Noqa.Marks>, gs: List<&2, F.Graded>) -> List<&2, F.Graded>:
@@ -102,9 +102,9 @@ law noqa_keeps:
 # LAW: in a noqa comment's code list a space is a space, a comma a comma, a
 # letter or a digit part of a code, and anything else ends the list
 law code_list_chars:
-  for +cc: Char
-  {Noqa.cls(cc)
-    == Bool.pick(Noqa.Cls, Char.is_eq(cc, ' '), Noqa.CSpace{},
-      Bool.pick(Noqa.Cls, Char.is_eq(cc, ','), Noqa.CComma{},
-        Bool.pick(Noqa.Cls, Bool.or(Char.is_alpha(cc), Char.is_digit(cc)), Noqa.CCode{}, Noqa.COther{})))
+  for +c: Char
+  {Noqa.cls(c)
+    == Bool.pick(Noqa.Cls, Char.is_eq(c, ' '), Noqa.CSpace{},
+      Bool.pick(Noqa.Cls, Char.is_eq(c, ','), Noqa.CComma{},
+        Bool.pick(Noqa.Cls, Bool.or(Char.is_alpha(c), Char.is_digit(c)), Noqa.CCode{}, Noqa.COther{})))
     : Noqa.Cls}
