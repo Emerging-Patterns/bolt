@@ -88,6 +88,8 @@ def tune.none(w, _sets):
       {==}
     case Rules.WNegate{}:
       {==}
+    case Rules.WNumeral{}:
+      {==}
     case Rules.WPut{}:
       {==}
     case Rules.WEscape{}:

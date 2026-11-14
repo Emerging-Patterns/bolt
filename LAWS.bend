@@ -37,6 +37,7 @@ import ./laws/SizeReportsOversizedDefs.bend as SizeReportsOversizedDefs
 import ./laws/IdleReportsParametersOnlyPassedBack.bend as IdleReportsParametersOnlyPassedBack
 import ./laws/SpareReportsUnnamedImports.bend as SpareReportsUnnamedImports
 import ./laws/NegateReportsNegatedComparisons.bend as NegateReportsNegatedComparisons
+import ./laws/NumeralReportsConvertedLiterals.bend as NumeralReportsConvertedLiterals
 import ./laws/FmtChangesOnlyBlankSpace.bend as FmtChangesOnlyBlankSpace
 import ./laws/FmtPlansEdits.bend as FmtPlansEdits
 import ./laws/FmtSetsLineSpaces.bend as FmtSetsLineSpaces

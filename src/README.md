@@ -70,7 +70,7 @@ unset group has its default. The groups:
 | `correctness` | `hole` `pick` `put` `arms` `escape` `setting`                          | error   |
 | `suspicious`  | `unused` `idle` `spare` `eager` `concat` `fromrev` `prefix` `empty` (`thunk`: opt-in) | warn |
 | `perf`        | `strings`                                                              | warn    |
-| `style`       | `doc` `space` `wrap` `reach` `arity` `length` `depth` `noqa` `blank` `negate` (`transcong`: opt-in) | warn |
+| `style`       | `doc` `space` `wrap` `reach` `arity` `length` `depth` `noqa` `blank` `negate` `numeral` (`transcong`: opt-in) | warn |
 | `laws`        | (`coverage`, `closed`: opt-in)                                         | warn    |
 | `pedantic`    | `chars` `foreign` `strict` `fuel` `index` `rewalk` `tail`              | off     |
 
@@ -98,6 +98,7 @@ The stable codes, assigned once (do not renumber):
 | | | U018 | `empty` | S011 | `depth` |
 | | | U019 | `idle` | | |
 | | | U020 | `spare` | S012 | `negate` |
+| | | | | S013 | `numeral` |
 
 Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic,
 for the group a rule had when its code was assigned. A code names the rule,
@@ -613,6 +614,24 @@ statement.
   any file: a law states the test as it means it. Measured over 82 public
   repos: 65 findings in 14 of them, 53 of them `U32.is_ne`; of 30 read by
   hand, every one is the exact rewrite.
+- `numeral` — a `Nat` written as a conversion of a `U32` literal: among the
+  significant tokens, a dotted `U32.to_nat`, `(`, a number in decimal
+  digits alone and `)`, right after one another. One finding on
+  `U32.to_nat`. `U32.to_nat(1024)` is the `Nat` literal `1024n`, the same
+  value wherever a term may stand, for every number a `U32` literal holds
+  (a `Nat` literal runs to `4294967295n` too; built and run on both lanes
+  at `16777215`, `16777217` and `4294967295`, the same numbers come out).
+  The literal says the number once; and where a law's statement reaches
+  the def, the checker keeps a literal as it is and has to run the
+  conversion (bend 2.0.40, one comparison of two such numbers: 0.43 s and
+  164 MB as literals, 0.88 s and 225 MB as conversions). Left alone: a
+  conversion of anything but digits (`U32.to_nat(n)`, `U32.to_nat(5n)`), a
+  qualified or aliased name, and the shape in a string or a comment. A law
+  file or a proof file is exempt, and so is a `law` and a def that is a
+  proof in any file: a proof holds the shape its lemma was stated in,
+  `U32.to_nat(0)` where the lemma says `U32.to_nat(x)`. Measured over 82
+  public repos: 388 findings in 19 of them; of 30 read by hand, every one
+  is the exact rewrite.
 - `put` — `Map.put`. It is Base's internal helper: at a leaf it keeps the old
   key and replaces the value without comparing, so a new key silently
   overwrites another entry. `Map.set` compares. A file that defines
@@ -804,7 +823,7 @@ keeps the style, not by whether every finding is a defect. What they cover, and 
 | find where things are | `space` `wrap`, and `bolt fmt` | mechanical: one layout, a bounded width |
 | learn what an item is for | `doc` | a comment; measured, they are real ones |
 | carry a name in their head | `reach` | a name, or a shorter def |
-| decode a roundabout spelling | `blank` `negate` (`transcong`: opt-in) | the plain word, the same value |
+| decode a roundabout spelling | `blank` `negate` `numeral` (`transcong`: opt-in) | the plain word, the same value |
 | trust a suppression | `noqa` | delete the stale comment |
 | hold a whole def in their head | `arity` `length` `depth` | a type for what travels together; a helper |
 
