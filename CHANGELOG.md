@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.61.0](https://github.com/Emerging-Patterns/bolt/compare/v1.60.0...v1.61.0) (2026-11-14)
+
+
+### Performance Improvements
+
+* **lint:** a run past 16 MB of source parses its files in batches ([#383](https://github.com/Emerging-Patterns/bolt/issues/383)) ([527fa1a](https://github.com/Emerging-Patterns/bolt/commit/527fa1a26a83966b117fe6a342b5b688e1a8edbf)), closes [#286](https://github.com/Emerging-Patterns/bolt/issues/286)
+
 ## [1.60.0](https://github.com/Emerging-Patterns/bolt/compare/v1.59.0...v1.60.0) (2026-11-14)
 
 
