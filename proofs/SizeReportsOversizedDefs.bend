@@ -108,3 +108,49 @@ def Laws.depth_wrapped_line_stays(_kind, kids, body, rest, at, best, e):
   %s : {Size.depth(rest, at, Size.depth(body, Size.depth.under(_, at), Size.most(at, best)))
     == Size.depth(rest, at, Size.depth(body, at, Size.most(at, best))) : U32}
   {==}
+
+def Laws.length_skips_table(sig, body, e):
+  s = Equal.sym(Bool, Size.table(body), True{}, e)
+  %s : {Lazy.either(U32, _, _u => 0, _v => Size.length(sig, body)) == 0 : U32}
+  {==}
+
+def Laws.length_measures_other_def(sig, body, e):
+  s = Equal.sym(Bool, Size.table(body), False{}, e)
+  %s : {Lazy.either(U32, _, _u => 0, _v => Size.length(sig, body)) == Size.length(sig, body) : U32}
+  {==}
+
+def Laws.table_needs_one_statement(first, _second, _rest):
+  match first:
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{open, kids, close}:
+      {==}
+    case Tree.Stmt{kind, kids, body}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+    case Tree.NCons{head, tail}:
+      {==}
+
+def Laws.table_stops_at_other_arm(_kids, body, rest, e):
+  s = Equal.sym(Bool, Size.table.arm(body), False{}, e)
+  %s : {Lazy.and_then(_, _u => Size.table.arms(rest)) == False{} : Bool}
+  {==}
+
+def Laws.table_arm_holds_no_block(_kind, kids, _under, e):
+  s = Equal.sym(Bool, Calls.has_colon(kids), True{}, e)
+  %s : {Bool.not(_) == False{} : Bool}
+  {==}
+
+def Laws.table_arm_holds_one_statement(first, _second, _rest):
+  match first:
+    case Tree.Leaf{tok}:
+      {==}
+    case Tree.Group{open, kids, close}:
+      {==}
+    case Tree.Stmt{kind, kids, body}:
+      {==}
+    case Tree.NNil{}:
+      {==}
+    case Tree.NCons{head, tail}:
+      {==}
