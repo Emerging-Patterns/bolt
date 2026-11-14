@@ -58,6 +58,7 @@ law doc_exempt:
 
 # LAW: reach reports nothing in a PROOF.bend, whose names are the law's, whatever the source holds
 law reach_exempt:
+  for +max: U32
   for +path: String
   for text: String
   for toks: List<&2, Lex.Tok>
@@ -65,7 +66,7 @@ law reach_exempt:
   for bound: Bind.Bound
   for items: List<&2, Outline.Item>
   for e: {Paths.is_proof(path) == True{} : Bool}
-  {Reach.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+  {Reach.check(Src.Src{path, text, toks, tree, bound, items}, max) == Nil{} : List<&2, F.Finding>}
 
 # LAW: pick reports nothing in a LAWS.bend or a PROOF.bend, which never run, whatever the source holds
 law pick_exempt:

@@ -114,7 +114,7 @@ def Laws.config_unlinted(path, h, _text, _rs, _ms):
   e = Equal.sym(Bool, Plan.is_config(path), True{}, h)
   %e : {Bool.pick(List<&2, F.Graded>, _, [],
       Plan.after([Noqa.file(path, Lex.tokens(_text))], False{},
-        Rules.graded(Config.nearest(_rs), Rules.on.role(Role.of(_ms, path), Src.of(path, _text))),
+        Rules.graded(Config.nearest(_rs), Rules.on.role(Config.nearest(_rs), Role.of(_ms, path), Src.of(path, _text))),
         fs => Rules.graded(Config.nearest(_rs), fs)))
     == [] : List<&2, F.Graded>}
   {==}

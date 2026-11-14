@@ -16,6 +16,8 @@ import ./proofs/CliVersionExits.bend as PCliVersionExits
 import ./proofs/CliVersionPrintsRelease.bend as PCliVersionPrintsRelease
 import ./proofs/ConfigGradingDropsOff.bend as PConfigGradingDropsOff
 import ./proofs/ConfigGroupDefaultsHold.bend as PConfigGroupDefaultsHold
+import ./proofs/ConfigLimitsResolve.bend as PConfigLimitsResolve
+import ./proofs/RulesRunAtConfiguredLimits.bend as PRulesRunAtConfiguredLimits
 import ./proofs/ConfigLevelsResolve.bend as PConfigLevelsResolve
 import ./proofs/ConfigNearestFileGrades.bend as PConfigNearestFileGrades
 import ./proofs/ConfigOptInStartsOff.bend as PConfigOptInStartsOff

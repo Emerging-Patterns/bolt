@@ -1,5 +1,6 @@
 # bolt does not run a per-file rule that the file's config sets off, and
-# grades the same findings as if it had run every rule. Grading drops an off
+# grades the same findings as if it had run every rule, each at the limits
+# that config sets. Grading drops an off
 # rule's findings, and each rule's findings carry its own slug (Rules.on.slug
 # names them for it), so what is not run would have been dropped whole.
 import Base
@@ -17,7 +18,7 @@ law live_grades_alike:
   for +cfg: Config.Config
   for +rr: Role.Role
   for +ss: Src.Src
-  {Rules.graded(cfg, Rules.on.role.live(cfg, rr, ss)) == Rules.graded(cfg, Rules.on.role(rr, ss))
+  {Rules.graded(cfg, Rules.on.role.live(cfg, rr, ss)) == Rules.graded(cfg, Rules.on.role(cfg, rr, ss))
     : List<&2, F.Graded>}
 
 # LAW: over a run, the graded findings with each file's off rules not run

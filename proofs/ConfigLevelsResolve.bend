@@ -26,7 +26,7 @@ def Laws.set_level_skip(sets, name, nn, ll, h):
     == Config.set_level(sets, name) : Maybe<&2, Config.Level>}
   {==}
 
-def Laws.level_group(sets, group, rule, l, h_rule, h_opt, h_group):
+def Laws.level_group(_lims, sets, group, rule, l, h_rule, h_opt, h_group):
   r = Equal.sym(Maybe<&2, Config.Level>, Config.set_level(sets, rule), None{}, h_rule)
   %r : {Maybe.default(&2, Config.Level, _,
     Lazy.stop(Config.Level, Config.opt_in(rule), Config.Off{},
@@ -40,7 +40,7 @@ def Laws.level_group(sets, group, rule, l, h_rule, h_opt, h_group):
   %g : {Maybe.default(&2, Config.Level, _, Config.default(group)) == l : Config.Level}
   {==}
 
-def Laws.level_default(sets, group, rule, h_rule, h_opt, h_group):
+def Laws.level_default(_lims, sets, group, rule, h_rule, h_opt, h_group):
   r = Equal.sym(Maybe<&2, Config.Level>, Config.set_level(sets, rule), None{}, h_rule)
   %r : {Maybe.default(&2, Config.Level, _,
     Lazy.stop(Config.Level, Config.opt_in(rule), Config.Off{},

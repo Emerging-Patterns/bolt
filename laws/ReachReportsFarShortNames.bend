@@ -1,7 +1,7 @@
 # `reach` reports exactly one finding for each binder that is a parameter, a
 # let, do-bind or lambda name, or a pattern name, and that some use reads
-# from more than 20 lines below its line by a name spelled with one
-# character, unless the binder's name is one capital letter, it is a
+# from more than `max` lines below its line by a name spelled with one
+# character, `max` being the limit the rule is run at, unless the binder's name is one capital letter, it is a
 # parameter that is a quantity (bare, or typed `: Quant`), or it sits in a
 # def that is a proof; none for any other binder, and none at all in a
 # PROOF.bend. A binder sits in the item bound last before it, and a def is a
@@ -50,12 +50,12 @@ def counted(kk: Bind.BindKind) -> Bool:
       False{}
 
 # does a use that refers to this target, by this name on this line, read the
-# binder at (line, col) from more than 20 lines below, the name spelled with
-# one character?
-def reads_far(name: String, ul: U32, tt: Bind.Target, line: U32, col: U32) -> Bool:
+# binder at (line, col) from more than max lines below, the name spelled
+# with one character?
+def reads_far(name: String, ul: U32, tt: Bind.Target, line: U32, col: U32, max: U32) -> Bool:
   match tt:
     case Bind.TLocal{+tl, tc}:
-      Bool.and(Bool.and(U32.is_gt(ul, (tl + 20 : U32)), Reach.one(name)),
+      Bool.and(Bool.and(U32.is_gt(ul, (tl + max : U32)), Reach.one(name)),
         Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col)))
     case Bind.TItem{_n}:
       False{}
@@ -65,12 +65,12 @@ def reads_far(name: String, ul: U32, tt: Bind.Target, line: U32, col: U32) -> Bo
       False{}
 
 # does any of the uses read the binder at (line, col) so?
-def read_far(uses: List<&2, Bind.Use>, +line: U32, +col: U32) -> Bool:
+def read_far(uses: List<&2, Bind.Use>, +line: U32, +col: U32, +max: U32) -> Bool:
   match uses:
     case Nil{}:
       False{}
     case Con{Bind.Use{name, ul, _uc, tt}, rest}:
-      Bool.or(reads_far(name, ul, tt, line, col), read_far(rest, line, col))
+      Bool.or(reads_far(name, ul, tt, line, col, max), read_far(rest, line, col, max))
 
 # is the binder one reach reports? item: the line of the item it sits in
 def carried(
@@ -81,21 +81,28 @@ def carried(
   note: String,
   uses: List<&2, Bind.Use>,
   ps: List<&2, U32>,
-  item: U32
+  item: U32,
+  max: U32
 ) -> Bool:
-  Bool.and(read_far(uses, line, col),
+  Bool.and(read_far(uses, line, col, max),
     Bool.and(counted(kk), Bool.and(Bool.not(Reach.allowed(kk, nm, note)), Bool.not(Reach.has(ps, item)))))
 
 # how many of the binders reach reports. item: the line of the item the
 # binders so far sit in
-def far_count(binds: List<&2, Bind.Bind>, +uses: List<&2, Bind.Use>, +ps: List<&2, U32>, item: U32) -> Nat:
+def far_count(
+  binds: List<&2, Bind.Bind>,
+  +uses: List<&2, Bind.Use>,
+  +ps: List<&2, U32>,
+  item: U32,
+  +max: U32
+) -> Nat:
   match binds:
     case Nil{}:
       0n
     case Con{Bind.Bind{nm, +line, col, +kk, note}, rest}:
       +at = Reach.at_item(kk, line, item)
-      +m = far_count(rest, uses, ps, at)
-      Bool.pick(Nat, carried(kk, nm, line, col, note, uses, ps, at), 1n+m, m)
+      +m = far_count(rest, uses, ps, at, max)
+      Bool.pick(Nat, carried(kk, nm, line, col, note, uses, ps, at, max), 1n+m, m)
 
 # `n`, written once more than the count
 def ens(kn: Nat) -> List<&2, Char>:
@@ -113,26 +120,28 @@ def unders(un: Nat, rest: List<&2, Char>) -> List<&2, Char>:
     case 1n+p:
       '_' <> unders(p, rest)
 
-# LAW: over a file's binders, uses and tokens, reach reports one finding for
-# each binder of a kind that counts that a use reads from more than 20 lines
-# below by a one-character name, that is not left alone and sits in no def
+# LAW: over a file's binders, uses and tokens, at any limit, reach reports
+# one finding for each binder of a kind that counts that a use reads from
+# more than that many lines below by a one-character name, that is not left alone and sits in no def
 # that is a proof; none for any other binder, and none at all in a PROOF.bend
 law reach_counts:
   for +binds: List<&2, Bind.Bind>
   for +uses: List<&2, Bind.Use>
   for +toks: List<&2, Lex.Tok>
   for +path: String
-  {List.length(&2, F.Finding, Reach.check.on(binds, uses, toks, path))
-    == Bool.pick(Nat, Paths.is_proof(path), 0n, far_count(binds, uses, Reach.proofs(T.sig(toks)), 0)) : Nat}
+  for +max: U32
+  {List.length(&2, F.Finding, Reach.check.on(binds, uses, toks, path, max))
+    == Bool.pick(Nat, Paths.is_proof(path), 0n, far_count(binds, uses, Reach.proofs(T.sig(toks)), 0, max)) : Nat}
 
-# LAW: a use within 20 lines of its binder is not far, whatever its name
+# LAW: a use within the limit of its binder is not far, whatever its name
 law reach_near_use_is_not_far:
   for +name: String
   for +line: U32
   for +tl: U32
   for tc: U32
-  for e: {U32.is_gt(line, (tl + 20 : U32)) == False{} : Bool}
-  {Reach.far.hit(name, line, Bind.TLocal{tl, tc}) == None{} : Maybe<&2, Bind.Pos>}
+  for +max: U32
+  for e: {U32.is_gt(line, (tl + max : U32)) == False{} : Bool}
+  {Reach.far.hit(name, line, Bind.TLocal{tl, tc}, max) == None{} : Maybe<&2, Bind.Pos>}
 
 # LAW: a use of a name of more than one character is not far, however far
 # below its binder it is
@@ -141,8 +150,9 @@ law reach_longer_name_is_not_far:
   for +line: U32
   for +tl: U32
   for tc: U32
+  for +max: U32
   for e: {Reach.one(name) == False{} : Bool}
-  {Reach.far.hit(name, line, Bind.TLocal{tl, tc}) == None{} : Maybe<&2, Bind.Pos>}
+  {Reach.far.hit(name, line, Bind.TLocal{tl, tc}, max) == None{} : Maybe<&2, Bind.Pos>}
 
 # LAW: a file none of whose uses is far has no finding, whatever it binds
 law reach_silent_without_far_uses:
@@ -150,8 +160,9 @@ law reach_silent_without_far_uses:
   for +uses: List<&2, Bind.Use>
   for +toks: List<&2, Lex.Tok>
   for +path: String
-  for e: {Reach.far(uses) == Nil{} : List<&2, Bind.Pos>}
-  {Reach.check.on(binds, uses, toks, path) == Nil{} : List<&2, F.Finding>}
+  for +max: U32
+  for e: {Reach.far(uses, max) == Nil{} : List<&2, Bind.Pos>}
+  {Reach.check.on(binds, uses, toks, path, max) == Nil{} : List<&2, F.Finding>}
 
 # LAW: `n` written any number of times, after any number of `_`, is spelled
 # with one character

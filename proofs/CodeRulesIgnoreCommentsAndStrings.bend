@@ -2696,7 +2696,8 @@ def inert.reach.go(
   +fr: List<&2, Bind.Pos>,
   +ps: List<&2, U32>,
   +path: String,
-  +item: U32
+  +item: U32,
+  +max: U32
 ) -> List<&2, F.Finding>:
   match binds:
     case Nil{}: Nil{}
@@ -2708,7 +2709,7 @@ def inert.reach.go(
             _x => Lazy.and_then(Reach.is_param(kind),
               _y => Bool.or(Bool.not(String.contains(cn, ":")), String.ends_with(cn, ": Quant"))))),
             _w => Bool.not(Reach.has(ps, at))))),
-        nm, line, col, path, inert.reach.go(rest, fr, ps, path, at))
+        nm, line, col, path, max, inert.reach.go(rest, fr, ps, path, at, max))
 
 # reach's walk reads each binder's note with its strings cut
 law inert.reach.walk:
@@ -2717,19 +2718,20 @@ law inert.reach.walk:
   for +ps: List<&2, U32>
   for +path: String
   for +item: U32
-  {inert.reach.go(Laws.inert.binds(binds), fr, ps, path, item) == Reach.check.go(binds, fr, ps, path, item)
+  for +max: U32
+  {inert.reach.go(Laws.inert.binds(binds), fr, ps, path, item, max) == Reach.check.go(binds, fr, ps, path, item, max)
     : List<&2, F.Finding>}
 
-def inert.reach.walk(binds, fr, ps, path, item):
+def inert.reach.walk(binds, fr, ps, path, item, max):
   match binds:
     case Nil{}: {==}
     case Con{Bind.Bind{+nm, +line, +col, +kind, +note}, +rest}:
       Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
         z => Reach.found(Reach.flagged(fr, line, col, kind, nm, note, ps, Reach.at_item(kind, line, item)),
-          nm, line, col, path, z),
-        inert.reach.go(Laws.inert.binds(rest), fr, ps, path, Reach.at_item(kind, line, item)),
-        Reach.check.go(rest, fr, ps, path, Reach.at_item(kind, line, item)),
-        inert.reach.walk(rest, fr, ps, path, Reach.at_item(kind, line, item)))
+          nm, line, col, path, max, z),
+        inert.reach.go(Laws.inert.binds(rest), fr, ps, path, Reach.at_item(kind, line, item), max),
+        Reach.check.go(rest, fr, ps, path, Reach.at_item(kind, line, item), max),
+        inert.reach.walk(rest, fr, ps, path, Reach.at_item(kind, line, item), max))
 
 # the walk finds the same in two binder lists that read the same
 law inert.reach.same:
@@ -2738,35 +2740,38 @@ law inert.reach.same:
   for +fr: List<&2, Bind.Pos>
   for +ps: List<&2, U32>
   for +path: String
+  for +max: U32
   for e: {Laws.inert.binds(b1) == Laws.inert.binds(b2) : List<&2, Bind.Bind>}
-  {Reach.check.go(b1, fr, ps, path, 0) == Reach.check.go(b2, fr, ps, path, 0) : List<&2, F.Finding>}
+  {Reach.check.go(b1, fr, ps, path, 0, max) == Reach.check.go(b2, fr, ps, path, 0, max) : List<&2, F.Finding>}
 
-def inert.reach.same(b1, b2, fr, ps, path, e):
+def inert.reach.same(b1, b2, fr, ps, path, max, e):
   +v1 = Laws.inert.binds(b1)
   +v2 = Laws.inert.binds(b2)
-  Equal.trans(List<&2, F.Finding>, Reach.check.go(b1, fr, ps, path, 0), inert.reach.go(v1, fr, ps, path, 0),
-    Reach.check.go(b2, fr, ps, path, 0),
-    Equal.sym(List<&2, F.Finding>, inert.reach.go(v1, fr, ps, path, 0), Reach.check.go(b1, fr, ps, path, 0),
-      inert.reach.walk(b1, fr, ps, path, 0)),
-    Equal.trans(List<&2, F.Finding>, inert.reach.go(v1, fr, ps, path, 0), inert.reach.go(v2, fr, ps, path, 0),
-      Reach.check.go(b2, fr, ps, path, 0),
-      Equal.cong(List<&2, Bind.Bind>, List<&2, F.Finding>, z => inert.reach.go(z, fr, ps, path, 0), v1, v2, e),
-      inert.reach.walk(b2, fr, ps, path, 0)))
+  Equal.trans(List<&2, F.Finding>, Reach.check.go(b1, fr, ps, path, 0, max), inert.reach.go(v1, fr, ps, path, 0, max),
+    Reach.check.go(b2, fr, ps, path, 0, max),
+    Equal.sym(List<&2, F.Finding>, inert.reach.go(v1, fr, ps, path, 0, max), Reach.check.go(b1, fr, ps, path, 0, max),
+      inert.reach.walk(b1, fr, ps, path, 0, max)),
+    Equal.trans(List<&2, F.Finding>, inert.reach.go(v1, fr, ps, path, 0, max), inert.reach.go(v2, fr, ps, path, 0, max),
+      Reach.check.go(b2, fr, ps, path, 0, max),
+      Equal.cong(List<&2, Bind.Bind>, List<&2, F.Finding>, z => inert.reach.go(z, fr, ps, path, 0, max), v1, v2, e),
+      inert.reach.walk(b2, fr, ps, path, 0, max)))
 
-def Laws.inert_reach(b1, b2, uses, toks, path, e):
-  +fr = Reach.far(uses)
+def Laws.inert_reach(max, b1, b2, uses, toks, path, e):
+  +fr = Reach.far(uses, max)
   +ps = Reach.proofs(T.sig(toks))
   Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
     z => Lazy.stop(List<&2, F.Finding>, Paths.is_proof(path), [], _u => z),
-    Reach.check.far(fr, b1, toks, path), Reach.check.far(fr, b2, toks, path),
-    Equal.trans(List<&2, F.Finding>, Reach.check.far(fr, b1, toks, path), Reach.check.go(b1, fr, ps, path, 0),
-      Reach.check.far(fr, b2, toks, path),
-      PR.reach.far(fr, b1, toks, path),
-      Equal.trans(List<&2, F.Finding>, Reach.check.go(b1, fr, ps, path, 0), Reach.check.go(b2, fr, ps, path, 0),
-        Reach.check.far(fr, b2, toks, path),
-        inert.reach.same(b1, b2, fr, ps, path, e),
-        Equal.sym(List<&2, F.Finding>, Reach.check.far(fr, b2, toks, path), Reach.check.go(b2, fr, ps, path, 0),
-          PR.reach.far(fr, b2, toks, path)))))
+    Reach.check.far(fr, b1, toks, path, max), Reach.check.far(fr, b2, toks, path, max),
+    Equal.trans(List<&2, F.Finding>, Reach.check.far(fr, b1, toks, path, max), Reach.check.go(b1, fr, ps, path, 0, max),
+      Reach.check.far(fr, b2, toks, path, max),
+      PR.reach.far(fr, b1, toks, path, max),
+      Equal.trans(List<&2, F.Finding>, Reach.check.go(b1, fr, ps, path, 0, max), Reach.check.go(b2, fr, ps, path, 0,
+        max),
+        Reach.check.far(fr, b2, toks, path, max),
+        inert.reach.same(b1, b2, fr, ps, path, max, e),
+        Equal.sym(List<&2, F.Finding>, Reach.check.far(fr, b2, toks, path, max), Reach.check.go(b2, fr, ps, path, 0,
+          max),
+          PR.reach.far(fr, b2, toks, path, max)))))
 
 # a def's header reads as a proof, or not, the same in tokens read that way
 law inert.reach.guard:

@@ -244,7 +244,7 @@ def pub.lint(
   +cfg = Config.nearest(rs)
   Bool.pick(List<&2, Finding.Graded>, Plan.is_config(path), [],
     Plan.after([Noqa.file(path, Lex.tokens(text))], False{},
-      Lint.graded(cfg, Lint.on.role(Role.of(ms, path), Src.of(path, text))), fs => Lint.graded(cfg, fs)))
+      Lint.graded(cfg, Lint.on.role(cfg, Role.of(ms, path), Src.of(path, text))), fs => Lint.graded(cfg, fs)))
 
 # the role marks `bolt <path>` reads from a World: the imports of every file
 # of the tree (Plan.graph), each file read for its imports alone

@@ -116,10 +116,10 @@ def L1.doc_exempt(path, text, toks, _tree, _bound, items, e):
   ex.stop(Bool.or(Paths.is_proof(path), Paths.is_test(path)), e,
     _u => Doc.check.fast(items, path, Doc.flags(Doc.lines(text, toks))))
 
-def L1.reach_exempt(path, _text, toks, _tree, bound, _items, e):
+def L1.reach_exempt(max, path, _text, toks, _tree, bound, _items, e):
   match bound:
     case Bind.Bound{binds, uses, _scopes}:
-      ex.stop(Paths.is_proof(path), e, _u => Reach.check.far(Reach.far(uses), binds, toks, path))
+      ex.stop(Paths.is_proof(path), e, _u => Reach.check.far(Reach.far(uses, max), binds, toks, path, max))
 
 # pick's def walk gathers nothing in a law file
 law ex.pick:

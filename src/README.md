@@ -45,6 +45,21 @@ def space() -> String:
   "warn"
 ```
 
+A def whose body is a number sets a limit, the most a rule lets by:
+
+```
+# a one-character name may be read 30 lines below its binder here
+def reach_max() -> U32:
+  30
+```
+
+A rule with a limit names it `<slug>_max` (today `reach_max`, default 20).
+The limit a file is linted at is the one in the bolt.bend that grades it,
+the nearest above it, so a nested project can set its own; the editor uses
+the same one. Unset, the rule's default holds. A number bolt cannot read as
+a U32 is 0, so a typo shows as findings. A limit under a name no rule has
+(`def reach_mx()`) is not reported yet and sets nothing.
+
 A group sets every rule in it; a rule set by name wins over its group; an
 unset group has its default. The groups:
 
@@ -264,7 +279,8 @@ statement.
   parameter in it (`def none(` then `) -> U32:`: join it onto one line), is
   a finding.
 - `reach` — a one-character name read more than 20 lines below the line
-  that binds it: a parameter, a let, do-bind or lambda name, or a pattern
+  that binds it (or more than `def reach_max() -> U32` in the bolt.bend
+  says): a parameter, a let, do-bind or lambda name, or a pattern
   name, one finding on the binder. Within a few lines the binder is in sight
   and a letter is enough; forty lines down the reader has only the letter.
   A name is one character when, its `_` aside, it is one letter or digit

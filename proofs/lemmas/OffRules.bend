@@ -196,7 +196,7 @@ def off.table(rs, cfg, path, rr, ss):
             off.both.app(cfg, path, ra, rb))))
 
 def L1.live_grades_alike(cfg, rr, ss):
-  off.table(Rules.on.table(), cfg, Rules.on.path(ss), rr, ss)
+  off.table(Rules.on.tuned(Rules.on.table(), cfg), cfg, Rules.on.path(ss), rr, ss)
 
 # the planner
 # -----------
@@ -285,14 +285,15 @@ law pl.file:
   for +items: List<&2, Outline.Item>
   {Plan.grade(cs, world, Rules.on.role.live(Plan.config.at(cs, world, path), rr,
       Src.Src{path, text, toks, tree, bound, items}))
-    == Plan.grade(cs, world, Rules.on.role(rr, Src.Src{path, text, toks, tree, bound, items}))
+    == Plan.grade(cs, world, Rules.on.role(Plan.config.at(cs, world, path), rr,
+      Src.Src{path, text, toks, tree, bound, items}))
     : List<&2, F.Graded>}
 
 def pl.file(cs, world, rr, path, text, toks, tree, bound, items):
   +cfg = Plan.config.at(cs, world, path)
   +ss = {Src.Src{path, text, toks, tree, bound, items} : Src.Src}
-  +lv = Rules.on.live(Rules.on.table(), cfg, rr, ss)
-  +al = Rules.on.all(Rules.on.table(), rr, ss)
+  +lv = Rules.on.live(Rules.on.tuned(Rules.on.table(), cfg), cfg, rr, ss)
+  +al = Rules.on.all(Rules.on.tuned(Rules.on.table(), cfg), rr, ss)
   Equal.trans(List<&2, F.Graded>,
     Plan.grade(cs, world, Rules.on.at(path, lv)),
     Rules.graded(cfg, Rules.on.at(path, lv)),
@@ -302,7 +303,7 @@ def pl.file(cs, world, rr, path, text, toks, tree, bound, items):
       Rules.graded(cfg, Rules.on.at(path, lv)),
       Rules.graded(cfg, Rules.on.at(path, al)),
       Plan.grade(cs, world, Rules.on.at(path, al)),
-      off.table(Rules.on.table(), cfg, path, rr, ss),
+      off.table(Rules.on.tuned(Rules.on.table(), cfg), cfg, path, rr, ss),
       Equal.sym(List<&2, F.Graded>, Plan.grade(cs, world, Rules.on.at(path, al)),
         Rules.graded(cfg, Rules.on.at(path, al)), pl.at(cs, world, path, al))))
 
@@ -336,7 +337,7 @@ law pl.files:
   for +ms: List<&2, Role.Mark>
   for ss: List<&2, Src.Src>
   {Plan.grade(cs, world, Plan.per_file.live(cs, world, ms, ss))
-    == Plan.grade(cs, world, Plan.per_file.role(ms, ss)) : List<&2, F.Graded>}
+    == Plan.grade(cs, world, Plan.per_file.role(cs, world, ms, ss)) : List<&2, F.Graded>}
 
 def pl.files(cs, world, ms, ss):
   match ss:
@@ -345,9 +346,10 @@ def pl.files(cs, world, ms, ss):
     case Con{Src.Src{+path, +text, +toks, +tree, +bound, +items}, +rest}:
       +la = Rules.on.role.live(Plan.config.at(cs, world, path), Role.of(ms, path),
         Src.Src{path, text, toks, tree, bound, items})
-      +ra = Rules.on.role(Role.of(ms, path), Src.Src{path, text, toks, tree, bound, items})
+      +ra = Rules.on.role(Plan.config.at(cs, world, path), Role.of(ms, path),
+        Src.Src{path, text, toks, tree, bound, items})
       +lb = Plan.per_file.live(cs, world, ms, rest)
-      +rb = Plan.per_file.role(ms, rest)
+      +rb = Plan.per_file.role(cs, world, ms, rest)
       Equal.trans(List<&2, F.Graded>,
         Plan.grade(cs, world, List.concat(&2, F.Finding, [la, lb])),
         List.append(&2, F.Graded, Plan.grade(cs, world, la),
@@ -405,13 +407,13 @@ law pl.found:
   for +gs: List<&2, Plan.Got>
   for +ss: List<&2, Src.Src>
   {Plan.grade(cs, world, Plan.found.live(cs, world, gs, ss))
-    == Plan.grade(cs, world, Plan.found.at(world, gs, ss)) : List<&2, F.Graded>}
+    == Plan.grade(cs, world, Plan.found.at(cs, world, gs, ss)) : List<&2, F.Graded>}
 
 def pl.found(cs, world, gs, ss):
   +uu = Plan.unread(gs)
   +ms = Plan.marks.run(W.paths.of(world), world, ss)
   +pl = Plan.per_file.live(cs, world, ms, ss)
-  +pr = Plan.per_file.role(ms, ss)
+  +pr = Plan.per_file.role(cs, world, ms, ss)
   +yy = List.append(&2, F.Finding, Plan.settings(world),
     List.append(&2, F.Finding, Rules.project(ss, Plan.packages(Plan.roots(world))), Nil{}))
   Equal.trans(List<&2, F.Graded>,
@@ -442,5 +444,5 @@ def L1.final_live(world):
   Equal.cong(List<&2, F.Graded>, List<&2, F.Graded>,
     z => Plan.after(Noqa.of_srcs(ss), List.is_empty(&2, String, W.paths.of(world)), z,
       fs => Plan.grade(cs, world, fs)),
-    Plan.grade(cs, world, Plan.found.live(cs, world, gs, ss)), Plan.grade(cs, world, Plan.found.at(world, gs, ss)),
+    Plan.grade(cs, world, Plan.found.live(cs, world, gs, ss)), Plan.grade(cs, world, Plan.found.at(cs, world, gs, ss)),
     pl.found(cs, world, gs, ss))

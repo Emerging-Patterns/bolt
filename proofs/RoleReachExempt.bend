@@ -6,7 +6,7 @@ import ../src/role.bend as Role
 import ../laws/RoleReachExempt.bend as Laws
 import ./lemmas/LawFileExemptions.bend as M1
 
-def Laws.role_reach_exempt(rr, e, path, _text, toks, _tree, bound, _items):
+def Laws.role_reach_exempt(max, rr, e, path, _text, toks, _tree, bound, _items):
   match bound:
     case Bind.Bound{binds, uses, _scopes}:
-      M1.ex.stop(Role.is_proof(rr), e, _u => Reach.check.far(Reach.far(uses), binds, toks, path))
+      M1.ex.stop(Role.is_proof(rr), e, _u => Reach.check.far(Reach.far(uses, max), binds, toks, path, max))

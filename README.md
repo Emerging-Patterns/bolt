@@ -153,6 +153,10 @@ def space() -> String:
   "warn"
 ```
 
+A def whose body is a number sets a rule's limit: `def reach_max() -> U32:`
+then `30` lets a one-character name be read 30 lines below its binder, not
+the default 20.
+
 The groups are `correctness` (`hole`, `pick`, `put`; error by default),
 `suspicious` (`unused`), `perf` (`strings`), `style` (`doc`, `space`,
 `wrap`, `reach`) and `laws`, the rest warn by default, and `pedantic` (`tail`,

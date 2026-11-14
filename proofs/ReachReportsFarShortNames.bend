@@ -77,40 +77,41 @@ law reach.use:
   for +rest: List<&2, Bind.Use>
   for +line: U32
   for +col: U32
-  for ih: {Reach.reaches(Reach.far(rest), line, col) == Laws.read_far(rest, line, col) : Bool}
-  {Reach.reaches(Reach.far.keep(Reach.far.hit(name, ul, tt), Reach.far(rest)), line, col)
-    == Bool.or(Laws.reads_far(name, ul, tt, line, col), Laws.read_far(rest, line, col)) : Bool}
+  for +max: U32
+  for ih: {Reach.reaches(Reach.far(rest, max), line, col) == Laws.read_far(rest, line, col, max) : Bool}
+  {Reach.reaches(Reach.far.keep(Reach.far.hit(name, ul, tt, max), Reach.far(rest, max)), line, col)
+    == Bool.or(Laws.reads_far(name, ul, tt, line, col, max), Laws.read_far(rest, line, col, max)) : Bool}
 
-def reach.use(name, ul, tt, rest, line, col, ih):
+def reach.use(name, ul, tt, rest, line, col, max, ih):
   match tt:
     case Bind.TLocal{+tl, +tc}:
       Equal.trans(Bool,
         Reach.reaches(Reach.far.keep(Bool.pick(Maybe<&2, Bind.Pos>,
-          Lazy.and_then(U32.is_gt(ul, (tl + 20 : U32)), _u => Reach.one(name)),
-          Some{Bind.Pos{tl, tc}}, None{}), Reach.far(rest)), line, col),
-        Bool.or(Bool.and(Lazy.and_then(U32.is_gt(ul, (tl + 20 : U32)), _u => Reach.one(name)),
-          Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col))), Reach.reaches(Reach.far(rest), line, col)),
-        Bool.or(Bool.and(Bool.and(U32.is_gt(ul, (tl + 20 : U32)), Reach.one(name)),
-          Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col))), Laws.read_far(rest, line, col)),
-        reach.keep(Lazy.and_then(U32.is_gt(ul, (tl + 20 : U32)), _u => Reach.one(name)), tl, tc, Reach.far(rest),
+          Lazy.and_then(U32.is_gt(ul, (tl + max : U32)), _u => Reach.one(name)),
+          Some{Bind.Pos{tl, tc}}, None{}), Reach.far(rest, max)), line, col),
+        Bool.or(Bool.and(Lazy.and_then(U32.is_gt(ul, (tl + max : U32)), _u => Reach.one(name)),
+          Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col))), Reach.reaches(Reach.far(rest, max), line, col)),
+        Bool.or(Bool.and(Bool.and(U32.is_gt(ul, (tl + max : U32)), Reach.one(name)),
+          Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col))), Laws.read_far(rest, line, col, max)),
+        reach.keep(Lazy.and_then(U32.is_gt(ul, (tl + max : U32)), _u => Reach.one(name)), tl, tc, Reach.far(rest, max),
           line, col),
         Equal.trans(Bool,
-          Bool.or(Bool.and(Lazy.and_then(U32.is_gt(ul, (tl + 20 : U32)), _u => Reach.one(name)),
-            Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col))), Reach.reaches(Reach.far(rest), line, col)),
-          Bool.or(Bool.and(Bool.and(U32.is_gt(ul, (tl + 20 : U32)), Reach.one(name)),
-            Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col))), Reach.reaches(Reach.far(rest), line, col)),
-          Bool.or(Bool.and(Bool.and(U32.is_gt(ul, (tl + 20 : U32)), Reach.one(name)),
-            Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col))), Laws.read_far(rest, line, col)),
+          Bool.or(Bool.and(Lazy.and_then(U32.is_gt(ul, (tl + max : U32)), _u => Reach.one(name)),
+            Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col))), Reach.reaches(Reach.far(rest, max), line, col)),
+          Bool.or(Bool.and(Bool.and(U32.is_gt(ul, (tl + max : U32)), Reach.one(name)),
+            Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col))), Reach.reaches(Reach.far(rest, max), line, col)),
+          Bool.or(Bool.and(Bool.and(U32.is_gt(ul, (tl + max : U32)), Reach.one(name)),
+            Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col))), Laws.read_far(rest, line, col, max)),
           Equal.cong(Bool, Bool,
             z => Bool.or(Bool.and(z, Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col))),
-              Reach.reaches(Reach.far(rest), line, col)),
-            Lazy.and_then(U32.is_gt(ul, (tl + 20 : U32)), _u => Reach.one(name)),
-            Bool.and(U32.is_gt(ul, (tl + 20 : U32)), Reach.one(name)),
-            M3.hole.and(U32.is_gt(ul, (tl + 20 : U32)), Reach.one(name), Reach.one(name), {==})),
+              Reach.reaches(Reach.far(rest, max), line, col)),
+            Lazy.and_then(U32.is_gt(ul, (tl + max : U32)), _u => Reach.one(name)),
+            Bool.and(U32.is_gt(ul, (tl + max : U32)), Reach.one(name)),
+            M3.hole.and(U32.is_gt(ul, (tl + max : U32)), Reach.one(name), Reach.one(name), {==})),
           Equal.cong(Bool, Bool,
-            z => Bool.or(Bool.and(Bool.and(U32.is_gt(ul, (tl + 20 : U32)), Reach.one(name)),
+            z => Bool.or(Bool.and(Bool.and(U32.is_gt(ul, (tl + max : U32)), Reach.one(name)),
               Bool.and(U32.is_eq(tl, line), U32.is_eq(tc, col))), z),
-            Reach.reaches(Reach.far(rest), line, col), Laws.read_far(rest, line, col), ih)))
+            Reach.reaches(Reach.far(rest, max), line, col), Laws.read_far(rest, line, col, max), ih)))
     case Bind.TItem{n}:
       ih
     case Bind.TQual{a, n}:
@@ -124,14 +125,15 @@ law reach.read:
   for uses: List<&2, Bind.Use>
   for +line: U32
   for +col: U32
-  {Reach.reaches(Reach.far(uses), line, col) == Laws.read_far(uses, line, col) : Bool}
+  for +max: U32
+  {Reach.reaches(Reach.far(uses, max), line, col) == Laws.read_far(uses, line, col, max) : Bool}
 
-def reach.read(uses, line, col):
+def reach.read(uses, line, col, max):
   match uses:
     case Nil{}:
       {==}
     case Con{Bind.Use{name, ul, uc, tt}, +rest}:
-      reach.use(name, ul, tt, rest, line, col, reach.read(rest, line, col))
+      reach.use(name, ul, tt, rest, line, col, max, reach.read(rest, line, col, max))
 
 # the rule's early-exit test is the law's plain one
 law reach.flagged:
@@ -143,16 +145,17 @@ law reach.flagged:
   for +note: String
   for +ps: List<&2, U32>
   for +item: U32
-  {Reach.flagged(Reach.far(uses), line, col, kk, nm, note, ps, item)
-    == Laws.carried(kk, nm, line, col, note, uses, ps, item) : Bool}
+  for +max: U32
+  {Reach.flagged(Reach.far(uses, max), line, col, kk, nm, note, ps, item)
+    == Laws.carried(kk, nm, line, col, note, uses, ps, item, max) : Bool}
 
-def reach.flagged(uses, line, col, kk, nm, note, ps, item):
+def reach.flagged(uses, line, col, kk, nm, note, ps, item, max):
   Equal.trans(Bool,
-    Reach.flagged(Reach.far(uses), line, col, kk, nm, note, ps, item),
-    Bool.and(Reach.reaches(Reach.far(uses), line, col),
+    Reach.flagged(Reach.far(uses, max), line, col, kk, nm, note, ps, item),
+    Bool.and(Reach.reaches(Reach.far(uses, max), line, col),
       Bool.and(Laws.counted(kk), Bool.and(Bool.not(Reach.allowed(kk, nm, note)), Bool.not(Reach.has(ps, item))))),
-    Laws.carried(kk, nm, line, col, note, uses, ps, item),
-    M3.hole.and(Reach.reaches(Reach.far(uses), line, col),
+    Laws.carried(kk, nm, line, col, note, uses, ps, item, max),
+    M3.hole.and(Reach.reaches(Reach.far(uses, max), line, col),
       Lazy.and_then(Reach.kind(kk),
         _v => Lazy.and_then(Bool.not(Reach.allowed(kk, nm, note)), _w => Bool.not(Reach.has(ps, item)))),
       Bool.and(Laws.counted(kk), Bool.and(Bool.not(Reach.allowed(kk, nm, note)), Bool.not(Reach.has(ps, item)))),
@@ -172,7 +175,8 @@ def reach.flagged(uses, line, col, kk, nm, note, ps, item):
     Equal.cong(Bool, Bool,
       z => Bool.and(z,
         Bool.and(Laws.counted(kk), Bool.and(Bool.not(Reach.allowed(kk, nm, note)), Bool.not(Reach.has(ps, item))))),
-      Reach.reaches(Reach.far(uses), line, col), Laws.read_far(uses, line, col), reach.read(uses, line, col)))
+      Reach.reaches(Reach.far(uses, max), line, col), Laws.read_far(uses, line, col, max), reach.read(uses, line,
+        col, max)))
 
 # a finding in front when the test holds adds one to the count
 law reach.found:
@@ -181,12 +185,13 @@ law reach.found:
   for -line: U32
   for -col: U32
   for -path: String
+  for -max: U32
   for -more: List<&2, F.Finding>
   for -m: Nat
   for ih: {List.length(&2, F.Finding, more) == m : Nat}
-  {List.length(&2, F.Finding, Reach.found(b, nm, line, col, path, more)) == Bool.pick(Nat, b, 1n+m, m) : Nat}
+  {List.length(&2, F.Finding, Reach.found(b, nm, line, col, path, max, more)) == Bool.pick(Nat, b, 1n+m, m) : Nat}
 
-def reach.found(b, _nm, _line, _col, _path, more, m, ih):
+def reach.found(b, _nm, _line, _col, _path, _max, more, m, ih):
   match b:
     case True{}:
       Equal.cong(Nat, Nat, n => 1n+n, List.length(&2, F.Finding, more), m, ih)
@@ -205,30 +210,32 @@ law reach.step:
   for +ps: List<&2, U32>
   for +path: String
   for +item: U32
+  for +max: U32
   for ih: {List.length(&2, F.Finding,
-      Reach.check.go(rest, Reach.far(uses), ps, path, Reach.at_item(kk, line, item)))
-    == Laws.far_count(rest, uses, ps, Reach.at_item(kk, line, item)) : Nat}
+      Reach.check.go(rest, Reach.far(uses, max), ps, path, Reach.at_item(kk, line, item), max))
+    == Laws.far_count(rest, uses, ps, Reach.at_item(kk, line, item), max) : Nat}
   {List.length(&2, F.Finding,
-      Reach.check.go(Bind.Bind{nm, line, col, kk, note} <> rest, Reach.far(uses), ps, path, item))
-    == Laws.far_count(Bind.Bind{nm, line, col, kk, note} <> rest, uses, ps, item) : Nat}
+      Reach.check.go(Bind.Bind{nm, line, col, kk, note} <> rest, Reach.far(uses, max), ps, path, item, max))
+    == Laws.far_count(Bind.Bind{nm, line, col, kk, note} <> rest, uses, ps, item, max) : Nat}
 
-def reach.step(nm, line, col, kk, note, rest, uses, ps, path, item, ih):
+def reach.step(nm, line, col, kk, note, rest, uses, ps, path, item, max, ih):
   Equal.trans(Nat,
     List.length(&2, F.Finding,
-      Reach.check.go(Bind.Bind{nm, line, col, kk, note} <> rest, Reach.far(uses), ps, path, item)),
-    Bool.pick(Nat, Reach.flagged(Reach.far(uses), line, col, kk, nm, note, ps, Reach.at_item(kk, line, item)),
-      1n+Laws.far_count(rest, uses, ps, Reach.at_item(kk, line, item)),
-      Laws.far_count(rest, uses, ps, Reach.at_item(kk, line, item))),
-    Laws.far_count(Bind.Bind{nm, line, col, kk, note} <> rest, uses, ps, item),
-    reach.found(Reach.flagged(Reach.far(uses), line, col, kk, nm, note, ps, Reach.at_item(kk, line, item)),
-      nm, line, col, path, Reach.check.go(rest, Reach.far(uses), ps, path, Reach.at_item(kk, line, item)),
-      Laws.far_count(rest, uses, ps, Reach.at_item(kk, line, item)), ih),
+      Reach.check.go(Bind.Bind{nm, line, col, kk, note} <> rest, Reach.far(uses, max), ps, path, item, max)),
+    Bool.pick(Nat, Reach.flagged(Reach.far(uses, max), line, col, kk, nm, note, ps, Reach.at_item(kk, line, item)),
+      1n+Laws.far_count(rest, uses, ps, Reach.at_item(kk, line, item), max),
+      Laws.far_count(rest, uses, ps, Reach.at_item(kk, line, item), max)),
+    Laws.far_count(Bind.Bind{nm, line, col, kk, note} <> rest, uses, ps, item, max),
+    reach.found(Reach.flagged(Reach.far(uses, max), line, col, kk, nm, note, ps, Reach.at_item(kk, line, item)),
+      nm, line, col, path, max, Reach.check.go(rest, Reach.far(uses, max), ps, path, Reach.at_item(kk, line, item),
+        max),
+      Laws.far_count(rest, uses, ps, Reach.at_item(kk, line, item), max), ih),
     Equal.cong(Bool, Nat,
-      z => Bool.pick(Nat, z, 1n+Laws.far_count(rest, uses, ps, Reach.at_item(kk, line, item)),
-        Laws.far_count(rest, uses, ps, Reach.at_item(kk, line, item))),
-      Reach.flagged(Reach.far(uses), line, col, kk, nm, note, ps, Reach.at_item(kk, line, item)),
-      Laws.carried(kk, nm, line, col, note, uses, ps, Reach.at_item(kk, line, item)),
-      reach.flagged(uses, line, col, kk, nm, note, ps, Reach.at_item(kk, line, item))))
+      z => Bool.pick(Nat, z, 1n+Laws.far_count(rest, uses, ps, Reach.at_item(kk, line, item), max),
+        Laws.far_count(rest, uses, ps, Reach.at_item(kk, line, item), max)),
+      Reach.flagged(Reach.far(uses, max), line, col, kk, nm, note, ps, Reach.at_item(kk, line, item)),
+      Laws.carried(kk, nm, line, col, note, uses, ps, Reach.at_item(kk, line, item), max),
+      reach.flagged(uses, line, col, kk, nm, note, ps, Reach.at_item(kk, line, item), max)))
 
 # the walk counts the binders the law counts
 law reach.go:
@@ -237,16 +244,17 @@ law reach.go:
   for +ps: List<&2, U32>
   for +path: String
   for +item: U32
-  {List.length(&2, F.Finding, Reach.check.go(binds, Reach.far(uses), ps, path, item))
-    == Laws.far_count(binds, uses, ps, item) : Nat}
+  for +max: U32
+  {List.length(&2, F.Finding, Reach.check.go(binds, Reach.far(uses, max), ps, path, item, max))
+    == Laws.far_count(binds, uses, ps, item, max) : Nat}
 
-def reach.go(binds, uses, ps, path, item):
+def reach.go(binds, uses, ps, path, item, max):
   match binds:
     case Nil{}:
       {==}
     case Con{Bind.Bind{+nm, +line, +col, +kk, +note}, +rest}:
-      reach.step(nm, line, col, kk, note, rest, uses, ps, path, item,
-        reach.go(rest, uses, ps, path, Reach.at_item(kk, line, item)))
+      reach.step(nm, line, col, kk, note, rest, uses, ps, path, item, max,
+        reach.go(rest, uses, ps, path, Reach.at_item(kk, line, item), max))
 
 # with no binder read from afar the walk finds nothing
 law reach.none:
@@ -254,14 +262,15 @@ law reach.none:
   for +ps: List<&2, U32>
   for +path: String
   for +item: U32
-  {Reach.check.go(binds, Nil{}, ps, path, item) == Nil{} : List<&2, F.Finding>}
+  for +max: U32
+  {Reach.check.go(binds, Nil{}, ps, path, item, max) == Nil{} : List<&2, F.Finding>}
 
-def reach.none(binds, ps, path, item):
+def reach.none(binds, ps, path, item, max):
   match binds:
     case Nil{}:
       {==}
     case Con{Bind.Bind{nm, +line, col, +kk, note}, rest}:
-      reach.none(rest, ps, path, Reach.at_item(kk, line, item))
+      reach.none(rest, ps, path, Reach.at_item(kk, line, item), max)
 
 # the shortcut on no far binder is the walk
 law reach.far:
@@ -269,29 +278,30 @@ law reach.far:
   for +binds: List<&2, Bind.Bind>
   for +toks: List<&2, Lex.Tok>
   for +path: String
-  {Reach.check.far(fr, binds, toks, path)
-    == Reach.check.go(binds, fr, Reach.proofs(T.sig(toks)), path, 0) : List<&2, F.Finding>}
+  for +max: U32
+  {Reach.check.far(fr, binds, toks, path, max)
+    == Reach.check.go(binds, fr, Reach.proofs(T.sig(toks)), path, 0, max) : List<&2, F.Finding>}
 
-def reach.far(fr, binds, toks, path):
+def reach.far(fr, binds, toks, path, max):
   match fr:
     case Nil{}:
-      Equal.sym(List<&2, F.Finding>, Reach.check.go(binds, Nil{}, Reach.proofs(T.sig(toks)), path, 0), Nil{},
-        reach.none(binds, Reach.proofs(T.sig(toks)), path, 0))
+      Equal.sym(List<&2, F.Finding>, Reach.check.go(binds, Nil{}, Reach.proofs(T.sig(toks)), path, 0, max), Nil{},
+        reach.none(binds, Reach.proofs(T.sig(toks)), path, 0, max))
     case Con{pp, rest}:
       {==}
 
-def Laws.reach_counts(binds, uses, toks, path):
-  M2.param.stop(Paths.is_proof(path), Reach.check.far(Reach.far(uses), binds, toks, path),
-    Laws.far_count(binds, uses, Reach.proofs(T.sig(toks)), 0),
+def Laws.reach_counts(binds, uses, toks, path, max):
+  M2.param.stop(Paths.is_proof(path), Reach.check.far(Reach.far(uses, max), binds, toks, path, max),
+    Laws.far_count(binds, uses, Reach.proofs(T.sig(toks)), 0, max),
     Equal.trans(Nat,
-      List.length(&2, F.Finding, Reach.check.far(Reach.far(uses), binds, toks, path)),
-      List.length(&2, F.Finding, Reach.check.go(binds, Reach.far(uses), Reach.proofs(T.sig(toks)), path, 0)),
-      Laws.far_count(binds, uses, Reach.proofs(T.sig(toks)), 0),
+      List.length(&2, F.Finding, Reach.check.far(Reach.far(uses, max), binds, toks, path, max)),
+      List.length(&2, F.Finding, Reach.check.go(binds, Reach.far(uses, max), Reach.proofs(T.sig(toks)), path, 0, max)),
+      Laws.far_count(binds, uses, Reach.proofs(T.sig(toks)), 0, max),
       Equal.cong(List<&2, F.Finding>, Nat, z => List.length(&2, F.Finding, z),
-        Reach.check.far(Reach.far(uses), binds, toks, path),
-        Reach.check.go(binds, Reach.far(uses), Reach.proofs(T.sig(toks)), path, 0),
-        reach.far(Reach.far(uses), binds, toks, path)),
-      reach.go(binds, uses, Reach.proofs(T.sig(toks)), path, 0)))
+        Reach.check.far(Reach.far(uses, max), binds, toks, path, max),
+        Reach.check.go(binds, Reach.far(uses, max), Reach.proofs(T.sig(toks)), path, 0, max),
+        reach.far(Reach.far(uses, max), binds, toks, path, max)),
+      reach.go(binds, uses, Reach.proofs(T.sig(toks)), path, 0, max)))
 
 # a test that fails keeps no binder
 law reach.miss:
@@ -309,9 +319,9 @@ def reach.miss(b, o, tl, tc, e):
   %s : {Bool.pick(Maybe<&2, Bind.Pos>, _, Some{Bind.Pos{tl, tc}}, None{}) == None{} : Maybe<&2, Bind.Pos>}
   {==}
 
-def Laws.reach_near_use_is_not_far(name, line, tl, tc, e):
-  reach.miss(U32.is_gt(line, (tl + 20 : U32)), Reach.one(name), tl, tc,
-    Equal.cong(Bool, Bool, z => Bool.and(z, Reach.one(name)), U32.is_gt(line, (tl + 20 : U32)), False{}, e))
+def Laws.reach_near_use_is_not_far(name, line, tl, tc, max, e):
+  reach.miss(U32.is_gt(line, (tl + max : U32)), Reach.one(name), tl, tc,
+    Equal.cong(Bool, Bool, z => Bool.and(z, Reach.one(name)), U32.is_gt(line, (tl + max : U32)), False{}, e))
 
 # anything and False is False
 law reach.and_false:
@@ -325,12 +335,12 @@ def reach.and_false(b):
     case False{}:
       {==}
 
-def Laws.reach_longer_name_is_not_far(name, line, tl, tc, e):
-  reach.miss(U32.is_gt(line, (tl + 20 : U32)), Reach.one(name), tl, tc,
-    Equal.trans(Bool, Bool.and(U32.is_gt(line, (tl + 20 : U32)), Reach.one(name)),
-      Bool.and(U32.is_gt(line, (tl + 20 : U32)), False{}), False{},
-      Equal.cong(Bool, Bool, z => Bool.and(U32.is_gt(line, (tl + 20 : U32)), z), Reach.one(name), False{}, e),
-      reach.and_false(U32.is_gt(line, (tl + 20 : U32)))))
+def Laws.reach_longer_name_is_not_far(name, line, tl, tc, max, e):
+  reach.miss(U32.is_gt(line, (tl + max : U32)), Reach.one(name), tl, tc,
+    Equal.trans(Bool, Bool.and(U32.is_gt(line, (tl + max : U32)), Reach.one(name)),
+      Bool.and(U32.is_gt(line, (tl + max : U32)), False{}), False{},
+      Equal.cong(Bool, Bool, z => Bool.and(U32.is_gt(line, (tl + max : U32)), z), Reach.one(name), False{}, e),
+      reach.and_false(U32.is_gt(line, (tl + max : U32)))))
 
 # an early exit whose other way is Nil is Nil either way
 law reach.stop:
@@ -344,14 +354,15 @@ def reach.stop(b):
     case False{}:
       {==}
 
-def Laws.reach_silent_without_far_uses(binds, uses, toks, path, e):
+def Laws.reach_silent_without_far_uses(binds, uses, toks, path, max, e):
   Equal.trans(List<&2, F.Finding>,
-    Reach.check.on(binds, uses, toks, path),
+    Reach.check.on(binds, uses, toks, path, max),
     Lazy.stop(List<&2, F.Finding>, Paths.is_proof(path), Nil{}, _u => Nil{}),
     Nil{},
     Equal.cong(List<&2, Bind.Pos>, List<&2, F.Finding>,
-      z => Lazy.stop(List<&2, F.Finding>, Paths.is_proof(path), Nil{}, _u => Reach.check.far(z, binds, toks, path)),
-      Reach.far(uses), Nil{}, e),
+      z => Lazy.stop(List<&2, F.Finding>, Paths.is_proof(path), Nil{}, _u => Reach.check.far(z, binds, toks, path,
+        max)),
+      Reach.far(uses, max), Nil{}, e),
     reach.stop(Paths.is_proof(path)))
 
 # every char of the `n`s is `n`
