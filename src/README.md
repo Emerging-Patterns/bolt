@@ -736,7 +736,9 @@ them). It changes blank space and nothing else:
 - no blank before a line's end: trailing spaces and tabs go, a comment's
   included;
 - no two blank lines in a row, and none at the top of a file;
-- one newline at the end of a file. An empty file stays empty.
+- one newline at the end of a file. An empty file stays empty, and a file
+  that ends inside a string that never closes is left as it ends: the
+  string holds the file's last line break.
 
 Indentation under a header, the spaces inside a line and where any other
 line breaks are left as they are; a tab and a line over 120 wide that is no
