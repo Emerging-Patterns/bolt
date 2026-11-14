@@ -86,5 +86,7 @@ def Laws.opt_in_rules(n):
       {==}
     case 33n:
       {==}
-    case 34n+_:
+    case 34n:
+      {==}
+    case 35n+_:
       {==}

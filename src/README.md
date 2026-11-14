@@ -68,7 +68,7 @@ unset group has its default. The groups:
 | group         | rules                                                                  | default |
 |---------------|------------------------------------------------------------------------|---------|
 | `correctness` | `hole` `pick` `put` `arms` `escape` `setting`                          | error   |
-| `suspicious`  | `unused` `idle` `eager` `concat` `fromrev` `prefix` `empty` (`thunk`: opt-in) | warn |
+| `suspicious`  | `unused` `idle` `spare` `eager` `concat` `fromrev` `prefix` `empty` (`thunk`: opt-in) | warn |
 | `perf`        | `strings`                                                              | warn    |
 | `style`       | `doc` `space` `wrap` `reach` `arity` `length` `depth` `noqa` `blank` (`transcong`: opt-in) | warn |
 | `laws`        | (`coverage`, `closed`: opt-in)                                         | warn    |
@@ -97,6 +97,7 @@ The stable codes, assigned once (do not renumber):
 | | | U017 | `prefix` | S010 | `length` |
 | | | U018 | `empty` | S011 | `depth` |
 | | | U019 | `idle` | | |
+| | | U020 | `spare` | | |
 
 Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic,
 for the group a rule had when its code was assigned. A code names the rule,
@@ -154,7 +155,7 @@ commas (spaces around them allowed), then any text. Codes are the stable
 ids above, case-sensitive, and a comment may name several
 (`# noqa: U002, U003`). Only a real comment counts, as the lexer reads it:
 `noqa` inside a string literal is text. The filter runs once every rule has
-run, the project rule (`coverage`) included, and a
+run, the project rules (`coverage`, `spare`) included, and a
 silenced finding is neither printed nor counted, so it changes neither the
 summary nor the exit code. No rule reads the comments: what each rule finds
 is the same with or without them. The editor applies the same filter.
@@ -182,7 +183,8 @@ whole tree, a package root is `.` and every other directory the walk reads
 that holds a `main.bend`, and a file belongs to the nearest root at or above
 it. `coverage` runs on one package's files at a time. Over files named on the line, `.` is the only package. So a repo with
 nested packages, each with its own laws, lints in one run from the top, and
-a law covers only defs of its own package.
+a law covers only defs of its own package. `spare` reads the imports of
+every file of the run at once: an import may cross packages.
 
 Rules read a file's role from the imports, never from where it sits. A law
 file is a `LAWS.bend` or a file one reaches through relative imports; a
@@ -214,7 +216,8 @@ its phases use the whole list several times, and a `+` reuse copies what it
 is given, so handing them the parsed `Src` duplicated every tree (100 files
 cost 362 s, growing faster than the count; 28 s now). The digest carries
 only what those rules ask: the paths, the top-level defs and types, what the
-laws name, the imports and the laws.
+laws name, the imports, the laws, and what the file's imports are to it
+(rules/links.bend: the ones it never names, and whether it loads).
 What the rules share, `rules/calls.bend` (the recursion rules),
 `rules/tokens.bend`, `rules/imports.bend` and `rules/digest.bend`, sits
 beside the groups. The cost rules built on `rules/calls.bend` (`pick`,
@@ -296,6 +299,48 @@ statement.
   56 are in one benchmark's files of seeded bugs (a base arm that answers
   a constant, a step that drops its bound), 56 of its 2,660. Twelve trees
   that prove their defs have none.
+- `spare` (project) — an import the file never names, of a file imported
+  for its names alone. In a file that is neither a law file nor a proof
+  file, `import ./ops.bend as O` when no dotted name of the file outside
+  its import lines starts with `O.`. One finding, on the import's line. The
+  file says it depends on a module it does not use, `bend` checks that
+  module for nothing, and a published package carries it: delete the line.
+
+  An import in Bend also does something: `bend` checks the imported file
+  with its importer, and links a foreign def only when the entry reaches
+  its file. So some imports are made for that and name nothing: a module
+  that imports the file holding its proofs, a check that imports the entry
+  to keep the native effects registered. Deleting one of those would
+  silence the finding and drop a check nobody then notices, so the rule
+  reads the target and reports only when all of these hold:
+
+  - the import is of a file by a relative path, under an alias of its own
+    (`import Base`, and a hub package such as `shake@0.6.0.0/main.bend`,
+    are left alone: nothing is known of what a package holds);
+  - the file names the alias of another import of its own. A file that
+    names none of its imports loads them, it does not use them: an entry
+    that lists what a package publishes, a harness, a file of 59 imports
+    that exists to type-check a library;
+  - the imported file was read in the run;
+  - neither it nor any file it reaches by relative imports loads: states a
+    law, holds a def that is a proof (`-> {..}`, or no type), or holds a
+    foreign def (one whose body opens with `import`).
+
+  A name in a comment or a string is no naming, and nor is an import
+  line's own path (`import ./Wal.bend as Wal` does not name `Wal`). Any
+  dotted name that starts with the alias and a dot counts, wherever it
+  stands: a call, a type, a constructor in a pattern, `def O.lemma(..)`.
+  It needs every file, so it runs in `bolt` over a tree and never in the
+  editor; over files named on the line it sees only those, and reports an
+  import only when its target is among them. Measured over 82 public
+  repos: 35 findings in 7 of them. With each reported line deleted, `bend`
+  says of the file what it said before (in one, which fails either way, a
+  different one of its errors comes first); most of those files already
+  fail on bend 2.0.40 for other reasons, so the same was done on 19 more
+  findings in trees that check, with the same result, and `bend` refuses a
+  name of an imported file written without its alias. A reading by text
+  alone, without the target, found 1,610 unnamed aliases there, most of
+  them the imports of law and proof files and of harnesses.
 - `hole` — a TODO hole left in code, the one bend counts in "1 TODO found." /
   "N TODOs found." (under `SOME PROOFS FAIL`, exit 1):
   `?` and then `TODO`, with spaces, newlines or comments allowed between
@@ -858,7 +903,7 @@ With no `--gpu` that launch is `--gpu off` (the cores); `--gpu on` or
 findings at the levels the nearest `bolt.bend` gives them: errors red,
 warnings yellow, off ones not at all, less what the file's noqa comments
 silence, then `noqa`'s own (never on a project rule's code). A finding's code is its stable id
-(`S003`) and its source is `bolt(group:slug)` (`bolt(style:wrap)`). The project rules (`coverage`) need every
+(`S003`) and its source is `bolt(group:slug)` (`bolt(style:wrap)`). The project rules (`coverage`, `spare`) need every
 file, so they run in bolt alone.
 
 ## In the gate

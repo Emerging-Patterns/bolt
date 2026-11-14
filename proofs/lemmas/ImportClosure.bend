@@ -395,7 +395,7 @@ def unsafe.deps_imports(ds, p):
   match ds:
     case Nil{}:
       {==}
-    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, +deps, laws}, +rest}:
+    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, +deps, laws, links}, +rest}:
       %Equal.sym(List<&2, String>, Imports.deps.spec(Digest.edges(rest), p), D1.unsafe.imports(rest, p),
           unsafe.deps_imports(rest, p)) :
         {Bool.pick(List<&2, String>, String.eq(norm, p), deps, _)
@@ -412,7 +412,7 @@ def unsafe.read_paths(ds, p):
   match ds:
     case Nil{}:
       {==}
-    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, +rest}:
+    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws, links}, +rest}:
       %Equal.sym(Bool, Imports.has(norm <> Imports.paths(Digest.edges(rest)), p),
           Bool.or(String.eq(norm, p), Imports.has(Imports.paths(Digest.edges(rest)), p)),
           unsafe.has_con(norm, Imports.paths(Digest.edges(rest)), p)) :
@@ -431,7 +431,7 @@ def unsafe.len_paths(ds):
   match ds:
     case Nil{}:
       {==}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, +rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws, links}, +rest}:
       Equal.cong(Nat, Nat, n => 1n+n, List.length(&2, String, Imports.paths(Digest.edges(rest))),
         List.length(&2, Digest.Digest, rest), unsafe.len_paths(rest))
 
@@ -1724,7 +1724,7 @@ def unsafe.unread_imports(ds, p, h):
   match ds:
     case Nil{}:
       {==}
-    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, +rest}:
+    case Con{Digest.Digest{path, +norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws, links}, +rest}:
       unsafe.unread_imports.at(deps, D1.unsafe.imports(rest, p), D1.unsafe.read(rest, p), String.eq(norm, p), h,
         z => unsafe.unread_imports(rest, p, z))
 

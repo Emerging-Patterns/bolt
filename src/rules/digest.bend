@@ -18,6 +18,7 @@ import ./laws/closed.bend as Closed
 import ../paths.bend as Paths
 import ../role.bend as Role
 import ./calls.bend as Calls
+import ./links.bend as Links
 
 # what a file holds
 # -----------------
@@ -41,11 +42,12 @@ type Law is Data:
 # one file as the project rules see it: its path as given and normalized, its
 # directory, whether it states laws (LAWS.bend) or proves them too
 # (PROOF.bend), whether the coverage rule lets it off, its top-level items, what
-# its own laws name, the files it imports, and its laws
+# its own laws name, the files it imports, its laws, and what its imports
+# are to it (rules/links.bend)
 type Digest is Data:
   Digest{path: String, norm: String, dir: String, is_laws: Bool, is_law_file: Bool, exempt: Bool,
     tops: List<&2, Top>, says: List<&2, Mention>, deps: List<&2, String>,
-    laws: List<&2, Law>}
+    laws: List<&2, Law>, links: Links.Links}
 
 # what the laws name
 # ------------------
@@ -363,7 +365,8 @@ def of(s2: Src.Src) -> Digest:
     ranged(items, uses.of(bound), as, p, Bind.index(proofs(Calls.defs(tree)))),
     stated(Paths.is_laws(path), tree, bound, as, p),
     Imports.targets(items, p),
-    laws.in(Paths.is_laws(path), tree, items)}
+    laws.in(Paths.is_laws(path), tree, items),
+    Links.of(items, toks, tree, p)}
 
 # one parsed file read down to its digest, told its role (src/role.bend): a
 # law file states the laws that cover defs, and a law or proof file is exempt
@@ -376,7 +379,8 @@ def of.role(+r: Role.Role, s2: Src.Src) -> Digest:
     ranged(items, uses.of(bound), as, p, Bind.index(proofs(Calls.defs(tree)))),
     stated(laws, tree, bound, as, p),
     Imports.targets(items, p),
-    laws.in(laws, tree, items)}
+    laws.in(laws, tree, items),
+    Links.of(items, toks, tree, p)}
 
 # one parsed file's digest, told its role among the marks (src/role.bend)
 def of.marked(+ms: List<&2, Role.Mark>, s2: Src.Src) -> Digest:
@@ -397,5 +401,5 @@ def edges(ds: List<&2, Digest>) -> List<&2, Imports.Edge>:
   match ds:
     case Nil{}:
       Nil{}
-    case Con{Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, rest}:
+    case Con{Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws, links}, rest}:
       Imports.Edge{norm, deps} <> edges(rest)

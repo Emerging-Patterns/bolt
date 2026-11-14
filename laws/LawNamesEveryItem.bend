@@ -19,6 +19,7 @@ import ../src/finding.bend as F
 import ../src/syntax/bind.bend as Bind
 import ../src/paths.bend as Paths
 import ../src/rules/digest.bend as Digest
+import ../src/rules/links.bend as Links
 import ../src/src.bend as Src
 import ../src/syntax/tree.bend as Tree
 import ../src/syntax/outline.bend as Outline
@@ -40,7 +41,7 @@ def coverage.lawful(ds: List<&2, Digest.Digest>) -> Bool:
   match ds:
     case Nil{}:
       False{}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws, links}, rest}:
       Bool.or(is_laws, coverage.lawful(rest))
 
 # coverage's reading of a file (laws/LawNamesEveryItem.bend). reach_digest and reach_binder,
@@ -134,7 +135,7 @@ type CoverageView is Data:
 # a digest as the coverage rule reads it
 def coverage.view(d: Digest.Digest) -> CoverageView:
   match d:
-    case Digest.Digest{_path, norm, _dir, is_laws, _is_law_file, exempt, tops, says, _deps, _laws}:
+    case Digest.Digest{_path, norm, _dir, is_laws, _is_law_file, exempt, tops, says, _deps, _laws, _links}:
       CoverageView{norm, is_laws, exempt, tops, says}
 
 # coverage by reach (laws/LawNamesEveryItem.bend). A def is covered when a quantified law of
@@ -166,7 +167,7 @@ def reach.keys(ms: List<&2, Digest.Mention>) -> List<&2, String>:
 
 # a node: a digest with only a key and what it leads to
 def reach.node(+k: String, to: List<&2, String>) -> Digest.Digest:
-  Digest.Digest{k, k, "", False{}, False{}, True{}, [], [], to, []}
+  Digest.Digest{k, k, "", False{}, False{}, True{}, [], [], to, [], Links.Links{False{}, []}}
 
 # each constructor as a node that leads nowhere, onto the others
 def reach.ctors(cs: List<&2, String>, +p: String, more: List<&2, Digest.Digest>) -> List<&2, Digest.Digest>:
@@ -194,7 +195,7 @@ def reach.items(ds: List<&2, Digest.Digest>) -> List<&2, Digest.Digest>:
   match ds:
     case Nil{}:
       []
-    case Con{Digest.Digest{_path, norm, _dir, _is_laws, _is_law_file, _exempt, tops, _says, _deps, _laws},
+    case Con{Digest.Digest{_path, norm, _dir, _is_laws, _is_law_file, _exempt, tops, _says, _deps, _laws, _links},
       rest}:
       reach.nodes(tops, norm, reach.items(rest))
 
@@ -203,7 +204,7 @@ def reach.named(ds: List<&2, Digest.Digest>) -> List<&2, Digest.Mention>:
   match ds:
     case Nil{}:
       []
-    case Con{Digest.Digest{_path, _norm, _dir, is_laws, _is_law_file, _exempt, _tops, says, _deps, _laws},
+    case Con{Digest.Digest{_path, _norm, _dir, is_laws, _is_law_file, _exempt, _tops, says, _deps, _laws, _links},
       rest}:
       +more = reach.named(rest)
       Bool.pick(List<&2, Digest.Mention>, is_laws, List.append(&2, Digest.Mention, says, more), more)
@@ -249,7 +250,7 @@ def reach.files(fs: List<&2, Digest.Digest>, +cl: List<&2, String>) -> List<&2, 
   match fs:
     case Nil{}:
       []
-    case Con{Digest.Digest{path, norm, _dir, _is_laws, _is_law_file, exempt, tops, _says, _deps, _laws},
+    case Con{Digest.Digest{path, norm, _dir, _is_laws, _is_law_file, exempt, tops, _says, _deps, _laws, _links},
       rest}:
       match exempt:
         case True{}:
@@ -425,9 +426,11 @@ law reach_digest:
 # is a test; lists the outline's defs and types less the defs that are
 # proofs, each with what the binder resolved the uses on its lines to
 # (reach.tops, as reach_digest reads them); names what the quantified laws'
-# statements name exactly when the role is a law file's; and holds the files
-# the outline imports and, for a law file's role, the tree's laws. No field
-# is left to the code alone
+# statements name exactly when the role is a law file's; holds the files
+# the outline imports and, for a law file's role, the tree's laws; and holds
+# the file's links as src/rules/links.bend reads them off its outline,
+# tokens and tree (laws/SpareReportsUnnamedImports.bend says what those
+# are). No other field is left to the code alone
 law reach_digest_role:
   for +r: Role.Role
   for +path: String
@@ -442,7 +445,8 @@ law reach_digest_role:
       reach.tops(items, items, coverage.uses(bound), Imports.norm(path), reach.proofs(tree)),
       Bool.pick(List<&2, Digest.Mention>, Role.is_laws(r),
         coverage.said(coverage.uses(bound), tree, items, Imports.norm(path)), []),
-      Imports.targets(items, Imports.norm(path)), Digest.laws.in(Role.is_laws(r), tree, items)}
+      Imports.targets(items, Imports.norm(path)), Digest.laws.in(Role.is_laws(r), tree, items),
+      Links.of(items, toks, tree, Imports.norm(path))}
     : Digest.Digest}
 
 # LAW: over the files of a run, each file's digest is told the role the

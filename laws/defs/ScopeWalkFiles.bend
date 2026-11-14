@@ -6,6 +6,7 @@ import ../../src/src.bend as Src
 import ../../src/role.bend as Role
 import ../../src/rules/digest.bend as Digest
 import ../../src/rules/laws/law.bend as Law
+import ../../src/rules/suspicious/spare.bend as Spare
 import ../../src/lint/world.bend as W
 
 # whether a directory is among the roots
@@ -30,10 +31,10 @@ def part(ds: List<&2, Digest.Digest>, +rs: List<&2, String>, +pkg: String) -> Li
   match ds:
     case Nil{}:
       []
-    case Con{Digest.Digest{path, norm, +dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, rest}:
+    case Con{Digest.Digest{path, norm, +dir, is_laws, is_law_file, exempt, tops, says, deps, laws, links}, rest}:
       +more = part(rest, rs, pkg)
       Bool.pick(List<&2, Digest.Digest>, String.eq(nearest(Rules.ups(dir), rs), pkg),
-        Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws} <> more, more)
+        Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws, links} <> more, more)
 
 # `coverage` on the files of each package but `.`
 def covered(ps: List<&2, String>, +ds: List<&2, Digest.Digest>, +rs: List<&2, String>) -> List<&2, F.Finding>:
@@ -43,10 +44,12 @@ def covered(ps: List<&2, String>, +ds: List<&2, Digest.Digest>, +rs: List<&2, St
     case Con{+dir, rest}:
       List.append(&2, F.Finding, Law.check(part(ds, rs, dir)), covered(rest, ds, rs))
 
-# the project rules' findings: `coverage` on each package's files, `.` first
+# the project rules' findings: `coverage` on each package's files, `.`
+# first, then `spare` on every file's at once
 def packed(+srcs: List<&2, Src.Src>, +rs: List<&2, String>) -> List<&2, F.Finding>:
   +ds = Digest.all.role(Role.marks(srcs), srcs)
-  List.concat(&2, F.Finding, [Law.check(part(ds, rs, "")), covered(rs, ds, rs)])
+  List.append(&2, F.Finding, List.concat(&2, F.Finding, [Law.check(part(ds, rs, "")), covered(rs, ds, rs)]),
+    Spare.check(ds))
 
 # The walk (laws/ScopeWalksWholeTree.bend). With no paths named, the planner lints what a
 # breadth-first search over the World's listings reaches from `.`. The spec

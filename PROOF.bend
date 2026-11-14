@@ -20,6 +20,7 @@ import ./proofs/ConfigLimitsResolve.bend as PConfigLimitsResolve
 import ./proofs/RulesRunAtConfiguredLimits.bend as PRulesRunAtConfiguredLimits
 import ./proofs/SizeReportsOversizedDefs.bend as PSizeReportsOversizedDefs
 import ./proofs/IdleReportsParametersOnlyPassedBack.bend as PIdleReportsParametersOnlyPassedBack
+import ./proofs/SpareReportsUnnamedImports.bend as PSpareReportsUnnamedImports
 import ./proofs/FmtChangesOnlyBlankSpace.bend as PFmtChangesOnlyBlankSpace
 import ./proofs/FmtPlansEdits.bend as PFmtPlansEdits
 import ./proofs/FmtSetsLineSpaces.bend as PFmtSetsLineSpaces

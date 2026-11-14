@@ -2,7 +2,7 @@
 # one finding for a bare one (`#`, any spaces, then `noqa` at the comment's
 # end or before a space) and one for each code it names that no graded finding
 # of its file on its line has, a code that is no rule's included, where a
-# project rule's code (`coverage`'s) is judged only when the
+# project rule's code (`coverage`'s, `spare`'s) is judged only when the
 # run is the whole tree and never in the editor, and nothing else. It runs
 # after the filter, over the findings of every other rule, so its findings
 # come last (laws/OutputOrderIsFixed.bend) and no noqa comment silences them: a `# noqa: S005`
@@ -24,9 +24,9 @@ def nq.used(gs: List<&2, F.Graded>, +path: String, +line: U32, +code: String) ->
       Bool.or(Bool.and(String.eq(p, path), Bool.and(U32.is_eq(l, line), String.eq(Codes.code(rule), code))),
         nq.used(rest, path, line, code))
 
-# a project rule's code: `coverage`'s
+# a project rule's code: `coverage`'s or `spare`'s
 def nq.project(+code: String) -> Bool:
-  String.eq(code, "L001")
+  Bool.or(String.eq(code, "L001"), String.eq(code, "U020"))
 
 # how many of a mark's codes the run judges (any over the whole tree, no
 # project rule's otherwise) and silence nothing on its line
