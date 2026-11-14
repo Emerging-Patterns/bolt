@@ -70,7 +70,7 @@ unset group has its default. The groups:
 | `correctness` | `hole` `pick` `put` `arms` `escape` `setting`                          | error   |
 | `suspicious`  | `unused` `idle` `spare` `eager` `concat` `fromrev` `prefix` `empty` (`thunk`: opt-in) | warn |
 | `perf`        | `strings`                                                              | warn    |
-| `style`       | `doc` `space` `wrap` `reach` `arity` `length` `depth` `noqa` `blank` (`transcong`: opt-in) | warn |
+| `style`       | `doc` `space` `wrap` `reach` `arity` `length` `depth` `noqa` `blank` `negate` (`transcong`: opt-in) | warn |
 | `laws`        | (`coverage`, `closed`: opt-in)                                         | warn    |
 | `pedantic`    | `chars` `foreign` `strict` `fuel` `index` `rewalk` `tail`              | off     |
 
@@ -97,7 +97,7 @@ The stable codes, assigned once (do not renumber):
 | | | U017 | `prefix` | S010 | `length` |
 | | | U018 | `empty` | S011 | `depth` |
 | | | U019 | `idle` | | |
-| | | U020 | `spare` | | |
+| | | U020 | `spare` | S012 | `negate` |
 
 Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic,
 for the group a rule had when its code was assigned. A code names the rule,
@@ -595,6 +595,24 @@ statement.
   aliased `eq` are left alone too. A law file or a proof file is exempt,
   and so is a `law` and a def that is a proof (`def f(x):`, or one that
   returns `-> {..}`) in any file: a law states the test as it means it.
+- `negate` — a `U32` or `Nat` comparison negated: among the significant
+  tokens, a dotted `Bool.not`, `(`, a dotted `U32.is_eq`, `is_ne`, `is_lt`,
+  `is_le`, `is_gt` or `is_ge` (or the same six of `Nat`), `(`, any tokens
+  up to the `)` that closes that bracket, and `)` right after it. One
+  finding on `Bool.not`. Base has all six for both types, and each one
+  negated is another of the six with the same Bool for every pair of
+  arguments (laws/NegateReportsNegatedComparisons.bend proves it of each):
+  `Bool.not(U32.is_eq(a, b))` is `U32.is_ne(a, b)`,
+  `Bool.not(Nat.is_lt(a, b))` is `Nat.is_ge(a, b)`. The message names the
+  word. Left alone: a `Bool.not` whose argument goes on past the
+  comparison (`Bool.not(U32.is_eq(a, b) && c)`); `F32`, where
+  `Bool.not(F32.is_lt(a, b))` is not `F32.is_ge(a, b)` when either side is
+  NaN; `Char` and `Cmp`, which have no `is_ne` to suggest; a qualified or
+  aliased name; and the shape inside a string or a comment. A law file or
+  a proof file is exempt, and so is a `law` and a def that is a proof in
+  any file: a law states the test as it means it. Measured over 82 public
+  repos: 65 findings in 14 of them, 53 of them `U32.is_ne`; of 30 read by
+  hand, every one is the exact rewrite.
 - `put` — `Map.put`. It is Base's internal helper: at a leaf it keeps the old
   key and replaces the value without comparing, so a new key silently
   overwrites another entry. `Map.set` compares. A file that defines
@@ -786,7 +804,7 @@ keeps the style, not by whether every finding is a defect. What they cover, and 
 | find where things are | `space` `wrap`, and `bolt fmt` | mechanical: one layout, a bounded width |
 | learn what an item is for | `doc` | a comment; measured, they are real ones |
 | carry a name in their head | `reach` | a name, or a shorter def |
-| decode a roundabout spelling | `blank` (`transcong`: opt-in) | the plain word, the same value |
+| decode a roundabout spelling | `blank` `negate` (`transcong`: opt-in) | the plain word, the same value |
 | trust a suppression | `noqa` | delete the stale comment |
 | hold a whole def in their head | `arity` `length` `depth` | a type for what travels together; a helper |
 

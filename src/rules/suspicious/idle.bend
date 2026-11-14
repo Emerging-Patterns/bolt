@@ -149,7 +149,7 @@ def counts(p: Tree.Node, nm: String) -> Bool:
 # in the body, and never but in its own argument of a self-call?
 def idle(p: Tree.Node, +slot: Nat, sig: Tree.Node, +body: Tree.Node, +nm: String, +name: String) -> Bool:
   +once = Nat.is_eq(spelled(sig, nm), 1n)
-  +read = Bool.not(Nat.is_eq(spelled(body, nm), 0n))
+  +read = Nat.is_ne(spelled(body, nm), 0n)
   +kept = Bool.not(stray(body, AOut{}, slot, nm, name))
   Bool.and(counts(p, nm), Bool.and(once, Bool.and(read, kept)))
 

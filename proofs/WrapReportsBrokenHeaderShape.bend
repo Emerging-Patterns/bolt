@@ -606,18 +606,32 @@ def wrap.pick_found(t, _sp):
     case False{}:
       {==}
 
+# greater or equal is not less
+law wrap.ge:
+  for c: Cmp
+  {Cmp.is_ge(c) == Bool.not(Cmp.is_lt(c)) : Bool}
+
+def wrap.ge(c):
+  match c:
+    case LT{}:
+      {==}
+    case EQ{}:
+      {==}
+    case GT{}:
+      {==}
+
 # the rule's last-line test is the spec's
 law wrap.tight:
   for ps: List<&2, Wrap.Span>
   for +shut: U32
   {Wrap.check.tight(ps, shut) == Laws.wrap.tight(ps, shut) : Bool}
 
-def wrap.tight(ps, _shut):
+def wrap.tight(ps, shut):
   match ps:
     case Nil{}:
       {==}
     case Con{Wrap.Span{line, end, col}, rest}:
-      {==}
+      wrap.ge(U32.cmp(end, shut))
 
 # a `)` on the line given is found cramped exactly when the spec's test says so
 law wrap.tight_found:

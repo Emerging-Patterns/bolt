@@ -55,6 +55,7 @@ def table() -> List<&2, Entry>:
     Entry{"arity", "S009", "style"},
     Entry{"length", "S010", "style"},
     Entry{"depth", "S011", "style"},
+    Entry{"negate", "S012", "style"},
     Entry{"coverage", "L001", "laws"},
     Entry{"closed", "L002", "laws"},
     Entry{"chars", "C009", "pedantic"},

@@ -75,7 +75,9 @@ def Laws.run_slug_coded(n):
       {==}
     case 34n:
       {==}
-    case 35n+_:
+    case 35n:
+      {==}
+    case 36n+_:
       {==}
 
 def Laws.code_slug_run(n):
@@ -150,7 +152,9 @@ def Laws.code_slug_run(n):
       {==}
     case 34n:
       {==}
-    case 35n+_:
+    case 35n:
+      {==}
+    case 36n+_:
       {==}
 
 def Laws.project_rule_not_run(n):
