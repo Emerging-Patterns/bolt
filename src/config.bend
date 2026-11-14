@@ -283,10 +283,10 @@ def default(+group: String) -> Level:
 
 # a rule only its own setting turns on: a group setting, or the group's
 # default, would put new findings on projects that never asked for it
-# (`thunk`, `transcong`, and the laws' `coverage` and `closed`, which are a
-# project's policy rather than defects)
+# (`thunk`, `transcong`, `reach`, and the laws' `coverage` and `closed`,
+# which are a project's policy rather than defects)
 def opt_in(+rule: String) -> Bool:
-  List.contains(~String, ~String.eq, ["thunk", "transcong", "coverage", "closed"], rule)
+  List.contains(~String, ~String.eq, ["thunk", "transcong", "reach", "coverage", "closed"], rule)
 
 # the rule's own setting, else its group's, else the group's default; an
 # opt-in rule's own setting, else off

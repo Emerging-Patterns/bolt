@@ -92,7 +92,7 @@ import ./proofs/InertFromrev.bend as PInertFromrev
 import ./proofs/InertTranscong.bend as PInertTranscong
 import ./proofs/ImportReachIsClosed.bend as PImportReachIsClosed
 import ./proofs/LawNamesEveryItem.bend as PLawNamesEveryItem
-import ./proofs/ParamReportsShortNames.bend as PParamReportsShortNames
+import ./proofs/ReachReportsFarShortNames.bend as PReachReportsFarShortNames
 import ./proofs/PickReportsSelfCalls.bend as PPickReportsSelfCalls
 import ./proofs/PickReportsBoundSearches.bend as PPickReportsBoundSearches
 import ./proofs/PutReportsMapPutCalls.bend as PPutReportsMapPutCalls
@@ -111,8 +111,8 @@ import ./proofs/RoleIndex.bend as PRoleIndex
 import ./proofs/RoleLawFileNamed.bend as PRoleLawFileNamed
 import ./proofs/RoleLawsNamed.bend as PRoleLawsNamed
 import ./proofs/RoleNamedFirst.bend as PRoleNamedFirst
-import ./proofs/RoleParam.bend as PRoleParam
-import ./proofs/RoleParamExempt.bend as PRoleParamExempt
+import ./proofs/RoleReach.bend as PRoleReach
+import ./proofs/RoleReachExempt.bend as PRoleReachExempt
 import ./proofs/RolePick.bend as PRolePick
 import ./proofs/RoleProofNamed.bend as PRoleProofNamed
 import ./proofs/RoleReached.bend as PRoleReached

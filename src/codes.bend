@@ -7,7 +7,9 @@
 # pattern opening with one literal twice, on which the checker hung through
 # bend 2.0.28 and does not from 2.0.38, the oldest bend bolt runs on; U014
 # was `argv`, retired before its first release, since every reader already
-# drops the program;
+# drops the program; S004 was `param`, a two-character minimum on parameter
+# names, which writers met by doubling the letter: `reach` (S008) took its
+# place;
 # U008 `table`, U009 `hoist`, U010 `ring`, U012 `unit` and U013 `scan` were
 # retired for want of real hits, and L003 `unsafe` since bend 2.0.32 reports
 # an unsafe def a proof reaches itself). A code names the rule, not its
@@ -44,10 +46,10 @@ def table() -> List<&2, Entry>:
     Entry{"doc", "S001", "style"},
     Entry{"space", "S002", "style"},
     Entry{"wrap", "S003", "style"},
-    Entry{"param", "S004", "style"},
     Entry{"noqa", "S005", "style"},
     Entry{"transcong", "S006", "style"},
     Entry{"blank", "S007", "style"},
+    Entry{"reach", "S008", "style"},
     Entry{"coverage", "L001", "laws"},
     Entry{"closed", "L002", "laws"},
     Entry{"chars", "C009", "pedantic"},

@@ -1,7 +1,7 @@
 # proofs of laws/ScopeExemptionsFollowPaths.bend
 import Base
 import ../src/finding.bend as F
-import ../src/rules/style/param.bend as Param
+import ../src/rules/style/reach.bend as Reach
 import ../src/paths.bend as Paths
 import ../src/lazy/lazy.bend as Lazy
 import ../src/rules/correctness/hole.bend as Hole
@@ -47,11 +47,11 @@ def Laws.scope_doc(path, text, toks, tree, bound, items, text2, toks2, tree2, bo
     L1.doc_exempt(path, text, toks, tree, bound, items, e),
     L1.doc_exempt(path, text2, toks2, tree2, bound2, items2, e))
 
-def Laws.scope_param(path, text, toks, tree, bound, items, text2, toks2, tree2, bound2, items2, e):
-  scope.same(Param.check(Src.Src{path, text, toks, tree, bound, items}),
-    Param.check(Src.Src{path, text2, toks2, tree2, bound2, items2}),
-    L1.param_exempt(path, text, toks, tree, bound, items, e),
-    L1.param_exempt(path, text2, toks2, tree2, bound2, items2, e))
+def Laws.scope_reach(path, text, toks, tree, bound, items, text2, toks2, tree2, bound2, items2, e):
+  scope.same(Reach.check(Src.Src{path, text, toks, tree, bound, items}),
+    Reach.check(Src.Src{path, text2, toks2, tree2, bound2, items2}),
+    L1.reach_exempt(path, text, toks, tree, bound, items, e),
+    L1.reach_exempt(path, text2, toks2, tree2, bound2, items2, e))
 
 # two empty heads onto equal tails make equal lists
 law scope.con:

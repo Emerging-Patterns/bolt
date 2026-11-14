@@ -12,7 +12,7 @@ import ../src/syntax/lex.bend as Lex
 import ../src/finding.bend as F
 import ../src/rules/correctness/put.bend as Put
 import ../src/rules/correctness/hole.bend as Hole
-import ../src/rules/style/param.bend as Param
+import ../src/rules/style/reach.bend as Reach
 import ../src/syntax/bind.bend as Bind
 import ../src/src.bend as Src
 import ../src/syntax/tree.bend as Tree
@@ -193,13 +193,13 @@ law inert_doc:
   {Doc.check(Src.Src{path, text, toks, tree, bound, items})
     == Doc.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
 
-# a binder as param reads it: its note with each string literal cut
+# a binder as reach reads it: its note with each string literal cut
 def inert.bind(bb: Bind.Bind) -> Bind.Bind:
   match bb:
     case Bind.Bind{n, l, c, k, +note}:
       Bind.Bind{n, l, c, k, T.code(note)}
 
-# the binders, each as param reads it
+# the binders, each as reach reads it
 def inert.binds(bs: List<&2, Bind.Bind>) -> List<&2, Bind.Bind>:
   match bs:
     case Nil{}:
@@ -207,15 +207,27 @@ def inert.binds(bs: List<&2, Bind.Bind>) -> List<&2, Bind.Bind>:
     case Con{h, t}:
       inert.bind(h) <> inert.binds(t)
 
-# LAW: param reads a note with its string literals cut to their quote: two
+# LAW: reach reads a note with its string literals cut to their quote: two
 # binder lists alike in each binder's name, position, kind and note so read
-# have the same findings, what their strings say aside
-law inert_param:
+# have the same findings over the same uses and tokens, what their strings
+# say aside
+law inert_reach:
   for +b1: List<&2, Bind.Bind>
   for +b2: List<&2, Bind.Bind>
+  for +uses: List<&2, Bind.Use>
+  for +toks: List<&2, Lex.Tok>
   for +path: String
   for e: {inert.binds(b1) == inert.binds(b2) : List<&2, Bind.Bind>}
-  {Param.check.on(b1, path) == Param.check.on(b2, path) : List<&2, F.Finding>}
+  {Reach.check.on(b1, uses, toks, path) == Reach.check.on(b2, uses, toks, path) : List<&2, F.Finding>}
+
+# LAW: reach reads the defs that are proofs from what no comment or string
+# says: two sources whose tokens read the same with comments and strings cut
+# have the same proof lines
+law inert_reach_proofs:
+  for +toks: List<&2, Lex.Tok>
+  for +toks2: List<&2, Lex.Tok>
+  for e: {D1.inert.toks(toks) == D1.inert.toks(toks2) : List<&2, Lex.Tok>}
+  {Reach.proofs(T.sig(toks)) == Reach.proofs(T.sig(toks2)) : List<&2, U32>}
 
 # LAW: index reads what no string says: two sources as the lexer makes them
 # whose trees read the same with strings cut have the same findings

@@ -553,42 +553,42 @@ def symbols(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String) 
 def work(  # noqa: L001 LSP IO glue
   ~fs: F.Files,
   ~ck: C.Checker,
-  ee: Enc.Enc,
+  enc: Enc.Enc,
   mm: Method,
   +params: J.Json,
   +docs: List<&2, Docs.Doc>
 ) -> IO(Work):
   match mm:
     case MInitialize{}:
-      IO.pure(Work, answered(Proto.capabilities(ee), docs))
+      IO.pure(Work, answered(Proto.capabilities(enc), docs))
     case MShutdown{}:
       IO.pure(Work, answered(J.JNull{}, docs))
     case MExit{}:
       IO.pure(Work, noted([], docs))
     case MOpen{}:
-      pub.opened(~fs, ~ck, ee, uri_of(params),
+      pub.opened(~fs, ~ck, enc, uri_of(params),
         Maybe.default(&2, String, Ezjson.as_str(Ezjson.get(Ezjson.get(params, "textDocument"), "text")), ""), docs)
     case MChange{}:
-      pub.changed(~fs, ee, uri_of(params),
+      pub.changed(~fs, enc, uri_of(params),
         Maybe.default(&2, String, Ezjson.as_str(Ezjson.get(Ezjson.at(Ezjson.get(params, "contentChanges"), 0), "text")), ""), docs)
     case MSave{}:
-      pub.saved(~fs, ~ck, ee, uri_of(params), docs)
+      pub.saved(~fs, ~ck, enc, uri_of(params), docs)
     case MClose{}:
-      IO.pure(Work, pub.close(ee, uri_of(params), docs))
+      IO.pure(Work, pub.close(enc, uri_of(params), docs))
     case MHover{}:
-      hovered(~fs, ee, docs, uri_of(params), params)
+      hovered(~fs, enc, docs, uri_of(params), params)
     case MDefinition{}:
-      defined(~fs, ee, docs, uri_of(params), params)
+      defined(~fs, enc, docs, uri_of(params), params)
     case MSymbols{}:
-      symbols(~fs, ee, docs, uri_of(params))
+      symbols(~fs, enc, docs, uri_of(params))
     case MCompletion{}:
-      complete(~fs, ee, docs, uri_of(params), params)
+      complete(~fs, enc, docs, uri_of(params), params)
     case MReferences{}:
-      references(~fs, ee, docs, uri_of(params), params)
+      references(~fs, enc, docs, uri_of(params), params)
     case MRename{}:
-      renamed(~fs, ee, docs, uri_of(params), params)
+      renamed(~fs, enc, docs, uri_of(params), params)
     case MSemantic{}:
-      semantic(~fs, ee, docs, uri_of(params))
+      semantic(~fs, enc, docs, uri_of(params))
     case MOther{}:
       IO.pure(Work, noted([], docs))
 

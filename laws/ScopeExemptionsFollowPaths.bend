@@ -10,7 +10,7 @@ import Base
 import ../src/syntax/lex.bend as Lex
 import ../src/finding.bend as F
 import ../src/rules/correctness/hole.bend as Hole
-import ../src/rules/style/param.bend as Param
+import ../src/rules/style/reach.bend as Reach
 import ../src/syntax/bind.bend as Bind
 import ../src/paths.bend as Paths
 import ../src/rules/digest.bend as Digest
@@ -97,9 +97,9 @@ law scope_doc:
   {Doc.check(Src.Src{path, text, toks, tree, bound, items})
     == Doc.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
 
-# LAW: param's findings on a PROOF.bend are the same for any two sources at
+# LAW: reach's findings on a PROOF.bend are the same for any two sources at
 # that path
-law scope_param:
+law scope_reach:
   for +path: String
   for +text: String
   for +toks: List<&2, Lex.Tok>
@@ -112,8 +112,8 @@ law scope_param:
   for +bound2: Bind.Bound
   for +items2: List<&2, Outline.Item>
   for +e: {Paths.is_proof(path) == True{} : Bool}
-  {Param.check(Src.Src{path, text, toks, tree, bound, items})
-    == Param.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+  {Reach.check(Src.Src{path, text, toks, tree, bound, items})
+    == Reach.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
 
 # the findings of each rule a LAWS.bend or a PROOF.bend exempts, rule by rule
 def scope.law_file(+ss: Src.Src) -> List<&2, List<&2, F.Finding>>:

@@ -11,7 +11,7 @@ import Base
 import ../src/syntax/lex.bend as Lex
 import ../src/finding.bend as F
 import ../src/rules/correctness/hole.bend as Hole
-import ../src/rules/style/param.bend as Param
+import ../src/rules/style/reach.bend as Reach
 import ../src/syntax/bind.bend as Bind
 import ../src/paths.bend as Paths
 import ../src/src.bend as Src
@@ -56,8 +56,8 @@ law doc_exempt:
   for e: {Bool.or(Paths.is_proof(path), Paths.is_test(path)) == True{} : Bool}
   {Doc.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
 
-# LAW: param reports nothing in a PROOF.bend, whose parameters are the law's, whatever the source holds
-law param_exempt:
+# LAW: reach reports nothing in a PROOF.bend, whose names are the law's, whatever the source holds
+law reach_exempt:
   for +path: String
   for text: String
   for toks: List<&2, Lex.Tok>
@@ -65,7 +65,7 @@ law param_exempt:
   for bound: Bind.Bound
   for items: List<&2, Outline.Item>
   for e: {Paths.is_proof(path) == True{} : Bool}
-  {Param.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+  {Reach.check(Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
 
 # LAW: pick reports nothing in a LAWS.bend or a PROOF.bend, which never run, whatever the source holds
 law pick_exempt:

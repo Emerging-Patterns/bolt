@@ -35,6 +35,10 @@ def tail() -> String:
 def coverage() -> String:
   "warn"
 
+# a one-character name read far below its binder (opt-in)
+def reach() -> String:
+  "error"
+
 # a law with no binder (opt-in)
 def closed() -> String:
   "error"

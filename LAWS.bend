@@ -107,7 +107,7 @@ import ./laws/InertFromrev.bend as InertFromrev
 import ./laws/InertTranscong.bend as InertTranscong
 import ./laws/ImportReachIsClosed.bend as ImportReachIsClosed
 import ./laws/LawNamesEveryItem.bend as LawNamesEveryItem
-import ./laws/ParamReportsShortNames.bend as ParamReportsShortNames
+import ./laws/ReachReportsFarShortNames.bend as ReachReportsFarShortNames
 import ./laws/PickReportsSelfCalls.bend as PickReportsSelfCalls
 import ./laws/PickReportsBoundSearches.bend as PickReportsBoundSearches
 import ./laws/PutReportsMapPutCalls.bend as PutReportsMapPutCalls
@@ -126,8 +126,8 @@ import ./laws/RoleIndex.bend as RoleIndex
 import ./laws/RoleLawFileNamed.bend as RoleLawFileNamed
 import ./laws/RoleLawsNamed.bend as RoleLawsNamed
 import ./laws/RoleNamedFirst.bend as RoleNamedFirst
-import ./laws/RoleParam.bend as RoleParam
-import ./laws/RoleParamExempt.bend as RoleParamExempt
+import ./laws/RoleReach.bend as RoleReach
+import ./laws/RoleReachExempt.bend as RoleReachExempt
 import ./laws/RolePick.bend as RolePick
 import ./laws/RoleProofNamed.bend as RoleProofNamed
 import ./laws/RoleReached.bend as RoleReached

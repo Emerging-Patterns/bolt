@@ -26,7 +26,7 @@
 # indented deeper, outside brackets, is a child statement in bolt's tree,
 # where bend reads one expression; on a continued `++`, `<>` or boolean or, a
 # let value, a lambda body and a call argument, `tail`, `strict`, `concat`,
-# `unused` and `param` report what they report on one line, and `wrap` reports
+# `unused` and `reach` report what they report on one line, and `wrap` reports
 # a header whose `-> T:` sits on the next line.
 import Base
 import ../rchars.bend as Rchars
