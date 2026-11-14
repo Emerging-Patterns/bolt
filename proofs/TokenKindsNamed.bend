@@ -10,7 +10,6 @@ import ../src/rules/suspicious/concat.bend as Concat
 import ../src/rules/suspicious/eager.bend as Eager
 import ../src/rules/suspicious/empty.bend as Empty
 import ../src/rules/suspicious/prefix.bend as Prefix
-import ../src/rules/suspicious/unused.bend as Unused
 import ../src/syntax/bind.bend as Bind
 import ../src/syntax/outline.bend as Outline
 import ../laws/TokenKindsNamed.bend as Laws
@@ -862,53 +861,6 @@ def Laws.empty_plain_kinds(kk):
       {==}
 
 def Laws.prefix_dotted_kinds(kk):
-  match kk:
-    case Lex.TName{}:
-      {==}
-    case Lex.TUpper{}:
-      {==}
-    case Lex.TDotted{}:
-      {==}
-    case Lex.TWild{}:
-      {==}
-    case Lex.TKey{}:
-      {==}
-    case Lex.TNum{}:
-      {==}
-    case Lex.TStr{}:
-      {==}
-    case Lex.TChar{}:
-      {==}
-    case Lex.TComment{}:
-      {==}
-    case Lex.TSpace{}:
-      {==}
-    case Lex.TNewline{}:
-      {==}
-    case Lex.TOp{}:
-      {==}
-    case Lex.TColon{}:
-      {==}
-    case Lex.TEq{}:
-      {==}
-    case Lex.TBind{}:
-      {==}
-    case Lex.TArrow{}:
-      {==}
-    case Lex.TLam{}:
-      {==}
-    case Lex.TAll{}:
-      {==}
-    case Lex.TAmp{}:
-      {==}
-    case Lex.TOpen{}:
-      {==}
-    case Lex.TClose{}:
-      {==}
-    case Lex.TComma{}:
-      {==}
-
-def Laws.unused_colon_kind_kinds(kk):
   match kk:
     case Lex.TName{}:
       {==}

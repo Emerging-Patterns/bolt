@@ -15,7 +15,6 @@ import ../src/rules/style/space.bend as Space
 import ../src/rules/style/wrap.bend as Wrap
 import ../src/rules/suspicious/concat.bend as Concat
 import ../src/rules/suspicious/empty.bend as Empty
-import ../src/rules/suspicious/unused.bend as Unused
 import ../laws/RulesReadTokensAndChains.bend as Laws
 import ../laws/defs/Chains.bend as D2
 import ./lemmas/BoolEmptiness.bend as M1
@@ -391,63 +390,6 @@ def Laws.concat_plus_needs_a_chain(pp, e):
     case Tree.NNil{}:
       {==}
     case Tree.Leaf{_tok}:
-      {==}
-    case Tree.Group{_o, _g, _cl}:
-      {==}
-    case Tree.Stmt{_kd, _ks, _b}:
-      {==}
-
-def Laws.unused_colon_is_colon_leaf(nn):
-  match nn:
-    case Tree.Leaf{Lex.Tok{k, _t, _l, _c}}:
-      match k:
-        case Lex.TName{}:
-          {==}
-        case Lex.TUpper{}:
-          {==}
-        case Lex.TDotted{}:
-          {==}
-        case Lex.TWild{}:
-          {==}
-        case Lex.TKey{}:
-          {==}
-        case Lex.TNum{}:
-          {==}
-        case Lex.TStr{}:
-          {==}
-        case Lex.TChar{}:
-          {==}
-        case Lex.TComment{}:
-          {==}
-        case Lex.TSpace{}:
-          {==}
-        case Lex.TNewline{}:
-          {==}
-        case Lex.TOp{}:
-          {==}
-        case Lex.TColon{}:
-          {==}
-        case Lex.TEq{}:
-          {==}
-        case Lex.TBind{}:
-          {==}
-        case Lex.TArrow{}:
-          {==}
-        case Lex.TLam{}:
-          {==}
-        case Lex.TAll{}:
-          {==}
-        case Lex.TAmp{}:
-          {==}
-        case Lex.TOpen{}:
-          {==}
-        case Lex.TClose{}:
-          {==}
-        case Lex.TComma{}:
-          {==}
-    case Tree.NNil{}:
-      {==}
-    case Tree.NCons{_a, _b}:
       {==}
     case Tree.Group{_o, _g, _cl}:
       {==}

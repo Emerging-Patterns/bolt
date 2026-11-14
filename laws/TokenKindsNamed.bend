@@ -17,7 +17,6 @@ import ../src/rules/suspicious/concat.bend as Concat
 import ../src/rules/suspicious/eager.bend as Eager
 import ../src/rules/suspicious/empty.bend as Empty
 import ../src/rules/suspicious/prefix.bend as Prefix
-import ../src/rules/suspicious/unused.bend as Unused
 import ../src/syntax/bind.bend as Bind
 import ../src/syntax/outline.bend as Outline
 
@@ -115,11 +114,6 @@ law empty_plain_kinds:
 law prefix_dotted_kinds:
   for kk: Lex.TokKind
   {Prefix.dotted(kk) == D1.kinds.among(kk, [Lex.TDotted{}]) : Bool}
-
-# LAW: Unused.colon.kind holds for exactly a `:`
-law unused_colon_kind_kinds:
-  for kk: Lex.TokKind
-  {Unused.colon.kind(kk) == D1.kinds.among(kk, [Lex.TColon{}]) : Bool}
 
 # LAW: Bind.declared.is_key holds for exactly a keyword
 law bind_declared_is_key_kinds:

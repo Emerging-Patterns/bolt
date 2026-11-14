@@ -21,7 +21,6 @@ import ../src/rules/style/space.bend as Space
 import ../src/rules/style/wrap.bend as Wrap
 import ../src/rules/suspicious/concat.bend as Concat
 import ../src/rules/suspicious/empty.bend as Empty
-import ../src/rules/suspicious/unused.bend as Unused
 import ./defs/TokenKinds.bend as D1
 import ./defs/Chains.bend as D2
 
@@ -337,12 +336,6 @@ law concat_plus_needs_a_chain:
   for pp: Tree.Node
   for e: {D2.chains.is_cons(pp) == False{} : Bool}
   {Concat.plus(pp) == False{} : Bool}
-
-# unused: a `:` leaf
-# LAW: a node is a `:` leaf exactly when it is a leaf of that kind
-law unused_colon_is_colon_leaf:
-  for nn: Tree.Node
-  {Unused.colon(nn) == D2.chains.node_of(nn, [Lex.TColon{}]) : Bool}
 
 # table: what a fixed table looks like
 # LAW: a top-level token is not looked for inside a group

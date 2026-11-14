@@ -6533,56 +6533,21 @@ def inert.fuel.arrow(h):
     case Tree.NNil{}: {==}
     case Tree.NCons{x, y}: {==}
 
-# the first line under a def, read that way, is that line read that way
-law inert.fuel.under:
-  for body: Tree.Node
-  {FuelRule.under(D1.inert.node(body)) == D1.inert.node(FuelRule.under(body)) : Tree.Node}
-
-def inert.fuel.under(body):
-  match body:
-    case Tree.NCons{h, r}:
-      match h:
-        case Tree.Stmt{k, kids, inner}: {==}
-        case Tree.Leaf{tok}: {==}
-        case Tree.Group{o, gk, cl}: {==}
-        case Tree.NNil{}: {==}
-        case Tree.NCons{x, y}: {==}
-    case Tree.Leaf{tok}: {==}
-    case Tree.Group{o, gk, cl}: {==}
-    case Tree.Stmt{sk, sks, sb}: {==}
-    case Tree.NNil{}: {==}
-
-# what follows an arrow, read that way, is `IO` when it was
-law inert.fuel.next:
-  for rest: Tree.Node
-  for +below: Tree.Node
-  {FuelRule.effect.next(D1.inert.node(rest), D1.inert.node(below)) == FuelRule.effect.next(rest, below) : Bool}
-
-def inert.fuel.next(rest, below):
-  match rest:
-    case Tree.NCons{h, t}: inert.fuel.io(Tree.NCons{h, t})
-    case Tree.Leaf{tok}: inert.fuel.io(below)
-    case Tree.Group{o, gk, cl}: inert.fuel.io(below)
-    case Tree.Stmt{sk, sks, sb}: inert.fuel.io(below)
-    case Tree.NNil{}: inert.fuel.io(below)
-
 # a header read that way returns an effect when it did
 law inert.fuel.effect:
   for sig: Tree.Node
-  for +below: Tree.Node
-  {FuelRule.effect(D1.inert.node(sig), D1.inert.node(below)) == FuelRule.effect(sig, below) : Bool}
+  {FuelRule.effect(D1.inert.node(sig)) == FuelRule.effect(sig) : Bool}
 
-def inert.fuel.effect(sig, below):
+def inert.fuel.effect(sig):
   match sig:
     case Tree.NCons{+h, +rest}:
-      +lhs = FuelRule.effect(D1.inert.node(Tree.NCons{h, rest}), D1.inert.node(below))
+      +lhs = FuelRule.effect(D1.inert.node(Tree.NCons{h, rest}))
       +ir = D1.inert.node(rest)
-      +ib = D1.inert.node(below)
-      %inert.fuel.effect(rest, below) : {lhs == Bool.or(Bool.and(Calls.kind.leaf(~Calls.kind.arrow, h),
-        FuelRule.effect.next(rest, below)), _) : Bool}
-      %inert.fuel.next(rest, below) : {lhs == Bool.or(Bool.and(Calls.kind.leaf(~Calls.kind.arrow, h), _),
-        FuelRule.effect(ir, ib)) : Bool}
-      %inert.fuel.arrow(h) : {lhs == Bool.or(Bool.and(_, FuelRule.effect.next(ir, ib)), FuelRule.effect(ir, ib))
+      %inert.fuel.effect(rest) : {lhs == Bool.or(Bool.and(Calls.kind.leaf(~Calls.kind.arrow, h),
+        FuelRule.effect.io(rest)), _) : Bool}
+      %inert.fuel.io(rest) : {lhs == Bool.or(Bool.and(Calls.kind.leaf(~Calls.kind.arrow, h), _),
+        FuelRule.effect(ir)) : Bool}
+      %inert.fuel.arrow(h) : {lhs == Bool.or(Bool.and(_, FuelRule.effect.io(ir)), FuelRule.effect(ir))
         : Bool}
       {==}
     case Tree.Leaf{tok}: {==}
@@ -6615,20 +6580,16 @@ def inert.fuel.fuels(ds):
     case Con{Calls.Def{+name, +sig, +body}, +rest}:
       +lhs = FuelRule.fuels(inert.defs(Con{Calls.Def{name, sig, body}, rest}))
       +isig = D1.inert.node(sig)
-      +iu = FuelRule.under(D1.inert.node(body))
       +ps = Calls.params(sig)
       +more = FuelRule.fuels(inert.defs(rest))
-      %inert.fuel.fuels(rest) : {lhs == List.append(&2, FuelRule.Fuel, FuelRule.fuels.params(FuelRule.slots(sig, body),
+      %inert.fuel.fuels(rest) : {lhs == List.append(&2, FuelRule.Fuel, FuelRule.fuels.params(FuelRule.slots(sig),
         name, 0n), _) : List<&2, FuelRule.Fuel>}
-      %inert.fuel.effect(sig, FuelRule.under(body)) : {lhs == List.append(&2, FuelRule.Fuel,
+      %inert.fuel.effect(sig) : {lhs == List.append(&2, FuelRule.Fuel,
         FuelRule.fuels.params(Bool.pick(List<&2, Tree.Node>, _, [], ps), name, 0n), more) : List<&2, FuelRule.Fuel>}
-      %inert.fuel.under(body) : {lhs == List.append(&2, FuelRule.Fuel,
-        FuelRule.fuels.params(Bool.pick(List<&2, Tree.Node>, FuelRule.effect(isig, _), [], ps), name, 0n), more)
-        : List<&2, FuelRule.Fuel>}
-      %inert.fuel.pick(FuelRule.effect(isig, iu), ps, name) : {lhs == List.append(&2, FuelRule.Fuel, _, more)
+      %inert.fuel.pick(FuelRule.effect(isig), ps, name) : {lhs == List.append(&2, FuelRule.Fuel, _, more)
         : List<&2, FuelRule.Fuel>}
       %inert.params(sig) : {lhs == List.append(&2, FuelRule.Fuel, FuelRule.fuels.params(Bool.pick(List<&2, Tree.Node>,
-        FuelRule.effect(isig, iu), [], _), name, 0n), more) : List<&2, FuelRule.Fuel>}
+        FuelRule.effect(isig), [], _), name, 0n), more) : List<&2, FuelRule.Fuel>}
       {==}
 
 # a `U32.to_nat(..)` group read that way fixes the fuel it fixed
@@ -7514,63 +7475,16 @@ def inert.unused.lines(kids, acc):
         Unused.lines(inert.canons(List.reverse.go(&2, Lex.Tok, lo, [])), acc),
         inert.canon_lines(List.reverse.go(&2, Lex.Tok, lo, []), acc))))
 
-# a node's `:` test, the node read that way, is the one it was
-law inert.unused.colon:
-  for nn: Tree.Node
-  {Unused.colon(D1.inert.node(nn)) == Unused.colon(nn) : Bool}
-
-def inert.unused.colon(nn):
-  match nn:
-    case Tree.Leaf{tok}:
-      match tok:
-        case Lex.Tok{k, t, l, c}: {==}
-    case Tree.Group{x, y, z}: {==}
-    case Tree.Stmt{x, y, z}: {==}
-    case Tree.NNil{}: {==}
-    case Tree.NCons{x, y}: {==}
-
-# a statement's `:` ending, its chain read that way, is the one it was
-law inert.unused.ends:
-  for kids: Tree.Node
-  for last: Bool
-  {Unused.foreign.ends(D1.inert.node(kids), last) == Unused.foreign.ends(kids, last) : Bool}
-
-def inert.unused.ends(kids, _last):
-  match kids:
-    case Tree.NCons{+h, +t}:
-      Equal.trans(Bool, Unused.foreign.ends(D1.inert.node(t), Unused.colon(D1.inert.node(h))),
-        Unused.foreign.ends(D1.inert.node(t), Unused.colon(h)), Unused.foreign.ends(t, Unused.colon(h)),
-        Equal.cong(Bool, Bool, z => Unused.foreign.ends(D1.inert.node(t), z), Unused.colon(D1.inert.node(h)),
-          Unused.colon(h), inert.unused.colon(h)),
-        inert.unused.ends(t, Unused.colon(h)))
-    case Tree.Leaf{x}: {==}
-    case Tree.Group{x, y, z}: {==}
-    case Tree.Stmt{x, y, z}: {==}
-    case Tree.NNil{}: {==}
-
 # a body's opening import, the body read that way, is the one it was
 law inert.unused.opens:
   for body: Tree.Node
-  for open: Bool
-  {Unused.foreign.opens(D1.inert.node(body), open) == Unused.foreign.opens(body, open) : Bool}
+  {Unused.foreign.opens(D1.inert.node(body)) == Unused.foreign.opens(body) : Bool}
 
-def inert.unused.opens(body, open):
+def inert.unused.opens(body):
   match body:
-    case Tree.NCons{h, +rest}:
+    case Tree.NCons{h, rest}:
       match h:
-        case Tree.Stmt{sk, +kids, b}:
-          match open:
-            case True{}:
-              Equal.trans(Bool,
-                Unused.foreign.opens(D1.inert.node(rest),
-                  Bool.not(Unused.foreign.ends(D1.inert.node(kids), False{}))),
-                Unused.foreign.opens(D1.inert.node(rest), Bool.not(Unused.foreign.ends(kids, False{}))),
-                Unused.foreign.opens(rest, Bool.not(Unused.foreign.ends(kids, False{}))),
-                Equal.cong(Bool, Bool, z => Unused.foreign.opens(D1.inert.node(rest), Bool.not(z)),
-                  Unused.foreign.ends(D1.inert.node(kids), False{}), Unused.foreign.ends(kids, False{}),
-                  inert.unused.ends(kids, False{})),
-                inert.unused.opens(rest, Bool.not(Unused.foreign.ends(kids, False{}))))
-            case False{}: {==}
+        case Tree.Stmt{sk, kids, b}: {==}
         case Tree.Leaf{x}: {==}
         case Tree.Group{x, y, z}: {==}
         case Tree.NNil{}: {==}
@@ -7588,10 +7502,10 @@ law inert.unused.def:
   for +rest: Tree.Node
   for +ih: {Unused.foreign(D1.inert.node(rest)) == Unused.foreign(rest) : List<&2, U32>}
   {Bool.pick(List<&2, U32>,
-    Unused.foreign.opens(D1.inert.node(body), Bool.not(Unused.foreign.ends(D1.inert.node(kids), False{}))),
+    Unused.foreign.opens(Calls.under(D1.inert.node(kids), D1.inert.node(body))),
     Unused.lines(Tree.leaves(D1.inert.node(kids)), Unused.foreign(D1.inert.node(rest))),
     Unused.foreign(D1.inert.node(rest)))
-    == Bool.pick(List<&2, U32>, Unused.foreign.opens(body, Bool.not(Unused.foreign.ends(kids, False{}))),
+    == Bool.pick(List<&2, U32>, Unused.foreign.opens(Calls.under(kids, body)),
       Unused.lines(Tree.leaves(kids), Unused.foreign(rest)), Unused.foreign(rest)) : List<&2, U32>}
 
 def inert.unused.def(kids, body, rest, ih):
@@ -7599,14 +7513,12 @@ def inert.unused.def(kids, body, rest, ih):
   +fo = Unused.foreign(rest)
   +ra = Unused.lines(Tree.leaves(D1.inert.node(kids)), fi)
   +rb = Unused.lines(Tree.leaves(kids), fo)
-  +c1 = Unused.foreign.opens(D1.inert.node(body), Bool.not(Unused.foreign.ends(D1.inert.node(kids), False{})))
-  +c2 = Unused.foreign.opens(body, Bool.not(Unused.foreign.ends(kids, False{})))
-  +ec = Equal.trans(Bool, c1,
-    Unused.foreign.opens(D1.inert.node(body), Bool.not(Unused.foreign.ends(kids, False{}))), c2,
-    Equal.cong(Bool, Bool, z => Unused.foreign.opens(D1.inert.node(body), Bool.not(z)),
-      Unused.foreign.ends(D1.inert.node(kids), False{}), Unused.foreign.ends(kids, False{}),
-      inert.unused.ends(kids, False{})),
-    inert.unused.opens(body, Bool.not(Unused.foreign.ends(kids, False{}))))
+  +c1 = Unused.foreign.opens(Calls.under(D1.inert.node(kids), D1.inert.node(body)))
+  +c2 = Unused.foreign.opens(Calls.under(kids, body))
+  +ec = Equal.trans(Bool, c1, Unused.foreign.opens(D1.inert.node(Calls.under(kids, body))), c2,
+    Equal.cong(Tree.Node, Bool, z => Unused.foreign.opens(z), Calls.under(D1.inert.node(kids), D1.inert.node(body)),
+      D1.inert.node(Calls.under(kids, body)), inert.under(kids, body)),
+    inert.unused.opens(Calls.under(kids, body)))
   +ea = Equal.trans(List<&2, U32>, ra, Unused.lines(Tree.leaves(kids), fi), rb, inert.unused.lines(kids, fi),
     Equal.cong(List<&2, U32>, List<&2, U32>, z => Unused.lines(Tree.leaves(kids), z), fi, fo, ih))
   Equal.trans(List<&2, U32>, Bool.pick(List<&2, U32>, c1, ra, fi), Bool.pick(List<&2, U32>, c2, ra, fi),
