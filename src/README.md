@@ -224,7 +224,11 @@ statement.
   write `a[i] <- v` reads a (and every name in it) and keeps a's name, so it
   binds nothing either, and nor do writes chained in one term,
   `(a[i] <- v)[j] <- w`. A named rewrite `%h@e : P` reads e as the proof it
-  is, never as the `@e:` of a dependent arrow. Exempt: pattern binders
+  is, never as the `@e:` of a dependent arrow. A let whose value is on the
+  lines under it (its own line ends in `=` or `<-`) reads them with the
+  names outside the let, so `st =` then `step(st)` uses the old st; under a
+  let that ends in `=>` they are the lambda's body and use its parameters.
+  Exempt: pattern binders
   (naming every field of `Tok{k, t, l, c}` reads better than `_`), names
   starting with `_`, erased parameters (`-x`),
   a law's `for` names, and every parameter of a foreign def, one whose body's

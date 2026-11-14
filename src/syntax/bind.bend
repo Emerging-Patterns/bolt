@@ -8,7 +8,10 @@
 #     under them;
 #   - a let (`x = v`, `+x = v`, `x : T = v`, `x : T <- m`, `a b = f g`,
 #     `(a, K{b}) = p`) for the lines after it in its block -- the right side
-#     sees the outer names, so `st = step(st)` reads the old st;
+#     sees the outer names, so `st = step(st)` reads the old st, on one line
+#     or with the value on the lines under a let that ends in `=` or `<-`;
+#     under a let that ends in `=>` they are the lambda's body and see its
+#     parameters too;
 #   - `x => e`, `@x: A -> B` and `&x: A -> B`, for the rest of their sequence.
 # A named rewrite `%h@e : P` binds nothing: h and the `@` are stepped over,
 # so e is read as the term it is and not as the `@e:` of an arrow.
@@ -911,6 +914,78 @@ def plan.snext(mode: Mode) -> Mode:
     case other:
       plan.skip(other)
 
+# what the lines under a statement are to it. Bend's blocks are layout-free,
+# and the tree puts every deeper line under the line above it, so under a
+# let they are one of three things, told by the let's last token: its value
+# (the let's own line ends in `=` or `<-`), the body of the lambda that is
+# its value (it ends in `=>`), or simply the next statements
+type Under is Data:
+  UNext{}
+  UValue{}
+  ULambda{}
+
+# the kind of a chain's last node when it is a leaf; a space's for a chain
+# that ends in a group or holds nothing
+def plan.last(kids: Tree.Node) -> Lex.TokKind:
+  match kids:
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, _t, _l, _c}}, Tree.NNil{}}:
+      k
+    case Tree.NCons{_h, Tree.NNil{}}:
+      Lex.TSpace{}
+    case Tree.NCons{_h, rest}:
+      plan.last(rest)
+    case _other:
+      Lex.TSpace{}
+
+# what a let's last token says of the lines under it
+def plan.wraps.by(kk: Lex.TokKind) -> Under:
+  match kk:
+    case Lex.TEq{}:
+      UValue{}
+    case Lex.TBind{}:
+      UValue{}
+    case Lex.TLam{}:
+      ULambda{}
+    case _other:
+      UNext{}
+
+# what the lines under a let are to it: with none under it, nothing is asked
+def plan.wraps.let(kids: Tree.Node, body: Tree.Node) -> Under:
+  match body:
+    case Tree.NCons{_h, _t}:
+      plan.wraps.by(plan.last(kids))
+    case _other:
+      UNext{}
+
+# what the lines under a statement are to it: only a let in a block has a
+# value or a lambda's body there
+def plan.wraps(mode: Mode, sk: Tree.StmtKind, kids: Tree.Node, body: Tree.Node) -> Under:
+  match mode sk:
+    case MBlock{} Tree.SLet{}:
+      plan.wraps.let(kids, body)
+    case _other _sk:
+      UNext{}
+
+# the environment the lines under a statement are read with. The next
+# statements see what the header left (a let's names included). A let's
+# value sees the names outside the let, as its right side does on one line
+# (`st =` then `step(st)` reads the old st). A lambda's body sees those and
+# the lambda's parameters: what the let's own line leaves when it is read as
+# a term (inner)
+def plan.under(
+  uu: Under,
+  outer: List<&2, Bind>,
+  after: List<&2, Bind>,
+  inner: Unit -> List<&2, Bind>
+) -> List<&2, Bind>:
+  match uu:
+    case UNext{}:
+      after
+    case UValue{}:
+      outer
+    case ULambda{}:
+      inner(Unit{})
+
 # the walk: one node in one mode, against an environment. It takes the node
 # apart as far as its head, and the plan above says what the head does in
 # this mode. Every recursive call is on a subtree (kids, body, gkids or
@@ -930,10 +1005,12 @@ def walk(nn: Tree.Node, +mode: Mode, +env: List<&2, Bind>, +ns: Names, out: Out)
         case Tree.Group{Lex.Tok{_gk, gt, _gl, _gc}, gkids, _close}:
           +g = walk(gkids, plan.ginner(mode, gt), env, ns, out)
           walk(rest, plan.gnext(mode), Bool.pick(List<&2, Bind>, plan.gkeeps(mode), env_of(g), env), ns, out_of(g))
-        case Tree.Stmt{+sk, +kids, body}:
+        case Tree.Stmt{+sk, +kids, +body}:
           +h = walk(kids, plan.kmode(mode, sk, env), env, ns,
             plan.marked(plan.mark_head(mode, sk), Tree.line(kids), env, out))
-          +b = walk(body, plan.bmode(mode, sk), env_of(h), ns,
+          +under = plan.under(plan.wraps(mode, sk, kids, body), env, env_of(h),
+            _u => env_of(walk(kids, MTerm{}, env, ns, Out{[], [], []})))
+          +b = walk(body, plan.bmode(mode, sk), under, ns,
             plan.marked(plan.mark_body(mode, sk), Tree.line(kids), env_of(h), out_of(h)))
           walk(rest, plan.snext(mode), Bool.pick(List<&2, Bind>, plan.scoped(mode, sk), env, env_of(h)), ns, out_of(b))
         case _other:

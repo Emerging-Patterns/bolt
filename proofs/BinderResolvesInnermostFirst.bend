@@ -444,10 +444,12 @@ def Laws.extends(nn, mode, env, ns, out):
                 rs.kept(Bind.plan.gkeeps(mode), Bind.env_of(g), env)(
                   Laws.extends(gkids, Bind.plan.ginner(mode, gt), env, ns, out)),
                 Laws.extends(rest, Bind.plan.gnext(mode), e2, ns, Bind.out_of(g)))
-        case Tree.Stmt{+sk, +kids, body}:
+        case Tree.Stmt{+sk, +kids, +body}:
           +o1 = Bind.plan.marked(Bind.plan.mark_head(mode, sk), Tree.line(kids), env, out)
           +h = Bind.walk(kids, Bind.plan.kmode(mode, sk, env), env, ns, o1)
-          +b = Bind.walk(body, Bind.plan.bmode(mode, sk), Bind.env_of(h), ns,
+          +under = Bind.plan.under(Bind.plan.wraps(mode, sk, kids, body), env, Bind.env_of(h),
+            _u => Bind.env_of(Bind.walk(kids, Bind.MTerm{}, env, ns, Bind.Out{[], [], []})))
+          +b = Bind.walk(body, Bind.plan.bmode(mode, sk), under, ns,
             Bind.plan.marked(Bind.plan.mark_body(mode, sk), Tree.line(kids), Bind.env_of(h), Bind.out_of(h)))
           +e3 = Bool.pick(List<&2, Bind.Bind>, Bind.plan.scoped(mode, sk), env, Bind.env_of(h))
           rs.chain(env, e3, Bind.env_of(Bind.walk(rest, Bind.plan.snext(mode), e3, ns, Bind.out_of(b))),
@@ -540,8 +542,10 @@ def Laws.lets(kk, kids, body, rest, env, ns, out, e):
     case Tree.SLet{}:
       +o1 = Bind.mark(Tree.line(kids), env, out)
       +h = Bind.walk(kids, Bind.MLhs{env, Bind.KLocal{}}, env, ns, o1)
+      +under = Bind.plan.under(Bind.plan.wraps(Bind.MBlock{}, Tree.SLet{}, kids, body), env, Bind.env_of(h),
+        _u => Bind.env_of(Bind.walk(kids, Bind.MTerm{}, env, ns, Bind.Out{[], [], []})))
       rs.lets.arm(rest, env, ns, Bind.env_of(h),
-        Bind.out_of(Bind.walk(body, Bind.MBlock{}, Bind.env_of(h), ns, Bind.out_of(h))),
+        Bind.out_of(Bind.walk(body, Bind.MBlock{}, under, ns, Bind.out_of(h))),
         Laws.extends(kids, Bind.MLhs{env, Bind.KLocal{}}, env, ns, o1))
     case Tree.SDef{}:
       Empty.absurd(rs.lets.ty(Tree.SDef{}, kids, body, rest, env, ns, out), M1.true_false(e))
