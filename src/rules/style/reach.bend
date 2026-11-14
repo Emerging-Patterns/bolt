@@ -18,10 +18,12 @@
 # the binder stays in sight. The 20: in public Bend 2 code a one-character
 # name is read a median of 1 line below its binder, and 99 in 100 within 19
 # (parameters; lets within 12, patterns within 9).
-# Opt-in: a letter that is a convention (`x` and `y` of a position, the `a`
-# to `h` of a hash round) reads no worse far away, and no token tells it
-# from one that is a shrug; of 30 findings on public code read by hand,
-# about 6 in 10 were names a word plainly helps.
+# A letter that is a convention (`x` and `y` of a position, the `a` to `h`
+# of a hash round) reads no worse far away, and no token tells it from one
+# that is a shrug: of 30 findings on public code read by hand, about 6 in
+# 10 were names a word plainly helps. The rule is on with `style` all the
+# same, as part of a house style; a `# noqa: S008` keeps a letter that is
+# the word.
 # This rule replaced `param` (S004), a two-character minimum on parameter
 # names: under it `n` became `nn` one for one (30% of public parameters are
 # one letter and 0.2% a doubled one; in trees linted by it, 1% and 22 to

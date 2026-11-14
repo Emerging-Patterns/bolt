@@ -53,7 +53,7 @@ unset group has its default. The groups:
 | `correctness` | `hole` `pick` `put` `arms` `escape` `setting`                          | error   |
 | `suspicious`  | `unused` `eager` `concat` `fromrev` `prefix` `empty` (`thunk`: opt-in) | warn    |
 | `perf`        | `strings`                                                              | warn    |
-| `style`       | `doc` `space` `wrap` `noqa` `blank` (`transcong`, `reach`: opt-in)     | warn    |
+| `style`       | `doc` `space` `wrap` `reach` `noqa` `blank` (`transcong`: opt-in)      | warn    |
 | `laws`        | (`coverage`, `closed`: opt-in)                                         | warn    |
 | `pedantic`    | `chars` `foreign` `strict` `fuel` `index` `rewalk` `tail`              | off     |
 
@@ -111,9 +111,8 @@ the rule was met by writing the letter twice (see "Style" below), and
 `reach` (S008) took its place. None of these codes is reused. A bolt.bend that
 still sets one of them gets a `setting` finding (C011); delete the def.
 
-`thunk`, `transcong` and `reach` are opt-in: they are in their groups, but
-no group setting reaches them; only `def thunk()`, `def transcong()` or
-`def reach()` turns each on.
+`thunk` and `transcong` are opt-in: they are in their groups, but no group
+setting reaches them; only `def thunk()` or `def transcong()` turns each on.
 So are `coverage` and `closed`: what every def must be named by a law, and
 whether a law with no binder is allowed, are a project's policy, not a
 defect, so a project that keeps laws turns them on by name (`def
@@ -260,7 +259,7 @@ statement.
   return type, so `):` ends it), or a parameter list across lines with no
   parameter in it (`def none(` then `) -> U32:`: join it onto one line), is
   a finding.
-- `reach` (opt-in) — a one-character name read more than 20 lines below the line
+- `reach` — a one-character name read more than 20 lines below the line
   that binds it: a parameter, a let, do-bind or lambda name, or a pattern
   name, one finding on the binder. Within a few lines the binder is in sight
   and a letter is enough; forty lines down the reader has only the letter.
@@ -275,13 +274,15 @@ statement.
   measured: in public Bend 2 code a one-character name is read a median of
   1 line below its binder and 99 in 100 within 19 (parameters; lets within
   12, patterns within 9), so the rule reports about 1 in 200 of them (312
-  findings in 82 repos, 31 of them with any). It is opt-in because a
-  machine cannot tell a letter that is a convention from one that is a
-  shrug: of 30 findings read by hand, about 6 in 10 were names a word
-  plainly helps (`k`, `c` and `m` of an interpreter's state, the `b` and
-  `t` among eight Bool flags) and the rest were letters a reader knows
-  (`x` and `y` of a position, the `a` to `h` of a hash round, a proof's
-  variables in a def that returns no `{..}`).
+  findings in 82 repos, 31 of them with any). A machine cannot tell a
+  letter that is a convention from one that is a shrug: of 30 findings
+  read by hand, about 6 in 10 were names a word plainly helps (`k`, `c`
+  and `m` of an interpreter's state, the `b` and `t` among eight Bool
+  flags) and the rest were letters a reader knows (`x` and `y` of a
+  position, the `a` to `h` of a hash round, a proof's variables in a def
+  that returns no `{..}`). It is on with `style` all the same: a house
+  style asks that a name carried this far be a word, and where the letter
+  is the word, a `# noqa: S008` says so.
 - `noqa` — a noqa comment that silences nothing (see "Suppressing a
   finding"): a bare `# noqa`, or a code it names that no finding of its file
   on its line has, an unknown code included, one finding per code, at the
@@ -631,20 +632,25 @@ its fix is legal, and it is **New**.
    advice (see `param` under "Style").
 
 A rule is on by default only at near-zero false positives; anything less
-certain starts opt-in or in `pedantic`. A shipped rule that projects often
+certain starts opt-in or in `pedantic`. A `style` rule is held to the house
+style instead (see "Style"): it may report what a careful writer would
+sometimes keep, so long as its fix is honest. A shipped rule that projects often
 `# noqa` is demoted or reworked.
 
 ## Style
 
 The `style` rules are for the next reader of the code. Each one names
 something that reader pays for and reports only what a machine can judge of
-it; taste is left to review. What they cover, and what they do not yet:
+it; taste is left to review. Together they are a house style: a project
+that sets `style` asks to read one way throughout, so a style rule is
+judged by whether its fix is honest and its findings rare in code that
+keeps the style, not by whether every finding is a defect. What they cover, and what they do not yet:
 
 | a reader pays to | rules | honest fix |
 |------------------|-------|------------|
 | find where things are | `space` `wrap` | mechanical: one layout, a bounded width |
 | learn what an item is for | `doc` | a comment; measured, they are real ones |
-| carry a name in their head | (`reach`: opt-in) | a name, or a shorter def |
+| carry a name in their head | `reach` | a name, or a shorter def |
 | decode a roundabout spelling | `blank` (`transcong`: opt-in) | the plain word, the same value |
 | trust a suppression | `noqa` | delete the stale comment |
 | hold a whole def in their head | none yet | |
@@ -663,8 +669,7 @@ code is 82 repos that do not run bolt; linted trees are six that set
   `n` into `nn` and bought no reader anything; where a project set it to
   warn it was left unanswered. Length was the wrong measure: a one-letter
   name is read a median of 1 line from its binder, where it needs no more.
-  `reach` measures the distance, and counts a repeated letter once. It is
-  opt-in: no default rule judges a name now.
+  `reach` measures the distance, and counts a repeated letter once.
 
 **Size is the open dimension.** Bend defs are short (public code: a median
 of 2 lines, 99 in 100 within 19), so few need a rule, but a linted tree can
