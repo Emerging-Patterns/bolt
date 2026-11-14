@@ -53,7 +53,8 @@ def reach_max() -> U32:
   30
 ```
 
-A rule with a limit names it `<slug>_max` (today `reach_max`, default 20).
+A rule with a limit names it `<slug>_max`: `reach_max` (default 20),
+`arity_max` (8), `length_max` (40) and `depth_max` (6).
 The limit a file is linted at is the one in the bolt.bend that grades it,
 the nearest above it, so a nested project can set its own; the editor uses
 the same one. Unset, the rule's default holds. A number bolt cannot read as
@@ -68,7 +69,7 @@ unset group has its default. The groups:
 | `correctness` | `hole` `pick` `put` `arms` `escape` `setting`                          | error   |
 | `suspicious`  | `unused` `eager` `concat` `fromrev` `prefix` `empty` (`thunk`: opt-in) | warn    |
 | `perf`        | `strings`                                                              | warn    |
-| `style`       | `doc` `space` `wrap` `reach` `noqa` `blank` (`transcong`: opt-in)      | warn    |
+| `style`       | `doc` `space` `wrap` `reach` `arity` `length` `depth` `noqa` `blank` (`transcong`: opt-in) | warn |
 | `laws`        | (`coverage`, `closed`: opt-in)                                         | warn    |
 | `pedantic`    | `chars` `foreign` `strict` `fuel` `index` `rewalk` `tail`              | off     |
 
@@ -91,9 +92,9 @@ The stable codes, assigned once (do not renumber):
 | | | U013 | retired | S007 | `blank` |
 | | | U014 | retired | | |
 | | | U015 | `thunk` | S008 | `reach` |
-| | | U016 | `fromrev` | | |
-| | | U017 | `prefix` | | |
-| | | U018 | `empty` | | |
+| | | U016 | `fromrev` | S009 | `arity` |
+| | | U017 | `prefix` | S010 | `length` |
+| | | U018 | `empty` | S011 | `depth` |
 
 Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic,
 for the group a rule had when its code was assigned. A code names the rule,
@@ -303,6 +304,23 @@ statement.
   that returns no `{..}`). It is on with `style` all the same: a house
   style asks that a name carried this far be a word, and where the letter
   is the word, a `# noqa: S008` says so.
+- `arity`, `length`, `depth` — a def that holds more than a reader can, one
+  finding on the def's name, each against its limit:
+  `arity`, a def's parameters, type parameters aside (`-A: Type`, `~A:
+  Data`), over 8; `length`, its lines from the `def` line to the line of its
+  last token, over 40; `depth`, how deep its statements nest, over 6. The
+  statements right under a def are level 1, and one that opens a block
+  (`match x:`, `case A:`) puts those under it one level down, so 7 is a
+  third `match` inside two. A line an expression wraps onto is no level,
+  and a block inside brackets is not read. A bolt.bend sets another limit
+  with `def arity_max() -> U32`, `def length_max()` or `def depth_max()`.
+  The fixes are structural, so no spelling buys them: parameters that
+  travel together become one value of a type, and a step of a long def or
+  the inner match of a deep one becomes a helper. A law file, a proof file
+  and a def that is a proof are left alone. The limits sit where public
+  Bend 2 code stops (99 in 100 defs have 9 parameters or fewer, 19 lines or
+  fewer, 6 levels or fewer); over 82 public repos `arity` reports 646 defs
+  in 34 of them, `length` 116 in 31 and `depth` 285 in 26, of about 77,000.
 - `noqa` — a noqa comment that silences nothing (see "Suppressing a
   finding"): a bare `# noqa`, or a code it names that no finding of its file
   on its line has, an unknown code included, one finding per code, at the
@@ -673,7 +691,7 @@ keeps the style, not by whether every finding is a defect. What they cover, and 
 | carry a name in their head | `reach` | a name, or a shorter def |
 | decode a roundabout spelling | `blank` (`transcong`: opt-in) | the plain word, the same value |
 | trust a suppression | `noqa` | delete the stale comment |
-| hold a whole def in their head | none yet | |
+| hold a whole def in their head | `arity` `length` `depth` | a type for what travels together; a helper |
 
 **What was measured (2026-11), linted trees against public code.** Public
 code is 82 repos that do not run bolt; linted trees are six that set
@@ -691,10 +709,12 @@ code is 82 repos that do not run bolt; linted trees are six that set
   name is read a median of 1 line from its binder, where it needs no more.
   `reach` measures the distance, and counts a repeated letter once.
 
-**Size is the open dimension.** Bend defs are short (public code: a median
-of 2 lines, 99 in 100 within 19), so few need a rule, but a linted tree can
-hold a long tail: defs of more than 8 parameters, 40 lines or 6 levels of
-nesting. No rule reports those yet.
+**Size.** Bend defs are short (public code: a median of 2 lines, 99 in 100
+within 19), so `arity`, `length` and `depth` touch little ordinary code,
+and what they report is not a matter of taste: a def of 17 parameters, of
+320 lines, of 17 levels. A linted tree can still hold a long tail (in one,
+5.5% of defs took more than 8 parameters; in another, 8% ran over 40
+lines), and bolt's own had 22 such defs when the rules landed.
 
 Not planned, because no machine judges them: whether a name is a good
 word, and lists of names nobody may use.

@@ -155,11 +155,12 @@ def space() -> String:
 
 A def whose body is a number sets a rule's limit: `def reach_max() -> U32:`
 then `30` lets a one-character name be read 30 lines below its binder, not
-the default 20.
+the default 20 (`arity_max`, `length_max` and `depth_max` set the size
+rules' limits the same way).
 
 The groups are `correctness` (`hole`, `pick`, `put`; error by default),
 `suspicious` (`unused`), `perf` (`strings`), `style` (`doc`, `space`,
-`wrap`, `reach`) and `laws`, the rest warn by default, and `pedantic` (`tail`,
+`wrap`, `reach`, `arity`, `length`, `depth`) and `laws`, the rest warn by default, and `pedantic` (`tail`,
 `strict`, `index`), off by default. The laws rules, `coverage` and `closed`,
 are opt-in: a project that keeps laws turns each on by name. Every rule, and the config in full, is in
 [src/README.md](src/README.md).

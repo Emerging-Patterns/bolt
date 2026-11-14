@@ -33,6 +33,7 @@ import ./laws/ConfigGradingDropsOff.bend as ConfigGradingDropsOff
 import ./laws/ConfigGroupDefaultsHold.bend as ConfigGroupDefaultsHold
 import ./laws/ConfigLimitsResolve.bend as ConfigLimitsResolve
 import ./laws/RulesRunAtConfiguredLimits.bend as RulesRunAtConfiguredLimits
+import ./laws/SizeReportsOversizedDefs.bend as SizeReportsOversizedDefs
 import ./laws/ConfigLevelsResolve.bend as ConfigLevelsResolve
 import ./laws/ConfigNearestFileGrades.bend as ConfigNearestFileGrades
 import ./laws/ConfigOptInStartsOff.bend as ConfigOptInStartsOff

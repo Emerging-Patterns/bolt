@@ -18,6 +18,7 @@ import ./proofs/ConfigGradingDropsOff.bend as PConfigGradingDropsOff
 import ./proofs/ConfigGroupDefaultsHold.bend as PConfigGroupDefaultsHold
 import ./proofs/ConfigLimitsResolve.bend as PConfigLimitsResolve
 import ./proofs/RulesRunAtConfiguredLimits.bend as PRulesRunAtConfiguredLimits
+import ./proofs/SizeReportsOversizedDefs.bend as PSizeReportsOversizedDefs
 import ./proofs/ConfigLevelsResolve.bend as PConfigLevelsResolve
 import ./proofs/ConfigNearestFileGrades.bend as PConfigNearestFileGrades
 import ./proofs/ConfigOptInStartsOff.bend as PConfigOptInStartsOff

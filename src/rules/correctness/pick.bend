@@ -263,7 +263,7 @@ def search.first(nn: Tree.Node, +xx: String, prev: Tree.Node, hit: Bool) -> Tree
 
 # past the bound name, `=` and the callee: a `(` group and nothing after it,
 # and then the finding the first reader of the name gives
-def search.call(
+def search.call(  # noqa: S009 #365
   kx: Lex.TokKind,
   +xx: String,
   +ee: String,

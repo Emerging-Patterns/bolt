@@ -10,6 +10,7 @@ import ../src/role.bend as Role
 import ../src/src.bend as Src
 import ../src/rules.bend as Rules
 import ../src/rules/style/reach.bend as Reach
+import ../src/rules/style/size.bend as Size
 
 # the slugs of a run table, in order
 def slugs(rs: List<&2, Rules.Run>) -> List<&2, String>:
@@ -32,6 +33,25 @@ law run_reach_at_limit:
   for ss: Src.Src
   for max: U32
   {Rules.on.run(Rules.WReach{max}, rr, ss) == Reach.check.role(rr, ss, max) : List<&2, F.Finding>}
+
+# LAW: arity, length and depth are each tuned to the config's limit of the
+# rule's name (`arity_max`, `length_max`, `depth_max`), and to the limit
+# they had when the config sets none
+law tune_size:
+  for cfg: Config.Config
+  for +dim: Size.Dim
+  for max: U32
+  {Rules.on.tune(cfg, Rules.WSize{dim, max}) == Rules.WSize{dim, Config.limit(cfg, Size.limit_name(dim), max)}
+    : Rules.Which}
+
+# LAW: a size rule's entry runs it at the limit the entry carries, and not
+# at all in a law or proof file
+law run_size_at_limit:
+  for rr: Role.Role
+  for ss: Src.Src
+  for dim: Size.Dim
+  for max: U32
+  {Rules.on.run(Rules.WSize{dim, max}, rr, ss) == Role.skip(rr, _u => Size.check(dim, ss, max)) : List<&2, F.Finding>}
 
 # LAW: a tuned table runs the same rules in the same order
 law tuned_keeps_slugs:

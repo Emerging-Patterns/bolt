@@ -424,7 +424,7 @@ def check.cons(on: Bool, +pline: U32, +pend: U32, +pcol: U32, spans: List<&2, Sp
       check.no_span(pline, pend, pcol, spans)
 
 # the walk rebuilt; angle-closes are applied by the caller
-def check.rebuild(
+def check.rebuild(  # noqa: S009 #365
   _ticks: Nat,
   mode: Phase,
   paren: U32,
@@ -442,7 +442,7 @@ def check.rebuild(
   Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans}
 
 # `(` opens the parameter list
-def check.opened(
+def check.opened(  # noqa: S009 #365
   ticks: Nat,
   bracket: U32,
   brace: U32,
@@ -461,7 +461,7 @@ def check.opened(
   check.rebuild(ticks, Args{}, 1, bracket, brace, angle, Span{0, 0, 0}, ln, False{}, 0, 0, 0, spans)
 
 # `)` ends the parameter list, and notes where it sits
-def check.ended(
+def check.ended(  # noqa: S009 #365
   ticks: Nat,
   _mode: Phase,
   paren: U32,
@@ -482,7 +482,7 @@ def check.ended(
     0, 0, 0, check.cons(on, pline, pend, pcol, spans))
 
 # a comma closes the parameter that was open
-def check.commaed(
+def check.commaed(  # noqa: S009 #365
   ticks: Nat,
   mode: Phase,
   paren: U32,
@@ -501,7 +501,7 @@ def check.commaed(
     check.cons(on, pline, pend, pcol, spans))
 
 # a run of `>` lowers the angle depth
-def check.unangled(
+def check.unangled(  # noqa: S009 #365
   ticks: Nat,
   mode: Phase,
   paren: U32,
@@ -524,7 +524,7 @@ def check.turn(+ln: U32, shut: Span) -> Phase:
   Bool.pick(Phase, U32.is_eq(ln, line), Past{}, Loose{})
 
 # the token's motion applied to fields already taken off the walk
-def check.apply_on(
+def check.apply_on(  # noqa: S009, S010 #365
   motion: Act,
   mode: Phase,
   paren: U32,
@@ -578,7 +578,7 @@ def check.apply(motion: Act, wk: Walk, +ln: U32, cl: U32, ticks: Nat) -> Walk:
   check.apply_on(motion, mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans, ln, cl, ticks)
 
 # the same parameter, extended to this line
-def check.note_extend(
+def check.note_extend(  # noqa: S009 #365
   +pline: U32,
   _pend: U32,
   +pcol: U32,
@@ -596,7 +596,7 @@ def check.note_extend(
   Walk{mode, paren, bracket, brace, angle, shut, open, True{}, pline, ln, pcol, spans}
 
 # a parameter starting here
-def check.note_begin(
+def check.note_begin(  # noqa: S009 #365
   _pline: U32,
   _pend: U32,
   _pcol: U32,
@@ -614,7 +614,7 @@ def check.note_begin(
   Walk{mode, paren, bracket, brace, angle, shut, open, True{}, ln, ln, cl, spans}
 
 # the token continues the open parameter, or starts one
-def check.note_on(
+def check.note_on(  # noqa: S009 #365
   on: Bool,
   mode: Phase,
   paren: U32,
@@ -637,7 +637,7 @@ def check.note_on(
       check.note_begin(pline, pend, pcol, ln, cl, mode, paren, bracket, brace, angle, shut, open, spans)
 
 # outside the parameter list the token starts nothing
-def check.note_skip(
+def check.note_skip(  # noqa: S009 #365
   on: Bool,
   mode: Phase,
   paren: U32,
@@ -655,7 +655,7 @@ def check.note_skip(
   Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans}
 
 # inside the parameter list, the token's position joins the open parameter
-def check.note_here(
+def check.note_here(  # noqa: S009 #365
   on: Bool,
   mode: Phase,
   paren: U32,
@@ -674,7 +674,7 @@ def check.note_here(
   check.note_on(on, mode, paren, bracket, brace, angle, shut, open, pline, pend, pcol, spans, ln, cl)
 
 # inside the list the token is part of a parameter; outside it is not
-def check.note_phase(
+def check.note_phase(  # noqa: S009 #365
   mode: Phase,
   on: Bool,
   paren: U32,

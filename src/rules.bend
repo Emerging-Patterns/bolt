@@ -29,6 +29,7 @@ import ./rules/correctness/hole.bend as Hole
 import ./rules/style/space.bend as Space
 import ./rules/style/wrap.bend as Wrap
 import ./rules/style/reach.bend as Reach
+import ./rules/style/size.bend as Size
 import ./rules/style/transcong.bend as Transcong
 import ./rules/correctness/pick.bend as Pick
 import ./rules/laws/law.bend as Law
@@ -75,6 +76,7 @@ type Which is Data:
   WSpace{}
   WWrap{}
   WReach{max: U32}
+  WSize{dim: Size.Dim, max: U32}
   WPick{}
   WSearch{}
   WStrict{}
@@ -108,7 +110,7 @@ type Run is Data:
 # law or proof file changes (doc, hole, reach, fromrev, prefix, empty, blank,
 # closed) read the role, never the path, and the cost rules check nothing in
 # a law or proof file
-def on.run(ww: Which, +role: Role.Role, +src: Src.Src) -> List<&2, F.Finding>:
+def on.run(ww: Which, +role: Role.Role, +src: Src.Src) -> List<&2, F.Finding>:  # noqa: S010 #365
   match ww:
     case WDoc{}:
       Doc.check.role(role, src)
@@ -122,6 +124,8 @@ def on.run(ww: Which, +role: Role.Role, +src: Src.Src) -> List<&2, F.Finding>:
       Wrap.check(src)
     case WReach{max}:
       Reach.check.role(role, src, max)
+    case WSize{dim, max}:
+      Role.skip(role, _u => Size.check(dim, src, max))
     case WPick{}:
       Role.skip(role, _u => Pick.check(src))
     case WSearch{}:
@@ -180,6 +184,9 @@ def on.table() -> List<&2, Run>:
     Run{"space", WSpace{}},
     Run{"wrap", WWrap{}},
     Run{"reach", WReach{Reach.limit()}},
+    Run{"arity", WSize{Size.DArity{}, Size.limit(Size.DArity{})}},
+    Run{"length", WSize{Size.DLength{}, Size.limit(Size.DLength{})}},
+    Run{"depth", WSize{Size.DDepth{}, Size.limit(Size.DDepth{})}},
     Run{"pick", WPick{}},
     Run{"pick", WSearch{}},
     Run{"strict", WStrict{}},
@@ -223,13 +230,15 @@ def on.all(rs: List<&2, Run>, +rr: Role.Role, +ss: Src.Src) -> List<&2, F.Findin
     case Con{Run{+slug, ww}, rest}:
       List.append(&2, F.Finding, on.slug(slug, on.run(ww, rr, ss)), on.all(rest, rr, ss))
 
-# a check at the limit a config sets for its rule (`def reach_max()` in a
-# bolt.bend); a check with no limit, or one the config does not set, is as
+# a check at the limit a config sets for its rule (`def reach_max()`,
+# `def arity_max()` in a bolt.bend); a check with no limit, or one the config does not set, is as
 # it was
 def on.tune(cfg: Config.Config, ww: Which) -> Which:
   match ww:
     case WReach{max}:
       WReach{Config.limit(cfg, "reach_max", max)}
+    case WSize{+dim, max}:
+      WSize{dim, Config.limit(cfg, Size.limit_name(dim), max)}
     case other:
       other
 
