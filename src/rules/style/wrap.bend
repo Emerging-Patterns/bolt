@@ -630,7 +630,7 @@ def check.shares(spans: List<&2, Span>, +ln: U32) -> Bool:
 # split across lines, sitting on the `(` line, or sharing its line
 def check.bad(sp: Span, +open: U32, spans: List<&2, Span>) -> Bool:
   Span{+line, +end, _col} = sp
-  Lazy.or_else(Bool.not(U32.is_eq(line, end)),
+  Lazy.or_else(U32.is_ne(line, end),
     _u => Lazy.or_else(U32.is_eq(line, open), _u2 => check.shares(spans, line)))
 
 # the first parameter that is not alone on its own line
@@ -652,7 +652,7 @@ def check.tight(spans: List<&2, Span>, +close: U32) -> Bool:
     case Nil{}:
       False{}
     case Con{Span{_line, +end, _col}, _rest}:
-      Bool.not(U32.is_lt(end, close))
+      U32.is_ge(end, close)
 
 # the `)`, when it shares the last parameter's line
 def check.shut_at(shut: Span, spans: List<&2, Span>) -> Maybe<&2, Span>:

@@ -102,7 +102,7 @@ def work.hot(k: Lex.TokKind, +hot: Bool, +seg: U32, +keep: Bool) -> Bool:
     case Lex.TComma{}:
       +in_pick = U32.is_lt(seg, 9)
       +next = Bool.pick(U32, in_pick, (seg + 1 : U32), seg)
-      Bool.pick(Bool, in_pick, Bool.not(U32.is_lt(next, 2)), keep)
+      Bool.pick(Bool, in_pick, U32.is_ge(next, 2), keep)
     case other:
       hot
 
