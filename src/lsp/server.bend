@@ -550,7 +550,7 @@ def symbols(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String) 
 
 # the work behind a method: what the checker, the files and the documents
 # give it. It does not see the message's id: step alone puts that on a reply
-def work(  # noqa: L001 LSP IO glue
+def work(  # noqa: L001, S010 LSP IO glue (#365)
   ~fs: F.Files,
   ~ck: C.Checker,
   enc: Enc.Enc,

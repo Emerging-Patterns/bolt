@@ -53,7 +53,7 @@ def inner(+hot: Bool, +oo: String, +tt: String) -> Bool:
 
 # a name, then a group: a finding when the name is the def, the group a `(`
 # call and the stretch hot, then what the group and the rest report
-def call(
+def call(  # noqa: S009 #365
   +tt: String,
   +ll: U32,
   +cc: U32,

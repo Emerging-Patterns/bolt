@@ -475,7 +475,7 @@ def site_list(mm: Maybe<&2, How>, +name: String, +args: String, +line: U32, +col
       [Site{name, args, line, col, len, how}]
 
 # one site when this application is an expensive call
-def open_site(
+def open_site(  # noqa: S009 #365
   +open: Bool,
   +indexed: Bool,
   +tt: String,
@@ -602,7 +602,7 @@ def site_at(
 
 # one site when this application is an expensive call, as open_site gives
 # it, its arguments read only then
-def open_at(
+def open_at(  # noqa: S009 #365
   open: Bool,
   indexed: Bool,
   +tt: String,
@@ -894,7 +894,7 @@ def report_nar(
       report_fresh(prior, name, line, col, len, path)
 
 # the finding when a duplicate exists and this site is the first narrow one
-def report_dup(
+def report_dup(  # noqa: S009 #365
   +dup: Bool,
   +nar: Bool,
   +name: String,

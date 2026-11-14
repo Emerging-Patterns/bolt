@@ -10,6 +10,12 @@ def Laws.tune_reach(_cfg, _max):
 def Laws.run_reach_at_limit(_rr, _ss, _max):
   {==}
 
+def Laws.tune_size(_cfg, _dim, _max):
+  {==}
+
+def Laws.run_size_at_limit(_rr, _ss, _dim, _max):
+  {==}
+
 def Laws.tuned_keeps_slugs(rs, cfg):
   match rs:
     case Nil{}:
@@ -27,6 +33,8 @@ law tune.none:
 def tune.none(ww, _sets):
   match ww:
     case Rules.WReach{max}:
+      {==}
+    case Rules.WSize{dim, max}:
       {==}
     case Rules.WDoc{}:
       {==}

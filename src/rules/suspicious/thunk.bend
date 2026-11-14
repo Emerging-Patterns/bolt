@@ -76,7 +76,7 @@ def cite(+ll: U32, +cc: U32, +name: String, +path: String) -> F.Finding:
 
 # after the parameter, `=>`, the name and its `(` group: the finding when
 # they make a thunk of a self-call
-def site.group(
+def site.group(  # noqa: S009 #365
   kp: Lex.TokKind,
   +pp: String,
   +aa: String,
