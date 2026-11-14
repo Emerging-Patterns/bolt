@@ -40,6 +40,7 @@ import ./rules/suspicious/concat.bend as Concat
 import ./rules/pedantic/index.bend as Index
 import ./rules/pedantic/rewalk.bend as Rewalk
 import ./rules/suspicious/thunk.bend as Thunk
+import ./rules/suspicious/idle.bend as Idle
 import ./rules/suspicious/fromrev.bend as Fromrev
 import ./rules/suspicious/prefix.bend as Prefix
 import ./rules/suspicious/empty.bend as Empty
@@ -87,6 +88,7 @@ type Which is Data:
   WIndex{}
   WRewalk{}
   WThunk{}
+  WIdle{}
   WFromrev{}
   WPrefix{}
   WEmpty{}
@@ -146,6 +148,8 @@ def on.run(w: Which, +role: Role.Role, +src: Src.Src) -> List<&2, F.Finding>:
       Role.skip(role, _u => Rewalk.check(src))
     case WThunk{}:
       Role.skip(role, _u => Thunk.check(src))
+    case WIdle{}:
+      Role.skip(role, _u => Idle.check(src))
     case WFromrev{}:
       Fromrev.check.role(role, src)
     case WPrefix{}:
@@ -197,6 +201,7 @@ def on.table() -> List<&2, Run>:
     Run{"index", WIndex{}},
     Run{"rewalk", WRewalk{}},
     Run{"thunk", WThunk{}},
+    Run{"idle", WIdle{}},
     Run{"fromrev", WFromrev{}},
     Run{"prefix", WPrefix{}},
     Run{"empty", WEmpty{}},

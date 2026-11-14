@@ -68,7 +68,7 @@ unset group has its default. The groups:
 | group         | rules                                                                  | default |
 |---------------|------------------------------------------------------------------------|---------|
 | `correctness` | `hole` `pick` `put` `arms` `escape` `setting`                          | error   |
-| `suspicious`  | `unused` `eager` `concat` `fromrev` `prefix` `empty` (`thunk`: opt-in) | warn    |
+| `suspicious`  | `unused` `idle` `eager` `concat` `fromrev` `prefix` `empty` (`thunk`: opt-in) | warn |
 | `perf`        | `strings`                                                              | warn    |
 | `style`       | `doc` `space` `wrap` `reach` `arity` `length` `depth` `noqa` `blank` (`transcong`: opt-in) | warn |
 | `laws`        | (`coverage`, `closed`: opt-in)                                         | warn    |
@@ -96,6 +96,7 @@ The stable codes, assigned once (do not renumber):
 | | | U016 | `fromrev` | S009 | `arity` |
 | | | U017 | `prefix` | S010 | `length` |
 | | | U018 | `empty` | S011 | `depth` |
+| | | U019 | `idle` | | |
 
 Letters: `C` correctness, `U` suspicious, `S` style, `L` laws, `P` pedantic,
 for the group a rule had when its code was assigned. A code names the rule,
@@ -252,6 +253,49 @@ statement.
   first statement is `import` (its C and JS read them), wherever its
   header's `->` and return type fall. A name read in a dependent arrow's
   types (`@+x: U32 -> S`) is a use.
+- `idle` — a parameter a def only hands back to itself: in a def that calls
+  itself, a parameter the body reads, every reading of it in the
+  parameter's own argument of a self-call. One finding, on the parameter's
+  name.
+
+  ```bend
+  def loop(+left: Nat, +count: Nat, +rows: Rows) -> IO(Unit):
+    match left:
+      case 0n:
+        IO.write(done())
+      case 1n+rest:
+        do IO<Unit>:
+          IO.write(frame(rows))
+          loop(rest, Nat.add(count, 1n), step(rows))
+  ```
+
+  `count` goes round the recursion and reaches nothing: no result depends
+  on it. `bend` accepts it, since passing a value on is a use, and so does
+  `unused`. Delete the parameter with its argument at each call, or read it
+  where it was meant to count: an accumulator a base arm forgot to return
+  (`case Nil{}: 0` under `sum(t, (acc + h : U32))`), a bound never compared
+  and a counter nobody prints all have this shape. A reading is a name
+  leaf spelled as the parameter, or as it then a dot. A self-call is the
+  def's name and then a `(` group, its arguments the group's kids split at
+  their commas, and the own argument the one at the parameter's place
+  among the def's parameters. A reading is in it at any depth
+  (`Nat.add(count, 1n)`, a lambda's body), unless a self-call nested there
+  takes it in another place: `go(t, go(u, acc, 0))` reads acc. Any other
+  reading is a use and the parameter is left alone: a `match` on it, an
+  argument of another call or in another place (two parameters a def swaps
+  each step), a base arm that returns it, a pattern or a let that binds the
+  name again (the spelling is read, never the scope). Left alone as well: a
+  parameter with no type, an erased one (`-x`) or a template (`~f`), one
+  whose name is not lowercase or starts with `_`, one the signature names
+  again (a later type depends on it), a def that does not call itself, a
+  def that is a proof, and a law file or a proof file. Measured over 82
+  public repos: 78 findings in 8 of them, every one a parameter no result
+  depends on. 6 are in ordinary code, in 5 repos (a frame counter, a width
+  and a height a renderer carries and never applies, a length only the
+  caller needed); 16 are loops a compiler's own tests write on purpose; and
+  56 are in one benchmark's files of seeded bugs (a base arm that answers
+  a constant, a step that drops its bound), 56 of its 2,660. Twelve trees
+  that prove their defs have none.
 - `hole` — a TODO hole left in code, the one bend counts in "1 TODO found." /
   "N TODOs found." (under `SOME PROOFS FAIL`, exit 1):
   `?` and then `TODO`, with spaces, newlines or comments allowed between

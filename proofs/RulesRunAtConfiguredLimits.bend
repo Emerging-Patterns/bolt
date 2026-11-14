@@ -76,6 +76,8 @@ def tune.none(w, _sets):
       {==}
     case Rules.WThunk{}:
       {==}
+    case Rules.WIdle{}:
+      {==}
     case Rules.WFromrev{}:
       {==}
     case Rules.WPrefix{}:
