@@ -60,6 +60,15 @@
           proofs = ez.mkProofs { ez = ezBin; src = self; };
           # bolt, built from this tree, over this tree: exit 1 on any error
           lint = ez.mkLint { inherit bolt; src = self; };
+          # bolt fmt --check, built from this tree, over this tree: exit 1
+          # when a file would change, so the tree stays formatted
+          fmt = pkgs.runCommand "bolt-fmt" { } ''
+            cp -r ${self} tree
+            chmod -R u+w tree
+            cd tree
+            ${bolt}/bin/bolt fmt --check
+            touch $out
+          '';
           # the packaged bolt as an editor starts it: spawned by node over
           # sockets (src/lsp/tests/spawn.js), found and started the way the
           # extension finds it (tests/locate.js), and the server over the
@@ -99,7 +108,7 @@
             ez = ezBin;
             default = bolt;
           };
-          checks = { inherit bolt proofs lint lsp; };
+          checks = { inherit bolt proofs lint fmt lsp; };
           apps.default = { type = "app"; program = "${bolt}/bin/bolt"; };
           devShells.default = ez.mkShell {
             packages = [ bend bend-cc pkgs.nodejs pkgs.git ];
