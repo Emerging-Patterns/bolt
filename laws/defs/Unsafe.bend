@@ -44,7 +44,7 @@ def unsafe.imports(ds: List<&2, Digest.Digest>, +p: String) -> List<&2, String>:
   match ds:
     case Nil{}:
       Nil{}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws, links}, rest}:
       +more = unsafe.imports(rest, p)
       Bool.pick(List<&2, String>, String.eq(norm, p), deps, more)
 
@@ -53,7 +53,7 @@ def unsafe.read(ds: List<&2, Digest.Digest>, +p: String) -> Bool:
   match ds:
     case Nil{}:
       False{}
-    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, rest}:
+    case Con{Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws, links}, rest}:
       +more = unsafe.read(rest, p)
       Bool.or(String.eq(norm, p), more)
 

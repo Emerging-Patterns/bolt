@@ -79,7 +79,7 @@ def nqp.used(gs, path, line, code):
             {==})),
         nqp.used(rest, path, line, code))
 
-# the rule's project code is the spec's: `coverage`
+# the rule's project codes are the spec's: `coverage` and `spare`
 law nqp.project:
   for +code: String
   {NoqaRule.project(code) == Laws.nq.project(code) : Bool}

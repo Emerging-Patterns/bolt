@@ -41,7 +41,7 @@ import ../src/rules/laws/closed.bend as Closed
 # whether the coverage rule lets a digest's file off
 def scope.exempt(d: Digest.Digest) -> Bool:
   match d:
-    case Digest.Digest{_path, _norm, _dir, _is_laws, _is_law_file, exempt, _tops, _says, _deps, _laws}:
+    case Digest.Digest{_path, _norm, _dir, _is_laws, _is_law_file, exempt, _tops, _says, _deps, _laws, _links}:
       exempt
 
 # LAW: two files at the same path are exempt from `law` alike, whatever the

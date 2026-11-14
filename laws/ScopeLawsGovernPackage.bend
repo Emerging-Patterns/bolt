@@ -16,7 +16,7 @@ def has_laws(ds: List<&2, Digest.Digest>) -> Bool:
   match ds:
     case Nil{}:
       False{}
-    case Con{Digest.Digest{_path, _norm, _dir, is_laws, _is_law_file, _exempt, _tops, _says, _deps, _laws},
+    case Con{Digest.Digest{_path, _norm, _dir, is_laws, _is_law_file, _exempt, _tops, _says, _deps, _laws, _links},
       rest}:
       Bool.or(is_laws, has_laws(rest))
 
@@ -41,7 +41,7 @@ def under_law(ds: List<&2, Digest.Digest>, +cl: List<&2, String>) -> List<&2, F.
   match ds:
     case Nil{}:
       []
-    case Con{Digest.Digest{path, norm, _dir, _is_laws, _is_law_file, exempt, tops, _says, _deps, _laws},
+    case Con{Digest.Digest{path, norm, _dir, _is_laws, _is_law_file, exempt, tops, _says, _deps, _laws, _links},
       rest}:
       List.append(&2, F.Finding, graded_file(exempt, tops, cl, norm, path), under_law(rest, cl))
 

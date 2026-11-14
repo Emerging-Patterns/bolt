@@ -7,7 +7,7 @@
 # It reads the graded findings of the whole run, so it is no per-file rule:
 # the planner runs it after every other rule and after the filter, and
 # what it reports no noqa comment silences. A project rule's code
-# (`coverage`) is judged only when the run is the whole
+# (`coverage`, `spare`) is judged only when the run is the whole
 # tree (`whole`): over files named, and in the editor, those rules see only
 # part of the laws, so their silence proves nothing.
 import Base
@@ -18,7 +18,7 @@ import ../../noqa.bend as Noqa
 
 # a project rule's code
 def project(+code: String) -> Bool:
-  String.eq(code, Codes.code("coverage"))
+  Bool.or(String.eq(code, Codes.code("coverage")), String.eq(code, Codes.code("spare")))
 
 # a code this run can judge: any, over the whole tree; a per-file rule's
 # (or no rule's) otherwise

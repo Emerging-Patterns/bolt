@@ -41,6 +41,7 @@ import ./rules/pedantic/index.bend as Index
 import ./rules/pedantic/rewalk.bend as Rewalk
 import ./rules/suspicious/thunk.bend as Thunk
 import ./rules/suspicious/idle.bend as Idle
+import ./rules/suspicious/spare.bend as Spare
 import ./rules/suspicious/fromrev.bend as Fromrev
 import ./rules/suspicious/prefix.bend as Prefix
 import ./rules/suspicious/empty.bend as Empty
@@ -308,10 +309,10 @@ def members(ds: List<&2, Digest.Digest>, +roots: List<&2, String>, +pkg: String)
   match ds:
     case Nil{}:
       Nil{}
-    case Con{Digest.Digest{path, norm, +dir, is_laws, is_law_file, exempt, tops, says, deps, laws}, rest}:
+    case Con{Digest.Digest{path, norm, +dir, is_laws, is_law_file, exempt, tops, says, deps, laws, links}, rest}:
       +more = members(rest, roots, pkg)
       Bool.pick(List<&2, Digest.Digest>, String.eq(owner(roots, dir), pkg),
-        Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws} <> more, more)
+        Digest.Digest{path, norm, dir, is_laws, is_law_file, exempt, tops, says, deps, laws, links} <> more, more)
 
 # `coverage` on each package but `.`
 def covers(rs: List<&2, String>, +ds: List<&2, Digest.Digest>, +roots: List<&2, String>) -> List<&2, F.Finding>:
@@ -321,11 +322,17 @@ def covers(rs: List<&2, String>, +ds: List<&2, Digest.Digest>, +roots: List<&2, 
     case Con{+dir, rest}:
       List.append(&2, F.Finding, Law.check(members(ds, roots, dir)), covers(rest, ds, roots))
 
-# every project rule's findings on the files' digests and the package roots
-# but `.` (each a directory as Digest.dir names one): `coverage` runs on each
-# package's files, `.` first
-def project.digests(+ds: List<&2, Digest.Digest>, +rs: List<&2, String>) -> List<&2, F.Finding>:
+# `coverage`'s findings on the files' digests and the package roots but `.`
+# (each a directory as Digest.dir names one): it runs on each package's
+# files, `.` first
+def coverage.digests(+ds: List<&2, Digest.Digest>, +rs: List<&2, String>) -> List<&2, F.Finding>:
   List.concat(&2, F.Finding, [Law.check(members(ds, rs, "")), covers(rs, ds, rs)])
+
+# every project rule's findings on the files' digests and the package roots
+# but `.`: `coverage`'s, package by package, then `spare`'s, which reads the
+# imports of every file of the run at once (an import may cross packages)
+def project.digests(+ds: List<&2, Digest.Digest>, +rs: List<&2, String>) -> List<&2, F.Finding>:
+  List.append(&2, F.Finding, coverage.digests(ds, rs), Spare.check(ds))
 
 # every project rule's findings on the files and the package roots but `.`:
 # each file is read down to its digest once (rules/digest.bend), told its

@@ -7,17 +7,19 @@
 # by no group. The two tables name the same rules:
 #
 # - every check the run table runs is named by a slug of the code table;
-# - every slug of the code table is run on each file, except the three
+# - every slug of the code table is run on each file, except the four
 #   rules that read the whole project: `setting` (bolt.bend's own
-#   settings), `coverage` (which defs a law reaches) and `noqa` (stale
-#   `# noqa` comments, which needs every other rule's findings first).
+#   settings), `coverage` (which defs a law reaches), `spare` (which
+#   imports a file never names, and what each imported file loads) and
+#   `noqa` (stale `# noqa` comments, which needs every other rule's
+#   findings first).
 import Base
 import ../src/codes.bend as Codes
 import ../src/rules.bend as Rules
 
 # the rules that read the whole project, and so are not in the run table
 def project_rules() -> List<&2, String>:
-  ["setting", "coverage", "noqa"]
+  ["setting", "coverage", "spare", "noqa"]
 
 # is the slug one of these?
 def among(+slug: String, s: List<&2, String>) -> Bool:
@@ -66,7 +68,7 @@ law run_slug_coded:
   {run.coded(List.get(&2, Rules.Run, Rules.on.table(), n)) == True{} : Bool}
 
 # LAW: every slug of the code table is run on each file, or is one of the
-# three project rules
+# four project rules
 law code_slug_run:
   for +n: Nat
   {code.run(List.get(&2, Codes.Entry, Codes.table(), n)) == True{} : Bool}

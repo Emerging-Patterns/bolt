@@ -43,7 +43,7 @@ def scope3.go(ds, cl):
   match ds:
     case Nil{}:
       {==}
-    case Con{Digest.Digest{+path, +norm, _dir, _is_laws, _is_law_file, exempt, +tops, _says, _deps, _laws},
+    case Con{Digest.Digest{+path, +norm, _dir, _is_laws, _is_law_file, exempt, +tops, _says, _deps, _laws, _links},
       +rest}:
       scope3.go.step(exempt, tops, cl, norm, path, Law.check.go(rest, cl), Laws.under_law(rest, cl),
         scope3.go(rest, cl))
@@ -78,7 +78,7 @@ def scope3.first(ds, all):
   match ds:
     case Nil{}:
       {==}
-    case Con{Digest.Digest{_path, _norm, +dir, is_laws, _is_law_file, _exempt, _tops, _says, _deps, _laws},
+    case Con{Digest.Digest{_path, _norm, +dir, is_laws, _is_law_file, _exempt, _tops, _says, _deps, _laws, _links},
       +rest}:
       scope3.first.step(is_laws, all, dir, Law.law_dirs(rest), Laws.has_laws(rest), scope3.first(rest, all))
 
