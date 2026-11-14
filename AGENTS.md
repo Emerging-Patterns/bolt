@@ -47,7 +47,9 @@ A `#|` equality for a proveable claim is a bug. The root `LAWS.bend` and
 
     nix flake check                the bolt package, checks.proofs (mkProofs
                                    runs `ez prove`: every PROOF.bend),
-                                   checks.lint (mkLint: bolt on this tree) and
+                                   checks.lint (mkLint: bolt on this tree),
+                                   checks.fmt (`bolt fmt --check` on this
+                                   tree: run `bolt fmt` before you commit) and
                                    checks.lsp (the packaged bolt as an editor
                                    starts it, and the server over the real
                                    checker)
@@ -75,7 +77,7 @@ reports when bolt itself is broken, which is the whole of the argument that
 used to keep `gate.sh` around.
 
 CI is that flake check. `.github/workflows/ci.yml` runs `nix flake check`:
-the bolt package, checks.proofs, checks.lint and checks.lsp. CI runs no
+the bolt package, checks.proofs, checks.lint, checks.fmt and checks.lsp. CI runs no
 `ez test`: `tests/bare.bend` builds bolt from the hub and needs the network,
 so checks.lint is where CI sees bolt lint itself (it fails on an error, not a
 warning), and checks.lsp is where CI sees the language server answer:
