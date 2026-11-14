@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.56.0](https://github.com/Emerging-Patterns/bolt/compare/v1.55.0...v1.56.0) (2026-11-14)
+
+
+### Features
+
+* **fmt:** bolt fmt, a formatter for blank space, with --check ([#369](https://github.com/Emerging-Patterns/bolt/issues/369)) ([45b2087](https://github.com/Emerging-Patterns/bolt/commit/45b20874c00168d0215991f7cf620840d84e5c33))
+
+
+### Bug Fixes
+
+* **config:** setting (C011) reports a limit under a name no rule has ([#370](https://github.com/Emerging-Patterns/bolt/issues/370)) ([28dcf64](https://github.com/Emerging-Patterns/bolt/commit/28dcf6431fd9435483ed7c9f9e2831291580889b))
+
 ## [1.55.0](https://github.com/Emerging-Patterns/bolt/compare/v1.54.0...v1.55.0) (2026-11-14)
 
 
