@@ -9,9 +9,13 @@
 # header every token is written as it is, blank space too, and a `def`
 # whose header needs no rewriting does not start one.
 #
-# Of the final newline two things are proved: a file that is one token of
-# code gains it, and a file that is nothing but newlines, however many,
-# closes to one.
+# Of the final newline three things are proved: a file that is one token of
+# code gains it, unless the token's text ends in a line break; a file that
+# is nothing but newlines, however many, closes to one; and a file whose
+# last token is no newline, yet ends in a line break, is left as it ends.
+# That last is a file that ends inside a string that never closes: the
+# string runs through the file's last line break, so a newline after it
+# would be one more on every run.
 #
 # Not proved here, and checked instead over 4,943 files of sixteen public
 # repos and this repo's own: that a comment keeps its text but for the
@@ -90,15 +94,23 @@ def newlines(kn: Nat) -> List<&2, Lex.Tok>:
     case 1n+p:
       Lex.Tok{Lex.TNewline{}, "\n", 0, 0} <> newlines(p)
 
-# LAW: a file of one token that is no newline is closed with a newline
-# after it
+# LAW: a file of one token that is no newline, and whose text ends in no
+# line break, is closed with a newline after it
 law close_adds_final_newline:
   for +k: Lex.TokKind
-  for t: String
+  for +t: String
   for l: U32
   for c: U32
   for e: {Fmt.is_newline(k) == False{} : Bool}
+  for b: {Fmt.close.broken(t) == False{} : Bool}
   {Fmt.close([Lex.Tok{k, t, l, c}]) == [Lex.Tok{k, t, l, c}, Fmt.close.newline()] : List<&2, Lex.Tok>}
+
+# LAW: tokens that end in one that is no newline, yet whose text ends in a
+# line break, are left as they are: a file that ends inside a string
+law close_leaves_unclosed_string:
+  for +toks: List<&2, Lex.Tok>
+  for e: {Fmt.close.shut(toks) == True{} : Bool}
+  {Fmt.close(toks) == toks : List<&2, Lex.Tok>}
 
 # LAW: newlines alone, however many, close to one
 law close_newlines_to_one:

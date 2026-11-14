@@ -11,7 +11,9 @@
 #            as if two already had;
 #   close    one newline at the end: the newlines the tokens end in become
 #            one, and a file that ends without one gains it. An empty file
-#            stays empty.
+#            stays empty, and a file that ends inside a string that never
+#            closes is left as it ends: the string holds its last line
+#            break, so there is nothing to add after it.
 # Indentation, the spaces inside a line, and where a line that is no def
 # header breaks are left as they are.
 # Pure: text in, text out. src/fmt/plan.bend decides which files change and
@@ -133,13 +135,38 @@ def close.go(toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
       Lazy.stop(List<&2, Lex.Tok>, Lazy.and_then(is_newline(k), _u => close.only(rest)), [close.newline()],
         _v => Lex.Tok{k, t, l, c} <> close.go(rest))
 
-# one newline at the end; an empty file stays empty
-def close(toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
+# is the first char a line break?
+def close.first(cs: List<&2, Char>) -> Bool:
+  match cs:
+    case Nil{}:
+      False{}
+    case Con{c, _more}:
+      Lex.is_newline(c)
+
+# does a text end in a line break?
+def close.broken(t: String) -> Bool:
+  close.first(List.reverse(&2, Char, String.to_list(t)))
+
+# do the tokens end in one that is no newline, yet whose text ends in a line
+# break? A string that never closes does: it runs through every line break
+# to the end of the file
+def close.shut(toks: List<&2, Lex.Tok>) -> Bool:
+  match toks:
+    case Nil{}:
+      False{}
+    case Con{Lex.Tok{k, t, _l, _c}, Nil{}}:
+      Bool.and(Bool.not(is_newline(k)), close.broken(t))
+    case Con{_tok, rest}:
+      close.shut(rest)
+
+# one newline at the end; an empty file stays empty, and so does one that
+# ends inside a string
+def close(+toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
   match toks:
     case Nil{}:
       Nil{}
-    case Con{h, t}:
-      close.go(h <> t)
+    case Con{+h, +t}:
+      Lazy.either(List<&2, Lex.Tok>, close.shut(h <> t), _u => h <> t, _v => close.go(h <> t))
 
 # a file's tokens, formatted. The line and column of a token after the first
 # change are the ones it was read at, not where it now sits: only the texts

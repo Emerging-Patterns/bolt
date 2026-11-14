@@ -736,19 +736,50 @@ def fmt.close(toks):
             Laws.code(Bool.pick(List<&2, Lex.Tok>, Fmt.close.only(rest), Nil{}, rest)), Laws.code(rest),
             fmt.end(Fmt.close.only(rest), t, l, c, rest, fmt.close(rest)), fmt.only(rest))
 
+# whichever of two token lists is taken, the code is the first's when the
+# second's is
+law fmt.either:
+  for b: Bool
+  for -x: List<&2, Lex.Tok>
+  for -y: List<&2, Lex.Tok>
+  for e: {Laws.code(y) == Laws.code(x) : List<&2, Lex.Tok>}
+  {Laws.code(Lazy.either(List<&2, Lex.Tok>, b, _u => x, _v => y)) == Laws.code(x) : List<&2, Lex.Tok>}
+
+def fmt.either(b, _x, _y, e):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      e
+
 def Laws.close_keeps_code(toks):
   match toks:
     case Nil{}:
       {==}
-    case Con{h, t}:
-      fmt.close(h <> t)
+    case Con{+h, +t}:
+      fmt.either(Fmt.close.shut(h <> t), h <> t, Fmt.close.go(h <> t), fmt.close(h <> t))
 
-def Laws.close_adds_final_newline(k, t, l, c, e):
+def Laws.close_adds_final_newline(k, t, l, c, e, b):
   s = Equal.sym(Bool, Fmt.is_newline(k), False{}, e)
-  %s : {Lazy.stop(List<&2, Lex.Tok>, Lazy.and_then(_, _u => Fmt.close.only(Nil{})), [Fmt.close.newline()],
-      _v => Lex.Tok{k, t, l, c} <> Fmt.close.go(Nil{}))
+  %s : {Lazy.either(List<&2, Lex.Tok>, Bool.and(Bool.not(_), Fmt.close.broken(t)), _u => [Lex.Tok{k, t, l, c}],
+      _v => Lazy.stop(List<&2, Lex.Tok>, Lazy.and_then(_, _w => Fmt.close.only(Nil{})), [Fmt.close.newline()],
+        _z => Lex.Tok{k, t, l, c} <> Fmt.close.go(Nil{})))
+    == [Lex.Tok{k, t, l, c}, Fmt.close.newline()] : List<&2, Lex.Tok>}
+  n = Equal.sym(Bool, Fmt.close.broken(t), False{}, b)
+  %n : {Lazy.either(List<&2, Lex.Tok>, _, _u => [Lex.Tok{k, t, l, c}],
+      _v => [Lex.Tok{k, t, l, c}, Fmt.close.newline()])
     == [Lex.Tok{k, t, l, c}, Fmt.close.newline()] : List<&2, Lex.Tok>}
   {==}
+
+def Laws.close_leaves_unclosed_string(toks, e):
+  match toks:
+    case Nil{}:
+      {==}
+    case Con{+h, +t}:
+      s = Equal.sym(Bool, Fmt.close.shut(h <> t), True{}, e)
+      %s : {Lazy.either(List<&2, Lex.Tok>, _, _u => h <> t, _v => Fmt.close.go(h <> t)) == h <> t
+        : List<&2, Lex.Tok>}
+      {==}
 
 # newlines alone are newlines alone
 law fmt.all:
