@@ -141,3 +141,23 @@ law outline:
   for +toks: List<&2, Lex.Tok>
   {top.keys(Outline.of_tokens(text, toks))
     == top.spec(String.lines(text), False{} <> top.strung(toks), 0) : List<&2, Outline.Item>}
+
+# LAW: a comment line that opens with `# ` is its text after those two chars
+law undoc_drops_hash_and_space:
+  for +ss: String
+  for e: {String.starts_with(ss, "# ") == True{} : Bool}
+  {Outline.undoc(ss) == String.drop(ss, 2n) : String}
+
+# LAW: one that opens with a bare `#` is its text after it
+law undoc_drops_a_bare_hash:
+  for +ss: String
+  for e1: {String.starts_with(ss, "# ") == False{} : Bool}
+  for e2: {String.starts_with(ss, "#") == True{} : Bool}
+  {Outline.undoc(ss) == String.drop(ss, 1n) : String}
+
+# LAW: a line that is no comment is left as it is
+law undoc_keeps_other_lines:
+  for +ss: String
+  for e1: {String.starts_with(ss, "# ") == False{} : Bool}
+  for e2: {String.starts_with(ss, "#") == False{} : Bool}
+  {Outline.undoc(ss) == ss : String}

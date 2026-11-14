@@ -31,3 +31,6 @@ def Laws.save_keeps_marks(_ee, uri, ds, _rs, ms, docs):
 
 def Laws.change_keeps_marks(_ee, uri, text, _rs, docs):
   keep.marks_head(uri, text, Docs.errors(docs, uri), Docs.marks(docs, uri), Docs.del(docs, uri))
+
+def Laws.world_keeps_earlier_answers_first(_paths, _cwd, _replies, _rs):
+  {==}

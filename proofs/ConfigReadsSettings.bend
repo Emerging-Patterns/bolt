@@ -19,3 +19,6 @@ def Laws.levels_in_order(_n, _w, _line, _rest):
 
 def Laws.parse_reads_settings(_text):
   {==}
+
+def Laws.settings_in_file_order(_kids, _body, _rest):
+  {==}

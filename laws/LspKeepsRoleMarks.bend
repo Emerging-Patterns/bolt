@@ -10,6 +10,7 @@ import ../src/lsp/docs.bend as Docs
 import ../src/lsp/report.bend as Rep
 import ../src/lsp/enc.bend as Enc
 import ../src/role.bend as Role
+import ../src/lint/world.bend as World
 
 # the open documents after a method's work
 def keep.docs(ww: Server.Work) -> List<&2, Docs.Doc>:
@@ -46,3 +47,13 @@ law change_keeps_marks:
   for +docs: List<&2, Docs.Doc>
   {Docs.marks(keep.docs(Server.pub.change(ee, uri, text, rs, docs)), uri) == Docs.marks(docs, uri)
     : List<&2, Role.Mark>}
+
+# LAW: the answers the server reads for the graph join the ones it already
+# has, after them: an earlier answer to a question stays the first one found
+law world_keeps_earlier_answers_first:
+  for paths: List<&2, String>
+  for cwd: String
+  for replies: List<&2, World.Reply>
+  for rs: List<&2, World.Reply>
+  {Server.pub.world.more(World.World{paths, cwd, replies}, rs)
+    == World.World{paths, cwd, List.append(&2, World.Reply, replies, rs)} : World.World}
