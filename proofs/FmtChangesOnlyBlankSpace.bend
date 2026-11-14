@@ -2,9 +2,166 @@
 import Base
 import ../src/fmt.bend as Fmt
 import ../src/fmt/head.bend as Head
+import ../src/fmt/line.bend as Line
 import ../src/lazy/lazy.bend as Lazy
 import ../src/syntax/lex.bend as Lex
 import ../laws/FmtChangesOnlyBlankSpace.bend as Laws
+
+# a gap after a comma is a space or nothing: it adds no code
+law ln.gap:
+  for b: Bool
+  for -more: List<&2, Lex.Tok>
+  {Laws.code(Line.commas.gap(b, more)) == Laws.code(more) : List<&2, Lex.Tok>}
+
+def ln.gap(b, _more):
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+def Laws.commas_keep_code(toks):
+  match toks:
+    case Nil{}:
+      {==}
+    case Con{Lex.Tok{k, +t, l, c}, +rest}:
+      match k:
+        case Lex.TName{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TName{}, t, 0, 0} <> z,
+            Laws.code(Line.commas(rest)), Laws.code(rest), Laws.commas_keep_code(rest))
+        case Lex.TUpper{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TUpper{}, t, 0, 0} <> z,
+            Laws.code(Line.commas(rest)), Laws.code(rest), Laws.commas_keep_code(rest))
+        case Lex.TDotted{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TDotted{}, t, 0, 0} <> z,
+            Laws.code(Line.commas(rest)), Laws.code(rest), Laws.commas_keep_code(rest))
+        case Lex.TWild{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TWild{}, t, 0, 0} <> z,
+            Laws.code(Line.commas(rest)), Laws.code(rest), Laws.commas_keep_code(rest))
+        case Lex.TKey{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TKey{}, t, 0, 0} <> z,
+            Laws.code(Line.commas(rest)), Laws.code(rest), Laws.commas_keep_code(rest))
+        case Lex.TNum{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TNum{}, t, 0, 0} <> z,
+            Laws.code(Line.commas(rest)), Laws.code(rest), Laws.commas_keep_code(rest))
+        case Lex.TStr{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TStr{}, t, 0, 0} <> z,
+            Laws.code(Line.commas(rest)), Laws.code(rest), Laws.commas_keep_code(rest))
+        case Lex.TChar{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TChar{}, t, 0, 0} <> z,
+            Laws.code(Line.commas(rest)), Laws.code(rest), Laws.commas_keep_code(rest))
+        case Lex.TComment{}:
+          Laws.commas_keep_code(rest)
+        case Lex.TSpace{}:
+          Laws.commas_keep_code(rest)
+        case Lex.TNewline{}:
+          Laws.commas_keep_code(rest)
+        case Lex.TOp{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TOp{}, t, 0, 0} <> z,
+            Laws.code(Line.commas(rest)), Laws.code(rest), Laws.commas_keep_code(rest))
+        case Lex.TColon{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TColon{}, t, 0, 0} <> z,
+            Laws.code(Line.commas(rest)), Laws.code(rest), Laws.commas_keep_code(rest))
+        case Lex.TEq{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TEq{}, t, 0, 0} <> z,
+            Laws.code(Line.commas(rest)), Laws.code(rest), Laws.commas_keep_code(rest))
+        case Lex.TBind{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TBind{}, t, 0, 0} <> z,
+            Laws.code(Line.commas(rest)), Laws.code(rest), Laws.commas_keep_code(rest))
+        case Lex.TArrow{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TArrow{}, t, 0, 0} <> z,
+            Laws.code(Line.commas(rest)), Laws.code(rest), Laws.commas_keep_code(rest))
+        case Lex.TLam{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TLam{}, t, 0, 0} <> z,
+            Laws.code(Line.commas(rest)), Laws.code(rest), Laws.commas_keep_code(rest))
+        case Lex.TAll{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TAll{}, t, 0, 0} <> z,
+            Laws.code(Line.commas(rest)), Laws.code(rest), Laws.commas_keep_code(rest))
+        case Lex.TAmp{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TAmp{}, t, 0, 0} <> z,
+            Laws.code(Line.commas(rest)), Laws.code(rest), Laws.commas_keep_code(rest))
+        case Lex.TOpen{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TOpen{}, t, 0, 0} <> z,
+            Laws.code(Line.commas(rest)), Laws.code(rest), Laws.commas_keep_code(rest))
+        case Lex.TClose{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TClose{}, t, 0, 0} <> z,
+            Laws.code(Line.commas(rest)), Laws.code(rest), Laws.commas_keep_code(rest))
+        case Lex.TComma{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TComma{}, t, 0, 0} <> z,
+            Laws.code(Line.commas.gap(Line.commas.bare(rest), Line.commas(rest))), Laws.code(rest),
+            Equal.trans(List<&2, Lex.Tok>, Laws.code(Line.commas.gap(Line.commas.bare(rest), Line.commas(rest))),
+              Laws.code(Line.commas(rest)), Laws.code(rest), ln.gap(Line.commas.bare(rest), Line.commas(rest)),
+              Laws.commas_keep_code(rest)))
+
+def Laws.runs_keep_code(toks, _lead):
+  match toks:
+    case Nil{}:
+      {==}
+    case Con{Lex.Tok{k, +t, l, c}, +rest}:
+      match k:
+        case Lex.TName{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TName{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
+        case Lex.TUpper{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TUpper{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
+        case Lex.TDotted{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TDotted{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
+        case Lex.TWild{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TWild{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
+        case Lex.TKey{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TKey{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
+        case Lex.TNum{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TNum{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
+        case Lex.TStr{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TStr{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
+        case Lex.TChar{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TChar{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
+        case Lex.TComment{}:
+          Laws.runs_keep_code(rest, False{})
+        case Lex.TSpace{}:
+          Laws.runs_keep_code(rest, False{})
+        case Lex.TNewline{}:
+          Laws.runs_keep_code(rest, True{})
+        case Lex.TOp{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TOp{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
+        case Lex.TColon{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TColon{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
+        case Lex.TEq{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TEq{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
+        case Lex.TBind{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TBind{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
+        case Lex.TArrow{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TArrow{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
+        case Lex.TLam{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TLam{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
+        case Lex.TAll{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TAll{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
+        case Lex.TAmp{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TAmp{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
+        case Lex.TOpen{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TOpen{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
+        case Lex.TClose{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TClose{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
+        case Lex.TComma{}:
+          Equal.cong(List<&2, Lex.Tok>, List<&2, Lex.Tok>, z => Lex.Tok{Lex.TComma{}, t, 0, 0} <> z,
+            Laws.code(Line.runs(rest, False{})), Laws.code(rest), Laws.runs_keep_code(rest, False{}))
 
 # a gap is blank space: it adds no code
 law hd.gap:
@@ -805,11 +962,15 @@ def Laws.close_newlines_to_one(kn):
       {==}
 
 def Laws.fmt_keeps_code(toks):
-  +hd = Head.heads(toks)
+  +sp = Line.runs(Line.commas(toks), True{})
+  +hd = Head.heads(sp)
   Equal.trans(List<&2, Lex.Tok>, Laws.code(Fmt.close(Fmt.squeeze(Fmt.trim(hd), Fmt.squeeze.most()))),
     Laws.code(Fmt.squeeze(Fmt.trim(hd), Fmt.squeeze.most())), Laws.code(toks),
     Laws.close_keeps_code(Fmt.squeeze(Fmt.trim(hd), Fmt.squeeze.most())),
     Equal.trans(List<&2, Lex.Tok>, Laws.code(Fmt.squeeze(Fmt.trim(hd), Fmt.squeeze.most())), Laws.code(Fmt.trim(hd)),
       Laws.code(toks), Laws.squeeze_keeps_code(Fmt.trim(hd), Fmt.squeeze.most()),
       Equal.trans(List<&2, Lex.Tok>, Laws.code(Fmt.trim(hd)), Laws.code(hd), Laws.code(toks), Laws.trim_keeps_code(hd),
-        Laws.heads_keep_code(toks, Head.Out{}))))
+        Equal.trans(List<&2, Lex.Tok>, Laws.code(hd), Laws.code(sp), Laws.code(toks),
+          Laws.heads_keep_code(sp, Head.Out{}),
+          Equal.trans(List<&2, Lex.Tok>, Laws.code(sp), Laws.code(Line.commas(toks)), Laws.code(toks),
+            Laws.runs_keep_code(Line.commas(toks), True{}), Laws.commas_keep_code(toks))))))

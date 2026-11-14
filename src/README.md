@@ -726,6 +726,12 @@ word, and lists of names nobody may use.
 every `.bend` file under the current directory (a bolt.bend is not among
 them). It changes blank space and nothing else:
 
+- a comma has a space after it, unless what comes right after it is a
+  closing bracket or the line's end (`f(a,b)` becomes `f(a, b)`; `[a, b,]`
+  stays), and a run of spaces or tabs between two tokens of a line is one
+  space (laws/FmtSetsLineSpaces.bend). The spaces a line opens with are its
+  indentation and stay, and so do the spaces before a comment, which may be
+  lined up with the comments around it;
 - a def header that breaks across lines, or is wider than 120 on one, is
   written in the shape `wrap` asks for: `(` ends the first line, each
   parameter has a line of its own, indented two, and `)` opens the last
@@ -740,10 +746,16 @@ them). It changes blank space and nothing else:
   that ends inside a string that never closes is left as it ends: the
   string holds the file's last line break.
 
-Indentation under a header, the spaces inside a line and where any other
-line breaks are left as they are; a tab and a line over 120 wide that is no
-def header are still yours to fix, and so is a header `wrap` reports that
-has no parameter to put on a line of its own. A header is a `def` at column
+Indentation under a header and where any other line breaks are left as
+they are, and so is whether two tokens of a line have a space between them,
+a comma and what follows it aside: `f(x)` and `f (x)` both stay, and so
+does `1n+p`. A tab and a line over 120 wide that is no def header are still
+yours to fix (a line can grow past 120 by the spaces its commas gain), and
+so is a header `wrap` reports that has no parameter to put on a line of its
+own. Indentation has no pass because it would have nothing to do: of 9,320
+public Bend 2 files, 9,302 indent by two spaces, and 99.5% of the steps
+inward are two wide; the rest are lines an expression wraps onto, where the
+language has no one shape to ask for. A header is a `def` at column
 0 through its first `:` outside every bracket, so one behind `@unsafe` on
 its line is not read. Every token of code is kept as it is, in order
 (laws/FmtChangesOnlyBlankSpace.bend), so a formatted file is the same
@@ -758,10 +770,11 @@ either way. A file formatting would change that is not UTF-8 is `skipped
 as U+FFFD, and writing that back would change the file beyond its blank
 space (laws/FmtPlansEdits.bend).
 
-Over sixteen public repos (4,943 files) it rewrote 1,174 files and skipped
-26; `wrap`'s findings there fell from 8,920 to 215, of which 194 sit in
-the skipped files; a second run changed nothing, and no file changed but
-in its blank space.
+Over 83 public repos (10,158 files) it rewrote 2,114 files and skipped 28;
+a second run changed nothing, and no file changed but in its blank space.
+The spaces inside a line account for 745 of those files and 17,350 lines,
+nine in ten of them a comma. Over sixteen of the repos `wrap`'s findings
+fell from 8,920 to 215, of which 194 sit in the skipped files.
 
 ## One binary
 

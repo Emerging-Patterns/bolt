@@ -21,6 +21,7 @@ import ./proofs/RulesRunAtConfiguredLimits.bend as PRulesRunAtConfiguredLimits
 import ./proofs/SizeReportsOversizedDefs.bend as PSizeReportsOversizedDefs
 import ./proofs/FmtChangesOnlyBlankSpace.bend as PFmtChangesOnlyBlankSpace
 import ./proofs/FmtPlansEdits.bend as PFmtPlansEdits
+import ./proofs/FmtSetsLineSpaces.bend as PFmtSetsLineSpaces
 import ./proofs/ConfigLevelsResolve.bend as PConfigLevelsResolve
 import ./proofs/ConfigNearestFileGrades.bend as PConfigNearestFileGrades
 import ./proofs/ConfigOptInStartsOff.bend as PConfigOptInStartsOff
