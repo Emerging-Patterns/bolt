@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.58.0](https://github.com/Emerging-Patterns/bolt/compare/v1.57.0...v1.58.0) (2026-11-14)
+
+
+### Bug Fixes
+
+* **fmt:** a file that ends inside a string gains no newline on every run ([#377](https://github.com/Emerging-Patterns/bolt/issues/377)) ([3f3e9fb](https://github.com/Emerging-Patterns/bolt/commit/3f3e9fbd15ed4494dd6bc2144b4f03f4ec2a5cfa))
+
 ## [1.57.0](https://github.com/Emerging-Patterns/bolt/compare/v1.56.0...v1.57.0) (2026-11-14)
 
 
