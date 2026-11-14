@@ -5,5 +5,3 @@
 #
 # also rests on: laws/LinesInOrder.bend
 import Base
-
-

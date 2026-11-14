@@ -82,34 +82,42 @@ def exec(pl: Plan.Plan) -> IO(Unit):  # noqa: L001 IO driver
     Status.stop(U32.is_gt(exit, 0))
 
 # the planner's questions answered and the loop gone round again, or, when
-# there are none, its plan carried out
-def loop.step(asks: List<&2, W.Ask>, +world: W.World, go: W.World -> IO(Unit)) -> IO(Unit):
+# there are none, the World as it stands: every answer the run needs
+def loop.step(asks: List<&2, W.Ask>, +world: W.World, go: W.World -> IO(W.World)) -> IO(W.World):
   match asks:
     case Nil{}:
-      exec(Plan.plan(world))
+      IO.pure(W.World, world)
     case Con{a, rest}:
-      do IO<Unit>:
+      do IO<W.World>:
         rs : List<&2, W.Reply> <- answer.all(a <> rest)
         go(more(world, rs))
 
 # the loop, under fuel: the walk's bound, plus a round for the texts and one
 # to plan. Every round adds at least one answer, since the planner never asks
 # what the World answers already.
-def loop(fuel: Nat, +world: W.World) -> IO(Unit):  # noqa: L001 IO driver
+def loop(fuel: Nat, +world: W.World) -> IO(W.World):  # noqa: L001 IO driver
   match fuel:
     case 0n:
-      IO.die(Unit, 1, "bolt: the lint kept asking")
+      IO.die(W.World, 1, "bolt: the lint kept asking")
     case 1n+f:
       loop.step(Plan.wants(world), world, ww => loop(f, ww))
 
-# the lint from a working directory; none that can be named is fatal, as no
-# relative path could be resolved against it
-def run.from(paths: List<&2, String>, +cwd: String) -> IO(Unit):
-  Lazy.stop(IO(Unit), String.is_empty(cwd), IO.die(Unit, 1, "bolt: cannot name the working directory"),
+# the World filled from a working directory; none that can be named is
+# fatal, as no relative path could be resolved against it
+def fill.from(paths: List<&2, String>, +cwd: String) -> IO(W.World):
+  Lazy.stop(IO(W.World), String.is_empty(cwd), IO.die(W.World, 1, "bolt: cannot name the working directory"),
     _u => loop(Nat.add(Plan.limit(), 2n), W.World{paths, cwd, []}))
+
+# the World of a run over the files given, or the tree below, with every
+# answer the planner asks for: what the lint plans from, and `bolt fmt`
+# (src/fmt/run.bend)
+def fill(paths: List<&2, String>) -> IO(W.World):  # noqa: L001 IO driver
+  do IO<W.World>:
+    cwd : String <- WalkDisk.cwd()
+    fill.from(paths, cwd)
 
 # the linter, over the files given, or the tree below
 def run(paths: List<&2, String>) -> IO(Unit):  # noqa: L001 IO driver
   do IO<Unit>:
-    cwd : String <- WalkDisk.cwd()
-    run.from(paths, cwd)
+    world : W.World <- fill(paths)
+    exec(Plan.plan(world))

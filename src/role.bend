@@ -189,7 +189,6 @@ def marks.facts(+fs: List<&2, Fact>) -> List<&2, Mark>:
 def marks(ss: List<&2, Src.Src>) -> List<&2, Mark>:
   marks.facts(facts(ss))
 
-
 # a normalized path's role among the marks: neither when it is not marked
 def of.norm(ms: List<&2, Mark>, +nn: String) -> Role:
   match ms:

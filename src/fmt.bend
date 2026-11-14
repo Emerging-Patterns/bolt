@@ -17,6 +17,7 @@
 # src/fmt/run.bend writes them.
 import Base
 import ./lazy/lazy.bend as Lazy
+import ./rchars.bend as Rchars
 import ./syntax/lex.bend as Lex
 
 # a newline token?
@@ -35,14 +36,6 @@ def is_space(kk: Lex.TokKind) -> Bool:
     case other:
       False{}
 
-# a comment?
-def is_comment(kk: Lex.TokKind) -> Bool:
-  match kk:
-    case Lex.TComment{}:
-      True{}
-    case other:
-      False{}
-
 # a space or a tab?
 def blank(+ch: Char) -> Bool:
   Bool.or(Char.is_eq(ch, ' '), Char.is_eq(ch, '\t'))
@@ -57,7 +50,7 @@ def trim.lead(cs: List<&2, Char>) -> List<&2, Char>:
 
 # a text without the spaces and tabs it ends in
 def trim.tail(tt: String) -> String:
-  String.from_list(List.reverse(&2, Char, trim.lead(List.reverse(&2, Char, String.to_list(tt)))))
+  Rchars.text(trim.lead(List.reverse(&2, Char, String.to_list(tt))))
 
 # a token's text as trim leaves it: a comment's without the blanks it ends
 # in, any other as it is

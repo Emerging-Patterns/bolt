@@ -89,7 +89,8 @@ def Laws.trim_keeps_code(toks):
         case Lex.TNewline{}:
           Laws.trim_keeps_code(rest)
         case Lex.TSpace{}:
-          Equal.trans(List<&2, Lex.Tok>, Laws.code(Fmt.trim.keep(Fmt.trim.ends(rest), Lex.TSpace{}, t, l, c, Fmt.trim(rest))),
+          Equal.trans(List<&2, Lex.Tok>, Laws.code(Fmt.trim.keep(Fmt.trim.ends(rest), Lex.TSpace{}, t, l, c,
+            Fmt.trim(rest))),
             Laws.code(Fmt.trim(rest)), Laws.code(rest), fmt.space(Fmt.trim.ends(rest), t, l, c, Fmt.trim(rest)),
             Laws.trim_keeps_code(rest))
 
@@ -257,7 +258,8 @@ def fmt.only(toks):
           {==}
         case Lex.TNewline{}:
           Equal.trans(List<&2, Lex.Tok>,
-            Laws.code(Bool.pick(List<&2, Lex.Tok>, Fmt.close.only(rest), Nil{}, Lex.Tok{Lex.TNewline{}, t, l, c} <> rest)),
+            Laws.code(Bool.pick(List<&2, Lex.Tok>, Fmt.close.only(rest), Nil{}, Lex.Tok{Lex.TNewline{}, t, l,
+              c} <> rest)),
             Laws.code(Bool.pick(List<&2, Lex.Tok>, Fmt.close.only(rest), Nil{}, rest)), Laws.code(rest),
             fmt.only.step(Fmt.close.only(rest), t, l, c, rest), fmt.only(rest))
 
@@ -366,9 +368,40 @@ def Laws.close_keeps_code(toks):
     case Con{h, t}:
       fmt.close(h <> t)
 
+def Laws.close_adds_final_newline(k, t, l, c, e):
+  s = Equal.sym(Bool, Fmt.is_newline(k), False{}, e)
+  %s : {Lazy.stop(List<&2, Lex.Tok>, Lazy.and_then(_, _u => Fmt.close.only(Nil{})), [Fmt.close.newline()],
+      _v => Lex.Tok{k, t, l, c} <> Fmt.close.go(Nil{}))
+    == [Lex.Tok{k, t, l, c}, Fmt.close.newline()] : List<&2, Lex.Tok>}
+  {==}
+
+# newlines alone are newlines alone
+law fmt.all:
+  for kn: Nat
+  {Fmt.close.only(Laws.newlines(kn)) == True{} : Bool}
+
+def fmt.all(kn):
+  match kn:
+    case 0n:
+      {==}
+    case 1n+p:
+      fmt.all(p)
+
+def Laws.close_newlines_to_one(kn):
+  match kn:
+    case 0n:
+      {==}
+    case 1n+p:
+      s = Equal.sym(Bool, Fmt.close.only(Laws.newlines(p)), True{}, fmt.all(p))
+      %s : {Lazy.stop(List<&2, Lex.Tok>, _, [Fmt.close.newline()],
+          _v => Lex.Tok{Lex.TNewline{}, "\n", 0, 0} <> Fmt.close.go(Laws.newlines(p)))
+        == [Fmt.close.newline()] : List<&2, Lex.Tok>}
+      {==}
+
 def Laws.fmt_keeps_code(toks):
   Equal.trans(List<&2, Lex.Tok>, Laws.code(Fmt.close(Fmt.squeeze(Fmt.trim(toks), Fmt.squeeze.most()))),
     Laws.code(Fmt.squeeze(Fmt.trim(toks), Fmt.squeeze.most())), Laws.code(toks),
     Laws.close_keeps_code(Fmt.squeeze(Fmt.trim(toks), Fmt.squeeze.most())),
-    Equal.trans(List<&2, Lex.Tok>, Laws.code(Fmt.squeeze(Fmt.trim(toks), Fmt.squeeze.most())), Laws.code(Fmt.trim(toks)),
+    Equal.trans(List<&2, Lex.Tok>, Laws.code(Fmt.squeeze(Fmt.trim(toks), Fmt.squeeze.most())),
+      Laws.code(Fmt.trim(toks)),
       Laws.code(toks), Laws.squeeze_keeps_code(Fmt.trim(toks), Fmt.squeeze.most()), Laws.trim_keeps_code(toks)))

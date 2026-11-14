@@ -127,4 +127,3 @@ def Laws.nat_value_needs_a_literal(tt, e):
   %Equal.sym(Bool, Tokens.nat_ok(String.to_list(tt)), False{}, e) :
     {Bool.pick(Maybe<&2, U32>, _, U32.read(Tokens.stem(tt)), None{}) == None{} : Maybe<&2, U32>}
   {==}
-

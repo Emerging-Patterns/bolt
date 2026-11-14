@@ -57,11 +57,12 @@ law cli_args_kept:
   for t: List<&1, String>
   {Args.widen(s <> t) == s <> Args.widen(t) : List<&2, String>}
 
-# LAW: the subcommands are `lint`, `check` and `lsp`, and no other word
+# LAW: the subcommands are `lint`, `check`, `fmt` and `lsp`, and no other
+# word
 law cli_commands_named:
   for +ww: String
-  {Args.is_cmd(ww) == Bool.or(String.eq(ww, "lint"), Bool.or(String.eq(ww, "check"), String.eq(ww, "lsp")))
-    : Bool}
+  {Args.is_cmd(ww) == Bool.or(String.eq(ww, "lint"),
+      Bool.or(String.eq(ww, "check"), Bool.or(String.eq(ww, "fmt"), String.eq(ww, "lsp")))) : Bool}
 
 # LAW: a word that is neither `--` nor `--help` is passed over in looking
 # for `--help`

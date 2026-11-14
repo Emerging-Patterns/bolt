@@ -4,11 +4,15 @@
 # So a formatted file is the same program. This holds of each pass (trim,
 # squeeze from any run of newlines, close) and so of the three together.
 #
+# Of the final newline two things are proved: a file that is one token of
+# code gains it, and a file that is nothing but newlines, however many,
+# closes to one.
+#
 # Not proved here, and checked instead over 2,012 files (this repo's and
 # 1,500 public ones): that a comment keeps its text but for the blanks it
-# ends in, that the result has no blank before a line's end, no two blank
-# lines in a row and one final newline, and that formatting a formatted file
-# changes nothing.
+# ends in, that the result has no blank before a line's end and no two blank
+# lines in a row, that every file ends in one newline, and that formatting a
+# formatted file changes nothing.
 import Base
 import ../src/fmt.bend as Fmt
 import ../src/syntax/lex.bend as Lex
@@ -38,6 +42,29 @@ law squeeze_keeps_code:
 law close_keeps_code:
   for toks: List<&2, Lex.Tok>
   {code(Fmt.close(toks)) == code(toks) : List<&2, Lex.Tok>}
+
+# one newline more than the count
+def newlines(kn: Nat) -> List<&2, Lex.Tok>:
+  match kn:
+    case 0n:
+      [Lex.Tok{Lex.TNewline{}, "\n", 0, 0}]
+    case 1n+p:
+      Lex.Tok{Lex.TNewline{}, "\n", 0, 0} <> newlines(p)
+
+# LAW: a file of one token that is no newline is closed with a newline
+# after it
+law close_adds_final_newline:
+  for +k: Lex.TokKind
+  for t: String
+  for l: U32
+  for c: U32
+  for e: {Fmt.is_newline(k) == False{} : Bool}
+  {Fmt.close([Lex.Tok{k, t, l, c}]) == [Lex.Tok{k, t, l, c}, Fmt.close.newline()] : List<&2, Lex.Tok>}
+
+# LAW: newlines alone, however many, close to one
+law close_newlines_to_one:
+  for kn: Nat
+  {Fmt.close.go(newlines(kn)) == [Fmt.close.newline()] : List<&2, Lex.Tok>}
 
 # LAW: formatting keeps the code: the same tokens of code, kind and text, in
 # the same order

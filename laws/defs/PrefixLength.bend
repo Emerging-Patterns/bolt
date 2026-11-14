@@ -51,4 +51,3 @@ def prefix_len_go(tt: String, +mm: Prefix.Mode) -> Nat:
 # True when k is the literal's length, in decimal, then `n`
 def prefix_fits(+kk: String, lit: String) -> Bool:
   String.eq(kk, Nat.show(prefix_len_go(lit, Prefix.MOpen{})) ++ "n")
-

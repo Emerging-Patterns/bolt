@@ -2,5 +2,3 @@
 import Base
 import ../laws/PackageDirs.bend as Laws
 import ./lemmas/PackageDirsLists.bend as M1
-
-

@@ -1036,4 +1036,3 @@ def Laws.doc_at_passes_earlier_items(_kk, _nn, ln, _sig, doc, _pp, rest, at, e1)
     {Lazy.stop(String, _, Bool.pick(String, U32.is_eq(ln, at), doc, ""), _u => Digest.doc_at(rest, at))
       == Digest.doc_at(rest, at) : String}
   {==}
-
