@@ -79,3 +79,12 @@ def shape_entry(upper, braced, dotted):
 def Laws.shape_names_its_legend_entry(name, braced):
   shape_entry(Semantic.upper_first(Semantic.last_segment(String.to_list(name), [])), braced,
     String.contains(name, "."))
+
+def Laws.name_takes_its_binder_or_use(_binds, _uses, _all, _name, _line, _col, _braced):
+  {==}
+
+def Laws.index_bit_set_goes_low(_lo, _hi):
+  {==}
+
+def Laws.index_bit_clear_goes_high(_lo, _hi):
+  {==}

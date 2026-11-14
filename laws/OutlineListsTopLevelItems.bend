@@ -161,3 +161,14 @@ law undoc_keeps_other_lines:
   for e1: {String.starts_with(ss, "# ") == False{} : Bool}
   for e2: {String.starts_with(ss, "#") == False{} : Bool}
   {Outline.undoc(ss) == ss : String}
+
+# LAW: an item's doc is its comment lines, each without its `# `, one a line
+law doc_text_joins_lines:
+  for doc: List<&2, String>
+  {Outline.doc_text(doc) == String.join(Outline.undoc.all(doc, []), "\n") : String}
+
+# LAW: a header that runs over several lines is those lines in order, one a
+# line
+law sig_text_joins_lines:
+  for sig: List<&2, String>
+  {Outline.sig_text(sig) == String.join(List.reverse(&2, String, sig), "\n") : String}

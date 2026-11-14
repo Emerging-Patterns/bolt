@@ -601,6 +601,11 @@ def encoding(mm: Method, params: J.Json, ee: Enc.Enc) -> Enc.Enc:
     case _other:
       ee
 
+# the encoding after a message, read off the message itself: its method, and
+# its `params` member for initialize to negotiate from
+def encoding.of(+msg: J.Json, ee: Enc.Enc) -> Enc.Enc:
+  encoding(method(name_of(msg)), Ezjson.get(msg, "params"), ee)
+
 # one message: its method's work, then step's decision on it
 def handle(  # noqa: L001 LSP IO glue
   ~fs: F.Files,
@@ -669,7 +674,7 @@ def turn.msg(
   docs: List<&2, Docs.Doc>,
   rest: H -> Enc.Enc -> List<&2, Docs.Doc> -> IO(Unit)
 ) -> IO(Unit):
-  +e2 = encoding(method(name_of(msg)), Ezjson.get(msg, "params"), ee)
+  +e2 = encoding.of(msg, ee)
   do IO<Unit>:
     out : Out <- handle(~fs, ~ck, e2, msg, docs)
     answer(~H, ~tr, out, h3, e2, rest)

@@ -457,3 +457,25 @@ law path_keeps_other:
   for +uri: String
   for e: {String.starts_with(uri, "file://") == False{} : Bool}
   {Proto.path(uri) == Frame.decode(Proto.unpercent(String.to_list(uri))) : String}
+
+# the source of a rule's row, none for no row. Law vocabulary: bolt never
+# calls it
+def source.named(mm: Maybe<&2, Codes.Entry>) -> Maybe<&2, String>:
+  match mm:
+    case None{}:
+      None{}
+    case Some{Codes.Entry{ss, _id, grp}}:
+      Some{"bolt(" ++ grp ++ ":" ++ ss ++ ")"}
+
+# LAW: a rule's finding is shown in the editor under the source
+# `bolt(group:slug)`
+law source_names_group_and_rule:
+  for +ss: String
+  for id: String
+  for +grp: String
+  {Codes.source.at(Some{Codes.Entry{ss, id, grp}}) == "bolt(" ++ grp ++ ":" ++ ss ++ ")" : String}
+
+# LAW: and a finding of no rule under `bolt`
+law source_of_no_rule:
+  for mm: Maybe<&2, Codes.Entry>
+  {Codes.source.at(mm) == Maybe.default(&2, String, source.named(mm), "bolt") : String}

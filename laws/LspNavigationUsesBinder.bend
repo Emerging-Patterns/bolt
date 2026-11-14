@@ -358,3 +358,22 @@ law nav_completion_import:
     == Nav.starting_in(~fs, docs, Path.join(Path.dir(Proto.path(uri)), rel), Word.rest(prefix),
         Word.head(prefix) ++ ".",
       R, k) : IO.OP<R>}
+
+# LAW: a directory and a path relative to it are one absolute path: their
+# segments with `.` and `..` resolved, joined by `/` under a leading `/`
+law path_joins_under_a_slash:
+  for dir: String
+  for rel: String
+  {Path.join(dir, rel)
+    == "/" ++ String.join(List.reverse(&2, String, Path.norm(String.split(dir ++ "/" ++ rel, '/'), [])), "/")
+    : String}
+
+# LAW: a file's directory is its path with `..` joined on
+law path_dir_is_one_up:
+  for path: String
+  {Path.dir(path) == Path.join(path, "..") : String}
+
+# LAW: a file is named to the editor by its path under the `file://` scheme
+law uri_of_a_path:
+  for path: String
+  {Nav.uri_of(path) == "file://" ++ path : String}

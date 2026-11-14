@@ -7,6 +7,7 @@ import ../src/lsp/frame.bend as Frame
 import ../src/syntax/bind.bend as Bind
 import ../src/config.bend as Config
 import ../src/lsp/proto.bend as Proto
+import ../src/codes.bend as Codes
 import ../laws/LspRepliesFollowTheProtocol.bend as Laws
 
 def Laws.rpc_response(_id, _result):
@@ -194,3 +195,15 @@ def Laws.path_keeps_other(uri, e):
     {Frame.decode(Proto.unpercent(String.to_list(Bool.pick(String, _, String.drop(uri, 7n), uri))))
       == Frame.decode(Proto.unpercent(String.to_list(uri))) : String}
   {==}
+
+def Laws.source_names_group_and_rule(_ss, _id, _grp):
+  {==}
+
+def Laws.source_of_no_rule(mm):
+  match mm:
+    case None{}:
+      {==}
+    case Some{ee}:
+      match ee:
+        case Codes.Entry{ss, id, grp}:
+          {==}

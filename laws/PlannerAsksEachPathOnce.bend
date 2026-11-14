@@ -39,3 +39,12 @@ law sources_keep_files:
   for rest: List<&2, String>
   for e: {Plan.is_config(p) == False{} : Bool}
   {Plan.sources(p <> rest) == p <> Plan.sources(rest) : List<&2, String>}
+
+# LAW: the bolt.bend candidates are asked for directory by directory, in the
+# order of the directories: a directory's own chain before the next one's
+law conf_cands_in_directory_order:
+  for dd: String
+  for rest: List<&2, String>
+  for +world: W.World
+  {Plan.conf.cands(dd <> rest, world)
+    == List.append(&2, String, Plan.conf.chain(world, dd), Plan.conf.cands(rest, world)) : List<&2, String>}

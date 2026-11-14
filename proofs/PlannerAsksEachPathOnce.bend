@@ -24,3 +24,6 @@ def Laws.sources_keep_files(p, rest, e):
     {Bool.pick(List<&2, String>, _, Plan.sources(rest), p <> Plan.sources(rest)) == p <> Plan.sources(rest)
       : List<&2, String>}
   {==}
+
+def Laws.conf_cands_in_directory_order(_dd, _rest, _world):
+  {==}

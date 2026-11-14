@@ -41,11 +41,15 @@ def load.miss(~fs: F.Files, open: Maybe<&2, String>, path: String) -> IO(String)
 def load(~fs: F.Files, docs: List<&2, Docs.Doc>, uri: String, path: String) -> IO(String):
   load.miss(~fs, Docs.get(docs, uri), path)
 
+# a file's path as the URI the editor names it by
+def uri_of(path: String) -> String:
+  "file://" ++ path
+
 # the item of a name in a file
 def in_file(~fs: F.Files, docs: List<&2, Docs.Doc>, +path: String, name: String) -> IO(Maybe<&2, Found>):
   do IO<Maybe<&2, Found>>:
-    text : String <- load(~fs, docs, "file://" ++ path, path)
-    return found(Outline.find(Outline.items(text), name), "file://" ++ path)
+    text : String <- load(~fs, docs, uri_of(path), path)
+    return found(Outline.find(Outline.items(text), name), uri_of(path))
 
 # the item of a name in Base
 def in_base(~fs: F.Files, docs: List<&2, Docs.Doc>, name: String) -> IO(Maybe<&2, Found>):
@@ -362,7 +366,7 @@ def starting_in(
   qual: String
 ) -> IO(List<&2, Outline.Item>):
   do IO<List<&2, Outline.Item>>:
-    text : String <- load(~fs, docs, "file://" ++ path, path)
+    text : String <- load(~fs, docs, uri_of(path), path)
     return Outline.starting(Outline.items(text), prefix, qual)
 
 # Base is big: it is offered once something is typed

@@ -1,6 +1,7 @@
 # proofs of laws/BinderFindsPositions.bend
 import Base
 import ../src/syntax/bind.bend as Bind
+import ../src/lazy/lazy.bend as Lazy
 import ../laws/BinderFindsPositions.bend as Laws
 import ./lemmas/BoolEmptiness.bend as M1
 
@@ -152,4 +153,84 @@ def Laws.named_sites_take_named_uses(n, l, c, tt, rest, name, e):
       {==}
 
 def Laws.named_sites_read_uses(_binds, _uses, _scopes, _name):
+  {==}
+
+def Laws.use_at_takes_the_use_that_covers(name, ll, cc, tg, rest, line, col, e):
+  %Equal.sym(Bool, Bind.covers(ll, cc, name, line, col), True{}, e) :
+    {Bind.use_at.go(rest, line, col,
+      Bool.pick(Maybe<&2, Bind.Site>, _, Some{Bind.SUse{Bind.Use{name, ll, cc, tg}}}, None{}))
+      == Bind.use_at.go(rest, line, col, Some{Bind.SUse{Bind.Use{name, ll, cc, tg}}}) : Maybe<&2, Bind.Site>}
+  {==}
+
+def Laws.use_at_passes_other_uses(name, ll, cc, tg, rest, line, col, e):
+  %Equal.sym(Bool, Bind.covers(ll, cc, name, line, col), False{}, e) :
+    {Bind.use_at.go(rest, line, col,
+      Bool.pick(Maybe<&2, Bind.Site>, _, Some{Bind.SUse{Bind.Use{name, ll, cc, tg}}}, None{}))
+      == Bind.use_at.go(rest, line, col, None{}) : Maybe<&2, Bind.Site>}
+  {==}
+
+def Laws.visible_takes_a_scope_at_or_above(line, env, rest, qline, best, e):
+  %Equal.sym(Bool, U32.is_le(line, qline), True{}, e) :
+    {Bind.visible.go(rest, qline, Bool.pick(List<&2, Bind.Bind>, _, env, best)) == Bind.visible.go(rest, qline, env)
+      : List<&2, Bind.Bind>}
+  {==}
+
+def Laws.visible_passes_a_scope_below(line, env, rest, qline, best, e):
+  %Equal.sym(Bool, U32.is_le(line, qline), False{}, e) :
+    {Bind.visible.go(rest, qline, Bool.pick(List<&2, Bind.Bind>, _, env, best)) == Bind.visible.go(rest, qline, best)
+      : List<&2, Bind.Bind>}
+  {==}
+
+def Laws.annotate_reads_forward(name, line, col, kind, note, rest, lines, at, cur, e):
+  %Equal.sym(Bool, U32.is_ge(line, at), True{}, e) :
+    {Bind.Bind{name, line, col, kind,
+      Bind.note_for(kind, note, _w => Bind.stripped(Lazy.either(String, _,
+        _u => Bind.annotate.head(Lazy.either(List<&2, String>, _, _u2 => Bind.annotate.ahead(line, at, cur),
+          _v2 => cur)),
+        _v => Bind.annotate.back(lines, line))))}
+      <> Bind.annotate.go(rest, lines, Bool.pick(U32, _, line, at),
+        Lazy.either(List<&2, String>, _, _u => Bind.annotate.ahead(line, at, cur), _v => cur))
+      == Bind.Bind{name, line, col, kind,
+        Bind.note_for(kind, note, _w => Bind.stripped(Bind.annotate.head(Bind.annotate.ahead(line, at, cur))))}
+        <> Bind.annotate.go(rest, lines, line, Bind.annotate.ahead(line, at, cur)) : List<&2, Bind.Bind>}
+  {==}
+
+def Laws.annotate_reads_back(name, line, col, kind, note, rest, lines, at, cur, e):
+  %Equal.sym(Bool, U32.is_ge(line, at), False{}, e) :
+    {Bind.Bind{name, line, col, kind,
+      Bind.note_for(kind, note, _w => Bind.stripped(Lazy.either(String, _,
+        _u => Bind.annotate.head(Lazy.either(List<&2, String>, _, _u2 => Bind.annotate.ahead(line, at, cur),
+          _v2 => cur)),
+        _v => Bind.annotate.back(lines, line))))}
+      <> Bind.annotate.go(rest, lines, Bool.pick(U32, _, line, at),
+        Lazy.either(List<&2, String>, _, _u => Bind.annotate.ahead(line, at, cur), _v => cur))
+      == Bind.Bind{name, line, col, kind,
+        Bind.note_for(kind, note, _w => Bind.stripped(Bind.annotate.back(lines, line)))}
+        <> Bind.annotate.go(rest, lines, at, cur) : List<&2, Bind.Bind>}
+  {==}
+
+def Laws.refresh_starts_over_for_an_earlier_binder(name, ll, cc, kind, note, rest, binds, cur, tl, tc, acc, e):
+  %Equal.sym(Bool, Bind.before(ll, cc, tl, tc), True{}, e) :
+    {Bind.refresh.go(rest, binds,
+      Bind.seek(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), ll, cc,
+        Bind.seek.stop(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), ll, cc)), ll, cc,
+      Bind.noted(Bind.seek.head(Bind.seek(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), ll, cc,
+        Bind.seek.stop(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), ll, cc)), ll, cc),
+        Bind.Bind{name, ll, cc, kind, note}) <> acc)
+      == Bind.refresh.go(rest, binds, Bind.seek(binds, ll, cc, Bind.seek.stop(binds, ll, cc)), ll, cc,
+        Bind.noted(Bind.seek.head(Bind.seek(binds, ll, cc, Bind.seek.stop(binds, ll, cc)), ll, cc),
+          Bind.Bind{name, ll, cc, kind, note}) <> acc) : List<&2, Bind.Bind>}
+  {==}
+
+def Laws.refresh_reads_on_for_a_later_binder(name, ll, cc, kind, note, rest, binds, cur, tl, tc, acc, e):
+  %Equal.sym(Bool, Bind.before(ll, cc, tl, tc), False{}, e) :
+    {Bind.refresh.go(rest, binds,
+      Bind.seek(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), ll, cc,
+        Bind.seek.stop(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), ll, cc)), ll, cc,
+      Bind.noted(Bind.seek.head(Bind.seek(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), ll, cc,
+        Bind.seek.stop(Bool.pick(List<&2, Bind.Bind>, _, binds, cur), ll, cc)), ll, cc),
+        Bind.Bind{name, ll, cc, kind, note}) <> acc)
+      == Bind.refresh.go(rest, binds, Bind.seek(cur, ll, cc, Bind.seek.stop(cur, ll, cc)), ll, cc,
+        Bind.noted(Bind.seek.head(Bind.seek(cur, ll, cc, Bind.seek.stop(cur, ll, cc)), ll, cc),
+          Bind.Bind{name, ll, cc, kind, note}) <> acc) : List<&2, Bind.Bind>}
   {==}

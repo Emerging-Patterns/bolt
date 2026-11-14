@@ -564,3 +564,12 @@ def Laws.nav_hover_own(fs, docs, uri, text, h, line, col, name, bl, bc, note, hs
     nav.open_hover_site(fs, docs, uri, text, h, line, col,
       Some{Bind.SBind{Bind.Bind{name, bl, bc, Bind.KItem{}, note}}}, hs, R, k),
     nav.item_own(fs, docs, uri, text, h, name, Bind.Bind{name, bl, bc, Bind.KItem{}, note}, hi, it, hf, R, k))
+
+def Laws.path_joins_under_a_slash(_dir, _rel):
+  {==}
+
+def Laws.path_dir_is_one_up(_path):
+  {==}
+
+def Laws.uri_of_a_path(_path):
+  {==}
