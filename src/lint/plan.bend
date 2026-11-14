@@ -13,11 +13,14 @@
 # A directory's candidates are taken once it is resolved against the World's
 # working directory (Config.home), so a relative path is graded by the same
 # bolt.bend wherever bolt runs from.
-# `wants` never parses a file; `plan` parses and lints once, and reads the
-# settings of each bolt.bend that grades a directory for `setting` (C011). Once every rule
-# has run and each finding is graded, the noqa comments (src/noqa.bend)
-# silence what they name, and then the `noqa` rule reports the comments that
-# silenced nothing.
+# `wants` never parses a file; `plan` parses and lints each source once, and
+# reads the settings of each bolt.bend that grades a directory for `setting`
+# (C011). A run whose texts are past a budget parses its sources a batch at a
+# time, each batch dropped once its rules have run (`final.run`,
+# laws/LargeRunParsesInBatches.bend): the same findings, in less memory.
+# Once every rule has run and each finding is graded, the noqa comments
+# (src/noqa.bend) silence what they name, and then the `noqa` rule reports
+# the comments that silenced nothing.
 import Base
 import ../lazy/lazy.bend as Lazy
 import ./world.bend as W
@@ -31,6 +34,7 @@ import ../noqa.bend as Noqa
 import ../rules/style/noqa.bend as NoqaRule
 import ../rules/correctness/setting.bend as Setting
 import ../syntax/bind.bend as Bind
+import ../rules/digest.bend as Digest
 
 # what `bolt` prints, in order, and the status it exits with
 type Plan is Data:
@@ -694,6 +698,185 @@ def final.live(+world: W.World) -> List<&2, F.Graded>:
     grade(cs, world, found.live(cs, world, gs, s)), fs => grade(cs, world, fs))
 
 # ---------------------------------------------------------------------------
+# a batch at a time (laws/LargeRunParsesInBatches.bend). Parsed, a source is
+# some two hundred times its text (tokens, tree, binding, each character a
+# node), and a run that parses every source first holds all of that until its
+# last rule has run: 6.9 GB on a tree of 36 MB. What a run needs of a source
+# once its own rules have run is small: the marks of its noqa comments, its
+# findings, its digest. So past a budget the sources are parsed a batch at a
+# time, each batch read down to those and dropped before the next: 3.8 GB on
+# that tree. A batch, not a file, and only past the budget, since it costs
+# time. The runtime hands freed memory back in the order it was freed, so
+# what is parsed into it lies scattered, and the rules that walk it miss the
+# cache three times as often: that tree took 2.5 times as long a file at a
+# time, and a tenth longer at this budget. Every file's role is needed before
+# any rule runs, so each text is also lexed once more for its imports. Under
+# the budget a run parses every source first and pays neither.
+
+# how many characters of text a run holds before it parses in batches, and
+# how many a batch holds
+def budget() -> U32:
+  16000000
+
+# whether the World's texts are within the budget
+def fits(world: W.World) -> Bool:
+  U32.is_le(W.size(world), budget())
+
+# how many characters a source's text holds; none when it was not read
+def got.size(g: Got) -> U32:
+  match g:
+    case Got{_path, None{}}:
+      0
+    case Got{_path, Some{text}}:
+      W.size.text(text, 0)
+
+# a source put at the front of the first batch, or in a batch of its own
+# when there is none
+def batches.put(g: Got, bs: List<&2, List<&2, Got>>) -> List<&2, List<&2, Got>>:
+  match bs:
+    case Nil{}:
+      [[g]]
+    case Con{b, rest}:
+      (g <> b) <> rest
+
+# a source before the batches after it: when the batch before it is full,
+# that one ends here and the source opens the next
+def batches.cut(full: Bool, g: Got, more: List<&2, List<&2, Got>>) -> List<&2, List<&2, Got>>:
+  match full:
+    case True{}:
+      [] <> batches.put(g, more)
+    case False{}:
+      batches.put(g, more)
+
+# the sources cut into batches, in order: `used` is what the open batch holds
+# already, and a source that would take it past `max` opens the next, unless
+# the open batch holds nothing
+def batches(gs: List<&2, Got>, +used: U32, +max: U32) -> List<&2, List<&2, Got>>:
+  match gs:
+    case Nil{}:
+      Nil{}
+    case Con{+g, rest}:
+      +size = got.size(g)
+      +full = Bool.and(U32.is_gt(U32.add(used, size), max), U32.is_gt(used, 0))
+      batches.cut(full, g, batches(rest, Bool.pick(U32, full, size, U32.add(used, size)), max))
+
+# the fact (src/role.bend) of each source the World read, from its text
+# alone: what Role.fact reads off its parse
+def facts.texts(gs: List<&2, Got>) -> List<&2, Role.Fact>:
+  match gs:
+    case Nil{}:
+      Nil{}
+    case Con{Got{_path, None{}}, rest}:
+      facts.texts(rest)
+    case Con{Got{path, Some{text}}, rest}:
+      Role.fact.text(path, text) <> facts.texts(rest)
+
+# the marks a run's roles are read from (marks.run), given the sources' own
+def marks.pick(paths: List<&2, String>, +world: W.World, own: List<&2, Role.Mark>) -> List<&2, Role.Mark>:
+  match paths:
+    case Nil{}:
+      own
+    case Con{_p, _rest}:
+      marks.named(world)
+
+# what a run keeps of one parsed source: its noqa marks, its findings from
+# the per-file rules, and its digest for the project rules
+type Kept is Data:
+  Kept{marks: Noqa.Marks, found: List<&2, F.Finding>, digest: Digest.Digest}
+
+# the marks a source's role is read from, and the marks its digest's is: the
+# first are the tree's when files are named, the second always the sources'
+# own (Rules.project)
+type Roles is Data:
+  Roles{run: List<&2, Role.Mark>, own: List<&2, Role.Mark>}
+
+# one parsed source read down to what the run keeps of it
+def kept.of(+cs: List<&2, Conf>, +world: W.World, rs: Roles, s: Src.Src) -> Kept:
+  Roles{run, own} = rs
+  Src.Src{+path, +text, +toks, +tree, +bound, +items} = s
+  Kept{Noqa.file(path, toks),
+    Rules.on.role.live(config.at(cs, world, path), Role.of(run, path), Src.Src{path, text, toks, tree, bound, items}),
+    Digest.of.marked(own, Src.Src{path, text, toks, tree, bound, items})}
+
+# each parsed source read down to what the run keeps, in order
+def keeps.srcs(+cs: List<&2, Conf>, +world: W.World, +rs: Roles, ss: List<&2, Src.Src>) -> List<&2, Kept>:
+  match ss:
+    case Nil{}:
+      Nil{}
+    case Con{s, rest}:
+      kept.of(cs, world, rs, s) <> keeps.srcs(cs, world, rs, rest)
+
+# each batch parsed, read down to what the run keeps and dropped, in order
+def keeps.batches(
+  +cs: List<&2, Conf>,
+  +world: W.World,
+  +rs: Roles,
+  bs: List<&2, List<&2, Got>>
+) -> List<&2, Kept>:
+  match bs:
+    case Nil{}:
+      Nil{}
+    case Con{b, rest}:
+      List.append(&2, Kept, keeps.srcs(cs, world, rs, srcs_of(b)), keeps.batches(cs, world, rs, rest))
+
+# each source's noqa marks, in order
+def keeps.marks(ks: List<&2, Kept>) -> List<&2, Noqa.Marks>:
+  match ks:
+    case Nil{}:
+      Nil{}
+    case Con{Kept{m, _found, _digest}, rest}:
+      m <> keeps.marks(rest)
+
+# every source's per-file findings, in order
+def keeps.found(ks: List<&2, Kept>) -> List<&2, F.Finding>:
+  match ks:
+    case Nil{}:
+      Nil{}
+    case Con{Kept{_marks, f, _digest}, rest}:
+      List.concat(&2, F.Finding, [f, keeps.found(rest)])
+
+# each source's digest, in order
+def keeps.digests(ks: List<&2, Kept>) -> List<&2, Digest.Digest>:
+  match ks:
+    case Nil{}:
+      Nil{}
+    case Con{Kept{_marks, _found, d}, rest}:
+      d <> keeps.digests(rest)
+
+# what is kept of every source: its marks, findings and digest
+type Run is Data:
+  Run{marks: List<&2, Noqa.Marks>, found: List<&2, F.Finding>, digests: List<&2, Digest.Digest>}
+
+# what is kept of each source, as the three lists a run reads
+def keeps.run(+ks: List<&2, Kept>) -> Run:
+  Run{keeps.marks(ks), keeps.found(ks), keeps.digests(ks)}
+
+# a run's graded findings from what it kept of its sources: the read
+# failures, the per-file findings, `setting`'s, then the project rules' over
+# the digests, graded, silenced, and `noqa`'s own (final.live)
+def final.of(+world: W.World, +cs: List<&2, Conf>, gs: List<&2, Got>, r: Run) -> List<&2, F.Graded>:
+  Run{marks, found, digests} = r
+  after(marks, List.is_empty(&2, String, W.paths.of(world)),
+    grade(cs, world, List.concat(&2, F.Finding, [unread(gs), found, settings(world),
+      Rules.project.digests(digests, packages(roots(world)))])), fs => grade(cs, world, fs))
+
+# final.live with the sources parsed a batch at a time: every source's role
+# read first, from its text, then each batch parsed, read down to what the
+# run keeps and dropped. The same graded findings
+# (laws/LargeRunParsesInBatches.bend)
+def final.lean(+world: W.World) -> List<&2, F.Graded>:
+  +gs = gots(inputs(world), world)
+  +cs = confs(world)
+  +own = Role.marks.facts(facts.texts(gs))
+  final.of(world, cs, gs, keeps.run(keeps.batches(cs, world,
+    Roles{marks.pick(W.paths.of(world), world, own), own}, batches(gs, 0, budget()))))
+
+# the graded findings of the run bolt makes: every source parsed first when
+# the World's texts fit the budget, a batch at a time when they do not
+def final.run(+world: W.World) -> List<&2, F.Graded>:
+  Lazy.either(List<&2, F.Graded>, fits(world), _u => final.live(world), _v => final.lean(world))
+
+# ---------------------------------------------------------------------------
 # the plan
 
 # one more at error, or the count as it was
@@ -761,5 +944,5 @@ def show_all(gs: List<&2, F.Graded>) -> List<&2, String>:
 # `bolt` over a World: every graded finding no mark silences as a line, then
 # `noqa`'s, then the summary of those, and exit 1 exactly when one is an error
 def plan(+world: W.World) -> Plan:
-  +gs = final.live(world)
+  +gs = final.run(world)
   Plan{List.append(&2, String, show_all(gs), [summary(gs)]), Bool.pick(U32, has_error(gs), 1, 0)}

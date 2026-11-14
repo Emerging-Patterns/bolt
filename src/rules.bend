@@ -316,13 +316,17 @@ def covers(rs: List<&2, String>, +ds: List<&2, Digest.Digest>, +roots: List<&2, 
     case Con{+dir, rest}:
       List.append(&2, F.Finding, Law.check(members(ds, roots, dir)), covers(rest, ds, roots))
 
-# every project rule's findings on the files and the package roots but `.`
-# (each a directory as Digest.dir names one): each file is read down to its
-# digest once (rules/digest.bend); `coverage` runs on each package's files,
-# `.` first
-def project(+srcs: List<&2, Src.Src>, +rs: List<&2, String>) -> List<&2, F.Finding>:
-  +ds = Digest.all.role(Role.marks(srcs), srcs)
+# every project rule's findings on the files' digests and the package roots
+# but `.` (each a directory as Digest.dir names one): `coverage` runs on each
+# package's files, `.` first
+def project.digests(+ds: List<&2, Digest.Digest>, +rs: List<&2, String>) -> List<&2, F.Finding>:
   List.concat(&2, F.Finding, [Law.check(members(ds, rs, "")), covers(rs, ds, rs)])
+
+# every project rule's findings on the files and the package roots but `.`:
+# each file is read down to its digest once (rules/digest.bend), told its
+# role among the files' own marks
+def project(+srcs: List<&2, Src.Src>, +rs: List<&2, String>) -> List<&2, F.Finding>:
+  project.digests(Digest.all.role(Role.marks(srcs), srcs), rs)
 
 # the group a rule is in; an unknown slug grades with correctness
 def group(+rule: String) -> String:

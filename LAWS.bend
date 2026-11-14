@@ -46,6 +46,7 @@ import ./laws/ExitOnError.bend as ExitOnError
 import ./laws/LastLineSummary.bend as LastLineSummary
 import ./laws/LevelOwn.bend as LevelOwn
 import ./laws/LinesInOrder.bend as LinesInOrder
+import ./laws/LargeRunParsesInBatches.bend as LargeRunParsesInBatches
 import ./laws/OffRulesAreNotRun.bend as OffRulesAreNotRun
 import ./laws/NoqaBare.bend as NoqaBare
 import ./laws/NoqaBareText.bend as NoqaBareText

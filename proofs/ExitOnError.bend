@@ -37,7 +37,7 @@ def lint.has_error(gs):
       lint.has_error.step(l, Plan.has_error(tl), Laws.any_error(tl), lint.has_error(tl))
 
 def Laws.exit_on_error(world):
-  e = Equal.sym(List<&2, F.Graded>, Plan.final.live(world), D1.run_graded(world), M1.lint.final.live(world))
+  e = Equal.sym(List<&2, F.Graded>, Plan.final.run(world), D1.run_graded(world), M1.lint.final.run(world))
   %e : {Bool.pick(U32, Plan.has_error(_), 1, 0) == Bool.pick(U32, Laws.any_error(D1.run_graded(world)), 1, 0) : U32}
   h = Equal.sym(Bool, Plan.has_error(D1.run_graded(world)), Laws.any_error(D1.run_graded(world)),
     lint.has_error(D1.run_graded(world)))
