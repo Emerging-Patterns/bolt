@@ -225,14 +225,18 @@ law cli_files_optional:
   {Args.spec.files(help) == Shake.rest("files", help, False{}, None{}, []) : Shake.Arg}
 
 # bolt's program as shake is handed it, written out: the program `bolt` with
-# its `--version` flag and its files, and the commands `lint`, `check` and
-# `lsp`, each word and each help line. Law vocabulary: bolt never calls it
+# its `--version` flag and its files, and the commands `lint`, `check`,
+# `fmt` (with its `--check` flag) and `lsp`, each word and each help line.
+# Law vocabulary: bolt never calls it
 def cli.program() -> Shake.Cli:
   Shake.app("bolt", "A linter, checker and language server for Bend 2.", Some{Args.version()},
     [Shake.flag("version", None{}, Some{"version"}, "Print the version"),
      Shake.rest("files", "Files to lint", False{}, None{}, [])],
     [Shake.sub("lint", "Lint files", [Shake.rest("files", "Files to lint", False{}, None{}, [])], []),
      Shake.sub("check", "Check files", [Shake.rest("files", "Files to check", False{}, None{}, [])], []),
+     Shake.sub("fmt", "Format files",
+       [Shake.flag("check", None{}, Some{"check"}, "List the files that would change and write nothing"),
+        Shake.rest("files", "Files to format", False{}, None{}, [])], []),
      Shake.sub("lsp", "Serve an editor over stdio", [], [])])
 
 # LAW: every argv is parsed against that program
