@@ -15,8 +15,9 @@
 # Only blank space changes: a space or a newline between two tokens of the
 # header is dropped or put back, and every other token is kept as it is, in
 # order. Inside a parameter the spacing is kept, and a line break there
-# becomes one space (none after an opening bracket or before a closing one
-# or a comma). A comment stays where it is on its line: after the `(` or a
+# becomes one space: none after an opening bracket, none before a closing
+# one or a comma, and none before an opening one unless a comma comes right
+# before it. A comment stays where it is on its line: after the `(` or a
 # comma it keeps that line, two spaces off, and anywhere else it gets a line
 # of its own; the line after it starts as the shape says.
 # The header runs from a `def` at column 0 through the first `:` outside
@@ -44,12 +45,14 @@ type Role is Data:
   RWord{}
 
 # what the token before was: the list's `(`, a comma between parameters, a
-# comment, another opening bracket, or anything else
+# comment, another opening bracket, a comma inside a parameter, or anything
+# else
 type Prev is Data:
   POpen{}
   PComma{}
   PNote{}
   PBracket{}
+  PSep{}
   PWord{}
 
 # the blank space before a token: none, one space, two, a line break, a line
@@ -161,6 +164,8 @@ def after(rl: Role) -> Prev:
       PNote{}
     case RBracket{}:
       PBracket{}
+    case RSep{}:
+      PSep{}
     case other:
       PWord{}
 
@@ -262,6 +267,22 @@ def gap.word(rl: Role, brk: Bool, sp: String) -> Gap:
     case other:
       kept(brk, sp)
 
+# the gap before a token right after a comma inside a parameter: where a
+# line broke, one space, so the comma keeps the space `bolt fmt` gives every
+# comma; none before a closing bracket or another comma
+def gap.sep(rl: Role, brk: Bool, sp: String) -> Gap:
+  match rl:
+    case REnd{}:
+      GLine{}
+    case RNote{}:
+      gap.aside(brk, sp)
+    case RClose{}:
+      kept(brk, sp)
+    case RSep{}:
+      kept(brk, sp)
+    case other:
+      joined(brk, sp)
+
 # the gap before a token: by what came before it, what it is, whether a line
 # broke between them, the spaces between them, and whether the parameter
 # list is open
@@ -275,6 +296,8 @@ def gap(pv: Prev, rl: Role, brk: Bool, sp: String, inside: Bool) -> Gap:
       gap.note(rl, inside)
     case PBracket{}:
       gap.bracket(rl, brk, sp)
+    case PSep{}:
+      gap.sep(rl, brk, sp)
     case PWord{}:
       gap.word(rl, brk, sp)
 

@@ -36,6 +36,7 @@ import ./laws/RulesRunAtConfiguredLimits.bend as RulesRunAtConfiguredLimits
 import ./laws/SizeReportsOversizedDefs.bend as SizeReportsOversizedDefs
 import ./laws/FmtChangesOnlyBlankSpace.bend as FmtChangesOnlyBlankSpace
 import ./laws/FmtPlansEdits.bend as FmtPlansEdits
+import ./laws/FmtSetsLineSpaces.bend as FmtSetsLineSpaces
 import ./laws/ConfigLevelsResolve.bend as ConfigLevelsResolve
 import ./laws/ConfigNearestFileGrades.bend as ConfigNearestFileGrades
 import ./laws/ConfigOptInStartsOff.bend as ConfigOptInStartsOff

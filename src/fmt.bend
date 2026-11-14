@@ -1,8 +1,11 @@
 # src/fmt: bolt's formatter (`bolt fmt`). It changes blank space and nothing
 # else: every token that is code is kept as it is, in order, and so is each
-# comment but for the blanks it ends in. Four passes over a file's tokens:
+# comment but for the blanks it ends in. Five passes over a file's tokens:
+#   spaces   a comma has a space after it, and a run of spaces between two
+#            tokens of a line is one space (src/fmt/line.bend);
 #   heads    a def header that breaks across lines, or is too wide, takes
-#            the shape `wrap` asks for (src/fmt/head.bend);
+#            the shape `wrap` asks for (src/fmt/head.bend). It comes after
+#            spaces, so it measures a header at the width that pass left;
 #   trim     no blank before a line's end: a space token right before a
 #            newline, or before the end of the file, is dropped, and a
 #            comment loses the spaces and tabs it ends in;
@@ -14,8 +17,9 @@
 #            stays empty, and a file that ends inside a string that never
 #            closes is left as it ends: the string holds its last line
 #            break, so there is nothing to add after it.
-# Indentation, the spaces inside a line, and where a line that is no def
-# header breaks are left as they are.
+# Indentation, the spaces before a comment, and where a line that is no def
+# header breaks are left as they are. So is whether two tokens of a line
+# have a space between them, a comma and the token after it aside.
 # Pure: text in, text out. src/fmt/plan.bend decides which files change and
 # src/fmt/run.bend writes them.
 import Base
@@ -23,6 +27,7 @@ import ./lazy/lazy.bend as Lazy
 import ./rchars.bend as Rchars
 import ./syntax/lex.bend as Lex
 import ./fmt/head.bend as Head
+import ./fmt/line.bend as Line
 
 # a newline token?
 def is_newline(k: Lex.TokKind) -> Bool:
@@ -172,7 +177,7 @@ def close(+toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
 # change are the ones it was read at, not where it now sits: only the texts
 # are read again
 def toks(ts: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
-  close(squeeze(trim(Head.heads(ts)), squeeze.most()))
+  close(squeeze(trim(Head.heads(Line.spaces(ts))), squeeze.most()))
 
 # a file's text, formatted
 def text(source: String) -> String:
