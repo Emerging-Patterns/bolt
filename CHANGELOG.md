@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.62.0](https://github.com/Emerging-Patterns/bolt/compare/v1.61.0...v1.62.0) (2026-11-14)
+
+
+### Features
+
+* **rules:** spare (U020), an import the file never names ([#389](https://github.com/Emerging-Patterns/bolt/issues/389)) ([70f936a](https://github.com/Emerging-Patterns/bolt/commit/70f936a4e8e2c5bd01c83d6174807a7ff6d3b746)), closes [#386](https://github.com/Emerging-Patterns/bolt/issues/386)
+
 ## [1.61.0](https://github.com/Emerging-Patterns/bolt/compare/v1.60.0...v1.61.0) (2026-11-14)
 
 
