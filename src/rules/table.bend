@@ -11,7 +11,6 @@ import ../finding.bend as F
 import ../syntax/lex.bend as Lex
 import ../syntax/tree.bend as Tree
 import ./calls.bend as Calls
-import ../lazy/lazy.bend as Lazy
 
 # is the chain exactly one number?
 def literal(n: Tree.Node) -> Bool:
