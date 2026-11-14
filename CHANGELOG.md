@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.57.0](https://github.com/Emerging-Patterns/bolt/compare/v1.56.0...v1.57.0) (2026-11-14)
+
+
+### Features
+
+* **fmt:** bolt fmt wraps def headers; a file that is not UTF-8 is skipped ([#375](https://github.com/Emerging-Patterns/bolt/issues/375)) ([7406290](https://github.com/Emerging-Patterns/bolt/commit/7406290c6aac88db3b2fe3ba18f2d662597bf047))
+
 ## [1.56.0](https://github.com/Emerging-Patterns/bolt/compare/v1.55.0...v1.56.0) (2026-11-14)
 
 
