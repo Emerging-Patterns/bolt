@@ -10,4 +10,4 @@ import ./checker/bend.bend as BendChecker
 def run() -> IO(Unit):  # noqa: L001 IO entry point
   do IO<Unit>:
     h : Stdio.Stdio <- Stdio.open()
-    Server.serve(~Stdio.Stdio, ~Stdio.new(), ~Disk.new(), ~BendChecker.service(), U32.to_nat(4294967295), h, [])
+    Server.serve(~Stdio.Stdio, ~Stdio.new(), ~Disk.new(), ~BendChecker.service(), 4294967295n, h, [])

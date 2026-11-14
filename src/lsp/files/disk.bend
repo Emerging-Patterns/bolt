@@ -72,7 +72,7 @@ def whole.sized(got: File & Result<&1, &1, U32 & String, U32>) -> IO(Maybe<&2, S
   (file, r) = got
   do IO<Maybe<&2, String>>:
     first : File & Result<&1, &1, U32 & String, String> <- File.read(file, whole.size(r))
-    whole.next(first, [], fl => a => whole.rest(U32.to_nat(100000), fl, a))
+    whole.next(first, [], fl => a => whole.rest(100000n, fl, a))
 
 def read.opened(r: Result<&1, &1, U32 & String, File>) -> IO(Maybe<&2, String>):
   match r:

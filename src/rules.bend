@@ -47,6 +47,7 @@ import ./rules/suspicious/prefix.bend as Prefix
 import ./rules/suspicious/empty.bend as Empty
 import ./rules/style/blank.bend as Blank
 import ./rules/style/negate.bend as Negate
+import ./rules/style/numeral.bend as Numeral
 import ./rules/correctness/put.bend as Put
 import ./rules/correctness/escape.bend as Escape
 import ./rules/perf/strings.bend as Strings
@@ -96,6 +97,7 @@ type Which is Data:
   WEmpty{}
   WBlank{}
   WNegate{}
+  WNumeral{}
   WPut{}
   WEscape{}
   WStrings{}
@@ -163,6 +165,8 @@ def on.run(w: Which, +role: Role.Role, +src: Src.Src) -> List<&2, F.Finding>:
       Blank.check.role(role, src)
     case WNegate{}:
       Negate.check.role(role, src)
+    case WNumeral{}:
+      Numeral.check.role(role, src)
     case WPut{}:
       Put.check(src)
     case WEscape{}:
@@ -212,6 +216,7 @@ def on.table() -> List<&2, Run>:
     Run{"empty", WEmpty{}},
     Run{"blank", WBlank{}},
     Run{"negate", WNegate{}},
+    Run{"numeral", WNumeral{}},
     Run{"put", WPut{}},
     Run{"escape", WEscape{}},
     Run{"strings", WStrings{}},
