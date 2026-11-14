@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.64.0](https://github.com/Emerging-Patterns/bolt/compare/v1.63.0...v1.64.0) (2026-11-14)
+
+
+### Features
+
+* **rules:** numeral (S013), a Nat written as a conversion of a literal ([#393](https://github.com/Emerging-Patterns/bolt/issues/393)) ([fdbf8b2](https://github.com/Emerging-Patterns/bolt/commit/fdbf8b2866d3ac36ef342990ca352fcede800bb2))
+
 ## [1.63.0](https://github.com/Emerging-Patterns/bolt/compare/v1.62.0...v1.63.0) (2026-11-14)
 
 
