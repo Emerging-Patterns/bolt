@@ -19,25 +19,25 @@ import ./lemmas/Pick.bend as M1
 law fuel.of:
   for ps: List<&2, Tree.Node>
   for +name: String
-  for +ii: Nat
-  {FuelRule.fuels.params(ps, name, ii) == Laws.fuel.slots.of(ps, name, ii) : List<&2, FuelRule.Fuel>}
+  for +i: Nat
+  {FuelRule.fuels.params(ps, name, i) == Laws.fuel.slots.of(ps, name, i) : List<&2, FuelRule.Fuel>}
 
-def fuel.of(ps, name, ii):
+def fuel.of(ps, name, i):
   match ps:
     case Nil{}:
       {==}
     case Con{p, rest}:
       Equal.cong(List<&2, FuelRule.Fuel>, List<&2, FuelRule.Fuel>,
-        x => Bool.pick(List<&2, FuelRule.Fuel>, FuelRule.is_fuel(Calls.param_name(p)), FuelRule.Fuel{name, ii} <> x, x),
-        FuelRule.fuels.params(rest, name, 1n+ii), Laws.fuel.slots.of(rest, name, 1n+ii), fuel.of(rest, name, 1n+ii))
+        x => Bool.pick(List<&2, FuelRule.Fuel>, FuelRule.is_fuel(Calls.param_name(p)), FuelRule.Fuel{name, i} <> x, x),
+        FuelRule.fuels.params(rest, name, 1n+i), Laws.fuel.slots.of(rest, name, 1n+i), fuel.of(rest, name, 1n+i))
 
 # the rule reads the name after an arrow as the law does
 law fuel.io.next:
-  for nn: Tree.Node
-  {FuelRule.effect.io(nn) == Laws.fuel.io.next(nn) : Bool}
+  for n: Tree.Node
+  {FuelRule.effect.io(n) == Laws.fuel.io.next(n) : Bool}
 
-def fuel.io.next(nn):
-  match nn:
+def fuel.io.next(n):
+  match n:
     case Tree.NCons{g, r}:
       match g:
         case Tree.Leaf{tok}:
@@ -104,20 +104,20 @@ def Laws.fuel_slots(ds):
     case Con{d, +rest}:
       match d:
         case Calls.Def{+name, +sig, body}:
-          +aa = FuelRule.fuels.params(FuelRule.slots(sig), name, 0n)
-          +bb = Laws.fuel.slots.of(Laws.fuel.params(sig), name, 0n)
-          Equal.trans(List<&2, FuelRule.Fuel>, List.append(&2, FuelRule.Fuel, aa, FuelRule.fuels(rest)),
-            List.append(&2, FuelRule.Fuel, bb, FuelRule.fuels(rest)), List.append(&2, FuelRule.Fuel, bb,
+          +a = FuelRule.fuels.params(FuelRule.slots(sig), name, 0n)
+          +b = Laws.fuel.slots.of(Laws.fuel.params(sig), name, 0n)
+          Equal.trans(List<&2, FuelRule.Fuel>, List.append(&2, FuelRule.Fuel, a, FuelRule.fuels(rest)),
+            List.append(&2, FuelRule.Fuel, b, FuelRule.fuels(rest)), List.append(&2, FuelRule.Fuel, b,
               Laws.fuel.slots(rest)),
             Equal.cong(List<&2, FuelRule.Fuel>, List<&2, FuelRule.Fuel>, x => List.append(&2, FuelRule.Fuel, x,
               FuelRule.fuels(rest)),
-              aa, bb, Equal.trans(List<&2, FuelRule.Fuel>, aa,
-                FuelRule.fuels.params(Laws.fuel.params(sig), name, 0n), bb,
+              a, b, Equal.trans(List<&2, FuelRule.Fuel>, a,
+                FuelRule.fuels.params(Laws.fuel.params(sig), name, 0n), b,
                 Equal.cong(Bool, List<&2, FuelRule.Fuel>,
                   z => FuelRule.fuels.params(Bool.pick(List<&2, Tree.Node>, z, [], Calls.params(sig)), name, 0n),
                   FuelRule.effect(sig), Laws.fuel.io(sig), fuel.effect(sig)),
                 fuel.of(Laws.fuel.params(sig), name, 0n))),
-            Equal.cong(List<&2, FuelRule.Fuel>, List<&2, FuelRule.Fuel>, x => List.append(&2, FuelRule.Fuel, bb, x),
+            Equal.cong(List<&2, FuelRule.Fuel>, List<&2, FuelRule.Fuel>, x => List.append(&2, FuelRule.Fuel, b, x),
               FuelRule.fuels(rest), Laws.fuel.slots(rest), Laws.fuel_slots(rest)))
 
 # a `U32.to_nat(..)` group holding one U32 literal alone is one finding when
@@ -125,10 +125,10 @@ def Laws.fuel_slots(ds):
 law fuel.conv:
   for kids: Tree.Node
   for ok: Bool
-  for +ll: U32
-  for +cc: U32
+  for +l: U32
+  for +c: U32
   for +path: String
-  {List.length(&2, F.Finding, FuelRule.converted(kids, ok, ll, cc, path))
+  {List.length(&2, F.Finding, FuelRule.converted(kids, ok, l, c, path))
     == Bool.pick(Nat, Laws.fuel.conv(kids, ok), 1n, 0n) : Nat}
 
 def fuel.conv(kids, ok, ll, cc, path):
@@ -216,12 +216,12 @@ def fuel.conv(kids, ok, ll, cc, path):
 # a lone Nat literal argument, or U32.to_nat of a lone U32 literal, is one
 # finding, anything else none
 law fuel.lit:
-  for aa: Tree.Node
+  for a: Tree.Node
   for +path: String
-  {List.length(&2, F.Finding, FuelRule.literal(aa, path)) == Bool.pick(Nat, Laws.fuel.lone(aa), 1n, 0n) : Nat}
+  {List.length(&2, F.Finding, FuelRule.literal(a, path)) == Bool.pick(Nat, Laws.fuel.lone(a), 1n, 0n) : Nat}
 
-def fuel.lit(aa, path):
-  match aa:
+def fuel.lit(a, path):
+  match a:
     case Tree.NCons{h, r}:
       match h:
         case Tree.Leaf{tok}:
@@ -379,22 +379,22 @@ law fuel.site:
   for hit: Bool
   for +cl: List<&2, F.Finding>
   for +more: List<&2, F.Finding>
-  for -hh: Nat
+  for -h: Nat
   for -m: Nat
-  for e1: {List.length(&2, F.Finding, cl) == hh : Nat}
+  for e1: {List.length(&2, F.Finding, cl) == h : Nat}
   for e2: {List.length(&2, F.Finding, more) == m : Nat}
   {List.length(&2, F.Finding, Lazy.stop(List<&2, F.Finding>, Bool.not(hit), more,
-    _u => List.append(&2, F.Finding, cl, more))) == Bool.pick(Nat, hit, Nat.add(hh, m), m) : Nat}
+    _u => List.append(&2, F.Finding, cl, more))) == Bool.pick(Nat, hit, Nat.add(h, m), m) : Nat}
 
-def fuel.site(hit, cl, more, hh, m, e1, e2):
+def fuel.site(hit, cl, more, h, m, e1, e2):
   match hit:
     case True{}:
-      M1.pick.join(cl, more, hh, m, e1, e2)
+      M1.pick.join(cl, more, h, m, e1, e2)
     case False{}:
       e2
 
-def Laws.fuel_walk_counts(nn, fs, self, path):
-  match nn:
+def Laws.fuel_walk_counts(n, fs, self, path):
+  match n:
     case Tree.NCons{h, +rest}:
       match h:
         case Tree.Leaf{tok}:
@@ -458,11 +458,11 @@ def Laws.fuel_walk_counts(nn, fs, self, path):
 
 # a statement's own name, to the rule and to the law
 law fuel.own:
-  for mm: Maybe<&2, String>
-  {FuelRule.own(mm) == Laws.fuel.own(mm) : String}
+  for m: Maybe<&2, String>
+  {FuelRule.own(m) == Laws.fuel.own(m) : String}
 
-def fuel.own(mm):
-  match mm:
+def fuel.own(m):
+  match m:
     case None{}:
       {==}
     case Some{nm}:
@@ -470,18 +470,18 @@ def fuel.own(mm):
 
 # a chain walked with the rule's self counts the law's
 law fuel.self:
-  for +nn: Tree.Node
+  for +n: Tree.Node
   for +fs: List<&2, FuelRule.Fuel>
-  for +mm: Maybe<&2, String>
+  for +m: Maybe<&2, String>
   for +path: String
-  {List.length(&2, F.Finding, FuelRule.calls(nn, fs, FuelRule.own(mm), path))
-    == Laws.fuel.count(nn, fs, Laws.fuel.own(mm)) : Nat}
+  {List.length(&2, F.Finding, FuelRule.calls(n, fs, FuelRule.own(m), path))
+    == Laws.fuel.count(n, fs, Laws.fuel.own(m)) : Nat}
 
-def fuel.self(nn, fs, mm, path):
-  Equal.trans(Nat, List.length(&2, F.Finding, FuelRule.calls(nn, fs, FuelRule.own(mm), path)),
-    Laws.fuel.count(nn, fs, FuelRule.own(mm)), Laws.fuel.count(nn, fs, Laws.fuel.own(mm)),
-    Laws.fuel_walk_counts(nn, fs, FuelRule.own(mm), path),
-    Equal.cong(String, Nat, x => Laws.fuel.count(nn, fs, x), FuelRule.own(mm), Laws.fuel.own(mm), fuel.own(mm)))
+def fuel.self(n, fs, m, path):
+  Equal.trans(Nat, List.length(&2, F.Finding, FuelRule.calls(n, fs, FuelRule.own(m), path)),
+    Laws.fuel.count(n, fs, FuelRule.own(m)), Laws.fuel.count(n, fs, Laws.fuel.own(m)),
+    Laws.fuel_walk_counts(n, fs, FuelRule.own(m), path),
+    Equal.cong(String, Nat, x => Laws.fuel.count(n, fs, x), FuelRule.own(m), Laws.fuel.own(m), fuel.own(m)))
 
 # the rule's statement walk counts the law's total
 law fuel.go:

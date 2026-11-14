@@ -32,23 +32,23 @@ import ../src/rules/pedantic/fuel.bend as FuelRule
 
 # is the name a fuel parameter's: `fuel`, `gas`, `steps` or `budget`, or one
 # starting with `fuel`?
-def fuel.named(+nn: String) -> Bool:
-  Bool.or(String.starts_with(nn, "fuel"), List.contains(~String, ~String.eq, ["gas", "steps",
-    "budget"], nn))
+def fuel.named(+n: String) -> Bool:
+  Bool.or(String.starts_with(n, "fuel"), List.contains(~String, ~String.eq, ["gas", "steps",
+    "budget"], n))
 
 # the parameters with a fuel name among ps, the first at position i, each
 # with the def's name
-def fuel.slots.of(ps: List<&2, Tree.Node>, +name: String, +ii: Nat) -> List<&2, FuelRule.Fuel>:
+def fuel.slots.of(ps: List<&2, Tree.Node>, +name: String, +i: Nat) -> List<&2, FuelRule.Fuel>:
   match ps:
     case Nil{}:
       Nil{}
     case Con{p, rest}:
-      +more = fuel.slots.of(rest, name, 1n+ii)
-      Bool.pick(List<&2, FuelRule.Fuel>, fuel.named(Calls.param_name(p)), FuelRule.Fuel{name, ii} <> more, more)
+      +more = fuel.slots.of(rest, name, 1n+i)
+      Bool.pick(List<&2, FuelRule.Fuel>, fuel.named(Calls.param_name(p)), FuelRule.Fuel{name, i} <> more, more)
 
 # is the node after an arrow a capitalized name leaf reading `IO`?
-def fuel.io.next(nn: Tree.Node) -> Bool:
-  match nn:
+def fuel.io.next(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NCons{+g, rest}:
       Bool.and(Calls.kind.leaf(~Calls.kind.upper, g), String.eq(Calls.leaf.text(g), "IO"))
     case other:
@@ -86,8 +86,8 @@ def fuel.conv(kids: Tree.Node, ok: Bool) -> Bool:
 
 # is the argument one Nat literal token alone, digits then `n`, or the
 # dotted name `U32.to_nat` then a `(` group holding one U32 literal alone?
-def fuel.lone(aa: Tree.Node) -> Bool:
-  match aa:
+def fuel.lone(a: Tree.Node) -> Bool:
+  match a:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, +t, l, c}}, Tree.NNil{}}:
       T.nat_ok(String.to_list(t))
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TDotted{}, +t, l, c}},
@@ -126,8 +126,8 @@ def fuel.count(nn: Tree.Node, +fs: List<&2, FuelRule.Fuel>, +self: String) -> Na
       0n
 
 # a statement's own name, "" when it has none
-def fuel.own(mm: Maybe<&2, String>) -> String:
-  match mm:
+def fuel.own(m: Maybe<&2, String>) -> String:
+  match m:
     case None{}:
       ""
     case Some{nm}:
@@ -155,11 +155,11 @@ law fuel_slots:
 # call (not of self) fills with a lone Nat literal or `U32.to_nat` of a lone
 # U32 literal, and none for anything else
 law fuel_walk_counts:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +fs: List<&2, FuelRule.Fuel>
   for +self: String
   for +path: String
-  {List.length(&2, F.Finding, FuelRule.calls(nn, fs, self, path)) == fuel.count(nn, fs, self) : Nat}
+  {List.length(&2, F.Finding, FuelRule.calls(n, fs, self, path)) == fuel.count(n, fs, self) : Nat}
 
 # LAW: fuel reports exactly those literals over the file's top-level
 # statements, against the fuel parameters of the file's defs

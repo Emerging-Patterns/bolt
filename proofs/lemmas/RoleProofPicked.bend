@@ -10,8 +10,8 @@ import ../../laws/RoleProofNamed.bend as L1
 # src/PROOF.bend's cfg4.seq does.
 
 # Unit for False, Empty for True
-def unsafe.false_ty(bb: Bool) -> Type:
-  match bb:
+def unsafe.false_ty(b: Bool) -> Type:
+  match b:
     case False{}:
       Unit
     case True{}:
@@ -36,18 +36,18 @@ law unsafe.weq.arm:
   for ec: {Word.cmp(p, at, bt) == c : Cmp}
   for ih: {Cmp.is_eq(Word.cmp(p, at, bt)) == True{} : Bool} -> {at == bt : Word(p)}
   for ab: Bool
-  for bb: Bool
-  for e: {Cmp.is_eq(Word.cmp.fin(ab, bb, c)) == True{} : Bool}
-  {WCon{ab, at} == WCon{bb, bt} : Word.Con<p>}
+  for b: Bool
+  for e: {Cmp.is_eq(Word.cmp.fin(ab, b, c)) == True{} : Bool}
+  {WCon{ab, at} == WCon{b, bt} : Word.Con<p>}
 
-def unsafe.weq.arm(p, at, bt, c, ec, ih, ab, bb, e):
+def unsafe.weq.arm(p, at, bt, c, ec, ih, ab, b, e):
   match c:
     case LT{}:
-      Empty.absurd({WCon{ab, at} == WCon{bb, bt} : Word.Con<p>}, unsafe.false_true(e))
+      Empty.absurd({WCon{ab, at} == WCon{b, bt} : Word.Con<p>}, unsafe.false_true(e))
     case GT{}:
-      Empty.absurd({WCon{ab, at} == WCon{bb, bt} : Word.Con<p>}, unsafe.false_true(e))
+      Empty.absurd({WCon{ab, at} == WCon{b, bt} : Word.Con<p>}, unsafe.false_true(e))
     case EQ{}:
-      match ab bb:
+      match ab b:
         case False{} False{}:
           Equal.cong(Word(p), Word.Con<p>, w => WCon{False{}, w}, at, bt,
             ih(Equal.cong(Cmp, Bool, x => Cmp.is_eq(x), Word.cmp(p, at, bt), EQ{}, ec)))

@@ -24,8 +24,8 @@ def binds(body: Tree.Node) -> Bool:
       False{}
 
 # a law's name, `?` when it has none
-def name.of(mm: Maybe<&2, String>) -> String:
-  match mm:
+def name.of(m: Maybe<&2, String>) -> String:
+  match m:
     case None{}:
       "?"
     case Some{n}:
@@ -45,11 +45,11 @@ def check.go(root: Tree.Node, +path: String) -> List<&2, F.Finding>:
       Nil{}
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{+path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{+path, text, toks, tree, bound, items} = s
   Lazy.stop(List<&2, F.Finding>, Bool.not(Paths.is_laws(path)), [], _u => check.go(tree, path))
 
 # the rule, told the file's role (src/role.bend): only a law file is checked
-def check.role(rr: Role.Role, ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
-  Lazy.stop(List<&2, F.Finding>, Bool.not(Role.is_laws(rr)), [], _u => check.go(tree, path))
+def check.role(r: Role.Role, s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
+  Lazy.stop(List<&2, F.Finding>, Bool.not(Role.is_laws(r)), [], _u => check.go(tree, path))

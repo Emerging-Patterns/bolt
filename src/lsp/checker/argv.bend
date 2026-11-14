@@ -12,9 +12,9 @@ type Run is Data:
   Run{path: String, flag: String}
 
 # the flag of a run
-def flag(rr: Run) -> String:
-  Run{path, ff} = rr
-  ff
+def flag(r: Run) -> String:
+  Run{path, f} = r
+  f
 
 # the run that checks a file: `bend <path> --check-only`
 def run_of(path: String) -> Run:

@@ -36,39 +36,39 @@ type St is Data:
   St{seen: Bool, located: Bool, msg: List<&2, String>, line: U32, place: String, out: List<&2, Raw>}
 
 # a report line's kind
-def classify(+ss: String) -> Line:
-  Bool.pick(Line, String.starts_with(ss, "Error:"), KError{String.drop(ss, 6n)},
-    Bool.pick(Line, String.starts_with(ss, "Location:"), KLocation{String.drop(ss, 9n)}, KOther{ss}))
+def classify(+s: String) -> Line:
+  Bool.pick(Line, String.starts_with(s, "Error:"), KError{String.drop(s, 6n)},
+    Bool.pick(Line, String.starts_with(s, "Location:"), KLocation{String.drop(s, 9n)}, KOther{s}))
 
 # reading a marker past its padding: `count` digits of `whole` so far, and at
 # the first other character, the number they make when `>|` follows them
-def marker.go(ss: String, +whole: String, +count: Nat) -> Maybe<&2, U32>:
-  match ss:
+def marker.go(s: String, +whole: String, +count: Nat) -> Maybe<&2, U32>:
+  match s:
     case SNil{}:
       None{}
-    case SCon{+hh, +tt}:
-      Lazy.stop(Maybe<&2, U32>, Bool.not(Char.is_digit(hh)),
-        Bool.pick(Maybe<&2, U32>, String.starts_with(SCon{hh, tt}, ">|"), U32.read(String.take(whole, count)), None{}),
-        _u => marker.go(tt, whole, 1n+count))
+    case SCon{+h, +t}:
+      Lazy.stop(Maybe<&2, U32>, Bool.not(Char.is_digit(h)),
+        Bool.pick(Maybe<&2, U32>, String.starts_with(SCon{h, t}, ">|"), U32.read(String.take(whole, count)), None{}),
+        _u => marker.go(t, whole, 1n+count))
 
 # the line number a source line of the report carries, when it does: `12>|
 # code` marks line 12, padding before the digits aside; a line of context
 # (`11 | code`) marks none, whatever its code holds
-def marker(ss: String) -> Maybe<&2, U32>:
-  +tt = String.trim_start(ss)
-  marker.go(tt, tt, 0n)
+def marker(s: String) -> Maybe<&2, U32>:
+  +t = String.trim_start(s)
+  marker.go(t, t, 0n)
 
 # a message line, without its `- `
-def clean(+ss: String) -> String:
-  Bool.pick(String, String.starts_with(ss, "- "), String.drop(ss, 2n), ss)
+def clean(+s: String) -> String:
+  Bool.pick(String, String.starts_with(s, "- "), String.drop(s, 2n), s)
 
 # bend's "N is available: run bend update" is not part of a diagnostic
-def is_nag(+ss: String) -> Bool:
-  String.contains(ss, "is available: run bend update")
+def is_nag(+s: String) -> Bool:
+  String.contains(s, "is available: run bend update")
 
 # a non-empty, non-nag line onto the message
-def push(+ss: String, +msg: List<&2, String>) -> List<&2, String>:
-  Bool.pick(List<&2, String>, Bool.or(String.is_empty(ss), is_nag(ss)), msg, ss <> msg)
+def push(+s: String, +msg: List<&2, String>) -> List<&2, String>:
+  Bool.pick(List<&2, String>, Bool.or(String.is_empty(s), is_nag(s)), msg, s <> msg)
 
 # the error so far, its message lines reversed, onto the ones before it; "no
 # main to run" is a library, not an error
@@ -78,7 +78,7 @@ def flush(seen: Bool, msg: List<&2, String>, +line: U32, +place: String, +out: L
     Raw{place, line, body} <> out, out)
 
 def step.go(
-  kk: Line,
+  k: Line,
   located: Bool,
   seen: Bool,
   msg: List<&2, String>,
@@ -86,7 +86,7 @@ def step.go(
   place: String,
   out: List<&2, Raw>
 ) -> St:
-  match kk located seen:
+  match k located seen:
     case KError{rest} l s:
       St{True{}, False{}, push(String.trim_start(rest), []), 0, "", flush(s, msg, line, place, out)}
     case KLocation{p} l s:
@@ -99,9 +99,9 @@ def step.go(
       St{False{}, l, msg, line, place, out}
 
 # one report line
-def step(ss: String, st: St) -> St:
+def step(s: String, st: St) -> St:
   St{seen, located, msg, line, place, out} = st
-  step.go(classify(ss), located, seen, msg, line, place, out)
+  step.go(classify(s), located, seen, msg, line, place, out)
 
 # every report line, in order
 def run(lines: List<&2, String>, st: St) -> St:
@@ -118,20 +118,20 @@ def finish(st: St) -> List<&2, Raw>:
 
 # the text before the first `~`: an instance of a template (`f~1`) is the
 # template's
-def stem(ss: String) -> String:
-  match ss:
+def stem(s: String) -> String:
+  match s:
     case SNil{}:
       SNil{}
-    case SCon{+hh, tt}:
-      Lazy.stop(String, Char.is_eq(hh, '~'), SNil{}, _u => SCon{hh, stem(tt)})
+    case SCon{+h, t}:
+      Lazy.stop(String, Char.is_eq(h, '~'), SNil{}, _u => SCon{h, stem(t)})
 
 # is the name among these?
 def owns(names: List<&2, String>, +name: String) -> Bool:
   match names:
     case Nil{}:
       False{}
-    case Con{hh, tt}:
-      Lazy.or_else(String.eq(hh, name), _u => owns(tt, name))
+    case Con{h, t}:
+      Lazy.or_else(String.eq(h, name), _u => owns(t, name))
 
 # is an error at this place in the checked file? With the file's names
 # (bend's keys for its items, checker/names.bend): when the place is one of
@@ -152,8 +152,8 @@ def diag.at(+own: Bool, +place: String, +line: U32, +body: String) -> Diag:
     Bool.pick(String, own, body, "in " ++ place ++ ":\n" ++ body)}
 
 # an error placed, by the checked file's names
-def diag(names: Maybe<&2, List<&2, String>>, rr: Raw) -> Diag:
-  Raw{+place, line, body} = rr
+def diag(names: Maybe<&2, List<&2, String>>, r: Raw) -> Diag:
+  Raw{+place, line, body} = r
   diag.at(mine(names, place), place, line, body)
 
 # every error placed
@@ -161,8 +161,8 @@ def diags(rs: List<&2, Raw>, +names: Maybe<&2, List<&2, String>>) -> List<&2, Di
   match rs:
     case Nil{}:
       []
-    case Con{rr, rest}:
-      diag(names, rr) <> diags(rest, names)
+    case Con{r, rest}:
+      diag(names, r) <> diags(rest, names)
 
 # the checker's text as diagnostics, placed by the checked file's names when
 # they are known

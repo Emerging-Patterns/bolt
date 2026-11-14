@@ -25,8 +25,8 @@ import ../src/lsp/nav.bend as Nav
 import ../src/syntax/bind.bend as Bind
 
 # a method's name in the spec; none for a method the server does not know
-def method.wire(mm: Server.Method) -> String:
-  match mm:
+def method.wire(m: Server.Method) -> String:
+  match m:
     case Server.MInitialize{}:
       "initialize"
     case Server.MShutdown{}:
@@ -59,8 +59,8 @@ def method.wire(mm: Server.Method) -> String:
       ""
 
 # an encoding's name in the spec
-def enc.wire(ee: Enc.Enc) -> String:
-  match ee:
+def enc.wire(e: Enc.Enc) -> String:
+  match e:
     case Enc.Utf16{}:
       "utf-16"
     case Enc.Utf32{}:
@@ -73,8 +73,8 @@ def legend.wire() -> List<&2, String>:
 
 # LAW: each method is read by its name in the spec, and no name as none
 law method_by_wire_name:
-  for mm: Server.Method
-  {Server.method(method.wire(mm)) == mm : Server.Method}
+  for m: Server.Method
+  {Server.method(method.wire(m)) == m : Server.Method}
 
 # LAW: a message's method is its `method`
 law request_method_field:
@@ -135,8 +135,8 @@ law request_character_field:
 
 # LAW: each encoding goes by its name in the spec
 law encoding_wire_names:
-  for ee: Enc.Enc
-  {Enc.name(ee) == enc.wire(ee) : String}
+  for e: Enc.Enc
+  {Enc.name(e) == enc.wire(e) : String}
 
 # LAW: the legend lists the spec's token type names, in order
 law legend_wire_names:
@@ -147,17 +147,17 @@ law legend_wire_names:
 # `params` member
 law encoding_reads_params:
   for +msg: J.Json
-  for ee: Enc.Enc
-  {Server.encoding.of(msg, ee) == Server.encoding(Server.method(Server.name_of(msg)), Ezjson.get(msg, "params"), ee)
+  for e: Enc.Enc
+  {Server.encoding.of(msg, e) == Server.encoding(Server.method(Server.name_of(msg)), Ezjson.get(msg, "params"), e)
     : Enc.Enc}
 
 # LAW: a rename of a name the document does not bind is refused with LSP's
 # RequestFailed, -32803, whatever was asked
 law rename_refuses_a_foreign_name:
-  for cc: Enc.Cols
+  for c: Enc.Cols
   for at: List<&2, Bind.Pos>
   for uri: String
   for name: String
   for new: String
-  {Server.rename.of(cc, Nav.Sites{False{}, at}, uri, name, new)
+  {Server.rename.of(c, Nav.Sites{False{}, at}, uri, name, new)
     == Server.Refusal{"-32803", "only a name bound in this file can be renamed"} : Server.Answer}

@@ -11,16 +11,16 @@ import ./lemmas/PutEarlyStop.bend as M2
 
 # one token onto a list the TODO test agrees on
 law hole.todo.step:
-  for kk: Lex.TokKind
+  for k: Lex.TokKind
   for +t: String
   for l: U32
   for c: U32
   for +rest: List<&2, Lex.Tok>
   for ih: {Hole.check.todo(rest) == Laws.todo_next(rest) : Bool}
-  {Hole.check.todo(Lex.Tok{kk, t, l, c} <> rest) == Laws.todo_next(Lex.Tok{kk, t, l, c} <> rest) : Bool}
+  {Hole.check.todo(Lex.Tok{k, t, l, c} <> rest) == Laws.todo_next(Lex.Tok{k, t, l, c} <> rest) : Bool}
 
-def hole.todo.step(kk, _t, _l, _c, _rest, ih):
-  match kk:
+def hole.todo.step(k, _t, _l, _c, _rest, ih):
+  match k:
     case Lex.TNum{}:
       {==}
     case Lex.TName{}:
@@ -75,8 +75,8 @@ def hole.todo(toks):
   match toks:
     case Nil{}:
       {==}
-    case Con{Lex.Tok{kk, t, l, c}, +rest}:
-      hole.todo.step(kk, t, l, c, rest, hole.todo(rest))
+    case Con{Lex.Tok{k, t, l, c}, +rest}:
+      hole.todo.step(k, t, l, c, rest, hole.todo(rest))
 
 # a finding in front unless b fails adds one to the count
 law hole.stop:
@@ -97,18 +97,18 @@ def hole.stop(b, _x, more, m, ih):
 
 # one token onto a list the law holds for
 law hole.step:
-  for kk: Lex.TokKind
+  for k: Lex.TokKind
   for +t: String
   for +l: U32
   for +c: U32
   for +rest: List<&2, Lex.Tok>
   for +path: String
   for ih: {List.length(&2, F.Finding, Hole.check.go(rest, path)) == Laws.hole_count(rest) : Nat}
-  {List.length(&2, F.Finding, Hole.check.go(Lex.Tok{kk, t, l, c} <> rest, path))
-    == Laws.hole_count(Lex.Tok{kk, t, l, c} <> rest) : Nat}
+  {List.length(&2, F.Finding, Hole.check.go(Lex.Tok{k, t, l, c} <> rest, path))
+    == Laws.hole_count(Lex.Tok{k, t, l, c} <> rest) : Nat}
 
-def hole.step(kk, t, l, c, rest, path, ih):
-  match kk:
+def hole.step(k, t, l, c, rest, path, ih):
+  match k:
     case Lex.TNum{}:
       ih
     case Lex.TName{}:
@@ -175,8 +175,8 @@ def hole.go(toks, path):
   match toks:
     case Nil{}:
       {==}
-    case Con{Lex.Tok{kk, t, l, c}, +rest}:
-      hole.step(kk, t, l, c, rest, path, hole.go(rest, path))
+    case Con{Lex.Tok{k, t, l, c}, +rest}:
+      hole.step(k, t, l, c, rest, path, hole.go(rest, path))
 
 def Laws.hole_counts(toks, path):
   M2.put.stop(Paths.is_laws(path), Hole.check.go(toks, path), Laws.hole_count(toks), hole.go(toks, path))

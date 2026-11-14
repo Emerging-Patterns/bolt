@@ -15,8 +15,8 @@ import ./lemmas/BoolEmptiness.bend as M1
 # ----------
 
 # Unit for no text, Empty for one
-def nav.none_ty(mm: Maybe<&2, String>) -> Type:
-  match mm:
+def nav.none_ty(m: Maybe<&2, String>) -> Type:
+  match m:
     case None{}:
       Unit
     case Some{_t}:
@@ -35,13 +35,13 @@ def nav.none_some(_t, e):
 # a document the store holds is read from the store, not the files
 law nav.miss_open:
   for -fs: Fs.Files
-  for mm: Maybe<&2, String>
+  for m: Maybe<&2, String>
   for +text: String
-  for h: {mm == Some{text} : Maybe<&2, String>}
+  for h: {m == Some{text} : Maybe<&2, String>}
   for path: String
   for -R: Type
   for -k: String -> IO.OP<R>
-  {Nav.load.miss(~fs, mm, path, R, k) == k(text) : IO.OP<R>}
+  {Nav.load.miss(~fs, m, path, R, k) == k(text) : IO.OP<R>}
 
 def nav.miss_open(fs, mm, text, h, path, R, k):
   match mm:
@@ -55,12 +55,12 @@ def Laws.nav_open_text(fs, docs, uri, text, h, R, k):
 
 # the binder as the server wraps it is the binder as the law wraps it
 law nav.here_local:
-  for mm: Maybe<&2, Bind.Bind>
+  for m: Maybe<&2, Bind.Bind>
   for uri: String
-  {Nav.here(mm, uri) == Laws.nav.local(mm, uri) : Maybe<&2, Nav.Found>}
+  {Nav.here(m, uri) == Laws.nav.local(m, uri) : Maybe<&2, Nav.Found>}
 
-def nav.here_local(mm, _uri):
-  match mm:
+def nav.here_local(m, _uri):
+  match m:
     case None{}:
       {==}
     case Some{_b}:
@@ -83,7 +83,7 @@ law nav.open_at:
 
 def nav.open_at(fs, docs, uri, text, h, line, col, R, k):
   h2 = Equal.sym(Maybe<&2, String>, Docs.get(docs, uri), Some{text}, h)
-  %h2 : {Nav.load.miss(~fs, _, Proto.path(uri), R, tt => Nav.at.in(~fs, tt, docs, uri, line, col, R, k))
+  %h2 : {Nav.load.miss(~fs, _, Proto.path(uri), R, t => Nav.at.in(~fs, t, docs, uri, line, col, R, k))
     == Nav.at.bound(~fs, Bind.bound(text), Outline.items(text), docs, uri, Word.at(text, line, col), line, col, R, k)
     : IO.OP<R>}
   {==}
@@ -105,7 +105,7 @@ law nav.open_hover:
 
 def nav.open_hover(fs, docs, uri, text, h, line, col, R, k):
   h2 = Equal.sym(Maybe<&2, String>, Docs.get(docs, uri), Some{text}, h)
-  %h2 : {Nav.load.miss(~fs, _, Proto.path(uri), R, tt => Nav.hover.in(~fs, tt, docs, uri, line, col, R, k))
+  %h2 : {Nav.load.miss(~fs, _, Proto.path(uri), R, t => Nav.hover.in(~fs, t, docs, uri, line, col, R, k))
     == Nav.hover.bound(~fs, Bind.bound(text), Outline.items(text), docs, uri, Word.at(text, line, col), line, col, R, k)
     : IO.OP<R>}
   {==}
@@ -113,7 +113,7 @@ def nav.open_hover(fs, docs, uri, text, h, line, col, R, k):
 # definition over a parsed text answers the site the binder finds
 law nav.bound_at:
   for -fs: Fs.Files
-  for bb: Bind.Bound
+  for b: Bind.Bound
   for +items: List<&2, Outline.Item>
   for +docs: List<&2, Docs.Doc>
   for +uri: String
@@ -121,14 +121,14 @@ law nav.bound_at:
   for +line: U32
   for +col: U32
   for +site: Maybe<&2, Bind.Site>
-  for hs: {Bind.at(bb, line, col) == site : Maybe<&2, Bind.Site>}
+  for hs: {Bind.at(b, line, col) == site : Maybe<&2, Bind.Site>}
   for -R: Type
   for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
-  {Nav.at.bound(~fs, bb, items, docs, uri, name, line, col, R, k)
-    == Nav.at.site(~fs, site, Laws.nav.binds(bb), items, docs, uri, name, R, k) : IO.OP<R>}
+  {Nav.at.bound(~fs, b, items, docs, uri, name, line, col, R, k)
+    == Nav.at.site(~fs, site, Laws.nav.binds(b), items, docs, uri, name, R, k) : IO.OP<R>}
 
-def nav.bound_at(fs, bb, items, docs, uri, name, line, col, site, hs, R, k):
-  match bb:
+def nav.bound_at(fs, b, items, docs, uri, name, line, col, site, hs, R, k):
+  match b:
     case Bind.Bound{+binds, uses, scopes}:
       hs2 = Equal.sym(Maybe<&2, Bind.Site>, Bind.at(Bind.Bound{binds, uses, scopes}, line, col), site, hs)
       %hs2 : {Nav.at.site(~fs, _, binds, items, docs, uri, name, R, k)
@@ -138,7 +138,7 @@ def nav.bound_at(fs, bb, items, docs, uri, name, line, col, site, hs, R, k):
 # hover over a parsed text, at a use, answers what definition answers there
 law nav.hover_bound_at:
   for -fs: Fs.Files
-  for bb: Bind.Bound
+  for b: Bind.Bound
   for +items: List<&2, Outline.Item>
   for +docs: List<&2, Docs.Doc>
   for +uri: String
@@ -146,14 +146,14 @@ law nav.hover_bound_at:
   for +line: U32
   for +col: U32
   for +u: Bind.Use
-  for hs: {Bind.at(bb, line, col) == Some{Bind.SUse{u}} : Maybe<&2, Bind.Site>}
+  for hs: {Bind.at(b, line, col) == Some{Bind.SUse{u}} : Maybe<&2, Bind.Site>}
   for -R: Type
   for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
-  {Nav.hover.bound(~fs, bb, items, docs, uri, name, line, col, R, k)
-    == Nav.at.site(~fs, Some{Bind.SUse{u}}, Laws.nav.binds(bb), items, docs, uri, name, R, k) : IO.OP<R>}
+  {Nav.hover.bound(~fs, b, items, docs, uri, name, line, col, R, k)
+    == Nav.at.site(~fs, Some{Bind.SUse{u}}, Laws.nav.binds(b), items, docs, uri, name, R, k) : IO.OP<R>}
 
-def nav.hover_bound_at(fs, bb, items, docs, uri, name, line, col, u, hs, R, k):
-  match bb:
+def nav.hover_bound_at(fs, b, items, docs, uri, name, line, col, u, hs, R, k):
+  match b:
     case Bind.Bound{+binds, uses, scopes}:
       hs2 = Equal.sym(Maybe<&2, Bind.Site>, Bind.at(Bind.Bound{binds, uses, scopes}, line, col), Some{Bind.SUse{u}}, hs)
       %hs2 : {Nav.hover.site(~fs, _, items, binds, docs, uri, name, R, k)
@@ -202,18 +202,18 @@ def Laws.nav_definition_local(fs, docs, uri, text, h, line, col, n, l, c, tl, tc
 # an item of the document is answered as that item
 law nav.own_some:
   for -fs: Fs.Files
-  for +mm: Maybe<&2, Outline.Item>
+  for +m: Maybe<&2, Outline.Item>
   for +it: Outline.Item
-  for hi: {mm == Some{it} : Maybe<&2, Outline.Item>}
+  for hi: {m == Some{it} : Maybe<&2, Outline.Item>}
   for +docs: List<&2, Docs.Doc>
   for +uri: String
   for +name: String
   for -R: Type
   for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
-  {Nav.own(~fs, mm, docs, uri, name, R, k) == k(Some{Nav.Found{uri, it}}) : IO.OP<R>}
+  {Nav.own(~fs, m, docs, uri, name, R, k) == k(Some{Nav.Found{uri, it}}) : IO.OP<R>}
 
-def nav.own_some(fs, mm, it, hi, docs, uri, name, R, k):
-  hi2 = Equal.sym(Maybe<&2, Outline.Item>, mm, Some{it}, hi)
+def nav.own_some(fs, m, it, hi, docs, uri, name, R, k):
+  hi2 = Equal.sym(Maybe<&2, Outline.Item>, m, Some{it}, hi)
   %hi2 : {Nav.own(~fs, _, docs, uri, name, R, k) == k(Some{Nav.Found{uri, it}}) : IO.OP<R>}
   {==}
 
@@ -258,17 +258,17 @@ def Laws.nav_definition_import(fs, docs, uri, text, h, line, col, n, l, c, alias
 # a name the document has no item of is looked up in Base
 law nav.own_none:
   for -fs: Fs.Files
-  for +mm: Maybe<&2, Outline.Item>
-  for hi: {mm == None{} : Maybe<&2, Outline.Item>}
+  for +m: Maybe<&2, Outline.Item>
+  for hi: {m == None{} : Maybe<&2, Outline.Item>}
   for +docs: List<&2, Docs.Doc>
   for +uri: String
   for +name: String
   for -R: Type
   for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
-  {Nav.own(~fs, mm, docs, uri, name, R, k) == Nav.in_base(~fs, docs, name, R, k) : IO.OP<R>}
+  {Nav.own(~fs, m, docs, uri, name, R, k) == Nav.in_base(~fs, docs, name, R, k) : IO.OP<R>}
 
-def nav.own_none(fs, mm, hi, docs, uri, name, R, k):
-  hi2 = Equal.sym(Maybe<&2, Outline.Item>, mm, None{}, hi)
+def nav.own_none(fs, m, hi, docs, uri, name, R, k):
+  hi2 = Equal.sym(Maybe<&2, Outline.Item>, m, None{}, hi)
   %hi2 : {Nav.own(~fs, _, docs, uri, name, R, k) == Nav.in_base(~fs, docs, name, R, k) : IO.OP<R>}
   {==}
 
@@ -282,7 +282,7 @@ def Laws.nav_definition_free(fs, docs, uri, text, h, line, col, n, l, c, hs, hi,
 def Laws.nav_import_open(fs, docs, path, text, h, name, R, k):
   h2 = Equal.sym(Maybe<&2, String>, Docs.get(docs, "file://" ++ path), Some{text}, h)
   %h2 : {Nav.load.miss(~fs, _, path, R,
-      tt => k(Nav.found(Outline.find(Outline.items(tt), name), "file://" ++ path)))
+      t => k(Nav.found(Outline.find(Outline.items(t), name), "file://" ++ path)))
     == k(Nav.found(Outline.find(Outline.items(text), name), "file://" ++ path)) : IO.OP<R>}
   {==}
 
@@ -305,15 +305,15 @@ def Laws.nav_hover_use(fs, docs, uri, text, h, line, col, u, hs, R, k):
 # the server's positions for a site are the law's, whatever the site
 law nav.sites_spec:
   for site: Maybe<&2, Bind.Site>
-  for +bb: Bind.Bound
-  {Nav.sites.of(site, bb) == Laws.nav.referenced(site, bb) : Nav.Sites}
+  for +b: Bind.Bound
+  {Nav.sites.of(site, b) == Laws.nav.referenced(site, b) : Nav.Sites}
 
 def nav.sites_spec(site, _bb):
   match site:
     case None{}:
       {==}
-    case Some{ss}:
-      match ss:
+    case Some{s}:
+      match s:
         case Bind.SBind{b}:
           match b:
             case Bind.Bind{_name, _l, _c, kind, _note}:
@@ -351,7 +351,7 @@ def nav.sites_spec(site, _bb):
 
 def Laws.nav_references(fs, docs, uri, text, h, line, col, R, k):
   h2 = Equal.sym(Maybe<&2, String>, Docs.get(docs, uri), Some{text}, h)
-  %h2 : {Nav.load.miss(~fs, _, Proto.path(uri), R, tt => k(Nav.sites.in(tt, line, col)))
+  %h2 : {Nav.load.miss(~fs, _, Proto.path(uri), R, t => k(Nav.sites.in(t, line, col)))
     == k(Laws.nav.referenced(Bind.at(Bind.bound(text), line, col), Bind.bound(text))) : IO.OP<R>}
   Equal.cong(Nav.Sites, IO.OP<R>, k, Nav.sites.in(text, line, col),
     Laws.nav.referenced(Bind.at(Bind.bound(text), line, col), Bind.bound(text)),
@@ -360,7 +360,7 @@ def Laws.nav_references(fs, docs, uri, text, h, line, col, R, k):
 def Laws.nav_completion(fs, docs, uri, text, h, prefix, line, hp, R, k):
   h2 = Equal.sym(Maybe<&2, String>, Docs.get(docs, uri), Some{text}, h)
   hp2 = Equal.sym(Maybe<&2, String>, Outline.import_path(Outline.items(text), Word.head(prefix)), None{}, hp)
-  %h2 : {Nav.load.miss(~fs, _, Proto.path(uri), R, tt => Nav.candidates.in(~fs, tt, docs, uri, prefix, line, R, k))
+  %h2 : {Nav.load.miss(~fs, _, Proto.path(uri), R, t => Nav.candidates.in(~fs, t, docs, uri, prefix, line, R, k))
     == Nav.from_base(~fs, Bool.not(String.is_empty(prefix)), docs, prefix, R,
       base => k(List.append(&2, Outline.Item, Laws.nav.locals(text, prefix, line), Laws.nav.after(text, prefix, base))))
     : IO.OP<R>}
@@ -374,7 +374,7 @@ def Laws.nav_completion(fs, docs, uri, text, h, prefix, line, hp, R, k):
 def Laws.nav_completion_import(fs, docs, uri, text, h, prefix, line, rel, hp, R, k):
   h2 = Equal.sym(Maybe<&2, String>, Docs.get(docs, uri), Some{text}, h)
   hp2 = Equal.sym(Maybe<&2, String>, Outline.import_path(Outline.items(text), Word.head(prefix)), Some{rel}, hp)
-  %h2 : {Nav.load.miss(~fs, _, Proto.path(uri), R, tt => Nav.candidates.in(~fs, tt, docs, uri, prefix, line, R, k))
+  %h2 : {Nav.load.miss(~fs, _, Proto.path(uri), R, t => Nav.candidates.in(~fs, t, docs, uri, prefix, line, R, k))
     == Nav.starting_in(~fs, docs, Path.join(Path.dir(Proto.path(uri)), rel), Word.rest(prefix),
         Word.head(prefix) ++ ".",
       R, k) : IO.OP<R>}
@@ -388,7 +388,7 @@ def Laws.nav_completion_import(fs, docs, uri, text, h, prefix, line, rel, hp, R,
 # hover over a parsed text answers the site the binder finds
 law nav.hover_bound_site:
   for -fs: Fs.Files
-  for bb: Bind.Bound
+  for b: Bind.Bound
   for +items: List<&2, Outline.Item>
   for +docs: List<&2, Docs.Doc>
   for +uri: String
@@ -396,14 +396,14 @@ law nav.hover_bound_site:
   for +line: U32
   for +col: U32
   for +site: Maybe<&2, Bind.Site>
-  for hs: {Bind.at(bb, line, col) == site : Maybe<&2, Bind.Site>}
+  for hs: {Bind.at(b, line, col) == site : Maybe<&2, Bind.Site>}
   for -R: Type
   for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
-  {Nav.hover.bound(~fs, bb, items, docs, uri, name, line, col, R, k)
-    == Nav.hover.site(~fs, site, items, Laws.nav.binds(bb), docs, uri, name, R, k) : IO.OP<R>}
+  {Nav.hover.bound(~fs, b, items, docs, uri, name, line, col, R, k)
+    == Nav.hover.site(~fs, site, items, Laws.nav.binds(b), docs, uri, name, R, k) : IO.OP<R>}
 
-def nav.hover_bound_site(fs, bb, items, docs, uri, name, line, col, site, hs, R, k):
-  match bb:
+def nav.hover_bound_site(fs, b, items, docs, uri, name, line, col, site, hs, R, k):
+  match b:
     case Bind.Bound{+binds, uses, scopes}:
       hs2 = Equal.sym(Maybe<&2, Bind.Site>, Bind.at(Bind.Bound{binds, uses, scopes}, line, col), site, hs)
       %hs2 : {Nav.hover.site(~fs, _, items, binds, docs, uri, name, R, k)
@@ -446,15 +446,15 @@ law nav.kind_here:
   for +items: List<&2, Outline.Item>
   for +docs: List<&2, Docs.Doc>
   for +uri: String
-  for +bb: Bind.Bind
+  for +b: Bind.Bind
   for -R: Type
   for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
-  {Nav.hover.kind(~fs, kind, name, items, docs, uri, bb, R, k) == k(Some{Nav.Here{uri, bb}}) : IO.OP<R>}
+  {Nav.hover.kind(~fs, kind, name, items, docs, uri, b, R, k) == k(Some{Nav.Here{uri, b}}) : IO.OP<R>}
 
-def nav.kind_here(fs, kind, hk, name, items, docs, uri, bb, R, k):
+def nav.kind_here(fs, kind, hk, name, items, docs, uri, b, R, k):
   match kind:
     case Bind.KItem{}:
-      Empty.absurd({Nav.hover.kind(~fs, Bind.KItem{}, name, items, docs, uri, bb, R, k) == k(Some{Nav.Here{uri, bb}})
+      Empty.absurd({Nav.hover.kind(~fs, Bind.KItem{}, name, items, docs, uri, b, R, k) == k(Some{Nav.Here{uri, b}})
         : IO.OP<R>}, M1.true_false(hk))
     case Bind.KCtor{}:
       {==}
@@ -490,27 +490,27 @@ law nav.item_import:
   for +text: String
   for h: {Docs.get(docs, uri) == Some{text} : Maybe<&2, String>}
   for +name: String
-  for +bb: Bind.Bind
+  for +b: Bind.Bind
   for +rel: String
   for hi: {Outline.import_path(Outline.items(text), Word.head(name)) == Some{rel} : Maybe<&2, String>}
   for -R: Type
   for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
-  {Nav.hover.item(~fs, name, Outline.items(text), docs, uri, bb, R, k)
+  {Nav.hover.item(~fs, name, Outline.items(text), docs, uri, b, R, k)
     == Nav.in_file(~fs, docs, Path.join(Path.dir(Proto.path(uri)), rel), Word.rest(name), R,
-      mm => k(Nav.hover.pick(mm, Nav.found(Outline.find(Outline.items(text), name), uri), uri, bb))) : IO.OP<R>}
+      m => k(Nav.hover.pick(m, Nav.found(Outline.find(Outline.items(text), name), uri), uri, b))) : IO.OP<R>}
 
-def nav.item_import(fs, docs, uri, text, h, name, bb, rel, hi, R, k):
+def nav.item_import(fs, docs, uri, text, h, name, b, rel, hi, R, k):
   h2 = Equal.sym(Maybe<&2, String>, Docs.get(docs, uri), Some{text}, h)
   hi2 = Equal.sym(Maybe<&2, String>, Outline.import_path(Outline.items(text), Word.head(name)), Some{rel}, hi)
   %h2 : {Nav.load.miss(~fs, _, Proto.path(uri), R,
-      tt => Nav.among(~fs, Outline.items(tt), docs, uri, name, R,
-        mm => k(Nav.hover.pick(mm, Nav.found(Outline.find(Outline.items(text), name), uri), uri, bb))))
+      t => Nav.among(~fs, Outline.items(t), docs, uri, name, R,
+        m => k(Nav.hover.pick(m, Nav.found(Outline.find(Outline.items(text), name), uri), uri, b))))
     == Nav.in_file(~fs, docs, Path.join(Path.dir(Proto.path(uri)), rel), Word.rest(name), R,
-      mm => k(Nav.hover.pick(mm, Nav.found(Outline.find(Outline.items(text), name), uri), uri, bb))) : IO.OP<R>}
+      m => k(Nav.hover.pick(m, Nav.found(Outline.find(Outline.items(text), name), uri), uri, b))) : IO.OP<R>}
   %hi2 : {Nav.via(~fs, _, docs, uri, name, Outline.items(text), R,
-      mm => k(Nav.hover.pick(mm, Nav.found(Outline.find(Outline.items(text), name), uri), uri, bb)))
+      m => k(Nav.hover.pick(m, Nav.found(Outline.find(Outline.items(text), name), uri), uri, b)))
     == Nav.in_file(~fs, docs, Path.join(Path.dir(Proto.path(uri)), rel), Word.rest(name), R,
-      mm => k(Nav.hover.pick(mm, Nav.found(Outline.find(Outline.items(text), name), uri), uri, bb))) : IO.OP<R>}
+      m => k(Nav.hover.pick(m, Nav.found(Outline.find(Outline.items(text), name), uri), uri, b))) : IO.OP<R>}
   {==}
 
 def Laws.nav_hover_item(fs, docs, uri, text, h, line, col, name, bl, bc, note, hs, rel, hi, R, k):
@@ -518,7 +518,7 @@ def Laws.nav_hover_item(fs, docs, uri, text, h, line, col, name, bl, bc, note, h
     Nav.hover.site(~fs, Some{Bind.SBind{Bind.Bind{name, bl, bc, Bind.KItem{}, note}}}, Outline.items(text),
       Laws.nav.binds(Bind.bound(text)), docs, uri, Word.at(text, line, col), R, k),
     Nav.in_file(~fs, docs, Path.join(Path.dir(Proto.path(uri)), rel), Word.rest(name), R,
-      mm => k(Nav.hover.pick(mm, Nav.found(Outline.find(Outline.items(text), name), uri), uri,
+      m => k(Nav.hover.pick(m, Nav.found(Outline.find(Outline.items(text), name), uri), uri,
         Bind.Bind{name, bl, bc, Bind.KItem{}, note}))),
     nav.open_hover_site(fs, docs, uri, text, h, line, col,
       Some{Bind.SBind{Bind.Bind{name, bl, bc, Bind.KItem{}, note}}}, hs, R, k),
@@ -532,27 +532,27 @@ law nav.item_own:
   for +text: String
   for h: {Docs.get(docs, uri) == Some{text} : Maybe<&2, String>}
   for +name: String
-  for +bb: Bind.Bind
+  for +b: Bind.Bind
   for hi: {Outline.import_path(Outline.items(text), Word.head(name)) == None{} : Maybe<&2, String>}
   for +it: Outline.Item
   for hf: {Outline.find(Outline.items(text), name) == Some{it} : Maybe<&2, Outline.Item>}
   for -R: Type
   for -k: Maybe<&2, Nav.Found> -> IO.OP<R>
-  {Nav.hover.item(~fs, name, Outline.items(text), docs, uri, bb, R, k) == k(Some{Nav.Found{uri, it}}) : IO.OP<R>}
+  {Nav.hover.item(~fs, name, Outline.items(text), docs, uri, b, R, k) == k(Some{Nav.Found{uri, it}}) : IO.OP<R>}
 
-def nav.item_own(fs, docs, uri, text, h, name, bb, hi, it, hf, R, k):
+def nav.item_own(fs, docs, uri, text, h, name, b, hi, it, hf, R, k):
   h2 = Equal.sym(Maybe<&2, String>, Docs.get(docs, uri), Some{text}, h)
   hi2 = Equal.sym(Maybe<&2, String>, Outline.import_path(Outline.items(text), Word.head(name)), None{}, hi)
   hf2 = Equal.sym(Maybe<&2, Outline.Item>, Outline.find(Outline.items(text), name), Some{it}, hf)
   %h2 : {Nav.load.miss(~fs, _, Proto.path(uri), R,
-      tt => Nav.among(~fs, Outline.items(tt), docs, uri, name, R,
-        mm => k(Nav.hover.pick(mm, Nav.found(Outline.find(Outline.items(text), name), uri), uri, bb))))
+      t => Nav.among(~fs, Outline.items(t), docs, uri, name, R,
+        m => k(Nav.hover.pick(m, Nav.found(Outline.find(Outline.items(text), name), uri), uri, b))))
     == k(Some{Nav.Found{uri, it}}) : IO.OP<R>}
   %hi2 : {Nav.via(~fs, _, docs, uri, name, Outline.items(text), R,
-      mm => k(Nav.hover.pick(mm, Nav.found(Outline.find(Outline.items(text), name), uri), uri, bb)))
+      m => k(Nav.hover.pick(m, Nav.found(Outline.find(Outline.items(text), name), uri), uri, b)))
     == k(Some{Nav.Found{uri, it}}) : IO.OP<R>}
   %hf2 : {Nav.own(~fs, _, docs, uri, name, R,
-      mm => k(Nav.hover.pick(mm, Nav.found(_, uri), uri, bb)))
+      m => k(Nav.hover.pick(m, Nav.found(_, uri), uri, b)))
     == k(Some{Nav.Found{uri, it}}) : IO.OP<R>}
   {==}
 

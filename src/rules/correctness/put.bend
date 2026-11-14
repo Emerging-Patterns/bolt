@@ -21,16 +21,16 @@ def defines.named(toks: List<&2, Lex.Tok>) -> Bool:
       False{}
 
 # a keyword? a token's kind is read here, its text in the tests beside it
-def defines.key(kk: Lex.TokKind) -> Bool:
-  match kk:
+def defines.key(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TKey{}:
       True{}
     case other:
       False{}
 
 # a dotted name?
-def calls.dotted(kk: Lex.TokKind) -> Bool:
-  match kk:
+def calls.dotted(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TDotted{}:
       True{}
     case other:
@@ -47,15 +47,15 @@ def defines(toks: List<&2, Lex.Tok>) -> Bool:
 # a dotted name then an open bracket: a finding when they are `Map.put` and
 # `(`, before what the rest reports
 def calls.one(
-  +tt: String,
-  +oo: String,
-  +ll: U32,
-  +cc: U32,
+  +t: String,
+  +o: String,
+  +l: U32,
+  +c: U32,
   +path: String,
   +more: List<&2, F.Finding>
 ) -> List<&2, F.Finding>:
-  Bool.pick(List<&2, F.Finding>, Bool.and(String.eq(tt, "Map.put"), String.eq(oo, "(")),
-    F.Finding{path, ll, cc, 7, "put", "Map.put does not compare keys, so a new key can overwrite an existing entry; use Map.set."}
+  Bool.pick(List<&2, F.Finding>, Bool.and(String.eq(t, "Map.put"), String.eq(o, "(")),
+    F.Finding{path, l, c, 7, "put", "Map.put does not compare keys, so a new key can overwrite an existing entry; use Map.set."}
       <> more,
     more)
 
@@ -76,6 +76,6 @@ def check.on(+toks: List<&2, Lex.Tok>, path: String) -> List<&2, F.Finding>:
   Lazy.stop(List<&2, F.Finding>, defines(toks), [], _u => calls(toks, path))
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
   check.on(T.sig(toks), path)

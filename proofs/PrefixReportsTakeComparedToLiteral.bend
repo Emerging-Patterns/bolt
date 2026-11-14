@@ -14,8 +14,8 @@ import ../laws/defs/PrefixLength.bend as D1
 # ------
 
 # does the maybe hold a message?
-def prefix.some(mm: Maybe<&2, String>) -> Bool:
-  match mm:
+def prefix.some(m: Maybe<&2, String>) -> Bool:
+  match m:
     case None{}:
       False{}
     case Some{_x}:
@@ -31,12 +31,12 @@ def prefix.rest(ma: Maybe<&2, Prefix.Arg>) -> Maybe<&2, List<&2, Lex.Tok>>:
 
 # the rule's step of the scan is the law's
 law prefix.step:
-  for kk: Lex.TokKind
-  for dd: Nat
-  {Prefix.skip.step(kk, dd) == Laws.prefix_step(kk, dd) : Prefix.Skip}
+  for k: Lex.TokKind
+  for d: Nat
+  {Prefix.skip.step(k, d) == Laws.prefix_step(k, d) : Prefix.Skip}
 
-def prefix.step(kk, dd):
-  match kk:
+def prefix.step(k, d):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -78,13 +78,13 @@ def prefix.step(kk, dd):
     case Lex.TOpen{}:
       {==}
     case Lex.TClose{}:
-      match dd:
+      match d:
         case 0n:
           {==}
         case 1n+_p:
           {==}
     case Lex.TComma{}:
-      match dd:
+      match d:
         case 0n:
           {==}
         case 1n+_p:
@@ -107,22 +107,22 @@ def prefix.skip(toks, sk, acc):
           {==}
         case Prefix.SClose{}:
           {==}
-        case Prefix.SGo{+dd}:
-          +nx = Prefix.skip.step(k, dd)
+        case Prefix.SGo{+d}:
+          +nx = Prefix.skip.step(k, d)
           +acc2 = {Prefix.skip.piece(nx, k, t) <> acc : List<&2, String>}
           Equal.trans(Maybe<&2, List<&2, Lex.Tok>>, prefix.rest(Prefix.skip(rest, nx, acc2)), Laws.prefix_skip(rest,
             nx),
-            Laws.prefix_skip(rest, Laws.prefix_step(k, dd)), prefix.skip(rest, nx, acc2),
+            Laws.prefix_skip(rest, Laws.prefix_step(k, d)), prefix.skip(rest, nx, acc2),
             Equal.cong(Prefix.Skip, Maybe<&2, List<&2, Lex.Tok>>, z => Laws.prefix_skip(rest, z), nx,
-              Laws.prefix_step(k, dd), prefix.step(k, dd)))
+              Laws.prefix_step(k, d), prefix.step(k, d)))
 
 # the rule's dotted test is the law's
 law prefix.dotted:
-  for kk: Lex.TokKind
-  {Prefix.dotted(kk) == Laws.prefix_dotted(kk) : Bool}
+  for k: Lex.TokKind
+  {Prefix.dotted(k) == Laws.prefix_dotted(k) : Bool}
 
-def prefix.dotted(kk):
-  match kk:
+def prefix.dotted(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -229,7 +229,7 @@ def prefix.tail_a(ma):
   match ma:
     case None{}:
       {==}
-    case Some{Prefix.Arg{+ss, r}}:
+    case Some{Prefix.Arg{+s, r}}:
       match r:
         case Nil{}:
           {==}
@@ -253,7 +253,7 @@ def prefix.tail_a(ma):
                           prefix.some_eq(Prefix.tail_a.ok(a6, a7, a8, k9, a9, a10), Bool.and(String.eq(a7, ")"),
                             Bool.and(String.eq(a8, ","), Bool.and(Lex.is_str(k9), Bool.and(String.eq(a10, ")"),
                               D1.prefix_fits(a6, a9))))),
-                            Prefix.say(ss, a6, a9), prefix.ok_a(a6, a7, a8, k9, a9, a10))
+                            Prefix.say(s, a6, a9), prefix.ok_a(a6, a7, a8, k9, a9, a10))
 
 # the rule's literal-first end is the law's
 law prefix.tail_b:
@@ -265,7 +265,7 @@ def prefix.tail_b(ma, lit):
   match ma:
     case None{}:
       {==}
-    case Some{Prefix.Arg{+ss, r}}:
+    case Some{Prefix.Arg{+s, r}}:
       match r:
         case Nil{}:
           {==}
@@ -280,7 +280,7 @@ def prefix.tail_b(ma, lit):
                 case Con{Lex.Tok{k10, +a10, l10, c10}, r10}:
                   prefix.some_eq(Prefix.tail_b.ok(a8, a9, a10, lit), Bool.and(String.eq(a9, ")"),
                     Bool.and(String.eq(a10, ")"),
-                    D1.prefix_fits(a8, lit))), Prefix.say(ss, a8, lit), prefix.ok_b(a8, a9, a10, lit))
+                    D1.prefix_fits(a8, lit))), Prefix.say(s, a8, lit), prefix.ok_b(a8, a9, a10, lit))
 
 # the take-first shape after its head, the head's test b: the law's
 law prefix.go_a:
@@ -466,12 +466,12 @@ def prefix.at(k0, t0, toks):
 law prefix.hit:
   for mm: Maybe<&2, String>
   for -path: String
-  for -ll: U32
-  for -cc: U32
+  for -l: U32
+  for -c: U32
   for -more: List<&2, F.Finding>
   for -m: Nat
   for ih: {List.length(&2, F.Finding, more) == m : Nat}
-  {List.length(&2, F.Finding, Prefix.hit(mm, path, ll, cc, more)) == Bool.pick(Nat, prefix.some(mm), 1n+m, m) : Nat}
+  {List.length(&2, F.Finding, Prefix.hit(mm, path, l, c, more)) == Bool.pick(Nat, prefix.some(mm), 1n+m, m) : Nat}
 
 def prefix.hit(mm, _path, _ll, _cc, more, m, ih):
   match mm:

@@ -18,10 +18,10 @@ import ../src/noqa.bend as Noqa
 # findings), less what the sources' noqa comments silence, then the `noqa`
 # rule's findings as the CLI reports them, judging no project rule's code
 def pub.cli(+world: W.World) -> List<&2, F.Graded>:
-  +ss = Plan.srcs_of(Plan.gots(Plan.inputs(world), world))
+  +s = Plan.srcs_of(Plan.gots(Plan.inputs(world), world))
   +cs = Plan.confs(world)
-  Plan.after(Noqa.of_srcs(ss), False{},
-    Plan.grade(cs, world, Plan.per_file.role(cs, world, Plan.marks.run(W.paths.of(world), world, ss), ss)),
+  Plan.after(Noqa.of_srcs(s), False{},
+    Plan.grade(cs, world, Plan.per_file.role(cs, world, Plan.marks.run(W.paths.of(world), world, s), s)),
     fs => Plan.grade(cs, world, fs))
 
 # LAW: an open document's lint is the CLI's: over every file system and

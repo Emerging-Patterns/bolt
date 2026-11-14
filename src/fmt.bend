@@ -21,16 +21,16 @@ import ./rchars.bend as Rchars
 import ./syntax/lex.bend as Lex
 
 # a newline token?
-def is_newline(kk: Lex.TokKind) -> Bool:
-  match kk:
+def is_newline(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TNewline{}:
       True{}
     case other:
       False{}
 
 # a space token: a run of spaces and tabs?
-def is_space(kk: Lex.TokKind) -> Bool:
-  match kk:
+def is_space(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TSpace{}:
       True{}
     case other:
@@ -49,17 +49,17 @@ def trim.lead(cs: List<&2, Char>) -> List<&2, Char>:
       Lazy.either(List<&2, Char>, blank(c), _u => trim.lead(t), _v => c <> t)
 
 # a text without the spaces and tabs it ends in
-def trim.tail(tt: String) -> String:
-  Rchars.text(trim.lead(List.reverse(&2, Char, String.to_list(tt))))
+def trim.tail(t: String) -> String:
+  Rchars.text(trim.lead(List.reverse(&2, Char, String.to_list(t))))
 
 # a token's text as trim leaves it: a comment's without the blanks it ends
 # in, any other as it is
-def trim.text(kk: Lex.TokKind, +tt: String) -> String:
-  match kk:
+def trim.text(k: Lex.TokKind, +t: String) -> String:
+  match k:
     case Lex.TComment{}:
-      trim.tail(tt)
+      trim.tail(t)
     case other:
-      tt
+      t
 
 # does a line end here: at a newline, or at the end of the tokens?
 def trim.ends(toks: List<&2, Lex.Tok>) -> Bool:
@@ -70,12 +70,12 @@ def trim.ends(toks: List<&2, Lex.Tok>) -> Bool:
       is_newline(k)
 
 # a token kept, with its text trimmed, before the rest; or dropped
-def trim.keep(drop: Bool, +kk: Lex.TokKind, tt: String, ll: U32, cc: U32, more: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
+def trim.keep(drop: Bool, +k: Lex.TokKind, t: String, l: U32, c: U32, more: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
   match drop:
     case True{}:
       more
     case False{}:
-      Lex.Tok{kk, trim.text(kk, tt), ll, cc} <> more
+      Lex.Tok{k, trim.text(k, t), l, c} <> more
 
 # no blank before a line's end
 def trim(toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:

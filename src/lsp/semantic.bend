@@ -41,8 +41,8 @@ def last_segment(cs: List<&2, Char>, +acc: List<&2, Char>) -> List<&2, Char>:
 
 # the legend's type for a binder of this kind (an item is a type when
 # capitalized, else a function)
-def of_kind(kk: Bind.BindKind, +name: String) -> U32:
-  match kk:
+def of_kind(k: Bind.BindKind, +name: String) -> U32:
+  match k:
     case Bind.KItem{}:
       Bool.pick(U32, upper_first(String.to_list(name)), 2, 1)
     case Bind.KCtor{}:
@@ -63,8 +63,8 @@ def of_kind(kk: Bind.BindKind, +name: String) -> U32:
       10
 
 # the type for a binder that may not have been found (a variable then)
-def of_maybe_kind(mm: Maybe<&2, Bind.BindKind>, name: String) -> U32:
-  match mm:
+def of_maybe_kind(m: Maybe<&2, Bind.BindKind>, name: String) -> U32:
+  match m:
     case None{}:
       5
     case Some{k}:
@@ -141,16 +141,16 @@ def depth() -> Nat:
   16n
 
 # a key's way down the index: its low bits, lowest first
-def path(dd: Nat, +key: U32) -> List<&2, Bool>:
-  match dd:
+def path(d: Nat, +key: U32) -> List<&2, Bool>:
+  match d:
     case 0n:
       Nil{}
     case 1n+p:
       U32.is_even(key) <> path(p, U32.shr(key))
 
 # the entries at a leaf, none elsewhere
-def idx.es(ii: Index) -> List<&2, Entry>:
-  match ii:
+def idx.es(i: Index) -> List<&2, Entry>:
+  match i:
     case INone{}:
       Nil{}
     case ILeaf{es}:
@@ -159,42 +159,42 @@ def idx.es(ii: Index) -> List<&2, Entry>:
       Nil{}
 
 # the half of a node a bit goes down, empty elsewhere
-def idx.near(bb: Bool, ii: Index) -> Index:
-  match ii:
+def idx.near(b: Bool, i: Index) -> Index:
+  match i:
     case INone{}:
       INone{}
     case ILeaf{_es}:
       INone{}
     case INode{lo, hi}:
-      Bool.pick(Index, bb, lo, hi)
+      Bool.pick(Index, b, lo, hi)
 
 # a node whose half down a bit is sub, and the other half far
-def idx.join(bb: Bool, sub: Index, far: Index) -> Index:
-  match bb:
+def idx.join(b: Bool, sub: Index, far: Index) -> Index:
+  match b:
     case True{}:
       INode{sub, far}
     case False{}:
       INode{far, sub}
 
 # the index with an entry in front of the ones down its path
-def idx.put(pp: List<&2, Bool>, +ii: Index, +ee: Entry) -> Index:
-  match pp:
+def idx.put(p: List<&2, Bool>, +i: Index, +e: Entry) -> Index:
+  match p:
     case Nil{}:
-      ILeaf{ee <> idx.es(ii)}
-    case Con{+bb, rest}:
-      idx.join(bb, idx.put(rest, idx.near(bb, ii), ee), idx.near(Bool.not(bb), ii))
+      ILeaf{e <> idx.es(i)}
+    case Con{+b, rest}:
+      idx.join(b, idx.put(rest, idx.near(b, i), e), idx.near(Bool.not(b), i))
 
 # the entries at the end of a key's path
-def idx.find(pp: List<&2, Bool>, ii: Index) -> List<&2, Entry>:
-  match pp:
+def idx.find(p: List<&2, Bool>, i: Index) -> List<&2, Entry>:
+  match p:
     case Nil{}:
-      idx.es(ii)
-    case Con{bb, rest}:
-      idx.find(rest, idx.near(bb, ii))
+      idx.es(i)
+    case Con{b, rest}:
+      idx.find(rest, idx.near(b, i))
 
 # a name's key: its chars folded, base 31
-def hash(ss: String, +acc: U32) -> U32:
-  match ss:
+def hash(s: String, +acc: U32) -> U32:
+  match s:
     case SNil{}:
       acc
     case SCon{c, t}:
@@ -209,14 +209,14 @@ def by_line(binds: List<&2, Bind.Bind>) -> Index:
       idx.put(path(depth(), line), by_line(rest), Entry{name, line, col, kind})
 
 # an item or constructor into the index by its name's key; other binders pass
-def by_name.one(+name: String, line: U32, col: U32, kk: Bind.BindKind, ii: Index) -> Index:
-  match kk:
+def by_name.one(+name: String, line: U32, col: U32, k: Bind.BindKind, i: Index) -> Index:
+  match k:
     case Bind.KItem{}:
-      idx.put(path(depth(), hash(name, 0)), ii, Entry{name, line, col, Bind.KItem{}})
+      idx.put(path(depth(), hash(name, 0)), i, Entry{name, line, col, Bind.KItem{}})
     case Bind.KCtor{}:
-      idx.put(path(depth(), hash(name, 0)), ii, Entry{name, line, col, Bind.KCtor{}})
+      idx.put(path(depth(), hash(name, 0)), i, Entry{name, line, col, Bind.KCtor{}})
     case _other:
-      ii
+      i
 
 # the file's items and constructors, keyed by name, in source order
 def by_name(binds: List<&2, Bind.Bind>) -> Index:
@@ -249,13 +249,13 @@ type Kinds is Data:
   Kinds{at: Index, named: Index}
 
 # the kind of the binder at a position
-def kind_at(kk: Kinds, +line: U32, col: U32) -> Maybe<&2, Bind.BindKind>:
-  Kinds{at, _named} = kk
+def kind_at(k: Kinds, +line: U32, col: U32) -> Maybe<&2, Bind.BindKind>:
+  Kinds{at, _named} = k
   at.go(idx.find(path(depth(), line), at), line, col)
 
 # the kind of an item or constructor of the file, by name
-def kind_of_item(kk: Kinds, +name: String) -> Maybe<&2, Bind.BindKind>:
-  Kinds{_at, named} = kk
+def kind_of_item(k: Kinds, +name: String) -> Maybe<&2, Bind.BindKind>:
+  Kinds{_at, named} = k
   named.go(idx.find(path(depth(), hash(name, 0)), named), name)
 
 # the type of a use, from what it refers to
@@ -320,7 +320,7 @@ def name_step(cur: Cursor, +all: Kinds, +name: String, +line: U32, +col: U32, +b
 # names ask the binder; keywords are keywords; comments, strings and numbers
 # are left to the editor's grammar, which tells a doc comment from a plain one
 def of_tok(
-  kk: Lex.TokKind,
+  k: Lex.TokKind,
   cur: Cursor,
   all: Kinds,
   name: String,
@@ -328,7 +328,7 @@ def of_tok(
   col: U32,
   braced: Bool
 ) -> Step:
-  match kk:
+  match k:
     case Lex.TKey{}:
       Step{Some{0}, cur}
     case Lex.TName{}:
@@ -359,8 +359,8 @@ def cur_of(st: Step) -> Cursor:
   cur
 
 # a classified token onto the list, when it has a type
-def put(mm: Maybe<&2, U32>, +line: U32, +col: U32, +len: U32, rest: List<&2, Sem>) -> List<&2, Sem>:
-  match mm:
+def put(m: Maybe<&2, U32>, +line: U32, +col: U32, +len: U32, rest: List<&2, Sem>) -> List<&2, Sem>:
+  match m:
     case None{}:
       rest
     case Some{typ}:
@@ -376,10 +376,10 @@ def classify(toks: List<&2, Lex.Tok>, cur: Cursor, +all: Kinds) -> List<&2, Sem>
       put(typ_of(st), l, c, U32.from_nat(String.length(t)), classify(rest, cur_of(st), all))
 
 # a token's column and length in an encoding, on its line's chars
-def sent.one(+ee: Enc.Enc, +cs: List<&2, Char>, sem: Sem) -> Sem:
+def sent.one(+e: Enc.Enc, +cs: List<&2, Char>, sem: Sem) -> Sem:
   Sem{line, +col, +len, typ} = sem
-  +start = Enc.out.col(ee, cs, col)
-  Sem{line, start, (Enc.out.col(ee, cs, (col + len : U32)) - start : U32), typ}
+  +start = Enc.out.col(e, cs, col)
+  Sem{line, start, (Enc.out.col(e, cs, (col + len : U32)) - start : U32), typ}
 
 # the lines from a token's line on, from lines that start at line cur
 def sent.seek(lines: List<&2, String>, cur: U32, line: U32) -> List<&2, String>:
@@ -388,14 +388,14 @@ def sent.seek(lines: List<&2, String>, cur: U32, line: U32) -> List<&2, String>:
 # the tokens, in order, with columns and lengths in the negotiated encoding
 # (enc.bend's out.col); lines starts at line cur, and the tokens never go
 # back a line
-def sent(sems: List<&2, Sem>, +ee: Enc.Enc, lines: List<&2, String>, cur: U32) -> List<&2, Sem>:
+def sent(sems: List<&2, Sem>, +e: Enc.Enc, lines: List<&2, String>, cur: U32) -> List<&2, Sem>:
   match sems:
     case Nil{}:
       Nil{}
     case Con{Sem{+line, col, len, typ}, rest}:
       +here = sent.seek(lines, cur, line)
       +cs = String.to_list(Maybe.default(&2, String, List.head(&2, String, here), ""))
-      sent.one(ee, cs, Sem{line, col, len, typ}) <> sent(rest, ee, here, line)
+      sent.one(e, cs, Sem{line, col, len, typ}) <> sent(rest, e, here, line)
 
 # LSP's encoding: five numbers a token, positions relative to the previous
 # token (a line delta, and a column delta on the same line, absolute on a new
@@ -409,11 +409,11 @@ def encode(sems: List<&2, Sem>, +pl: U32, +pc: U32) -> List<&2, U32>:
       +dcol = Bool.pick(U32, same, (col - pc : U32), col)
       (line - pl : U32) <> (dcol <> (len <> (typ <> (0 <> encode(rest, line, col)))))
 
-def data.of(ee: Enc.Enc, +lines: List<&2, String>, bb: Bind.Bound, toks: List<&2, Lex.Tok>) -> List<&2, U32>:
-  Bind.Bound{+binds, uses, scopes} = bb
-  encode(sent(classify(toks, Cursor{binds, uses}, Kinds{by_line(binds), by_name(binds)}), ee, lines, 0), 0, 0)
+def data.of(e: Enc.Enc, +lines: List<&2, String>, b: Bind.Bound, toks: List<&2, Lex.Tok>) -> List<&2, U32>:
+  Bind.Bound{+binds, uses, scopes} = b
+  encode(sent(classify(toks, Cursor{binds, uses}, Kinds{by_line(binds), by_name(binds)}), e, lines, 0), 0, 0)
 
 # a document's semantic tokens, encoded, their columns and lengths in the
 # negotiated encoding
-def data(ee: Enc.Enc, +text: String) -> List<&2, U32>:
-  data.of(ee, String.lines(text), Bind.bound(text), Lex.tokens(text))
+def data(e: Enc.Enc, +text: String) -> List<&2, U32>:
+  data.of(e, String.lines(text), Bind.bound(text), Lex.tokens(text))

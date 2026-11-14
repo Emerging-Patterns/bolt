@@ -13,8 +13,8 @@ import ../lint/world.bend as W
 import ./plan.bend as Fp
 
 # a write that failed ends the run
-def write.closed(rr: Result<&1, &1, U32 & String, Unit>, path: String) -> IO(Unit):
-  match rr:
+def write.closed(r: Result<&1, &1, U32 & String, Unit>, path: String) -> IO(Unit):
+  match r:
     case Fail{_e}:
       IO.die(Unit, 1, "bolt: cannot write " ++ path)
     case Done{_u}:
@@ -28,8 +28,8 @@ def write.wrote(got: File & Result<&1, &1, U32 & String, Unit>, path: String) ->
     write.closed(r, path)
 
 # the text written to an opened file; one that did not open ends the run
-def write.opened(rr: Result<&1, &1, U32 & String, File>, path: String, text: String) -> IO(Unit):
-  match rr:
+def write.opened(r: Result<&1, &1, U32 & String, File>, path: String, text: String) -> IO(Unit):
+  match r:
     case Fail{_e}:
       IO.die(Unit, 1, "bolt: cannot write " ++ path)
     case Done{file}:
@@ -40,8 +40,8 @@ def write.opened(rr: Result<&1, &1, U32 & String, File>, path: String, text: Str
 # a file's text replaced
 def write(+path: String, text: String) -> IO(Unit):  # noqa: L001 IO driver
   do IO<Unit>:
-    rr : Result<&1, &1, U32 & String, File> <- File.open(path, "w")
-    write.opened(rr, path, text)
+    r : Result<&1, &1, U32 & String, File> <- File.open(path, "w")
+    write.opened(r, path, text)
 
 # each edit written, in order
 def write.all(es: List<&2, Fp.Edit>) -> IO(Unit):

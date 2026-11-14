@@ -175,158 +175,158 @@ def pos.pick(b, _x, _y, ex, ey):
 
 # a char that continues the token moves the position past it
 law pos.cont:
-  for +cc: Char
+  for +c: Char
   for +m: Lex.Mode
   for +k: Lex.TokKind
   for +buf: List<&2, Char>
   for +toks: List<&2, Lex.Tok>
   {ghost(Lex.St{m, k,
-      Bool.pick(U32, Lex.is_newline(cc), (la(buf, toks) + 1 : U32), la(buf, toks)),
-      Bool.pick(U32, Lex.is_newline(cc), 0, (ca(buf, toks) + 1 : U32)),
-      rline(toks), rcol(toks), cc <> buf, rplaced(toks)})
+      Bool.pick(U32, Lex.is_newline(c), (la(buf, toks) + 1 : U32), la(buf, toks)),
+      Bool.pick(U32, Lex.is_newline(c), 0, (ca(buf, toks) + 1 : U32)),
+      rline(toks), rcol(toks), c <> buf, rplaced(toks)})
     == Lex.St{m, k,
-      Bool.pick(U32, Lex.is_newline(cc), (la(buf, toks) + 1 : U32), la(buf, toks)),
-      Bool.pick(U32, Lex.is_newline(cc), 0, (ca(buf, toks) + 1 : U32)),
-      rline(toks), rcol(toks), cc <> buf, rplaced(toks)} : Lex.St}
+      Bool.pick(U32, Lex.is_newline(c), (la(buf, toks) + 1 : U32), la(buf, toks)),
+      Bool.pick(U32, Lex.is_newline(c), 0, (ca(buf, toks) + 1 : U32)),
+      rline(toks), rcol(toks), c <> buf, rplaced(toks)} : Lex.St}
 
-def pos.cont(cc, m, k, buf, toks):
-  %Equal.sym(U32, Laws.line_after(String.append(M1.rword(buf), M1.one(cc)), rline(rplaced(toks))),
-    Laws.line_after(M1.one(cc), Laws.line_after(M1.rword(buf), rline(rplaced(toks)))),
-    line.app(M1.rword(buf), M1.one(cc), rline(rplaced(toks)))) :
-    {Lex.St{m, k, _, Laws.col_after(String.append(M1.rword(buf), M1.one(cc)), rcol(rplaced(toks))),
-      rline(rplaced(toks)), rcol(rplaced(toks)), cc <> buf, rplaced(rplaced(toks))}
+def pos.cont(c, m, k, buf, toks):
+  %Equal.sym(U32, Laws.line_after(String.append(M1.rword(buf), M1.one(c)), rline(rplaced(toks))),
+    Laws.line_after(M1.one(c), Laws.line_after(M1.rword(buf), rline(rplaced(toks)))),
+    line.app(M1.rword(buf), M1.one(c), rline(rplaced(toks)))) :
+    {Lex.St{m, k, _, Laws.col_after(String.append(M1.rword(buf), M1.one(c)), rcol(rplaced(toks))),
+      rline(rplaced(toks)), rcol(rplaced(toks)), c <> buf, rplaced(rplaced(toks))}
     == Lex.St{m, k,
-      Bool.pick(U32, Lex.is_newline(cc), (la(buf, toks) + 1 : U32), la(buf, toks)),
-      Bool.pick(U32, Lex.is_newline(cc), 0, (ca(buf, toks) + 1 : U32)),
-      rline(toks), rcol(toks), cc <> buf, rplaced(toks)} : Lex.St}
-  %Equal.sym(U32, Laws.col_after(String.append(M1.rword(buf), M1.one(cc)), rcol(rplaced(toks))),
-    Laws.col_after(M1.one(cc), Laws.col_after(M1.rword(buf), rcol(rplaced(toks)))),
-    col.app(M1.rword(buf), M1.one(cc), rcol(rplaced(toks)))) :
-    {Lex.St{m, k, Laws.line_after(M1.one(cc), Laws.line_after(M1.rword(buf), rline(rplaced(toks)))), _,
-      rline(rplaced(toks)), rcol(rplaced(toks)), cc <> buf, rplaced(rplaced(toks))}
+      Bool.pick(U32, Lex.is_newline(c), (la(buf, toks) + 1 : U32), la(buf, toks)),
+      Bool.pick(U32, Lex.is_newline(c), 0, (ca(buf, toks) + 1 : U32)),
+      rline(toks), rcol(toks), c <> buf, rplaced(toks)} : Lex.St}
+  %Equal.sym(U32, Laws.col_after(String.append(M1.rword(buf), M1.one(c)), rcol(rplaced(toks))),
+    Laws.col_after(M1.one(c), Laws.col_after(M1.rword(buf), rcol(rplaced(toks)))),
+    col.app(M1.rword(buf), M1.one(c), rcol(rplaced(toks)))) :
+    {Lex.St{m, k, Laws.line_after(M1.one(c), Laws.line_after(M1.rword(buf), rline(rplaced(toks)))), _,
+      rline(rplaced(toks)), rcol(rplaced(toks)), c <> buf, rplaced(rplaced(toks))}
     == Lex.St{m, k,
-      Bool.pick(U32, Lex.is_newline(cc), (la(buf, toks) + 1 : U32), la(buf, toks)),
-      Bool.pick(U32, Lex.is_newline(cc), 0, (ca(buf, toks) + 1 : U32)),
-      rline(toks), rcol(toks), cc <> buf, rplaced(toks)} : Lex.St}
+      Bool.pick(U32, Lex.is_newline(c), (la(buf, toks) + 1 : U32), la(buf, toks)),
+      Bool.pick(U32, Lex.is_newline(c), 0, (ca(buf, toks) + 1 : U32)),
+      rline(toks), rcol(toks), c <> buf, rplaced(toks)} : Lex.St}
   %Equal.sym(String, M1.rspell(rplaced(toks)), M1.rspell(toks), rplaced.spell(toks)) :
-    {Lex.St{m, k, Laws.line_after(M1.one(cc), Laws.line_after(M1.rword(buf), Laws.line_after(_, 0))),
-      Laws.col_after(M1.one(cc), Laws.col_after(M1.rword(buf), Laws.col_after(_, 0))),
-      Laws.line_after(_, 0), Laws.col_after(_, 0), cc <> buf, rplaced(rplaced(toks))}
+    {Lex.St{m, k, Laws.line_after(M1.one(c), Laws.line_after(M1.rword(buf), Laws.line_after(_, 0))),
+      Laws.col_after(M1.one(c), Laws.col_after(M1.rword(buf), Laws.col_after(_, 0))),
+      Laws.line_after(_, 0), Laws.col_after(_, 0), c <> buf, rplaced(rplaced(toks))}
     == Lex.St{m, k,
-      Bool.pick(U32, Lex.is_newline(cc), (la(buf, toks) + 1 : U32), la(buf, toks)),
-      Bool.pick(U32, Lex.is_newline(cc), 0, (ca(buf, toks) + 1 : U32)),
-      rline(toks), rcol(toks), cc <> buf, rplaced(toks)} : Lex.St}
+      Bool.pick(U32, Lex.is_newline(c), (la(buf, toks) + 1 : U32), la(buf, toks)),
+      Bool.pick(U32, Lex.is_newline(c), 0, (ca(buf, toks) + 1 : U32)),
+      rline(toks), rcol(toks), c <> buf, rplaced(toks)} : Lex.St}
   %Equal.sym(List<&2, Lex.Tok>, rplaced(rplaced(toks)), rplaced(toks), rplaced.idem(toks)) :
-    {Lex.St{m, k, Laws.line_after(M1.one(cc), la(buf, toks)),
-      Laws.col_after(M1.one(cc), ca(buf, toks)),
-      rline(toks), rcol(toks), cc <> buf, _}
+    {Lex.St{m, k, Laws.line_after(M1.one(c), la(buf, toks)),
+      Laws.col_after(M1.one(c), ca(buf, toks)),
+      rline(toks), rcol(toks), c <> buf, _}
     == Lex.St{m, k,
-      Bool.pick(U32, Lex.is_newline(cc), (la(buf, toks) + 1 : U32), la(buf, toks)),
-      Bool.pick(U32, Lex.is_newline(cc), 0, (ca(buf, toks) + 1 : U32)),
-      rline(toks), rcol(toks), cc <> buf, rplaced(toks)} : Lex.St}
+      Bool.pick(U32, Lex.is_newline(c), (la(buf, toks) + 1 : U32), la(buf, toks)),
+      Bool.pick(U32, Lex.is_newline(c), 0, (ca(buf, toks) + 1 : U32)),
+      rline(toks), rcol(toks), c <> buf, rplaced(toks)} : Lex.St}
   {==}
 
 # a char that starts a token flushes the last one where it began, and moves
 # the position past itself
 law pos.begin:
-  for +cc: Char
+  for +c: Char
   for +m: Lex.Mode
   for +k2: Lex.TokKind
   for +k: Lex.TokKind
   for +buf: List<&2, Char>
   for +toks: List<&2, Lex.Tok>
   {ghost(Lex.St{m, k2,
-      Bool.pick(U32, Lex.is_newline(cc), (la(buf, toks) + 1 : U32), la(buf, toks)),
-      Bool.pick(U32, Lex.is_newline(cc), 0, (ca(buf, toks) + 1 : U32)),
-      la(buf, toks), ca(buf, toks), [cc],
+      Bool.pick(U32, Lex.is_newline(c), (la(buf, toks) + 1 : U32), la(buf, toks)),
+      Bool.pick(U32, Lex.is_newline(c), 0, (ca(buf, toks) + 1 : U32)),
+      la(buf, toks), ca(buf, toks), [c],
       Lex.flush(k, rline(toks), rcol(toks), buf, rplaced(toks))})
     == Lex.St{m, k2,
-      Bool.pick(U32, Lex.is_newline(cc), (la(buf, toks) + 1 : U32), la(buf, toks)),
-      Bool.pick(U32, Lex.is_newline(cc), 0, (ca(buf, toks) + 1 : U32)),
-      la(buf, toks), ca(buf, toks), [cc],
+      Bool.pick(U32, Lex.is_newline(c), (la(buf, toks) + 1 : U32), la(buf, toks)),
+      Bool.pick(U32, Lex.is_newline(c), 0, (ca(buf, toks) + 1 : U32)),
+      la(buf, toks), ca(buf, toks), [c],
       Lex.flush(k, rline(toks), rcol(toks), buf, rplaced(toks))} : Lex.St}
 
-def pos.begin(cc, m, k2, k, buf, toks):
+def pos.begin(c, m, k2, k, buf, toks):
   %Equal.sym(U32, rline(Lex.flush(k, rline(toks), rcol(toks), buf, rplaced(toks))),
     la(buf, toks), pos.flush.line(k, buf, toks)) :
-    {Lex.St{m, k2, Laws.line_after(M1.one(cc), _),
-      Laws.col_after(M1.one(cc), rcol(Lex.flush(k, rline(toks), rcol(toks), buf, rplaced(toks)))),
-      _, rcol(Lex.flush(k, rline(toks), rcol(toks), buf, rplaced(toks))), [cc],
+    {Lex.St{m, k2, Laws.line_after(M1.one(c), _),
+      Laws.col_after(M1.one(c), rcol(Lex.flush(k, rline(toks), rcol(toks), buf, rplaced(toks)))),
+      _, rcol(Lex.flush(k, rline(toks), rcol(toks), buf, rplaced(toks))), [c],
       rplaced(Lex.flush(k, rline(toks), rcol(toks), buf, rplaced(toks)))}
     == Lex.St{m, k2,
-      Bool.pick(U32, Lex.is_newline(cc), (la(buf, toks) + 1 : U32), la(buf, toks)),
-      Bool.pick(U32, Lex.is_newline(cc), 0, (ca(buf, toks) + 1 : U32)),
-      la(buf, toks), ca(buf, toks), [cc],
+      Bool.pick(U32, Lex.is_newline(c), (la(buf, toks) + 1 : U32), la(buf, toks)),
+      Bool.pick(U32, Lex.is_newline(c), 0, (ca(buf, toks) + 1 : U32)),
+      la(buf, toks), ca(buf, toks), [c],
       Lex.flush(k, rline(toks), rcol(toks), buf, rplaced(toks))} : Lex.St}
   %Equal.sym(U32, rcol(Lex.flush(k, rline(toks), rcol(toks), buf, rplaced(toks))),
     ca(buf, toks), pos.flush.col(k, buf, toks)) :
-    {Lex.St{m, k2, Laws.line_after(M1.one(cc), la(buf, toks)),
-      Laws.col_after(M1.one(cc), _),
-      la(buf, toks), _, [cc],
+    {Lex.St{m, k2, Laws.line_after(M1.one(c), la(buf, toks)),
+      Laws.col_after(M1.one(c), _),
+      la(buf, toks), _, [c],
       rplaced(Lex.flush(k, rline(toks), rcol(toks), buf, rplaced(toks)))}
     == Lex.St{m, k2,
-      Bool.pick(U32, Lex.is_newline(cc), (la(buf, toks) + 1 : U32), la(buf, toks)),
-      Bool.pick(U32, Lex.is_newline(cc), 0, (ca(buf, toks) + 1 : U32)),
-      la(buf, toks), ca(buf, toks), [cc],
+      Bool.pick(U32, Lex.is_newline(c), (la(buf, toks) + 1 : U32), la(buf, toks)),
+      Bool.pick(U32, Lex.is_newline(c), 0, (ca(buf, toks) + 1 : U32)),
+      la(buf, toks), ca(buf, toks), [c],
       Lex.flush(k, rline(toks), rcol(toks), buf, rplaced(toks))} : Lex.St}
   %Equal.sym(List<&2, Lex.Tok>, rplaced(Lex.flush(k, rline(toks), rcol(toks), buf, rplaced(toks))),
     Lex.flush(k, rline(toks), rcol(toks), buf, rplaced(toks)), pos.flush.placed(k, buf, toks)) :
-    {Lex.St{m, k2, Laws.line_after(M1.one(cc), la(buf, toks)),
-      Laws.col_after(M1.one(cc), ca(buf, toks)),
-      la(buf, toks), ca(buf, toks), [cc], _}
+    {Lex.St{m, k2, Laws.line_after(M1.one(c), la(buf, toks)),
+      Laws.col_after(M1.one(c), ca(buf, toks)),
+      la(buf, toks), ca(buf, toks), [c], _}
     == Lex.St{m, k2,
-      Bool.pick(U32, Lex.is_newline(cc), (la(buf, toks) + 1 : U32), la(buf, toks)),
-      Bool.pick(U32, Lex.is_newline(cc), 0, (ca(buf, toks) + 1 : U32)),
-      la(buf, toks), ca(buf, toks), [cc],
+      Bool.pick(U32, Lex.is_newline(c), (la(buf, toks) + 1 : U32), la(buf, toks)),
+      Bool.pick(U32, Lex.is_newline(c), 0, (ca(buf, toks) + 1 : U32)),
+      la(buf, toks), ca(buf, toks), [c],
       Lex.flush(k, rline(toks), rcol(toks), buf, rplaced(toks))} : Lex.St}
   {==}
 
 # one char read from a state whose positions are the recomputed ones keeps
 # them so
 law pos.step:
-  for +cc: Char
+  for +c: Char
   for +m: Lex.Mode
   for +k: Lex.TokKind
   for +buf: List<&2, Char>
   for +toks: List<&2, Lex.Tok>
-  {ghost(Lex.step(cc, ghost(Lex.St{m, k, 0, 0, 0, 0, buf, toks})))
-    == Lex.step(cc, ghost(Lex.St{m, k, 0, 0, 0, 0, buf, toks})) : Lex.St}
+  {ghost(Lex.step(c, ghost(Lex.St{m, k, 0, 0, 0, 0, buf, toks})))
+    == Lex.step(c, ghost(Lex.St{m, k, 0, 0, 0, 0, buf, toks})) : Lex.St}
 
-def pos.step(cc, m, k, buf, toks):
-  pos.pick(Lex.continues(m, Lex.classify(cc)),
-    Lex.St{Lex.after(m, Lex.classify(cc)), k,
-      Bool.pick(U32, Lex.is_newline(cc), (la(buf, toks) + 1 : U32), la(buf, toks)),
-      Bool.pick(U32, Lex.is_newline(cc), 0, (ca(buf, toks) + 1 : U32)),
-      rline(toks), rcol(toks), cc <> buf, rplaced(toks)},
-    Lex.St{Lex.begin.mode(Lex.classify(cc)), Lex.begin.kind(Lex.classify(cc)),
-      Bool.pick(U32, Lex.is_newline(cc), (la(buf, toks) + 1 : U32), la(buf, toks)),
-      Bool.pick(U32, Lex.is_newline(cc), 0, (ca(buf, toks) + 1 : U32)),
-      la(buf, toks), ca(buf, toks), [cc],
+def pos.step(c, m, k, buf, toks):
+  pos.pick(Lex.continues(m, Lex.classify(c)),
+    Lex.St{Lex.after(m, Lex.classify(c)), k,
+      Bool.pick(U32, Lex.is_newline(c), (la(buf, toks) + 1 : U32), la(buf, toks)),
+      Bool.pick(U32, Lex.is_newline(c), 0, (ca(buf, toks) + 1 : U32)),
+      rline(toks), rcol(toks), c <> buf, rplaced(toks)},
+    Lex.St{Lex.begin.mode(Lex.classify(c)), Lex.begin.kind(Lex.classify(c)),
+      Bool.pick(U32, Lex.is_newline(c), (la(buf, toks) + 1 : U32), la(buf, toks)),
+      Bool.pick(U32, Lex.is_newline(c), 0, (ca(buf, toks) + 1 : U32)),
+      la(buf, toks), ca(buf, toks), [c],
       Lex.flush(k, rline(toks), rcol(toks), buf, rplaced(toks))},
-    pos.cont(cc, Lex.after(m, Lex.classify(cc)), k, buf, toks),
-    pos.begin(cc, Lex.begin.mode(Lex.classify(cc)), Lex.begin.kind(Lex.classify(cc)), k, buf, toks))
+    pos.cont(c, Lex.after(m, Lex.classify(c)), k, buf, toks),
+    pos.begin(c, Lex.begin.mode(Lex.classify(c)), Lex.begin.kind(Lex.classify(c)), k, buf, toks))
 
 # pos.step, for any state recomputed
 law pos.step.on:
-  for +cc: Char
+  for +c: Char
   for +st: Lex.St
-  {ghost(Lex.step(cc, ghost(st))) == Lex.step(cc, ghost(st)) : Lex.St}
+  {ghost(Lex.step(c, ghost(st))) == Lex.step(c, ghost(st)) : Lex.St}
 
-def pos.step.on(cc, st):
+def pos.step.on(c, st):
   match st:
     case Lex.St{m, k, _l, _c, _sl, _sc, buf, toks}:
-      pos.step(cc, m, k, buf, toks)
+      pos.step(c, m, k, buf, toks)
 
 # a step keeps the positions the recomputed ones
 law pos.kept:
-  for +cc: Char
+  for +c: Char
   for +st: Lex.St
   for +e: {ghost(st) == st : Lex.St}
-  {ghost(Lex.step(cc, st)) == Lex.step(cc, st) : Lex.St}
+  {ghost(Lex.step(c, st)) == Lex.step(c, st) : Lex.St}
 
-def pos.kept(cc, st, e):
-  %e : {ghost(Lex.step(cc, _)) == Lex.step(cc, _) : Lex.St}
-  pos.step.on(cc, st)
+def pos.kept(c, st, e):
+  %e : {ghost(Lex.step(c, _)) == Lex.step(c, _) : Lex.St}
+  pos.step.on(c, st)
 
 # running over chars keeps the positions the recomputed ones
 law pos.run:

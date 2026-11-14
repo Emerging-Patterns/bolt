@@ -75,13 +75,13 @@ def ua.paths(rs, p):
 # a question asks the index of its own kind what the scan of the replies
 # would answer
 law ua.hit:
-  for aa: W.Ask
+  for a: W.Ask
   for +rs: List<&2, W.Reply>
-  {Plan.unanswered.hit(aa, Bind.index(Plan.unanswered.dirs(rs)), Bind.index(Plan.unanswered.paths(rs)))
-    == Maybe.is_some(&2, W.Answer, W.answer.in(rs, aa)) : Bool}
+  {Plan.unanswered.hit(a, Bind.index(Plan.unanswered.dirs(rs)), Bind.index(Plan.unanswered.paths(rs)))
+    == Maybe.is_some(&2, W.Answer, W.answer.in(rs, a)) : Bool}
 
-def ua.hit(aa, rs):
-  match aa:
+def ua.hit(a, rs):
+  match a:
     case W.Entries{+d}:
       Equal.trans(Bool, Bind.indexed(Bind.index(Plan.unanswered.dirs(rs)), d),
         Bind.has_item(Plan.unanswered.dirs(rs), d), Maybe.is_some(&2, W.Answer, W.answer.in(rs, W.Entries{d})),

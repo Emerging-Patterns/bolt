@@ -22,13 +22,13 @@ import ../src/lsp/semantic.bend as Semantic
 
 # the legend's entry at an index, as the editor looks a token's type up. Law
 # vocabulary: bolt never calls it
-def semantic.entry(ii: U32) -> Maybe<&2, String>:
-  List.get(&2, String, Semantic.legend(), U32.to_nat(ii))
+def semantic.entry(i: U32) -> Maybe<&2, String>:
+  List.get(&2, String, Semantic.legend(), U32.to_nat(i))
 
 # the legend entry a binder's kind stands for; upper: its name is
 # capitalized. Law vocabulary
-def semantic.kind_name(kk: Bind.BindKind, upper: Bool) -> String:
-  match kk:
+def semantic.kind_name(k: Bind.BindKind, upper: Bool) -> String:
+  match k:
     case Bind.KItem{}:
       Bool.pick(String, upper, "type", "function")
     case Bind.KCtor{}:
@@ -90,10 +90,10 @@ law token_on_a_new_line:
 # LAW: the type index of a binder's kind names the legend entry that kind
 # stands for, whatever the name
 law kind_names_its_legend_entry:
-  for kk: Bind.BindKind
+  for k: Bind.BindKind
   for +name: String
-  {semantic.entry(Semantic.of_kind(kk, name))
-    == Some{semantic.kind_name(kk, Semantic.upper_first(String.to_list(name)))} : Maybe<&2, String>}
+  {semantic.entry(Semantic.of_kind(k, name))
+    == Some{semantic.kind_name(k, Semantic.upper_first(String.to_list(name)))} : Maybe<&2, String>}
 
 # LAW: the type index of a name bound nowhere in the file names the legend
 # entry its shape stands for

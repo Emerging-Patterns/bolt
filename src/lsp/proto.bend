@@ -14,8 +14,8 @@ import ../version.bend as Ver
 import ./enc.bend as Enc
 
 # strings as JSON strings
-def strings(ss: List<&2, String>) -> List<&2, J.Json>:
-  match ss:
+def strings(s: List<&2, String>) -> List<&2, J.Json>:
+  match s:
     case Nil{}:
       Nil{}
     case Con{h, t}:
@@ -37,10 +37,10 @@ def notify(method: String, params: J.Json) -> J.Json:
 # what the server can do. It takes whole-text edits (change: 1) for hover,
 # definition and symbols; diagnostics still follow open and save, as the
 # checker reads files and their imports from disk
-def capabilities(ee: Enc.Enc) -> J.Json:
+def capabilities(e: Enc.Enc) -> J.Json:
   Ezjson.obj([
     ("capabilities", Ezjson.obj([
-      ("positionEncoding", J.JStr{Enc.name(ee)}),
+      ("positionEncoding", J.JStr{Enc.name(e)}),
       ("textDocumentSync", Ezjson.obj([("openClose", J.JBool{True{}}), ("change", J.JNum{U32.show(1)}), ("save", J.JBool{True{}})])),
       ("hoverProvider", J.JBool{True{}}),
       ("definitionProvider", J.JBool{True{}}),
@@ -60,55 +60,55 @@ def position.at(line: U32, character: U32) -> J.Json:
 
 # an LSP position (0-based line and a code-point character), its character
 # sent in the document's negotiated encoding
-def position(cc: Enc.Cols, +line: U32, character: U32) -> J.Json:
-  position.at(line, Enc.out(cc, line, character))
+def position(c: Enc.Cols, +line: U32, character: U32) -> J.Json:
+  position.at(line, Enc.out(c, line, character))
 
 # the checker gives a line and no columns: a diagnostic covers its whole line
-def diagnostic(+cc: Enc.Cols, dd: Rep.Diag) -> J.Json:
-  Rep.Diag{+line, msg} = dd
+def diagnostic(+c: Enc.Cols, d: Rep.Diag) -> J.Json:
+  Rep.Diag{+line, msg} = d
   Ezjson.obj([
-    ("range", Ezjson.obj([("start", position(cc, line, 0)), ("end", position(cc, (line + 1 : U32), 0))])),
+    ("range", Ezjson.obj([("start", position(c, line, 0)), ("end", position(c, (line + 1 : U32), 0))])),
     ("severity", J.JNum{U32.show(1)}), ("source", J.JStr{"bend"}), ("message", J.JStr{msg})])
 
 # diagnostics as JSON
-def diagnostics(ds: List<&2, Rep.Diag>, +cc: Enc.Cols) -> List<&2, J.Json>:
+def diagnostics(ds: List<&2, Rep.Diag>, +c: Enc.Cols) -> List<&2, J.Json>:
   match ds:
     case Nil{}:
       Nil{}
     case Con{d, t}:
-      diagnostic(cc, d) <> diagnostics(t, cc)
+      diagnostic(c, d) <> diagnostics(t, c)
 
 # a finding's range: its name, or from its column to the end of the line
-def finding_range(+cc: Enc.Cols, +line: U32, +col: U32, +len: U32) -> J.Json:
-  Ezjson.obj([("start", position(cc, line, col)),
-    ("end", Bool.pick(J.Json, U32.is_eq(len, 0), position(cc, (line + 1 : U32), 0),
-      position(cc, line, (col + len : U32))))])
+def finding_range(+c: Enc.Cols, +line: U32, +col: U32, +len: U32) -> J.Json:
+  Ezjson.obj([("start", position(c, line, col)),
+    ("end", Bool.pick(J.Json, U32.is_eq(len, 0), position(c, (line + 1 : U32), 0),
+      position(c, line, (col + len : U32))))])
 
 # a graded lint finding as a diagnostic: an error or a warning by its level,
 # its stable code, and bolt(group:slug) as the source
-def finding(cc: Enc.Cols, gg: Lint.Graded) -> J.Json:
-  Lint.Graded{level, Lint.Finding{path, line, col, len, +rule, msg}} = gg
-  Ezjson.obj([("range", finding_range(cc, line, col, len)),
+def finding(c: Enc.Cols, g: Lint.Graded) -> J.Json:
+  Lint.Graded{level, Lint.Finding{path, line, col, len, +rule, msg}} = g
+  Ezjson.obj([("range", finding_range(c, line, col, len)),
     ("severity", J.JNum{U32.show(Bool.pick(U32, Config.is_error(level), 1, 2))}),
     ("code", J.JStr{Codes.code(rule)}), ("source", J.JStr{Codes.source(rule)}), ("message", J.JStr{msg})])
 
 # findings as JSON
-def findings(gs: List<&2, Lint.Graded>, +cc: Enc.Cols) -> List<&2, J.Json>:
+def findings(gs: List<&2, Lint.Graded>, +c: Enc.Cols) -> List<&2, J.Json>:
   match gs:
     case Nil{}:
       Nil{}
     case Con{g, t}:
-      finding(cc, g) <> findings(t, cc)
+      finding(c, g) <> findings(t, c)
 
 # the publishDiagnostics notification for a document: the checker's errors,
 # then the linter's findings
-def publish(+cc: Enc.Cols, uri: String, ds: List<&2, Rep.Diag>, gs: List<&2, Lint.Graded>) -> J.Json:
+def publish(+c: Enc.Cols, uri: String, ds: List<&2, Rep.Diag>, gs: List<&2, Lint.Graded>) -> J.Json:
   notify("textDocument/publishDiagnostics",
-    Ezjson.obj([("uri", J.JStr{uri}), ("diagnostics", Ezjson.arr(List.append(&2, J.Json, diagnostics(ds, cc), findings(gs, cc))))]))
+    Ezjson.obj([("uri", J.JStr{uri}), ("diagnostics", Ezjson.arr(List.append(&2, J.Json, diagnostics(ds, c), findings(gs, c))))]))
 
 # a whole line as a range
-def line_range(+cc: Enc.Cols, +line: U32) -> J.Json:
-  Ezjson.obj([("start", position(cc, line, 0)), ("end", position(cc, (line + 1 : U32), 0))])
+def line_range(+c: Enc.Cols, +line: U32) -> J.Json:
+  Ezjson.obj([("start", position(c, line, 0)), ("end", position(c, (line + 1 : U32), 0))])
 
 # an item as hover text: its signature as code, then its doc comment
 def hover.text(sig: String, +doc: String) -> String:
@@ -120,13 +120,13 @@ def hover(item: Outline.Item) -> J.Json:
   Ezjson.obj([("contents", Ezjson.obj([("kind", J.JStr{"markdown"}), ("value", J.JStr{hover.text(sig, doc)})]))])
 
 # an item's location: its whole line
-def location(cc: Enc.Cols, uri: String, item: Outline.Item) -> J.Json:
+def location(c: Enc.Cols, uri: String, item: Outline.Item) -> J.Json:
   Outline.Item{k, name, line, sig, doc, path} = item
-  Ezjson.obj([("uri", J.JStr{uri}), ("range", line_range(cc, line))])
+  Ezjson.obj([("uri", J.JStr{uri}), ("range", line_range(c, line))])
 
 # what a binder is, in words
-def kind_name(kk: Bind.BindKind) -> String:
-  match kk:
+def kind_name(k: Bind.BindKind) -> String:
+  match k:
     case Bind.KItem{}:
       "item"
     case Bind.KCtor{}:
@@ -147,8 +147,8 @@ def kind_name(kk: Bind.BindKind) -> String:
       "type variable"
 
 # where a local was bound, for hover
-def where_bound(kk: Bind.BindKind, line: U32) -> String:
-  match kk:
+def where_bound(k: Bind.BindKind, line: U32) -> String:
+  match k:
     case Bind.KLocal{}:
       ", bound on line " ++ U32.show((line + 1 : U32))
     case Bind.KPat{}:
@@ -160,24 +160,24 @@ def where_bound(kk: Bind.BindKind, line: U32) -> String:
 
 # a binder of the document: the text that bound it, and what it is. The
 # server knows binding sites, not types: only a declaration carries one
-def hover.local(bb: Bind.Bind) -> J.Json:
-  Bind.Bind{name, line, col, +kind, note} = bb
+def hover.local(b: Bind.Bind) -> J.Json:
+  Bind.Bind{name, line, col, +kind, note} = b
   Ezjson.obj([("contents", Ezjson.obj([("kind", J.JStr{"markdown"}), ("value", J.JStr{"```bend\n" ++ note ++ "\n```\n\n" ++
     kind_name(kind) ++ where_bound(kind, line)})]))])
 
 # exactly a name's range
-def name_range(+cc: Enc.Cols, +line: U32, +col: U32, name: String) -> J.Json:
-  Ezjson.obj([("start", position(cc, line, col)),
-    ("end", position(cc, line, (col + U32.from_nat(String.length(name)) : U32)))])
+def name_range(+c: Enc.Cols, +line: U32, +col: U32, name: String) -> J.Json:
+  Ezjson.obj([("start", position(c, line, col)),
+    ("end", position(c, line, (col + U32.from_nat(String.length(name)) : U32)))])
 
 # exactly the binder's name
-def location.local(cc: Enc.Cols, uri: String, bb: Bind.Bind) -> J.Json:
-  Bind.Bind{name, line, col, kind, note} = bb
-  Ezjson.obj([("uri", J.JStr{uri}), ("range", name_range(cc, line, col, name))])
+def location.local(c: Enc.Cols, uri: String, b: Bind.Bind) -> J.Json:
+  Bind.Bind{name, line, col, kind, note} = b
+  Ezjson.obj([("uri", J.JStr{uri}), ("range", name_range(c, line, col, name))])
 
 # LSP's SymbolKind: module 2, function 12, constant 14, enum member 22, struct 23
-def symbol.kind(kk: Outline.ItemKind) -> U32:
-  match kk:
+def symbol.kind(k: Outline.ItemKind) -> U32:
+  match k:
     case Outline.IImport{}:
       2
     case Outline.IDef{}:
@@ -192,26 +192,26 @@ def symbol.kind(kk: Outline.ItemKind) -> U32:
       13
 
 # an item as a DocumentSymbol
-def symbol(+cc: Enc.Cols, item: Outline.Item) -> J.Json:
+def symbol(+c: Enc.Cols, item: Outline.Item) -> J.Json:
   Outline.Item{k, name, +line, sig, doc, path} = item
   Ezjson.obj([("name", J.JStr{name}), ("kind", J.JNum{U32.show(symbol.kind(k))}),
-    ("range", line_range(cc, line)), ("selectionRange", line_range(cc, line))])
+    ("range", line_range(c, line)), ("selectionRange", line_range(c, line))])
 
-def symbols.go(items: List<&2, Outline.Item>, +cc: Enc.Cols) -> List<&2, J.Json>:
+def symbols.go(items: List<&2, Outline.Item>, +c: Enc.Cols) -> List<&2, J.Json>:
   match items:
     case Nil{}:
       Nil{}
     case Con{item, t}:
-      symbol(cc, item) <> symbols.go(t, cc)
+      symbol(c, item) <> symbols.go(t, c)
 
 # the document symbols
-def symbols(cc: Enc.Cols, items: List<&2, Outline.Item>) -> J.Json:
-  Ezjson.arr(symbols.go(items, cc))
+def symbols(c: Enc.Cols, items: List<&2, Outline.Item>) -> J.Json:
+  Ezjson.arr(symbols.go(items, c))
 
 # LSP's CompletionItemKind: function 3, module 9, enum member 20, constant 21,
 # struct 22
-def completion.kind(kk: Outline.ItemKind) -> U32:
-  match kk:
+def completion.kind(k: Outline.ItemKind) -> U32:
+  match k:
     case Outline.IImport{}:
       9
     case Outline.IDef{}:
@@ -231,17 +231,17 @@ def first_line(s2: String) -> String:
 
 # a candidate replaces everything typed of the name, dots included: the
 # editor's own idea of a word stops at a dot
-def completion(+cc: Enc.Cols, item: Outline.Item, +line: U32, start: U32, col: U32) -> J.Json:
+def completion(+c: Enc.Cols, item: Outline.Item, +line: U32, start: U32, col: U32) -> J.Json:
   Outline.Item{k, +name, l, sig, doc, path} = item
   Ezjson.obj([("label", J.JStr{name}), ("kind", J.JNum{U32.show(completion.kind(k))}), ("detail", J.JStr{first_line(sig)}),
     ("documentation", Ezjson.obj([("kind", J.JStr{"markdown"}), ("value", J.JStr{doc})])),
     ("filterText", J.JStr{name}),
-    ("textEdit", Ezjson.obj([("range", Ezjson.obj([("start", position(cc, line, start)), ("end", position(cc, line, col))])),
+    ("textEdit", Ezjson.obj([("range", Ezjson.obj([("start", position(c, line, start)), ("end", position(c, line, col))])),
       ("newText", J.JStr{name})]))])
 
 def completions.go(
   items: List<&2, Outline.Item>,
-  +cc: Enc.Cols,
+  +c: Enc.Cols,
   +line: U32,
   +start: U32,
   +col: U32
@@ -250,12 +250,12 @@ def completions.go(
     case Nil{}:
       Nil{}
     case Con{item, t}:
-      completion(cc, item, line, start, col) <> completions.go(t, cc, line, start, col)
+      completion(c, item, line, start, col) <> completions.go(t, c, line, start, col)
 
 # isIncomplete: the server filtered by the prefix, so the editor asks again
 # as the prefix grows
-def completions(cc: Enc.Cols, items: List<&2, Outline.Item>, line: U32, start: U32, col: U32) -> J.Json:
-  Ezjson.obj([("isIncomplete", J.JBool{True{}}), ("items", Ezjson.arr(completions.go(items, cc, line, start, col)))])
+def completions(c: Enc.Cols, items: List<&2, Outline.Item>, line: U32, start: U32, col: U32) -> J.Json:
+  Ezjson.obj([("isIncomplete", J.JBool{True{}}), ("items", Ezjson.arr(completions.go(items, c, line, start, col)))])
 
 # a hex digit's value: 0-9, then a-f and A-F as 10-15
 def hex(ch: Char) -> U32:
@@ -291,8 +291,8 @@ def locations.go(ps: List<&2, Bind.Pos>, +cc: Enc.Cols, +uri: String, +name: Str
       Ezjson.obj([("uri", J.JStr{uri}), ("range", name_range(cc, l, c, name))]) <> locations.go(rest, cc, uri, name)
 
 # the positions a name is at, as Locations
-def locations(cc: Enc.Cols, uri: String, name: String, ps: List<&2, Bind.Pos>) -> J.Json:
-  Ezjson.arr(locations.go(ps, cc, uri, name))
+def locations(c: Enc.Cols, uri: String, name: String, ps: List<&2, Bind.Pos>) -> J.Json:
+  Ezjson.arr(locations.go(ps, c, uri, name))
 
 def edits.go(ps: List<&2, Bind.Pos>, +cc: Enc.Cols, +name: String, +new: String) -> List<&2, J.Json>:
   match ps:
@@ -302,8 +302,8 @@ def edits.go(ps: List<&2, Bind.Pos>, +cc: Enc.Cols, +name: String, +new: String)
       Ezjson.obj([("range", name_range(cc, l, c, name)), ("newText", J.JStr{new})]) <> edits.go(rest, cc, name, new)
 
 # a WorkspaceEdit over the one document
-def rename(cc: Enc.Cols, uri: String, name: String, new: String, ps: List<&2, Bind.Pos>) -> J.Json:
-  Ezjson.obj([("changes", Ezjson.obj([(uri, Ezjson.arr(edits.go(ps, cc, name, new)))]))])
+def rename(c: Enc.Cols, uri: String, name: String, new: String, ps: List<&2, Bind.Pos>) -> J.Json:
+  Ezjson.obj([("changes", Ezjson.obj([(uri, Ezjson.arr(edits.go(ps, c, name, new)))]))])
 
 # numbers as JSON numbers
 def nums(ns: List<&2, U32>) -> List<&2, J.Json>:

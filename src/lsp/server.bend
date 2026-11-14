@@ -97,8 +97,8 @@ def method(+name: String) -> Method:
                               MOther{}))))))))))))))
 
 # a method's role
-def role(mm: Method) -> Role:
-  match mm:
+def role(m: Method) -> Role:
+  match m:
     case MInitialize{}:
       RRequest{}
     case MShutdown{}:
@@ -161,8 +161,8 @@ def col_of(params: J.Json) -> U32:
   Maybe.default(&2, U32, Ezjson.as_u32(Ezjson.get(Ezjson.get(params, "position"), "character")), 0)
 
 # a reply as the text sent
-def text(rr: Reply) -> String:
-  match rr:
+def text(r: Reply) -> String:
+  match r:
     case RNote{body}:
       body
     case RResult{id, result}:
@@ -179,8 +179,8 @@ def notices(ns: List<&2, String>) -> List<&2, Reply>:
       RNote{n} <> notices(t)
 
 # the response to the request with this id
-def respond(id: J.Json, aa: Answer) -> Reply:
-  match aa:
+def respond(id: J.Json, a: Answer) -> Reply:
+  match a:
     case Answer{result}:
       RResult{id, result}
     case Refusal{code, message}:
@@ -202,26 +202,26 @@ def answered(result: J.Json, docs: List<&2, Docs.Doc>) -> Work:
 def noted(notes: List<&2, String>, docs: List<&2, Docs.Doc>) -> Work:
   Work{notes, Answer{J.JNull{}}, docs}
 
-def step.go(rr: Role, id: J.Json, ww: Work) -> Out:
-  match rr:
+def step.go(r: Role, id: J.Json, w: Work) -> Out:
+  match r:
     case RRequest{}:
-      Work{notes, answer, docs} = ww
+      Work{notes, answer, docs} = w
       Out{[respond(id, answer)], False{}, docs}
     case RNotice{}:
-      Work{notes, answer, docs} = ww
+      Work{notes, answer, docs} = w
       Out{notices(notes), False{}, docs}
     case RExit{}:
-      Work{notes, answer, docs} = ww
+      Work{notes, answer, docs} = w
       Out{[], True{}, docs}
     case RUnknown{}:
-      Work{notes, answer, docs} = ww
+      Work{notes, answer, docs} = w
       Out{unknown(id), False{}, docs}
 
 # the dispatcher's decision for one message, whatever its method's work gave:
 # a request gets one response with its id, a notification its notices, exit
 # stops, and a method it does not know is refused or ignored
-def step(mm: Method, id: J.Json, ww: Work) -> Out:
-  step.go(role(mm), id, ww)
+def step(m: Method, id: J.Json, w: Work) -> Out:
+  step.go(role(m), id, w)
 
 # publishing
 # ----------
@@ -231,8 +231,8 @@ def step(mm: Method, id: J.Json, ww: Work) -> Out:
 
 # a document's diagnostics, as the notification sent: the checker's errors,
 # then the linter's findings
-def pub.note(cc: Enc.Cols, uri: String, ds: List<&2, Rep.Diag>, gs: List<&2, Finding.Graded>) -> String:
-  Ezjson.print(Proto.publish(cc, uri, ds, gs))
+def pub.note(c: Enc.Cols, uri: String, ds: List<&2, Rep.Diag>, gs: List<&2, Finding.Graded>) -> String:
+  Ezjson.print(Proto.publish(c, uri, ds, gs))
 
 # the bolt.bend candidates of a document's path, nearest first: the ones the
 # CLI reads for a file at that path, run from the same directory
@@ -264,7 +264,7 @@ def pub.marks(+world: W.World) -> List<&2, Role.Mark>:
 # open or save: the checker's errors with the lint of the text, the errors
 # kept for the changes after
 def pub.checked(
-  ee: Enc.Enc,
+  e: Enc.Enc,
   +uri: String,
   +text: String,
   +ds: List<&2, Rep.Diag>,
@@ -272,12 +272,12 @@ def pub.checked(
   +ms: List<&2, Role.Mark>,
   +docs: List<&2, Docs.Doc>
 ) -> Work:
-  noted([pub.note(Enc.cols(ee, text), uri, ds, pub.lint(Proto.path(uri), text, rs, ms))],
+  noted([pub.note(Enc.cols(e, text), uri, ds, pub.lint(Proto.path(uri), text, rs, ms))],
     Docs.set_checked(docs, uri, ds, ms))
 
 # open: the document's text kept, then published with the checker's errors
 def pub.open(
-  ee: Enc.Enc,
+  e: Enc.Enc,
   +uri: String,
   +text: String,
   ds: List<&2, Rep.Diag>,
@@ -285,34 +285,34 @@ def pub.open(
   +ms: List<&2, Role.Mark>,
   +docs: List<&2, Docs.Doc>
 ) -> Work:
-  pub.checked(ee, uri, text, ds, rs, ms, Docs.set(docs, uri, text))
+  pub.checked(e, uri, text, ds, rs, ms, Docs.set(docs, uri, text))
 
 # save: the text the editor shows published with the checker's new errors
 def pub.save(
-  ee: Enc.Enc,
+  e: Enc.Enc,
   +uri: String,
   ds: List<&2, Rep.Diag>,
   rs: List<&2, Maybe<&2, String>>,
   +ms: List<&2, Role.Mark>,
   +docs: List<&2, Docs.Doc>
 ) -> Work:
-  pub.checked(ee, uri, Maybe.default(&2, String, Docs.get(docs, uri), ""), ds, rs, ms, docs)
+  pub.checked(e, uri, Maybe.default(&2, String, Docs.get(docs, uri), ""), ds, rs, ms, docs)
 
 # change: the new text kept, and its lint published with the checker's last
 # errors and the marks read with them
 def pub.change(
-  ee: Enc.Enc,
+  e: Enc.Enc,
   +uri: String,
   +text: String,
   rs: List<&2, Maybe<&2, String>>,
   +docs: List<&2, Docs.Doc>
 ) -> Work:
-  noted([pub.note(Enc.cols(ee, text), uri, Docs.errors(docs, uri),
+  noted([pub.note(Enc.cols(e, text), uri, Docs.errors(docs, uri),
     pub.lint(Proto.path(uri), text, rs, Docs.marks(docs, uri)))], Docs.set(docs, uri, text))
 
 # close: the document forgotten, and an empty list published
-def pub.close(ee: Enc.Enc, +uri: String, docs: List<&2, Docs.Doc>) -> Work:
-  noted([pub.note(Enc.cols(ee, ""), uri, [], [])], Docs.del(docs, uri))
+def pub.close(e: Enc.Enc, +uri: String, docs: List<&2, Docs.Doc>) -> Work:
+  noted([pub.note(Enc.cols(e, ""), uri, [], [])], Docs.del(docs, uri))
 
 # the texts of a document's bolt.bend candidates, as the files hold them
 def pub.configs(~fs: F.Files, +uri: String) -> IO(List<&2, Maybe<&2, String>>):
@@ -321,8 +321,8 @@ def pub.configs(~fs: F.Files, +uri: String) -> IO(List<&2, Maybe<&2, String>>):
     F.read_all(~fs, pub.cands(cwd, Proto.path(uri)))
 
 # a file's text as an answer
-def pub.read.answer(mm: Maybe<&2, String>) -> W.Answer:
-  match mm:
+def pub.read.answer(m: Maybe<&2, String>) -> W.Answer:
+  match m:
     case None{}:
       W.Unread{}
     case Some{text}:
@@ -338,8 +338,8 @@ def pub.answer(~fs: F.Files, ask: W.Ask) -> IO(W.Answer):
         return W.Listed{es}
     case W.Contents{path}:
       do IO<W.Answer>:
-        mm : Maybe<&2, String> <- F.read(fs, path)
-        return pub.read.answer(mm)
+        m : Maybe<&2, String> <- F.read(fs, path)
+        return pub.read.answer(m)
 
 # every question answered, in order
 def pub.answers(~fs: F.Files, asks: List<&2, W.Ask>) -> IO(List<&2, W.Reply>):
@@ -380,47 +380,47 @@ def pub.world.go(~fs: F.Files, fuel: Nat, +world: W.World) -> IO(W.World):
     case 0n:
       IO.pure(W.World, world)
     case 1n+f:
-      pub.world.step(~fs, Plan.wants(world), world, ww => pub.world.go(~fs, f, ww))
+      pub.world.step(~fs, Plan.wants(world), world, w => pub.world.go(~fs, f, w))
 
 # the role marks the tree's imports give a document, as `bolt <path>` reads
 # them
 def pub.seen(~fs: F.Files, +uri: String) -> IO(List<&2, Role.Mark>):
   do IO<List<&2, Role.Mark>>:
     cwd : String <- F.cwd(fs)
-    ww : W.World <- pub.world.go(~fs, Nat.add(Plan.limit(), 2n), W.World{[Proto.path(uri)], cwd, []})
-    return pub.marks(ww)
+    w : W.World <- pub.world.go(~fs, Nat.add(Plan.limit(), 2n), W.World{[Proto.path(uri)], cwd, []})
+    return pub.marks(w)
 
 # open, on the checker's run on the file on disk
 def pub.opened(
   ~fs: F.Files,
   ~ck: C.Checker,
-  ee: Enc.Enc,
+  e: Enc.Enc,
   +uri: String,
   text: String,
   docs: List<&2, Docs.Doc>
 ) -> IO(Work):
   do IO<Work>:
-    aa : C.Answer <- C.check(ck, Proto.path(uri))
+    a : C.Answer <- C.check(ck, Proto.path(uri))
     rs : List<&2, Maybe<&2, String>> <- pub.configs(~fs, uri)
     ms : List<&2, Role.Mark> <- pub.seen(~fs, uri)
-    return pub.open(ee, uri, text, C.errors(aa), rs, ms, docs)
+    return pub.open(e, uri, text, C.errors(a), rs, ms, docs)
 
 # save, on the checker's run on the file on disk
-def pub.saved(~fs: F.Files, ~ck: C.Checker, ee: Enc.Enc, +uri: String, docs: List<&2, Docs.Doc>) -> IO(Work):
+def pub.saved(~fs: F.Files, ~ck: C.Checker, e: Enc.Enc, +uri: String, docs: List<&2, Docs.Doc>) -> IO(Work):
   do IO<Work>:
-    aa : C.Answer <- C.check(ck, Proto.path(uri))
+    a : C.Answer <- C.check(ck, Proto.path(uri))
     rs : List<&2, Maybe<&2, String>> <- pub.configs(~fs, uri)
     ms : List<&2, Role.Mark> <- pub.seen(~fs, uri)
-    return pub.save(ee, uri, C.errors(aa), rs, ms, docs)
+    return pub.save(e, uri, C.errors(a), rs, ms, docs)
 
 # change: the linter only
-def pub.changed(~fs: F.Files, ee: Enc.Enc, +uri: String, text: String, docs: List<&2, Docs.Doc>) -> IO(Work):
+def pub.changed(~fs: F.Files, e: Enc.Enc, +uri: String, text: String, docs: List<&2, Docs.Doc>) -> IO(Work):
   do IO<Work>:
     rs : List<&2, Maybe<&2, String>> <- pub.configs(~fs, uri)
-    return pub.change(ee, uri, text, rs, docs)
+    return pub.change(e, uri, text, rs, docs)
 
-def hover.of(mm: Maybe<&2, Nav.Found>) -> J.Json:
-  match mm:
+def hover.of(m: Maybe<&2, Nav.Found>) -> J.Json:
+  match m:
     case None{}:
       J.JNull{}
     case Some{Nav.Found{uri, item}}:
@@ -428,50 +428,50 @@ def hover.of(mm: Maybe<&2, Nav.Found>) -> J.Json:
     case Some{Nav.Here{uri, b}}:
       Proto.hover.local(b)
 
-def definition.of(cc: Enc.Cols, mm: Maybe<&2, Nav.Found>) -> J.Json:
-  match mm:
+def definition.of(c: Enc.Cols, m: Maybe<&2, Nav.Found>) -> J.Json:
+  match m:
     case None{}:
       J.JNull{}
     case Some{Nav.Found{uri, item}}:
-      Proto.location(cc, uri, item)
+      Proto.location(c, uri, item)
     case Some{Nav.Here{uri, b}}:
-      Proto.location.local(cc, uri, b)
+      Proto.location.local(c, uri, b)
 
 # the column a request's position names, read in the negotiated encoding of
 # the document's text
-def col_in(cc: Enc.Cols, +params: J.Json) -> U32:
-  Enc.into(cc, line_of(params), col_of(params))
+def col_in(c: Enc.Cols, +params: J.Json) -> U32:
+  Enc.into(c, line_of(params), col_of(params))
 
 # hover at a request's position
 def hovered(  # noqa: L001 LSP IO glue
   ~fs: F.Files,
-  ee: Enc.Enc,
+  e: Enc.Enc,
   +docs: List<&2, Docs.Doc>,
   +uri: String,
   +params: J.Json
 ) -> IO(Work):
   do IO<Work>:
     text : String <- Nav.text_of(~fs, docs, uri)
-    f : Maybe<&2, Nav.Found> <- Nav.hover(~fs, docs, uri, line_of(params), col_in(Enc.cols(ee, text), params))
+    f : Maybe<&2, Nav.Found> <- Nav.hover(~fs, docs, uri, line_of(params), col_in(Enc.cols(e, text), params))
     return answered(hover.of(f), docs)
 
 # definition at a request's position
 def defined(  # noqa: L001 LSP IO glue
   ~fs: F.Files,
-  ee: Enc.Enc,
+  e: Enc.Enc,
   +docs: List<&2, Docs.Doc>,
   +uri: String,
   +params: J.Json
 ) -> IO(Work):
   do IO<Work>:
     +text : String <- Nav.text_of(~fs, docs, uri)
-    +cc : Enc.Cols = Enc.cols(ee, text)
-    f : Maybe<&2, Nav.Found> <- Nav.at(~fs, docs, uri, line_of(params), col_in(cc, params))
-    return answered(definition.of(cc, f), docs)
+    +c : Enc.Cols = Enc.cols(e, text)
+    f : Maybe<&2, Nav.Found> <- Nav.at(~fs, docs, uri, line_of(params), col_in(c, params))
+    return answered(definition.of(c, f), docs)
 
 def complete.with(
   ~fs: F.Files,
-  cc: Enc.Cols,
+  c: Enc.Cols,
   +prefix: String,
   +docs: List<&2, Docs.Doc>,
   uri: String,
@@ -480,83 +480,83 @@ def complete.with(
 ) -> IO(Work):
   do IO<Work>:
     items : List<&2, Outline.Item> <- Nav.candidates(~fs, docs, uri, prefix, line)
-    return answered(Proto.completions(cc, items, line, (col - U32.from_nat(String.length(prefix)) : U32), col), docs)
+    return answered(Proto.completions(c, items, line, (col - U32.from_nat(String.length(prefix)) : U32), col), docs)
 
 # the candidates for the name being typed at a position
 def complete(  # noqa: L001 LSP IO glue
   ~fs: F.Files,
-  ee: Enc.Enc,
+  e: Enc.Enc,
   +docs: List<&2, Docs.Doc>,
   +uri: String,
   +params: J.Json
 ) -> IO(Work):
   do IO<Work>:
     +text : String <- Nav.text_of(~fs, docs, uri)
-    +cc : Enc.Cols = Enc.cols(ee, text)
+    +c : Enc.Cols = Enc.cols(e, text)
     +line : U32 = line_of(params)
-    +col : U32 = col_in(cc, params)
-    complete.with(~fs, cc, Word.before(text, line, col), docs, uri, line, col)
+    +col : U32 = col_in(c, params)
+    complete.with(~fs, c, Word.before(text, line, col), docs, uri, line, col)
 
-def references.of(cc: Enc.Cols, ss: Nav.Sites, uri: String, name: String) -> J.Json:
-  Nav.Sites{mine, at} = ss
-  Proto.locations(cc, uri, name, at)
+def references.of(c: Enc.Cols, s: Nav.Sites, uri: String, name: String) -> J.Json:
+  Nav.Sites{mine, at} = s
+  Proto.locations(c, uri, name, at)
 
 # only a name bound in the document renames; the editor shows the refusal
-def rename.of(cc: Enc.Cols, ss: Nav.Sites, uri: String, name: String, new: String) -> Answer:
-  Nav.Sites{mine, at} = ss
+def rename.of(c: Enc.Cols, s: Nav.Sites, uri: String, name: String, new: String) -> Answer:
+  Nav.Sites{mine, at} = s
   match mine:
     case True{}:
-      Answer{Proto.rename(cc, uri, name, new, at)}
+      Answer{Proto.rename(c, uri, name, new, at)}
     case False{}:
       Refusal{"-32803", "only a name bound in this file can be renamed"}
 
 # every position of the name at a position
 def references(  # noqa: L001 LSP IO glue
   ~fs: F.Files,
-  ee: Enc.Enc,
+  e: Enc.Enc,
   +docs: List<&2, Docs.Doc>,
   +uri: String,
   +params: J.Json
 ) -> IO(Work):
   do IO<Work>:
     +text : String <- Nav.text_of(~fs, docs, uri)
-    +cc : Enc.Cols = Enc.cols(ee, text)
+    +c : Enc.Cols = Enc.cols(e, text)
     +line : U32 = line_of(params)
-    +col : U32 = col_in(cc, params)
+    +col : U32 = col_in(c, params)
     s : Nav.Sites <- Nav.sites(~fs, docs, uri, line, col)
-    return answered(references.of(cc, s, uri, Word.at(text, line, col)), docs)
+    return answered(references.of(c, s, uri, Word.at(text, line, col)), docs)
 
 # the edit renaming the name at a position, or a refusal
 def renamed(  # noqa: L001 LSP IO glue
   ~fs: F.Files,
-  ee: Enc.Enc,
+  e: Enc.Enc,
   +docs: List<&2, Docs.Doc>,
   +uri: String,
   +params: J.Json
 ) -> IO(Work):
   do IO<Work>:
     +text : String <- Nav.text_of(~fs, docs, uri)
-    +cc : Enc.Cols = Enc.cols(ee, text)
+    +c : Enc.Cols = Enc.cols(e, text)
     +line : U32 = line_of(params)
-    +col : U32 = col_in(cc, params)
+    +col : U32 = col_in(c, params)
     s : Nav.Sites <- Nav.sites(~fs, docs, uri, line, col)
     return Work{[],
-      rename.of(cc, s, uri, Word.at(text, line, col),
+      rename.of(c, s, uri, Word.at(text, line, col),
         Maybe.default(&2, String, Ezjson.as_str(Ezjson.get(params, "newName")), "")),
       docs}
 
 # the document's semantic tokens
-def semantic(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, uri: String) -> IO(Work):  # noqa: L001 LSP IO glue
+def semantic(~fs: F.Files, e: Enc.Enc, +docs: List<&2, Docs.Doc>, uri: String) -> IO(Work):  # noqa: L001 LSP IO glue
   do IO<Work>:
     text : String <- Nav.text_of(~fs, docs, uri)
-    return answered(Proto.semantic(Semantic.data(ee, text)), docs)
+    return answered(Proto.semantic(Semantic.data(e, text)), docs)
 
 # the document's symbols
-def symbols(~fs: F.Files, ee: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String) -> IO(Work):  # noqa: L001 LSP IO glue
+def symbols(~fs: F.Files, e: Enc.Enc, +docs: List<&2, Docs.Doc>, +uri: String) -> IO(Work):  # noqa: L001 LSP IO glue
   do IO<Work>:
     text : String <- Nav.text_of(~fs, docs, uri)
     items : List<&2, Outline.Item> <- Nav.outline(~fs, docs, uri)
-    return answered(Proto.symbols(Enc.cols(ee, text), items), docs)
+    return answered(Proto.symbols(Enc.cols(e, text), items), docs)
 
 # the work behind a method: what the checker, the files and the documents
 # give it. It does not see the message's id: step alone puts that on a reply
@@ -564,11 +564,11 @@ def work(  # noqa: L001 LSP IO glue
   ~fs: F.Files,
   ~ck: C.Checker,
   enc: Enc.Enc,
-  mm: Method,
+  m: Method,
   +params: J.Json,
   +docs: List<&2, Docs.Doc>
 ) -> IO(Work):
-  match mm:
+  match m:
     case MInitialize{}:
       IO.pure(Work, answered(Proto.capabilities(enc), docs))
     case MShutdown{}:
@@ -602,34 +602,34 @@ def work(  # noqa: L001 LSP IO glue
 
 # the encoding after a message: initialize settles it (enc.bend's
 # negotiate); every other message keeps it
-def encoding(mm: Method, params: J.Json, ee: Enc.Enc) -> Enc.Enc:
-  match mm:
+def encoding(m: Method, params: J.Json, e: Enc.Enc) -> Enc.Enc:
+  match m:
     case MInitialize{}:
       Enc.negotiate(params)
     case _other:
-      ee
+      e
 
 # the encoding after a message, read off the message itself: its method, and
 # its `params` member for initialize to negotiate from
-def encoding.of(+msg: J.Json, ee: Enc.Enc) -> Enc.Enc:
-  encoding(method(name_of(msg)), Ezjson.get(msg, "params"), ee)
+def encoding.of(+msg: J.Json, e: Enc.Enc) -> Enc.Enc:
+  encoding(method(name_of(msg)), Ezjson.get(msg, "params"), e)
 
 # one message: its method's work, then step's decision on it
 def handle(  # noqa: L001 LSP IO glue
   ~fs: F.Files,
   ~ck: C.Checker,
-  ee: Enc.Enc,
+  e: Enc.Enc,
   +msg: J.Json,
   docs: List<&2, Docs.Doc>
 ) -> IO(Out):
-  +mm = method(name_of(msg))
+  +m = method(name_of(msg))
   do IO<Out>:
-    w : Work <- work(~fs, ~ck, ee, mm, Ezjson.get(msg, "params"), docs)
-    return step(mm, id_of(msg), w)
+    w : Work <- work(~fs, ~ck, e, m, Ezjson.get(msg, "params"), docs)
+    return step(m, id_of(msg), w)
 
 # a parsed message, or null when it did not parse
-def decoded(mm: Maybe<&2, J.Json>) -> J.Json:
-  Maybe.default(&2, J.Json, mm, J.JNull{})
+def decoded(m: Maybe<&2, J.Json>) -> J.Json:
+  Maybe.default(&2, J.Json, m, J.JNull{})
 
 # every reply sent, in order
 def send_all(~H: Type, ~tr: T.Transport<H>, replies: List<&2, Reply>, h3: H) -> IO(H):  # noqa: L001 serve loop IO
@@ -646,7 +646,7 @@ def next(  # noqa: L001 serve loop IO
   -H: Type,
   quit: Bool,
   h3: H,
-  ee: Enc.Enc,
+  e: Enc.Enc,
   docs: List<&2, Docs.Doc>,
   rest: H -> Enc.Enc -> List<&2, Docs.Doc> -> IO(Unit)
 ) -> IO(Unit):
@@ -654,7 +654,7 @@ def next(  # noqa: L001 serve loop IO
     case True{}:
       IO.pure(Unit, Unit{})
     case False{}:
-      rest(h3, ee, docs)
+      rest(h3, e, docs)
 
 # the replies sent, then the loop goes on
 def answer(  # noqa: L001 serve loop IO
@@ -662,13 +662,13 @@ def answer(  # noqa: L001 serve loop IO
   ~tr: T.Transport<H>,
   out: Out,
   h3: H,
-  ee: Enc.Enc,
+  e: Enc.Enc,
   rest: H -> Enc.Enc -> List<&2, Docs.Doc> -> IO(Unit)
 ) -> IO(Unit):
   Out{replies, quit, docs} = out
   do IO<Unit>:
     h2 : H <- send_all(~H, ~tr, replies, h3)
-    next(H, quit, h2, ee, docs, rest)
+    next(H, quit, h2, e, docs, rest)
 
 # a message handled under the encoding it leaves, and answered
 def turn.msg(
@@ -678,11 +678,11 @@ def turn.msg(
   ~ck: C.Checker,
   +msg: J.Json,
   h3: H,
-  ee: Enc.Enc,
+  e: Enc.Enc,
   docs: List<&2, Docs.Doc>,
   rest: H -> Enc.Enc -> List<&2, Docs.Doc> -> IO(Unit)
 ) -> IO(Unit):
-  +e2 = encoding.of(msg, ee)
+  +e2 = encoding.of(msg, e)
   do IO<Unit>:
     out : Out <- handle(~fs, ~ck, e2, msg, docs)
     answer(~H, ~tr, out, h3, e2, rest)
@@ -693,17 +693,17 @@ def turn(  # noqa: L001 serve loop IO
   ~tr: T.Transport<H>,
   ~fs: F.Files,
   ~ck: C.Checker,
-  mm: Maybe<&2, String>,
+  m: Maybe<&2, String>,
   h3: H,
-  ee: Enc.Enc,
+  e: Enc.Enc,
   docs: List<&2, Docs.Doc>,
   rest: H -> Enc.Enc -> List<&2, Docs.Doc> -> IO(Unit)
 ) -> IO(Unit):
-  match mm:
+  match m:
     case None{}:
       IO.pure(Unit, Unit{})
     case Some{body}:
-      turn.msg(~H, ~tr, ~fs, ~ck, decoded(Ezjson.parse(body)), h3, ee, docs, rest)
+      turn.msg(~H, ~tr, ~fs, ~ck, decoded(Ezjson.parse(body)), h3, e, docs, rest)
 
 # what recv gave: the handle and maybe a body
 def got(  # noqa: L001 serve loop IO
@@ -711,13 +711,13 @@ def got(  # noqa: L001 serve loop IO
   ~tr: T.Transport<H>,
   ~fs: F.Files,
   ~ck: C.Checker,
-  rr: H & Maybe<&2, String>,
-  ee: Enc.Enc,
+  r: H & Maybe<&2, String>,
+  e: Enc.Enc,
   docs: List<&2, Docs.Doc>,
   rest: H -> Enc.Enc -> List<&2, Docs.Doc> -> IO(Unit)
 ) -> IO(Unit):
-  (h, m) = rr
-  turn(~H, ~tr, ~fs, ~ck, m, h, ee, docs, rest)
+  (h, m) = r
+  turn(~H, ~tr, ~fs, ~ck, m, h, e, docs, rest)
 
 def serve.go(
   ~H: Type,
@@ -726,7 +726,7 @@ def serve.go(
   ~ck: C.Checker,
   fuel: Nat,
   h3: H,
-  ee: Enc.Enc,
+  e: Enc.Enc,
   docs: List<&2, Docs.Doc>
 ) -> IO(Unit):
   match fuel:
@@ -735,7 +735,7 @@ def serve.go(
     case 1n+f:
       do IO<Unit>:
         r : H & Maybe<&2, String> <- T.recv(H, tr, h3)
-        got(~H, ~tr, ~fs, ~ck, r, ee, docs, hh => e2 => dd => serve.go(~H, ~tr, ~fs, ~ck, f, hh, e2, dd))
+        got(~H, ~tr, ~fs, ~ck, r, e, docs, h => e2 => d => serve.go(~H, ~tr, ~fs, ~ck, f, h, e2, d))
 
 # serves until exit, the peer's end, or the fuel's (a message each), in
 # UTF-16 until initialize negotiates

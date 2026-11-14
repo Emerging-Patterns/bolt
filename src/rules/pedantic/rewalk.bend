@@ -57,9 +57,9 @@ def none_hit() -> Hit:
   Hit{False{}, False{}}
 
 # either read from two results
-def either(aa: Hit, +bb: Hit) -> Hit:
-  Hit{+w1, +s1} = aa
-  Hit{+w2, +s2} = bb
+def either(a: Hit, +b: Hit) -> Hit:
+  Hit{+w1, +s1} = a
+  Hit{+w2, +s2} = b
   Hit{Bool.or(w1, w2), Bool.or(s1, s2)}
 
 # a mention of the name: wide, unless this position is a narrow slot
@@ -91,15 +91,15 @@ def slot_pick(+list: Bool, +str: Bool, +arr: Bool) -> Slot:
       Slot{False{}, 0n}
 
 # List.get / head / last / length, String.get / length, Array.get; not List.set
-def slot_of(+tt: String) -> Slot:
+def slot_of(+t: String) -> Slot:
   slot_pick(
-    List.contains(~String, ~String.eq, ["List.get", "List.head", "List.last", "List.length"], tt),
-    Bool.or(String.eq(tt, "String.get"), String.eq(tt, "String.length")),
-    String.eq(tt, "Array.get"))
+    List.contains(~String, ~String.eq, ["List.get", "List.head", "List.last", "List.length"], t),
+    Bool.or(String.eq(t, "String.get"), String.eq(t, "String.length")),
+    String.eq(t, "Array.get"))
 
 # after a comma, still inside the slot argument?
-def step_is_zero(pp: Nat) -> Bool:
-  match pp:
+def step_is_zero(p: Nat) -> Bool:
+  match p:
     case 0n:
       True{}
     case 1n+k:
@@ -146,8 +146,8 @@ def as_open(+open: Bool, tok: Lex.Tok) -> Maybe<&2, Lex.Tok>:
       None{}
 
 # the inside of one pair of parentheses, when it is exactly a call
-def as_inside(nn: Tree.Node) -> Maybe<&2, Lex.Tok>:
-  match nn:
+def as_inside(n: Tree.Node) -> Maybe<&2, Lex.Tok>:
+  match n:
     case Tree.NCons{Tree.Leaf{tok}, Tree.NCons{Tree.Group{Lex.Tok{k, +o, l, c}, kids, close}, Tree.NNil{}}}:
       as_open(String.eq(o, "("), tok)
     case other:
@@ -162,8 +162,8 @@ def as_wrapped(+paren: Bool, kids: Tree.Node) -> Maybe<&2, Lex.Tok>:
       None{}
 
 # the chain is exactly one call, or one pair of parentheses around one: its callee
-def as_call(nn: Tree.Node) -> Maybe<&2, Lex.Tok>:
-  match nn:
+def as_call(n: Tree.Node) -> Maybe<&2, Lex.Tok>:
+  match n:
     case Tree.NCons{Tree.Group{Lex.Tok{k, +o, l, c}, +kids, close}, Tree.NNil{}}:
       as_wrapped(String.eq(o, "("), kids)
     case Tree.NCons{Tree.Leaf{tok}, Tree.NCons{Tree.Group{Lex.Tok{k, +o, l, c}, kids, close}, Tree.NNil{}}}:
@@ -172,16 +172,16 @@ def as_call(nn: Tree.Node) -> Maybe<&2, Lex.Tok>:
       None{}
 
 # the callee, when this argument is exactly a call
-def pos_of(mm: Maybe<&2, Lex.Tok>) -> List<&2, Pos>:
-  match mm:
+def pos_of(m: Maybe<&2, Lex.Tok>) -> List<&2, Pos>:
+  match m:
     case None{}:
       Nil{}
     case Some{Lex.Tok{k, t, l, c}}:
       [Pos{l, c}]
 
 # the collection argument's call, when this is a narrow accessor
-def mark_slot(ss: Slot, +as: List<&2, Tree.Node>) -> List<&2, Pos>:
-  Slot{on, at} = ss
+def mark_slot(s: Slot, +as: List<&2, Tree.Node>) -> List<&2, Pos>:
+  Slot{on, at} = s
   match on:
     case False{}:
       Nil{}
@@ -189,8 +189,8 @@ def mark_slot(ss: Slot, +as: List<&2, Tree.Node>) -> List<&2, Pos>:
       pos_of(as_call(Calls.arg(as, at)))
 
 # calls that sit in a narrow accessor's collection argument
-def mark(nn: Tree.Node) -> List<&2, Pos>:
-  match nn:
+def mark(n: Tree.Node) -> List<&2, Pos>:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +here = Lazy.stop(List<&2, Pos>, Bool.not(String.eq(o, "(")), [], _u => mark_slot(slot_of(t), Calls.args(kids)))
       List.concat(&2, Pos, [here, mark(kids), mark(rest)])
@@ -206,20 +206,20 @@ def mark(nn: Tree.Node) -> List<&2, Pos>:
       Nil{}
 
 # the name before a group is a narrow read, a callee, or an ordinary mention
-def here_call(+call: Bool, +tt: String, +name: String, +hot: Bool) -> Hit:
+def here_call(+call: Bool, +t: String, +name: String, +hot: Bool) -> Hit:
   match call:
     case True{}:
-      name_hit(String.eq(tt, name), False{})
+      name_hit(String.eq(t, name), False{})
     case False{}:
-      name_hit(String.eq(tt, name), hot)
+      name_hit(String.eq(t, name), hot)
 
 # the name before a group is a narrow read, a callee, or an ordinary mention
-def here_hit(+brack: Bool, +call: Bool, +tt: String, +name: String, +hot: Bool) -> Hit:
+def here_hit(+brack: Bool, +call: Bool, +t: String, +name: String, +hot: Bool) -> Hit:
   match brack:
     case True{}:
-      name_hit(String.eq(tt, name), True{})
+      name_hit(String.eq(t, name), True{})
     case False{}:
-      here_call(call, tt, name, hot)
+      here_call(call, t, name, hot)
 
 # a bracket's inside is cold; a call's arguments start before the slot
 def inner_hot_call(+call: Bool, +hot: Bool) -> Bool:
@@ -238,50 +238,50 @@ def inner_hot(+brack: Bool, +call: Bool, +hot: Bool) -> Bool:
       inner_hot_call(call, hot)
 
 # the argument index a slot reads
-def slot_at(ss: Slot) -> Nat:
-  Slot{on, at} = ss
+def slot_at(s: Slot) -> Nat:
+  Slot{on, at} = s
   at
 
 # the slot index of a call; a bracket has none
-def inner_left_call(+call: Bool, +tt: String) -> Nat:
+def inner_left_call(+call: Bool, +t: String) -> Nat:
   match call:
     case True{}:
-      slot_at(slot_of(tt))
+      slot_at(slot_of(t))
     case False{}:
       0n
 
 # the slot index of a call; a bracket has none
-def inner_left(+brack: Bool, +call: Bool, +tt: String) -> Nat:
+def inner_left(+brack: Bool, +call: Bool, +t: String) -> Nat:
   match brack:
     case True{}:
       0n
     case False{}:
-      inner_left_call(call, tt)
+      inner_left_call(call, t)
 
 # whether an accessor has a collection argument
-def slot_on(ss: Slot) -> Bool:
-  Slot{on, at} = ss
+def slot_on(s: Slot) -> Bool:
+  Slot{on, at} = s
   on
 
 # only a call's arguments count commas as separators
-def inner_live_call(+call: Bool, +tt: String) -> Bool:
+def inner_live_call(+call: Bool, +t: String) -> Bool:
   match call:
     case True{}:
-      slot_on(slot_of(tt))
+      slot_on(slot_of(t))
     case False{}:
       False{}
 
 # only a call's arguments count commas as separators
-def inner_live(+brack: Bool, +call: Bool, +tt: String) -> Bool:
+def inner_live(+brack: Bool, +call: Bool, +t: String) -> Bool:
   match brack:
     case True{}:
       False{}
     case False{}:
-      inner_live_call(call, tt)
+      inner_live_call(call, t)
 
 # does the chain bind?
-def has_eq(nn: Tree.Node) -> Bool:
-  match nn:
+def has_eq(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}}, rest}:
       True{}
     case Tree.NCons{h, rest}:
@@ -290,12 +290,12 @@ def has_eq(nn: Tree.Node) -> Bool:
       False{}
 
 # a read counts only once the left of `=` is over
-def hit_keep(skip: Bool, hh: Hit) -> Hit:
+def hit_keep(skip: Bool, h: Hit) -> Hit:
   match skip:
     case True{}:
       none_hit()
     case False{}:
-      hh
+      h
 
 # inside a call, unless this chain is still the left of a let
 def pick_hot(+skip: Bool, +brack: Bool, +call: Bool, +hot: Bool) -> Bool:
@@ -306,20 +306,20 @@ def pick_hot(+skip: Bool, +brack: Bool, +call: Bool, +hot: Bool) -> Bool:
       inner_hot(brack, call, hot)
 
 # inside a call, unless this chain is still the left of a let
-def pick_left(+skip: Bool, +brack: Bool, +call: Bool, +tt: String) -> Nat:
+def pick_left(+skip: Bool, +brack: Bool, +call: Bool, +t: String) -> Nat:
   match skip:
     case True{}:
       0n
     case False{}:
-      inner_left(brack, call, tt)
+      inner_left(brack, call, t)
 
 # inside a call, unless this chain is still the left of a let
-def pick_live(+skip: Bool, +brack: Bool, +call: Bool, +tt: String) -> Bool:
+def pick_live(+skip: Bool, +brack: Bool, +call: Bool, +t: String) -> Bool:
   match skip:
     case True{}:
       False{}
     case False{}:
-      inner_live(brack, call, tt)
+      inner_live(brack, call, t)
 
 # reads of the name. hot: this chain is a collection argument. live/left: commas
 # count toward that argument. skip: ignore names until `=` (the left of a let)
@@ -355,13 +355,13 @@ def hits(nn: Tree.Node, +name: String, +hot: Bool, +left: Nat, +live: Bool, +ski
       none_hit()
 
 # a let of one name is narrow when that name is only read narrowly
-def narrow_let(hh: Hit) -> Bool:
-  Hit{wide, slot} = hh
+def narrow_let(h: Hit) -> Bool:
+  Hit{wide, slot} = h
   Bool.and(slot, Bool.not(wide))
 
 # a slot or a field is narrow; a wide use is not; a let depends on the name's reads
-def narrow(hh: How, +body: Tree.Node) -> Bool:
-  match hh:
+def narrow(h: How, +body: Tree.Node) -> Bool:
+  match h:
     case HWide{}:
       False{}
     case HSlot{}:
@@ -372,8 +372,8 @@ def narrow(hh: How, +body: Tree.Node) -> Bool:
       narrow_let(hits(body, binder, False{}, 0n, False{}, False{}))
 
 # every name a node calls
-def called(nn: Tree.Node) -> List<&2, String>:
-  match nn:
+def called(n: Tree.Node) -> List<&2, String>:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +more = List.concat(&2, String, [called(kids), called(rest)])
       Bool.pick(List<&2, String>, String.eq(o, "("), t <> more, more)
@@ -432,15 +432,15 @@ def loops(ds: List<&2, Calls.Def>) -> List<&2, String>:
   loops.fast(ds, [], Bind.XNone{})
 
 # Base walks a rewalk cares about
-def heavy(+tt: String) -> Bool:
+def heavy(+t: String) -> Bool:
   List.contains(~String, ~String.eq, [
     "List.map", "List.filter", "List.sort", "List.foldl", "List.foldr", "List.reverse", "List.concat",
     "Array.map", "Array.to_list",
-    "String.reverse", "String.to_upper", "String.to_lower", "String.to_list", "String.from_list"], tt)
+    "String.reverse", "String.to_upper", "String.to_lower", "String.to_list", "String.from_list"], t)
 
 # a loop of this file, or a Base walk, and not this def itself
-def expensive(+tt: String, +self: String, +lp: List<&2, String>) -> Bool:
-  Bool.and(Bool.not(String.eq(tt, self)), Bool.or(heavy(tt), List.contains(~String, ~String.eq, lp, tt)))
+def expensive(+t: String, +self: String, +lp: List<&2, String>) -> Bool:
+  Bool.and(Bool.not(String.eq(t, self)), Bool.or(heavy(t), List.contains(~String, ~String.eq, lp, t)))
 
 # the rest of the chain indexes the call
 def indexed(rest: Tree.Node) -> Bool:
@@ -467,8 +467,8 @@ def site_how(+mine: Bool, +nar: Bool) -> Maybe<&2, How>:
       Some{how_of(nar)}
 
 # the call as a site, when it is one
-def site_list(mm: Maybe<&2, How>, +name: String, +args: String, +line: U32, +col: U32, +len: U32) -> List<&2, Site>:
-  match mm:
+def site_list(m: Maybe<&2, How>, +name: String, +args: String, +line: U32, +col: U32, +len: U32) -> List<&2, Site>:
+  match m:
     case None{}:
       Nil{}
     case Some{how}:
@@ -482,7 +482,7 @@ type Spot is Data:
 def open_site(
   open: Bool,
   +indexed: Bool,
-  +tt: String,
+  +t: String,
   +args: String,
   at: Spot,
   +self: String,
@@ -493,11 +493,11 @@ def open_site(
       Nil{}
     case True{}:
       Spot{line, col, len} = at
-      site_list(site_how(expensive(tt, self, lp), indexed), tt, args, line, col, len)
+      site_list(site_how(expensive(t, self, lp), indexed), t, args, line, col, len)
 
 # every name under the node
-def names(nn: Tree.Node, +acc: List<&2, String>) -> List<&2, String>:
-  match nn:
+def names(n: Tree.Node, +acc: List<&2, String>) -> List<&2, String>:
+  match n:
     case Tree.Leaf{Lex.Tok{Lex.TName{}, +t, l, c}}:
       t <> acc
     case Tree.Group{open, kids, close}:
@@ -510,8 +510,8 @@ def names(nn: Tree.Node, +acc: List<&2, String>) -> List<&2, String>:
       acc
 
 # the names a let binds: every name left of its `=` or `<-`
-def lhs_names(nn: Tree.Node, +acc: List<&2, String>) -> List<&2, String>:
-  match nn:
+def lhs_names(n: Tree.Node, +acc: List<&2, String>) -> List<&2, String>:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}}, rest}:
       acc
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TBind{}, t, l, c}}, rest}:
@@ -542,13 +542,13 @@ def bind_all(ns: List<&2, String>, +line: U32, +col: U32, +acc: List<&2, Bind>) 
       bind_all(rest, line, col, Bind{nm, line, col} <> acc)
 
 # one binding per name, at this position
-def bind_at(ns: List<&2, String>, pp: Pos, +acc: List<&2, Bind>) -> List<&2, Bind>:
-  Pos{line, col} = pp
+def bind_at(ns: List<&2, String>, p: Pos, +acc: List<&2, Bind>) -> List<&2, Bind>:
+  Pos{line, col} = p
   bind_all(ns, line, col, acc)
 
 # the lets of one straight piece; a case arm is not part of it
-def binds(nn: Tree.Node, +acc: List<&2, Bind>) -> List<&2, Bind>:
-  match nn:
+def binds(n: Tree.Node, +acc: List<&2, Bind>) -> List<&2, Bind>:
+  match n:
     case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, body}, rest}:
       binds(rest, acc)
     case Tree.NCons{Tree.Stmt{Tree.SLet{}, +kids, +body}, rest}:
@@ -589,7 +589,7 @@ def stamp(ns: List<&2, String>, +bs: List<&2, Bind>, +line: U32, +col: U32) -> S
 # thousand deep (a generated `Con{.., Con{.., ..}}`) was shown whole at each
 # level: 9.4 s for 800 lines of one
 def site_at(
-  mm: Maybe<&2, How>,
+  m: Maybe<&2, How>,
   +name: String,
   +kids: Tree.Node,
   bs: List<&2, Bind>,
@@ -597,7 +597,7 @@ def site_at(
   +col: U32,
   len: U32
 ) -> List<&2, Site>:
-  match mm:
+  match m:
     case None{}:
       Nil{}
     case Some{how}:
@@ -608,7 +608,7 @@ def site_at(
 def open_at(
   open: Bool,
   indexed: Bool,
-  +tt: String,
+  +t: String,
   kids: Tree.Node,
   bs: List<&2, Bind>,
   at: Spot,
@@ -620,12 +620,12 @@ def open_at(
       Nil{}
     case True{}:
       Spot{line, col, len} = at
-      site_at(site_how(expensive(tt, self, lp), indexed), tt, kids, bs, line, col, len)
+      site_at(site_how(expensive(t, self, lp), indexed), t, kids, bs, line, col, len)
 
 # every expensive call, wide unless the call is indexed on the spot; its
 # arguments are their text and which let of each name they read
-def gather(nn: Tree.Node, +self: String, +lp: List<&2, String>, +bs: List<&2, Bind>) -> List<&2, Site>:
-  match nn:
+def gather(n: Tree.Node, +self: String, +lp: List<&2, String>, +bs: List<&2, Bind>) -> List<&2, Site>:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, +rest}}:
       +here = open_at(String.eq(o, "("), indexed(rest), t, kids, bs, Spot{l, c, U32.from_nat(String.length(t))}, self,
         lp)
@@ -642,16 +642,16 @@ def gather(nn: Tree.Node, +self: String, +lp: List<&2, String>, +bs: List<&2, Bi
       Nil{}
 
 # a second name on the left
-def add_seen(+seen: Bool, +extra: Bool, +field: Bool, +nm: String, +tt: String) -> Lhs:
+def add_seen(+seen: Bool, +extra: Bool, +field: Bool, +nm: String, +t: String) -> Lhs:
   match seen:
     case False{}:
-      Lhs{True{}, extra, field, tt}
+      Lhs{True{}, extra, field, t}
     case True{}:
       Lhs{True{}, True{}, field, nm}
 
 # names inside a field group, which makes the let a field read
-def fold_names(nn: Tree.Node, st: Lhs) -> Lhs:
-  match nn:
+def fold_names(n: Tree.Node, st: Lhs) -> Lhs:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, +t, l, c}}, rest}:
       Lhs{seen, extra, field, nm} = st
       fold_names(rest, add_seen(seen, extra, True{}, nm, t))
@@ -663,8 +663,8 @@ def fold_names(nn: Tree.Node, st: Lhs) -> Lhs:
       st
 
 # the left of `=`
-def eat(nn: Tree.Node, st: Lhs) -> Lhs:
-  match nn:
+def eat(n: Tree.Node, st: Lhs) -> Lhs:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}}, rest}:
       st
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, +t, l, c}}, rest}:
@@ -686,30 +686,30 @@ def note_how(+field: Bool, +nm: String) -> How:
       HLet{nm}
 
 # nothing, and the maybe is consumed
-def note_none(mm: Maybe<&2, Lex.Tok>) -> Maybe<&2, Note>:
-  match mm:
+def note_none(m: Maybe<&2, Lex.Tok>) -> Maybe<&2, Note>:
+  match m:
     case other:
       None{}
 
 # the note when the right-hand side is a call
-def note_some(+field: Bool, +nm: String, mm: Maybe<&2, Lex.Tok>) -> Maybe<&2, Note>:
-  match mm:
+def note_some(+field: Bool, +nm: String, m: Maybe<&2, Lex.Tok>) -> Maybe<&2, Note>:
+  match m:
     case Some{Lex.Tok{k, t, l, c}}:
       Some{Note{l, c, note_how(field, nm)}}
     case None{}:
       None{}
 
 # the note for a call, when the left is exactly one name
-def note_rhs(+one: Bool, +field: Bool, +nm: String, mm: Maybe<&2, Lex.Tok>) -> Maybe<&2, Note>:
+def note_rhs(+one: Bool, +field: Bool, +nm: String, m: Maybe<&2, Lex.Tok>) -> Maybe<&2, Note>:
   match one:
     case False{}:
-      note_none(mm)
+      note_none(m)
     case True{}:
-      note_some(field, nm, mm)
+      note_some(field, nm, m)
 
 # the tokens after `=`
-def rhs_of(nn: Tree.Node) -> Tree.Node:
-  match nn:
+def rhs_of(n: Tree.Node) -> Tree.Node:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TEq{}, t, l, c}}, rest}:
       rest
     case Tree.NCons{h, rest}:
@@ -735,18 +735,18 @@ def retag_one(+hit: Bool, how: How, +note: How, +name: String, +args: String, +l
       Site{name, args, line, col, len, how}
 
 # a note's line
-def note_line(nn: Note) -> U32:
-  Note{line, col, how} = nn
+def note_line(n: Note) -> U32:
+  Note{line, col, how} = n
   line
 
 # a note's column
-def note_col(nn: Note) -> U32:
-  Note{line, col, how} = nn
+def note_col(n: Note) -> U32:
+  Note{line, col, how} = n
   col
 
 # a note's how
-def note_how_of(nn: Note) -> How:
-  Note{line, col, how} = nn
+def note_how_of(n: Note) -> How:
+  Note{line, col, how} = n
   how
 
 # sites whose callee is this let's call take its how
@@ -762,16 +762,16 @@ def retag(sites: List<&2, Site>, +note: Note) -> List<&2, Site>:
       retag_one(hit, how, nh, name, args, line, col, len) <> retag(rest, note)
 
 # retag when the statement is a let of a call
-def retag_may(mm: Maybe<&2, Note>, sites: List<&2, Site>) -> List<&2, Site>:
-  match mm:
+def retag_may(m: Maybe<&2, Note>, sites: List<&2, Site>) -> List<&2, Site>:
+  match m:
     case None{}:
       sites
     case Some{note}:
       retag(sites, note)
 
 # lets of a call retag that call
-def apply(nn: Tree.Node, sites: List<&2, Site>) -> List<&2, Site>:
-  match nn:
+def apply(n: Tree.Node, sites: List<&2, Site>) -> List<&2, Site>:
+  match n:
     case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, body}, rest}:
       apply(rest, sites)
     case Tree.NCons{Tree.Stmt{kind, +kids, body}, rest}:
@@ -810,8 +810,8 @@ def pin_how(+hit: Bool, how: How, +name: String, +args: String, +line: U32, +col
       pin_wide(how, name, args, line, col, len)
 
 # one site
-def pin_one(ps: List<&2, Pos>, ss: Site) -> Site:
-  Site{+name, +args, +line, +col, +len, how} = ss
+def pin_one(ps: List<&2, Pos>, s: Site) -> Site:
+  Site{+name, +args, +line, +col, +len, how} = s
   pin_how(pinned(line, col, ps), how, name, args, line, col, len)
 
 # marked collection arguments become slots
@@ -827,8 +827,8 @@ type Rated is Data:
   Rated{site: Site, nar: Bool}
 
 # one site, rated: the piece is walked for it here, once
-def rate_one(ss: Site, +body: Tree.Node) -> Rated:
-  Site{+name, +args, +line, +col, +len, +how} = ss
+def rate_one(s: Site, +body: Tree.Node) -> Rated:
+  Site{+name, +args, +line, +col, +len, +how} = s
   Rated{Site{name, args, line, col, len, how}, narrow(how, body)}
 
 # each site, rated once, so the reports below compare ratings and never walk
@@ -914,9 +914,9 @@ def report_dup(
       report_nar(nar, earlier(seen, name, args, line, col), name, line, col, len, path)
 
 # one site
-def report_one(rr: Rated, +all: List<&2, Rated>, +path: String, +seen: List<&2, Rated>) -> List<&2, F.Finding>:
-  Rated{ss, +nar} = rr
-  Site{+name, +args, +line, +col, +len, how} = ss
+def report_one(r: Rated, +all: List<&2, Rated>, +path: String, +seen: List<&2, Rated>) -> List<&2, F.Finding>:
+  Rated{s, +nar} = r
+  Site{+name, +args, +line, +col, +len, how} = s
   report_dup(other_go(all, name, args, line, col), nar, name, args, Spot{line, col, len}, path, seen)
 
 # the first narrow site of each duplicated call
@@ -929,13 +929,13 @@ def report(rs: List<&2, Rated>, +all: List<&2, Rated>, +path: String, +seen: Lis
       List.append(&2, F.Finding, mine, report(rest, all, path, r <> seen))
 
 # findings in one straight region; a case arm is not part of it
-def local(+nn: Tree.Node, +self: String, +lp: List<&2, String>, +path: String) -> List<&2, F.Finding>:
-  +rs = rate(pin(mark(nn), apply(nn, gather(nn, self, lp, binds(nn, [])))), nn)
+def local(+n: Tree.Node, +self: String, +lp: List<&2, String>, +path: String) -> List<&2, F.Finding>:
+  +rs = rate(pin(mark(n), apply(n, gather(n, self, lp, binds(n, [])))), n)
   report(rs, rs, path, [])
 
 # each case arm on its own, so two arms are not one path
-def visit(nn: Tree.Node, +self: String, +lp: List<&2, String>, +path: String) -> List<&2, F.Finding>:
-  match nn:
+def visit(n: Tree.Node, +self: String, +lp: List<&2, String>, +path: String) -> List<&2, F.Finding>:
+  match n:
     case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, +body}, rest}:
       +here = local(body, self, lp, path)
       List.concat(&2, F.Finding, [here, visit(body, self, lp, path), visit(rest, self, lp, path)])
@@ -964,7 +964,7 @@ def check.go(
           _u => List.concat(&2, F.Finding, [local(body, name, lp, path), visit(body, name, lp, path)])) <> acc)
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
   +ds = Calls.defs(tree)
   check.go(ds, loops(ds), path, [])

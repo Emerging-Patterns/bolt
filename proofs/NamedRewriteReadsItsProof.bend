@@ -159,8 +159,8 @@ def Laws.rewrite_leads(rest):
       {==}
 
 # Unit for True, Empty for False
-def absurd_ty(bb: Bool) -> Type:
-  match bb:
+def absurd_ty(b: Bool) -> Type:
+  match b:
     case True{}:
       Unit
     case False{}:
@@ -187,14 +187,14 @@ def Laws.percent_alone_stays(rest, e):
       == Bind.MTerm{} : Bind.Mode}
   {==}
 
-def Laws.other_operator_stays(tt, rest, e):
-  %Equal.sym(Bool, String.eq(tt, "%"), False{}, e) :
+def Laws.other_operator_stays(t, rest, e):
+  %Equal.sym(Bool, String.eq(t, "%"), False{}, e) :
     {Bool.pick(Bind.Mode, Bool.and(_, Bind.plan.rewrites(rest)), Bind.MSkip{Bind.MSkip{Bind.MTerm{}}},
       Bind.MTerm{}) == Bind.MTerm{} : Bind.Mode}
   {==}
 
-def Laws.other_kind_as_before(kk, tt, rest, e):
-  match kk:
+def Laws.other_kind_as_before(k, t, rest, e):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -218,7 +218,7 @@ def Laws.other_kind_as_before(kk, tt, rest, e):
     case Lex.TNewline{}:
       {==}
     case Lex.TOp{}:
-      Empty.absurd({Bind.plan.after(Bind.MTerm{}, Lex.TOp{}, tt, rest)
+      Empty.absurd({Bind.plan.after(Bind.MTerm{}, Lex.TOp{}, t, rest)
         == Bind.plan.lmode(Bind.MTerm{}, Lex.TOp{}, rest) : Bind.Mode}, true_false(e))
     case Lex.TColon{}:
       {==}
@@ -241,7 +241,7 @@ def Laws.other_kind_as_before(kk, tt, rest, e):
     case Lex.TComma{}:
       {==}
 
-def Laws.other_mode_as_before(mode, kk, tt, rest, e):
+def Laws.other_mode_as_before(mode, k, t, rest, e):
   match mode:
     case Bind.MBlock{}:
       {==}
@@ -264,15 +264,15 @@ def Laws.other_mode_as_before(mode, kk, tt, rest, e):
     case Bind.MLhsType{_outer}:
       {==}
     case Bind.MTerm{}:
-      Empty.absurd({Bind.plan.after(Bind.MTerm{}, kk, tt, rest)
-        == Bind.plan.lmode(Bind.MTerm{}, kk, rest) : Bind.Mode}, true_false(e))
+      Empty.absurd({Bind.plan.after(Bind.MTerm{}, k, t, rest)
+        == Bind.plan.lmode(Bind.MTerm{}, k, rest) : Bind.Mode}, true_false(e))
     case Bind.MSkip{_next}:
       {==}
     case Bind.MStop{}:
       {==}
 
-def Laws.step_over_ends(_next, kk, _tt, _rest):
-  match kk:
+def Laws.step_over_ends(_next, k, _tt, _rest):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:

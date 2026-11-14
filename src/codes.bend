@@ -77,8 +77,8 @@ def find(rows: List<&2, Entry>, +slug: String) -> Maybe<&2, Entry>:
       Lazy.stop(Maybe<&2, Entry>, find.same(row, slug), Some{row}, _u => find(rest, slug))
 
 # the stable code; the slug itself when it is not a rule
-def code.at(mm: Maybe<&2, Entry>, +slug: String) -> String:
-  match mm:
+def code.at(m: Maybe<&2, Entry>, +slug: String) -> String:
+  match m:
     case None{}:
       slug
     case Some{Entry{_s, +id, _grp}}:
@@ -89,8 +89,8 @@ def code(+slug: String) -> String:
   code.at(find(table(), slug), slug)
 
 # the group; empty when the slug is not a rule
-def group.at(mm: Maybe<&2, Entry>) -> String:
-  match mm:
+def group.at(m: Maybe<&2, Entry>) -> String:
+  match m:
     case None{}:
       ""
     case Some{Entry{_s, _id, +grp}}:
@@ -101,8 +101,8 @@ def group(+slug: String) -> String:
   group.at(find(table(), slug))
 
 # `bolt(group:slug)`; `bolt` when the slug is not a rule
-def source.at(mm: Maybe<&2, Entry>) -> String:
-  match mm:
+def source.at(m: Maybe<&2, Entry>) -> String:
+  match m:
     case None{}:
       "bolt"
     case Some{Entry{+s, _id, +grp}}:

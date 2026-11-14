@@ -34,8 +34,8 @@ def widen(ss: List<&1, String>) -> List<&2, String>:
 
 # the arguments of IO.args's line: the program as invoked comes first, and is
 # dropped
-def args_of(ss: List<&1, String>) -> List<&2, String>:
-  match ss:
+def args_of(s: List<&1, String>) -> List<&2, String>:
+  match s:
     case Nil{}:
       Nil{}
     case Con{_prog, t}:
@@ -44,13 +44,13 @@ def args_of(ss: List<&1, String>) -> List<&2, String>:
 # bolt's command line: its arguments, without the program
 def argv() -> IO(List<&2, String>):  # noqa: L001 IO: reads argv
   do IO<List<&2, String>>:
-    ss : List<&1, String> <- IO.args()
-    return args_of(ss)
+    s : List<&1, String> <- IO.args()
+    return args_of(s)
 
 # whether a word names a subcommand
-def is_cmd(+ww: String) -> Bool:
-  Bool.or(String.eq(ww, "lint"),
-    Bool.or(String.eq(ww, "check"), Bool.or(String.eq(ww, "fmt"), String.eq(ww, "lsp"))))
+def is_cmd(+w: String) -> Bool:
+  Bool.or(String.eq(w, "lint"),
+    Bool.or(String.eq(w, "check"), Bool.or(String.eq(w, "fmt"), String.eq(w, "lsp"))))
 
 # whether `--help` stands among the words before the first `--` (after it,
 # every word is a file); the search stops at either
@@ -58,8 +58,8 @@ def asks_help(ws: List<&2, String>) -> Bool:
   match ws:
     case Nil{}:
       False{}
-    case Con{+ww, rest}:
-      Lazy.and_then(Bool.not(String.eq(ww, "--")), _u => Lazy.or_else(String.eq(ww, "--help"), _v => asks_help(rest)))
+    case Con{+w, rest}:
+      Lazy.and_then(Bool.not(String.eq(w, "--")), _u => Lazy.or_else(String.eq(w, "--help"), _v => asks_help(rest)))
 
 # the command path `--help` asks about: the first word other than `--help`,
 # when it names a subcommand, else the root's
@@ -67,9 +67,9 @@ def help_path(ws: List<&2, String>) -> List<&2, String>:
   match ws:
     case Nil{}:
       Nil{}
-    case Con{+ww, rest}:
-      Lazy.either(List<&2, String>, String.eq(ww, "--help"), _u => help_path(rest),
-        _u => Bool.pick(List<&2, String>, is_cmd(ww), [ww], []))
+    case Con{+w, rest}:
+      Lazy.either(List<&2, String>, String.eq(w, "--help"), _u => help_path(rest),
+        _u => Bool.pick(List<&2, String>, is_cmd(w), [w], []))
 
 # the line, given whether it asks for `--help`
 def line.at(ask: Bool, +ws: List<&2, String>) -> List<&2, String>:
@@ -117,8 +117,8 @@ def help_text(path: List<&2, String>) -> String:
   Shake.help(spec(), path)
 
 # a parse error as the text the binary prints
-def err_text(ee: Shake.ParseErr) -> String:
-  Shake.err_text(spec(), ee)
+def err_text(e: Shake.ParseErr) -> String:
+  Shake.err_text(spec(), e)
 
 # a subcommand; fmt carries whether it only checks
 type Cmd is Data:
@@ -152,58 +152,58 @@ type Out is Data:
 # the files the selected command bound: each command keeps its own
 # bindings, so they are read from the Matched at the end of the selected
 # path, which is the root's own when no subcommand was selected
-def files.at(sel: Maybe<&2, Shake.Matched>, +mm: Shake.Matched) -> List<&2, String>:
+def files.at(sel: Maybe<&2, Shake.Matched>, +m: Shake.Matched) -> List<&2, String>:
   match sel:
-    case Some{ss}:
-      Shake.get_all(ss, "files")
+    case Some{s}:
+      Shake.get_all(s, "files")
     case None{}:
-      Shake.get_all(mm, "files")
+      Shake.get_all(m, "files")
 
 # the files a successful parse bound, to the command it selected
-def files(+mm: Shake.Matched) -> List<&2, String>:
-  files.at(Shake.at(mm, Shake.path_of(mm)), mm)
+def files(+m: Shake.Matched) -> List<&2, String>:
+  files.at(Shake.at(m, Shake.path_of(m)), m)
 
 # whether the selected command was given `--check`: read from its own
 # Matched, as its files are; no command selected has no such flag
 def checks.at(sel: Maybe<&2, Shake.Matched>) -> Bool:
   match sel:
-    case Some{ss}:
-      Shake.on(ss, "check")
+    case Some{s}:
+      Shake.on(s, "check")
     case None{}:
       False{}
 
 # whether a successful parse set `--check` on the command it selected
-def checks(+mm: Shake.Matched) -> Bool:
-  checks.at(Shake.at(mm, Shake.path_of(mm)))
+def checks(+m: Shake.Matched) -> Bool:
+  checks.at(Shake.at(m, Shake.path_of(m)))
 
 # a successful parse: the version, or the selected command and its files
-def out.run(ask: Bool, +mm: Shake.Matched) -> Out:
+def out.run(ask: Bool, +m: Shake.Matched) -> Out:
   match ask:
     case True{}:
       Stop{Line{}, "bolt " ++ version(), 0}
     case False{}:
-      Go{command.at(String.join(Shake.path_of(mm), "/"), checks(mm)), files(mm)}
+      Go{command.at(String.join(Shake.path_of(m), "/"), checks(m)), files(m)}
 
 # a failed parse, given whether it asked for usage: that usage page, or the
 # error
-def out.fail.at(asked: Maybe<&2, List<&2, String>>, +ee: Shake.ParseErr) -> Out:
+def out.fail.at(asked: Maybe<&2, List<&2, String>>, +e: Shake.ParseErr) -> Out:
   match asked:
     case Some{path}:
       Stop{Page{}, help_text(path), 0}
     case None{}:
-      Stop{Err{}, err_text(ee), 1}
+      Stop{Err{}, err_text(e), 1}
 
 # a failed parse: help text, or an error
-def out.fail(+ee: Shake.ParseErr) -> Out:
-  out.fail.at(Shake.help_path(ee), ee)
+def out.fail(+e: Shake.ParseErr) -> Out:
+  out.fail.at(Shake.help_path(e), e)
 
 # a successful parse, read once for the version flag
-def out.done(+mm: Shake.Matched) -> Out:
-  out.run(Shake.on(mm, "version"), mm)
+def out.done(+m: Shake.Matched) -> Out:
+  out.run(Shake.on(m, "version"), m)
 
 # what a parse result does
-def out(rr: Result<&2, &2, Shake.ParseErr, Shake.Matched>) -> Out:
-  match rr:
+def out(r: Result<&2, &2, Shake.ParseErr, Shake.Matched>) -> Out:
+  match r:
     case Fail{e}:
       out.fail(e)
     case Done{m}:

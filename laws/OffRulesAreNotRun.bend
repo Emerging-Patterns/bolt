@@ -16,9 +16,9 @@ import ../src/lint/plan.bend as Plan
 # set off gives what grading every rule's findings gives
 law live_grades_alike:
   for +cfg: Config.Config
-  for +rr: Role.Role
-  for +ss: Src.Src
-  {Rules.graded(cfg, Rules.on.role.live(cfg, rr, ss)) == Rules.graded(cfg, Rules.on.role(cfg, rr, ss))
+  for +r: Role.Role
+  for +s: Src.Src
+  {Rules.graded(cfg, Rules.on.role.live(cfg, r, s)) == Rules.graded(cfg, Rules.on.role(cfg, r, s))
     : List<&2, F.Graded>}
 
 # LAW: over a run, the graded findings with each file's off rules not run

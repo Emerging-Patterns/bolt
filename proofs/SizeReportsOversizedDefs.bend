@@ -77,13 +77,13 @@ def Laws.role_size(dim, max, path, text, toks, tree, bound, items):
   M1.role.skip_named(path, _u => Size.check(dim, Src.Src{path, text, toks, tree, bound, items}, max),
     e => Laws.size_exempt(dim, max, path, text, toks, tree, bound, items, e))
 
-def Laws.arity_skips_type_parameter(pp, ps, acc, e):
-  s = Equal.sym(Bool, String.is_empty(Calls.param_name(pp)), True{}, e)
+def Laws.arity_skips_type_parameter(p, ps, acc, e):
+  s = Equal.sym(Bool, String.is_empty(Calls.param_name(p)), True{}, e)
   %s : {Size.arity.go(ps, Bool.pick(U32, _, acc, (acc + 1 : U32))) == Size.arity.go(ps, acc) : U32}
   {==}
 
-def Laws.arity_counts_named_parameter(pp, ps, acc, e):
-  s = Equal.sym(Bool, String.is_empty(Calls.param_name(pp)), False{}, e)
+def Laws.arity_counts_named_parameter(p, ps, acc, e):
+  s = Equal.sym(Bool, String.is_empty(Calls.param_name(p)), False{}, e)
   %s : {Size.arity.go(ps, Bool.pick(U32, _, acc, (acc + 1 : U32))) == Size.arity.go(ps, (acc + 1 : U32)) : U32}
   {==}
 

@@ -8,8 +8,8 @@ import shake@0.6.0.0/main.bend as Shake
 # parse as a request for usage of it (SHAKE-PARSE-8, SHAKE-ERR-1)
 law cli_dash_help:
   for +ws: List<&2, String>
-  for +ee: Shake.ParseErr
+  for +e: Shake.ParseErr
   for h: {Args.asks_help(ws) == True{} : Bool}
-  for hp: {Args.parse("help" <> Args.help_path(ws)) == Fail{ee} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
-  for hh: {Shake.help_path(ee) == Some{Args.help_path(ws)} : Maybe<&2, List<&2, String>>}
+  for hp: {Args.parse("help" <> Args.help_path(ws)) == Fail{e} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for hh: {Shake.help_path(e) == Some{Args.help_path(ws)} : Maybe<&2, List<&2, String>>}
   {Args.out(Args.parse(Args.line(ws))) == Args.Stop{Args.Page{}, Args.help_text(Args.help_path(ws)), 0} : Args.Out}

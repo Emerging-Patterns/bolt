@@ -6,8 +6,8 @@ import ../src/lazy/lazy.bend as Lazy
 import ../src/rules/laws/closed.bend as Closed
 import ../laws/RoleClosedExempt.bend as Laws
 
-def Laws.role_closed_exempt(rr, e, path, _text, _toks, tree, _bound, _items):
-  s = Equal.sym(Bool, Role.is_laws(rr), False{}, e)
+def Laws.role_closed_exempt(r, e, path, _text, _toks, tree, _bound, _items):
+  s = Equal.sym(Bool, Role.is_laws(r), False{}, e)
   %s : {Lazy.stop(List<&2, F.Finding>, Bool.not(_), [], _u => Closed.check.go(tree, path))
     == Nil{} : List<&2, F.Finding>}
   {==}

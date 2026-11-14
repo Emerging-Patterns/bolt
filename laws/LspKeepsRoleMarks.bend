@@ -13,39 +13,39 @@ import ../src/role.bend as Role
 import ../src/lint/world.bend as World
 
 # the open documents after a method's work
-def keep.docs(ww: Server.Work) -> List<&2, Docs.Doc>:
-  Server.Work{_notes, _answer, docs} = ww
+def keep.docs(w: Server.Work) -> List<&2, Docs.Doc>:
+  Server.Work{_notes, _answer, docs} = w
   docs
 
 # LAW: after open the documents hold the marks read with it
 law open_keeps_marks:
-  for +ee: Enc.Enc
+  for +e: Enc.Enc
   for +uri: String
   for +text: String
   for +ds: List<&2, Rep.Diag>
   for +rs: List<&2, Maybe<&2, String>>
   for +ms: List<&2, Role.Mark>
   for +docs: List<&2, Docs.Doc>
-  {Docs.marks(keep.docs(Server.pub.open(ee, uri, text, ds, rs, ms, docs)), uri) == ms : List<&2, Role.Mark>}
+  {Docs.marks(keep.docs(Server.pub.open(e, uri, text, ds, rs, ms, docs)), uri) == ms : List<&2, Role.Mark>}
 
 # LAW: after save the documents hold the marks read with it
 law save_keeps_marks:
-  for +ee: Enc.Enc
+  for +e: Enc.Enc
   for +uri: String
   for +ds: List<&2, Rep.Diag>
   for +rs: List<&2, Maybe<&2, String>>
   for +ms: List<&2, Role.Mark>
   for +docs: List<&2, Docs.Doc>
-  {Docs.marks(keep.docs(Server.pub.save(ee, uri, ds, rs, ms, docs)), uri) == ms : List<&2, Role.Mark>}
+  {Docs.marks(keep.docs(Server.pub.save(e, uri, ds, rs, ms, docs)), uri) == ms : List<&2, Role.Mark>}
 
 # LAW: a change keeps the marks as they were
 law change_keeps_marks:
-  for +ee: Enc.Enc
+  for +e: Enc.Enc
   for +uri: String
   for +text: String
   for +rs: List<&2, Maybe<&2, String>>
   for +docs: List<&2, Docs.Doc>
-  {Docs.marks(keep.docs(Server.pub.change(ee, uri, text, rs, docs)), uri) == Docs.marks(docs, uri)
+  {Docs.marks(keep.docs(Server.pub.change(e, uri, text, rs, docs)), uri) == Docs.marks(docs, uri)
     : List<&2, Role.Mark>}
 
 # LAW: the answers the server reads for the graph join the ones it already

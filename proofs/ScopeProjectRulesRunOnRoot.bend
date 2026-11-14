@@ -43,5 +43,5 @@ def pk.none(ds):
 def Laws.one_package(s, ss):
   +ds = Digest.all.role(Role.marks(s <> ss), s <> ss)
   Equal.cong(List<&2, Digest.Digest>, List<&2, F.Finding>,
-    mm => List.concat(&2, F.Finding, [Law.check(mm), []]),
+    m => List.concat(&2, F.Finding, [Law.check(m), []]),
     Rules.members(ds, [], ""), ds, pk.none(ds))

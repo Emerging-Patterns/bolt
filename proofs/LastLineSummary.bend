@@ -10,29 +10,29 @@ import ./lemmas/PlannerOutputOrder.bend as M1
 law lint.last.go:
   for xs: List<&2, String>
   for -hd: String
-  for +ss: String
-  {List.last.go(&2, String, List.append(&2, String, xs, [ss]), hd) == ss : String}
+  for +s: String
+  {List.last.go(&2, String, List.append(&2, String, xs, [s]), hd) == s : String}
 
-def lint.last.go(xs, _hd, ss):
+def lint.last.go(xs, _hd, s):
   match xs:
     case Nil{}:
       {==}
     case Con{+x, +tl}:
-      lint.last.go(tl, x, ss)
+      lint.last.go(tl, x, s)
 
 # so the last line of lines then one more is that one
 law lint.last:
   for xs: List<&2, String>
-  for +ss: String
-  {List.last(&2, String, List.append(&2, String, xs, [ss])) == Some{ss} : Maybe<&2, String>}
+  for +s: String
+  {List.last(&2, String, List.append(&2, String, xs, [s])) == Some{s} : Maybe<&2, String>}
 
-def lint.last(xs, ss):
+def lint.last(xs, s):
   match xs:
     case Nil{}:
       {==}
     case Con{+x, +tl}:
-      Equal.cong(String, Maybe<&2, String>, yy => Some{yy},
-        List.last.go(&2, String, List.append(&2, String, tl, [ss]), x), ss, lint.last.go(tl, x, ss))
+      Equal.cong(String, Maybe<&2, String>, y => Some{y},
+        List.last.go(&2, String, List.append(&2, String, tl, [s]), x), s, lint.last.go(tl, x, s))
 
 def Laws.last_line_summary(world):
   e = Equal.sym(List<&2, String>, Plan.lines.of(Plan.plan(world)), L1.out_lines(world), L1.lines_in_order(world))

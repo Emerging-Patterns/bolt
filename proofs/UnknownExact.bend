@@ -12,17 +12,17 @@ import ../laws/UnknownExact.bend as Laws
 # one row onto the slug lookup: the table finds a row exactly when the spec
 # says one has the slug
 law cfg7.slug.step:
-  for bb: Bool
+  for b: Bool
   for -row: Codes.Entry
   for rest: List<&2, Codes.Entry>
   for +name: String
   for -sl: Bool
   for ih: {Maybe.is_some(&2, Codes.Entry, Codes.find(rest, name)) == sl : Bool}
-  {Maybe.is_some(&2, Codes.Entry, Lazy.stop(Maybe<&2, Codes.Entry>, bb, Some{row}, _u => Codes.find(rest, name)))
-    == Bool.or(bb, sl) : Bool}
+  {Maybe.is_some(&2, Codes.Entry, Lazy.stop(Maybe<&2, Codes.Entry>, b, Some{row}, _u => Codes.find(rest, name)))
+    == Bool.or(b, sl) : Bool}
 
-def cfg7.slug.step(bb, _row, _rest, _name, _sl, ih):
-  match bb:
+def cfg7.slug.step(b, _row, _rest, _name, _sl, ih):
+  match b:
     case True{}:
       {==}
     case False{}:
@@ -43,15 +43,15 @@ def cfg7.slug(rows, name):
 
 # one row onto the group lookup
 law cfg7.group.step:
-  for bb: Bool
+  for b: Bool
   for rest: List<&2, Codes.Entry>
   for +name: String
   for -gl: Bool
   for ih: {Config.known.group(rest, name) == gl : Bool}
-  {Lazy.or_else(bb, _u => Config.known.group(rest, name)) == Bool.or(bb, gl) : Bool}
+  {Lazy.or_else(b, _u => Config.known.group(rest, name)) == Bool.or(b, gl) : Bool}
 
-def cfg7.group.step(bb, _rest, _name, _gl, ih):
-  match bb:
+def cfg7.group.step(b, _rest, _name, _gl, ih):
+  match b:
     case True{}:
       {==}
     case False{}:
@@ -87,8 +87,8 @@ def cfg7.known(rows, name):
     == Bool.or(Bool.or(Laws.slug_in(rows, name), Laws.group_in(rows, name)), Config.limit.known(name)) : Bool}
   {==}
 
-def Laws.unknown_exact(ss):
-  match ss:
+def Laws.unknown_exact(s):
+  match s:
     case Nil{}:
       {==}
     case Con{Config.Setting{+n, +w, +line}, +tl}:

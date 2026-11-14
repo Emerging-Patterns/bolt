@@ -13,14 +13,14 @@ import ../syntax/bind.bend as Bind
 # -----
 
 # a segment onto the reversed path: `.` and empty are dropped, `..` pops
-def norm.put(+ss: String, acc: List<&2, String>) -> List<&2, String>:
+def norm.put(+s: String, acc: List<&2, String>) -> List<&2, String>:
   match acc:
     case Con{+h, +t}:
-      Bool.pick(List<&2, String>, String.eq(ss, ".."), t,
-        Bool.pick(List<&2, String>, Bool.or(String.eq(ss, "."), String.is_empty(ss)), h <> t, ss <> (h <> t)))
+      Bool.pick(List<&2, String>, String.eq(s, ".."), t,
+        Bool.pick(List<&2, String>, Bool.or(String.eq(s, "."), String.is_empty(s)), h <> t, s <> (h <> t)))
     case Nil{}:
-      Bool.pick(List<&2, String>, Bool.or(String.eq(ss, ".."), Bool.or(String.eq(ss, "."), String.is_empty(ss))),
-        [], [ss])
+      Bool.pick(List<&2, String>, Bool.or(String.eq(s, ".."), Bool.or(String.eq(s, "."), String.is_empty(s))),
+        [], [s])
 
 def norm.go(segs: List<&2, String>, acc: List<&2, String>) -> List<&2, String>:
   match segs:
@@ -71,18 +71,18 @@ def targets(items: List<&2, Outline.Item>, +from: String) -> List<&2, String>:
       targets(rest, from)
 
 # is the path among them?
-def has(ps: List<&2, String>, +pp: String) -> Bool:
-  List.contains(~String, ~String.eq, ps, pp)
+def has(ps: List<&2, String>, +p: String) -> Bool:
+  List.contains(~String, ~String.eq, ps, p)
 
 # what the file at p imports (nothing when it was not read): the spec
 # deps.first is proven against (src/rules/PROOF.bend imp.deps)
-def deps.spec(es: List<&2, Edge>, +pp: String) -> List<&2, String>:
+def deps.spec(es: List<&2, Edge>, +p: String) -> List<&2, String>:
   match es:
     case Nil{}:
       Nil{}
     case Con{Edge{+ep, ds}, rest}:
-      +more = deps.spec(rest, pp)  # noqa: C003 the spec deps.first is proven against; only walk.spec runs it
-      Bool.pick(List<&2, String>, String.eq(ep, pp), ds, more)
+      +more = deps.spec(rest, p)  # noqa: C003 the spec deps.first is proven against; only walk.spec runs it
+      Bool.pick(List<&2, String>, String.eq(ep, p), ds, more)
 
 # the files of ds that were read and are not yet seen, each once: the spec
 # fresh.fast is proven against (imp.fresh)
@@ -133,12 +133,12 @@ def seek(ps: List<&2, String>, +pp: String) -> Bool:
       Lazy.or_else(String.eq(p, pp), _u => seek(rest, pp))
 
 # `deps.spec`, stopping at the first file of that path
-def deps.first(es: List<&2, Edge>, +pp: String) -> List<&2, String>:
+def deps.first(es: List<&2, Edge>, +p: String) -> List<&2, String>:
   match es:
     case Nil{}:
       Nil{}
     case Con{Edge{ep, ds}, rest}:
-      Lazy.stop(List<&2, String>, String.eq(ep, pp), ds, _u => deps.first(rest, pp))
+      Lazy.stop(List<&2, String>, String.eq(ep, p), ds, _u => deps.first(rest, p))
 
 # `fresh.spec`, asking the short lists first and each only while the answer is
 # open: a target already found or seen is never looked for among every file
@@ -176,45 +176,45 @@ def edges.ix.es(ix: EIx) -> List<&2, Edge>:
       Nil{}
 
 # the half a bit picks: an even bit the low half
-def edges.ix.pick(bb: Bool, lo: EIx, hi: EIx) -> EIx:
-  match bb:
+def edges.ix.pick(b: Bool, lo: EIx, hi: EIx) -> EIx:
+  match b:
     case True{}:
       lo
     case False{}:
       hi
 
 # the half of a node a bit picks; none below anything else
-def edges.ix.near(bb: Bool, ix: EIx) -> EIx:
+def edges.ix.near(b: Bool, ix: EIx) -> EIx:
   match ix:
     case ENode{lo, hi}:
-      edges.ix.pick(bb, lo, hi)
+      edges.ix.pick(b, lo, hi)
     case other:
       ENone{}
 
 # a node from the half a bit picks and the other half
-def edges.ix.join(bb: Bool, sub: EIx, far: EIx) -> EIx:
-  match bb:
+def edges.ix.join(b: Bool, sub: EIx, far: EIx) -> EIx:
+  match b:
     case True{}:
       ENode{sub, far}
     case False{}:
       ENode{far, sub}
 
 # an edge put at the front of the leaf its path's number leads to
-def edges.ix.put(dd: Nat, +kk: U32, +ix: EIx, ee: Edge) -> EIx:
-  match dd:
+def edges.ix.put(d: Nat, +k: U32, +ix: EIx, e: Edge) -> EIx:
+  match d:
     case 0n:
-      ELeaf{ee <> edges.ix.es(ix)}
+      ELeaf{e <> edges.ix.es(ix)}
     case 1n+p:
-      edges.ix.join(U32.is_even(kk), edges.ix.put(p, U32.shr(kk), edges.ix.near(U32.is_even(kk), ix), ee),
-        edges.ix.near(Bool.not(U32.is_even(kk)), ix))
+      edges.ix.join(U32.is_even(k), edges.ix.put(p, U32.shr(k), edges.ix.near(U32.is_even(k), ix), e),
+        edges.ix.near(Bool.not(U32.is_even(k)), ix))
 
 # the edges at the leaf a number's low bits lead to
-def edges.ix.at(dd: Nat, +kk: U32, ix: EIx) -> List<&2, Edge>:
-  match dd:
+def edges.ix.at(d: Nat, +k: U32, ix: EIx) -> List<&2, Edge>:
+  match d:
     case 0n:
       edges.ix.es(ix)
     case 1n+p:
-      edges.ix.at(p, U32.shr(kk), edges.ix.near(U32.is_even(kk), ix))
+      edges.ix.at(p, U32.shr(k), edges.ix.near(U32.is_even(k), ix))
 
 # the index of these edges, each leaf in their order
 def edges.ix.of(es: List<&2, Edge>) -> EIx:
@@ -225,8 +225,8 @@ def edges.ix.of(es: List<&2, Edge>) -> EIx:
       edges.ix.put(Bind.index.depth(), Bind.key(p), edges.ix.of(rest), Edge{p, ds})
 
 # what the file at p imports, read off the index: deps.first's
-def deps.ix(ex: EIx, +pp: String) -> List<&2, String>:
-  deps.first(edges.ix.at(Bind.index.depth(), Bind.key(pp), ex), pp)
+def deps.ix(ex: EIx, +p: String) -> List<&2, String>:
+  deps.first(edges.ix.at(Bind.index.depth(), Bind.key(p), ex), p)
 
 # these paths put in an index, the first nearest the top: the index of
 # them followed by the ones it held

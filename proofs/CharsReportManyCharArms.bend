@@ -96,29 +96,29 @@ def chars.lit(kids):
 # a case statement onto a body the law holds for, at the rule's count
 law chars.step:
   for +rest: Tree.Node
-  for +nn: U32
+  for +n: U32
   for +kids: Tree.Node
-  for ih: {Chars.tally(rest, (nn + Chars.literal(T.pattern(kids)) : U32))
-    == Laws.chars.arms(rest, (nn + Chars.literal(T.pattern(kids)) : U32)) : U32}
-  {Chars.tally(rest, (nn + Chars.literal(T.pattern(kids)) : U32))
-    == Laws.chars.arms(rest, (nn + Laws.chars.opens(kids) : U32)) : U32}
+  for ih: {Chars.tally(rest, (n + Chars.literal(T.pattern(kids)) : U32))
+    == Laws.chars.arms(rest, (n + Chars.literal(T.pattern(kids)) : U32)) : U32}
+  {Chars.tally(rest, (n + Chars.literal(T.pattern(kids)) : U32))
+    == Laws.chars.arms(rest, (n + Laws.chars.opens(kids) : U32)) : U32}
 
-def chars.step(rest, nn, kids, ih):
+def chars.step(rest, n, kids, ih):
   Equal.trans(U32,
-    Chars.tally(rest, (nn + Chars.literal(T.pattern(kids)) : U32)),
-    Laws.chars.arms(rest, (nn + Chars.literal(T.pattern(kids)) : U32)),
-    Laws.chars.arms(rest, (nn + Laws.chars.opens(kids) : U32)),
+    Chars.tally(rest, (n + Chars.literal(T.pattern(kids)) : U32)),
+    Laws.chars.arms(rest, (n + Chars.literal(T.pattern(kids)) : U32)),
+    Laws.chars.arms(rest, (n + Laws.chars.opens(kids) : U32)),
     ih,
-    Equal.cong(U32, U32, z => Laws.chars.arms(rest, (nn + z : U32)),
+    Equal.cong(U32, U32, z => Laws.chars.arms(rest, (n + z : U32)),
       Chars.literal(T.pattern(kids)), Laws.chars.opens(kids), chars.lit(kids)))
 
 # chars' tally counts the arms the law counts
 law chars.tally:
   for body: Tree.Node
-  for +nn: U32
-  {Chars.tally(body, nn) == Laws.chars.arms(body, nn) : U32}
+  for +n: U32
+  {Chars.tally(body, n) == Laws.chars.arms(body, n) : U32}
 
-def chars.tally(body, nn):
+def chars.tally(body, n):
   match body:
     case Tree.Leaf{tok}:
       {==}
@@ -131,31 +131,31 @@ def chars.tally(body, nn):
     case Tree.NCons{h, +rest}:
       match h:
         case Tree.Leaf{tok}:
-          chars.tally(rest, nn)
+          chars.tally(rest, n)
         case Tree.Group{o, gk, cl}:
-          chars.tally(rest, nn)
+          chars.tally(rest, n)
         case Tree.Stmt{kind, +kids, b}:
           match kind:
             case Tree.SDef{}:
-              chars.tally(rest, nn)
+              chars.tally(rest, n)
             case Tree.SType{}:
-              chars.tally(rest, nn)
+              chars.tally(rest, n)
             case Tree.SLaw{}:
-              chars.tally(rest, nn)
+              chars.tally(rest, n)
             case Tree.SImport{}:
-              chars.tally(rest, nn)
+              chars.tally(rest, n)
             case Tree.SCase{}:
-              chars.step(rest, nn, kids, chars.tally(rest, (nn + Chars.literal(T.pattern(kids)) : U32)))
+              chars.step(rest, n, kids, chars.tally(rest, (n + Chars.literal(T.pattern(kids)) : U32)))
             case Tree.SFor{}:
-              chars.tally(rest, nn)
+              chars.tally(rest, n)
             case Tree.SLet{}:
-              chars.tally(rest, nn)
+              chars.tally(rest, n)
             case Tree.STerm{}:
-              chars.tally(rest, nn)
+              chars.tally(rest, n)
         case Tree.NNil{}:
-          chars.tally(rest, nn)
+          chars.tally(rest, n)
         case Tree.NCons{nh, nt}:
-          chars.tally(rest, nn)
+          chars.tally(rest, n)
 
 # a statement's own finding: one when it is a match over more than eight
 # char arms
@@ -187,9 +187,9 @@ def chars.stmt(kids, body, path):
 
 # chars' walk counts the matches the law counts
 law chars.walk:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +path: String
-  {List.length(&2, F.Finding, Chars.walk(nn, path)) == Laws.chars.count(nn) : Nat}
+  {List.length(&2, F.Finding, Chars.walk(n, path)) == Laws.chars.count(n) : Nat}
 
 def chars.walk(nn, path):
   match nn:

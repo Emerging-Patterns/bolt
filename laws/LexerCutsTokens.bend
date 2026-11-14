@@ -56,26 +56,26 @@ def lexes.continues(mm: Lex.Mode, cls: Lex.Class) -> Bool:
 # an operator's kind by its whole text: `:`, `=`, `<-`, `->` and `=>` each
 # have their own, `@`, `@+` and `@-` are the binder mark, `&` its own, and
 # any other is a plain operator. Law vocabulary: bolt never calls it
-def lexes.op_kind(+tt: String) -> Lex.TokKind:
-  Bool.pick(Lex.TokKind, String.eq(tt, ":"), Lex.TColon{},
-    Bool.pick(Lex.TokKind, String.eq(tt, "="), Lex.TEq{},
-      Bool.pick(Lex.TokKind, String.eq(tt, "<-"), Lex.TBind{},
-        Bool.pick(Lex.TokKind, String.eq(tt, "->"), Lex.TArrow{},
-          Bool.pick(Lex.TokKind, String.eq(tt, "=>"), Lex.TLam{},
-            Bool.pick(Lex.TokKind, Bool.or(String.eq(tt, "@"), Bool.or(String.eq(tt, "@+"), String.eq(tt, "@-"))),
+def lexes.op_kind(+t: String) -> Lex.TokKind:
+  Bool.pick(Lex.TokKind, String.eq(t, ":"), Lex.TColon{},
+    Bool.pick(Lex.TokKind, String.eq(t, "="), Lex.TEq{},
+      Bool.pick(Lex.TokKind, String.eq(t, "<-"), Lex.TBind{},
+        Bool.pick(Lex.TokKind, String.eq(t, "->"), Lex.TArrow{},
+          Bool.pick(Lex.TokKind, String.eq(t, "=>"), Lex.TLam{},
+            Bool.pick(Lex.TokKind, Bool.or(String.eq(t, "@"), Bool.or(String.eq(t, "@+"), String.eq(t, "@-"))),
               Lex.TAll{},
-              Bool.pick(Lex.TokKind, String.eq(tt, "&"), Lex.TAmp{}, Lex.TOp{})))))))
+              Bool.pick(Lex.TokKind, String.eq(t, "&"), Lex.TAmp{}, Lex.TOp{})))))))
 
 # LAW: a char continues the token it follows exactly as the table above says
 law continues_by_mode_and_class:
-  for mm: Lex.Mode
+  for m: Lex.Mode
   for cls: Lex.Class
-  {Lex.continues(mm, cls) == lexes.continues(mm, cls) : Bool}
+  {Lex.continues(m, cls) == lexes.continues(m, cls) : Bool}
 
 # LAW: an operator's kind is read off its whole text
 law operator_kind_by_text:
-  for +tt: String
-  {Lex.refine_op(tt) == lexes.op_kind(tt) : Lex.TokKind}
+  for +t: String
+  {Lex.refine_op(t) == lexes.op_kind(t) : Lex.TokKind}
 
 # LAW: a name is capitalized when its first char is a capital
 law upper_first_char:

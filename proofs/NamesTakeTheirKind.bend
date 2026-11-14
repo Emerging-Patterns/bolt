@@ -5,16 +5,16 @@ import ../src/syntax/lex.bend as Lex
 import ../laws/NamesTakeTheirKind.bend as Laws
 
 # the lexer's choice once a name is not `_` either
-def tail.upper(+tt: String) -> Lex.TokKind:
-  Bool.pick(Lex.TokKind, Lex.upper_first(String.to_list(tt)), Lex.TUpper{}, Lex.TName{})
+def tail.upper(+t: String) -> Lex.TokKind:
+  Bool.pick(Lex.TokKind, Lex.upper_first(String.to_list(t)), Lex.TUpper{}, Lex.TName{})
 
 # the lexer's choice once a name is not dotted either
-def tail.wild(+tt: String) -> Lex.TokKind:
-  Bool.pick(Lex.TokKind, String.eq(tt, "_"), Lex.TWild{}, tail.upper(tt))
+def tail.wild(+t: String) -> Lex.TokKind:
+  Bool.pick(Lex.TokKind, String.eq(t, "_"), Lex.TWild{}, tail.upper(t))
 
 # the lexer's choice once a name is not a keyword
-def tail.dot(+tt: String) -> Lex.TokKind:
-  Bool.pick(Lex.TokKind, String.contains(tt, "."), Lex.TDotted{}, tail.wild(tt))
+def tail.dot(+t: String) -> Lex.TokKind:
+  Bool.pick(Lex.TokKind, String.contains(t, "."), Lex.TDotted{}, tail.wild(t))
 
 def Laws.keywords_are_keywords(n):
   match n:
@@ -53,45 +53,45 @@ def Laws.keywords_are_keywords(n):
     case 16n+_:
       {==}
 
-def Laws.name_keyword(tt, e1):
-  %Equal.sym(Bool, Lex.is_keyword(tt), True{}, e1) :
-    {Bool.pick(Lex.TokKind, _, Lex.TKey{}, tail.dot(tt)) == Lex.TKey{} : Lex.TokKind}
+def Laws.name_keyword(t, e1):
+  %Equal.sym(Bool, Lex.is_keyword(t), True{}, e1) :
+    {Bool.pick(Lex.TokKind, _, Lex.TKey{}, tail.dot(t)) == Lex.TKey{} : Lex.TokKind}
   {==}
 
-def Laws.name_dotted(tt, e1, e2):
-  %Equal.sym(Bool, Lex.is_keyword(tt), False{}, e1) :
-    {Bool.pick(Lex.TokKind, _, Lex.TKey{}, tail.dot(tt)) == Lex.TDotted{} : Lex.TokKind}
-  %Equal.sym(Bool, String.contains(tt, "."), True{}, e2) :
-    {Bool.pick(Lex.TokKind, _, Lex.TDotted{}, tail.wild(tt)) == Lex.TDotted{} : Lex.TokKind}
+def Laws.name_dotted(t, e1, e2):
+  %Equal.sym(Bool, Lex.is_keyword(t), False{}, e1) :
+    {Bool.pick(Lex.TokKind, _, Lex.TKey{}, tail.dot(t)) == Lex.TDotted{} : Lex.TokKind}
+  %Equal.sym(Bool, String.contains(t, "."), True{}, e2) :
+    {Bool.pick(Lex.TokKind, _, Lex.TDotted{}, tail.wild(t)) == Lex.TDotted{} : Lex.TokKind}
   {==}
 
-def Laws.name_wild(tt, e1, e2, e3):
-  %Equal.sym(Bool, Lex.is_keyword(tt), False{}, e1) :
-    {Bool.pick(Lex.TokKind, _, Lex.TKey{}, tail.dot(tt)) == Lex.TWild{} : Lex.TokKind}
-  %Equal.sym(Bool, String.contains(tt, "."), False{}, e2) :
-    {Bool.pick(Lex.TokKind, _, Lex.TDotted{}, tail.wild(tt)) == Lex.TWild{} : Lex.TokKind}
-  %Equal.sym(Bool, String.eq(tt, "_"), True{}, e3) :
-    {Bool.pick(Lex.TokKind, _, Lex.TWild{}, tail.upper(tt)) == Lex.TWild{} : Lex.TokKind}
+def Laws.name_wild(t, e1, e2, e3):
+  %Equal.sym(Bool, Lex.is_keyword(t), False{}, e1) :
+    {Bool.pick(Lex.TokKind, _, Lex.TKey{}, tail.dot(t)) == Lex.TWild{} : Lex.TokKind}
+  %Equal.sym(Bool, String.contains(t, "."), False{}, e2) :
+    {Bool.pick(Lex.TokKind, _, Lex.TDotted{}, tail.wild(t)) == Lex.TWild{} : Lex.TokKind}
+  %Equal.sym(Bool, String.eq(t, "_"), True{}, e3) :
+    {Bool.pick(Lex.TokKind, _, Lex.TWild{}, tail.upper(t)) == Lex.TWild{} : Lex.TokKind}
   {==}
 
-def Laws.name_upper(tt, e1, e2, e3, e4):
-  %Equal.sym(Bool, Lex.is_keyword(tt), False{}, e1) :
-    {Bool.pick(Lex.TokKind, _, Lex.TKey{}, tail.dot(tt)) == Lex.TUpper{} : Lex.TokKind}
-  %Equal.sym(Bool, String.contains(tt, "."), False{}, e2) :
-    {Bool.pick(Lex.TokKind, _, Lex.TDotted{}, tail.wild(tt)) == Lex.TUpper{} : Lex.TokKind}
-  %Equal.sym(Bool, String.eq(tt, "_"), False{}, e3) :
-    {Bool.pick(Lex.TokKind, _, Lex.TWild{}, tail.upper(tt)) == Lex.TUpper{} : Lex.TokKind}
-  %Equal.sym(Bool, Lex.upper_first(String.to_list(tt)), True{}, e4) :
+def Laws.name_upper(t, e1, e2, e3, e4):
+  %Equal.sym(Bool, Lex.is_keyword(t), False{}, e1) :
+    {Bool.pick(Lex.TokKind, _, Lex.TKey{}, tail.dot(t)) == Lex.TUpper{} : Lex.TokKind}
+  %Equal.sym(Bool, String.contains(t, "."), False{}, e2) :
+    {Bool.pick(Lex.TokKind, _, Lex.TDotted{}, tail.wild(t)) == Lex.TUpper{} : Lex.TokKind}
+  %Equal.sym(Bool, String.eq(t, "_"), False{}, e3) :
+    {Bool.pick(Lex.TokKind, _, Lex.TWild{}, tail.upper(t)) == Lex.TUpper{} : Lex.TokKind}
+  %Equal.sym(Bool, Lex.upper_first(String.to_list(t)), True{}, e4) :
     {Bool.pick(Lex.TokKind, _, Lex.TUpper{}, Lex.TName{}) == Lex.TUpper{} : Lex.TokKind}
   {==}
 
-def Laws.name_plain(tt, e1, e2, e3, e4):
-  %Equal.sym(Bool, Lex.is_keyword(tt), False{}, e1) :
-    {Bool.pick(Lex.TokKind, _, Lex.TKey{}, tail.dot(tt)) == Lex.TName{} : Lex.TokKind}
-  %Equal.sym(Bool, String.contains(tt, "."), False{}, e2) :
-    {Bool.pick(Lex.TokKind, _, Lex.TDotted{}, tail.wild(tt)) == Lex.TName{} : Lex.TokKind}
-  %Equal.sym(Bool, String.eq(tt, "_"), False{}, e3) :
-    {Bool.pick(Lex.TokKind, _, Lex.TWild{}, tail.upper(tt)) == Lex.TName{} : Lex.TokKind}
-  %Equal.sym(Bool, Lex.upper_first(String.to_list(tt)), False{}, e4) :
+def Laws.name_plain(t, e1, e2, e3, e4):
+  %Equal.sym(Bool, Lex.is_keyword(t), False{}, e1) :
+    {Bool.pick(Lex.TokKind, _, Lex.TKey{}, tail.dot(t)) == Lex.TName{} : Lex.TokKind}
+  %Equal.sym(Bool, String.contains(t, "."), False{}, e2) :
+    {Bool.pick(Lex.TokKind, _, Lex.TDotted{}, tail.wild(t)) == Lex.TName{} : Lex.TokKind}
+  %Equal.sym(Bool, String.eq(t, "_"), False{}, e3) :
+    {Bool.pick(Lex.TokKind, _, Lex.TWild{}, tail.upper(t)) == Lex.TName{} : Lex.TokKind}
+  %Equal.sym(Bool, Lex.upper_first(String.to_list(t)), False{}, e4) :
     {Bool.pick(Lex.TokKind, _, Lex.TUpper{}, Lex.TName{}) == Lex.TName{} : Lex.TokKind}
   {==}

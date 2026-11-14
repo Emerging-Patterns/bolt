@@ -125,7 +125,7 @@ def Laws.pick_next(k, _n):
 
 # the walk in a state the law's count reaches another way
 law pick.move:
-  for +nn: Tree.Node
+  for +n: Tree.Node
   for +name: String
   for +path: String
   for +q1: Bool
@@ -137,20 +137,20 @@ law pick.move:
   for eq: {q1 == q2 : Bool}
   for eh: {h1 == h2 : Bool}
   for en: {n1 == n2 : Nat}
-  for ih: {List.length(&2, F.Finding, Pick.walk(nn, name, path, q1, h1, n1))
-    == Laws.pick.count(nn, name, q1, h1, n1) : Nat}
-  {List.length(&2, F.Finding, Pick.walk(nn, name, path, q1, h1, n1)) == Laws.pick.count(nn, name, q2, h2, n2) : Nat}
+  for ih: {List.length(&2, F.Finding, Pick.walk(n, name, path, q1, h1, n1))
+    == Laws.pick.count(n, name, q1, h1, n1) : Nat}
+  {List.length(&2, F.Finding, Pick.walk(n, name, path, q1, h1, n1)) == Laws.pick.count(n, name, q2, h2, n2) : Nat}
 
-def pick.move(nn, name, path, q1, q2, h1, h2, n1, n2, eq, eh, en, ih):
-  Equal.trans(Nat, List.length(&2, F.Finding, Pick.walk(nn, name, path, q1, h1, n1)),
-    Laws.pick.count(nn, name, q1, h1, n1), Laws.pick.count(nn, name, q2, h2, n2), ih,
-    Equal.trans(Nat, Laws.pick.count(nn, name, q1, h1, n1), Laws.pick.count(nn, name, q2, h1, n1),
-      Laws.pick.count(nn, name, q2, h2, n2), Equal.cong(Bool, Nat, x => Laws.pick.count(nn, name, x, h1, n1), q1, q2,
+def pick.move(n, name, path, q1, q2, h1, h2, n1, n2, eq, eh, en, ih):
+  Equal.trans(Nat, List.length(&2, F.Finding, Pick.walk(n, name, path, q1, h1, n1)),
+    Laws.pick.count(n, name, q1, h1, n1), Laws.pick.count(n, name, q2, h2, n2), ih,
+    Equal.trans(Nat, Laws.pick.count(n, name, q1, h1, n1), Laws.pick.count(n, name, q2, h1, n1),
+      Laws.pick.count(n, name, q2, h2, n2), Equal.cong(Bool, Nat, x => Laws.pick.count(n, name, x, h1, n1), q1, q2,
         eq),
-      Equal.trans(Nat, Laws.pick.count(nn, name, q2, h1, n1), Laws.pick.count(nn, name, q2, h2, n1),
-        Laws.pick.count(nn, name, q2, h2, n2), Equal.cong(Bool, Nat, x => Laws.pick.count(nn, name, q2, x, n1), h1, h2,
+      Equal.trans(Nat, Laws.pick.count(n, name, q2, h1, n1), Laws.pick.count(n, name, q2, h2, n1),
+        Laws.pick.count(n, name, q2, h2, n2), Equal.cong(Bool, Nat, x => Laws.pick.count(n, name, q2, x, n1), h1, h2,
           eh),
-        Equal.cong(Nat, Nat, x => Laws.pick.count(nn, name, q2, h2, x), n1, n2, en))))
+        Equal.cong(Nat, Nat, x => Laws.pick.count(n, name, q2, h2, x), n1, n2, en))))
 
 # the law's count at a pick call, the call being argument at with quiet q
 def pick.at(

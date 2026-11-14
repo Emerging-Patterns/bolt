@@ -16,8 +16,8 @@ def sig(toks: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
       Bool.pick(List<&2, Lex.Tok>, Lex.significant(k), Lex.Tok{k, t, l, c} <> more, more)
 
 # a text cut to its first char
-def code.cut(tt: String) -> String:
-  match tt:
+def code.cut(t: String) -> String:
+  match t:
     case SNil{}:
       SNil{}
     case SCon{h, _t}:
@@ -39,8 +39,8 @@ def code.toks(ts: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
 
 # a text with each string literal cut to its opening quote: what of it is
 # code, as the lexer reads it
-def code(+tt: String) -> String:
-  Lex.text(code.toks(Lex.tokens(tt)))
+def code(+t: String) -> String:
+  Lex.text(code.toks(Lex.tokens(t)))
 
 # digits, then one final `n`: a Nat literal's chars
 def nat_ok(cs: List<&2, Char>) -> Bool:
@@ -63,20 +63,20 @@ def digits_ok(cs: List<&2, Char>) -> Bool:
       False{}
 
 # the text without its last char (a Nat literal's digits)
-def stem(+tt: String) -> String:
-  String.take(tt, Nat.sub(String.length(tt), 1n))
+def stem(+t: String) -> String:
+  String.take(t, Nat.sub(String.length(t), 1n))
 
 # a Nat literal's value (`12n` is 12); none for anything else or past U32
-def nat_value(+tt: String) -> Maybe<&2, U32>:
-  Bool.pick(Maybe<&2, U32>, nat_ok(String.to_list(tt)), U32.read(stem(tt)), None{})
+def nat_value(+t: String) -> Maybe<&2, U32>:
+  Bool.pick(Maybe<&2, U32>, nat_ok(String.to_list(t)), U32.read(stem(t)), None{})
 
 # a text's width in chars
-def width(tt: String) -> U32:
-  U32.from_nat(String.length(tt))
+def width(t: String) -> U32:
+  U32.from_nat(String.length(t))
 
 # is the first node the keyword?
-def keyword(nn: Tree.Node, +word: String) -> Bool:
-  match nn:
+def keyword(n: Tree.Node, +word: String) -> Bool:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TKey{}, +t, l, c}}, rest}:
       String.eq(t, word)
     case other:

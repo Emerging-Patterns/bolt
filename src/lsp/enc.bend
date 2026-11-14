@@ -17,8 +17,8 @@ type Enc is Data:
   Utf32{}
 
 # an encoding's name on the wire
-def name(ee: Enc) -> String:
-  match ee:
+def name(e: Enc) -> String:
+  match e:
     case Utf16{}:
       "utf-16"
     case Utf32{}:
@@ -35,8 +35,8 @@ def offers(cells: J.Json) -> Bool:
       False{}
 
 # the cells of an array, JNil when it is not one
-def cells(jj: J.Json) -> J.Json:
-  match jj:
+def cells(j: J.Json) -> J.Json:
+  match j:
     case J.JArr{items}:
       items
     case _other:
@@ -59,8 +59,8 @@ def negotiate(params: J.Json) -> Enc:
 # --------
 
 # does a char take two UTF-16 code units (it lies past U+FFFF)?
-def wide(cc: Char) -> Bool:
-  U32.is_le(65536, Char.to_u32(cc))
+def wide(c: Char) -> Bool:
+  U32.is_le(65536, Char.to_u32(c))
 
 # the units a char and the ones after it take: two for a wide char, else one
 def units.step(isw: Bool, rest: Nat) -> Nat:
@@ -83,42 +83,42 @@ def units(cs: List<&2, Char>, nn: Nat) -> Nat:
 
 # the units left after a char, from 1+p units: p after a narrow one, one
 # fewer after a wide one (none when the offset falls inside its pair)
-def points.skip(isw: Bool, pp: Nat) -> Nat:
-  match isw pp:
+def points.skip(isw: Bool, p: Nat) -> Nat:
+  match isw p:
     case True{} 0n:
       0n
     case True{} 1n+q:
       q
     case False{} _:
-      pp
+      p
 
 # the chars the first u UTF-16 code units of a line cover; an offset inside
 # a pair covers its char, and one past the line's end counts one column a
 # unit
-def points(cs: List<&2, Char>, uu: Nat) -> Nat:
-  match cs uu:
+def points(cs: List<&2, Char>, u: Nat) -> Nat:
+  match cs u:
     case Nil{} _:
-      uu
+      u
     case Con{_c, _t} 0n:
       0n
     case Con{c, t} 1n+p:
       1n+points(t, points.skip(wide(c), p))
 
 # a code-point column of a line in an encoding
-def out.of(ee: Enc, cs: List<&2, Char>, nn: Nat) -> Nat:
-  match ee:
+def out.of(e: Enc, cs: List<&2, Char>, n: Nat) -> Nat:
+  match e:
     case Utf16{}:
-      units(cs, nn)
+      units(cs, n)
     case Utf32{}:
-      nn
+      n
 
 # an encoding's column of a line as a code-point column
-def into.of(ee: Enc, cs: List<&2, Char>, uu: Nat) -> Nat:
-  match ee:
+def into.of(e: Enc, cs: List<&2, Char>, u: Nat) -> Nat:
+  match e:
     case Utf16{}:
-      points(cs, uu)
+      points(cs, u)
     case Utf32{}:
-      uu
+      u
 
 # does a line hold a char past U+FFFF? Stops at the first
 def wide_in(cs: List<&2, Char>) -> Bool:
@@ -139,8 +139,8 @@ def wide_any(lines: List<&2, String>) -> Bool:
 # the encoding a document's columns convert by: UTF-16 on lines with no wide
 # char counts exactly as utf-32 does (LAWS.bend's enc_narrow), so such a
 # document converts as utf-32 and never looks a line up
-def narrowed(ee: Enc, wide: Bool) -> Enc:
-  match ee:
+def narrowed(e: Enc, wide: Bool) -> Enc:
+  match e:
     case Utf16{}:
       Bool.pick(Enc, wide, Utf16{}, Utf32{})
     case Utf32{}:
@@ -152,20 +152,20 @@ type Cols is Data:
   Cols{enc: Enc, lines: List<&2, String>}
 
 # a document's lines under an encoding
-def cols.of(ee: Enc, +lines: List<&2, String>) -> Cols:
-  Cols{narrowed(ee, wide_any(lines)), lines}
+def cols.of(e: Enc, +lines: List<&2, String>) -> Cols:
+  Cols{narrowed(e, wide_any(lines)), lines}
 
 # a document's text under an encoding
-def cols(ee: Enc, text: String) -> Cols:
-  cols.of(ee, String.lines(text))
+def cols(e: Enc, text: String) -> Cols:
+  cols.of(e, String.lines(text))
 
 # a line's chars, none past the end
 def chars(lines: List<&2, String>, line: U32) -> List<&2, Char>:
   String.to_list(Maybe.default(&2, String, List.get(&2, String, lines, U32.to_nat(line)), ""))
 
 # a code-point column of a line's chars, sent in an encoding
-def out.col(ee: Enc, cs: List<&2, Char>, col: U32) -> U32:
-  match ee:
+def out.col(e: Enc, cs: List<&2, Char>, col: U32) -> U32:
+  match e:
     case Utf16{}:
       U32.from_nat(out.of(Utf16{}, cs, U32.to_nat(col)))
     case Utf32{}:
@@ -173,21 +173,21 @@ def out.col(ee: Enc, cs: List<&2, Char>, col: U32) -> U32:
 
 # a code-point column of a document's line, sent in an encoding; utf-32
 # never looks the line up
-def out.at(ee: Enc, lines: List<&2, String>, line: U32, col: U32) -> U32:
-  match ee:
+def out.at(e: Enc, lines: List<&2, String>, line: U32, col: U32) -> U32:
+  match e:
     case Utf16{}:
       out.col(Utf16{}, chars(lines, line), col)
     case Utf32{}:
       col
 
 # a code-point column sent in the negotiated encoding
-def out(cc: Cols, line: U32, col: U32) -> U32:
-  Cols{ee, lines} = cc
-  out.at(ee, lines, line, col)
+def out(c: Cols, line: U32, col: U32) -> U32:
+  Cols{e, lines} = c
+  out.at(e, lines, line, col)
 
 # a column of a line's chars read in an encoding, as a code-point column
-def into.col(ee: Enc, cs: List<&2, Char>, col: U32) -> U32:
-  match ee:
+def into.col(e: Enc, cs: List<&2, Char>, col: U32) -> U32:
+  match e:
     case Utf16{}:
       U32.from_nat(into.of(Utf16{}, cs, U32.to_nat(col)))
     case Utf32{}:
@@ -195,14 +195,14 @@ def into.col(ee: Enc, cs: List<&2, Char>, col: U32) -> U32:
 
 # a column of a document's line read in an encoding; utf-32 never looks the
 # line up
-def into.at(ee: Enc, lines: List<&2, String>, line: U32, col: U32) -> U32:
-  match ee:
+def into.at(e: Enc, lines: List<&2, String>, line: U32, col: U32) -> U32:
+  match e:
     case Utf16{}:
       into.col(Utf16{}, chars(lines, line), col)
     case Utf32{}:
       col
 
 # a column read in the negotiated encoding, as a code-point column
-def into(cc: Cols, line: U32, col: U32) -> U32:
-  Cols{ee, lines} = cc
-  into.at(ee, lines, line, col)
+def into(c: Cols, line: U32, col: U32) -> U32:
+  Cols{e, lines} = c
+  into.at(e, lines, line, col)

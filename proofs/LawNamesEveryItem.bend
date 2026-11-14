@@ -47,8 +47,8 @@ def coverage.d_ctors(items):
   match items:
     case Nil{}:
       {==}
-    case Con{Outline.Item{kk, +name, +line, sig, doc, path}, +rest}:
-      match kk:
+    case Con{Outline.Item{k, +name, +line, sig, doc, path}, +rest}:
+      match k:
         case Outline.ICtor{}:
           Equal.cong(List<&2, String>, List<&2, String>, xs => name <> xs, Digest.ctors(rest),
             Laws.coverage.ctors_of(rest), coverage.d_ctors(rest))
@@ -74,8 +74,8 @@ def coverage.d_alias(items, name, from):
   match items:
     case Nil{}:
       {==}
-    case Con{Outline.Item{kk, +nm, line, sig, doc, +path}, +rest}:
-      match kk:
+    case Con{Outline.Item{k, +nm, line, sig, doc, +path}, +rest}:
+      match k:
         case Outline.IImport{}:
           Equal.trans(Maybe<&2, String>,
             Digest.alias_path(Digest.Alias{nm, Imports.resolve(from, path)} <> Digest.aliases(rest, from), name),
@@ -85,7 +85,7 @@ def coverage.d_alias(items, name, from):
               Laws.coverage.alias(rest, name, from)),
             CS.cs.alias_path(nm, Imports.resolve(from, path), Digest.aliases(rest, from), name),
             Equal.cong(Maybe<&2, String>, Maybe<&2, String>,
-              mm => Bool.pick(Maybe<&2, String>, String.eq(nm, name), Some{Imports.resolve(from, path)}, mm),
+              m => Bool.pick(Maybe<&2, String>, String.eq(nm, name), Some{Imports.resolve(from, path)}, m),
               Digest.alias_path(Digest.aliases(rest, from), name), Laws.coverage.alias(rest, name, from),
               coverage.d_alias(rest, name, from)))
         case Outline.IDef{}:
@@ -101,14 +101,14 @@ def coverage.d_alias(items, name, from):
 
 # an item behind an alias, onto the others, is coverage.behind onto them
 law coverage.d_aliased:
-  for mm: Maybe<&2, String>
+  for m: Maybe<&2, String>
   for -name: String
   for -more: List<&2, Digest.Mention>
-  {Digest.aliased(mm, name, more) == List.append(&2, Digest.Mention, Laws.coverage.behind(mm, name), more)
+  {Digest.aliased(m, name, more) == List.append(&2, Digest.Mention, Laws.coverage.behind(m, name), more)
     : List<&2, Digest.Mention>}
 
-def coverage.d_aliased(mm, _name, _more):
-  match mm:
+def coverage.d_aliased(m, _name, _more):
+  match m:
     case None{}:
       {==}
     case Some{_pp}:
@@ -116,15 +116,15 @@ def coverage.d_aliased(mm, _name, _more):
 
 # what the digest makes of a use's target is coverage.target, onto the others
 law coverage.d_target:
-  for tt: Bind.Target
+  for t: Bind.Target
   for +items: List<&2, Outline.Item>
   for +file: String
   for +more: List<&2, Digest.Mention>
-  {Digest.target(tt, Digest.aliases(items, file), file, more)
-    == List.append(&2, Digest.Mention, Laws.coverage.target(tt, items, file), more) : List<&2, Digest.Mention>}
+  {Digest.target(t, Digest.aliases(items, file), file, more)
+    == List.append(&2, Digest.Mention, Laws.coverage.target(t, items, file), more) : List<&2, Digest.Mention>}
 
-def coverage.d_target(tt, items, file, more):
-  match tt:
+def coverage.d_target(t, items, file, more):
+  match t:
     case Bind.TLocal{_l, _c}:
       {==}
     case Bind.TItem{_n}:
@@ -142,16 +142,16 @@ def coverage.d_target(tt, items, file, more):
 # a law's span, when the law binds, then the rest: the line is in one of them
 # exactly when it is in the span of a binding law or in the rest
 law coverage.d_span:
-  for bb: Bool
+  for b: Bool
   for +from: U32
   for +upto: U32
   for +rest: List<&2, Digest.Span>
   for +ln: U32
-  {Digest.within(Bool.pick(List<&2, Digest.Span>, bb, Digest.Span{from, upto} <> rest, rest), ln)
-    == Bool.or(Bool.and(bb, Bool.and(U32.is_le(from, ln), U32.is_le(ln, upto))), Digest.within(rest, ln)) : Bool}
+  {Digest.within(Bool.pick(List<&2, Digest.Span>, b, Digest.Span{from, upto} <> rest, rest), ln)
+    == Bool.or(Bool.and(b, Bool.and(U32.is_le(from, ln), U32.is_le(ln, upto))), Digest.within(rest, ln)) : Bool}
 
-def coverage.d_span(bb, from, upto, rest, ln):
-  match bb:
+def coverage.d_span(b, from, upto, rest, ln):
+  match b:
     case True{}:
       coverage.or_else(Bool.and(U32.is_le(from, ln), U32.is_le(ln, upto)), Digest.within(rest, ln))
     case False{}:
@@ -167,8 +167,8 @@ def coverage.d_within(root, ln):
   match root:
     case Tree.NCons{hd, +rest}:
       match hd:
-        case Tree.Stmt{kk, +kids, +body}:
-          match kk:
+        case Tree.Stmt{k, +kids, +body}:
+          match k:
             case Tree.SLaw{}:
               +last = Tree.line.of(List.head(&2, Lex.Tok, Tree.leaves.go(body, [])))
               Equal.trans(Bool,
@@ -216,14 +216,14 @@ def coverage.d_within(root, ln):
 
 # stopping on a negated test is picking on the test
 law coverage.d_stop:
-  for bb: Bool
+  for b: Bool
   for -x: List<&2, Digest.Mention>
   for -y: List<&2, Digest.Mention>
-  {Lazy.stop(List<&2, Digest.Mention>, Bool.not(bb), y, _u => x) == Bool.pick(List<&2, Digest.Mention>, bb, x, y)
+  {Lazy.stop(List<&2, Digest.Mention>, Bool.not(b), y, _u => x) == Bool.pick(List<&2, Digest.Mention>, b, x, y)
     : List<&2, Digest.Mention>}
 
-def coverage.d_stop(bb, _x, _y):
-  match bb:
+def coverage.d_stop(b, _x, _y):
+  match b:
     case True{}:
       {==}
     case False{}:
@@ -242,36 +242,36 @@ def coverage.d_mentions(us, root, items, file):
   match us:
     case Nil{}:
       {==}
-    case Con{Bind.Use{+nn, +ln, +cc, +tt}, +rest}:
-      +mm = Digest.mentions(rest, Digest.spans(root), Digest.aliases(items, file), file)
+    case Con{Bind.Use{+n, +ln, +c, +t}, +rest}:
+      +m = Digest.mentions(rest, Digest.spans(root), Digest.aliases(items, file), file)
       %coverage.d_mentions(rest, root, items, file) :
-        {Digest.mentions(Bind.Use{nn, ln, cc, tt} <> rest, Digest.spans(root), Digest.aliases(items, file), file)
+        {Digest.mentions(Bind.Use{n, ln, c, t} <> rest, Digest.spans(root), Digest.aliases(items, file), file)
           == Bool.pick(List<&2, Digest.Mention>, Laws.coverage.in_law(root, ln),
-            List.append(&2, Digest.Mention, Laws.coverage.target(tt, items, file), _), _) : List<&2, Digest.Mention>}
-      %coverage.d_target(tt, items, file, mm) :
-        {Digest.mentions(Bind.Use{nn, ln, cc, tt} <> rest, Digest.spans(root), Digest.aliases(items, file), file)
-          == Bool.pick(List<&2, Digest.Mention>, Laws.coverage.in_law(root, ln), _, mm) : List<&2, Digest.Mention>}
+            List.append(&2, Digest.Mention, Laws.coverage.target(t, items, file), _), _) : List<&2, Digest.Mention>}
+      %coverage.d_target(t, items, file, m) :
+        {Digest.mentions(Bind.Use{n, ln, c, t} <> rest, Digest.spans(root), Digest.aliases(items, file), file)
+          == Bool.pick(List<&2, Digest.Mention>, Laws.coverage.in_law(root, ln), _, m) : List<&2, Digest.Mention>}
       %coverage.d_within(root, ln) :
-        {Digest.mentions(Bind.Use{nn, ln, cc, tt} <> rest, Digest.spans(root), Digest.aliases(items, file), file)
-          == Bool.pick(List<&2, Digest.Mention>, _, Digest.target(tt, Digest.aliases(items, file), file, mm), mm)
+        {Digest.mentions(Bind.Use{n, ln, c, t} <> rest, Digest.spans(root), Digest.aliases(items, file), file)
+          == Bool.pick(List<&2, Digest.Mention>, _, Digest.target(t, Digest.aliases(items, file), file, m), m)
           : List<&2, Digest.Mention>}
-      coverage.d_stop(Digest.within(Digest.spans(root), ln), Digest.target(tt, Digest.aliases(items, file), file, mm),
-        mm)
+      coverage.d_stop(Digest.within(Digest.spans(root), ln), Digest.target(t, Digest.aliases(items, file), file, m),
+        m)
 
 # what a file's laws name, in the digest, is coverage.said when it is a
 # LAWS.bend, else nothing
 law coverage.d_stated:
-  for bb: Bool
+  for b: Bool
   for +tree: Tree.Node
   for bound: Bind.Bound
   for +items: List<&2, Outline.Item>
   for +file: String
-  {Digest.stated(bb, tree, bound, Digest.aliases(items, file), file)
-    == Bool.pick(List<&2, Digest.Mention>, bb, Laws.coverage.said(Laws.coverage.uses(bound), tree, items, file), [])
+  {Digest.stated(b, tree, bound, Digest.aliases(items, file), file)
+    == Bool.pick(List<&2, Digest.Mention>, b, Laws.coverage.said(Laws.coverage.uses(bound), tree, items, file), [])
     : List<&2, Digest.Mention>}
 
-def coverage.d_stated(bb, tree, bound, items, file):
-  match bb:
+def coverage.d_stated(b, tree, bound, items, file):
+  match b:
     case True{}:
       match bound:
         case Bind.Bound{_bs, us, _scs}:
@@ -288,78 +288,78 @@ def coverage.d_stated(bb, tree, bound, items, file):
 law reach.any_eq:
   for ns: List<&2, String>
   for +cl: List<&2, String>
-  for +pp: String
-  {Coverage.any_item(ns, cl, pp) == Laws.reach.any(ns, cl, pp) : Bool}
+  for +p: String
+  {Coverage.any_item(ns, cl, p) == Laws.reach.any(ns, cl, p) : Bool}
 
-def reach.any_eq(ns, cl, pp):
+def reach.any_eq(ns, cl, p):
   match ns:
     case Nil{}:
       {==}
     case Con{+name, +rest}:
-      %reach.any_eq(rest, cl, pp) :
-        {Coverage.any_item(name <> rest, cl, pp)
-          == Bool.or(Imports.has(cl, Laws.reach.key(pp, name)), _) : Bool}
-      coverage.or_else(Imports.has(cl, Coverage.key(pp, name)), Coverage.any_item(rest, cl, pp))
+      %reach.any_eq(rest, cl, p) :
+        {Coverage.any_item(name <> rest, cl, p)
+          == Bool.or(Imports.has(cl, Laws.reach.key(p, name)), _) : Bool}
+      coverage.or_else(Imports.has(cl, Coverage.key(p, name)), Coverage.any_item(rest, cl, p))
 
 # the rule's gaps of a file are reach.gaps
 law reach.gaps_eq:
   for ts: List<&2, Digest.Top>
   for +cl: List<&2, String>
-  for +pp: String
+  for +p: String
   for +path: String
-  {Coverage.gaps(ts, cl, pp, path) == Laws.reach.gaps(ts, cl, pp, path) : List<&2, F.Finding>}
+  {Coverage.gaps(ts, cl, p, path) == Laws.reach.gaps(ts, cl, p, path) : List<&2, F.Finding>}
 
-def reach.gaps_eq(ts, cl, pp, path):
+def reach.gaps_eq(ts, cl, p, path):
   match ts:
     case Nil{}:
       {==}
-    case Con{Digest.Top{kk, +name, +line, +cs, calls}, +rest}:
-      match kk:
+    case Con{Digest.Top{k, +name, +line, +cs, calls}, +rest}:
+      match k:
         case Outline.IDef{}:
-          %reach.gaps_eq(rest, cl, pp, path) :
-            {Coverage.gaps(Digest.Top{Outline.IDef{}, name, line, cs, calls} <> rest, cl, pp, path)
+          %reach.gaps_eq(rest, cl, p, path) :
+            {Coverage.gaps(Digest.Top{Outline.IDef{}, name, line, cs, calls} <> rest, cl, p, path)
               == Bool.pick(List<&2, F.Finding>,
-                Bool.or(String.contains(name, "."), Imports.has(cl, Laws.reach.key(pp, name))), _,
+                Bool.or(String.contains(name, "."), Imports.has(cl, Laws.reach.key(p, name))), _,
                 F.Finding{path, line, 0, 0, "coverage", "No quantified law reaches def " ++ name ++ "."} <> _)
               : List<&2, F.Finding>}
           Equal.cong(Bool, List<&2, F.Finding>,
-            bb => Bool.pick(List<&2, F.Finding>, bb, Coverage.gaps(rest, cl, pp, path),
+            b => Bool.pick(List<&2, F.Finding>, b, Coverage.gaps(rest, cl, p, path),
               F.Finding{path, line, 0, 0, "coverage", "No quantified law reaches def " ++ name ++ "."}
-                <> Coverage.gaps(rest, cl, pp, path)),
-            Lazy.or_else(String.contains(name, "."), _u => Imports.has(cl, Coverage.key(pp, name))),
-            Bool.or(String.contains(name, "."), Imports.has(cl, Coverage.key(pp, name))),
-            coverage.or_else(String.contains(name, "."), Imports.has(cl, Coverage.key(pp, name))))
+                <> Coverage.gaps(rest, cl, p, path)),
+            Lazy.or_else(String.contains(name, "."), _u => Imports.has(cl, Coverage.key(p, name))),
+            Bool.or(String.contains(name, "."), Imports.has(cl, Coverage.key(p, name))),
+            coverage.or_else(String.contains(name, "."), Imports.has(cl, Coverage.key(p, name))))
         case Outline.IType{}:
-          %reach.any_eq(cs, cl, pp) :
-            {Coverage.gaps(Digest.Top{Outline.IType{}, name, line, cs, calls} <> rest, cl, pp, path)
-              == Bool.pick(List<&2, F.Finding>, Bool.or(Imports.has(cl, Laws.reach.key(pp, name)), _),
-                Laws.reach.gaps(rest, cl, pp, path),
+          %reach.any_eq(cs, cl, p) :
+            {Coverage.gaps(Digest.Top{Outline.IType{}, name, line, cs, calls} <> rest, cl, p, path)
+              == Bool.pick(List<&2, F.Finding>, Bool.or(Imports.has(cl, Laws.reach.key(p, name)), _),
+                Laws.reach.gaps(rest, cl, p, path),
                 F.Finding{path, line, 0, 0, "coverage",
                     "No quantified law reaches type " ++ name ++ " or any of its constructors."}
-                  <> Laws.reach.gaps(rest, cl, pp, path)) : List<&2, F.Finding>}
-          %reach.gaps_eq(rest, cl, pp, path) :
-            {Coverage.gaps(Digest.Top{Outline.IType{}, name, line, cs, calls} <> rest, cl, pp, path)
+                  <> Laws.reach.gaps(rest, cl, p, path)) : List<&2, F.Finding>}
+          %reach.gaps_eq(rest, cl, p, path) :
+            {Coverage.gaps(Digest.Top{Outline.IType{}, name, line, cs, calls} <> rest, cl, p, path)
               == Bool.pick(List<&2, F.Finding>,
-                Bool.or(Imports.has(cl, Laws.reach.key(pp, name)), Coverage.any_item(cs, cl, pp)), _,
+                Bool.or(Imports.has(cl, Laws.reach.key(p, name)), Coverage.any_item(cs, cl, p)), _,
                 F.Finding{path, line, 0, 0, "coverage",
                     "No quantified law reaches type " ++ name ++ " or any of its constructors."}
                   <> _) : List<&2, F.Finding>}
           Equal.cong(Bool, List<&2, F.Finding>,
-            bb => Bool.pick(List<&2, F.Finding>, bb, Coverage.gaps(rest, cl, pp, path),
+            b => Bool.pick(List<&2, F.Finding>, b, Coverage.gaps(rest, cl, p, path),
               F.Finding{path, line, 0, 0, "coverage",
                   "No quantified law reaches type " ++ name ++ " or any of its constructors."}
-                <> Coverage.gaps(rest, cl, pp, path)),
-            Lazy.or_else(Imports.has(cl, Coverage.key(pp, name)), _u => Coverage.any_item(cs, cl, pp)),
-            Bool.or(Imports.has(cl, Coverage.key(pp, name)), Coverage.any_item(cs, cl, pp)),
-            coverage.or_else(Imports.has(cl, Coverage.key(pp, name)), Coverage.any_item(cs, cl, pp)))
+                <> Coverage.gaps(rest, cl, p, path)),
+            Lazy.or_else(Imports.has(cl, Coverage.key(p, name)), _u => Coverage.any_item(cs, cl, p)),
+            Bool.or(Imports.has(cl, Coverage.key(p, name)), Coverage.any_item(cs, cl, p)),
+            coverage.or_else(Imports.has(cl, Coverage.key(p, name)), Coverage.any_item(cs, cl, p)))
         case Outline.IImport{}:
-          reach.gaps_eq(rest, cl, pp, path)
+          reach.gaps_eq(rest, cl, p, path)
         case Outline.ILaw{}:
-          reach.gaps_eq(rest, cl, pp, path)
+          reach.gaps_eq(rest, cl, p, path)
         case Outline.ICtor{}:
-          reach.gaps_eq(rest, cl, pp, path)
+          reach.gaps_eq(rest, cl, p, path)
         case Outline.ILocal{}:
-          reach.gaps_eq(rest, cl, pp, path)
+          reach.gaps_eq(rest, cl, p, path)
 
 # the rule's walk over the files is reach.files
 law reach.files_eq:
@@ -414,8 +414,8 @@ def reach.keys_eq(ms):
   match ms:
     case Nil{}:
       {==}
-    case Con{Digest.Mention{+pp, +name}, +rest}:
-      Equal.cong(List<&2, String>, List<&2, String>, xs => Laws.reach.key(pp, name) <> xs, Laws.reach.keys(rest),
+    case Con{Digest.Mention{+p, +name}, +rest}:
+      Equal.cong(List<&2, String>, List<&2, String>, xs => Laws.reach.key(p, name) <> xs, Laws.reach.keys(rest),
         Coverage.keys(rest), reach.keys_eq(rest))
 
 # what the rule gathers of the laws is reach.named
@@ -439,59 +439,59 @@ def reach.named_eq(ds):
 # a type's constructors as nodes have the rule's edges
 law reach.ctors_eq:
   for cs: List<&2, String>
-  for +pp: String
+  for +p: String
   for more: List<&2, Digest.Digest>
-  {Digest.edges(Laws.reach.ctors(cs, pp, more)) == Coverage.ctor_nodes(cs, pp, Digest.edges(more))
+  {Digest.edges(Laws.reach.ctors(cs, p, more)) == Coverage.ctor_nodes(cs, p, Digest.edges(more))
     : List<&2, Imports.Edge>}
 
-def reach.ctors_eq(cs, pp, more):
+def reach.ctors_eq(cs, p, more):
   match cs:
     case Nil{}:
       {==}
     case Con{+name, +rest}:
-      Equal.cong(List<&2, Imports.Edge>, List<&2, Imports.Edge>, xs => Imports.Edge{Laws.reach.key(pp, name), []} <> xs,
-        Digest.edges(Laws.reach.ctors(rest, pp, more)), Coverage.ctor_nodes(rest, pp, Digest.edges(more)),
-        reach.ctors_eq(rest, pp, more))
+      Equal.cong(List<&2, Imports.Edge>, List<&2, Imports.Edge>, xs => Imports.Edge{Laws.reach.key(p, name), []} <> xs,
+        Digest.edges(Laws.reach.ctors(rest, p, more)), Coverage.ctor_nodes(rest, p, Digest.edges(more)),
+        reach.ctors_eq(rest, p, more))
 
 # a file's items as nodes have the rule's edges
 law reach.nodes_eq:
   for ts: List<&2, Digest.Top>
-  for +pp: String
+  for +p: String
   for +more: List<&2, Digest.Digest>
-  {Digest.edges(Laws.reach.nodes(ts, pp, more)) == Coverage.nodes(ts, pp, Digest.edges(more)) : List<&2, Imports.Edge>}
+  {Digest.edges(Laws.reach.nodes(ts, p, more)) == Coverage.nodes(ts, p, Digest.edges(more)) : List<&2, Imports.Edge>}
 
-def reach.nodes_eq(ts, pp, more):
+def reach.nodes_eq(ts, p, more):
   match ts:
     case Nil{}:
       {==}
-    case Con{Digest.Top{kk, +name, line, +cs, +calls}, +rest}:
-      match kk:
+    case Con{Digest.Top{k, +name, line, +cs, +calls}, +rest}:
+      match k:
         case Outline.IDef{}:
-          %reach.nodes_eq(rest, pp, more) :
-            {Digest.edges(Laws.reach.nodes(Digest.Top{Outline.IDef{}, name, line, cs, calls} <> rest, pp, more))
-              == Imports.Edge{Coverage.key(pp, name), Coverage.keys(calls)} <> _ : List<&2, Imports.Edge>}
+          %reach.nodes_eq(rest, p, more) :
+            {Digest.edges(Laws.reach.nodes(Digest.Top{Outline.IDef{}, name, line, cs, calls} <> rest, p, more))
+              == Imports.Edge{Coverage.key(p, name), Coverage.keys(calls)} <> _ : List<&2, Imports.Edge>}
           %reach.keys_eq(calls) :
-            {Digest.edges(Laws.reach.nodes(Digest.Top{Outline.IDef{}, name, line, cs, calls} <> rest, pp, more))
-              == Imports.Edge{Coverage.key(pp, name), _} <> Digest.edges(Laws.reach.nodes(rest, pp, more))
+            {Digest.edges(Laws.reach.nodes(Digest.Top{Outline.IDef{}, name, line, cs, calls} <> rest, p, more))
+              == Imports.Edge{Coverage.key(p, name), _} <> Digest.edges(Laws.reach.nodes(rest, p, more))
               : List<&2, Imports.Edge>}
           {==}
         case Outline.IType{}:
-          %reach.nodes_eq(rest, pp, more) :
-            {Digest.edges(Laws.reach.nodes(Digest.Top{Outline.IType{}, name, line, cs, calls} <> rest, pp, more))
-              == Imports.Edge{Coverage.key(pp, name), []} <> Coverage.ctor_nodes(cs, pp, _) : List<&2, Imports.Edge>}
+          %reach.nodes_eq(rest, p, more) :
+            {Digest.edges(Laws.reach.nodes(Digest.Top{Outline.IType{}, name, line, cs, calls} <> rest, p, more))
+              == Imports.Edge{Coverage.key(p, name), []} <> Coverage.ctor_nodes(cs, p, _) : List<&2, Imports.Edge>}
           Equal.cong(List<&2, Imports.Edge>, List<&2, Imports.Edge>,
-            xs => Imports.Edge{Laws.reach.key(pp, name), []} <> xs,
-            Digest.edges(Laws.reach.ctors(cs, pp, Laws.reach.nodes(rest, pp, more))),
-            Coverage.ctor_nodes(cs, pp, Digest.edges(Laws.reach.nodes(rest, pp, more))),
-            reach.ctors_eq(cs, pp, Laws.reach.nodes(rest, pp, more)))
+            xs => Imports.Edge{Laws.reach.key(p, name), []} <> xs,
+            Digest.edges(Laws.reach.ctors(cs, p, Laws.reach.nodes(rest, p, more))),
+            Coverage.ctor_nodes(cs, p, Digest.edges(Laws.reach.nodes(rest, p, more))),
+            reach.ctors_eq(cs, p, Laws.reach.nodes(rest, p, more)))
         case Outline.IImport{}:
-          reach.nodes_eq(rest, pp, more)
+          reach.nodes_eq(rest, p, more)
         case Outline.ILaw{}:
-          reach.nodes_eq(rest, pp, more)
+          reach.nodes_eq(rest, p, more)
         case Outline.ICtor{}:
-          reach.nodes_eq(rest, pp, more)
+          reach.nodes_eq(rest, p, more)
         case Outline.ILocal{}:
-          reach.nodes_eq(rest, pp, more)
+          reach.nodes_eq(rest, p, more)
 
 # every file's items as nodes have the rule's edges
 law reach.items_eq:
@@ -546,11 +546,11 @@ law reach.closure_eq:
   {Coverage.reached(Coverage.graph(ds)) == Laws.reach.closure(ds) : List<&2, String>}
 
 def reach.closure_eq(ds):
-  +gg = Laws.reach.graph(ds)
+  +g = Laws.reach.graph(ds)
   %reach.graph_eq(ds) : {Coverage.reached(_) == Laws.reach.closure(ds) : List<&2, String>}
-  %reach.len_edges(gg) :
-    {Coverage.reached(Digest.edges(gg))
-      == Imports.closure.go(Digest.edges(gg), Imports.paths(Digest.edges(gg)), _, "") : List<&2, String>}
+  %reach.len_edges(g) :
+    {Coverage.reached(Digest.edges(g))
+      == Imports.closure.go(Digest.edges(g), Imports.paths(Digest.edges(g)), _, "") : List<&2, String>}
   {==}
 
 def Laws.coverage_reach(ds):
@@ -567,18 +567,18 @@ def Laws.reach_from(ds):
 def Laws.reach_shut(ds):
   L1.unsafe_shut(Laws.reach.graph(ds), "")
 
-def Laws.reach_least(ds, ss, kk, hf, hs, hk):
-  L1.unsafe_least(Laws.reach.graph(ds), "", ss, kk, hf, hs, hk)
+def Laws.reach_least(ds, s, k, hf, hs, hk):
+  L1.unsafe_least(Laws.reach.graph(ds), "", s, k, hf, hs, hk)
 
 # stopping on a test is picking on it
 law reach.stop_pick:
-  for bb: Bool
+  for b: Bool
   for -x: List<&2, Bind.Use>
   for -y: List<&2, Bind.Use>
-  {Lazy.stop(List<&2, Bind.Use>, bb, x, _u => y) == Bool.pick(List<&2, Bind.Use>, bb, x, y) : List<&2, Bind.Use>}
+  {Lazy.stop(List<&2, Bind.Use>, b, x, _u => y) == Bool.pick(List<&2, Bind.Use>, b, x, y) : List<&2, Bind.Use>}
 
-def reach.stop_pick(bb, _x, _y):
-  match bb:
+def reach.stop_pick(b, _x, _y):
+  match b:
     case True{}:
       {==}
     case False{}:
@@ -594,11 +594,11 @@ def reach.before_eq(us, at):
   match us:
     case Nil{}:
       {==}
-    case Con{Bind.Use{+nm, +ln, +cc, +tt}, +rest}:
+    case Con{Bind.Use{+nm, +ln, +c, +t}, +rest}:
       %reach.before_eq(rest, at) :
-        {Digest.before(Bind.Use{nm, ln, cc, tt} <> rest, at)
-          == Bool.pick(List<&2, Bind.Use>, U32.is_le(at, ln), [], Bind.Use{nm, ln, cc, tt} <> _) : List<&2, Bind.Use>}
-      reach.stop_pick(U32.is_le(at, ln), [], Bind.Use{nm, ln, cc, tt} <> Digest.before(rest, at))
+        {Digest.before(Bind.Use{nm, ln, c, t} <> rest, at)
+          == Bool.pick(List<&2, Bind.Use>, U32.is_le(at, ln), [], Bind.Use{nm, ln, c, t} <> _) : List<&2, Bind.Use>}
+      reach.stop_pick(U32.is_le(at, ln), [], Bind.Use{nm, ln, c, t} <> Digest.before(rest, at))
 
 # the digest's uses from a line on are reach.after
 law reach.after_eq:
@@ -610,11 +610,11 @@ def reach.after_eq(us, at):
   match us:
     case Nil{}:
       {==}
-    case Con{Bind.Use{+nm, +ln, +cc, +tt}, +rest}:
+    case Con{Bind.Use{+nm, +ln, +c, +t}, +rest}:
       %reach.after_eq(rest, at) :
-        {Digest.after(Bind.Use{nm, ln, cc, tt} <> rest, at)
-          == Bool.pick(List<&2, Bind.Use>, U32.is_le(at, ln), Bind.Use{nm, ln, cc, tt} <> rest, _) : List<&2, Bind.Use>}
-      reach.stop_pick(U32.is_le(at, ln), Bind.Use{nm, ln, cc, tt} <> rest, Digest.after(rest, at))
+        {Digest.after(Bind.Use{nm, ln, c, t} <> rest, at)
+          == Bool.pick(List<&2, Bind.Use>, U32.is_le(at, ln), Bind.Use{nm, ln, c, t} <> rest, _) : List<&2, Bind.Use>}
+      reach.stop_pick(U32.is_le(at, ln), Bind.Use{nm, ln, c, t} <> rest, Digest.after(rest, at))
 
 # the digest's next item line is reach.next
 law reach.next_eq:
@@ -625,8 +625,8 @@ def reach.next_eq(items):
   match items:
     case Nil{}:
       {==}
-    case Con{Outline.Item{kk, name, line, sig, doc, path}, +rest}:
-      match kk:
+    case Con{Outline.Item{k, name, line, sig, doc, path}, +rest}:
+      match k:
         case Outline.ICtor{}:
           reach.next_eq(rest)
         case Outline.IImport{}:
@@ -643,11 +643,11 @@ def reach.next_eq(items):
 # the uses an item takes, in the digest, are reach.upto
 law reach.upto_m:
   for us: List<&2, Bind.Use>
-  for mm: Maybe<&2, U32>
-  {Digest.upto(us, mm) == Laws.reach.upto(us, mm) : List<&2, Bind.Use>}
+  for m: Maybe<&2, U32>
+  {Digest.upto(us, m) == Laws.reach.upto(us, m) : List<&2, Bind.Use>}
 
-def reach.upto_m(us, mm):
-  match mm:
+def reach.upto_m(us, m):
+  match m:
     case None{}:
       {==}
     case Some{at}:
@@ -656,11 +656,11 @@ def reach.upto_m(us, mm):
 # the uses an item leaves, in the digest, are reach.past
 law reach.past_m:
   for us: List<&2, Bind.Use>
-  for mm: Maybe<&2, U32>
-  {Digest.past(us, mm) == Laws.reach.past(us, mm) : List<&2, Bind.Use>}
+  for m: Maybe<&2, U32>
+  {Digest.past(us, m) == Laws.reach.past(us, m) : List<&2, Bind.Use>}
 
-def reach.past_m(us, mm):
-  match mm:
+def reach.past_m(us, m):
+  match m:
     case None{}:
       {==}
     case Some{at}:
@@ -697,36 +697,36 @@ def reach.calls_eq(us, all, file):
   match us:
     case Nil{}:
       {==}
-    case Con{Bind.Use{nn, ll, cc, +tt}, +rest}:
+    case Con{Bind.Use{n, l, c, +t}, +rest}:
       Equal.trans(List<&2, Digest.Mention>,
-        Digest.target(tt, Digest.aliases(all, file), file, Digest.called(rest, Digest.aliases(all, file), file)),
-        List.append(&2, Digest.Mention, Laws.coverage.target(tt, all, file),
+        Digest.target(t, Digest.aliases(all, file), file, Digest.called(rest, Digest.aliases(all, file), file)),
+        List.append(&2, Digest.Mention, Laws.coverage.target(t, all, file),
           Digest.called(rest, Digest.aliases(all, file), file)),
-        List.append(&2, Digest.Mention, Laws.coverage.target(tt, all, file), Laws.reach.calls(rest, all, file)),
-        coverage.d_target(tt, all, file, Digest.called(rest, Digest.aliases(all, file), file)),
+        List.append(&2, Digest.Mention, Laws.coverage.target(t, all, file), Laws.reach.calls(rest, all, file)),
+        coverage.d_target(t, all, file, Digest.called(rest, Digest.aliases(all, file), file)),
         Equal.cong(List<&2, Digest.Mention>, List<&2, Digest.Mention>,
-          xs => List.append(&2, Digest.Mention, Laws.coverage.target(tt, all, file), xs),
+          xs => List.append(&2, Digest.Mention, Laws.coverage.target(t, all, file), xs),
           Digest.called(rest, Digest.aliases(all, file), file), Laws.reach.calls(rest, all, file),
           reach.calls_eq(rest, all, file)))
 
 # a def's name joins the digest's proofs as it joins reach.proofs
 law reach.proof_push:
-  for mm: Maybe<&2, String>
+  for m: Maybe<&2, String>
   for +kids: Tree.Node
   for body: Tree.Node
   for ds: List<&2, Calls.Def>
-  for ss: List<&2, String>
-  for e: {Digest.proofs(ds) == ss : List<&2, String>}
-  {Digest.proofs(Calls.defs.push(mm, kids, body, ds)) == Laws.reach.proof(mm, Calls.proof(kids), ss)
+  for s: List<&2, String>
+  for e: {Digest.proofs(ds) == s : List<&2, String>}
+  {Digest.proofs(Calls.defs.push(m, kids, body, ds)) == Laws.reach.proof(m, Calls.proof(kids), s)
     : List<&2, String>}
 
-def reach.proof_push(mm, kids, body, ds, _ss, e):
-  match mm:
+def reach.proof_push(m, kids, body, ds, _ss, e):
+  match m:
     case None{}:
       e
-    case Some{nn}:
-      %e : {Digest.proofs(Calls.Def{nn, kids, body} <> ds)
-        == Bool.pick(List<&2, String>, Calls.proof(kids), nn <> _, _) : List<&2, String>}
+    case Some{n}:
+      %e : {Digest.proofs(Calls.Def{n, kids, body} <> ds)
+        == Bool.pick(List<&2, String>, Calls.proof(kids), n <> _, _) : List<&2, String>}
       {==}
 
 # the digest's proofs are reach.proofs
@@ -788,8 +788,8 @@ def reach.tops_eq(items, all, us, file, ps):
   match items:
     case Nil{}:
       {==}
-    case Con{Outline.Item{kk, +name, +line, +sig, +doc, +path}, +rest}:
-      match kk:
+    case Con{Outline.Item{k, +name, +line, +sig, +doc, +path}, +rest}:
+      match k:
         case Outline.IDef{}:
           +as = Digest.aliases(all, file)
           +nx = Digest.next_line(rest)
@@ -875,8 +875,8 @@ def reach.indexed(items, us, as, file, ps):
   match items:
     case Nil{}:
       {==}
-    case Con{Outline.Item{kk, +name, +line, +sig, +doc, +path}, +rest}:
-      match kk:
+    case Con{Outline.Item{k, +name, +line, +sig, +doc, +path}, +rest}:
+      match k:
         case Outline.IDef{}:
           +nx = Digest.next_line(rest)
           +top = {Digest.Top{Outline.IDef{}, name, line, [], Digest.called(Digest.upto(us, nx), as, file)}
@@ -913,88 +913,88 @@ def reach.indexed(items, us, as, file, ps):
 
 # the digest's uses are coverage.uses
 law reach.uses_eq:
-  for bb: Bind.Bound
-  {Digest.uses.of(bb) == Laws.coverage.uses(bb) : List<&2, Bind.Use>}
+  for b: Bind.Bound
+  {Digest.uses.of(b) == Laws.coverage.uses(b) : List<&2, Bind.Use>}
 
-def reach.uses_eq(bb):
-  match bb:
+def reach.uses_eq(b):
+  match b:
     case Bind.Bound{_bs, _us, _scs}:
       {==}
 
 def Laws.reach_digest(path, text, toks, tree, bound, items):
-  +pp = Imports.norm(path)
+  +p = Imports.norm(path)
   %reach.proofs_eq(tree) :
     {Laws.coverage.view(Digest.of(Src.Src{path, text, toks, tree, bound, items}))
-      == Laws.CoverageView{pp, Paths.is_laws(path), Bool.or(Paths.is_law_file(pp), Paths.is_test(pp)),
-        Laws.reach.tops(items, items, Laws.coverage.uses(bound), pp, _),
+      == Laws.CoverageView{p, Paths.is_laws(path), Bool.or(Paths.is_law_file(p), Paths.is_test(p)),
+        Laws.reach.tops(items, items, Laws.coverage.uses(bound), p, _),
         Bool.pick(List<&2, Digest.Mention>, Paths.is_laws(path),
-          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, pp), [])} : Laws.CoverageView}
+          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, p), [])} : Laws.CoverageView}
   %reach.uses_eq(bound) :
     {Laws.coverage.view(Digest.of(Src.Src{path, text, toks, tree, bound, items}))
-      == Laws.CoverageView{pp, Paths.is_laws(path), Bool.or(Paths.is_law_file(pp), Paths.is_test(pp)),
-        Laws.reach.tops(items, items, _, pp, Digest.proofs(Calls.defs(tree))),
+      == Laws.CoverageView{p, Paths.is_laws(path), Bool.or(Paths.is_law_file(p), Paths.is_test(p)),
+        Laws.reach.tops(items, items, _, p, Digest.proofs(Calls.defs(tree))),
         Bool.pick(List<&2, Digest.Mention>, Paths.is_laws(path),
-          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, pp), [])} : Laws.CoverageView}
-  %reach.tops_eq(items, items, Digest.uses.of(bound), pp, Digest.proofs(Calls.defs(tree))) :
+          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, p), [])} : Laws.CoverageView}
+  %reach.tops_eq(items, items, Digest.uses.of(bound), p, Digest.proofs(Calls.defs(tree))) :
     {Laws.coverage.view(Digest.of(Src.Src{path, text, toks, tree, bound, items}))
-      == Laws.CoverageView{pp, Paths.is_laws(path), Bool.or(Paths.is_law_file(pp), Paths.is_test(pp)), _,
+      == Laws.CoverageView{p, Paths.is_laws(path), Bool.or(Paths.is_law_file(p), Paths.is_test(p)), _,
         Bool.pick(List<&2, Digest.Mention>, Paths.is_laws(path),
-          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, pp), [])} : Laws.CoverageView}
-  %reach.indexed(items, Digest.uses.of(bound), Digest.aliases(items, pp), pp, Digest.proofs(Calls.defs(tree))) :
+          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, p), [])} : Laws.CoverageView}
+  %reach.indexed(items, Digest.uses.of(bound), Digest.aliases(items, p), p, Digest.proofs(Calls.defs(tree))) :
     {Laws.coverage.view(Digest.of(Src.Src{path, text, toks, tree, bound, items}))
-      == Laws.CoverageView{pp, Paths.is_laws(path), Bool.or(Paths.is_law_file(pp), Paths.is_test(pp)), _,
+      == Laws.CoverageView{p, Paths.is_laws(path), Bool.or(Paths.is_law_file(p), Paths.is_test(p)), _,
         Bool.pick(List<&2, Digest.Mention>, Paths.is_laws(path),
-          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, pp), [])} : Laws.CoverageView}
-  %coverage.d_stated(Paths.is_laws(path), tree, bound, items, pp) :
+          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, p), [])} : Laws.CoverageView}
+  %coverage.d_stated(Paths.is_laws(path), tree, bound, items, p) :
     {Laws.coverage.view(Digest.of(Src.Src{path, text, toks, tree, bound, items}))
-      == Laws.CoverageView{pp, Paths.is_laws(path), Bool.or(Paths.is_law_file(pp), Paths.is_test(pp)),
-        Digest.ranged(items, Digest.uses.of(bound), Digest.aliases(items, pp), pp,
+      == Laws.CoverageView{p, Paths.is_laws(path), Bool.or(Paths.is_law_file(p), Paths.is_test(p)),
+        Digest.ranged(items, Digest.uses.of(bound), Digest.aliases(items, p), p,
           Bind.index(Digest.proofs(Calls.defs(tree)))), _}
         : Laws.CoverageView}
   {==}
 
-def Laws.reach_digest_role(rr, path, text, toks, tree, bound, items):
-  +pp = Imports.norm(path)
+def Laws.reach_digest_role(r, path, text, toks, tree, bound, items):
+  +p = Imports.norm(path)
   %reach.proofs_eq(tree) :
-    {Digest.of.role(rr, Src.Src{path, text, toks, tree, bound, items})
-      == Digest.Digest{path, pp, Imports.dir_of(path), Role.is_laws(rr), Role.is_law_file(rr),
-        Bool.or(Role.is_law_file(rr), Paths.is_test(pp)),
-        Laws.reach.tops(items, items, Laws.coverage.uses(bound), pp, _),
-        Bool.pick(List<&2, Digest.Mention>, Role.is_laws(rr),
-          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, pp), []),
-        Imports.targets(items, pp), Digest.laws.in(Role.is_laws(rr), tree, items)} : Digest.Digest}
+    {Digest.of.role(r, Src.Src{path, text, toks, tree, bound, items})
+      == Digest.Digest{path, p, Imports.dir_of(path), Role.is_laws(r), Role.is_law_file(r),
+        Bool.or(Role.is_law_file(r), Paths.is_test(p)),
+        Laws.reach.tops(items, items, Laws.coverage.uses(bound), p, _),
+        Bool.pick(List<&2, Digest.Mention>, Role.is_laws(r),
+          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, p), []),
+        Imports.targets(items, p), Digest.laws.in(Role.is_laws(r), tree, items)} : Digest.Digest}
   %reach.uses_eq(bound) :
-    {Digest.of.role(rr, Src.Src{path, text, toks, tree, bound, items})
-      == Digest.Digest{path, pp, Imports.dir_of(path), Role.is_laws(rr), Role.is_law_file(rr),
-        Bool.or(Role.is_law_file(rr), Paths.is_test(pp)),
-        Laws.reach.tops(items, items, _, pp, Digest.proofs(Calls.defs(tree))),
-        Bool.pick(List<&2, Digest.Mention>, Role.is_laws(rr),
-          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, pp), []),
-        Imports.targets(items, pp), Digest.laws.in(Role.is_laws(rr), tree, items)} : Digest.Digest}
-  %reach.tops_eq(items, items, Digest.uses.of(bound), pp, Digest.proofs(Calls.defs(tree))) :
-    {Digest.of.role(rr, Src.Src{path, text, toks, tree, bound, items})
-      == Digest.Digest{path, pp, Imports.dir_of(path), Role.is_laws(rr), Role.is_law_file(rr),
-        Bool.or(Role.is_law_file(rr), Paths.is_test(pp)),
+    {Digest.of.role(r, Src.Src{path, text, toks, tree, bound, items})
+      == Digest.Digest{path, p, Imports.dir_of(path), Role.is_laws(r), Role.is_law_file(r),
+        Bool.or(Role.is_law_file(r), Paths.is_test(p)),
+        Laws.reach.tops(items, items, _, p, Digest.proofs(Calls.defs(tree))),
+        Bool.pick(List<&2, Digest.Mention>, Role.is_laws(r),
+          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, p), []),
+        Imports.targets(items, p), Digest.laws.in(Role.is_laws(r), tree, items)} : Digest.Digest}
+  %reach.tops_eq(items, items, Digest.uses.of(bound), p, Digest.proofs(Calls.defs(tree))) :
+    {Digest.of.role(r, Src.Src{path, text, toks, tree, bound, items})
+      == Digest.Digest{path, p, Imports.dir_of(path), Role.is_laws(r), Role.is_law_file(r),
+        Bool.or(Role.is_law_file(r), Paths.is_test(p)),
         _,
-        Bool.pick(List<&2, Digest.Mention>, Role.is_laws(rr),
-          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, pp), []),
-        Imports.targets(items, pp), Digest.laws.in(Role.is_laws(rr), tree, items)} : Digest.Digest}
-  %reach.indexed(items, Digest.uses.of(bound), Digest.aliases(items, pp), pp, Digest.proofs(Calls.defs(tree))) :
-    {Digest.of.role(rr, Src.Src{path, text, toks, tree, bound, items})
-      == Digest.Digest{path, pp, Imports.dir_of(path), Role.is_laws(rr), Role.is_law_file(rr),
-        Bool.or(Role.is_law_file(rr), Paths.is_test(pp)),
+        Bool.pick(List<&2, Digest.Mention>, Role.is_laws(r),
+          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, p), []),
+        Imports.targets(items, p), Digest.laws.in(Role.is_laws(r), tree, items)} : Digest.Digest}
+  %reach.indexed(items, Digest.uses.of(bound), Digest.aliases(items, p), p, Digest.proofs(Calls.defs(tree))) :
+    {Digest.of.role(r, Src.Src{path, text, toks, tree, bound, items})
+      == Digest.Digest{path, p, Imports.dir_of(path), Role.is_laws(r), Role.is_law_file(r),
+        Bool.or(Role.is_law_file(r), Paths.is_test(p)),
         _,
-        Bool.pick(List<&2, Digest.Mention>, Role.is_laws(rr),
-          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, pp), []),
-        Imports.targets(items, pp), Digest.laws.in(Role.is_laws(rr), tree, items)} : Digest.Digest}
-  %coverage.d_stated(Role.is_laws(rr), tree, bound, items, pp) :
-    {Digest.of.role(rr, Src.Src{path, text, toks, tree, bound, items})
-      == Digest.Digest{path, pp, Imports.dir_of(path), Role.is_laws(rr), Role.is_law_file(rr),
-        Bool.or(Role.is_law_file(rr), Paths.is_test(pp)),
-        Digest.ranged(items, Digest.uses.of(bound), Digest.aliases(items, pp), pp,
+        Bool.pick(List<&2, Digest.Mention>, Role.is_laws(r),
+          Laws.coverage.said(Laws.coverage.uses(bound), tree, items, p), []),
+        Imports.targets(items, p), Digest.laws.in(Role.is_laws(r), tree, items)} : Digest.Digest}
+  %coverage.d_stated(Role.is_laws(r), tree, bound, items, p) :
+    {Digest.of.role(r, Src.Src{path, text, toks, tree, bound, items})
+      == Digest.Digest{path, p, Imports.dir_of(path), Role.is_laws(r), Role.is_law_file(r),
+        Bool.or(Role.is_law_file(r), Paths.is_test(p)),
+        Digest.ranged(items, Digest.uses.of(bound), Digest.aliases(items, p), p,
           Bind.index(Digest.proofs(Calls.defs(tree)))),
         _,
-        Imports.targets(items, pp), Digest.laws.in(Role.is_laws(rr), tree, items)} : Digest.Digest}
+        Imports.targets(items, p), Digest.laws.in(Role.is_laws(r), tree, items)} : Digest.Digest}
   {==}
 
 def Laws.reach_digest_marks(_ms, _path, _text, _toks, _tree, _bound, _items, _ss):

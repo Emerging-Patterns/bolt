@@ -57,28 +57,28 @@ law home_down:
 # LAW: a resolved directory's candidates are its own bolt.bend, then its
 # parent's candidates, so they reach every parent up to the root
 law chain_parent:
-  for +dd: String
+  for +d: String
   for +rest: List<&2, String>
-  {Config.chain(dd <> rest) == (Config.root(dd <> rest, "") ++ "bolt.bend") <> Config.chain(rest)
+  {Config.chain(d <> rest) == (Config.root(d <> rest, "") ++ "bolt.bend") <> Config.chain(rest)
     : List<&2, String>}
 
 # LAW: the outermost directory's candidates are its own bolt.bend, then the
 # root's, `/bolt.bend`, and no more
 law chain_ends_at_root:
-  for +dd: String
-  {Config.chain([dd]) == ["/" ++ (dd ++ "/") ++ "bolt.bend", "/bolt.bend"] : List<&2, String>}
+  for +d: String
+  {Config.chain([d]) == ["/" ++ (d ++ "/") ++ "bolt.bend", "/bolt.bend"] : List<&2, String>}
 
 # LAW: a directory's path runs from the root, each directory then a `/`
 law root_from_the_top:
-  for +dd: String
+  for +d: String
   for +acc: String
-  {Config.root([dd], acc) == "/" ++ dd ++ "/" ++ acc : String}
+  {Config.root([d], acc) == "/" ++ d ++ "/" ++ acc : String}
 
 # the config a World's answer for a candidate gives: its text parsed when it
 # was read, else what the candidates after it give. Law vocabulary, as is
 # first_read.
-def first_read.at(mm: Maybe<&2, W.Answer>, more: Config.Config) -> Config.Config:
-  match mm:
+def first_read.at(m: Maybe<&2, W.Answer>, more: Config.Config) -> Config.Config:
+  match m:
     case None{}:
       more
     case Some{W.Listed{_names}}:

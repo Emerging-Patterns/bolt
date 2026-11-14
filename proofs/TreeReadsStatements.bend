@@ -6,8 +6,8 @@ import ../laws/TreeReadsStatements.bend as Laws
 import ../laws/defs/Chains.bend as D2
 import ./lemmas/BoolEmptiness.bend as M1
 
-def Laws.angle_opens_when_glued(kk, _tt, _glued):
-  match kk:
+def Laws.angle_opens_when_glued(k, _tt, _glued):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -337,14 +337,14 @@ def Laws.show_statement_with_body(_kind, kids, body, e):
       == "[" ++ Tree.show(kids) ++ (" {" ++ Tree.show(body) ++ "}") ++ "]" : String}
   {==}
 
-def Laws.show_last_node(hh, tt, e):
-  %Equal.sym(Bool, String.is_empty(Tree.show(tt)), True{}, e) :
-    {Tree.show(hh) ++ Bool.pick(String, _, "", " " ++ Tree.show(tt)) == Tree.show(hh) ++ "" : String}
+def Laws.show_last_node(h, t, e):
+  %Equal.sym(Bool, String.is_empty(Tree.show(t)), True{}, e) :
+    {Tree.show(h) ++ Bool.pick(String, _, "", " " ++ Tree.show(t)) == Tree.show(h) ++ "" : String}
   {==}
 
-def Laws.show_node_then_rest(hh, tt, e):
-  %Equal.sym(Bool, String.is_empty(Tree.show(tt)), False{}, e) :
-    {Tree.show(hh) ++ Bool.pick(String, _, "", " " ++ Tree.show(tt)) == Tree.show(hh) ++ (" " ++ Tree.show(tt))
+def Laws.show_node_then_rest(h, t, e):
+  %Equal.sym(Bool, String.is_empty(Tree.show(t)), False{}, e) :
+    {Tree.show(h) ++ Bool.pick(String, _, "", " " ++ Tree.show(t)) == Tree.show(h) ++ (" " ++ Tree.show(t))
       : String}
   {==}
 

@@ -14,8 +14,8 @@ import ../src/syntax/bind.bend as Bind
 
 # does a use resolve to a binder of the file? Law vocabulary: bolt never
 # calls it
-def positions.is_local(tt: Bind.Target) -> Bool:
-  match tt:
+def positions.is_local(t: Bind.Target) -> Bool:
+  match t:
     case Bind.TLocal{_l, _c}:
       True{}
     case _other:
@@ -23,8 +23,8 @@ def positions.is_local(tt: Bind.Target) -> Bool:
 
 # does a binder declare an item or a constructor? Law vocabulary: bolt never
 # calls it
-def positions.is_item(kk: Bind.BindKind) -> Bool:
-  match kk:
+def positions.is_item(k: Bind.BindKind) -> Bool:
+  match k:
     case Bind.KItem{}:
       True{}
     case Bind.KCtor{}:
@@ -34,8 +34,8 @@ def positions.is_item(kk: Bind.BindKind) -> Bool:
 
 # does a use resolve to an item of the file? Law vocabulary: bolt never
 # calls it
-def positions.is_item_use(tt: Bind.Target) -> Bool:
-  match tt:
+def positions.is_item_use(t: Bind.Target) -> Bool:
+  match t:
     case Bind.TItem{_n}:
       True{}
     case _other:
@@ -122,8 +122,8 @@ law binder_first_wins:
   for binds: List<&2, Bind.Bind>
   for +line: U32
   for +col: U32
-  for xx: Bind.Bind
-  {Bind.binder.go(binds, line, col, Some{xx}) == Some{xx} : Maybe<&2, Bind.Bind>}
+  for x: Bind.Bind
+  {Bind.binder.go(binds, line, col, Some{x}) == Some{x} : Maybe<&2, Bind.Bind>}
 
 # LAW: a use that resolves to the binder at (line, col) is one of its sites,
 # at the use's own position, in the order of the uses
@@ -146,12 +146,12 @@ law sites_skip_other_uses:
   for name: String
   for l: U32
   for c: U32
-  for tt: Bind.Target
+  for t: Bind.Target
   for rest: List<&2, Bind.Use>
   for +line: U32
   for +col: U32
-  for e: {positions.is_local(tt) == False{} : Bool}
-  {Bind.sites.go(Bind.Use{name, l, c, tt} <> rest, line, col) == Bind.sites.go(rest, line, col)
+  for e: {positions.is_local(t) == False{} : Bool}
+  {Bind.sites.go(Bind.Use{name, l, c, t} <> rest, line, col) == Bind.sites.go(rest, line, col)
     : List<&2, Bind.Pos>}
 
 # LAW: a binder's sites are its own position, then its uses'
@@ -210,11 +210,11 @@ law item_sites_skip_other_uses:
   for n: String
   for l: U32
   for c: U32
-  for tt: Bind.Target
+  for t: Bind.Target
   for rest: List<&2, Bind.Use>
   for +name: String
-  for e: {positions.is_item_use(tt) == False{} : Bool}
-  {Bind.item_sites.uses(Bind.Use{n, l, c, tt} <> rest, name) == Bind.item_sites.uses(rest, name)
+  for e: {positions.is_item_use(t) == False{} : Bool}
+  {Bind.item_sites.uses(Bind.Use{n, l, c, t} <> rest, name) == Bind.item_sites.uses(rest, name)
     : List<&2, Bind.Pos>}
 
 # LAW: an item's sites are its declarations, then its uses
@@ -245,11 +245,11 @@ law named_sites_take_named_uses:
   for +n: String
   for +l: U32
   for +c: U32
-  for tt: Bind.Target
+  for t: Bind.Target
   for rest: List<&2, Bind.Use>
   for +name: String
-  for e: {positions.is_local(tt) == False{} : Bool}
-  {Bind.named_sites.go(Bind.Use{n, l, c, tt} <> rest, name)
+  for e: {positions.is_local(t) == False{} : Bool}
+  {Bind.named_sites.go(Bind.Use{n, l, c, t} <> rest, name)
     == Bool.pick(List<&2, Bind.Pos>, String.eq(n, name),
       Bind.Pos{l, c} <> Bind.named_sites.go(rest, name), Bind.named_sites.go(rest, name)) : List<&2, Bind.Pos>}
 
@@ -265,27 +265,27 @@ law named_sites_read_uses:
 # goes on only to hand it back
 law use_at_takes_the_use_that_covers:
   for +name: String
-  for +ll: U32
-  for +cc: U32
+  for +l: U32
+  for +c: U32
   for +tg: Bind.Target
   for +rest: List<&2, Bind.Use>
   for +line: U32
   for +col: U32
-  for e: {Bind.covers(ll, cc, name, line, col) == True{} : Bool}
-  {Bind.use_at.go(Bind.Use{name, ll, cc, tg} <> rest, line, col, None{})
-    == Bind.use_at.go(rest, line, col, Some{Bind.SUse{Bind.Use{name, ll, cc, tg}}}) : Maybe<&2, Bind.Site>}
+  for e: {Bind.covers(l, c, name, line, col) == True{} : Bool}
+  {Bind.use_at.go(Bind.Use{name, l, c, tg} <> rest, line, col, None{})
+    == Bind.use_at.go(rest, line, col, Some{Bind.SUse{Bind.Use{name, l, c, tg}}}) : Maybe<&2, Bind.Site>}
 
 # LAW: a use that does not cover it is passed over
 law use_at_passes_other_uses:
   for +name: String
-  for +ll: U32
-  for +cc: U32
+  for +l: U32
+  for +c: U32
   for +tg: Bind.Target
   for +rest: List<&2, Bind.Use>
   for +line: U32
   for +col: U32
-  for e: {Bind.covers(ll, cc, name, line, col) == False{} : Bool}
-  {Bind.use_at.go(Bind.Use{name, ll, cc, tg} <> rest, line, col, None{})
+  for e: {Bind.covers(l, c, name, line, col) == False{} : Bool}
+  {Bind.use_at.go(Bind.Use{name, l, c, tg} <> rest, line, col, None{})
     == Bind.use_at.go(rest, line, col, None{}) : Maybe<&2, Bind.Site>}
 
 # LAW: the names in scope at a line are those of the last statement at or
@@ -351,8 +351,8 @@ law annotate_reads_back:
 # from the first binder again
 law refresh_starts_over_for_an_earlier_binder:
   for +name: String
-  for +ll: U32
-  for +cc: U32
+  for +l: U32
+  for +c: U32
   for +kind: Bind.BindKind
   for +note: String
   for +rest: List<&2, Bind.Bind>
@@ -361,17 +361,17 @@ law refresh_starts_over_for_an_earlier_binder:
   for +tl: U32
   for +tc: U32
   for +acc: List<&2, Bind.Bind>
-  for e: {Bind.before(ll, cc, tl, tc) == True{} : Bool}
-  {Bind.refresh.go(Bind.Bind{name, ll, cc, kind, note} <> rest, binds, cur, tl, tc, acc)
-    == Bind.refresh.go(rest, binds, Bind.seek(binds, ll, cc, Bind.seek.stop(binds, ll, cc)), ll, cc,
-      Bind.noted(Bind.seek.head(Bind.seek(binds, ll, cc, Bind.seek.stop(binds, ll, cc)), ll, cc),
-        Bind.Bind{name, ll, cc, kind, note}) <> acc) : List<&2, Bind.Bind>}
+  for e: {Bind.before(l, c, tl, tc) == True{} : Bool}
+  {Bind.refresh.go(Bind.Bind{name, l, c, kind, note} <> rest, binds, cur, tl, tc, acc)
+    == Bind.refresh.go(rest, binds, Bind.seek(binds, l, c, Bind.seek.stop(binds, l, c)), l, c,
+      Bind.noted(Bind.seek.head(Bind.seek(binds, l, c, Bind.seek.stop(binds, l, c)), l, c),
+        Bind.Bind{name, l, c, kind, note}) <> acc) : List<&2, Bind.Bind>}
 
 # LAW: any other is looked up on from where the last one was found
 law refresh_reads_on_for_a_later_binder:
   for +name: String
-  for +ll: U32
-  for +cc: U32
+  for +l: U32
+  for +c: U32
   for +kind: Bind.BindKind
   for +note: String
   for +rest: List<&2, Bind.Bind>
@@ -380,8 +380,8 @@ law refresh_reads_on_for_a_later_binder:
   for +tl: U32
   for +tc: U32
   for +acc: List<&2, Bind.Bind>
-  for e: {Bind.before(ll, cc, tl, tc) == False{} : Bool}
-  {Bind.refresh.go(Bind.Bind{name, ll, cc, kind, note} <> rest, binds, cur, tl, tc, acc)
-    == Bind.refresh.go(rest, binds, Bind.seek(cur, ll, cc, Bind.seek.stop(cur, ll, cc)), ll, cc,
-      Bind.noted(Bind.seek.head(Bind.seek(cur, ll, cc, Bind.seek.stop(cur, ll, cc)), ll, cc),
-        Bind.Bind{name, ll, cc, kind, note}) <> acc) : List<&2, Bind.Bind>}
+  for e: {Bind.before(l, c, tl, tc) == False{} : Bool}
+  {Bind.refresh.go(Bind.Bind{name, l, c, kind, note} <> rest, binds, cur, tl, tc, acc)
+    == Bind.refresh.go(rest, binds, Bind.seek(cur, l, c, Bind.seek.stop(cur, l, c)), l, c,
+      Bind.noted(Bind.seek.head(Bind.seek(cur, l, c, Bind.seek.stop(cur, l, c)), l, c),
+        Bind.Bind{name, l, c, kind, note}) <> acc) : List<&2, Bind.Bind>}

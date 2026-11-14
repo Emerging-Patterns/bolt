@@ -48,15 +48,15 @@ def pk.stop(b, _u, _x, _y, ih):
 # the rules' search of the roots is the spec's
 law pk.listed:
   for rs: List<&2, String>
-  for +dd: String
-  {Rules.has(rs, dd) == D1.listed(rs, dd) : Bool}
+  for +d: String
+  {Rules.has(rs, d) == D1.listed(rs, d) : Bool}
 
-def pk.listed(rs, dd):
+def pk.listed(rs, d):
   match rs:
     case Nil{}:
       {==}
     case Con{+r, +tl}:
-      pk.or(String.eq(r, dd), Rules.has(tl, dd), D1.listed(tl, dd), pk.listed(tl, dd))
+      pk.or(String.eq(r, d), Rules.has(tl, d), D1.listed(tl, d), pk.listed(tl, d))
 
 # the rules' nearest root is the spec's
 law pk.owner:
@@ -129,10 +129,10 @@ def pk.covers(ps, ds, rs):
 def L1.packages_scoped(srcs, rs):
   +ds = Digest.all.role(Role.marks(srcs), srcs)
   a = Equal.cong(List<&2, Digest.Digest>, List<&2, F.Finding>,
-    mm => List.concat(&2, F.Finding, [Law.check(mm), Rules.covers(rs, ds, rs)]),
+    m => List.concat(&2, F.Finding, [Law.check(m), Rules.covers(rs, ds, rs)]),
     Rules.members(ds, rs, ""), D1.part(ds, rs, ""), pk.members(ds, rs, ""))
   b = Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
-    cc => List.concat(&2, F.Finding, [Law.check(D1.part(ds, rs, "")), cc]),
+    c => List.concat(&2, F.Finding, [Law.check(D1.part(ds, rs, "")), c]),
     Rules.covers(rs, ds, rs), D1.covered(rs, ds, rs), pk.covers(rs, ds, rs))
   Equal.trans(List<&2, F.Finding>, Rules.project(srcs, rs),
     List.concat(&2, F.Finding, [Law.check(D1.part(ds, rs, "")), Rules.covers(rs, ds, rs)]),

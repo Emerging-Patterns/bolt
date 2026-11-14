@@ -10,12 +10,12 @@ import ../../src/rules/suspicious/prefix.bend as Prefix
 # what a char of a literal adds to its length, where the char is: one in its
 # body, none for the closing quote, the opening quote, an escape's second
 # char, a `\u{..}`'s braces and digits, or anything past the end
-def prefix_add(mm: Prefix.Mode, +cc: Char) -> Nat:
-  match mm:
+def prefix_add(m: Prefix.Mode, +c: Char) -> Nat:
+  match m:
     case Prefix.MOpen{}:
       0n
     case Prefix.MPlain{}:
-      Bool.pick(Nat, U32.is_eq(Char.to_u32(cc), 34), 0n, 1n)
+      Bool.pick(Nat, U32.is_eq(Char.to_u32(c), 34), 0n, 1n)
     case Prefix.MEsc{}:
       0n
     case Prefix.MUni{}:
@@ -26,28 +26,28 @@ def prefix_add(mm: Prefix.Mode, +cc: Char) -> Nat:
 # where the next char of a literal is, after this one: past the opening
 # quote in the body, a backslash opening an escape, `u` after it a `\u{..}`
 # that `}` closes, and a quote in the body ending it
-def prefix_next(mm: Prefix.Mode, +cc: Char) -> Prefix.Mode:
-  match mm:
+def prefix_next(m: Prefix.Mode, +c: Char) -> Prefix.Mode:
+  match m:
     case Prefix.MOpen{}:
       Prefix.MPlain{}
     case Prefix.MPlain{}:
-      Bool.pick(Prefix.Mode, U32.is_eq(Char.to_u32(cc), 92), Prefix.MEsc{},
-        Bool.pick(Prefix.Mode, U32.is_eq(Char.to_u32(cc), 34), Prefix.MDone{}, Prefix.MPlain{}))
+      Bool.pick(Prefix.Mode, U32.is_eq(Char.to_u32(c), 92), Prefix.MEsc{},
+        Bool.pick(Prefix.Mode, U32.is_eq(Char.to_u32(c), 34), Prefix.MDone{}, Prefix.MPlain{}))
     case Prefix.MEsc{}:
-      Bool.pick(Prefix.Mode, U32.is_eq(Char.to_u32(cc), 117), Prefix.MUni{}, Prefix.MPlain{})
+      Bool.pick(Prefix.Mode, U32.is_eq(Char.to_u32(c), 117), Prefix.MUni{}, Prefix.MPlain{})
     case Prefix.MUni{}:
-      Bool.pick(Prefix.Mode, U32.is_eq(Char.to_u32(cc), 125), Prefix.MPlain{}, Prefix.MUni{})
+      Bool.pick(Prefix.Mode, U32.is_eq(Char.to_u32(c), 125), Prefix.MPlain{}, Prefix.MUni{})
     case Prefix.MDone{}:
       Prefix.MDone{}
 
 # the length the rest of a literal's text adds, from where it is
-def prefix_len_go(tt: String, +mm: Prefix.Mode) -> Nat:
-  match tt:
+def prefix_len_go(t: String, +m: Prefix.Mode) -> Nat:
+  match t:
     case SNil{}:
       0n
-    case SCon{+cc, rest}:
-      Nat.add(prefix_add(mm, cc), prefix_len_go(rest, prefix_next(mm, cc)))
+    case SCon{+c, rest}:
+      Nat.add(prefix_add(m, c), prefix_len_go(rest, prefix_next(m, c)))
 
 # True when k is the literal's length, in decimal, then `n`
-def prefix_fits(+kk: String, lit: String) -> Bool:
-  String.eq(kk, Nat.show(prefix_len_go(lit, Prefix.MOpen{})) ++ "n")
+def prefix_fits(+k: String, lit: String) -> Bool:
+  String.eq(k, Nat.show(prefix_len_go(lit, Prefix.MOpen{})) ++ "n")

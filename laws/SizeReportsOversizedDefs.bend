@@ -82,19 +82,19 @@ law role_size:
 # LAW: a parameter with no lowercase name of its own, a type parameter, is
 # not counted
 law arity_skips_type_parameter:
-  for pp: Tree.Node
+  for p: Tree.Node
   for ps: List<&2, Tree.Node>
   for +acc: U32
-  for e: {String.is_empty(Calls.param_name(pp)) == True{} : Bool}
-  {Size.arity.go(pp <> ps, acc) == Size.arity.go(ps, acc) : U32}
+  for e: {String.is_empty(Calls.param_name(p)) == True{} : Bool}
+  {Size.arity.go(p <> ps, acc) == Size.arity.go(ps, acc) : U32}
 
 # LAW: a parameter with a name of its own counts one
 law arity_counts_named_parameter:
-  for pp: Tree.Node
+  for p: Tree.Node
   for ps: List<&2, Tree.Node>
   for +acc: U32
-  for e: {String.is_empty(Calls.param_name(pp)) == False{} : Bool}
-  {Size.arity.go(pp <> ps, acc) == Size.arity.go(ps, (acc + 1 : U32)) : U32}
+  for e: {String.is_empty(Calls.param_name(p)) == False{} : Bool}
+  {Size.arity.go(p <> ps, acc) == Size.arity.go(ps, (acc + 1 : U32)) : U32}
 
 # LAW: a token on a later line than any before it is the last line so far
 law last_takes_later_line:

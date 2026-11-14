@@ -16,12 +16,12 @@ import ./lemmas/Put.bend as M1
 
 # a token's share of the width is the spec's
 law wrap.cost:
-  for kk: Lex.TokKind
+  for k: Lex.TokKind
   for +tx: String
-  {Wrap.check.cost(kk, tx) == Laws.wrap.cost(kk, tx) : U32}
+  {Wrap.check.cost(k, tx) == Laws.wrap.cost(k, tx) : U32}
 
-def wrap.cost(kk, _tx):
-  match kk:
+def wrap.cost(k, _tx):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -74,11 +74,11 @@ law wrap.width_step:
   for +next: U32
   for +upto: U32
   for +seen: Bool
-  for -uu: U32
-  for -tt: U32
+  for -u: U32
+  for -t: U32
   for -x: U32
-  for ih: {x == Bool.pick(U32, h, uu, Bool.pick(U32, Bool.or(c, seen), Bool.pick(U32, c, next, upto), tt)) : U32}
-  {x == Bool.pick(U32, Bool.or(c, h), Bool.pick(U32, h, uu, next), Bool.pick(U32, seen, upto, tt)) : U32}
+  for ih: {x == Bool.pick(U32, h, u, Bool.pick(U32, Bool.or(c, seen), Bool.pick(U32, c, next, upto), t)) : U32}
+  {x == Bool.pick(U32, Bool.or(c, h), Bool.pick(U32, h, u, next), Bool.pick(U32, seen, upto, t)) : U32}
 
 def wrap.width_step(c, h, _next, _upto, _seen, _uu, _tt, _x, ih):
   match c:
@@ -106,11 +106,11 @@ def wrap.width_go(toks, acc, upto, seen):
   match toks:
     case Nil{}:
       {==}
-    case Con{Lex.Tok{+kk, +tx, _ln, _cl}, +rest}:
-      +next = (acc + Wrap.check.cost(kk, tx) : U32)
-      +colon = Wrap.check.is_colon(kk)
+    case Con{Lex.Tok{+k, +tx, _ln, _cl}, +rest}:
+      +next = (acc + Wrap.check.cost(k, tx) : U32)
+      +colon = Wrap.check.is_colon(k)
       +h = Laws.wrap.colons(rest)
-      %wrap.cost(kk, tx) : {Wrap.check.width.go(rest, next, Bool.pick(U32, colon, next, upto), Bool.or(colon, seen))
+      %wrap.cost(k, tx) : {Wrap.check.width.go(rest, next, Bool.pick(U32, colon, next, upto), Bool.or(colon, seen))
         == Bool.pick(U32, Bool.or(colon, h), Bool.pick(U32, h, Laws.wrap.upto(rest, (acc + _ : U32)), (acc + _ : U32)),
           Bool.pick(U32, seen, upto, Laws.wrap.total(rest, (acc + _ : U32)))) : U32}
       wrap.width_step(colon, h, next, upto, seen, Laws.wrap.upto(rest, next),
@@ -193,24 +193,24 @@ def wrap.args_end(c, t, m, _r):
 # the spec's motion of a token is the rule's
 law wrap.motion:
   for at: Wrap.Phase
-  for +kk: Lex.TokKind
+  for +k: Lex.TokKind
   for +tx: String
   for +glued: Bool
   for +paren: U32
   for +bracket: U32
   for +brace: U32
   for +angle: U32
-  {Laws.wrap.motion(at, kk, tx, glued, paren, bracket, brace, angle)
-    == Wrap.check.act(at, kk, tx, glued, paren, angle, brace, bracket) : Wrap.Act}
+  {Laws.wrap.motion(at, k, tx, glued, paren, bracket, brace, angle)
+    == Wrap.check.act(at, k, tx, glued, paren, angle, brace, bracket) : Wrap.Act}
 
-def wrap.motion(at, kk, tx, glued, paren, bracket, brace, angle):
+def wrap.motion(at, k, tx, glued, paren, bracket, brace, angle):
   match at:
     case Wrap.Seek{}:
-      wrap.seek_open(Wrap.check.is_oparen(kk, tx), Wrap.check.zero(paren, angle, brace, bracket),
-        Wrap.check.brackets(kk, tx, glued))
+      wrap.seek_open(Wrap.check.is_oparen(k, tx), Wrap.check.zero(paren, angle, brace, bracket),
+        Wrap.check.brackets(k, tx, glued))
     case Wrap.Args{}:
-      wrap.args_end(Wrap.check.is_cparen(kk, tx), Wrap.check.top(paren, angle, brace, bracket), Lex.is_comma(kk),
-        Wrap.check.brackets(kk, tx, glued))
+      wrap.args_end(Wrap.check.is_cparen(k, tx), Wrap.check.top(paren, angle, brace, bracket), Lex.is_comma(k),
+        Wrap.check.brackets(k, tx, glued))
     case Wrap.Past{}:
       {==}
     case Wrap.Shut{}:
@@ -262,12 +262,12 @@ law wrap.joined:
   for +pend: U32
   for +pcol: U32
   for +spans: List<&2, Wrap.Span>
-  for +kk: Lex.TokKind
+  for +k: Lex.TokKind
   for +tx: String
   for +ln: U32
   for +cl: U32
   {wrap.of(Wrap.check.note_args(Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans},
-    Lex.Tok{kk, tx, ln, cl}))
+    Lex.Tok{k, tx, ln, cl}))
     == Laws.wrap.join(mode, paren, bracket, brace, angle, open, wrap.line_of(shut), wrap.cur_of(on, pline, pend, pcol),
       spans, ln, cl) : Laws.wrap.Read}
 
@@ -347,18 +347,18 @@ law wrap.moved:
   for +pend: U32
   for +pcol: U32
   for +spans: List<&2, Wrap.Span>
-  for +kk: Lex.TokKind
+  for +k: Lex.TokKind
   for +tx: String
   for +ln: U32
   for +cl: U32
   for +ticks: Nat
   {wrap.of(Wrap.check.maybe_note(Wrap.check.is_sep(m),
     Wrap.check.apply(m, Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans}, ln, cl,
-      ticks), Lex.Tok{kk, tx, ln, cl}))
+      ticks), Lex.Tok{k, tx, ln, cl}))
     == Laws.wrap.move(m, mode, paren, bracket, brace, angle, open, wrap.line_of(shut),
       wrap.cur_of(on, pline, pend, pcol), spans, ln, cl, ticks) : Laws.wrap.Read}
 
-def wrap.moved(m, mode, on, paren, bracket, brace, angle, shut, open, pline, pend, pcol, spans, kk, tx, ln, cl, ticks):
+def wrap.moved(m, mode, on, paren, bracket, brace, angle, shut, open, pline, pend, pcol, spans, k, tx, ln, cl, ticks):
   match m:
     case Wrap.AOpen{}:
       {==}
@@ -378,40 +378,40 @@ def wrap.moved(m, mode, on, paren, bracket, brace, angle, shut, open, pline, pen
       match shut:
         case Wrap.Span{+line, +end, +col}:
           wrap.arrowed(U32.is_eq(ln, line), on, paren, bracket, brace, angle, Wrap.Span{line, end, col}, open, pline,
-            pend, pcol, spans, Lex.Tok{kk, tx, ln, cl})
+            pend, pcol, spans, Lex.Tok{k, tx, ln, cl})
     case Wrap.AStray{}:
       {==}
     case Wrap.AParen{}:
       wrap.joined(mode, on, (paren + 1 : U32), bracket, brace, angle, shut,
-        open, pline, pend, pcol, spans, kk, tx, ln, cl)
+        open, pline, pend, pcol, spans, k, tx, ln, cl)
     case Wrap.AUnparen{}:
       wrap.joined(mode, on, Wrap.check.dec_u(paren), bracket, brace, angle, shut,
-        open, pline, pend, pcol, spans, kk, tx, ln, cl)
+        open, pline, pend, pcol, spans, k, tx, ln, cl)
     case Wrap.ABrack{}:
       wrap.joined(mode, on, paren, (bracket + 1 : U32), brace, angle, shut,
-        open, pline, pend, pcol, spans, kk, tx, ln, cl)
+        open, pline, pend, pcol, spans, k, tx, ln, cl)
     case Wrap.AUnbrack{}:
       wrap.joined(mode, on, paren, Wrap.check.dec_u(bracket), brace, angle, shut,
-        open, pline, pend, pcol, spans, kk, tx, ln, cl)
+        open, pline, pend, pcol, spans, k, tx, ln, cl)
     case Wrap.ABrace{}:
       wrap.joined(mode, on, paren, bracket, (brace + 1 : U32), angle, shut,
-        open, pline, pend, pcol, spans, kk, tx, ln, cl)
+        open, pline, pend, pcol, spans, k, tx, ln, cl)
     case Wrap.AUnbrace{}:
       wrap.joined(mode, on, paren, bracket, Wrap.check.dec_u(brace), angle, shut,
-        open, pline, pend, pcol, spans, kk, tx, ln, cl)
+        open, pline, pend, pcol, spans, k, tx, ln, cl)
     case Wrap.AAngle{}:
       wrap.joined(mode, on, paren, bracket, brace, (angle + 1 : U32), shut,
-        open, pline, pend, pcol, spans, kk, tx, ln, cl)
+        open, pline, pend, pcol, spans, k, tx, ln, cl)
     case Wrap.AUnangle{}:
       %wrap.lower(ticks, angle) : {wrap.of(Wrap.check.note_args(Wrap.Walk{mode, paren, bracket, brace, _, shut, open,
-        on, pline, pend, pcol, spans}, Lex.Tok{kk, tx, ln, cl})) == Laws.wrap.join(mode, paren, bracket, brace,
+        on, pline, pend, pcol, spans}, Lex.Tok{k, tx, ln, cl})) == Laws.wrap.join(mode, paren, bracket, brace,
         Laws.wrap.lower(ticks, angle), open, wrap.line_of(shut), wrap.cur_of(on, pline, pend, pcol), spans, ln, cl)
         : Laws.wrap.Read}
       wrap.joined(mode, on, paren, bracket, brace, Laws.wrap.lower(ticks, angle), shut,
-        open, pline, pend, pcol, spans, kk, tx, ln, cl)
+        open, pline, pend, pcol, spans, k, tx, ln, cl)
     case Wrap.ANone{}:
       wrap.joined(mode, on, paren, bracket, brace, angle, shut,
-        open, pline, pend, pcol, spans, kk, tx, ln, cl)
+        open, pline, pend, pcol, spans, k, tx, ln, cl)
 
 # a significant token or not: the rule's step and the spec's agree when they
 # agree on a significant one
@@ -440,31 +440,31 @@ law wrap.stepped:
 
 def wrap.stepped(tok, wk, glued):
   match tok:
-    case Lex.Tok{+kk, +tx, +ln, +cl}:
+    case Lex.Tok{+k, +tx, +ln, +cl}:
       match wk:
         case Wrap.Walk{+mode, +paren, +bracket, +brace, +angle, +shut, +open, +on, +pline, +pend, +pcol, +spans}:
           +ticks = Wrap.check.ticks_of(tx)
-          +act = Wrap.check.act(mode, kk, tx, glued, paren, angle, brace, bracket)
-          +spec = Laws.wrap.motion(mode, kk, tx, glued, paren, bracket, brace, angle)
-          wrap.on_sig(Lex.significant(kk), Lex.Tok{kk, tx, ln, cl},
+          +act = Wrap.check.act(mode, k, tx, glued, paren, angle, brace, bracket)
+          +spec = Laws.wrap.motion(mode, k, tx, glued, paren, bracket, brace, angle)
+          wrap.on_sig(Lex.significant(k), Lex.Tok{k, tx, ln, cl},
             Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol, spans}, glued,
             Laws.wrap.move(spec, mode, paren, bracket, brace, angle, open, wrap.line_of(shut),
               wrap.cur_of(on, pline, pend, pcol), spans, ln, cl, ticks),
             Equal.trans(Laws.wrap.Read,
               wrap.of(Wrap.check.maybe_note(Wrap.check.is_sep(act),
                 Wrap.check.apply(act, Wrap.Walk{mode, paren, bracket, brace, angle, shut, open, on, pline, pend, pcol,
-                  spans}, ln, cl, ticks), Lex.Tok{kk, tx, ln, cl})),
+                  spans}, ln, cl, ticks), Lex.Tok{k, tx, ln, cl})),
               Laws.wrap.move(act, mode, paren, bracket, brace, angle, open, wrap.line_of(shut),
                 wrap.cur_of(on, pline, pend, pcol), spans, ln, cl, ticks),
               Laws.wrap.move(spec, mode, paren, bracket, brace, angle, open, wrap.line_of(shut),
                 wrap.cur_of(on, pline, pend, pcol), spans, ln, cl, ticks),
-              wrap.moved(act, mode, on, paren, bracket, brace, angle, shut, open, pline, pend, pcol, spans, kk, tx, ln,
+              wrap.moved(act, mode, on, paren, bracket, brace, angle, shut, open, pline, pend, pcol, spans, k, tx, ln,
                 cl, ticks),
               Equal.cong(Wrap.Act, Laws.wrap.Read,
-                aa => Laws.wrap.move(aa, mode, paren, bracket, brace, angle, open, wrap.line_of(shut),
+                a => Laws.wrap.move(a, mode, paren, bracket, brace, angle, open, wrap.line_of(shut),
                   wrap.cur_of(on, pline, pend, pcol), spans, ln, cl, ticks),
                 act, spec,
-                Equal.sym(Wrap.Act, spec, act, wrap.motion(mode, kk, tx, glued, paren, bracket, brace, angle)))))
+                Equal.sym(Wrap.Act, spec, act, wrap.motion(mode, k, tx, glued, paren, bracket, brace, angle)))))
 
 # the end of the header: the parameter still open is done
 law wrap.sealed:
@@ -492,20 +492,20 @@ def wrap.walked(toks, wk, glued):
   match toks:
     case Nil{}:
       wrap.sealed(wk, glued)
-    case Con{Lex.Tok{+kk, +tx, +ln, +cl}, +rest}:
-      +tok = {Lex.Tok{kk, tx, ln, cl} : Lex.Tok}
+    case Con{Lex.Tok{+k, +tx, +ln, +cl}, +rest}:
+      +tok = {Lex.Tok{k, tx, ln, cl} : Lex.Tok}
       Equal.trans(Laws.wrap.Read,
-        wrap.of(Wrap.check.walk(rest, Wrap.check.step(tok, wk, glued), Lex.is_name(kk))),
-        Laws.wrap.run(rest, wrap.of(Wrap.check.step(tok, wk, glued)), Lex.is_name(kk)),
-        Laws.wrap.run(rest, Laws.wrap.step(tok, wrap.of(wk), glued), Lex.is_name(kk)),
-        wrap.walked(rest, Wrap.check.step(tok, wk, glued), Lex.is_name(kk)),
-        Equal.cong(Laws.wrap.Read, Laws.wrap.Read, rd => Laws.wrap.run(rest, rd, Lex.is_name(kk)),
+        wrap.of(Wrap.check.walk(rest, Wrap.check.step(tok, wk, glued), Lex.is_name(k))),
+        Laws.wrap.run(rest, wrap.of(Wrap.check.step(tok, wk, glued)), Lex.is_name(k)),
+        Laws.wrap.run(rest, Laws.wrap.step(tok, wrap.of(wk), glued), Lex.is_name(k)),
+        wrap.walked(rest, Wrap.check.step(tok, wk, glued), Lex.is_name(k)),
+        Equal.cong(Laws.wrap.Read, Laws.wrap.Read, rd => Laws.wrap.run(rest, rd, Lex.is_name(k)),
           wrap.of(Wrap.check.step(tok, wk, glued)), Laws.wrap.step(tok, wrap.of(wk), glued),
           wrap.stepped(tok, wk, glued)))
 
 # a Maybe that holds a value
-def wrap.found(mm: Maybe<&2, Wrap.Span>) -> Bool:
-  match mm:
+def wrap.found(m: Maybe<&2, Wrap.Span>) -> Bool:
+  match m:
     case None{}:
       False{}
     case Some{_sp}:
@@ -777,19 +777,19 @@ def wrap.verdict(wk):
 # the rule's four findings, first found first: one onto the rest when any
 # is found, else the rest
 law wrap.placed:
-  for mm: Maybe<&2, Wrap.Span>
+  for m: Maybe<&2, Wrap.Span>
   for em: Maybe<&2, Wrap.Span>
   for sh: Maybe<&2, Wrap.Span>
   for lo: Maybe<&2, Wrap.Span>
   for +base: U32
   for +path: String
   for +more: List<&2, F.Finding>
-  {List.length(&2, F.Finding, Wrap.check.place(mm, em, sh, lo, base, path, more))
-    == Bool.pick(Nat, Bool.or(wrap.found(mm), Bool.or(wrap.found(em), Bool.or(wrap.found(sh), wrap.found(lo)))),
+  {List.length(&2, F.Finding, Wrap.check.place(m, em, sh, lo, base, path, more))
+    == Bool.pick(Nat, Bool.or(wrap.found(m), Bool.or(wrap.found(em), Bool.or(wrap.found(sh), wrap.found(lo)))),
       1n+List.length(&2, F.Finding, more), List.length(&2, F.Finding, more)) : Nat}
 
-def wrap.placed(mm, em, sh, lo, _base, _path, _more):
-  match mm:
+def wrap.placed(m, em, sh, lo, _base, _path, _more):
+  match m:
     case Some{Wrap.Span{line, end, col}}:
       {==}
     case None{}:
@@ -829,7 +829,7 @@ def wrap.jammed(toks, line, path, more):
     Bool.pick(Nat, Laws.wrap.shape(toks), 1n+len, len),
     wrap.placed(Wrap.check.jam_span(wk), Wrap.check.empty_span(wk), Wrap.check.shut_span(wk), Wrap.check.loose_span(wk),
       line, path, more),
-    Equal.cong(Bool, Nat, bb => Bool.pick(Nat, bb, 1n+len, len), any, Laws.wrap.shape(toks),
+    Equal.cong(Bool, Nat, b => Bool.pick(Nat, b, 1n+len, len), any, Laws.wrap.shape(toks),
       Equal.trans(Bool, any, Laws.wrap.bad_shape(wrap.of(wk)), Laws.wrap.shape(toks), wrap.verdict(wk),
         Equal.cong(Laws.wrap.Read, Bool, rd => Laws.wrap.bad_shape(rd), wrap.of(wk),
           Laws.wrap.run(toks, Laws.wrap.start(), False{}), wrap.walked(toks, Wrap.check.start(), False{})))))
@@ -872,7 +872,7 @@ def wrap.wide(line, toks, path, more):
       F.Finding{path, line, 120, 0, "wrap",
           "This def header is longer than 120 characters; wrap it with one parameter per line."},
       more),
-    Equal.cong(U32, Nat, ww => Bool.pick(Nat, U32.is_gt(ww, 120), 1n+len, len), Wrap.check.width(toks),
+    Equal.cong(U32, Nat, w => Bool.pick(Nat, U32.is_gt(w, 120), 1n+len, len), Wrap.check.width(toks),
       Laws.wrap.width(toks), Laws.wrap_width(toks)))
 
 # a header, broken or not: one finding onto the rest exactly when it is bad
@@ -903,22 +903,22 @@ def wrap.broken(toks):
   match toks:
     case Nil{}:
       {==}
-    case Con{Lex.Tok{+kk, _tx, _ln, _cl}, +rest}:
-      M1.put.or(Lex.is_nl(kk), Wrap.check.broken(rest), Laws.wrap.lines(rest), wrap.broken(rest))
+    case Con{Lex.Tok{+k, _tx, _ln, _cl}, +rest}:
+      M1.put.or(Lex.is_nl(k), Wrap.check.broken(rest), Laws.wrap.lines(rest), wrap.broken(rest))
 
 # an item: one finding onto the rest exactly when it is a bad def header
 law wrap.one:
-  for kk: Outline.ItemKind
+  for k: Outline.ItemKind
   for +line: U32
   for +sig: String
   for +path: String
   for +more: List<&2, F.Finding>
-  {List.length(&2, F.Finding, Wrap.check.one(kk, line, sig, path, more))
-    == Bool.pick(Nat, Bool.and(Outline.is_def(kk), Laws.wrap.bad(sig)), 1n+List.length(&2, F.Finding, more),
+  {List.length(&2, F.Finding, Wrap.check.one(k, line, sig, path, more))
+    == Bool.pick(Nat, Bool.and(Outline.is_def(k), Laws.wrap.bad(sig)), 1n+List.length(&2, F.Finding, more),
       List.length(&2, F.Finding, more)) : Nat}
 
-def wrap.one(kk, line, sig, path, more):
-  match kk:
+def wrap.one(k, line, sig, path, more):
+  match k:
     case Outline.IImport{}:
       {==}
     case Outline.IDef{}:
@@ -931,7 +931,7 @@ def wrap.one(kk, line, sig, path, more):
         Bool.pick(Nat, Bool.pick(Bool, Laws.wrap.lines(toks), Laws.wrap.shape(toks),
           U32.is_gt(Laws.wrap.width(toks), 120)), 1n+len, len),
         wrap.headed(Wrap.check.broken(toks), line, toks, path, more),
-        Equal.cong(Bool, Nat, bb => Bool.pick(Nat, Bool.pick(Bool, bb, Laws.wrap.shape(toks),
+        Equal.cong(Bool, Nat, b => Bool.pick(Nat, Bool.pick(Bool, b, Laws.wrap.shape(toks),
           U32.is_gt(Laws.wrap.width(toks), 120)), 1n+len, len), Wrap.check.broken(toks), Laws.wrap.lines(toks),
           wrap.broken(toks)))
     case Outline.ILaw{}:
@@ -953,14 +953,14 @@ def wrap.went(items, path):
   match items:
     case Nil{}:
       {==}
-    case Con{Outline.Item{+kk, _name, +line, +sig, _doc, _pp}, +rest}:
+    case Con{Outline.Item{+k, _name, +line, +sig, _doc, _pp}, +rest}:
       +more = Wrap.check.go(rest, path)
-      +hit = Bool.and(Outline.is_def(kk), Laws.wrap.bad(sig))
+      +hit = Bool.and(Outline.is_def(k), Laws.wrap.bad(sig))
       Equal.trans(Nat,
-        List.length(&2, F.Finding, Wrap.check.one(kk, line, sig, path, more)),
+        List.length(&2, F.Finding, Wrap.check.one(k, line, sig, path, more)),
         Bool.pick(Nat, hit, 1n+List.length(&2, F.Finding, more), List.length(&2, F.Finding, more)),
         Bool.pick(Nat, hit, 1n+Laws.wrap.count(rest), Laws.wrap.count(rest)),
-        wrap.one(kk, line, sig, path, more),
+        wrap.one(k, line, sig, path, more),
         Equal.cong(Nat, Nat, nn => Bool.pick(Nat, hit, 1n+nn, nn), List.length(&2, F.Finding, more),
           Laws.wrap.count(rest), wrap.went(rest, path)))
 

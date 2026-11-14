@@ -47,18 +47,18 @@ law slot_by_accessor_family:
 # List.length; String.get and String.length; and Array.get. List.set is not
 # one
 law slot_of_named_accessors:
-  for +tt: String
-  {Rewalk.slot_of(tt)
+  for +t: String
+  {Rewalk.slot_of(t)
     == Rewalk.slot_pick(
-      List.contains(~String, ~String.eq, ["List.get", "List.head", "List.last", "List.length"], tt),
-      Bool.or(String.eq(tt, "String.get"), String.eq(tt, "String.length")), String.eq(tt, "Array.get")) : Rewalk.Slot}
+      List.contains(~String, ~String.eq, ["List.get", "List.head", "List.last", "List.length"], t),
+      Bool.or(String.eq(t, "String.get"), String.eq(t, "String.length")), String.eq(t, "Array.get")) : Rewalk.Slot}
 
 # LAW: after a comma the walk is still in the slot argument only when no
 # argument was left to pass
 law step_is_zero_of_none_left:
-  for pp: Nat
-  for e: {pp == 0n : Nat}
-  {Rewalk.step_is_zero(pp) == True{} : Bool}
+  for p: Nat
+  for e: {p == 0n : Nat}
+  {Rewalk.step_is_zero(p) == True{} : Bool}
 
 # LAW: with one or more left, it is not
 law step_is_zero_of_some_left:
@@ -78,33 +78,33 @@ law step_hot_live_of_none_left:
 
 # LAW: a name called is a wide read of it
 law here_call_callee_is_wide:
-  for +tt: String
+  for +t: String
   for +name: String
   for +hot: Bool
-  {Rewalk.here_call(True{}, tt, name, hot) == Rewalk.name_hit(String.eq(tt, name), False{}) : Rewalk.Hit}
+  {Rewalk.here_call(True{}, t, name, hot) == Rewalk.name_hit(String.eq(t, name), False{}) : Rewalk.Hit}
 
 # LAW: a name before any other group is read as its position reads it
 law here_call_mention_keeps_slot:
-  for +tt: String
+  for +t: String
   for +name: String
   for +hot: Bool
-  {Rewalk.here_call(False{}, tt, name, hot) == Rewalk.name_hit(String.eq(tt, name), hot) : Rewalk.Hit}
+  {Rewalk.here_call(False{}, t, name, hot) == Rewalk.name_hit(String.eq(t, name), hot) : Rewalk.Hit}
 
 # LAW: a name indexed with `[` is a narrow read of it
 law here_hit_index_is_narrow:
   for +call: Bool
-  for +tt: String
+  for +t: String
   for +name: String
   for +hot: Bool
-  {Rewalk.here_hit(True{}, call, tt, name, hot) == Rewalk.name_hit(String.eq(tt, name), True{}) : Rewalk.Hit}
+  {Rewalk.here_hit(True{}, call, t, name, hot) == Rewalk.name_hit(String.eq(t, name), True{}) : Rewalk.Hit}
 
 # LAW: any other name before a group is read as a call or a mention
 law here_hit_otherwise_call:
   for +call: Bool
-  for +tt: String
+  for +t: String
   for +name: String
   for +hot: Bool
-  {Rewalk.here_hit(False{}, call, tt, name, hot) == Rewalk.here_call(call, tt, name, hot) : Rewalk.Hit}
+  {Rewalk.here_hit(False{}, call, t, name, hot) == Rewalk.here_call(call, t, name, hot) : Rewalk.Hit}
 
 # LAW: a call's arguments start outside the slot
 law inner_hot_call_cold:
@@ -131,25 +131,25 @@ law inner_hot_otherwise_call:
 # LAW: a call's commas separate arguments when the callee is a narrow
 # accessor
 law inner_live_call_of_accessor:
-  for +tt: String
-  {Rewalk.inner_live_call(True{}, tt) == Rewalk.slot_on(Rewalk.slot_of(tt)) : Bool}
+  for +t: String
+  {Rewalk.inner_live_call(True{}, t) == Rewalk.slot_on(Rewalk.slot_of(t)) : Bool}
 
 # LAW: what is no call counts no commas
 law inner_live_call_needs_call:
-  for +tt: String
-  {Rewalk.inner_live_call(False{}, tt) == False{} : Bool}
+  for +t: String
+  {Rewalk.inner_live_call(False{}, t) == False{} : Bool}
 
 # LAW: a bracket's inside counts no commas
 law inner_live_bracket_counts_none:
   for +call: Bool
-  for +tt: String
-  {Rewalk.inner_live(True{}, call, tt) == False{} : Bool}
+  for +t: String
+  {Rewalk.inner_live(True{}, call, t) == False{} : Bool}
 
 # LAW: any other group's inside counts them as a call does
 law inner_live_otherwise_call:
   for +call: Bool
-  for +tt: String
-  {Rewalk.inner_live(False{}, call, tt) == Rewalk.inner_live_call(call, tt) : Bool}
+  for +t: String
+  {Rewalk.inner_live(False{}, call, t) == Rewalk.inner_live_call(call, t) : Bool}
 
 # LAW: a chain binds when it holds a `=` leaf
 law has_eq_at_equals:
@@ -168,9 +168,9 @@ law has_eq_passes_other:
 
 # LAW: what is no chain binds nothing
 law has_eq_needs_a_chain:
-  for nn: Tree.Node
-  for e: {D2.chains.is_cons(nn) == False{} : Bool}
-  {Rewalk.has_eq(nn) == False{} : Bool}
+  for n: Tree.Node
+  for e: {D2.chains.is_cons(n) == False{} : Bool}
+  {Rewalk.has_eq(n) == False{} : Bool}
 
 # LAW: on the left of a let, nothing is in a slot
 law pick_hot_skips_left_side:
@@ -190,15 +190,15 @@ law pick_hot_otherwise_inner:
 law pick_live_skips_left_side:
   for +brack: Bool
   for +call: Bool
-  for +tt: String
-  {Rewalk.pick_live(True{}, brack, call, tt) == False{} : Bool}
+  for +t: String
+  {Rewalk.pick_live(True{}, brack, call, t) == False{} : Bool}
 
 # LAW: past it, they are counted as inner_live counts them
 law pick_live_otherwise_inner:
   for +brack: Bool
   for +call: Bool
-  for +tt: String
-  {Rewalk.pick_live(False{}, brack, call, tt) == Rewalk.inner_live(brack, call, tt) : Bool}
+  for +t: String
+  {Rewalk.pick_live(False{}, brack, call, t) == Rewalk.inner_live(brack, call, t) : Bool}
 
 # LAW: a let of one name is narrow when the name is read narrowly and never
 # wide
@@ -210,11 +210,11 @@ law narrow_let_only_narrow_reads:
 # LAW: a call is expensive when it is not the def itself and is a Base walk
 # or a loop of the file
 law expensive_walk_or_loop:
-  for +tt: String
+  for +t: String
   for +self: String
   for +lp: List<&2, String>
-  {Rewalk.expensive(tt, self, lp)
-    == Bool.and(Bool.not(String.eq(tt, self)), Bool.or(Rewalk.heavy(tt), List.contains(~String, ~String.eq, lp, tt)))
+  {Rewalk.expensive(t, self, lp)
+    == Bool.and(Bool.not(String.eq(t, self)), Bool.or(Rewalk.heavy(t), List.contains(~String, ~String.eq, lp, t)))
     : Bool}
 
 # LAW: a call is indexed when the group right after it opens with `[`
@@ -248,16 +248,16 @@ law add_seen_first_name:
   for +extra: Bool
   for +field: Bool
   for +nm: String
-  for +tt: String
-  {Rewalk.add_seen(False{}, extra, field, nm, tt) == Rewalk.Lhs{True{}, extra, field, tt} : Rewalk.Lhs}
+  for +t: String
+  {Rewalk.add_seen(False{}, extra, field, nm, t) == Rewalk.Lhs{True{}, extra, field, t} : Rewalk.Lhs}
 
 # LAW: a second name makes it a let of more than one, and the first is kept
 law add_seen_second_name:
   for +extra: Bool
   for +field: Bool
   for +nm: String
-  for +tt: String
-  {Rewalk.add_seen(True{}, extra, field, nm, tt) == Rewalk.Lhs{True{}, True{}, field, nm} : Rewalk.Lhs}
+  for +t: String
+  {Rewalk.add_seen(True{}, extra, field, nm, t) == Rewalk.Lhs{True{}, True{}, field, nm} : Rewalk.Lhs}
 
 # LAW: a name inside a field group is a name on the left, and makes the let
 # a field read
@@ -293,9 +293,9 @@ law note_st_reads_both_sides:
 
 # LAW: the walks of Base a rewalk cares about are these fourteen, by name
 law heavy_walks_by_name:
-  for +tt: String
-  {Rewalk.heavy(tt)
+  for +t: String
+  {Rewalk.heavy(t)
     == List.contains(~String, ~String.eq, [
       "List.map", "List.filter", "List.sort", "List.foldl", "List.foldr", "List.reverse", "List.concat",
       "Array.map", "Array.to_list",
-      "String.reverse", "String.to_upper", "String.to_lower", "String.to_list", "String.from_list"], tt) : Bool}
+      "String.reverse", "String.to_upper", "String.to_lower", "String.to_list", "String.from_list"], t) : Bool}

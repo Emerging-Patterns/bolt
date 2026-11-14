@@ -85,93 +85,93 @@ law arms_cover_counts:
 # LAW: a word covers a word exactly when their texts are the same: the same
 # literal or constructor twice is covered, another is not
 law arms_cover_word:
-  for +tt: String
-  for +uu: String
-  {Arms.covers([Arms.PWord{tt}], Some{[Arms.PWord{uu}]}) == String.eq(tt, uu) : Bool}
+  for +t: String
+  for +u: String
+  {Arms.covers([Arms.PWord{t}], Some{[Arms.PWord{u}]}) == String.eq(t, u) : Bool}
 
 # LAW: the same literal twice is covered (`case 139:` above `case 139:`)
 law arms_cover_same_word:
-  for +tt: String
-  {Arms.covers([Arms.PWord{tt}], Some{[Arms.PWord{tt}]}) == True{} : Bool}
+  for +t: String
+  {Arms.covers([Arms.PWord{t}], Some{[Arms.PWord{t}]}) == True{} : Bool}
 
 # LAW: a lone binder covers a literal or a constructor's name (`case other:`
 # above `case 0:`)
 law arms_cover_binder_word:
-  for tt: String
-  {Arms.covers([Arms.PAny{}], Some{[Arms.PWord{tt}]}) == True{} : Bool}
+  for t: String
+  {Arms.covers([Arms.PAny{}], Some{[Arms.PWord{t}]}) == True{} : Bool}
 
 # LAW: a lone binder covers a constructor with its fields (`case other:`
 # above `case Con{h, t}:`), whatever its brackets hold
 law arms_cover_binder_ctor:
-  for tt: String
+  for t: String
   for open: String
   for close: String
   {Arms.covers([Arms.PAny{}],
-    Some{[Arms.PWord{tt}, Arms.POpen{open}, Arms.PAny{}, Arms.PComma{}, Arms.PAny{}, Arms.PClose{close}]})
+    Some{[Arms.PWord{t}, Arms.POpen{open}, Arms.PAny{}, Arms.PComma{}, Arms.PAny{}, Arms.PClose{close}]})
     == True{} : Bool}
 
 # LAW: a lone binder covers a constructor that holds a constructor, to the
 # bracket that closes the outer one (`case other:` above `case Some{Nil{}}:`)
 law arms_cover_binder_nested:
-  for tt: String
-  for uu: String
+  for t: String
+  for u: String
   for open: String
   for close: String
-  {Arms.covers([Arms.PAny{}], Some{[Arms.PWord{tt}, Arms.POpen{open}, Arms.PWord{uu}, Arms.POpen{open},
+  {Arms.covers([Arms.PAny{}], Some{[Arms.PWord{t}, Arms.POpen{open}, Arms.PWord{u}, Arms.POpen{open},
     Arms.PClose{close}, Arms.PClose{close}]}) == True{} : Bool}
 
 # LAW: a binder covers a string literal, which is one item: two binders
 # cover a string and a word (`case a b:` above `case "x" 0:`)
 law arms_cover_binder_string:
-  for tt: String
-  {Arms.covers([Arms.PAny{}, Arms.PAny{}], Some{[Arms.PStr{}, Arms.PWord{tt}]}) == True{} : Bool}
+  for t: String
+  {Arms.covers([Arms.PAny{}, Arms.PAny{}], Some{[Arms.PStr{}, Arms.PWord{t}]}) == True{} : Bool}
 
 # LAW: a lone binder covers `kn+p` (`case n:` above `case 2n+p:`)
 law arms_cover_binder_plus:
-  for tt: String
-  {Arms.covers([Arms.PAny{}], Some{[Arms.PPlus{tt}, Arms.PAny{}]}) == True{} : Bool}
+  for t: String
+  {Arms.covers([Arms.PAny{}], Some{[Arms.PPlus{t}, Arms.PAny{}]}) == True{} : Bool}
 
 # LAW: a word never covers a binder: a literal or a constructor arm above a
 # catch-all leaves the catch-all reachable
 law arms_cover_word_not_binder:
-  for tt: String
-  {Arms.covers([Arms.PWord{tt}], Some{[Arms.PAny{}]}) == False{} : Bool}
+  for t: String
+  {Arms.covers([Arms.PWord{t}], Some{[Arms.PAny{}]}) == False{} : Bool}
 
 # LAW: one shape under other names is covered: a constructor with two
 # binders covers the same constructor with two binders (`case Some{x}:`
 # above `case Some{y}:`; a binder's name is not read)
 law arms_cover_same_shape:
-  for +tt: String
+  for +t: String
   for +open: String
   for +close: String
-  {Arms.covers([Arms.PWord{tt}, Arms.POpen{open}, Arms.PAny{}, Arms.PComma{}, Arms.PAny{}, Arms.PClose{close}],
-    Some{[Arms.PWord{tt}, Arms.POpen{open}, Arms.PAny{}, Arms.PComma{}, Arms.PAny{}, Arms.PClose{close}]})
+  {Arms.covers([Arms.PWord{t}, Arms.POpen{open}, Arms.PAny{}, Arms.PComma{}, Arms.PAny{}, Arms.PClose{close}],
+    Some{[Arms.PWord{t}, Arms.POpen{open}, Arms.PAny{}, Arms.PComma{}, Arms.PAny{}, Arms.PClose{close}]})
     == True{} : Bool}
 
 # LAW: a binder a `<>` follows stands for one item, and the last binder for
 # every `<> item` left: `h <> t` covers a list pattern of three items
 law arms_cover_head_tail:
-  for tt: String
-  for uu: String
-  for vv: String
+  for t: String
+  for u: String
+  for v: String
   {Arms.covers([Arms.PAny{}, Arms.PCons{}, Arms.PAny{}],
-    Some{[Arms.PWord{tt}, Arms.PCons{}, Arms.PWord{uu}, Arms.PCons{}, Arms.PWord{vv}]}) == True{} : Bool}
+    Some{[Arms.PWord{t}, Arms.PCons{}, Arms.PWord{u}, Arms.PCons{}, Arms.PWord{v}]}) == True{} : Bool}
 
 # LAW: a lone binder covers a whole list pattern, every `<> item` of it
 # (`case xs:` above `case h <> Nil{}:`)
 law arms_cover_binder_list:
-  for tt: String
+  for t: String
   for open: String
   for close: String
   {Arms.covers([Arms.PAny{}],
-    Some{[Arms.PAny{}, Arms.PCons{}, Arms.PWord{tt}, Arms.POpen{open}, Arms.PClose{close}]}) == True{} : Bool}
+    Some{[Arms.PAny{}, Arms.PCons{}, Arms.PWord{t}, Arms.POpen{open}, Arms.PClose{close}]}) == True{} : Bool}
 
 # LAW: a longer list pattern does not cover a shorter one: `a <> b <> c`
 # leaves `h <> t` reachable, whatever t is
 law arms_cover_longer_not:
-  for tt: String
+  for t: String
   {Arms.covers([Arms.PAny{}, Arms.PCons{}, Arms.PAny{}, Arms.PCons{}, Arms.PAny{}],
-    Some{[Arms.PAny{}, Arms.PCons{}, Arms.PWord{tt}]}) == False{} : Bool}
+    Some{[Arms.PAny{}, Arms.PCons{}, Arms.PWord{t}]}) == False{} : Bool}
 
 # LAW: a string literal covers nothing, itself included, whatever follows:
 # what a string says is not read
@@ -206,52 +206,52 @@ law arms_reads_ended:
 
 # LAW: a plain name is read as a binder, whatever it is called
 law arms_reads_name:
-  for tt: String
-  for ll: U32
-  for cc: U32
-  {Arms.parts([Lex.Tok{Lex.TName{}, tt, ll, cc}]) == [Arms.PAny{}] : List<&2, Arms.Part>}
+  for t: String
+  for l: U32
+  for c: U32
+  {Arms.parts([Lex.Tok{Lex.TName{}, t, l, c}]) == [Arms.PAny{}] : List<&2, Arms.Part>}
 
 # LAW: a plain name a `{` follows is a constructor's name, not a binder
 law arms_reads_ctor:
-  for tt: String
-  for ll: U32
-  for cc: U32
-  {Arms.parts([Lex.Tok{Lex.TName{}, tt, ll, cc}, Lex.Tok{Lex.TOpen{}, "{", ll, cc}, Lex.Tok{Lex.TClose{}, "}", ll, cc}])
-    == [Arms.PWord{tt}, Arms.POpen{"{"}, Arms.PClose{"}"}] : List<&2, Arms.Part>}
+  for t: String
+  for l: U32
+  for c: U32
+  {Arms.parts([Lex.Tok{Lex.TName{}, t, l, c}, Lex.Tok{Lex.TOpen{}, "{", l, c}, Lex.Tok{Lex.TClose{}, "}", l, c}])
+    == [Arms.PWord{t}, Arms.POpen{"{"}, Arms.PClose{"}"}] : List<&2, Arms.Part>}
 
 # LAW: a `+` before a name is a quantity mark and is not read: `+h` is a
 # binder
 law arms_reads_mark:
-  for tt: String
-  for ll: U32
-  for cc: U32
-  {Arms.parts([Lex.Tok{Lex.TOp{}, "+", ll, cc}, Lex.Tok{Lex.TName{}, tt, ll, cc}]) == [Arms.PAny{}]
+  for t: String
+  for l: U32
+  for c: U32
+  {Arms.parts([Lex.Tok{Lex.TOp{}, "+", l, c}, Lex.Tok{Lex.TName{}, t, l, c}]) == [Arms.PAny{}]
     : List<&2, Arms.Part>}
 
 # LAW: a number a `+` follows is `kn+`, and what it adds to is read after it
 law arms_reads_plus:
-  for +kk: String
-  for tt: String
-  for ll: U32
-  for cc: U32
-  {Arms.parts([Lex.Tok{Lex.TNum{}, kk, ll, cc}, Lex.Tok{Lex.TOp{}, "+", ll, cc}, Lex.Tok{Lex.TName{}, tt, ll, cc}])
-    == [Arms.PPlus{kk}, Arms.PAny{}] : List<&2, Arms.Part>}
+  for +k: String
+  for t: String
+  for l: U32
+  for c: U32
+  {Arms.parts([Lex.Tok{Lex.TNum{}, k, l, c}, Lex.Tok{Lex.TOp{}, "+", l, c}, Lex.Tok{Lex.TName{}, t, l, c}])
+    == [Arms.PPlus{k}, Arms.PAny{}] : List<&2, Arms.Part>}
 
 # LAW: a pattern ends at its `:`: an inline body after it is not read
 # (`case 139: 1` is the pattern `139`)
 law arms_reads_to_colon:
-  for tt: String
-  for uu: String
-  for ll: U32
-  for cc: U32
+  for t: String
+  for u: String
+  for l: U32
+  for c: U32
   for rest: Tree.Node
-  {Arms.cut(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, tt, ll, cc}},
-      Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, uu, ll, cc}}, rest}})
-    == Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, tt, ll, cc}}, Tree.NNil{}} : Tree.Node}
+  {Arms.cut(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, t, l, c}},
+      Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, u, l, c}}, rest}})
+    == Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, t, l, c}}, Tree.NNil{}} : Tree.Node}
 
 # LAW: a string literal is read as one part that holds nothing it says
 law arms_reads_string:
-  for tt: String
-  for ll: U32
-  for cc: U32
-  {Arms.parts([Lex.Tok{Lex.TStr{}, tt, ll, cc}]) == [Arms.PStr{}] : List<&2, Arms.Part>}
+  for t: String
+  for l: U32
+  for c: U32
+  {Arms.parts([Lex.Tok{Lex.TStr{}, t, l, c}]) == [Arms.PStr{}] : List<&2, Arms.Part>}

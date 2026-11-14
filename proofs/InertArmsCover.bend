@@ -78,11 +78,11 @@ def cover.two(f, a, b, c, d, e1, e2):
 
 # a tree read with its strings and comments cut is blanked to the same tree
 law cover.node:
-  for nn: Tree.Node
-  {Arms.blank(D1.inert.node(nn)) == Arms.blank(nn) : Tree.Node}
+  for n: Tree.Node
+  {Arms.blank(D1.inert.node(n)) == Arms.blank(n) : Tree.Node}
 
-def cover.node(nn):
-  match nn:
+def cover.node(n):
+  match n:
     case Tree.Leaf{tok}:
       Equal.cong(Lex.Tok, Tree.Node, z => Tree.Leaf{z}, Arms.blank.tok(D1.inert.tok(tok)), Arms.blank.tok(tok),
         cover.tok(tok))

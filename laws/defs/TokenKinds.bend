@@ -4,8 +4,8 @@ import Base
 import ../../src/syntax/lex.bend as Lex
 
 # a kind's place in the lexer's list of kinds
-def kinds.rank(kk: Lex.TokKind) -> U32:
-  match kk:
+def kinds.rank(k: Lex.TokKind) -> U32:
+  match k:
     case Lex.TName{}:
       0
     case Lex.TUpper{}:
@@ -52,8 +52,8 @@ def kinds.rank(kk: Lex.TokKind) -> U32:
       21
 
 # are two kinds the same kind?
-def kinds.same(aa: Lex.TokKind, bb: Lex.TokKind) -> Bool:
-  U32.is_eq(kinds.rank(aa), kinds.rank(bb))
+def kinds.same(a: Lex.TokKind, b: Lex.TokKind) -> Bool:
+  U32.is_eq(kinds.rank(a), kinds.rank(b))
 
 # is a kind one of these?
 def kinds.among(+kk: Lex.TokKind, ks: List<&2, Lex.TokKind>) -> Bool:

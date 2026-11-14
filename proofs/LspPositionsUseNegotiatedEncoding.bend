@@ -50,8 +50,8 @@ def Laws.enc_negotiated(xs):
 def Laws.enc_advertised(_params):
   {==}
 
-def Laws.enc_kept(mm, h, _params, _ee):
-  match mm:
+def Laws.enc_kept(m, h, _params, _ee):
+  match m:
     case Server.MInitialize{}:
       Empty.absurd({Server.encoding(Server.MInitialize{}, _params, _ee) == _ee : Enc.Enc}, M1.true_false(h))
     case Server.MShutdown{}:
@@ -109,8 +109,8 @@ def nav.round_char(c, t, p, b, h, ih):
 # UTF-16 code units read back as code points are the code points counted
 law nav.round16:
   for cs: List<&2, Char>
-  for nn: Nat
-  {Enc.points(cs, Enc.units(cs, nn)) == nn : Nat}
+  for n: Nat
+  {Enc.points(cs, Enc.units(cs, n)) == n : Nat}
 
 def nav.round16(cs, nn):
   match cs:
@@ -123,10 +123,10 @@ def nav.round16(cs, nn):
         case 1n+p:
           nav.round_char(c, t, p, Enc.wide(c), {==}, nav.round16(t, p))
 
-def Laws.enc_round(ee, cs, nn):
-  match ee:
+def Laws.enc_round(e, cs, n):
+  match e:
     case Enc.Utf16{}:
-      nav.round16(cs, nn)
+      nav.round16(cs, n)
     case Enc.Utf32{}:
       {==}
 

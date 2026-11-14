@@ -47,8 +47,8 @@ def cwd.of(world: World) -> String:
   cwd
 
 # whether two questions are the same question
-def ask.eq(aa: Ask, bb: Ask) -> Bool:
-  match aa bb:
+def ask.eq(a: Ask, b: Ask) -> Bool:
+  match a b:
     case Entries{x1} Entries{y1}:
       String.eq(x1, y1)
     case Contents{x2} Contents{y2}:
@@ -76,8 +76,8 @@ def answered(world: World, +ask: Ask) -> Bool:
   Maybe.is_some(&2, Answer, answer(world, ask))
 
 # a listing's names; anything else lists nothing
-def listing.answer(aa: Answer) -> List<&2, String>:
-  match aa:
+def listing.answer(a: Answer) -> List<&2, String>:
+  match a:
     case Listed{names}:
       names
     case Read{_text}:
@@ -87,12 +87,12 @@ def listing.answer(aa: Answer) -> List<&2, String>:
     case Directory{}:
       []
 
-def listing.got(mm: Maybe<&2, Answer>) -> List<&2, String>:
-  match mm:
+def listing.got(m: Maybe<&2, Answer>) -> List<&2, String>:
+  match m:
     case None{}:
       []
-    case Some{aa}:
-      listing.answer(aa)
+    case Some{a}:
+      listing.answer(a)
 
 # a directory's entries, a sub-directory's name ending in "/"; none while
 # the directory is not listed yet
@@ -100,23 +100,23 @@ def listing(world: World, dir: String) -> List<&2, String>:
   listing.got(answer(world, Entries{dir}))
 
 # a read's text; anything else is no text
-def text.answer(aa: Answer) -> Maybe<&2, String>:
-  match aa:
+def text.answer(a: Answer) -> Maybe<&2, String>:
+  match a:
     case Listed{_names}:
       None{}
-    case Read{tt}:
-      Some{tt}
+    case Read{t}:
+      Some{t}
     case Unread{}:
       None{}
     case Directory{}:
       None{}
 
-def text.got(mm: Maybe<&2, Answer>) -> Maybe<&2, String>:
-  match mm:
+def text.got(m: Maybe<&2, Answer>) -> Maybe<&2, String>:
+  match m:
     case None{}:
       None{}
-    case Some{aa}:
-      text.answer(aa)
+    case Some{a}:
+      text.answer(a)
 
 # a file's text, or None when it could not be read, is a directory, or is
 # not read yet
@@ -150,8 +150,8 @@ def ix.key.go(name: String, +acc: U32) -> U32:
       ix.key.go(rest, (acc * 31 + x : U32))
 
 # a question's number: its path's
-def ix.key(aa: Ask) -> U32:
-  match aa:
+def ix.key(a: Ask) -> U32:
+  match a:
     case Entries{d}:
       ix.key.go(d, 7)
     case Contents{p}:
@@ -168,45 +168,45 @@ def ix.rs(ix: Ix) -> List<&2, Reply>:
       Nil{}
 
 # the half a bit picks: an even bit the low half
-def ix.pick(bb: Bool, lo: Ix, hi: Ix) -> Ix:
-  match bb:
+def ix.pick(b: Bool, lo: Ix, hi: Ix) -> Ix:
+  match b:
     case True{}:
       lo
     case False{}:
       hi
 
 # the half of a node a bit picks; none below anything else
-def ix.near(bb: Bool, ix: Ix) -> Ix:
+def ix.near(b: Bool, ix: Ix) -> Ix:
   match ix:
     case INode{lo, hi}:
-      ix.pick(bb, lo, hi)
+      ix.pick(b, lo, hi)
     case other:
       INone{}
 
 # a node from the half a bit picks and the other half
-def ix.join(bb: Bool, sub: Ix, far: Ix) -> Ix:
-  match bb:
+def ix.join(b: Bool, sub: Ix, far: Ix) -> Ix:
+  match b:
     case True{}:
       INode{sub, far}
     case False{}:
       INode{far, sub}
 
 # a reply put at the front of the leaf its number's low bits lead to
-def ix.put(dd: Nat, +kk: U32, +ix: Ix, rr: Reply) -> Ix:
-  match dd:
+def ix.put(d: Nat, +k: U32, +ix: Ix, r: Reply) -> Ix:
+  match d:
     case 0n:
-      ILeaf{rr <> ix.rs(ix)}
+      ILeaf{r <> ix.rs(ix)}
     case 1n+p:
-      ix.join(U32.is_even(kk), ix.put(p, U32.shr(kk), ix.near(U32.is_even(kk), ix), rr),
-        ix.near(Bool.not(U32.is_even(kk)), ix))
+      ix.join(U32.is_even(k), ix.put(p, U32.shr(k), ix.near(U32.is_even(k), ix), r),
+        ix.near(Bool.not(U32.is_even(k)), ix))
 
 # the replies at the leaf a number's low bits lead to
-def ix.at(dd: Nat, +kk: U32, ix: Ix) -> List<&2, Reply>:
-  match dd:
+def ix.at(d: Nat, +k: U32, ix: Ix) -> List<&2, Reply>:
+  match d:
     case 0n:
       ix.rs(ix)
     case 1n+p:
-      ix.at(p, U32.shr(kk), ix.near(U32.is_even(kk), ix))
+      ix.at(p, U32.shr(k), ix.near(U32.is_even(k), ix))
 
 # the index of these replies, each leaf in their order
 def ix.of(rs: List<&2, Reply>) -> Ix:

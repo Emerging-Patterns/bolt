@@ -14,8 +14,8 @@ import ../../src/syntax/tree.bend as Tree
 # that way.
 
 # a comment or a string literal: a token whose text is not code
-def inert.blanks(kk: Lex.TokKind) -> Bool:
-  match kk:
+def inert.blanks(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TStr{}:
       True{}
     case Lex.TComment{}:
@@ -24,20 +24,20 @@ def inert.blanks(kk: Lex.TokKind) -> Bool:
       False{}
 
 # a text cut to its first char
-def inert.cut(tt: String) -> String:
-  match tt:
+def inert.cut(t: String) -> String:
+  match t:
     case SNil{}:
       SNil{}
     case SCon{h, _t}:
       SCon{h, SNil{}}
 
 # the text, cut when it is not code
-def inert.keep(bb: Bool, tt: String) -> String:
-  match bb:
+def inert.keep(b: Bool, t: String) -> String:
+  match b:
     case True{}:
-      inert.cut(tt)
+      inert.cut(t)
     case False{}:
-      tt
+      t
 
 # a token with what it says cut when it is a comment or a string
 def inert.tok(tk: Lex.Tok) -> Lex.Tok:
@@ -54,8 +54,8 @@ def inert.toks(ts: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
       inert.tok(h) <> inert.toks(t)
 
 # a tree with each leaf read that way; brackets and statement kinds as they are
-def inert.node(nn: Tree.Node) -> Tree.Node:
-  match nn:
+def inert.node(n: Tree.Node) -> Tree.Node:
+  match n:
     case Tree.Leaf{tok}:
       Tree.Leaf{inert.tok(tok)}
     case Tree.Group{open, kids, close}:
@@ -68,26 +68,26 @@ def inert.node(nn: Tree.Node) -> Tree.Node:
       Tree.NCons{inert.node(h), inert.node(t)}
 
 # `"` or `#`: the first char of a string or a comment
-def inert.mark(cc: Char) -> Bool:
-  match cc:
+def inert.mark(c: Char) -> Bool:
+  match c:
     case Chr{+x}:
       Bool.or(U32.is_eq(x, 34), U32.is_eq(x, 35))
 
 # does the text start with `"` or `#`?
-def inert.marked(tt: String) -> Bool:
-  match tt:
+def inert.marked(t: String) -> Bool:
+  match t:
     case SNil{}:
       False{}
     case SCon{h, _t}:
       inert.mark(h)
 
-# a text starts with `"` or `#` exactly when bb says it is not code
-def inert.fits.go(bb: Bool, tt: String) -> Bool:
-  match bb:
+# a text starts with `"` or `#` exactly when b says it is not code
+def inert.fits.go(b: Bool, t: String) -> Bool:
+  match b:
     case True{}:
-      inert.marked(tt)
+      inert.marked(t)
     case False{}:
-      Bool.not(inert.marked(tt))
+      Bool.not(inert.marked(t))
 
 # a token as the lexer makes it: marked exactly when it is a comment or a string
 def inert.fits(tk: Lex.Tok) -> Bool:
@@ -104,8 +104,8 @@ def inert.oks(ts: List<&2, Lex.Tok>) -> Bool:
       Bool.and(inert.fits(h), inert.oks(t))
 
 # every leaf as the lexer makes it
-def inert.ok(nn: Tree.Node) -> Bool:
-  match nn:
+def inert.ok(n: Tree.Node) -> Bool:
+  match n:
     case Tree.Leaf{tok}:
       inert.fits(tok)
     case Tree.Group{_open, kids, _close}:

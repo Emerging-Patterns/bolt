@@ -33,7 +33,7 @@ def nqp.comments.at(k, t, l, c, rest, ih):
   match k:
     case Lex.TComment{}:
       Equal.cong(List<&2, Noqa.Mark>, List<&2, Noqa.Mark>,
-        rr => List.append(&2, Noqa.Mark, Noqa.mark.text(l, c, U32.from_nat(String.length(t)), t), rr),
+        r => List.append(&2, Noqa.Mark, Noqa.mark.text(l, c, U32.from_nat(String.length(t)), t), r),
         Noqa.marks(rest), Noqa.marks(Laws.nq.comments(rest)), ih)
     case Lex.TName{}:
       ih
@@ -85,9 +85,9 @@ def Laws.noqa_comments(toks):
     case Con{Lex.Tok{k, +t, +l, +c}, +rest}:
       nqp.comments.at(k, t, l, c, rest, Laws.noqa_comments(rest))
 
-def Laws.noqa_codes(line, col, len, n, tt):
-  Equal.cong(String, List<&2, Noqa.Mark>, ss => Noqa.mark.word(line, col, len, ss),
-    Noqa.lead(D1.nq.spaces(n) ++ "noqa:" ++ tt), Noqa.lead("noqa:" ++ tt), M2.nqp.lead3(n, "noqa:", tt))
+def Laws.noqa_codes(line, col, len, n, t):
+  Equal.cong(String, List<&2, Noqa.Mark>, s => Noqa.mark.word(line, col, len, s),
+    Noqa.lead(D1.nq.spaces(n) ++ "noqa:" ++ t), Noqa.lead("noqa:" ++ t), M2.nqp.lead3(n, "noqa:", t))
 
 # the filter's search of a mark's codes is the spec's
 law nqp.named:
@@ -239,23 +239,23 @@ def nqp.keeps(ms, gs):
   match gs:
     case Nil{}:
       {==}
-    case Con{F.Graded{+ll, F.Finding{+path, +line, +col, +len, +rule, +msg}}, +rest}:
+    case Con{F.Graded{+l, F.Finding{+path, +line, +col, +len, +rule, +msg}}, +rest}:
       +ix = Bind.index(Noqa.marked(ms))
       +code = Codes.code(rule)
       %Equal.sym(Bool, Lazy.and_then(Bind.indexed(ix, path), _u => Noqa.silenced(ms, path, line, code)),
         Noqa.silenced(ms, path, line, code), nqp.filter(ms, path, line, code)) :
         {Bool.pick(List<&2, F.Graded>, _, Noqa.keep.fast(ms, ix, rest),
-          F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> Noqa.keep.fast(ms, ix, rest))
-          == Laws.nq.kept(ms, F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> rest) : List<&2, F.Graded>}
+          F.Graded{l, F.Finding{path, line, col, len, rule, msg}} <> Noqa.keep.fast(ms, ix, rest))
+          == Laws.nq.kept(ms, F.Graded{l, F.Finding{path, line, col, len, rule, msg}} <> rest) : List<&2, F.Graded>}
       e = Equal.sym(Bool, Noqa.silenced(ms, path, line, code),
         Laws.nq.named(ms, path, line, code), nqp.silenced(ms, path, line, code))
       %e : {Bool.pick(List<&2, F.Graded>, _, Noqa.keep.fast(ms, ix, rest),
-          F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> Noqa.keep.fast(ms, ix, rest))
-        == Laws.nq.kept(ms, F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> rest) : List<&2, F.Graded>}
+          F.Graded{l, F.Finding{path, line, col, len, rule, msg}} <> Noqa.keep.fast(ms, ix, rest))
+        == Laws.nq.kept(ms, F.Graded{l, F.Finding{path, line, col, len, rule, msg}} <> rest) : List<&2, F.Graded>}
       h = Equal.sym(List<&2, F.Graded>, Noqa.keep.fast(ms, ix, rest), Laws.nq.kept(ms, rest), nqp.keeps(ms, rest))
       %h : {Bool.pick(List<&2, F.Graded>, Laws.nq.named(ms, path, line, code), _,
-          F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> _)
-        == Laws.nq.kept(ms, F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> rest) : List<&2, F.Graded>}
+          F.Graded{l, F.Finding{path, line, col, len, rule, msg}} <> _)
+        == Laws.nq.kept(ms, F.Graded{l, F.Finding{path, line, col, len, rule, msg}} <> rest) : List<&2, F.Graded>}
       {==}
 
 def Laws.noqa_keeps(ms, gs):

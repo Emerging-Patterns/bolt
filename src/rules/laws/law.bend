@@ -58,8 +58,8 @@ def named(ds: List<&2, Digest.Digest>) -> List<&2, Digest.Mention>:
 
 # an item's key: its name, a space, its file's path. A name has no space, so
 # no two items share one, and no item has the empty key
-def key(+pp: String, name: String) -> String:
-  name ++ " " ++ pp
+def key(+p: String, name: String) -> String:
+  name ++ " " ++ p
 
 # the keys of what the mentions name
 def keys(ms: List<&2, Digest.Mention>) -> List<&2, String>:
@@ -70,25 +70,25 @@ def keys(ms: List<&2, Digest.Mention>) -> List<&2, String>:
       key(p, n) <> keys(rest)
 
 # a type's constructors, each a node that leads nowhere, onto the others
-def ctor_nodes(cs: List<&2, String>, +pp: String, more: List<&2, Imports.Edge>) -> List<&2, Imports.Edge>:
+def ctor_nodes(cs: List<&2, String>, +p: String, more: List<&2, Imports.Edge>) -> List<&2, Imports.Edge>:
   match cs:
     case Nil{}:
       more
     case Con{c, rest}:
-      Imports.Edge{key(pp, c), []} <> ctor_nodes(rest, pp, more)
+      Imports.Edge{key(p, c), []} <> ctor_nodes(rest, p, more)
 
 # the items of a file as nodes onto the others: a def leads to what it
 # calls, a type and its constructors to nothing
-def nodes(ts: List<&2, Digest.Top>, +pp: String, more: List<&2, Imports.Edge>) -> List<&2, Imports.Edge>:
+def nodes(ts: List<&2, Digest.Top>, +p: String, more: List<&2, Imports.Edge>) -> List<&2, Imports.Edge>:
   match ts:
     case Nil{}:
       more
     case Con{Digest.Top{Outline.IDef{}, name, line, cs, calls}, rest}:
-      Imports.Edge{key(pp, name), keys(calls)} <> nodes(rest, pp, more)
+      Imports.Edge{key(p, name), keys(calls)} <> nodes(rest, p, more)
     case Con{Digest.Top{Outline.IType{}, name, line, cs, calls}, rest}:
-      Imports.Edge{key(pp, name), []} <> ctor_nodes(cs, pp, nodes(rest, pp, more))
+      Imports.Edge{key(p, name), []} <> ctor_nodes(cs, p, nodes(rest, p, more))
     case Con{other, rest}:
-      nodes(rest, pp, more)
+      nodes(rest, p, more)
 
 # the items of every file as nodes
 def graph.items(ds: List<&2, Digest.Digest>) -> List<&2, Imports.Edge>:
@@ -104,12 +104,12 @@ def graph(+ds: List<&2, Digest.Digest>) -> List<&2, Imports.Edge>:
   Imports.Edge{"", keys(named(ds))} <> graph.items(ds)
 
 # a type's constructors: is one of them reached?
-def any_item(ns: List<&2, String>, +cl: List<&2, String>, +pp: String) -> Bool:
+def any_item(ns: List<&2, String>, +cl: List<&2, String>, +p: String) -> Bool:
   match ns:
     case Nil{}:
       False{}
     case Con{name, rest}:
-      Lazy.or_else(Imports.has(cl, key(pp, name)), _u => any_item(rest, cl, pp))
+      Lazy.or_else(Imports.has(cl, key(p, name)), _u => any_item(rest, cl, p))
 
 # what is in scope
 # ----------------
@@ -124,22 +124,22 @@ def law_dirs(ds: List<&2, Digest.Digest>) -> List<&2, String>:
       Bool.pick(List<&2, String>, is_laws, dir <> more, more)
 
 # a def, or a type, that no law reaches
-def gaps(ts: List<&2, Digest.Top>, +cl: List<&2, String>, +pp: String, +path: String) -> List<&2, F.Finding>:
+def gaps(ts: List<&2, Digest.Top>, +cl: List<&2, String>, +p: String, +path: String) -> List<&2, F.Finding>:
   match ts:
     case Nil{}:
       Nil{}
     case Con{Digest.Top{Outline.IDef{}, +name, +line, cs, calls}, rest}:
-      +more = gaps(rest, cl, pp, path)
+      +more = gaps(rest, cl, p, path)
       Bool.pick(List<&2, F.Finding>,
-        Lazy.or_else(String.contains(name, "."), _u => Imports.has(cl, key(pp, name))), more,
+        Lazy.or_else(String.contains(name, "."), _u => Imports.has(cl, key(p, name))), more,
         F.Finding{path, line, 0, 0, "coverage", "No quantified law reaches def " ++ name ++ "."} <> more)
     case Con{Digest.Top{Outline.IType{}, +name, +line, cs, calls}, rest}:
-      +more = gaps(rest, cl, pp, path)
-      Bool.pick(List<&2, F.Finding>, Lazy.or_else(Imports.has(cl, key(pp, name)), _u => any_item(cs, cl, pp)), more,
+      +more = gaps(rest, cl, p, path)
+      Bool.pick(List<&2, F.Finding>, Lazy.or_else(Imports.has(cl, key(p, name)), _u => any_item(cs, cl, p)), more,
         F.Finding{path, line, 0, 0, "coverage", "No quantified law reaches type " ++ name ++ " or any of its constructors."}
           <> more)
     case Con{other, rest}:
-      gaps(rest, cl, pp, path)
+      gaps(rest, cl, p, path)
 
 # every file not exempt, against what the laws reach
 def check.go(ds: List<&2, Digest.Digest>, +cl: List<&2, String>) -> List<&2, F.Finding>:

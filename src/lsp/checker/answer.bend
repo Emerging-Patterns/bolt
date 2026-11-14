@@ -10,8 +10,8 @@ type Answer is Data:
   Unrun{}
 
 # an answer's diagnostics: none when bend could not be run
-def errors(aa: Answer) -> List<&2, Rep.Diag>:
-  match aa:
+def errors(a: Answer) -> List<&2, Rep.Diag>:
+  match a:
     case Checked{ds}:
       ds
     case Unrun{}:
@@ -23,8 +23,8 @@ def died(ds: List<&2, Rep.Diag>) -> Answer:
   match ds:
     case Nil{}:
       Unrun{}
-    case Con{dd, rest}:
-      Checked{dd <> rest}
+    case Con{d, rest}:
+      Checked{d <> rest}
 
 # the answer a tag gives: bend ran (`r`), a signal killed it (`s`), or
 # neither, and it could not be run; each error placed by the checked file's
@@ -40,17 +40,17 @@ def answer.tag(ran: Bool, killed: Bool, names: Maybe<&2, List<&2, String>>, text
 
 # exec's text read: its tag, then what bend printed, as diagnostics placed by
 # the checked file's names
-def answer(names: Maybe<&2, List<&2, String>>, ss: String) -> Answer:
-  match ss:
+def answer(names: Maybe<&2, List<&2, String>>, s: String) -> Answer:
+  match s:
     case SNil{}:
       Unrun{}
-    case SCon{+cc, text}:
-      answer.tag(Char.is_eq(cc, 'r'), Char.is_eq(cc, 's'), names, text)
+    case SCon{+c, text}:
+      answer.tag(Char.is_eq(c, 'r'), Char.is_eq(c, 's'), names, text)
 
 # a LAWS.bend's errors, settled by its PROOF.bend's answer: none when that
 # checks clean, and no check at all when bend could not be run on it
-def proved(aa: Answer, ds: List<&2, Rep.Diag>) -> Answer:
-  match aa:
+def proved(a: Answer, ds: List<&2, Rep.Diag>) -> Answer:
+  match a:
     case Checked{pds}:
       Checked{Bool.pick(List<&2, Rep.Diag>, List.is_empty(&2, Rep.Diag, pds), [], ds)}
     case Unrun{}:
@@ -62,6 +62,6 @@ type Checker is Type:  # noqa: L001 effect service
   Checker{run: String -> IO(Answer)}
 
 # the checker's answer for the file at a path, from a checker service
-def check(cc: Checker, path: String) -> IO(Answer):  # noqa: L001 effect accessor
-  Checker{r} = cc
+def check(c: Checker, path: String) -> IO(Answer):  # noqa: L001 effect accessor
+  Checker{r} = c
   r(path)

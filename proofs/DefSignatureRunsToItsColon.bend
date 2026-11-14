@@ -70,11 +70,11 @@ def wrap.ends(_kind, line, below, rest, e1):
           _u => Some{Calls.Wrap{line, Calls.join(Tree.Group{o, gk, cl}, rest)}})
           == Some{Calls.Wrap{line, Calls.join(Tree.Group{o, gk, cl}, rest)}} : Maybe<&2, Calls.Wrap>}
       {==}
-    case Tree.Stmt{sk, kk, sb}:
+    case Tree.Stmt{sk, k, sb}:
       %Equal.sym(Bool, Calls.has_colon(line), True{}, e1) :
         {Lazy.stop(Maybe<&2, Calls.Wrap>, Bool.not(_), None{},
-          _u => Some{Calls.Wrap{line, Calls.join(Tree.Stmt{sk, kk, sb}, rest)}})
-          == Some{Calls.Wrap{line, Calls.join(Tree.Stmt{sk, kk, sb}, rest)}} : Maybe<&2, Calls.Wrap>}
+          _u => Some{Calls.Wrap{line, Calls.join(Tree.Stmt{sk, k, sb}, rest)}})
+          == Some{Calls.Wrap{line, Calls.join(Tree.Stmt{sk, k, sb}, rest)}} : Maybe<&2, Calls.Wrap>}
       {==}
     case Tree.NNil{}:
       %Equal.sym(Bool, Calls.has_colon(line), True{}, e1) :
@@ -203,10 +203,10 @@ def wrap.none(kind, line, below, e1):
           _u => Some{Calls.Wrap{line, Calls.join(Tree.Group{o, gk, cl}, Tree.NNil{})}})
           == None{} : Maybe<&2, Calls.Wrap>}
       {==}
-    case Tree.Stmt{sk, kk, sb}:
+    case Tree.Stmt{sk, k, sb}:
       %Equal.sym(Bool, Calls.has_colon(line), False{}, e1) :
         {Lazy.stop(Maybe<&2, Calls.Wrap>, Bool.not(_), None{},
-          _u => Some{Calls.Wrap{line, Calls.join(Tree.Stmt{sk, kk, sb}, Tree.NNil{})}})
+          _u => Some{Calls.Wrap{line, Calls.join(Tree.Stmt{sk, k, sb}, Tree.NNil{})}})
           == None{} : Maybe<&2, Calls.Wrap>}
       {==}
     case Tree.NNil{}:
@@ -278,7 +278,7 @@ def Laws.arrow_below_is_proof(
       {==}
     case Tree.Group{o, gk, cl}:
       {==}
-    case Tree.Stmt{sk, kk, sb}:
+    case Tree.Stmt{sk, k, sb}:
       {==}
     case Tree.NNil{}:
       {==}
@@ -314,7 +314,7 @@ def Laws.type_below_is_proof(
       {==}
     case Tree.Group{o, gk, cl}:
       {==}
-    case Tree.Stmt{sk, kk, sb}:
+    case Tree.Stmt{sk, k, sb}:
       {==}
     case Tree.NNil{}:
       {==}

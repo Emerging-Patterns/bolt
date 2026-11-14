@@ -32,53 +32,53 @@ import ../../lazy/lazy.bend as Lazy
 
 # a leaf that is a lowercase name: its token. The rule matches a leaf's kind
 # here and in bound.is_eq only; the rest reads kinds through these
-def lone.name(nn: Tree.Node) -> Maybe<&2, Lex.Tok>:
-  match nn:
+def lone.name(n: Tree.Node) -> Maybe<&2, Lex.Tok>:
+  match n:
     case Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}:
       Some{Lex.Tok{Lex.TName{}, t, l, c}}
     case other:
       None{}
 
 # a chain that is exactly one lowercase name: its token
-def lone(nn: Tree.Node) -> Maybe<&2, Lex.Tok>:
-  match nn:
+def lone(n: Tree.Node) -> Maybe<&2, Lex.Tok>:
+  match n:
     case Tree.NCons{h, Tree.NNil{}}:
       lone.name(h)
     case other:
       None{}
 
 # the list a call appends onto: List.append's first list, String.append's first
-def appended(+tt: String, as: List<&2, Tree.Node>) -> Maybe<&2, Lex.Tok>:
-  +list = String.eq(tt, "List.append")
-  +str = String.eq(tt, "String.append")
+def appended(+t: String, as: List<&2, Tree.Node>) -> Maybe<&2, Lex.Tok>:
+  +list = String.eq(t, "List.append")
+  +str = String.eq(t, "String.append")
   Bool.pick(Maybe<&2, Lex.Tok>, Bool.or(list, str), lone(Calls.arg(as, Bool.pick(Nat, list, 2n, 0n))), None{})
 
 # a leaf, then a group: the call's append
-def onto.call(hh: Tree.Node, kids: Tree.Node) -> Maybe<&2, Lex.Tok>:
-  match hh:
+def onto.call(h: Tree.Node, kids: Tree.Node) -> Maybe<&2, Lex.Tok>:
+  match h:
     case Tree.Leaf{Lex.Tok{k, +t, l, c}}:
       appended(t, Calls.args(kids))
     case other:
       None{}
 
 # a first cell, then the second: a name then `++`, or a call
-def onto.next(+hh: Tree.Node, h2: Tree.Node) -> Maybe<&2, Lex.Tok>:
+def onto.next(+h: Tree.Node, h2: Tree.Node) -> Maybe<&2, Lex.Tok>:
   match h2:
     case Tree.Leaf{Lex.Tok{k, +o, _l, _c}}:
-      Bool.pick(Maybe<&2, Lex.Tok>, Bool.and(Calls.kind.oper(k), String.eq(o, "++")), lone.name(hh), None{})
+      Bool.pick(Maybe<&2, Lex.Tok>, Bool.and(Calls.kind.oper(k), String.eq(o, "++")), lone.name(h), None{})
     case Tree.Group{open, kids, close}:
-      onto.call(hh, kids)
+      onto.call(h, kids)
     case other:
       None{}
 
 # the name an argument appends onto, `p ++ ..` or an append call, inside any
 # number of parentheses
-def onto(aa: Tree.Node) -> Maybe<&2, Lex.Tok>:
-  match aa:
+def onto(a: Tree.Node) -> Maybe<&2, Lex.Tok>:
+  match a:
     case Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, kids, _}, Tree.NNil{}}:
       Lazy.stop(Maybe<&2, Lex.Tok>, Bool.not(String.eq(o, "(")), None{}, _u => onto(kids))
-    case Tree.NCons{hh, Tree.NCons{h2, rest}}:
-      onto.next(hh, h2)
+    case Tree.NCons{h, Tree.NCons{h2, rest}}:
+      onto.next(h, h2)
     case other:
       None{}
 
@@ -92,52 +92,52 @@ def find(lets: List<&2, Let>, +name: String) -> Maybe<&2, Lex.Tok>:
   match lets:
     case Nil{}:
       None{}
-    case Con{Let{+nm, mm}, rest}:
-      Lazy.stop(Maybe<&2, Lex.Tok>, String.eq(nm, name), mm, _u => find(rest, name))
+    case Con{Let{+nm, m}, rest}:
+      Lazy.stop(Maybe<&2, Lex.Tok>, String.eq(nm, name), m, _u => find(rest, name))
 
 # what the let of a lone name appends onto
-def via.of(mm: Maybe<&2, Lex.Tok>, +lets: List<&2, Let>) -> Maybe<&2, Lex.Tok>:
-  match mm:
+def via.of(m: Maybe<&2, Lex.Tok>, +lets: List<&2, Let>) -> Maybe<&2, Lex.Tok>:
+  match m:
     case None{}:
       None{}
     case Some{Lex.Tok{k, +t, l, c}}:
       find(lets, t)
 
 # the name an argument appends onto, when it is a lone name read from a let
-def via(aa: Tree.Node, +lets: List<&2, Let>) -> Maybe<&2, Lex.Tok>:
-  via.of(lone(aa), lets)
+def via(a: Tree.Node, +lets: List<&2, Let>) -> Maybe<&2, Lex.Tok>:
+  via.of(lone(a), lets)
 
 # the first maybe when it holds a token, else the second
-def either(aa: Maybe<&2, Lex.Tok>, bb: Maybe<&2, Lex.Tok>) -> Maybe<&2, Lex.Tok>:
-  match aa:
+def either(a: Maybe<&2, Lex.Tok>, b: Maybe<&2, Lex.Tok>) -> Maybe<&2, Lex.Tok>:
+  match a:
     case None{}:
-      bb
+      b
     case Some{tok}:
       Some{tok}
 
 # the name an argument appends onto, in place or through a let
-def seen(+aa: Tree.Node, +lets: List<&2, Let>) -> Maybe<&2, Lex.Tok>:
-  either(onto(aa), via(aa, lets))
+def seen(+a: Tree.Node, +lets: List<&2, Let>) -> Maybe<&2, Lex.Tok>:
+  either(onto(a), via(a, lets))
 
 # an `=`
-def bound.eq(kk: Lex.TokKind) -> Bool:
-  match kk:
+def bound.eq(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TEq{}:
       True{}
     case other:
       False{}
 
 # a name, then `=`, then the right side: the let
-def bound.of(mm: Maybe<&2, Lex.Tok>, +h2: Tree.Node, rhs: Tree.Node) -> Maybe<&2, Let>:
-  match mm:
+def bound.of(m: Maybe<&2, Lex.Tok>, +h2: Tree.Node, rhs: Tree.Node) -> Maybe<&2, Let>:
+  match m:
     case None{}:
       None{}
     case Some{Lex.Tok{k, +t, l, c}}:
       Lazy.stop(Maybe<&2, Let>, Bool.not(Calls.kind.leaf(~bound.eq, h2)), None{}, _u => Some{Let{t, onto(rhs)}})
 
 # a plain name, then `=`, then the right side: the let
-def bound.named(+hh: Tree.Node, +h2: Tree.Node, rhs: Tree.Node) -> Maybe<&2, Let>:
-  bound.of(lone.name(hh), h2, rhs)
+def bound.named(+h: Tree.Node, +h2: Tree.Node, rhs: Tree.Node) -> Maybe<&2, Let>:
+  bound.of(lone.name(h), h2, rhs)
 
 # `+`, then a plain name, `=` and the right side: the let
 def bound.plus(+h1: Tree.Node, +h2: Tree.Node, rest: Tree.Node) -> Maybe<&2, Let>:
@@ -159,8 +159,8 @@ def bound(kids: Tree.Node) -> Maybe<&2, Let>:
       None{}
 
 # the lets in scope after one more, when there is one
-def push(mm: Maybe<&2, Let>, +lets: List<&2, Let>) -> List<&2, Let>:
-  match mm:
+def push(m: Maybe<&2, Let>, +lets: List<&2, Let>) -> List<&2, Let>:
+  match m:
     case None{}:
       lets
     case Some{lt}:
@@ -168,12 +168,12 @@ def push(mm: Maybe<&2, Let>, +lets: List<&2, Let>) -> List<&2, Let>:
 
 # a finding when the name is the parameter of the argument's own slot
 def hit(
-  mm: Maybe<&2, Lex.Tok>,
+  m: Maybe<&2, Lex.Tok>,
   +slot: String,
   +path: String,
   +acc: List<&2, F.Finding>
 ) -> List<&2, F.Finding>:
-  match mm:
+  match m:
     case None{}:
       acc
     case Some{Lex.Tok{k, +t, l, c}}:
@@ -209,13 +209,13 @@ def after(kind: Tree.StmtKind, +kids: Tree.Node, +lets: List<&2, Let>) -> List<&
 
 # every self-call's arguments, with the lets in scope
 def walk(
-  nn: Tree.Node,
+  n: Tree.Node,
   +name: String,
   +params: List<&2, String>,
   +lets: List<&2, Let>,
   +path: String
 ) -> List<&2, F.Finding>:
-  match nn:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +me = Bool.and(String.eq(o, "("), String.eq(t, name))
       List.concat(&2, F.Finding, [
@@ -241,8 +241,8 @@ def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Fi
           _u => walk(body, name, Calls.names(sig), [], path)) <> acc)
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
   check.go(Calls.defs(tree), path, [])
 
 # ---------------------------------------------------------------------------
@@ -251,8 +251,8 @@ def check(ss: Src.Src) -> List<&2, F.Finding>:
 # same way a self-call does, one hop removed
 
 # does a parameter's chain open with `+`?
-def plus(pp: Tree.Node) -> Bool:
-  match pp:
+def plus(p: Tree.Node) -> Bool:
+  match p:
     case Tree.NCons{+h, rest}:
       Bool.and(Calls.kind.leaf(~Calls.kind.oper, h), String.eq(Calls.leaf.text(h), "+"))
     case other:
@@ -316,12 +316,12 @@ def conts(sig: Tree.Node) -> List<&2, String>:
 
 # a finding when the name is one of the reportable parameters
 def hit.cont(
-  mm: Maybe<&2, Lex.Tok>,
+  m: Maybe<&2, Lex.Tok>,
   +accs: List<&2, String>,
   +path: String,
   +acc: List<&2, F.Finding>
 ) -> List<&2, F.Finding>:
-  match mm:
+  match m:
     case None{}:
       acc
     case Some{Lex.Tok{k, +t, l, c}}:
@@ -346,13 +346,13 @@ def hits.cont(
 
 # every continuation call's arguments, with the lets in scope
 def cwalk(
-  nn: Tree.Node,
+  n: Tree.Node,
   +conts: List<&2, String>,
   +accs: List<&2, String>,
   +lets: List<&2, Let>,
   +path: String
 ) -> List<&2, F.Finding>:
-  match nn:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +me = Bool.and(String.eq(o, "("), List.contains(~String, ~String.eq, conts, t))
       List.concat(&2, F.Finding, [
@@ -378,6 +378,6 @@ def cont.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Fin
           _u => cwalk(body, conts(sig), accs(sig, body), [], path)) <> acc)
 
 # the rule's other half: appends passed on through a continuation
-def cont(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
+def cont(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
   cont.go(Calls.defs(tree), path, [])

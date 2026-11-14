@@ -9,8 +9,8 @@ import ../src/lazy/lazy.bend as Lazy
 # by its slug and by its code, is the same row.
 
 # the row at an index, looked up again by its slug; none stays none
-def by_slug(mm: Maybe<&2, Codes.Entry>) -> Maybe<&2, Codes.Entry>:
-  match mm:
+def by_slug(m: Maybe<&2, Codes.Entry>) -> Maybe<&2, Codes.Entry>:
+  match m:
     case None{}:
       None{}
     case Some{Codes.Entry{+s, _id, _grp}}:
@@ -30,8 +30,8 @@ def by_code(rows: List<&2, Codes.Entry>, +id: String) -> Maybe<&2, Codes.Entry>:
       Lazy.stop(Maybe<&2, Codes.Entry>, by_code.same(row, id), Some{row}, _u => by_code(rest, id))
 
 # the row at an index, looked up again by its code; none stays none
-def code_back(mm: Maybe<&2, Codes.Entry>) -> Maybe<&2, Codes.Entry>:
-  match mm:
+def code_back(m: Maybe<&2, Codes.Entry>) -> Maybe<&2, Codes.Entry>:
+  match m:
     case None{}:
       None{}
     case Some{Codes.Entry{_s, +id, _grp}}:

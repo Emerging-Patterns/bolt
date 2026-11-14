@@ -46,8 +46,8 @@ def chars(s):
       Equal.cong(String, String, x => SCon{h, x}, String.from_list(String.to_list(t)), t, chars(t))
 
 # one char as a string
-def one(cc: Char) -> String:
-  SCon{cc, SNil{}}
+def one(c: Char) -> String:
+  SCon{c, SNil{}}
 
 # a reversed buffer's chars, in order
 def rword(buf: List<&2, Char>) -> String:
@@ -144,7 +144,7 @@ def pick(b, _x, _y, _z, ex, ey):
 
 # one char read onto what was read
 law step:
-  for +cc: Char
+  for +c: Char
   for +mode: Lex.Mode
   for +kind: Lex.TokKind
   for +line: U32
@@ -153,23 +153,23 @@ law step:
   for +sc: U32
   for +buf: List<&2, Char>
   for +toks: List<&2, Lex.Tok>
-  {seen(Lex.step(cc, Lex.St{mode, kind, line, col, sl, sc, buf, toks}))
-    == String.append(String.append(rspell(toks), rword(buf)), one(cc)) : String}
+  {seen(Lex.step(c, Lex.St{mode, kind, line, col, sl, sc, buf, toks}))
+    == String.append(String.append(rspell(toks), rword(buf)), one(c)) : String}
 
-def step(cc, mode, kind, line, col, sl, sc, buf, toks):
-  pick(Lex.continues(mode, Lex.classify(cc)),
-    Lex.St{Lex.after(mode, Lex.classify(cc)), kind,
-      Bool.pick(U32, Lex.is_newline(cc), (line + 1 : U32), line),
-      Bool.pick(U32, Lex.is_newline(cc), 0, (col + 1 : U32)), sl, sc, cc <> buf, toks},
-    Lex.St{Lex.begin.mode(Lex.classify(cc)), Lex.begin.kind(Lex.classify(cc)),
-      Bool.pick(U32, Lex.is_newline(cc), (line + 1 : U32), line),
-      Bool.pick(U32, Lex.is_newline(cc), 0, (col + 1 : U32)), line, col, [cc],
+def step(c, mode, kind, line, col, sl, sc, buf, toks):
+  pick(Lex.continues(mode, Lex.classify(c)),
+    Lex.St{Lex.after(mode, Lex.classify(c)), kind,
+      Bool.pick(U32, Lex.is_newline(c), (line + 1 : U32), line),
+      Bool.pick(U32, Lex.is_newline(c), 0, (col + 1 : U32)), sl, sc, c <> buf, toks},
+    Lex.St{Lex.begin.mode(Lex.classify(c)), Lex.begin.kind(Lex.classify(c)),
+      Bool.pick(U32, Lex.is_newline(c), (line + 1 : U32), line),
+      Bool.pick(U32, Lex.is_newline(c), 0, (col + 1 : U32)), line, col, [c],
       Lex.flush(kind, sl, sc, buf, toks)},
-    String.append(String.append(rspell(toks), rword(buf)), one(cc)),
-    Equal.sym(String, String.append(String.append(rspell(toks), rword(buf)), one(cc)),
-      String.append(rspell(toks), String.append(rword(buf), one(cc))),
-      app.assoc(rspell(toks), rword(buf), one(cc))),
-    Equal.cong(String, String, x => String.append(x, one(cc)),
+    String.append(String.append(rspell(toks), rword(buf)), one(c)),
+    Equal.sym(String, String.append(String.append(rspell(toks), rword(buf)), one(c)),
+      String.append(rspell(toks), String.append(rword(buf), one(c))),
+      app.assoc(rspell(toks), rword(buf), one(c))),
+    Equal.cong(String, String, x => String.append(x, one(c)),
       rspell(Lex.flush(kind, sl, sc, buf, toks)), String.append(rspell(toks), rword(buf)),
       flush(kind, sl, sc, buf, toks)))
 
@@ -213,8 +213,8 @@ def run(cs, st):
       run.on(h, t, st, run(t, Lex.step(h, st)))
 
 # texts pushed onto a stack, in the stack's reversed order
-def rcat(ss: List<&2, String>) -> String:
-  match ss:
+def rcat(s: List<&2, String>) -> String:
+  match s:
     case Nil{}:
       SNil{}
     case Con{h, t}:
@@ -270,8 +270,8 @@ def text(xs):
       app.nil(rcat(Lex.text.go(xs, []))), text.go(xs, [])))
 
 # Unit for False, Empty for True
-def false_ty(bb: Bool) -> Type:
-  match bb:
+def false_ty(b: Bool) -> Type:
+  match b:
     case False{}:
       Unit
     case True{}:
@@ -296,24 +296,24 @@ def rgo(cells: Tree.Node, acc: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
       acc
 
 # a node's leaves onto a known list
-def m_leaf(mm: Maybe<&2, List<&2, Lex.Tok>>, nn: Tree.Node) -> Maybe<&2, List<&2, Lex.Tok>>:
-  match mm:
+def m_leaf(m: Maybe<&2, List<&2, Lex.Tok>>, n: Tree.Node) -> Maybe<&2, List<&2, Lex.Tok>>:
+  match m:
     case None{}:
       None{}
     case Some{a}:
-      Some{Tree.leaves.go(nn, a)}
+      Some{Tree.leaves.go(n, a)}
 
 # an open group's bracket and kids onto a known list
-def m_group(mm: Maybe<&2, List<&2, Lex.Tok>>, open: Lex.Tok, kids: Tree.Node) -> Maybe<&2, List<&2, Lex.Tok>>:
-  match mm:
+def m_group(m: Maybe<&2, List<&2, Lex.Tok>>, open: Lex.Tok, kids: Tree.Node) -> Maybe<&2, List<&2, Lex.Tok>>:
+  match m:
     case None{}:
       None{}
     case Some{a}:
       Some{rgo(kids, open <> a)}
 
 # an open statement's kids, then its body, onto a known list
-def m_stmt(mm: Maybe<&2, List<&2, Lex.Tok>>, kids: Tree.Node, body: Tree.Node) -> Maybe<&2, List<&2, Lex.Tok>>:
-  match mm:
+def m_stmt(m: Maybe<&2, List<&2, Lex.Tok>>, kids: Tree.Node, body: Tree.Node) -> Maybe<&2, List<&2, Lex.Tok>>:
+  match m:
     case None{}:
       None{}
     case Some{a}:
@@ -344,14 +344,14 @@ def vg(stack: List<&2, Tree.Frame>) -> Maybe<&2, List<&2, Lex.Tok>>:
 
 # a node put into a group's kids lands on the group's leaves
 law put.group:
-  for +mm: Maybe<&2, List<&2, Lex.Tok>>
+  for +m: Maybe<&2, List<&2, Lex.Tok>>
   for +o: Lex.Tok
   for +k: Tree.Node
-  for +nn: Tree.Node
-  {m_group(mm, o, Tree.NCons{nn, k}) == m_leaf(m_group(mm, o, k), nn) : Maybe<&2, List<&2, Lex.Tok>>}
+  for +n: Tree.Node
+  {m_group(m, o, Tree.NCons{n, k}) == m_leaf(m_group(m, o, k), n) : Maybe<&2, List<&2, Lex.Tok>>}
 
-def put.group(mm, _o, _k, _nn):
-  match mm:
+def put.group(m, _o, _k, _nn):
+  match m:
     case None{}:
       {==}
     case Some{_a}:
@@ -359,13 +359,13 @@ def put.group(mm, _o, _k, _nn):
 
 # a node put into a statement's kids lands on its leaves, while it has no body
 law put.stmt:
-  for +mm: Maybe<&2, List<&2, Lex.Tok>>
+  for +m: Maybe<&2, List<&2, Lex.Tok>>
   for +k: Tree.Node
-  for +nn: Tree.Node
-  {m_stmt(mm, Tree.NCons{nn, k}, Tree.NNil{}) == m_leaf(m_stmt(mm, k, Tree.NNil{}), nn) : Maybe<&2, List<&2, Lex.Tok>>}
+  for +n: Tree.Node
+  {m_stmt(m, Tree.NCons{n, k}, Tree.NNil{}) == m_leaf(m_stmt(m, k, Tree.NNil{}), n) : Maybe<&2, List<&2, Lex.Tok>>}
 
-def put.stmt(mm, _k, _nn):
-  match mm:
+def put.stmt(m, _k, _nn):
+  match m:
     case None{}:
       {==}
     case Some{_a}:
@@ -374,17 +374,17 @@ def put.stmt(mm, _k, _nn):
 # a finished node lands on the leaves of the stack
 law put:
   for +s: List<&2, Tree.Frame>
-  for +nn: Tree.Node
-  {vg(Tree.put(s, nn)) == m_leaf(vg(s), nn) : Maybe<&2, List<&2, Lex.Tok>>}
+  for +n: Tree.Node
+  {vg(Tree.put(s, n)) == m_leaf(vg(s), n) : Maybe<&2, List<&2, Lex.Tok>>}
 
-def put(s, nn):
+def put(s, n):
   match s:
     case Nil{}:
       {==}
     case Con{Tree.FGroup{o, k}, rest}:
-      put.group(vg(rest), o, k, nn)
+      put.group(vg(rest), o, k, n)
     case Con{Tree.FStmt{_i, k, Tree.NNil{}}, rest}:
-      put.stmt(vs(rest), k, nn)
+      put.stmt(vs(rest), k, n)
     case Con{Tree.FStmt{_i, _k, Tree.NCons{_h, _t}}, _rest}:
       {==}
     case Con{Tree.FStmt{_i, _k, Tree.Leaf{_x}}, _rest}:
@@ -414,12 +414,12 @@ def starts_nil(s):
 
 # the leaves one token adds: none when it is trivia, else what the law splits
 # it into
-def adds(+kk: Lex.TokKind, +tt: String, +ll: U32, +cc: U32) -> List<&2, Lex.Tok>:
-  Bool.pick(List<&2, Lex.Tok>, Lex.significant(kk), law_adds(kk, tt, ll, cc), [])
+def adds(+k: Lex.TokKind, +t: String, +l: U32, +c: U32) -> List<&2, Lex.Tok>:
+  Bool.pick(List<&2, Lex.Tok>, Lex.significant(k), law_adds(k, t, l, c), [])
 
 # Unit for False, Empty for True: tells them apart the other way round
-def true_ty(bb: Bool) -> Type:
-  match bb:
+def true_ty(b: Bool) -> Type:
+  match b:
     case False{}:
       Empty
     case True{}:

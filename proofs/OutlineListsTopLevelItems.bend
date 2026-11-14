@@ -79,10 +79,10 @@ def ol.rev_rev(A, xs, acc, ys):
 # the outline's flags of a text's line breaks, pushed onto acc, are the
 # spec's, reversed onto acc
 law ol.breaks:
-  for +tt: String
+  for +t: String
   for +s: Bool
   for +acc: List<&2, Bool>
-  {Outline.breaks(tt, s, acc) == List.reverse.go(&2, Bool, Laws.top.breaks(tt, s), acc) : List<&2, Bool>}
+  {Outline.breaks(t, s, acc) == List.reverse.go(&2, Bool, Laws.top.breaks(t, s), acc) : List<&2, Bool>}
 
 def ol.breaks(tt, s, acc):
   match tt:
@@ -221,12 +221,12 @@ def ol.name.arm(b, t, h, acc, ih):
 
 # the name read with acc (reversed) before it: acc, then the spec's name
 law ol.name.go:
-  for +ss: String
+  for +s: String
   for +acc: String
-  {Outline.name.go(ss, acc, False{}) == String.append(String.reverse(acc), Laws.top.name(ss)) : String}
+  {Outline.name.go(s, acc, False{}) == String.append(String.reverse(acc), Laws.top.name(s)) : String}
 
-def ol.name.go(ss, acc):
-  match ss:
+def ol.name.go(s, acc):
+  match s:
     case SNil{}:
       Equal.sym(String, String.append(String.reverse(acc), SNil{}), String.reverse(acc),
         M1.app.nil(String.reverse(acc)))
@@ -235,11 +235,11 @@ def ol.name.go(ss, acc):
 
 # the outline's name is the spec's
 law ol.name:
-  for +ss: String
-  {Outline.name(ss) == Laws.top.name(ss) : String}
+  for +s: String
+  {Outline.name(s) == Laws.top.name(s) : String}
 
-def ol.name(ss):
-  ol.name.go(ss, SNil{})
+def ol.name(s):
+  ol.name.go(s, SNil{})
 
 # words that compare equal, bit by bit past the first: the rest equal, the
 # first bits the same
@@ -251,18 +251,18 @@ law ol.weq.arm:
   for ec: {Word.cmp(p, at, bt) == c : Cmp}
   for ih: {Cmp.is_eq(Word.cmp(p, at, bt)) == True{} : Bool} -> {at == bt : Word(p)}
   for ab: Bool
-  for bb: Bool
-  for e: {Cmp.is_eq(Word.cmp.fin(ab, bb, c)) == True{} : Bool}
-  {WCon{ab, at} == WCon{bb, bt} : Word.Con<p>}
+  for b: Bool
+  for e: {Cmp.is_eq(Word.cmp.fin(ab, b, c)) == True{} : Bool}
+  {WCon{ab, at} == WCon{b, bt} : Word.Con<p>}
 
-def ol.weq.arm(p, at, bt, c, ec, ih, ab, bb, e):
+def ol.weq.arm(p, at, bt, c, ec, ih, ab, b, e):
   match c:
     case LT{}:
-      Empty.absurd({WCon{ab, at} == WCon{bb, bt} : Word.Con<p>}, M1.false_true(e))
+      Empty.absurd({WCon{ab, at} == WCon{b, bt} : Word.Con<p>}, M1.false_true(e))
     case GT{}:
-      Empty.absurd({WCon{ab, at} == WCon{bb, bt} : Word.Con<p>}, M1.false_true(e))
+      Empty.absurd({WCon{ab, at} == WCon{b, bt} : Word.Con<p>}, M1.false_true(e))
     case EQ{}:
-      match ab bb:
+      match ab b:
         case False{} False{}:
           Equal.cong(Word(p), Word.Con<p>, w => WCon{False{}, w}, at, bt,
             ih(Equal.cong(Cmp, Bool, x => Cmp.is_eq(x), Word.cmp(p, at, bt), EQ{}, ec)))
@@ -317,21 +317,21 @@ def shown(st: Outline.St) -> Seen:
       Seen{Laws.top.keys(Outline.flush(mode, out)), n}
 
 # what a line that opens no item leaves: the same items, one line on
-def ol.same(mode: Outline.Mode, out: List<&2, Outline.Item>, nn: U32) -> Seen:
-  Seen{Laws.top.keys(Outline.flush(mode, out)), (nn + 1 : U32)}
+def ol.same(mode: Outline.Mode, out: List<&2, Outline.Item>, n: U32) -> Seen:
+  Seen{Laws.top.keys(Outline.flush(mode, out)), (n + 1 : U32)}
 
 # a def header's continuation settles the pending def or keeps it pending
 law ol.closed:
   for +colon: Bool
   for +nm: String
-  for +ll: U32
-  for +dd: String
+  for +l: U32
+  for +d: String
   for +sig: List<&2, String>
   for +text: String
-  for +nn: U32
+  for +n: U32
   for +out: List<&2, Outline.Item>
-  {shown(Outline.pend_more.closed(colon, nm, ll, dd, sig, text, nn, out))
-    == ol.same(Outline.Pending{Outline.IDef{}, nm, ll, dd, sig}, out, nn) : Seen}
+  {shown(Outline.pend_more.closed(colon, nm, l, d, sig, text, n, out))
+    == ol.same(Outline.Pending{Outline.IDef{}, nm, l, d, sig}, out, n) : Seen}
 
 def ol.closed(colon, _nm, _ll, _dd, _sig, _text, _nn, _out):
   match colon:
@@ -344,19 +344,19 @@ def ol.closed(colon, _nm, _ll, _dd, _sig, _text, _nn, _out):
 law ol.pend:
   for +k: Outline.ItemKind
   for +nm: String
-  for +ll: U32
-  for +dd: String
+  for +l: U32
+  for +d: String
   for +sig: List<&2, String>
   for +text: String
-  for +nn: U32
+  for +n: U32
   for +out: List<&2, Outline.Item>
-  {shown(Outline.pend_more(k, nm, ll, dd, sig, text, nn, out))
-    == ol.same(Outline.Pending{k, nm, ll, dd, sig}, out, nn) : Seen}
+  {shown(Outline.pend_more(k, nm, l, d, sig, text, n, out))
+    == ol.same(Outline.Pending{k, nm, l, d, sig}, out, n) : Seen}
 
-def ol.pend(k, nm, ll, dd, sig, text, nn, out):
+def ol.pend(k, nm, l, d, sig, text, n, out):
   match k:
     case Outline.IDef{}:
-      ol.closed(Outline.ends_colon(text), nm, ll, dd, sig, text, nn, out)
+      ol.closed(Outline.ends_colon(text), nm, l, d, sig, text, n, out)
     case Outline.IImport{}:
       {==}
     case Outline.ILaw{}:
@@ -372,11 +372,11 @@ def ol.pend(k, nm, ll, dd, sig, text, nn, out):
 law ol.ctor.stop:
   for +b: Bool
   for +nm: String
-  for +nn: U32
+  for +n: U32
   for +s: String
   for +out: List<&2, Outline.Item>
   {Laws.top.keys(Outline.add(Lazy.stop(Maybe<&2, Outline.Item>, b, None{},
-      _u => Some{Outline.Item{Outline.ICtor{}, nm, nn, s, "", ""}}), out))
+      _u => Some{Outline.Item{Outline.ICtor{}, nm, n, s, "", ""}}), out))
     == Laws.top.keys(out) : List<&2, Outline.Item>}
 
 def ol.ctor.stop(b, _nm, _nn, _s, _out):
@@ -389,51 +389,51 @@ def ol.ctor.stop(b, _nm, _nn, _s, _out):
 # a line of a type block adds no key
 law ol.ctor:
   for +text: String
-  for +nn: U32
+  for +n: U32
   for +out: List<&2, Outline.Item>
-  {Laws.top.keys(Outline.add(Outline.ctor(text, nn), out)) == Laws.top.keys(out) : List<&2, Outline.Item>}
+  {Laws.top.keys(Outline.add(Outline.ctor(text, n), out)) == Laws.top.keys(out) : List<&2, Outline.Item>}
 
-def ol.ctor(text, nn, out):
+def ol.ctor(text, n, out):
   ol.ctor.stop(
     Bool.not(Bool.and(Outline.starts_upper(Outline.lstrip(text)), String.contains(Outline.lstrip(text), "{"))),
-    Outline.name(Outline.lstrip(text)), nn, Outline.lstrip(text), out)
+    Outline.name(Outline.lstrip(text)), n, Outline.lstrip(text), out)
 
 # an indented line opens nothing
 law ol.indent:
   for +mode: Outline.Mode
   for +text: String
-  for +nn: U32
+  for +n: U32
   for +out: List<&2, Outline.Item>
-  {shown(Outline.indent(mode, text, nn, out)) == ol.same(mode, out, nn) : Seen}
+  {shown(Outline.indent(mode, text, n, out)) == ol.same(mode, out, n) : Seen}
 
-def ol.indent(mode, text, nn, out):
+def ol.indent(mode, text, n, out):
   match mode:
     case Outline.Top{}:
       {==}
     case Outline.InType{}:
-      Equal.cong(List<&2, Outline.Item>, Seen, ks => Seen{ks, (nn + 1 : U32)},
-        Laws.top.keys(Outline.add(Outline.ctor(text, nn), out)), Laws.top.keys(out), ol.ctor(text, nn, out))
-    case Outline.Pending{k, nm, ll, dd, sig}:
-      ol.pend(k, nm, ll, dd, sig, text, nn, out)
+      Equal.cong(List<&2, Outline.Item>, Seen, ks => Seen{ks, (n + 1 : U32)},
+        Laws.top.keys(Outline.add(Outline.ctor(text, n), out)), Laws.top.keys(out), ol.ctor(text, n, out))
+    case Outline.Pending{k, nm, l, d, sig}:
+      ol.pend(k, nm, l, d, sig, text, n, out)
 
 # a column-0 line that starts nothing opens nothing
 law ol.stray:
   for +mode: Outline.Mode
   for +text: String
-  for +nn: U32
+  for +n: U32
   for +out: List<&2, Outline.Item>
-  {shown(Outline.stray(mode, text, nn, out)) == ol.same(mode, out, nn) : Seen}
+  {shown(Outline.stray(mode, text, n, out)) == ol.same(mode, out, n) : Seen}
 
-def ol.stray(mode, text, nn, out):
+def ol.stray(mode, text, n, out):
   match mode:
     case Outline.Top{}:
       {==}
     case Outline.InType{}:
       {==}
-    case Outline.Pending{k, nm, ll, dd, sig}:
+    case Outline.Pending{k, nm, l, d, sig}:
       match k:
         case Outline.IDef{}:
-          ol.pend(Outline.IDef{}, nm, ll, dd, sig, text, nn, out)
+          ol.pend(Outline.IDef{}, nm, l, d, sig, text, n, out)
         case Outline.IImport{}:
           {==}
         case Outline.ILaw{}:
@@ -463,54 +463,54 @@ def ol.loud(cls: Outline.Cls) -> Bool:
 def ol.after(
   cls: Outline.Cls,
   mode: Outline.Mode,
-  ss: String,
-  nn: U32,
+  s: String,
+  n: U32,
   doc: List<&2, String>,
   out: List<&2, Outline.Item>
 ) -> Seen:
-  shown(Outline.step.go(cls, mode, ss, nn, doc, out))
+  shown(Outline.step.go(cls, mode, s, n, doc, out))
 
 # a class that opens no item leaves the same items, one line on
 law ol.quiet:
   for +cls: Outline.Cls
   for +mode: Outline.Mode
-  for +ss: String
-  for +nn: U32
+  for +s: String
+  for +n: U32
   for +doc: List<&2, String>
   for +out: List<&2, Outline.Item>
   for e: {ol.loud(cls) == False{} : Bool}
-  {ol.after(cls, mode, ss, nn, doc, out) == ol.same(mode, out, nn) : Seen}
+  {ol.after(cls, mode, s, n, doc, out) == ol.same(mode, out, n) : Seen}
 
-def ol.quiet(cls, mode, ss, nn, doc, out, e):
+def ol.quiet(cls, mode, s, n, doc, out, e):
   match cls:
     case Outline.LBlank{}:
       {==}
     case Outline.LComment{_t}:
       {==}
     case Outline.LIndent{t}:
-      ol.indent(mode, t, nn, out)
+      ol.indent(mode, t, n, out)
     case Outline.LOther{}:
-      ol.stray(mode, ss, nn, out)
+      ol.stray(mode, s, n, out)
     case Outline.LImport{}:
-      Empty.absurd({ol.after(Outline.LImport{}, mode, ss, nn, doc, out) == ol.same(mode, out, nn) : Seen},
+      Empty.absurd({ol.after(Outline.LImport{}, mode, s, n, doc, out) == ol.same(mode, out, n) : Seen},
         M1.true_false(e))
     case Outline.LDef{}:
-      Empty.absurd({ol.after(Outline.LDef{}, mode, ss, nn, doc, out) == ol.same(mode, out, nn) : Seen},
+      Empty.absurd({ol.after(Outline.LDef{}, mode, s, n, doc, out) == ol.same(mode, out, n) : Seen},
         M1.true_false(e))
     case Outline.LLaw{}:
-      Empty.absurd({ol.after(Outline.LLaw{}, mode, ss, nn, doc, out) == ol.same(mode, out, nn) : Seen},
+      Empty.absurd({ol.after(Outline.LLaw{}, mode, s, n, doc, out) == ol.same(mode, out, n) : Seen},
         M1.true_false(e))
     case Outline.LType{}:
-      Empty.absurd({ol.after(Outline.LType{}, mode, ss, nn, doc, out) == ol.same(mode, out, nn) : Seen},
+      Empty.absurd({ol.after(Outline.LType{}, mode, s, n, doc, out) == ol.same(mode, out, n) : Seen},
         M1.true_false(e))
 
 # the end of a line of whitespace is blank, indented or other
 law ol.hit:
   for +indent: Bool
   for +acc: List<&2, Char>
-  for +hh: Char
+  for +h: Char
   for +rest: String
-  {ol.loud(Outline.classify.white.hit(indent, acc, hh, rest)) == False{} : Bool}
+  {ol.loud(Outline.classify.white.hit(indent, acc, h, rest)) == False{} : Bool}
 
 def ol.hit(indent, _acc, _hh, _rest):
   match indent:
@@ -521,23 +521,23 @@ def ol.hit(indent, _acc, _hh, _rest):
 
 # a line that opens with whitespace opens no item
 law ol.white:
-  for +tt: String
+  for +t: String
   for +space: Bool
-  for +hh: Char
+  for +h: Char
   for +indent: Bool
   for +acc: List<&2, Char>
-  {ol.loud(Outline.classify.white(tt, space, hh, indent, acc)) == False{} : Bool}
+  {ol.loud(Outline.classify.white(t, space, h, indent, acc)) == False{} : Bool}
 
-def ol.white(tt, space, hh, indent, acc):
-  match tt space:
+def ol.white(t, space, h, indent, acc):
+  match t space:
     case SNil{} True{}:
       {==}
     case SNil{} False{}:
-      ol.hit(indent, acc, hh, SNil{})
+      ol.hit(indent, acc, h, SNil{})
     case SCon{+h2, +r} True{}:
-      ol.white(r, Char.is_space(h2), h2, indent, hh <> acc)
+      ol.white(r, Char.is_space(h2), h2, indent, h <> acc)
     case SCon{+h2, +r} False{}:
-      ol.hit(indent, acc, hh, SCon{h2, r})
+      ol.hit(indent, acc, h, SCon{h2, r})
 
 # not `t`: not `type `
 law ol.l_ty:
@@ -625,13 +625,13 @@ def ol.l_imp(x, t, b, e, e100, e64, e108, e116):
 
 # what the outline makes of a line's pair of class and text
 def ol.use(
-  pp: Outline.Cls & String,
+  p: Outline.Cls & String,
   mode: Outline.Mode,
-  nn: U32,
+  n: U32,
   doc: List<&2, String>,
   out: List<&2, Outline.Item>
 ) -> Seen:
-  shown(Outline.step.use(pp, mode, nn, doc, out))
+  shown(Outline.step.use(p, mode, n, doc, out))
 
 # a line that opens with a space opens no item
 law ol.gap:
@@ -639,18 +639,18 @@ law ol.gap:
   for +x: U32
   for +t: String
   for +mode: Outline.Mode
-  for +nn: U32
+  for +n: U32
   for +doc: List<&2, String>
   for +out: List<&2, Outline.Item>
-  {ol.use(Outline.classify.hold.gap(g, x, Chr{x}, t), mode, nn, doc, out) == ol.same(mode, out, nn) : Seen}
+  {ol.use(Outline.classify.hold.gap(g, x, Chr{x}, t), mode, n, doc, out) == ol.same(mode, out, n) : Seen}
 
-def ol.gap(g, x, t, mode, nn, doc, out):
+def ol.gap(g, x, t, mode, n, doc, out):
   match g:
     case True{}:
-      ol.quiet(Outline.classify.white.enter(t, x), mode, SNil{}, nn, doc, out,
+      ol.quiet(Outline.classify.white.enter(t, x), mode, SNil{}, n, doc, out,
         ol.white(t, True{}, Char.from_u32(x), U32.is_eq(x, 32), []))
     case False{}:
-      ol.quiet(Outline.classify.white.enter(t, x), mode, SCon{Chr{x}, t}, nn, doc, out,
+      ol.quiet(Outline.classify.white.enter(t, x), mode, SCon{Chr{x}, t}, n, doc, out,
         ol.white(t, True{}, Char.from_u32(x), U32.is_eq(x, 32), []))
 
 # a line whose first char is none of `i`, `d`, `@`, `l` and `t` opens no item
@@ -660,7 +660,7 @@ law ol.hash:
   for +x: U32
   for +t: String
   for +mode: Outline.Mode
-  for +nn: U32
+  for +n: U32
   for +doc: List<&2, String>
   for +out: List<&2, Outline.Item>
   for e105: {U32.is_eq(x, 105) == False{} : Bool}
@@ -668,18 +668,18 @@ law ol.hash:
   for e64: {U32.is_eq(x, 64) == False{} : Bool}
   for e108: {U32.is_eq(x, 108) == False{} : Bool}
   for e116: {U32.is_eq(x, 116) == False{} : Bool}
-  {ol.use(Outline.classify.hold.hash(h, sp, x, Chr{x}, t), mode, nn, doc, out) == ol.same(mode, out, nn) : Seen}
+  {ol.use(Outline.classify.hold.hash(h, sp, x, Chr{x}, t), mode, n, doc, out) == ol.same(mode, out, n) : Seen}
 
-def ol.hash(h, sp, x, t, mode, nn, doc, out, e105, e100, e64, e108, e116):
+def ol.hash(h, sp, x, t, mode, n, doc, out, e105, e100, e64, e108, e116):
   match h:
     case True{}:
       {==}
     case False{}:
       match sp:
         case True{}:
-          ol.gap(U32.is_eq(x, 32), x, t, mode, nn, doc, out)
+          ol.gap(U32.is_eq(x, 32), x, t, mode, n, doc, out)
         case False{}:
-          ol.quiet(Outline.classify.keys(x, t), mode, SCon{Chr{x}, t}, nn, doc, out,
+          ol.quiet(Outline.classify.keys(x, t), mode, SCon{Chr{x}, t}, n, doc, out,
             ol.l_imp(x, t, U32.is_eq(x, 105), e105, e100, e64, e108, e116))
 
 # the outline's words are the spec's
@@ -695,10 +695,10 @@ def ol.words(xs):
       Equal.cong(List<&2, String>, List<&2, String>, r => List.filter.put(String, h, r, Laws.top.word(h)),
         List.filter(~String, ~Outline.nonempty, t), List.filter(~String, ~Laws.top.word, t), ol.words(t))
 
-# what a line that opens mm leaves: that item onto the items settled, one
+# what a line that opens m leaves: that item onto the items settled, one
 # line on
-def ol.adds(mm: Maybe<&2, Outline.Item>, mode: Outline.Mode, out: List<&2, Outline.Item>, nn: U32) -> Seen:
-  Seen{Laws.top.put(mm, Laws.top.keys(Outline.flush(mode, out))), (nn + 1 : U32)}
+def ol.adds(m: Maybe<&2, Outline.Item>, mode: Outline.Mode, out: List<&2, Outline.Item>, n: U32) -> Seen:
+  Seen{Laws.top.put(m, Laws.top.keys(Outline.flush(mode, out))), (n + 1 : U32)}
 
 # a keyword line opens its item when the rest of the keyword follows, and
 # nothing when it does not
@@ -706,31 +706,31 @@ law ol.kw:
   for +b: Bool
   for +cls: Outline.Cls
   for +mode: Outline.Mode
-  for +ss: String
-  for +nn: U32
+  for +s: String
+  for +n: U32
   for +doc: List<&2, String>
   for +out: List<&2, Outline.Item>
-  for +mm: Maybe<&2, Outline.Item>
-  for on: {ol.after(cls, mode, ss, nn, doc, out) == ol.adds(mm, mode, out, nn) : Seen}
-  {ol.after(Outline.classify.kw(b, cls), mode, ss, nn, doc, out)
-    == ol.adds(Bool.pick(Maybe<&2, Outline.Item>, b, mm, None{}), mode, out, nn) : Seen}
+  for +m: Maybe<&2, Outline.Item>
+  for on: {ol.after(cls, mode, s, n, doc, out) == ol.adds(m, mode, out, n) : Seen}
+  {ol.after(Outline.classify.kw(b, cls), mode, s, n, doc, out)
+    == ol.adds(Bool.pick(Maybe<&2, Outline.Item>, b, m, None{}), mode, out, n) : Seen}
 
-def ol.kw(b, _cls, mode, ss, nn, _doc, out, _mm, on):
+def ol.kw(b, _cls, mode, s, n, _doc, out, _mm, on):
   match b:
     case True{}:
       on
     case False{}:
-      ol.stray(mode, ss, nn, out)
+      ol.stray(mode, s, n, out)
 
 # an import line's item, by its words, is the spec's
 law ol.import.of:
   for +ws: List<&2, String>
-  for +ss: String
-  for +nn: U32
-  for +dd: String
+  for +s: String
+  for +n: U32
+  for +d: String
   for +xs: List<&2, Outline.Item>
-  {Laws.top.keys(Outline.add(Outline.import_item.of(ws, ss, nn, dd), xs))
-    == Laws.top.put(Laws.top.import(ws, nn), Laws.top.keys(xs)) : List<&2, Outline.Item>}
+  {Laws.top.keys(Outline.add(Outline.import_item.of(ws, s, n, d), xs))
+    == Laws.top.put(Laws.top.import(ws, n), Laws.top.keys(xs)) : List<&2, Outline.Item>}
 
 def ol.import.of(ws, _ss, _nn, _dd, _xs):
   match ws:
@@ -754,39 +754,39 @@ def ol.import.of(ws, _ss, _nn, _dd, _xs):
 # an import line opens the spec's import
 law ol.imp_on:
   for +mode: Outline.Mode
-  for +ss: String
-  for +nn: U32
+  for +s: String
+  for +n: U32
   for +doc: List<&2, String>
   for +out: List<&2, Outline.Item>
-  {ol.after(Outline.LImport{}, mode, ss, nn, doc, out)
-    == ol.adds(Laws.top.import(List.filter(~String, ~Laws.top.word, String.split(ss, ' ')), nn), mode, out, nn) : Seen}
+  {ol.after(Outline.LImport{}, mode, s, n, doc, out)
+    == ol.adds(Laws.top.import(List.filter(~String, ~Laws.top.word, String.split(s, ' ')), n), mode, out, n) : Seen}
 
-def ol.imp_on(mode, ss, nn, doc, out):
+def ol.imp_on(mode, s, n, doc, out):
   Equal.trans(Seen,
-    Seen{Laws.top.keys(Outline.add(Outline.import_item.of(Outline.words(ss), ss, nn, Outline.doc_text(doc)),
-      Outline.flush(mode, out))), (nn + 1 : U32)},
-    ol.adds(Laws.top.import(Outline.words(ss), nn), mode, out, nn),
-    ol.adds(Laws.top.import(List.filter(~String, ~Laws.top.word, String.split(ss, ' ')), nn), mode, out, nn),
-    Equal.cong(List<&2, Outline.Item>, Seen, ks => Seen{ks, (nn + 1 : U32)},
-      Laws.top.keys(Outline.add(Outline.import_item.of(Outline.words(ss), ss, nn, Outline.doc_text(doc)),
+    Seen{Laws.top.keys(Outline.add(Outline.import_item.of(Outline.words(s), s, n, Outline.doc_text(doc)),
+      Outline.flush(mode, out))), (n + 1 : U32)},
+    ol.adds(Laws.top.import(Outline.words(s), n), mode, out, n),
+    ol.adds(Laws.top.import(List.filter(~String, ~Laws.top.word, String.split(s, ' ')), n), mode, out, n),
+    Equal.cong(List<&2, Outline.Item>, Seen, ks => Seen{ks, (n + 1 : U32)},
+      Laws.top.keys(Outline.add(Outline.import_item.of(Outline.words(s), s, n, Outline.doc_text(doc)),
         Outline.flush(mode, out))),
-      Laws.top.put(Laws.top.import(Outline.words(ss), nn), Laws.top.keys(Outline.flush(mode, out))),
-      ol.import.of(Outline.words(ss), ss, nn, Outline.doc_text(doc), Outline.flush(mode, out))),
-    Equal.cong(List<&2, String>, Seen, ws => ol.adds(Laws.top.import(ws, nn), mode, out, nn),
-      Outline.words(ss), List.filter(~String, ~Laws.top.word, String.split(ss, ' ')),
-      ol.words(String.split(ss, ' '))))
+      Laws.top.put(Laws.top.import(Outline.words(s), n), Laws.top.keys(Outline.flush(mode, out))),
+      ol.import.of(Outline.words(s), s, n, Outline.doc_text(doc), Outline.flush(mode, out))),
+    Equal.cong(List<&2, String>, Seen, ws => ol.adds(Laws.top.import(ws, n), mode, out, n),
+      Outline.words(s), List.filter(~String, ~Laws.top.word, String.split(s, ' ')),
+      ol.words(String.split(s, ' '))))
 
 # a def line settles its def at once, or leaves it pending: either way it is
 # listed, by the name the outline reads
 law ol.start:
   for +colon: Bool
-  for +ss: String
-  for +nn: U32
-  for +dd: String
+  for +s: String
+  for +n: U32
+  for +d: String
   for +xs: List<&2, Outline.Item>
-  {shown(Outline.start_def.on(colon, ss, nn, dd, xs))
-    == Seen{Outline.Item{Outline.IDef{}, Outline.def_name(ss), nn, "", "", ""} <> Laws.top.keys(xs),
-      (nn + 1 : U32)} : Seen}
+  {shown(Outline.start_def.on(colon, s, n, d, xs))
+    == Seen{Outline.Item{Outline.IDef{}, Outline.def_name(s), n, "", "", ""} <> Laws.top.keys(xs),
+      (n + 1 : U32)} : Seen}
 
 def ol.start(colon, _ss, _nn, _dd, _xs):
   match colon:
@@ -798,61 +798,61 @@ def ol.start(colon, _ss, _nn, _dd, _xs):
 # a def line whose name is read from nm opens the spec's def
 law ol.def_on:
   for +mode: Outline.Mode
-  for +ss: String
-  for +nn: U32
+  for +s: String
+  for +n: U32
   for +doc: List<&2, String>
   for +out: List<&2, Outline.Item>
   for +nm: String
-  for en: {Outline.def_name(ss) == Outline.name(nm) : String}
-  {ol.after(Outline.LDef{}, mode, ss, nn, doc, out)
-    == ol.adds(Some{Outline.Item{Outline.IDef{}, Laws.top.name(nm), nn, "", "", ""}}, mode, out, nn) : Seen}
+  for en: {Outline.def_name(s) == Outline.name(nm) : String}
+  {ol.after(Outline.LDef{}, mode, s, n, doc, out)
+    == ol.adds(Some{Outline.Item{Outline.IDef{}, Laws.top.name(nm), n, "", "", ""}}, mode, out, n) : Seen}
 
-def ol.def_on(mode, ss, nn, doc, out, nm, en):
+def ol.def_on(mode, s, n, doc, out, nm, en):
   Equal.trans(Seen,
-    shown(Outline.start_def.on(Outline.ends_colon(ss), ss, nn, Outline.doc_text(doc), Outline.flush(mode, out))),
-    Seen{Outline.Item{Outline.IDef{}, Outline.def_name(ss), nn, "", "", ""} <> Laws.top.keys(Outline.flush(mode, out)),
-      (nn + 1 : U32)},
-    ol.adds(Some{Outline.Item{Outline.IDef{}, Laws.top.name(nm), nn, "", "", ""}}, mode, out, nn),
-    ol.start(Outline.ends_colon(ss), ss, nn, Outline.doc_text(doc), Outline.flush(mode, out)),
+    shown(Outline.start_def.on(Outline.ends_colon(s), s, n, Outline.doc_text(doc), Outline.flush(mode, out))),
+    Seen{Outline.Item{Outline.IDef{}, Outline.def_name(s), n, "", "", ""} <> Laws.top.keys(Outline.flush(mode, out)),
+      (n + 1 : U32)},
+    ol.adds(Some{Outline.Item{Outline.IDef{}, Laws.top.name(nm), n, "", "", ""}}, mode, out, n),
+    ol.start(Outline.ends_colon(s), s, n, Outline.doc_text(doc), Outline.flush(mode, out)),
     Equal.cong(String, Seen,
-      v => Seen{Outline.Item{Outline.IDef{}, v, nn, "", "", ""} <> Laws.top.keys(Outline.flush(mode, out)),
-        (nn + 1 : U32)},
-      Outline.def_name(ss), Laws.top.name(nm),
-      Equal.trans(String, Outline.def_name(ss), Outline.name(nm), Laws.top.name(nm), en, ol.name(nm))))
+      v => Seen{Outline.Item{Outline.IDef{}, v, n, "", "", ""} <> Laws.top.keys(Outline.flush(mode, out)),
+        (n + 1 : U32)},
+      Outline.def_name(s), Laws.top.name(nm),
+      Equal.trans(String, Outline.def_name(s), Outline.name(nm), Laws.top.name(nm), en, ol.name(nm))))
 
 # a law line opens the spec's law
 law ol.law_on:
   for +mode: Outline.Mode
-  for +ss: String
+  for +s: String
   for +nn: U32
   for +doc: List<&2, String>
   for +out: List<&2, Outline.Item>
-  {ol.after(Outline.LLaw{}, mode, ss, nn, doc, out)
-    == ol.adds(Some{Outline.Item{Outline.ILaw{}, Laws.top.name(String.drop(ss, 4n)), nn, "", "", ""}},
+  {ol.after(Outline.LLaw{}, mode, s, nn, doc, out)
+    == ol.adds(Some{Outline.Item{Outline.ILaw{}, Laws.top.name(String.drop(s, 4n)), nn, "", "", ""}},
       mode, out, nn) : Seen}
 
-def ol.law_on(mode, ss, nn, _doc, out):
+def ol.law_on(mode, s, nn, _doc, out):
   Equal.cong(String, Seen,
     v => Seen{Outline.Item{Outline.ILaw{}, v, nn, "", "", ""} <> Laws.top.keys(Outline.flush(mode, out)),
       (nn + 1 : U32)},
-    Outline.name(String.drop(ss, 4n)), Laws.top.name(String.drop(ss, 4n)), ol.name(String.drop(ss, 4n)))
+    Outline.name(String.drop(s, 4n)), Laws.top.name(String.drop(s, 4n)), ol.name(String.drop(s, 4n)))
 
 # a type line opens the spec's type
 law ol.type_on:
   for +mode: Outline.Mode
-  for +ss: String
+  for +s: String
   for +nn: U32
   for +doc: List<&2, String>
   for +out: List<&2, Outline.Item>
-  {ol.after(Outline.LType{}, mode, ss, nn, doc, out)
-    == ol.adds(Some{Outline.Item{Outline.IType{}, Laws.top.name(String.drop(ss, 5n)), nn, "", "", ""}},
+  {ol.after(Outline.LType{}, mode, s, nn, doc, out)
+    == ol.adds(Some{Outline.Item{Outline.IType{}, Laws.top.name(String.drop(s, 5n)), nn, "", "", ""}},
       mode, out, nn) : Seen}
 
-def ol.type_on(mode, ss, nn, _doc, out):
+def ol.type_on(mode, s, nn, _doc, out):
   Equal.cong(String, Seen,
     v => Seen{Outline.Item{Outline.IType{}, v, nn, "", "", ""} <> Laws.top.keys(Outline.flush(mode, out)),
       (nn + 1 : U32)},
-    Outline.name(String.drop(ss, 5n)), Laws.top.name(String.drop(ss, 5n)), ol.name(String.drop(ss, 5n)))
+    Outline.name(String.drop(s, 5n)), Laws.top.name(String.drop(s, 5n)), ol.name(String.drop(s, 5n)))
 
 # five keyword tests that all fail pick nothing
 law ol.none5:
@@ -914,13 +914,13 @@ def ol.none5(b1, b2, b3, b4, b5, a1, a2, a3, a4, a5, e1, e2, e3, e4, e5):
 law ol.head_none:
   for +x: U32
   for +t: String
-  for +nn: U32
+  for +n: U32
   for +e105: {U32.is_eq(x, 105) == False{} : Bool}
   for +e100: {U32.is_eq(x, 100) == False{} : Bool}
   for +e64: {U32.is_eq(x, 64) == False{} : Bool}
   for +e108: {U32.is_eq(x, 108) == False{} : Bool}
   for +e116: {U32.is_eq(x, 116) == False{} : Bool}
-  {Laws.top.head(SCon{Chr{x}, t}, nn) == None{} : Maybe<&2, Outline.Item>}
+  {Laws.top.head(SCon{Chr{x}, t}, n) == None{} : Maybe<&2, Outline.Item>}
 
 def ol.head_none(x, t, nn, e105, e100, e64, e108, e116):
   ol.none5(String.starts_with(SCon{Chr{x}, t}, "import "), String.starts_with(SCon{Chr{x}, t}, "def "),
@@ -939,10 +939,10 @@ def ol.head_none(x, t, nn, e105, e100, e64, e108, e116):
 
 # what a line of code with first char x leaves: what the spec says it opens,
 # onto the items settled, one line on
-def ol.goal(x: U32, t: String, mode: Outline.Mode, nn: U32, doc: List<&2, String>, out: List<&2, Outline.Item>) -> Type:
-  {shown(Outline.step(False{}, SCon{Chr{x}, t}, Outline.St{mode, nn, doc, out}))
-    == ol.adds(Bool.pick(Maybe<&2, Outline.Item>, False{}, None{}, Laws.top.head(SCon{Chr{x}, t}, nn)),
-      mode, out, nn) : Seen}
+def ol.goal(x: U32, t: String, mode: Outline.Mode, n: U32, doc: List<&2, String>, out: List<&2, Outline.Item>) -> Type:
+  {shown(Outline.step(False{}, SCon{Chr{x}, t}, Outline.St{mode, n, doc, out}))
+    == ol.adds(Bool.pick(Maybe<&2, Outline.Item>, False{}, None{}, Laws.top.head(SCon{Chr{x}, t}, n)),
+      mode, out, n) : Seen}
 
 # a line that opens with none of the keywords' first chars opens nothing, in
 # the outline and in the spec
@@ -950,7 +950,7 @@ law ol.plain:
   for +x: U32
   for +t: String
   for +mode: Outline.Mode
-  for +nn: U32
+  for +n: U32
   for +doc: List<&2, String>
   for +out: List<&2, Outline.Item>
   for +e105: {U32.is_eq(x, 105) == False{} : Bool}
@@ -958,25 +958,25 @@ law ol.plain:
   for +e64: {U32.is_eq(x, 64) == False{} : Bool}
   for +e108: {U32.is_eq(x, 108) == False{} : Bool}
   for +e116: {U32.is_eq(x, 116) == False{} : Bool}
-  ol.goal(x, t, mode, nn, doc, out)
+  ol.goal(x, t, mode, n, doc, out)
 
-def ol.plain(x, t, mode, nn, doc, out, e105, e100, e64, e108, e116):
+def ol.plain(x, t, mode, n, doc, out, e105, e100, e64, e108, e116):
   Equal.trans(Seen,
-    shown(Outline.step(False{}, SCon{Chr{x}, t}, Outline.St{mode, nn, doc, out})),
-    ol.same(mode, out, nn),
-    ol.adds(Bool.pick(Maybe<&2, Outline.Item>, False{}, None{}, Laws.top.head(SCon{Chr{x}, t}, nn)), mode, out, nn),
-    ol.hash(U32.is_eq(x, 35), Char.is_space(Chr{x}), x, t, mode, nn, doc, out, e105, e100, e64, e108, e116),
-    Equal.cong(Maybe<&2, Outline.Item>, Seen, m => ol.adds(m, mode, out, nn),
-      None{}, Laws.top.head(SCon{Chr{x}, t}, nn),
-      Equal.sym(Maybe<&2, Outline.Item>, Laws.top.head(SCon{Chr{x}, t}, nn), None{},
-        ol.head_none(x, t, nn, e105, e100, e64, e108, e116))))
+    shown(Outline.step(False{}, SCon{Chr{x}, t}, Outline.St{mode, n, doc, out})),
+    ol.same(mode, out, n),
+    ol.adds(Bool.pick(Maybe<&2, Outline.Item>, False{}, None{}, Laws.top.head(SCon{Chr{x}, t}, n)), mode, out, n),
+    ol.hash(U32.is_eq(x, 35), Char.is_space(Chr{x}), x, t, mode, n, doc, out, e105, e100, e64, e108, e116),
+    Equal.cong(Maybe<&2, Outline.Item>, Seen, m => ol.adds(m, mode, out, n),
+      None{}, Laws.top.head(SCon{Chr{x}, t}, n),
+      Equal.sym(Maybe<&2, Outline.Item>, Laws.top.head(SCon{Chr{x}, t}, n), None{},
+        ol.head_none(x, t, n, e105, e100, e64, e108, e116))))
 
 # first char `t`, or none of the keywords'
 law ol.c_ty:
   for +x: U32
   for +t: String
   for +mode: Outline.Mode
-  for +nn: U32
+  for +n: U32
   for +doc: List<&2, String>
   for +out: List<&2, Outline.Item>
   for +e105: {U32.is_eq(x, 105) == False{} : Bool}
@@ -985,7 +985,7 @@ law ol.c_ty:
   for +e108: {U32.is_eq(x, 108) == False{} : Bool}
   for +b: Bool
   for +e: {U32.is_eq(x, 116) == b : Bool}
-  ol.goal(x, t, mode, nn, doc, out)
+  ol.goal(x, t, mode, n, doc, out)
 
 def ol.c_ty(x, t, mode, nn, doc, out, e105, e100, e64, e108, b, e):
   match b:
@@ -1002,7 +1002,7 @@ law ol.c_law:
   for +x: U32
   for +t: String
   for +mode: Outline.Mode
-  for +nn: U32
+  for +n: U32
   for +doc: List<&2, String>
   for +out: List<&2, Outline.Item>
   for +e105: {U32.is_eq(x, 105) == False{} : Bool}
@@ -1010,7 +1010,7 @@ law ol.c_law:
   for +e64: {U32.is_eq(x, 64) == False{} : Bool}
   for +b: Bool
   for +e: {U32.is_eq(x, 108) == b : Bool}
-  ol.goal(x, t, mode, nn, doc, out)
+  ol.goal(x, t, mode, n, doc, out)
 
 def ol.c_law(x, t, mode, nn, doc, out, e105, e100, e64, b, e):
   match b:
@@ -1027,14 +1027,14 @@ law ol.c_at:
   for +x: U32
   for +t: String
   for +mode: Outline.Mode
-  for +nn: U32
+  for +n: U32
   for +doc: List<&2, String>
   for +out: List<&2, Outline.Item>
   for +e105: {U32.is_eq(x, 105) == False{} : Bool}
   for +e100: {U32.is_eq(x, 100) == False{} : Bool}
   for +b: Bool
   for +e: {U32.is_eq(x, 64) == b : Bool}
-  ol.goal(x, t, mode, nn, doc, out)
+  ol.goal(x, t, mode, n, doc, out)
 
 def ol.c_at(x, t, mode, nn, doc, out, e105, e100, b, e):
   match b:
@@ -1054,13 +1054,13 @@ law ol.c_def:
   for +x: U32
   for +t: String
   for +mode: Outline.Mode
-  for +nn: U32
+  for +n: U32
   for +doc: List<&2, String>
   for +out: List<&2, Outline.Item>
   for +e105: {U32.is_eq(x, 105) == False{} : Bool}
   for +b: Bool
   for +e: {U32.is_eq(x, 100) == b : Bool}
-  ol.goal(x, t, mode, nn, doc, out)
+  ol.goal(x, t, mode, n, doc, out)
 
 def ol.c_def(x, t, mode, nn, doc, out, e105, b, e):
   match b:
@@ -1077,36 +1077,36 @@ law ol.c_imp:
   for +x: U32
   for +t: String
   for +mode: Outline.Mode
-  for +nn: U32
+  for +n: U32
   for +doc: List<&2, String>
   for +out: List<&2, Outline.Item>
   for +b: Bool
   for +e: {U32.is_eq(x, 105) == b : Bool}
-  ol.goal(x, t, mode, nn, doc, out)
+  ol.goal(x, t, mode, n, doc, out)
 
-def ol.c_imp(x, t, mode, nn, doc, out, b, e):
+def ol.c_imp(x, t, mode, n, doc, out, b, e):
   match b:
     case True{}:
-      %Equal.sym(U32, x, 105, ol.ueq(x, 105, e)) : ol.goal(_, t, mode, nn, doc, out)
-      ol.kw(String.starts_with(t, "mport "), Outline.LImport{}, mode, SCon{Chr{105}, t}, nn, doc, out,
-        Laws.top.import(List.filter(~String, ~Laws.top.word, String.split(SCon{Chr{105}, t}, ' ')), nn),
-        ol.imp_on(mode, SCon{Chr{105}, t}, nn, doc, out))
+      %Equal.sym(U32, x, 105, ol.ueq(x, 105, e)) : ol.goal(_, t, mode, n, doc, out)
+      ol.kw(String.starts_with(t, "mport "), Outline.LImport{}, mode, SCon{Chr{105}, t}, n, doc, out,
+        Laws.top.import(List.filter(~String, ~Laws.top.word, String.split(SCon{Chr{105}, t}, ' ')), n),
+        ol.imp_on(mode, SCon{Chr{105}, t}, n, doc, out))
     case False{}:
-      ol.c_def(x, t, mode, nn, doc, out, e, U32.is_eq(x, 100), {==})
+      ol.c_def(x, t, mode, n, doc, out, e, U32.is_eq(x, 100), {==})
 
 # one line: text inside a string opens nothing; a line of code opens what
 # the spec says; either way the machine moves one line on
 law ol.step:
   for +w: Bool
-  for +ll: String
+  for +l: String
   for +mode: Outline.Mode
-  for +nn: U32
+  for +n: U32
   for +doc: List<&2, String>
   for +out: List<&2, Outline.Item>
-  {shown(Outline.step(w, ll, Outline.St{mode, nn, doc, out}))
-    == ol.adds(Bool.pick(Maybe<&2, Outline.Item>, w, None{}, Laws.top.head(ll, nn)), mode, out, nn) : Seen}
+  {shown(Outline.step(w, l, Outline.St{mode, n, doc, out}))
+    == ol.adds(Bool.pick(Maybe<&2, Outline.Item>, w, None{}, Laws.top.head(l, n)), mode, out, n) : Seen}
 
-def ol.step(w, ll, mode, nn, doc, out):
+def ol.step(w, l, mode, n, doc, out):
   match w:
     case True{}:
       match mode:
@@ -1117,13 +1117,13 @@ def ol.step(w, ll, mode, nn, doc, out):
         case Outline.Pending{_k, _nm, _l, _d, _sig}:
           {==}
     case False{}:
-      match ll:
+      match l:
         case SNil{}:
           {==}
         case SCon{c, t}:
           match c:
             case Chr{+x}:
-              ol.c_imp(x, t, mode, nn, doc, out, U32.is_eq(x, 105), {==})
+              ol.c_imp(x, t, mode, n, doc, out, U32.is_eq(x, 105), {==})
 
 # a list with an item picked on or not, by kind, name and line, reversed onto r
 law ol.key_rev:
@@ -1162,28 +1162,28 @@ def ol.keys_rev(xs, acc):
 
 # an item, or none, put on a list reversed onto r: put on r instead
 law ol.put_rev:
-  for +mm: Maybe<&2, Outline.Item>
+  for +m: Maybe<&2, Outline.Item>
   for +ks: List<&2, Outline.Item>
   for +r: List<&2, Outline.Item>
-  {List.reverse.go(&2, Outline.Item, Laws.top.put(mm, ks), r)
-    == List.reverse.go(&2, Outline.Item, ks, Laws.top.put(mm, r)) : List<&2, Outline.Item>}
+  {List.reverse.go(&2, Outline.Item, Laws.top.put(m, ks), r)
+    == List.reverse.go(&2, Outline.Item, ks, Laws.top.put(m, r)) : List<&2, Outline.Item>}
 
-def ol.put_rev(mm, _ks, _r):
-  match mm:
+def ol.put_rev(m, _ks, _r):
+  match m:
     case None{}:
       {==}
     case Some{_i}:
       {==}
 
 # the keys a view holds
-def ol.ks(vv: Seen) -> List<&2, Outline.Item>:
-  match vv:
+def ol.ks(v: Seen) -> List<&2, Outline.Item>:
+  match v:
     case Seen{ks, _l}:
       ks
 
 # the line a view is on
-def ol.ln(vv: Seen) -> U32:
-  match vv:
+def ol.ln(v: Seen) -> U32:
+  match v:
     case Seen{_ks, l}:
       l
 
@@ -1191,47 +1191,47 @@ def ol.ln(vv: Seen) -> U32:
 # line settles
 law ol.run.arm:
   for +w: Bool
-  for +ll: String
+  for +l: String
   for +t: List<&2, String>
   for +mode: Outline.Mode
-  for +nn: U32
+  for +n: U32
   for +doc: List<&2, String>
   for +out: List<&2, Outline.Item>
   for +r: List<&2, Bool>
-  for ih: {Laws.top.keys(Outline.finish(Outline.run(t, Outline.step(w, ll, Outline.St{mode, nn, doc, out}), r)))
-    == List.reverse.go(&2, Outline.Item, ol.ks(shown(Outline.step(w, ll, Outline.St{mode, nn, doc, out}))),
-      Laws.top.spec(t, r, ol.ln(shown(Outline.step(w, ll, Outline.St{mode, nn, doc, out}))))) : List<&2, Outline.Item>}
-  {Laws.top.keys(Outline.finish(Outline.run(t, Outline.step(w, ll, Outline.St{mode, nn, doc, out}), r)))
+  for ih: {Laws.top.keys(Outline.finish(Outline.run(t, Outline.step(w, l, Outline.St{mode, n, doc, out}), r)))
+    == List.reverse.go(&2, Outline.Item, ol.ks(shown(Outline.step(w, l, Outline.St{mode, n, doc, out}))),
+      Laws.top.spec(t, r, ol.ln(shown(Outline.step(w, l, Outline.St{mode, n, doc, out}))))) : List<&2, Outline.Item>}
+  {Laws.top.keys(Outline.finish(Outline.run(t, Outline.step(w, l, Outline.St{mode, n, doc, out}), r)))
     == List.reverse.go(&2, Outline.Item, Laws.top.keys(Outline.flush(mode, out)),
-      Laws.top.put(Bool.pick(Maybe<&2, Outline.Item>, w, None{}, Laws.top.head(ll, nn)),
-        Laws.top.spec(t, r, (nn + 1 : U32)))) : List<&2, Outline.Item>}
+      Laws.top.put(Bool.pick(Maybe<&2, Outline.Item>, w, None{}, Laws.top.head(l, n)),
+        Laws.top.spec(t, r, (n + 1 : U32)))) : List<&2, Outline.Item>}
 
-def ol.run.arm(w, ll, t, mode, nn, doc, out, r, ih):
+def ol.run.arm(w, l, t, mode, n, doc, out, r, ih):
   Equal.trans(List<&2, Outline.Item>,
-    Laws.top.keys(Outline.finish(Outline.run(t, Outline.step(w, ll, Outline.St{mode, nn, doc, out}), r))),
-    List.reverse.go(&2, Outline.Item, ol.ks(shown(Outline.step(w, ll, Outline.St{mode, nn, doc, out}))),
-      Laws.top.spec(t, r, ol.ln(shown(Outline.step(w, ll, Outline.St{mode, nn, doc, out}))))),
+    Laws.top.keys(Outline.finish(Outline.run(t, Outline.step(w, l, Outline.St{mode, n, doc, out}), r))),
+    List.reverse.go(&2, Outline.Item, ol.ks(shown(Outline.step(w, l, Outline.St{mode, n, doc, out}))),
+      Laws.top.spec(t, r, ol.ln(shown(Outline.step(w, l, Outline.St{mode, n, doc, out}))))),
     List.reverse.go(&2, Outline.Item, Laws.top.keys(Outline.flush(mode, out)),
-      Laws.top.put(Bool.pick(Maybe<&2, Outline.Item>, w, None{}, Laws.top.head(ll, nn)),
-        Laws.top.spec(t, r, (nn + 1 : U32)))),
+      Laws.top.put(Bool.pick(Maybe<&2, Outline.Item>, w, None{}, Laws.top.head(l, n)),
+        Laws.top.spec(t, r, (n + 1 : U32)))),
     ih,
     Equal.trans(List<&2, Outline.Item>,
-      List.reverse.go(&2, Outline.Item, ol.ks(shown(Outline.step(w, ll, Outline.St{mode, nn, doc, out}))),
-        Laws.top.spec(t, r, ol.ln(shown(Outline.step(w, ll, Outline.St{mode, nn, doc, out}))))),
+      List.reverse.go(&2, Outline.Item, ol.ks(shown(Outline.step(w, l, Outline.St{mode, n, doc, out}))),
+        Laws.top.spec(t, r, ol.ln(shown(Outline.step(w, l, Outline.St{mode, n, doc, out}))))),
       List.reverse.go(&2, Outline.Item,
-        Laws.top.put(Bool.pick(Maybe<&2, Outline.Item>, w, None{}, Laws.top.head(ll, nn)),
+        Laws.top.put(Bool.pick(Maybe<&2, Outline.Item>, w, None{}, Laws.top.head(l, n)),
           Laws.top.keys(Outline.flush(mode, out))),
-        Laws.top.spec(t, r, (nn + 1 : U32))),
+        Laws.top.spec(t, r, (n + 1 : U32))),
       List.reverse.go(&2, Outline.Item, Laws.top.keys(Outline.flush(mode, out)),
-        Laws.top.put(Bool.pick(Maybe<&2, Outline.Item>, w, None{}, Laws.top.head(ll, nn)),
-          Laws.top.spec(t, r, (nn + 1 : U32)))),
+        Laws.top.put(Bool.pick(Maybe<&2, Outline.Item>, w, None{}, Laws.top.head(l, n)),
+          Laws.top.spec(t, r, (n + 1 : U32)))),
       Equal.cong(Seen, List<&2, Outline.Item>,
-        vv => List.reverse.go(&2, Outline.Item, ol.ks(vv), Laws.top.spec(t, r, ol.ln(vv))),
-        shown(Outline.step(w, ll, Outline.St{mode, nn, doc, out})),
-        ol.adds(Bool.pick(Maybe<&2, Outline.Item>, w, None{}, Laws.top.head(ll, nn)), mode, out, nn),
-        ol.step(w, ll, mode, nn, doc, out)),
-      ol.put_rev(Bool.pick(Maybe<&2, Outline.Item>, w, None{}, Laws.top.head(ll, nn)),
-        Laws.top.keys(Outline.flush(mode, out)), Laws.top.spec(t, r, (nn + 1 : U32)))))
+        v => List.reverse.go(&2, Outline.Item, ol.ks(v), Laws.top.spec(t, r, ol.ln(v))),
+        shown(Outline.step(w, l, Outline.St{mode, n, doc, out})),
+        ol.adds(Bool.pick(Maybe<&2, Outline.Item>, w, None{}, Laws.top.head(l, n)), mode, out, n),
+        ol.step(w, l, mode, n, doc, out)),
+      ol.put_rev(Bool.pick(Maybe<&2, Outline.Item>, w, None{}, Laws.top.head(l, n)),
+        Laws.top.keys(Outline.flush(mode, out)), Laws.top.spec(t, r, (n + 1 : U32)))))
 
 # running the outline over the lines lists what the state has settled, then
 # what the spec says the lines open
@@ -1249,16 +1249,16 @@ def ol.run(lines, st, ins):
       match st:
         case Outline.St{mode, _nn, _doc, out}:
           ol.keys_rev(Outline.flush(mode, out), [])
-    case Con{+ll, +t}:
+    case Con{+l, +t}:
       match st:
-        case Outline.St{+mode, +nn, +doc, +out}:
+        case Outline.St{+mode, +n, +doc, +out}:
           match ins:
             case Nil{}:
-              ol.run.arm(False{}, ll, t, mode, nn, doc, out, [],
-                ol.run(t, Outline.step(False{}, ll, Outline.St{mode, nn, doc, out}), []))
+              ol.run.arm(False{}, l, t, mode, n, doc, out, [],
+                ol.run(t, Outline.step(False{}, l, Outline.St{mode, n, doc, out}), []))
             case Con{+h, +r}:
-              ol.run.arm(h, ll, t, mode, nn, doc, out, r,
-                ol.run(t, Outline.step(h, ll, Outline.St{mode, nn, doc, out}), r))
+              ol.run.arm(h, l, t, mode, n, doc, out, r,
+                ol.run(t, Outline.step(h, l, Outline.St{mode, n, doc, out}), r))
 
 def Laws.outline(text, toks):
   Equal.trans(List<&2, Outline.Item>,
@@ -1269,26 +1269,26 @@ def Laws.outline(text, toks):
     Equal.cong(List<&2, Bool>, List<&2, Outline.Item>, x => Laws.top.spec(String.lines(text), x, 0),
       Outline.inside(toks), False{} <> Laws.top.strung(toks), ol.flags(toks)))
 
-def Laws.undoc_drops_hash_and_space(ss, e):
-  %Equal.sym(Bool, String.starts_with(ss, "# "), True{}, e) :
-    {Bool.pick(String, _, String.drop(ss, 2n),
-      Bool.pick(String, String.starts_with(ss, "#"), String.drop(ss, 1n), ss)) == String.drop(ss, 2n) : String}
+def Laws.undoc_drops_hash_and_space(s, e):
+  %Equal.sym(Bool, String.starts_with(s, "# "), True{}, e) :
+    {Bool.pick(String, _, String.drop(s, 2n),
+      Bool.pick(String, String.starts_with(s, "#"), String.drop(s, 1n), s)) == String.drop(s, 2n) : String}
   {==}
 
-def Laws.undoc_drops_a_bare_hash(ss, e1, e2):
-  %Equal.sym(Bool, String.starts_with(ss, "# "), False{}, e1) :
-    {Bool.pick(String, _, String.drop(ss, 2n),
-      Bool.pick(String, String.starts_with(ss, "#"), String.drop(ss, 1n), ss)) == String.drop(ss, 1n) : String}
-  %Equal.sym(Bool, String.starts_with(ss, "#"), True{}, e2) :
-    {Bool.pick(String, _, String.drop(ss, 1n), ss) == String.drop(ss, 1n) : String}
+def Laws.undoc_drops_a_bare_hash(s, e1, e2):
+  %Equal.sym(Bool, String.starts_with(s, "# "), False{}, e1) :
+    {Bool.pick(String, _, String.drop(s, 2n),
+      Bool.pick(String, String.starts_with(s, "#"), String.drop(s, 1n), s)) == String.drop(s, 1n) : String}
+  %Equal.sym(Bool, String.starts_with(s, "#"), True{}, e2) :
+    {Bool.pick(String, _, String.drop(s, 1n), s) == String.drop(s, 1n) : String}
   {==}
 
-def Laws.undoc_keeps_other_lines(ss, e1, e2):
-  %Equal.sym(Bool, String.starts_with(ss, "# "), False{}, e1) :
-    {Bool.pick(String, _, String.drop(ss, 2n),
-      Bool.pick(String, String.starts_with(ss, "#"), String.drop(ss, 1n), ss)) == ss : String}
-  %Equal.sym(Bool, String.starts_with(ss, "#"), False{}, e2) :
-    {Bool.pick(String, _, String.drop(ss, 1n), ss) == ss : String}
+def Laws.undoc_keeps_other_lines(s, e1, e2):
+  %Equal.sym(Bool, String.starts_with(s, "# "), False{}, e1) :
+    {Bool.pick(String, _, String.drop(s, 2n),
+      Bool.pick(String, String.starts_with(s, "#"), String.drop(s, 1n), s)) == s : String}
+  %Equal.sym(Bool, String.starts_with(s, "#"), False{}, e2) :
+    {Bool.pick(String, _, String.drop(s, 1n), s) == s : String}
   {==}
 
 def Laws.doc_text_joins_lines(_doc):

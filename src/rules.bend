@@ -54,8 +54,8 @@ import ./rules/pedantic/fuel.bend as Fuel
 import ./rules/laws/closed.bend as Closed
 
 # the file a Src was read from
-def on.path(ss: Src.Src) -> String:
-  Src.Src{path, _text, _toks, _tree, _bound, _items} = ss
+def on.path(s: Src.Src) -> String:
+  Src.Src{path, _text, _toks, _tree, _bound, _items} = s
   path
 
 # findings put at a path: a per-file rule reports on its own file, so this
@@ -110,8 +110,8 @@ type Run is Data:
 # law or proof file changes (doc, hole, reach, fromrev, prefix, empty, blank,
 # closed) read the role, never the path, and the cost rules check nothing in
 # a law or proof file
-def on.run(ww: Which, +role: Role.Role, +src: Src.Src) -> List<&2, F.Finding>:  # noqa: S010 a table, an arm a check
-  match ww:
+def on.run(w: Which, +role: Role.Role, +src: Src.Src) -> List<&2, F.Finding>:  # noqa: S010 a table, an arm a check
+  match w:
     case WDoc{}:
       Doc.check.role(role, src)
     case WUnused{}:
@@ -223,18 +223,18 @@ def on.slug(+slug: String, fs: List<&2, F.Finding>) -> List<&2, F.Finding>:
 
 # every entry of a table run on a file, its findings named for its rule, in
 # order
-def on.all(rs: List<&2, Run>, +rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
+def on.all(rs: List<&2, Run>, +r: Role.Role, +s: Src.Src) -> List<&2, F.Finding>:
   match rs:
     case Nil{}:
       Nil{}
-    case Con{Run{+slug, ww}, rest}:
-      List.append(&2, F.Finding, on.slug(slug, on.run(ww, rr, ss)), on.all(rest, rr, ss))
+    case Con{Run{+slug, w}, rest}:
+      List.append(&2, F.Finding, on.slug(slug, on.run(w, r, s)), on.all(rest, r, s))
 
 # a check at the limit a config sets for its rule (`def reach_max()`,
 # `def arity_max()` in a bolt.bend); a check with no limit, or one the config does not set, is as
 # it was
-def on.tune(cfg: Config.Config, ww: Which) -> Which:
-  match ww:
+def on.tune(cfg: Config.Config, w: Which) -> Which:
+  match w:
     case WReach{max}:
       WReach{Config.limit(cfg, "reach_max", max)}
     case WSize{+dim, max}:
@@ -247,18 +247,18 @@ def on.tuned(rs: List<&2, Run>, +cfg: Config.Config) -> List<&2, Run>:
   match rs:
     case Nil{}:
       Nil{}
-    case Con{Run{slug, ww}, rest}:
-      Run{slug, on.tune(cfg, ww)} <> on.tuned(rest, cfg)
+    case Con{Run{slug, w}, rest}:
+      Run{slug, on.tune(cfg, w)} <> on.tuned(rest, cfg)
 
 # every per-file rule's findings on a file, told its role, each rule at the
 # limit the file's config sets
-def on.rules.role(+cfg: Config.Config, +rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
-  on.all(on.tuned(on.table(), cfg), rr, ss)
+def on.rules.role(+cfg: Config.Config, +r: Role.Role, +s: Src.Src) -> List<&2, F.Finding>:
+  on.all(on.tuned(on.table(), cfg), r, s)
 
 # every rule's findings on a file read once, told its role and at its
 # config's limits, each at that file
-def on.role(+cfg: Config.Config, +rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
-  on.at(on.path(ss), on.rules.role(cfg, rr, ss))
+def on.role(+cfg: Config.Config, +r: Role.Role, +s: Src.Src) -> List<&2, F.Finding>:
+  on.at(on.path(s), on.rules.role(cfg, r, s))
 
 # Packages (laws/ScopePackageRootsFound.bend). A package root other than `.` is a directory
 # holding a main.bend; a file belongs to the nearest root at or above it, and
@@ -347,25 +347,25 @@ def on.off(cfg: Config.Config, +slug: String) -> Bool:
 
 # an entry's findings, named for its rule, unless the rule is off: then the
 # check is not run
-def on.gate(off: Bool, slug: String, ww: Which, rr: Role.Role, ss: Src.Src) -> List<&2, F.Finding>:
+def on.gate(off: Bool, slug: String, w: Which, r: Role.Role, s: Src.Src) -> List<&2, F.Finding>:
   match off:
     case True{}:
       Nil{}
     case False{}:
-      on.slug(slug, on.run(ww, rr, ss))
+      on.slug(slug, on.run(w, r, s))
 
 # every entry of a table a config does not set off, run on a file, in order.
 # Grading drops an off rule's findings, so not running it changes nothing
 # graded (laws/OffRulesAreNotRun.bend), and the rules off by default
 # (pedantic, the opt-in ones) were a tenth to a sixth of a run
-def on.live(rs: List<&2, Run>, +cfg: Config.Config, +rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
+def on.live(rs: List<&2, Run>, +cfg: Config.Config, +r: Role.Role, +s: Src.Src) -> List<&2, F.Finding>:
   match rs:
     case Nil{}:
       Nil{}
-    case Con{Run{+slug, ww}, rest}:
-      List.append(&2, F.Finding, on.gate(on.off(cfg, slug), slug, ww, rr, ss), on.live(rest, cfg, rr, ss))
+    case Con{Run{+slug, w}, rest}:
+      List.append(&2, F.Finding, on.gate(on.off(cfg, slug), slug, w, r, s), on.live(rest, cfg, r, s))
 
 # the findings on a file of every rule its config does not set off, each at
 # that file
-def on.role.live(+cfg: Config.Config, +rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
-  on.at(on.path(ss), on.live(on.tuned(on.table(), cfg), cfg, rr, ss))
+def on.role.live(+cfg: Config.Config, +r: Role.Role, +s: Src.Src) -> List<&2, F.Finding>:
+  on.at(on.path(s), on.live(on.tuned(on.table(), cfg), cfg, r, s))

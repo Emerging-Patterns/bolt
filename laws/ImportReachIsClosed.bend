@@ -28,9 +28,9 @@ law unsafe_shut:
 law unsafe_least:
   for +ds: List<&2, Digest.Digest>
   for +from: String
-  for +ss: List<&2, String>
-  for +pp: String
-  for hf: {Imports.has(ss, from) == True{} : Bool}
-  for hs: {D1.unsafe.shut(ds, ss, ss) == True{} : Bool}
-  for hp: {Imports.has(D1.unsafe.closure(ds, from), pp) == True{} : Bool}
-  {Imports.has(ss, pp) == True{} : Bool}
+  for +s: List<&2, String>
+  for +p: String
+  for hf: {Imports.has(s, from) == True{} : Bool}
+  for hs: {D1.unsafe.shut(ds, s, s) == True{} : Bool}
+  for hp: {Imports.has(D1.unsafe.closure(ds, from), p) == True{} : Bool}
+  {Imports.has(s, p) == True{} : Bool}

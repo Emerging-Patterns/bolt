@@ -8,13 +8,13 @@ import ./UnansweredAreOpenQuestions.bend as PU
 
 # `and` regroups
 law lint.and_assoc:
-  for aa: Bool
-  for bb: Bool
-  for cc: Bool
-  {Bool.and(aa, Bool.and(bb, cc)) == Bool.and(Bool.and(aa, bb), cc) : Bool}
+  for a: Bool
+  for b: Bool
+  for c: Bool
+  {Bool.and(a, Bool.and(b, c)) == Bool.and(Bool.and(a, b), c) : Bool}
 
-def lint.and_assoc(aa, _bb, _cc):
-  match aa:
+def lint.and_assoc(a, _bb, _cc):
+  match a:
     case True{}:
       {==}
     case False{}:
@@ -41,15 +41,15 @@ def lint.all_app(xs, ys, world):
 
 # one question onto a list the tie holds for
 law lint.all_open.step:
-  for bb: Bool
+  for b: Bool
   for +a: W.Ask
   for -more: Bool
   for +opn: List<&2, W.Ask>
   for ih: {more == List.is_empty(&2, W.Ask, opn) : Bool}
-  {Bool.and(bb, more) == List.is_empty(&2, W.Ask, Bool.pick(List<&2, W.Ask>, bb, opn, a <> opn)) : Bool}
+  {Bool.and(b, more) == List.is_empty(&2, W.Ask, Bool.pick(List<&2, W.Ask>, b, opn, a <> opn)) : Bool}
 
-def lint.all_open.step(bb, _a, _more, _opn, ih):
-  match bb:
+def lint.all_open.step(b, _a, _more, _opn, ih):
+  match b:
     case True{}:
       ih
     case False{}:
@@ -83,13 +83,13 @@ def lint.all_open(xs, world):
 
 # wants is empty exactly when no listing and no text is open
 law lint.tie_pick:
-  for oo: List<&2, W.Ask>
+  for o: List<&2, W.Ask>
   for +world: W.World
-  {Bool.and(List.is_empty(&2, W.Ask, oo), List.is_empty(&2, W.Ask, Plan.unanswered(Plan.texts(world), world)))
-    == List.is_empty(&2, W.Ask, Plan.wants.pick(oo, world)) : Bool}
+  {Bool.and(List.is_empty(&2, W.Ask, o), List.is_empty(&2, W.Ask, Plan.unanswered(Plan.texts(world), world)))
+    == List.is_empty(&2, W.Ask, Plan.wants.pick(o, world)) : Bool}
 
-def lint.tie_pick(oo, _world):
-  match oo:
+def lint.tie_pick(o, _world):
+  match o:
     case Nil{}:
       {==}
     case Con{_a, _tl}:

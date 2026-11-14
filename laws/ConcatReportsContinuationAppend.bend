@@ -27,8 +27,8 @@ import ../src/rules/calls.bend as Calls
 # def may report (Concat.accs, filtered by Concat.keep).
 
 # True when the argument appends onto a reportable name
-def cont.is(mm: Maybe<&2, Lex.Tok>, +accs: List<&2, String>) -> Bool:
-  match mm:
+def cont.is(m: Maybe<&2, Lex.Tok>, +accs: List<&2, String>) -> Bool:
+  match m:
     case None{}:
       False{}
     case Some{Lex.Tok{k, +t, l, c}}:

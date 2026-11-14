@@ -20,8 +20,8 @@ import ../src/rules/style/doc.bend as Doc
 # `tests` directory.
 
 # a def, a type or a law: the kinds that need a comment
-def doc.kind(kk: Outline.ItemKind) -> Bool:
-  match kk:
+def doc.kind(k: Outline.ItemKind) -> Bool:
+  match k:
     case Outline.IDef{}:
       True{}
     case Outline.IType{}:
@@ -40,29 +40,29 @@ def doc.free(+name: String) -> Bool:
 def doc.after(+line: String, ok: Bool) -> Bool:
   Bool.or(String.starts_with(line, "#"), Bool.and(String.starts_with(line, "@"), ok))
 
-# reading lines 0 to nn - 1 (0-based) down from ok: does a comment block end
-# right above line nn, past a run of `@` lines?
-def doc.lead(lines: List<&2, String>, +nn: U32, +ok: Bool) -> Bool:
+# reading lines 0 to n - 1 (0-based) down from ok: does a comment block end
+# right above line n, past a run of `@` lines?
+def doc.lead(lines: List<&2, String>, +n: U32, +ok: Bool) -> Bool:
   match lines:
     case Nil{}:
-      Bool.and(U32.is_eq(nn, 0), ok)
-    case Con{hh, tt}:
-      Bool.pick(Bool, U32.is_eq(nn, 0), ok, doc.lead(tt, U32.sub(nn, 1), doc.after(hh, ok)))
+      Bool.and(U32.is_eq(n, 0), ok)
+    case Con{h, t}:
+      Bool.pick(Bool, U32.is_eq(n, 0), ok, doc.lead(t, U32.sub(n, 1), doc.after(h, ok)))
 
 # an item that needs a comment and has none: an unexempt def, type or law
 # with no `#` line right above it, or right above the `@` lines right above
 # it (its doc text is never read)
-def doc.bare(kk: Outline.ItemKind, +name: String, +line: U32, _doc: String, +lines: List<&2, String>) -> Bool:
-  Bool.and(Bool.and(doc.kind(kk), Bool.not(doc.free(name))), Bool.not(doc.lead(lines, line, False{})))
+def doc.bare(k: Outline.ItemKind, +name: String, +line: U32, _doc: String, +lines: List<&2, String>) -> Bool:
+  Bool.and(Bool.and(doc.kind(k), Bool.not(doc.free(name))), Bool.not(doc.lead(lines, line, False{})))
 
 # how many items need a comment and have none
 def doc.count(items: List<&2, Outline.Item>, +lines: List<&2, String>) -> Nat:
   match items:
     case Nil{}:
       0n
-    case Con{Outline.Item{kk, +name, +line, sig, +doc, pp}, rest}:
+    case Con{Outline.Item{k, +name, +line, sig, +doc, p}, rest}:
       +m = doc.count(rest, lines)
-      Bool.pick(Nat, doc.bare(kk, name, line, doc, lines), 1n+m, m)
+      Bool.pick(Nat, doc.bare(k, name, line, doc, lines), 1n+m, m)
 
 # LAW: over the outline's items, doc reports one finding for each def, type
 # or law not named `main` and holding no dot whose line has no `#` line
@@ -92,11 +92,11 @@ law doc_counts:
 # inside a string literal?), such a line is read as empty, so it is never a
 # comment line, and any other line is read as it is, in order
 law doc_lines_inside_are_text:
-  for hh: String
-  for tt: List<&2, String>
+  for h: String
+  for t: List<&2, String>
   for +ins: List<&2, Bool>
-  {Doc.lines.go(hh <> tt, ins)
-    == Bool.pick(String, Outline.inside.hit(ins), "", hh) <> Doc.lines.go(tt, Outline.inside.rest(ins))
+  {Doc.lines.go(h <> t, ins)
+    == Bool.pick(String, Outline.inside.hit(ins), "", h) <> Doc.lines.go(t, Outline.inside.rest(ins))
     : List<&2, String>}
 
 # LAW: the lines doc reads are the text's lines beside what the tokens say

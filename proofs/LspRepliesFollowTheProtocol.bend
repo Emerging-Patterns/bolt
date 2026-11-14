@@ -25,20 +25,20 @@ def Laws.position_fields(_line, _character):
 def Laws.diagnostic_fields(_cc, _line, _msg):
   {==}
 
-def Laws.finding_range_named(cc, line, col, len, e):
+def Laws.finding_range_named(c, line, col, len, e):
   %Equal.sym(Bool, U32.is_eq(len, 0), False{}, e) :
-    {Ezjson.obj([("start", Proto.position(cc, line, col)),
-      ("end", Bool.pick(J.Json, _, Proto.position(cc, (line + 1 : U32), 0),
-        Proto.position(cc, line, (col + len : U32))))])
-      == Laws.range(Proto.position(cc, line, col), Proto.position(cc, line, (col + len : U32))) : J.Json}
+    {Ezjson.obj([("start", Proto.position(c, line, col)),
+      ("end", Bool.pick(J.Json, _, Proto.position(c, (line + 1 : U32), 0),
+        Proto.position(c, line, (col + len : U32))))])
+      == Laws.range(Proto.position(c, line, col), Proto.position(c, line, (col + len : U32))) : J.Json}
   {==}
 
-def Laws.finding_range_rest_of_line(cc, line, col, len, e):
+def Laws.finding_range_rest_of_line(c, line, col, len, e):
   %Equal.sym(Bool, U32.is_eq(len, 0), True{}, e) :
-    {Ezjson.obj([("start", Proto.position(cc, line, col)),
-      ("end", Bool.pick(J.Json, _, Proto.position(cc, (line + 1 : U32), 0),
-        Proto.position(cc, line, (col + len : U32))))])
-      == Laws.range(Proto.position(cc, line, col), Proto.position(cc, (line + 1 : U32), 0)) : J.Json}
+    {Ezjson.obj([("start", Proto.position(c, line, col)),
+      ("end", Bool.pick(J.Json, _, Proto.position(c, (line + 1 : U32), 0),
+        Proto.position(c, line, (col + len : U32))))])
+      == Laws.range(Proto.position(c, line, col), Proto.position(c, (line + 1 : U32), 0)) : J.Json}
   {==}
 
 def Laws.finding_fields(_cc, level, _path, _line, _col, _len, _rule, _msg):
@@ -76,8 +76,8 @@ def Laws.location_fields(_cc, _uri, _kk, _name, _line, _sig, _doc, _path):
 def Laws.hover_local_fields(_name, _line, _col, _kind, _note):
   {==}
 
-def Laws.kind_name_words(kk):
-  match kk:
+def Laws.kind_name_words(k):
+  match k:
     case Bind.KItem{}:
       {==}
     case Bind.KCtor{}:
@@ -97,8 +97,8 @@ def Laws.kind_name_words(kk):
     case Bind.KTypeVar{}:
       {==}
 
-def Laws.where_bound_line(kk, _line):
-  match kk:
+def Laws.where_bound_line(k, _line):
+  match k:
     case Bind.KItem{}:
       {==}
     case Bind.KCtor{}:
@@ -136,8 +136,8 @@ def Laws.rename_fields(_cc, _uri, _name, _new, _ps):
 def Laws.semantic_fields(_data):
   {==}
 
-def Laws.hex_digit_values(dd):
-  match dd:
+def Laws.hex_digit_values(d):
+  match d:
     case Laws.H0{}:
       {==}
     case Laws.H1{}:
@@ -199,11 +199,11 @@ def Laws.path_keeps_other(uri, e):
 def Laws.source_names_group_and_rule(_ss, _id, _grp):
   {==}
 
-def Laws.source_of_no_rule(mm):
-  match mm:
+def Laws.source_of_no_rule(m):
+  match m:
     case None{}:
       {==}
-    case Some{ee}:
-      match ee:
-        case Codes.Entry{ss, id, grp}:
+    case Some{e}:
+      match e:
+        case Codes.Entry{s, id, grp}:
           {==}

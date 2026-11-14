@@ -45,8 +45,8 @@ def opened(cs: List<&2, Char>) -> Bool:
 
 # is a string token closed: past its opening quote, does it end on a quote no
 # backslash escapes? `"\"`, an unclosed string at the end of the file, is not
-def terminated(+tt: String) -> Bool:
-  opened(String.to_list(tt))
+def terminated(+t: String) -> Bool:
+  opened(String.to_list(t))
 
 # the characters of the string a case pattern opens with, if it does and the
 # string is closed
@@ -59,39 +59,39 @@ def literal(kids: Tree.Node) -> Maybe<&2, U32>:
       None{}
 
 # one for a string arm, else zero
-def one(mm: Maybe<&2, U32>) -> U32:
-  match mm:
+def one(m: Maybe<&2, U32>) -> U32:
+  match m:
     case None{}:
       0
     case Some{n}:
       1
 
 # a string arm's characters, else zero
-def size(mm: Maybe<&2, U32>) -> U32:
-  match mm:
+def size(m: Maybe<&2, U32>) -> U32:
+  match m:
     case None{}:
       0
     case Some{n}:
       n
 
 # the string arms among a match's statements
-def tally(body: Tree.Node, +nn: U32, +chars: U32) -> Tally:
+def tally(body: Tree.Node, +n: U32, +chars: U32) -> Tally:
   match body:
     case Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, b}, rest}:
       +m = literal(T.pattern(kids))
       +k = one(m)
       +ch = size(m)
-      tally(rest, (nn + k : U32), (chars + ch : U32))
+      tally(rest, (n + k : U32), (chars + ch : U32))
     case Tree.NCons{h, rest}:
-      tally(rest, nn, chars)
+      tally(rest, n, chars)
     case other:
-      Tally{nn, chars}
+      Tally{n, chars}
 
 # a finding when the match's strings are too long in all
-def report(tt: Tally, +path: String, +ll: U32, +cc: U32) -> List<&2, F.Finding>:
-  Tally{+n, +chars} = tt
+def report(t: Tally, +path: String, +l: U32, +c: U32) -> List<&2, F.Finding>:
+  Tally{+n, +chars} = t
   Bool.pick(List<&2, F.Finding>, U32.is_gt(chars, 64),
-    [F.Finding{path, ll, cc, 5, "strings", "This match has " ++ U32.show(n) ++ " string-literal cases totalling " ++ U32.show(chars)
+    [F.Finding{path, l, c, 5, "strings", "This match has " ++ U32.show(n) ++ " string-literal cases totalling " ++ U32.show(chars)
       ++ " characters, over the limit of 64, which blows up compile time and memory; map the string to a sum type once and match on that."}],
     [])
 
@@ -102,8 +102,8 @@ def on_stmt(+kids: Tree.Node, +body: Tree.Node, +path: String) -> List<&2, F.Fin
     _u => report(tally(body, 0, 0), path, Tree.line(kids), Tree.col(kids)))
 
 # every statement, at any depth
-def walk(nn: Tree.Node, +path: String) -> List<&2, F.Finding>:
-  match nn:
+def walk(n: Tree.Node, +path: String) -> List<&2, F.Finding>:
+  match n:
     case Tree.NCons{Tree.Stmt{kind, kids, +body}, rest}:
       List.concat(&2, F.Finding, [on_stmt(kids, body, path), walk(body, path), walk(rest, path)])
     case Tree.NCons{h, rest}:
@@ -112,6 +112,6 @@ def walk(nn: Tree.Node, +path: String) -> List<&2, F.Finding>:
       Nil{}
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
   walk(tree, path)

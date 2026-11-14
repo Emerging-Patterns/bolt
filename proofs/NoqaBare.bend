@@ -18,5 +18,5 @@ def nqp.lead(n, w):
       nqp.lead(p, w)
 
 def Laws.noqa_bare(line, col, len, n):
-  Equal.cong(String, List<&2, Noqa.Mark>, ss => Noqa.mark.word(line, col, len, ss),
+  Equal.cong(String, List<&2, Noqa.Mark>, s => Noqa.mark.word(line, col, len, s),
     Noqa.lead(D1.nq.spaces(n) ++ "noqa"), Noqa.lead("noqa"), nqp.lead(n, "noqa"))

@@ -6,8 +6,8 @@ import ../src/finding.bend as F
 import ../src/codes.bend as Codes
 
 # the word for each level, as law vocabulary
-def level.word(ll: Config.Level) -> String:
-  match ll:
+def level.word(l: Config.Level) -> String:
+  match l:
     case Config.Off{}:
       "off"
     case Config.Warn{}:
@@ -17,8 +17,8 @@ def level.word(ll: Config.Level) -> String:
 
 # LAW: each level prints as its own word
 law level_words:
-  for ll: Config.Level
-  {Config.show(ll) == level.word(ll) : String}
+  for l: Config.Level
+  {Config.show(l) == level.word(l) : String}
 
 # LAW: a graded finding prints as `path:line:col: level: CODE: message`, line
 # and column counted from 1, the level as the config shows it and the code

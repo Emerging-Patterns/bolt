@@ -16,8 +16,8 @@ import ./ScopeWalkFiles.bend as D2
 
 # a source's read failure: one `read` finding when the World holds no text
 # for it. Law vocabulary, as are the specs below.
-def unread_at(+path: String, mm: Maybe<&2, String>) -> List<&2, F.Finding>:
-  match mm:
+def unread_at(+path: String, m: Maybe<&2, String>) -> List<&2, F.Finding>:
+  match m:
     case None{}:
       [F.Finding{path, 0, 0, 0, "read", "Cannot read this file."}]
     case Some{_text}:
@@ -32,8 +32,8 @@ def unread_all(+world: W.World, ps: List<&2, String>) -> List<&2, F.Finding>:
       List.append(&2, F.Finding, unread_at(p, W.text(world, p)), unread_all(world, rest))
 
 # a source's text, parsed alone, when the World holds one
-def parsed_at(+path: String, mm: Maybe<&2, String>) -> List<&2, Src.Src>:
-  match mm:
+def parsed_at(+path: String, m: Maybe<&2, String>) -> List<&2, Src.Src>:
+  match m:
     case None{}:
       []
     case Some{text}:
@@ -54,9 +54,9 @@ def on_at(
   +world: W.World,
   +ms: List<&2, Role.Mark>,
   +path: String,
-  mm: Maybe<&2, String>
+  m: Maybe<&2, String>
 ) -> List<&2, F.Finding>:
-  match mm:
+  match m:
     case None{}:
       []
     case Some{text}:
@@ -78,8 +78,8 @@ def on_all(
 
 # the path of the first of the paths the World read a text for, as a list of
 # one; none when it read none
-def read_first.at(+path: String, mm: Maybe<&2, W.Answer>, more: List<&2, String>) -> List<&2, String>:
-  match mm:
+def read_first.at(+path: String, m: Maybe<&2, W.Answer>, more: List<&2, String>) -> List<&2, String>:
+  match m:
     case None{}:
       more
     case Some{W.Listed{_names}}:
@@ -113,8 +113,8 @@ def graders_all(+world: W.World, ds: List<&2, String>) -> List<&2, String>:
 
 # one `setting` finding for each setting, at the bolt.bend's path and the
 # line of the setting's def, in order
-def flagged(+path: String, ss: List<&2, Config.Setting>) -> List<&2, F.Finding>:
-  match ss:
+def flagged(+path: String, s: List<&2, Config.Setting>) -> List<&2, F.Finding>:
+  match s:
     case Nil{}:
       []
     case Con{Config.Setting{n, _w, line}, rest}:
@@ -123,8 +123,8 @@ def flagged(+path: String, ss: List<&2, Config.Setting>) -> List<&2, F.Finding>:
 
 # a bolt.bend's `setting` findings, its unknown settings, when the World
 # read it
-def flagged_at(+path: String, mm: Maybe<&2, W.Answer>) -> List<&2, F.Finding>:
-  match mm:
+def flagged_at(+path: String, m: Maybe<&2, W.Answer>) -> List<&2, F.Finding>:
+  match m:
     case None{}:
       []
     case Some{W.Listed{_names}}:
@@ -185,8 +185,8 @@ def graded_by(+cs: List<&2, Plan.Conf>, +world: W.World, fs: List<&2, F.Finding>
         F.Finding{path, line, col, len, rule, msg}, graded_by(cs, world, rest))
 
 # one more at error, or the count as it was
-def at_error.one(ll: Config.Level, nn: Nat) -> Nat:
-  match ll:
+def at_error.one(l: Config.Level, nn: Nat) -> Nat:
+  match l:
     case Config.Off{}:
       nn
     case Config.Warn{}:
@@ -199,12 +199,12 @@ def at_error(gs: List<&2, F.Graded>) -> Nat:
   match gs:
     case Nil{}:
       0n
-    case Con{F.Graded{ll, _ff}, rest}:
-      at_error.one(ll, at_error(rest))
+    case Con{F.Graded{l, _ff}, rest}:
+      at_error.one(l, at_error(rest))
 
 # one more below error, or the count as it was
-def below_error.one(ll: Config.Level, nn: Nat) -> Nat:
-  match ll:
+def below_error.one(l: Config.Level, nn: Nat) -> Nat:
+  match l:
     case Config.Off{}:
       1n+nn
     case Config.Warn{}:
@@ -217,12 +217,12 @@ def below_error(gs: List<&2, F.Graded>) -> Nat:
   match gs:
     case Nil{}:
       0n
-    case Con{F.Graded{ll, _ff}, rest}:
-      below_error.one(ll, below_error(rest))
+    case Con{F.Graded{l, _ff}, rest}:
+      below_error.one(l, below_error(rest))
 
 # `1 error`, `2 errors`
-def plural(+nn: U32, +word: String) -> String:
-  U32.show(nn) ++ " " ++ word ++ Bool.pick(String, U32.is_eq(nn, 1), "", "s")
+def plural(+n: U32, +word: String) -> String:
+  U32.show(n) ++ " " ++ word ++ Bool.pick(String, U32.is_eq(n, 1), "", "s")
 
 # the counts of a run that graded something
 def summary_of.counts(+gs: List<&2, F.Graded>) -> String:

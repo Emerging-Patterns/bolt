@@ -27,30 +27,30 @@ def line_of(item: Maybe<&2, Outline.Item>) -> U32:
       line
 
 # a parsed message, or null
-def parsed(mm: Maybe<&2, J.Json>) -> J.Json:
-  Maybe.default(&2, J.Json, mm, J.JNull{})
+def parsed(m: Maybe<&2, J.Json>) -> J.Json:
+  Maybe.default(&2, J.Json, m, J.JNull{})
 
 # one request: the line of the item under the message's position, plus its id
-def leaf(+ii: U32) -> U32:
+def leaf(+i: U32) -> U32:
   +msg = parsed(Ezjson.parse(message()))
   +pos = Ezjson.get(Ezjson.get(msg, "params"), "position")
   (line_of(Outline.find(Outline.items(source()),
     Word.at(source(), Maybe.default(&2, U32, Ezjson.as_u32(Ezjson.get(pos, "line")), 0),
       Maybe.default(&2, U32, Ezjson.as_u32(Ezjson.get(pos, "character")), 0))))
-    + Maybe.default(&2, U32, Ezjson.as_u32(Ezjson.get(msg, "id")), 0) + (ii .&. 0) : U32)
+    + Maybe.default(&2, U32, Ezjson.as_u32(Ezjson.get(msg, "id")), 0) + (i .&. 0) : U32)
 
 # the requests of a 2^n batch, answered and summed
-def fold(+nn: Nat, +ii: U32) -> U32:
+def fold(+nn: Nat, +i: U32) -> U32:
   match nn:
     case 0n:
-      leaf(ii)
+      leaf(i)
     case 1n+p:
-      a b = fold(p, (ii * 2 : U32)) fold(p, (ii * 2 + 1 : U32))
+      a b = fold(p, (i * 2 : U32)) fold(p, (i * 2 + 1 : U32))
       (a + b : U32)
 
 # DEPTH from the environment: the batch is 2^depth requests
-def depth(rr: Result<&1, &1, U32 & String, String>) -> U32:
-  match rr:
+def depth(r: Result<&1, &1, U32 & String, String>) -> U32:
+  match r:
     case Fail{e}:
       0
     case Done{s}:

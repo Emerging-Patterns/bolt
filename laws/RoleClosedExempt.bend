@@ -10,12 +10,12 @@ import ../src/rules/laws/closed.bend as Closed
 
 # LAW: closed reports nothing in a file that is not a law file, whatever the source holds
 law role_closed_exempt:
-  for rr: Role.Role
-  for e: {Role.is_laws(rr) == False{} : Bool}
+  for r: Role.Role
+  for e: {Role.is_laws(r) == False{} : Bool}
   for +path: String
   for +text: String
   for +toks: List<&2, Lex.Tok>
   for +tree: Tree.Node
   for +bound: Bind.Bound
   for +items: List<&2, Outline.Item>
-  {Closed.check.role(rr, Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}
+  {Closed.check.role(r, Src.Src{path, text, toks, tree, bound, items}) == Nil{} : List<&2, F.Finding>}

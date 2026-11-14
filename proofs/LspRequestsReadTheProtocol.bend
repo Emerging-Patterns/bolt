@@ -5,8 +5,8 @@ import ../src/lsp/enc.bend as Enc
 import ../src/lsp/server.bend as Server
 import ../laws/LspRequestsReadTheProtocol.bend as Laws
 
-def Laws.method_by_wire_name(mm):
-  match mm:
+def Laws.method_by_wire_name(m):
+  match m:
     case Server.MInitialize{}:
       {==}
     case Server.MShutdown{}:
@@ -59,8 +59,8 @@ def Laws.request_line_field(_doc, _line, _character):
 def Laws.request_character_field(_doc, _line, _character):
   {==}
 
-def Laws.encoding_wire_names(ee):
-  match ee:
+def Laws.encoding_wire_names(e):
+  match e:
     case Enc.Utf16{}:
       {==}
     case Enc.Utf32{}:

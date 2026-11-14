@@ -15,16 +15,16 @@ import ./lemmas/UnsafeStringCompare.bend as M4
 
 # hit adds one finding exactly when the argument appends onto its slot
 law concat.hit:
-  for mm: Maybe<&2, Lex.Tok>
+  for m: Maybe<&2, Lex.Tok>
   for +slot: String
   for +path: String
   for +acc: List<&2, F.Finding>
-  {List.length(&2, F.Finding, Concat.hit(mm, slot, path, acc))
-    == Bool.pick(Nat, Laws.concat.is(mm, slot), 1n+List.length(&2, F.Finding, acc), List.length(&2, F.Finding, acc))
+  {List.length(&2, F.Finding, Concat.hit(m, slot, path, acc))
+    == Bool.pick(Nat, Laws.concat.is(m, slot), 1n+List.length(&2, F.Finding, acc), List.length(&2, F.Finding, acc))
     : Nat}
 
-def concat.hit(mm, slot, path, acc):
-  match mm:
+def concat.hit(m, slot, path, acc):
+  match m:
     case None{}:
       {==}
     case Some{Lex.Tok{k, +t, l, c}}:
@@ -138,16 +138,16 @@ def concat.call(tok, open, kids, _cl, rest, name, params, lets, path, ik, ir):
 # walk finds what the law's count counts, node by node, whatever lets are in
 # scope
 law concat.walk:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +name: String
   for +params: List<&2, String>
   for +lets: List<&2, Concat.Let>
   for +path: String
-  {List.length(&2, F.Finding, Concat.walk(nn, name, params, lets, path)) == Laws.concat.count(nn, name, params, lets)
+  {List.length(&2, F.Finding, Concat.walk(n, name, params, lets, path)) == Laws.concat.count(n, name, params, lets)
     : Nat}
 
-def concat.walk(nn, name, params, lets, path):
-  match nn:
+def concat.walk(n, name, params, lets, path):
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{ok, o, ol, oc}, +kids, cl}, +rest}}:
       concat.call(Lex.Tok{k, t, l, c}, Lex.Tok{ok, o, ol, oc}, kids, cl, rest, name, params, lets, path,
         concat.walk(kids, name, params, lets, path), concat.walk(rest, name, params, lets, path))
@@ -240,9 +240,9 @@ def Laws.concat_via(_t, _l, _c, _lets):
 def Laws.concat_bound(_t, _tl, _tc, _e, _el, _ec, _rhs):
   {==}
 
-def Laws.concat_in_place(aa, tok, lets, e):
-  %Equal.sym(Maybe<&2, Lex.Tok>, Concat.onto(aa), Some{tok}, e) :
-    {Concat.either(_, Concat.via(aa, lets)) == Some{tok} : Maybe<&2, Lex.Tok>}
+def Laws.concat_in_place(a, tok, lets, e):
+  %Equal.sym(Maybe<&2, Lex.Tok>, Concat.onto(a), Some{tok}, e) :
+    {Concat.either(_, Concat.via(a, lets)) == Some{tok} : Maybe<&2, Lex.Tok>}
   {==}
 
 def Laws.concat_scope(kids, lt, lets, e):
@@ -256,13 +256,13 @@ def Laws.concat_bound_plus(_pl, _pc, _t, _tl, _tc, _e, _el, _ec, _rhs):
 # concat_nearest and concat_other read String.eq on a let's name, so they
 # sit below unsafe.srefl
 
-def Laws.concat_nearest(name, mm, lets):
+def Laws.concat_nearest(name, m, lets):
   %Equal.sym(Bool, String.eq(name, name), True{}, M4.unsafe.srefl(name)) :
-    {Lazy.stop(Maybe<&2, Lex.Tok>, _, mm, _u => Concat.find(lets, name)) == mm : Maybe<&2, Lex.Tok>}
+    {Lazy.stop(Maybe<&2, Lex.Tok>, _, m, _u => Concat.find(lets, name)) == m : Maybe<&2, Lex.Tok>}
   {==}
 
-def Laws.concat_other(nm, name, mm, lets, e):
+def Laws.concat_other(nm, name, m, lets, e):
   %Equal.sym(Bool, String.eq(nm, name), False{}, e) :
-    {Lazy.stop(Maybe<&2, Lex.Tok>, _, mm, _u => Concat.find(lets, name)) == Concat.find(lets, name)
+    {Lazy.stop(Maybe<&2, Lex.Tok>, _, m, _u => Concat.find(lets, name)) == Concat.find(lets, name)
       : Maybe<&2, Lex.Tok>}
   {==}

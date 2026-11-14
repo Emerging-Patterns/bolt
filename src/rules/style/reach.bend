@@ -71,8 +71,8 @@ def one(name: String) -> Bool:
 
 # the binder a use reads from more than max lines below it, by a
 # one-character name: a use of anything but a binder of the file reads none
-def far.hit(name: String, line: U32, tt: Bind.Target, max: U32) -> Maybe<&2, Bind.Pos>:
-  match tt:
+def far.hit(name: String, line: U32, t: Bind.Target, max: U32) -> Maybe<&2, Bind.Pos>:
+  match t:
     case Bind.TLocal{+tl, tc}:
       Bool.pick(Maybe<&2, Bind.Pos>, Lazy.and_then(U32.is_gt(line, (tl + max : U32)), _u => one(name)),
         Some{Bind.Pos{tl, tc}}, None{})
@@ -80,12 +80,12 @@ def far.hit(name: String, line: U32, tt: Bind.Target, max: U32) -> Maybe<&2, Bin
       None{}
 
 # a binder read from afar, when there is one, onto the rest
-def far.keep(mm: Maybe<&2, Bind.Pos>, more: List<&2, Bind.Pos>) -> List<&2, Bind.Pos>:
-  match mm:
+def far.keep(m: Maybe<&2, Bind.Pos>, more: List<&2, Bind.Pos>) -> List<&2, Bind.Pos>:
+  match m:
     case None{}:
       more
-    case Some{pp}:
-      pp <> more
+    case Some{p}:
+      p <> more
 
 # the binders the uses read from afar by a one-character name, one for each
 # such use
@@ -93,12 +93,12 @@ def far(uses: List<&2, Bind.Use>, +max: U32) -> List<&2, Bind.Pos>:
   match uses:
     case Nil{}:
       Nil{}
-    case Con{Bind.Use{name, line, _col, tt}, rest}:
-      far.keep(far.hit(name, line, tt, max), far(rest, max))
+    case Con{Bind.Use{name, line, _col, t}, rest}:
+      far.keep(far.hit(name, line, t, max), far(rest, max))
 
 # is the position this line and column?
-def reaches.at(pp: Bind.Pos, line: U32, col: U32) -> Bool:
-  Bind.Pos{pl, pc} = pp
+def reaches.at(p: Bind.Pos, line: U32, col: U32) -> Bool:
+  Bind.Pos{pl, pc} = p
   Bool.and(U32.is_eq(pl, line), U32.is_eq(pc, col))
 
 # is the binder at this line and column among those read from afar?
@@ -106,12 +106,12 @@ def reaches(fr: List<&2, Bind.Pos>, +line: U32, +col: U32) -> Bool:
   match fr:
     case Nil{}:
       False{}
-    case Con{pp, rest}:
-      Lazy.or_else(reaches.at(pp, line, col), _u => reaches(rest, line, col))
+    case Con{p, rest}:
+      Lazy.or_else(reaches.at(p, line, col), _u => reaches(rest, line, col))
 
 # a parameter, a let, do-bind or lambda name, or a pattern name
-def kind(kk: Bind.BindKind) -> Bool:
-  match kk:
+def kind(k: Bind.BindKind) -> Bool:
+  match k:
     case Bind.KParam{}:
       True{}
     case Bind.KLocal{}:
@@ -122,8 +122,8 @@ def kind(kk: Bind.BindKind) -> Bool:
       False{}
 
 # a parameter
-def is_param(kk: Bind.BindKind) -> Bool:
-  match kk:
+def is_param(k: Bind.BindKind) -> Bool:
+  match k:
     case Bind.KParam{}:
       True{}
     case other:
@@ -150,8 +150,8 @@ def quant(+note: String) -> Bool:
 
 # a type parameter, or a parameter that is a quantity: left alone. Only a
 # parameter's note is its own declaration; a let's is its whole line
-def allowed(kk: Bind.BindKind, nm: String, note: String) -> Bool:
-  Lazy.or_else(upper(nm), _u => Lazy.and_then(is_param(kk), _v => quant(note)))
+def allowed(k: Bind.BindKind, nm: String, note: String) -> Bool:
+  Lazy.or_else(upper(nm), _u => Lazy.and_then(is_param(k), _v => quant(note)))
 
 # is the line among these?
 def has(ls: List<&2, U32>, +line: U32) -> Bool:
@@ -162,10 +162,10 @@ def has(ls: List<&2, U32>, +line: U32) -> Bool:
       Lazy.or_else(U32.is_eq(l, line), _u => has(rest, line))
 
 # is the keyword `def`?
-def proofs.is_def(kk: Lex.TokKind, tt: String) -> Bool:
-  match kk:
+def proofs.is_def(k: Lex.TokKind, t: String) -> Bool:
+  match k:
     case Lex.TKey{}:
-      String.eq(tt, "def")
+      String.eq(t, "def")
     case other:
       False{}
 
@@ -189,8 +189,8 @@ def proofs(toks: List<&2, Lex.Tok>) -> List<&2, U32>:
       Bool.pick(List<&2, U32>, hit, proofs.line(rest) <> more, more)
 
 # the line of the item a binder sits in: its own when it is the item
-def at_item(kk: Bind.BindKind, line: U32, item: U32) -> U32:
-  match kk:
+def at_item(k: Bind.BindKind, line: U32, item: U32) -> U32:
+  match k:
     case Bind.KItem{}:
       line
     case other:
@@ -203,15 +203,15 @@ def flagged(
   +fr: List<&2, Bind.Pos>,
   +line: U32,
   +col: U32,
-  +kk: Bind.BindKind,
+  +k: Bind.BindKind,
   nm: String,
   note: String,
   ps: List<&2, U32>,
   item: U32
 ) -> Bool:
   Lazy.and_then(reaches(fr, line, col),
-    _u => Lazy.and_then(kind(kk),
-      _v => Lazy.and_then(Bool.not(allowed(kk, nm, note)), _w => Bool.not(has(ps, item)))))
+    _u => Lazy.and_then(kind(k),
+      _v => Lazy.and_then(Bool.not(allowed(k, nm, note)), _w => Bool.not(has(ps, item)))))
 
 # what a finding says
 def say(nm: String, max: U32) -> String:
@@ -264,8 +264,8 @@ def check.far(
   match fr:
     case Nil{}:
       Nil{}
-    case Con{pp, rest}:
-      check.go(binds, pp <> rest, proofs(T.sig(toks)), path, 0, max)
+    case Con{p, rest}:
+      check.go(binds, p <> rest, proofs(T.sig(toks)), path, 0, max)
 
 # the rule over a file's binders, uses and tokens; a PROOF.bend's names are
 # the law's
@@ -280,15 +280,15 @@ def check.on(
     _u => check.far(far(uses, max), binds, toks, path, max))
 
 # the rule, at a limit
-def check(ss: Src.Src, max: U32) -> List<&2, F.Finding>:
-  Src.Src{path, _text, toks, _tree, bound, _items} = ss
+def check(s: Src.Src, max: U32) -> List<&2, F.Finding>:
+  Src.Src{path, _text, toks, _tree, bound, _items} = s
   Bind.Bound{binds, uses, _scopes} = bound
   check.on(binds, uses, toks, path, max)
 
 # the rule at a limit, told the file's role (src/role.bend): a proof file is
 # skipped
-def check.role(rr: Role.Role, ss: Src.Src, +max: U32) -> List<&2, F.Finding>:
-  Src.Src{path, _text, toks, _tree, bound, _items} = ss
+def check.role(r: Role.Role, s: Src.Src, +max: U32) -> List<&2, F.Finding>:
+  Src.Src{path, _text, toks, _tree, bound, _items} = s
   Bind.Bound{binds, uses, _scopes} = bound
-  Lazy.stop(List<&2, F.Finding>, Role.is_proof(rr), [],
+  Lazy.stop(List<&2, F.Finding>, Role.is_proof(r), [],
     _u => check.far(far(uses, max), binds, toks, path, max))

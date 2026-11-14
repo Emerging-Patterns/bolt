@@ -28,8 +28,8 @@ def if_id(id: J.Json) -> List<&2, J.Json>:
 # the ids a message is owed responses under: its id for a request, its id
 # for a method the server does not know when it has one, none for a
 # notification or exit
-def owed(mm: Server.Method, id: J.Json) -> List<&2, J.Json>:
-  match mm:
+def owed(m: Server.Method, id: J.Json) -> List<&2, J.Json>:
+  match m:
     case Server.MInitialize{}:
       [id]
     case Server.MShutdown{}:
@@ -62,15 +62,15 @@ def owed(mm: Server.Method, id: J.Json) -> List<&2, J.Json>:
       if_id(id)
 
 # nothing after exit is heard
-def heard(mm: Server.Method, more: List<&2, J.Json>) -> List<&2, J.Json>:
-  match mm:
+def heard(m: Server.Method, more: List<&2, J.Json>) -> List<&2, J.Json>:
+  match m:
     case Server.MExit{}:
       []
     case other:
       more
 
-def owed_all.go(+mm: Server.Method, id: J.Json, more: List<&2, J.Json>) -> List<&2, J.Json>:
-  List.append(&2, J.Json, owed(mm, id), heard(mm, more))
+def owed_all.go(+m: Server.Method, id: J.Json, more: List<&2, J.Json>) -> List<&2, J.Json>:
+  List.append(&2, J.Json, owed(m, id), heard(m, more))
 
 # the ids a stream of messages is owed responses under, in order, up to exit
 def owed_all(ts: List<&2, D1.Turn>) -> List<&2, J.Json>:

@@ -12,16 +12,16 @@ import ./lemmas/Nat.bend as M1
 import ./lemmas/Pick.bend as M2
 
 # the k an arm matches every Nat from, if any
-def arms.up(aa: Arms.Arm) -> Maybe<&2, U32>:
-  match aa:
+def arms.up(a: Arms.Arm) -> Maybe<&2, U32>:
+  match a:
     case Arms.APlus{k, t, l, c, n}:
       Some{k}
     case other:
       None{}
 
 # the least Nat an arm matches, if any
-def arms.lo(aa: Arms.Arm) -> Maybe<&2, U32>:
-  match aa:
+def arms.lo(a: Arms.Arm) -> Maybe<&2, U32>:
+  match a:
     case Arms.APlus{k, t, l, c, n}:
       Some{k}
     case Arms.ALit{k, l, c, n}:
@@ -30,8 +30,8 @@ def arms.lo(aa: Arms.Arm) -> Maybe<&2, U32>:
       None{}
 
 # the k of the widest arm so far, if any
-def arms.floor(ww: Maybe<&2, Arms.Wide>) -> Maybe<&2, U32>:
-  match ww:
+def arms.floor(w: Maybe<&2, Arms.Wide>) -> Maybe<&2, U32>:
+  match w:
     case None{}:
       None{}
     case Some{Arms.Wide{k, text}}:
@@ -39,11 +39,11 @@ def arms.floor(ww: Maybe<&2, Arms.Wide>) -> Maybe<&2, U32>:
 
 # a lone binder, inside `Succ{..}` or after `kn+`, to the rule and to the law
 law arms.binder:
-  for kk: Lex.TokKind
-  {Arms.binder(kk) == Laws.arms.binder(kk) : Bool}
+  for k: Lex.TokKind
+  {Arms.binder(k) == Laws.arms.binder(k) : Bool}
 
-def arms.binder(kk):
-  match kk:
+def arms.binder(k):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -185,13 +185,13 @@ def arms.pick_lo1(b, _k, _t, _l, _c, _n):
 law arms.shape_up:
   for rest: Tree.Node
   for +k: U32
-  for +tt: String
+  for +t: String
   for +line: U32
   for +col: U32
-  {arms.up(Arms.lit.shape(rest, k, tt, line, col)) == Bool.pick(Maybe<&2, U32>, Laws.arms.plus(rest), Some{k},
+  {arms.up(Arms.lit.shape(rest, k, t, line, col)) == Bool.pick(Maybe<&2, U32>, Laws.arms.plus(rest), Some{k},
       None{}) : Maybe<&2, U32>}
 
-def arms.shape_up(rest, k, tt, line, col):
+def arms.shape_up(rest, k, t, line, col):
   match rest:
     case Tree.Leaf{Lex.Tok{+k1, +x2, +l3, +c4}}:
       {==}
@@ -278,7 +278,7 @@ def arms.shape_up(rest, k, tt, line, col):
                                 case Lex.TOp{}:
                                   {==}
                                 case Lex.TColon{}:
-                                  arms.plus_up(String.eq(x14, "+"), k29, k, tt ++ "+" ++ x30, line, col, T.width(tt))
+                                  arms.plus_up(String.eq(x14, "+"), k29, k, t ++ "+" ++ x30, line, col, T.width(t))
                                 case Lex.TEq{}:
                                   {==}
                                 case Lex.TBind{}:
@@ -346,13 +346,13 @@ def arms.shape_up(rest, k, tt, line, col):
 law arms.shape_lo:
   for rest: Tree.Node
   for +k: U32
-  for +tt: String
+  for +t: String
   for +line: U32
   for +col: U32
-  {arms.lo(Arms.lit.shape(rest, k, tt, line, col)) == Bool.pick(Maybe<&2, U32>, Bool.or(Laws.arms.plus(rest),
+  {arms.lo(Arms.lit.shape(rest, k, t, line, col)) == Bool.pick(Maybe<&2, U32>, Bool.or(Laws.arms.plus(rest),
       Laws.arms.exact(rest)), Some{k}, None{}) : Maybe<&2, U32>}
 
-def arms.shape_lo(rest, k, tt, line, col):
+def arms.shape_lo(rest, k, t, line, col):
   match rest:
     case Tree.Leaf{Lex.Tok{+k73, +x74, +l75, +c76}}:
       {==}
@@ -439,7 +439,7 @@ def arms.shape_lo(rest, k, tt, line, col):
                                 case Lex.TOp{}:
                                   {==}
                                 case Lex.TColon{}:
-                                  arms.plus_lo(String.eq(x86, "+"), k101, k, tt ++ "+" ++ x102, line, col, T.width(tt))
+                                  arms.plus_lo(String.eq(x86, "+"), k101, k, t ++ "+" ++ x102, line, col, T.width(t))
                                 case Lex.TEq{}:
                                   {==}
                                 case Lex.TBind{}:
@@ -505,36 +505,36 @@ def arms.shape_lo(rest, k, tt, line, col):
 
 # a Nat literal's arm, once its value is read, from above
 law arms.of_up:
-  for mm: Maybe<&2, U32>
-  for +tt: String
+  for m: Maybe<&2, U32>
+  for +t: String
   for +rest: Tree.Node
   for +line: U32
   for +col: U32
-  {arms.up(Arms.lit.of(mm, tt, rest, line, col)) == Laws.arms.num(mm, Laws.arms.plus(rest)) : Maybe<&2, U32>}
+  {arms.up(Arms.lit.of(m, t, rest, line, col)) == Laws.arms.num(m, Laws.arms.plus(rest)) : Maybe<&2, U32>}
 
-def arms.of_up(mm, tt, rest, line, col):
-  match mm:
+def arms.of_up(m, t, rest, line, col):
+  match m:
     case None{}:
       {==}
     case Some{k}:
-      arms.shape_up(rest, k, tt, line, col)
+      arms.shape_up(rest, k, t, line, col)
 
 # a Nat literal's arm, once its value is read, from below
 law arms.of_lo:
-  for mm: Maybe<&2, U32>
-  for +tt: String
+  for m: Maybe<&2, U32>
+  for +t: String
   for +rest: Tree.Node
   for +line: U32
   for +col: U32
-  {arms.lo(Arms.lit.of(mm, tt, rest, line, col)) == Laws.arms.num(mm, Bool.or(Laws.arms.plus(rest),
+  {arms.lo(Arms.lit.of(m, t, rest, line, col)) == Laws.arms.num(m, Bool.or(Laws.arms.plus(rest),
       Laws.arms.exact(rest))) : Maybe<&2, U32>}
 
-def arms.of_lo(mm, tt, rest, line, col):
-  match mm:
+def arms.of_lo(m, t, rest, line, col):
+  match m:
     case None{}:
       {==}
     case Some{k}:
-      arms.shape_lo(rest, k, tt, line, col)
+      arms.shape_lo(rest, k, t, line, col)
 
 # a case pattern's arm, to the rule and to the law, from above
 law arms.up_is:
@@ -964,21 +964,21 @@ def arms.single(kids):
 
 # an arm against the widest one above: a finding exactly when the law's hit
 law arms.verdict:
-  for ww: Maybe<&2, Arms.Wide>
-  for aa: Arms.Arm
+  for w: Maybe<&2, Arms.Wide>
+  for a: Arms.Arm
   for +path: String
   for -more: List<&2, F.Finding>
   for -m: Nat
   for ih: {List.length(&2, F.Finding, more) == m : Nat}
-  {List.length(&2, F.Finding, Arms.verdict(ww, aa, path, more)) == Bool.pick(Nat, Laws.arms.hit(arms.floor(ww),
-      arms.lo(aa)), 1n+m, m) : Nat}
+  {List.length(&2, F.Finding, Arms.verdict(w, a, path, more)) == Bool.pick(Nat, Laws.arms.hit(arms.floor(w),
+      arms.lo(a)), 1n+m, m) : Nat}
 
-def arms.verdict(ww, aa, path, more, m, ih):
-  match ww:
+def arms.verdict(w, a, path, more, m, ih):
+  match w:
     case None{}:
       ih
     case Some{Arms.Wide{+k, +text}}:
-      match aa:
+      match a:
         case Arms.APlus{+j, t, +l, +c, +n}:
           M1.nat.pick(U32.is_ge(j, k), F.Finding{path, l, c, n, "arms",
             "Unreachable: the case " ++ text ++ " above already matches everything from " ++ U32.show(j)
@@ -1009,14 +1009,14 @@ def arms.pick_floor(b, _j, _t2, _k, _text):
 
 # the widest arm after one more, read by its k, is the law's lower bound
 law arms.widen:
-  for ww: Maybe<&2, Arms.Wide>
-  for aa: Arms.Arm
-  {arms.floor(Arms.widen(ww, aa)) == Laws.arms.lower(arms.floor(ww), arms.up(aa)) : Maybe<&2, U32>}
+  for w: Maybe<&2, Arms.Wide>
+  for a: Arms.Arm
+  {arms.floor(Arms.widen(w, a)) == Laws.arms.lower(arms.floor(w), arms.up(a)) : Maybe<&2, U32>}
 
-def arms.widen(ww, aa):
-  match ww:
+def arms.widen(w, a):
+  match w:
     case None{}:
-      match aa:
+      match a:
         case Arms.APlus{j, t2, l, c, n}:
           {==}
         case Arms.ALit{j, l, c, n}:
@@ -1024,7 +1024,7 @@ def arms.widen(ww, aa):
         case Arms.AOther{}:
           {==}
     case Some{Arms.Wide{+k, +text}}:
-      match aa:
+      match a:
         case Arms.APlus{+j, +t2, l, c, n}:
           arms.pick_floor(U32.is_lt(j, k), j, t2, k, text)
         case Arms.ALit{j, l, c, n}:
@@ -1172,12 +1172,12 @@ def arms.stmt(kids, body, rest, path, ihb, ihr):
 
 # every statement at any depth, each single-scrutinee match's arms read
 law arms.walk:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +path: String
-  {List.length(&2, F.Finding, Arms.walk(nn, path)) == Laws.arms_count(nn) : Nat}
+  {List.length(&2, F.Finding, Arms.walk(n, path)) == Laws.arms_count(n) : Nat}
 
-def arms.walk(nn, path):
-  match nn:
+def arms.walk(n, path):
+  match n:
     case Tree.Leaf{Lex.Tok{+k409, +x410, +l411, +c412}}:
       {==}
     case Tree.Group{+op413, +ks414, +cl415}:

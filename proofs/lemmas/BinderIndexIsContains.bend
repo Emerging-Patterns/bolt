@@ -68,12 +68,12 @@ def ic.step(c, t1, t2, ih):
 
 # the binder's name test is String.eq
 law ic.alike:
-  for aa: String
-  for bb: String
-  {Bind.same(aa, bb) == String.eq(aa, bb) : Bool}
+  for a: String
+  for b: String
+  {Bind.same(a, b) == String.eq(a, b) : Bool}
 
-def ic.alike(aa, bb):
-  match aa bb:
+def ic.alike(a, b):
+  match a b:
     case SNil{} SNil{}:
       {==}
     case SNil{} SCon{h2, t2}:
@@ -108,15 +108,15 @@ def ic.items(names, name):
   match names:
     case Nil{}:
       {==}
-    case Con{+hh, +rest}:
+    case Con{+h, +rest}:
       Equal.trans(Bool,
-        Lazy.or_else(Bind.same(hh, name), _u => Bind.has_item(rest, name)),
-        List.any.if(_u => List.contains(~String, ~String.eq, rest, name), Bind.same(hh, name)),
-        List.any.if(_u => List.contains(~String, ~String.eq, rest, name), String.eq(hh, name)),
-        ic.or_if(Bind.same(hh, name), Bind.has_item(rest, name), List.contains(~String, ~String.eq, rest, name),
+        Lazy.or_else(Bind.same(h, name), _u => Bind.has_item(rest, name)),
+        List.any.if(_u => List.contains(~String, ~String.eq, rest, name), Bind.same(h, name)),
+        List.any.if(_u => List.contains(~String, ~String.eq, rest, name), String.eq(h, name)),
+        ic.or_if(Bind.same(h, name), Bind.has_item(rest, name), List.contains(~String, ~String.eq, rest, name),
           ic.items(rest, name)),
         Equal.cong(Bool, Bool, z => List.any.if(_u => List.contains(~String, ~String.eq, rest, name), z),
-          Bind.same(hh, name), String.eq(hh, name), ic.alike(hh, name)))
+          Bind.same(h, name), String.eq(h, name), ic.alike(h, name)))
 
 # the binder's index of the items is List.contains over them
 law ic.indexed:

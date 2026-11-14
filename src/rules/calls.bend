@@ -17,60 +17,60 @@ type Def is Data:
   Def{name: String, sig: Tree.Node, body: Tree.Node}
 
 # a leaf's kind, none for anything else: kind tests read this, never a text
-def leaf.kind(nn: Tree.Node) -> Maybe<&2, Lex.TokKind>:
-  match nn:
+def leaf.kind(n: Tree.Node) -> Maybe<&2, Lex.TokKind>:
+  match n:
     case Tree.Leaf{Lex.Tok{k, t, l, c}}:
       Some{k}
     case other:
       None{}
 
 # a kind test on a kind, when there is one
-def kind.of(~test: Lex.TokKind -> Bool, mm: Maybe<&2, Lex.TokKind>) -> Bool:
-  match mm:
+def kind.of(~test: Lex.TokKind -> Bool, m: Maybe<&2, Lex.TokKind>) -> Bool:
+  match m:
     case None{}:
       False{}
     case Some{k}:
       test(k)
 
 # a leaf of this kind?
-def kind.leaf(~test: Lex.TokKind -> Bool, nn: Tree.Node) -> Bool:
-  kind.of(~test, leaf.kind(nn))
+def kind.leaf(~test: Lex.TokKind -> Bool, n: Tree.Node) -> Bool:
+  kind.of(~test, leaf.kind(n))
 
 # a `:`
-def kind.colon(kk: Lex.TokKind) -> Bool:
-  match kk:
+def kind.colon(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TColon{}:
       True{}
     case other:
       False{}
 
 # a capitalized name
-def kind.upper(kk: Lex.TokKind) -> Bool:
-  match kk:
+def kind.upper(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TUpper{}:
       True{}
     case other:
       False{}
 
 # `->`
-def kind.arrow(kk: Lex.TokKind) -> Bool:
-  match kk:
+def kind.arrow(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TArrow{}:
       True{}
     case other:
       False{}
 
 # a plain operator (`-`, `~`, `+`)
-def kind.oper(kk: Lex.TokKind) -> Bool:
-  match kk:
+def kind.oper(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TOp{}:
       True{}
     case other:
       False{}
 
 # a leaf's text, "" for anything else
-def leaf.text(nn: Tree.Node) -> String:
-  match nn:
+def leaf.text(n: Tree.Node) -> String:
+  match n:
     case Tree.Leaf{Lex.Tok{k, t, l, c}}:
       t
     case other:
@@ -101,8 +101,8 @@ def arg(as: List<&2, Tree.Node>, nn: Nat) -> Tree.Node:
       Tree.NNil{}
 
 # is there a call of the name, `name(..)`, anywhere under the node?
-def calls(nn: Tree.Node, +name: String) -> Bool:
-  match nn:
+def calls(n: Tree.Node, +name: String) -> Bool:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, kids, _}, rest}}:
       +a = calls(kids, name)
       +b = calls(rest, name)
@@ -153,8 +153,8 @@ def params(sig: Tree.Node) -> List<&2, Tree.Node>:
 
 # a parameter's name: its first lowercase name before the colon ("" for a
 # type parameter like `-A: Type`)
-def param_name(pp: Tree.Node) -> String:
-  match pp:
+def param_name(p: Tree.Node) -> String:
+  match p:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, t, l, c}}, rest}:
       t
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, t, l, c}}, rest}:
@@ -176,20 +176,20 @@ def names(sig: Tree.Node) -> List<&2, String>:
   names.go(params(sig), [])
 
 # does a chain hold a top-level colon?
-def has_colon(pp: Tree.Node) -> Bool:
-  match pp:
+def has_colon(p: Tree.Node) -> Bool:
+  match p:
     case Tree.NCons{h, rest}:
       Lazy.or_else(kind.leaf(~kind.colon, h), _u => has_colon(rest))
     case other:
       False{}
 
 # one chain and then another
-def join(aa: Tree.Node, bb: Tree.Node) -> Tree.Node:
-  match aa:
+def join(a: Tree.Node, b: Tree.Node) -> Tree.Node:
+  match a:
     case Tree.NCons{h, t}:
-      Tree.NCons{h, join(t, bb)}
+      Tree.NCons{h, join(t, b)}
     case other:
-      bb
+      b
 
 # the lines a header wrapped onto (their tokens, in order) and the body left
 # once they are taken
@@ -248,8 +248,8 @@ def under(kids: Tree.Node, +body: Tree.Node) -> Tree.Node:
   Lazy.stop(Tree.Node, has_colon(kids), body, _u => under.of(body, wrap(body)))
 
 # a def with a name joins the others; one without (half-written) does not
-def defs.push(mm: Maybe<&2, String>, sig: Tree.Node, body: Tree.Node, acc: List<&2, Def>) -> List<&2, Def>:
-  match mm:
+def defs.push(m: Maybe<&2, String>, sig: Tree.Node, body: Tree.Node, acc: List<&2, Def>) -> List<&2, Def>:
+  match m:
     case None{}:
       acc
     case Some{name}:
@@ -267,8 +267,8 @@ def defs(root: Tree.Node) -> List<&2, Def>:
       Nil{}
 
 # does the chain open with a `-` or `~` operator?
-def is_live.sign(pp: Tree.Node) -> Bool:
-  match pp:
+def is_live.sign(p: Tree.Node) -> Bool:
+  match p:
     case Tree.NCons{+h, rest}:
       +t = leaf.text(h)
       Bool.and(kind.leaf(~kind.oper, h), Bool.or(String.eq(t, "-"), String.eq(t, "~")))
@@ -277,13 +277,13 @@ def is_live.sign(pp: Tree.Node) -> Bool:
 
 # a live parameter: typed, and neither erased (`-A: Type`) nor a template
 # (`~f: A -> B`); a bare quantity name (`a` in `List.get(a, ..)`) is not one
-def is_live(+pp: Tree.Node) -> Bool:
-  Bool.and(Bool.not(is_live.sign(pp)), has_colon(pp))
+def is_live(+p: Tree.Node) -> Bool:
+  Bool.and(Bool.not(is_live.sign(p)), has_colon(p))
 
 # the head of a parameter's type: the first capitalized name after the
-# colon, "" for none; hit: a name before pp was it, so the search stops there
-def type_head.go(pp: Tree.Node, +after: Bool, hit: Maybe<&2, String>) -> String:
-  match pp:
+# colon, "" for none; hit: a name before p was it, so the search stops there
+def type_head.go(p: Tree.Node, +after: Bool, hit: Maybe<&2, String>) -> String:
+  match p:
     case Tree.NCons{+h, rest}:
       match hit:
         case Some{s}:
@@ -300,8 +300,8 @@ def type_head.go(pp: Tree.Node, +after: Bool, hit: Maybe<&2, String>) -> String:
 
 # the head of a parameter's type: the first capitalized name after the colon
 # (`List` in `+xs: +List<A>`), "" for none
-def type_head(pp: Tree.Node, +after: Bool) -> String:
-  type_head.go(pp, after, None{})
+def type_head(p: Tree.Node, +after: Bool) -> String:
+  type_head.go(p, after, None{})
 
 def walked.go(ps: List<&2, Tree.Node>, found: Maybe<&2, String>) -> String:
   match ps found:
@@ -342,8 +342,8 @@ def returns_proof(sig: Tree.Node) -> Bool:
       False{}
 
 # does a chain hold a top-level `->`?
-def has_arrow(pp: Tree.Node) -> Bool:
-  match pp:
+def has_arrow(p: Tree.Node) -> Bool:
+  match p:
     case Tree.NCons{h, rest}:
       Lazy.or_else(kind.leaf(~kind.arrow, h), _u => has_arrow(rest))
     case other:

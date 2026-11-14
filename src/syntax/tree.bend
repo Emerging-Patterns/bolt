@@ -54,8 +54,8 @@ def reverse(cells: Node, acc: Node) -> Node:
       acc
 
 # the token a leaf holds; a group's open, a statement's first token
-def first(nn: Node) -> Maybe<&2, Lex.Tok>:
-  match nn:
+def first(n: Node) -> Maybe<&2, Lex.Tok>:
+  match n:
     case Leaf{tok}:
       Some{tok}
     case Group{open, kids, close}:
@@ -67,33 +67,33 @@ def first(nn: Node) -> Maybe<&2, Lex.Tok>:
     case NCons{h, t}:
       first(h)
 
-def line.of(mm: Maybe<&2, Lex.Tok>) -> U32:
-  match mm:
+def line.of(m: Maybe<&2, Lex.Tok>) -> U32:
+  match m:
     case None{}:
       0
     case Some{Lex.Tok{k, t, l, c}}:
       l
 
 # the line of a node's first token (0 for none)
-def line(nn: Node) -> U32:
-  line.of(first(nn))
+def line(n: Node) -> U32:
+  line.of(first(n))
 
-def col.of(mm: Maybe<&2, Lex.Tok>) -> U32:
-  match mm:
+def col.of(m: Maybe<&2, Lex.Tok>) -> U32:
+  match m:
     case None{}:
       0
     case Some{Lex.Tok{k, t, l, c}}:
       c
 
 # the column of a node's first token (0 for none)
-def col(nn: Node) -> U32:
-  col.of(first(nn))
+def col(n: Node) -> U32:
+  col.of(first(n))
 
 # is it a group opened by this bracket?
-def opens(nn: Node, +ss: String) -> Bool:
-  match nn:
+def opens(n: Node, +s: String) -> Bool:
+  match n:
     case Group{Lex.Tok{k, t, l, c}, kids, close}:
-      String.eq(t, ss)
+      String.eq(t, s)
     case other:
       False{}
 
@@ -105,8 +105,8 @@ def leaf_close(close: Maybe<&2, Lex.Tok>, acc: List<&2, Lex.Tok>) -> List<&2, Le
     case Some{tok}:
       tok <> acc
 
-def leaves.go(nn: Node, acc: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
-  match nn:
+def leaves.go(n: Node, acc: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
+  match n:
     case Leaf{tok}:
       tok <> acc
     case Group{open, kids, close}:
@@ -119,8 +119,8 @@ def leaves.go(nn: Node, acc: List<&2, Lex.Tok>) -> List<&2, Lex.Tok>:
       leaves.go(t, leaves.go(h, acc))
 
 # the leaves of a tree, in order: the significant tokens when the tree is faithful
-def leaves(nn: Node) -> List<&2, Lex.Tok>:
-  List.reverse(&2, Lex.Tok, leaves.go(nn, []))
+def leaves(n: Node) -> List<&2, Lex.Tok>:
+  List.reverse(&2, Lex.Tok, leaves.go(n, []))
 
 # building
 # --------
@@ -137,10 +137,10 @@ type B is Data:
   B{fresh: Bool, stack: List<&2, Frame>}
 
 # the bracket that closes an opener (`>` for `<` and `<&`)
-def closer(+oo: String) -> String:
-  Bool.pick(String, String.eq(oo, "("), ")",
-    Bool.pick(String, String.eq(oo, "["), "]",
-      Bool.pick(String, String.eq(oo, "{"), "}", ">")))
+def closer(+o: String) -> String:
+  Bool.pick(String, String.eq(o, "("), ")",
+    Bool.pick(String, String.eq(o, "["), "]",
+      Bool.pick(String, String.eq(o, "{"), "}", ">")))
 
 # is every char a `>`?
 def all_gt(cs: List<&2, Char>) -> Bool:
@@ -151,34 +151,34 @@ def all_gt(cs: List<&2, Char>) -> Bool:
       Lazy.and_then(Char.is_eq(c, '>'), _u => all_gt(t))
 
 # a token that closes a group: `)`, `]`, `}` or a run of `>`
-def closes_with(kk: Lex.TokKind, +tt: String) -> Bool:
-  match kk:
+def closes_with(k: Lex.TokKind, +t: String) -> Bool:
+  match k:
     case Lex.TClose{}:
       True{}
     case Lex.TOp{}:
-      Bool.and(Bool.not(String.is_empty(tt)), all_gt(String.to_list(tt)))
+      Bool.and(Bool.not(String.is_empty(t)), all_gt(String.to_list(t)))
     case other:
       False{}
 
 # `<` or `<&` right after a name opens type arguments
-def opens_angle(kk: Lex.TokKind, +tt: String, glued: Bool) -> Bool:
-  match kk:
+def opens_angle(k: Lex.TokKind, +t: String, glued: Bool) -> Bool:
+  match k:
     case Lex.TOp{}:
-      Bool.and(glued, Bool.or(String.eq(tt, "<"), String.eq(tt, "<&")))
+      Bool.and(glued, Bool.or(String.eq(t, "<"), String.eq(t, "<&")))
     case other:
       False{}
 
 # a finished node lands in the frame below
-def put(stack: List<&2, Frame>, nn: Node) -> List<&2, Frame>:
+def put(stack: List<&2, Frame>, n: Node) -> List<&2, Frame>:
   match stack:
     case Nil{}:
       Nil{}
     case Con{FGroup{open, kids}, rest}:
-      FGroup{open, NCons{nn, kids}} <> rest
+      FGroup{open, NCons{n, kids}} <> rest
     case Con{FStmt{indent, kids, body}, rest}:
-      FStmt{indent, NCons{nn, kids}, body} <> rest
+      FStmt{indent, NCons{n, kids}, body} <> rest
     case Con{FRoot{body}, rest}:
-      FRoot{NCons{nn, body}} <> rest
+      FRoot{NCons{n, body}} <> rest
 
 # the innermost open group, closed by close (None: never closed)
 def close_one(stack: List<&2, Frame>, close: Maybe<&2, Lex.Tok>) -> List<&2, Frame>:
@@ -199,13 +199,13 @@ def depth_to.up(below: Nat) -> Nat:
 # how many groups sit open above the one that c closes (counting it); 0 when
 # none does. A `>` closes only an angle group on top: inside `(..)`, `[..]`
 # or `{..}` it is an operator, even within `<..>`
-def depth_to(stack: List<&2, Frame>, +cc: String) -> Nat:
+def depth_to(stack: List<&2, Frame>, +c: String) -> Nat:
   match stack:
     case Nil{}:
       0n
     case Con{FGroup{Lex.Tok{k, +t, l, c2}, kids}, rest}:
-      Lazy.stop(Nat, String.eq(closer(t), cc), 1n,
-        _u => Lazy.stop(Nat, String.eq(cc, ">"), 0n, _v => depth_to.up(depth_to(rest, cc))))
+      Lazy.stop(Nat, String.eq(closer(t), c), 1n,
+        _u => Lazy.stop(Nat, String.eq(c, ">"), 0n, _v => depth_to.up(depth_to(rest, c))))
     case Con{other, rest}:
       0n
 
@@ -218,8 +218,8 @@ def groups(stack: List<&2, Frame>) -> Nat:
       0n
 
 # n groups close, innermost first; only the last gets the close token
-def close_n(nn: Nat, stack: List<&2, Frame>, close: Maybe<&2, Lex.Tok>) -> List<&2, Frame>:
-  match nn:
+def close_n(n: Nat, stack: List<&2, Frame>, close: Maybe<&2, Lex.Tok>) -> List<&2, Frame>:
+  match n:
     case Zero{}:
       stack
     case Succ{Zero{}}:
@@ -238,12 +238,12 @@ def close_tok(+stack: List<&2, Frame>, +close: Lex.Tok) -> List<&2, Frame>:
   Lazy.stop(List<&2, Frame>, Nat.is_eq(n, 0n), put(stack, Leaf{close}), _u => close_n(n, stack, Some{close}))
 
 # `>>` closes two angle groups
-def close_gts(cs: List<&2, Char>, stack: List<&2, Frame>, +ll: U32, +cc: U32) -> List<&2, Frame>:
+def close_gts(cs: List<&2, Char>, stack: List<&2, Frame>, +l: U32, +c: U32) -> List<&2, Frame>:
   match cs:
     case Nil{}:
       stack
     case Con{ch, t}:
-      close_gts(t, close_tok(stack, Lex.Tok{Lex.TOp{}, ">", ll, cc}), ll, (cc + 1 : U32))
+      close_gts(t, close_tok(stack, Lex.Tok{Lex.TOp{}, ">", l, c}), l, (c + 1 : U32))
 
 # the close a bracket makes, given whether it is a run of `>`: a match, so
 # only the side taken runs
@@ -251,13 +251,13 @@ def close_any.at(
   +gt: Bool,
   +stack: List<&2, Frame>,
   +close: Lex.Tok,
-  +tt: String,
-  +ll: U32,
-  +cc: U32
+  +t: String,
+  +l: U32,
+  +c: U32
 ) -> List<&2, Frame>:
   match gt:
     case True{}:
-      close_gts(String.to_list(tt), stack, ll, cc)
+      close_gts(String.to_list(t), stack, l, c)
     case False{}:
       close_tok(stack, close)
 
@@ -267,12 +267,12 @@ def close_any(+stack: List<&2, Frame>, +close: Lex.Tok) -> List<&2, Frame>:
   close_any.at(String.starts_with(t, ">"), stack, close, t, l, c)
 
 # a finished statement lands in the body of the frame below
-def put_stmt(stack: List<&2, Frame>, nn: Node) -> List<&2, Frame>:
+def put_stmt(stack: List<&2, Frame>, n: Node) -> List<&2, Frame>:
   match stack:
     case Con{FStmt{indent, kids, body}, rest}:
-      FStmt{indent, kids, NCons{nn, body}} <> rest
+      FStmt{indent, kids, NCons{n, body}} <> rest
     case Con{FRoot{body}, rest}:
-      FRoot{NCons{nn, body}} <> rest
+      FRoot{NCons{n, body}} <> rest
     case other:
       other
 
@@ -289,13 +289,13 @@ def binds_in(kids: Node) -> Bool:
       False{}
 
 # the kind of a statement led by this keyword
-def keyword_kind(+tt: String) -> StmtKind:
-  Bool.pick(StmtKind, String.eq(tt, "def"), SDef{},
-    Bool.pick(StmtKind, String.eq(tt, "type"), SType{},
-      Bool.pick(StmtKind, String.eq(tt, "law"), SLaw{},
-        Bool.pick(StmtKind, String.eq(tt, "import"), SImport{},
-          Bool.pick(StmtKind, String.eq(tt, "case"), SCase{},
-            Bool.pick(StmtKind, Bool.or(String.eq(tt, "for"), String.eq(tt, "exs")), SFor{}, STerm{}))))))
+def keyword_kind(+t: String) -> StmtKind:
+  Bool.pick(StmtKind, String.eq(t, "def"), SDef{},
+    Bool.pick(StmtKind, String.eq(t, "type"), SType{},
+      Bool.pick(StmtKind, String.eq(t, "law"), SLaw{},
+        Bool.pick(StmtKind, String.eq(t, "import"), SImport{},
+          Bool.pick(StmtKind, String.eq(t, "case"), SCase{},
+            Bool.pick(StmtKind, Bool.or(String.eq(t, "for"), String.eq(t, "exs")), SFor{}, STerm{}))))))
 
 # does the chain after an `@` start with a binder's name and a `:`?
 def arrow.named(rest: Node) -> Bool:
@@ -363,8 +363,8 @@ def end_stmt(stack: List<&2, Frame>) -> List<&2, Frame>:
       other
 
 # n statements finish, innermost first
-def end_n(nn: Nat, stack: List<&2, Frame>) -> List<&2, Frame>:
-  match nn:
+def end_n(n: Nat, stack: List<&2, Frame>) -> List<&2, Frame>:
+  match n:
     case Zero{}:
       stack
     case Succ{p}:
@@ -397,9 +397,9 @@ def in_group(stack: List<&2, Frame>) -> Bool:
 
 # a new statement at column c, once the ones it ends are finished; inside a
 # group a line is just more tokens
-def open_stmt(+stack: List<&2, Frame>, +cc: U32) -> List<&2, Frame>:
+def open_stmt(+stack: List<&2, Frame>, +c: U32) -> List<&2, Frame>:
   Lazy.stop(List<&2, Frame>, in_group(stack), stack,
-    _u => FStmt{cc, NNil{}, NNil{}} <> end_n(deeper(stack, cc), stack))
+    _u => FStmt{c, NNil{}, NNil{}} <> end_n(deeper(stack, c), stack))
 
 # a significant token that starts a line: at column 0 it closes every open
 # group (unless it is a bracket closing one of them); outside a group it opens
@@ -474,8 +474,8 @@ def show_close(close: Maybe<&2, Lex.Tok>) -> String:
 # `[def f (x : U32) -> U32 : {[match x {[case A {} : {[1]}]}]}]`: a statement
 # in brackets, its body in braces, a group as its brackets (an unclosed one
 # ends in `..`)
-def show(nn: Node) -> String:
-  match nn:
+def show(n: Node) -> String:
+  match n:
     case Leaf{Lex.Tok{k, t, l, c}}:
       t
     case Group{Lex.Tok{k, t, l, c}, kids, close}:

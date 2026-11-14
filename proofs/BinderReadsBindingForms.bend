@@ -391,10 +391,10 @@ def Laws.plan_typed_leads(rest, _upper):
     case Tree.Stmt{_kd, _ks, _b}:
       {==}
 
-def Laws.plan_records(mode, kk, _rest):
+def Laws.plan_records(mode, k, _rest):
   match mode:
     case Bind.MBlock{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -440,7 +440,7 @@ def Laws.plan_records(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MCtors{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -486,7 +486,7 @@ def Laws.plan_records(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MCtor{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -532,7 +532,7 @@ def Laws.plan_records(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MHead{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -578,7 +578,7 @@ def Laws.plan_records(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MName{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -624,7 +624,7 @@ def Laws.plan_records(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MSig{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -670,7 +670,7 @@ def Laws.plan_records(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MTele{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -716,7 +716,7 @@ def Laws.plan_records(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MTeleType{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -762,7 +762,7 @@ def Laws.plan_records(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MLhs{_a, _b}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -808,7 +808,7 @@ def Laws.plan_records(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MLhsType{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -854,7 +854,7 @@ def Laws.plan_records(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MTerm{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -900,7 +900,7 @@ def Laws.plan_records(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MSkip{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -946,7 +946,7 @@ def Laws.plan_records(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MStop{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -992,10 +992,10 @@ def Laws.plan_records(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
 
-def Laws.plan_pushes(mode, kk, _rest):
+def Laws.plan_pushes(mode, k, _rest):
   match mode:
     case Bind.MBlock{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1041,7 +1041,7 @@ def Laws.plan_pushes(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MCtors{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1087,7 +1087,7 @@ def Laws.plan_pushes(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MCtor{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1133,7 +1133,7 @@ def Laws.plan_pushes(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MHead{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1179,7 +1179,7 @@ def Laws.plan_pushes(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MName{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1225,7 +1225,7 @@ def Laws.plan_pushes(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MSig{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1271,7 +1271,7 @@ def Laws.plan_pushes(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MTele{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1317,7 +1317,7 @@ def Laws.plan_pushes(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MTeleType{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1363,7 +1363,7 @@ def Laws.plan_pushes(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MLhs{_a, _b}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1409,7 +1409,7 @@ def Laws.plan_pushes(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MLhsType{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1455,7 +1455,7 @@ def Laws.plan_pushes(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MTerm{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1501,7 +1501,7 @@ def Laws.plan_pushes(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MSkip{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1547,7 +1547,7 @@ def Laws.plan_pushes(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MStop{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1593,10 +1593,10 @@ def Laws.plan_pushes(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
 
-def Laws.plan_uses(mode, kk, _rest):
+def Laws.plan_uses(mode, k, _rest):
   match mode:
     case Bind.MBlock{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1642,7 +1642,7 @@ def Laws.plan_uses(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MCtors{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1688,7 +1688,7 @@ def Laws.plan_uses(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MCtor{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1734,7 +1734,7 @@ def Laws.plan_uses(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MHead{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1780,7 +1780,7 @@ def Laws.plan_uses(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MName{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1826,7 +1826,7 @@ def Laws.plan_uses(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MSig{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1872,7 +1872,7 @@ def Laws.plan_uses(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MTele{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1918,7 +1918,7 @@ def Laws.plan_uses(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MTeleType{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -1964,7 +1964,7 @@ def Laws.plan_uses(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MLhs{_a, _b}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2010,7 +2010,7 @@ def Laws.plan_uses(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MLhsType{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2056,7 +2056,7 @@ def Laws.plan_uses(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MTerm{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2102,7 +2102,7 @@ def Laws.plan_uses(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MSkip{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2148,7 +2148,7 @@ def Laws.plan_uses(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MStop{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2194,10 +2194,10 @@ def Laws.plan_uses(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
 
-def Laws.plan_keeps(mode, kk):
+def Laws.plan_keeps(mode, k):
   match mode:
     case Bind.MBlock{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2243,7 +2243,7 @@ def Laws.plan_keeps(mode, kk):
         case Lex.TComma{}:
           {==}
     case Bind.MCtors{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2289,7 +2289,7 @@ def Laws.plan_keeps(mode, kk):
         case Lex.TComma{}:
           {==}
     case Bind.MCtor{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2335,7 +2335,7 @@ def Laws.plan_keeps(mode, kk):
         case Lex.TComma{}:
           {==}
     case Bind.MHead{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2381,7 +2381,7 @@ def Laws.plan_keeps(mode, kk):
         case Lex.TComma{}:
           {==}
     case Bind.MName{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2427,7 +2427,7 @@ def Laws.plan_keeps(mode, kk):
         case Lex.TComma{}:
           {==}
     case Bind.MSig{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2473,7 +2473,7 @@ def Laws.plan_keeps(mode, kk):
         case Lex.TComma{}:
           {==}
     case Bind.MTele{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2519,7 +2519,7 @@ def Laws.plan_keeps(mode, kk):
         case Lex.TComma{}:
           {==}
     case Bind.MTeleType{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2565,7 +2565,7 @@ def Laws.plan_keeps(mode, kk):
         case Lex.TComma{}:
           {==}
     case Bind.MLhs{_a, _b}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2611,7 +2611,7 @@ def Laws.plan_keeps(mode, kk):
         case Lex.TComma{}:
           {==}
     case Bind.MLhsType{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2657,7 +2657,7 @@ def Laws.plan_keeps(mode, kk):
         case Lex.TComma{}:
           {==}
     case Bind.MTerm{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2703,7 +2703,7 @@ def Laws.plan_keeps(mode, kk):
         case Lex.TComma{}:
           {==}
     case Bind.MSkip{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2749,7 +2749,7 @@ def Laws.plan_keeps(mode, kk):
         case Lex.TComma{}:
           {==}
     case Bind.MStop{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2824,10 +2824,10 @@ def Laws.plan_group_keeps(mode):
     case Bind.MStop{}:
       {==}
 
-def Laws.plan_next_mode(mode, kk, _rest):
+def Laws.plan_next_mode(mode, k, _rest):
   match mode:
     case Bind.MBlock{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2873,7 +2873,7 @@ def Laws.plan_next_mode(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MCtors{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2919,7 +2919,7 @@ def Laws.plan_next_mode(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MCtor{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -2965,7 +2965,7 @@ def Laws.plan_next_mode(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MHead{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -3011,7 +3011,7 @@ def Laws.plan_next_mode(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MName{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -3057,7 +3057,7 @@ def Laws.plan_next_mode(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MSig{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -3103,7 +3103,7 @@ def Laws.plan_next_mode(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MTele{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -3149,7 +3149,7 @@ def Laws.plan_next_mode(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MTeleType{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -3195,7 +3195,7 @@ def Laws.plan_next_mode(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MLhs{_a, _b}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -3241,7 +3241,7 @@ def Laws.plan_next_mode(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MLhsType{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -3287,7 +3287,7 @@ def Laws.plan_next_mode(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MTerm{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -3333,7 +3333,7 @@ def Laws.plan_next_mode(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MSkip{_a}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -3379,7 +3379,7 @@ def Laws.plan_next_mode(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
     case Bind.MStop{}:
-      match kk:
+      match k:
         case Lex.TName{}:
           {==}
         case Lex.TUpper{}:
@@ -3425,8 +3425,8 @@ def Laws.plan_next_mode(mode, kk, _rest):
         case Lex.TComma{}:
           {==}
 
-def Laws.declared_key_is_keyword(nn):
-  match nn:
+def Laws.declared_key_is_keyword(n):
+  match n:
     case Tree.Leaf{Lex.Tok{k, _t, _l, _c}}:
       match k:
         case Lex.TName{}:
@@ -3495,24 +3495,24 @@ def Laws.again_needs_a_name(acc, name, e):
 def Laws.aliases_take_last_word(_kids, _body, _rest, _acc):
   {==}
 
-def Laws.spaced_arrow(tt, e):
-  %Equal.sym(Bool, String.eq(tt, "->"), True{}, e) :
+def Laws.spaced_arrow(t, e):
+  %Equal.sym(Bool, String.eq(t, "->"), True{}, e) :
     {Bool.pick(String, _, " -> ",
-      Bool.pick(String, Bool.or(String.eq(tt, ":"), String.eq(tt, ",")), tt ++ " ", tt)) == " -> " : String}
+      Bool.pick(String, Bool.or(String.eq(t, ":"), String.eq(t, ",")), t ++ " ", t)) == " -> " : String}
   {==}
 
-def Laws.spaced_after_colon_and_comma(tt, e1, e2):
-  %Equal.sym(Bool, String.eq(tt, "->"), False{}, e1) :
+def Laws.spaced_after_colon_and_comma(t, e1, e2):
+  %Equal.sym(Bool, String.eq(t, "->"), False{}, e1) :
     {Bool.pick(String, _, " -> ",
-      Bool.pick(String, Bool.or(String.eq(tt, ":"), String.eq(tt, ",")), tt ++ " ", tt)) == tt ++ " " : String}
-  %Equal.sym(Bool, Bool.or(String.eq(tt, ":"), String.eq(tt, ",")), True{}, e2) :
-    {Bool.pick(String, _, tt ++ " ", tt) == tt ++ " " : String}
+      Bool.pick(String, Bool.or(String.eq(t, ":"), String.eq(t, ",")), t ++ " ", t)) == t ++ " " : String}
+  %Equal.sym(Bool, Bool.or(String.eq(t, ":"), String.eq(t, ",")), True{}, e2) :
+    {Bool.pick(String, _, t ++ " ", t) == t ++ " " : String}
   {==}
 
-def Laws.spaced_glues_the_rest(tt, e1, e2):
-  %Equal.sym(Bool, String.eq(tt, "->"), False{}, e1) :
+def Laws.spaced_glues_the_rest(t, e1, e2):
+  %Equal.sym(Bool, String.eq(t, "->"), False{}, e1) :
     {Bool.pick(String, _, " -> ",
-      Bool.pick(String, Bool.or(String.eq(tt, ":"), String.eq(tt, ",")), tt ++ " ", tt)) == tt : String}
-  %Equal.sym(Bool, Bool.or(String.eq(tt, ":"), String.eq(tt, ",")), False{}, e2) :
-    {Bool.pick(String, _, tt ++ " ", tt) == tt : String}
+      Bool.pick(String, Bool.or(String.eq(t, ":"), String.eq(t, ",")), t ++ " ", t)) == t : String}
+  %Equal.sym(Bool, Bool.or(String.eq(t, ":"), String.eq(t, ",")), False{}, e2) :
+    {Bool.pick(String, _, t ++ " ", t) == t : String}
   {==}

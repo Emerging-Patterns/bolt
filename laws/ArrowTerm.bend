@@ -13,7 +13,7 @@ law arrow_term:
   for +xc: U32
   for +ct: String
   for +cl: U32
-  for +cc: U32
+  for +c: U32
   for +rest: Tree.Node
   {Tree.classify(Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TAll{}, at, al, ac}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, x,
-    xl, xc}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, ct, cl, cc}}, rest}}}) == Tree.STerm{} : Tree.StmtKind}
+    xl, xc}}, Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, ct, cl, c}}, rest}}}) == Tree.STerm{} : Tree.StmtKind}

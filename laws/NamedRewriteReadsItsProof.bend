@@ -53,38 +53,38 @@ law percent_alone_stays:
 # LAW: in a term, an operator that is no `%` leaves the mode as it was,
 # whatever is behind it: `h @ k` after another operator is not a rewrite
 law other_operator_stays:
-  for +tt: String
+  for +t: String
   for +rest: Tree.Node
-  for e: {String.eq(tt, "%") == False{} : Bool}
-  {Bind.plan.after(Bind.MTerm{}, Lex.TOp{}, tt, rest) == Bind.MTerm{} : Bind.Mode}
+  for e: {String.eq(t, "%") == False{} : Bool}
+  {Bind.plan.after(Bind.MTerm{}, Lex.TOp{}, t, rest) == Bind.MTerm{} : Bind.Mode}
 
 # LAW: in a term, a leaf that is no operator is read by its kind, as
 # laws/BinderReadsBindingForms.bend says, whatever it says
 law other_kind_as_before:
-  for kk: Lex.TokKind
-  for +tt: String
+  for k: Lex.TokKind
+  for +t: String
   for +rest: Tree.Node
-  for e: {D1.kinds.among(kk, [Lex.TOp{}]) == False{} : Bool}
-  {Bind.plan.after(Bind.MTerm{}, kk, tt, rest) == Bind.plan.lmode(Bind.MTerm{}, kk, rest) : Bind.Mode}
+  for e: {D1.kinds.among(k, [Lex.TOp{}]) == False{} : Bool}
+  {Bind.plan.after(Bind.MTerm{}, k, t, rest) == Bind.plan.lmode(Bind.MTerm{}, k, rest) : Bind.Mode}
 
 # LAW: outside a term every leaf is read by its kind, as
 # laws/BinderReadsBindingForms.bend says, whatever it says
 law other_mode_as_before:
   for mode: Bind.Mode
-  for kk: Lex.TokKind
-  for +tt: String
+  for k: Lex.TokKind
+  for +t: String
   for +rest: Tree.Node
   for e: {rewrite.in_term(mode) == False{} : Bool}
-  {Bind.plan.after(mode, kk, tt, rest) == Bind.plan.lmode(mode, kk, rest) : Bind.Mode}
+  {Bind.plan.after(mode, k, t, rest) == Bind.plan.lmode(mode, k, rest) : Bind.Mode}
 
 # LAW: a leaf that is stepped over ends the step, whatever it is: the rest
 # is read in the mode the step was to return to
 law step_over_ends:
   for next: Bind.Mode
-  for kk: Lex.TokKind
-  for +tt: String
+  for k: Lex.TokKind
+  for +t: String
   for +rest: Tree.Node
-  {Bind.plan.after(Bind.MSkip{next}, kk, tt, rest) == next : Bind.Mode}
+  {Bind.plan.after(Bind.MSkip{next}, k, t, rest) == next : Bind.Mode}
 
 # LAW: `%h@e :` in a term uses e, resolved against the names in scope, and
 # binds nothing: the walk gives what a use of e alone gives, whatever the
@@ -103,7 +103,7 @@ law rewrite_uses_its_proof:
   for +ec: U32
   for +ct: String
   for +cl: U32
-  for +cc: U32
+  for +c: U32
   for +env: List<&2, Bind.Bind>
   for +ns: Bind.Names
   for +out: Bind.Out
@@ -112,7 +112,7 @@ law rewrite_uses_its_proof:
       Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, ht, hl, hc}},
         Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TAll{}, at, al, ac}},
           Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, et, el, ec}},
-            Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, ct, cl, cc}}, Tree.NNil{}}}}}},
+            Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, ct, cl, c}}, Tree.NNil{}}}}}},
     Bind.MTerm{}, env, ns, out) == Bind.use(et, el, ec, env, ns, out) : Bind.W}
 
 # LAW: with no operator and name before it, `@e :` in a term still binds e:
@@ -126,7 +126,7 @@ law arrow_still_binds:
   for +ec: U32
   for +ct: String
   for +cl: U32
-  for +cc: U32
+  for +c: U32
   for +env: List<&2, Bind.Bind>
   for +ns: Bind.Names
   for +binds: List<&2, Bind.Bind>
@@ -135,7 +135,7 @@ law arrow_still_binds:
   {Bind.walk(
     Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TAll{}, at, al, ac}},
       Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TName{}, et, el, ec}},
-        Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, ct, cl, cc}}, Tree.NNil{}}}},
+        Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TColon{}, ct, cl, c}}, Tree.NNil{}}}},
     Bind.MTerm{}, env, ns, Bind.Out{binds, uses, scopes})
     == Bind.W{Bind.Bind{et, el, ec, Bind.KTypeVar{}, ""} <> env,
       Bind.Out{Bind.Bind{et, el, ec, Bind.KTypeVar{}, ""} <> binds, uses, scopes}} : Bind.W}

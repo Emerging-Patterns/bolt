@@ -34,37 +34,37 @@ def ps.or(a, b, c, d, e1, e2):
 
 # the rule's reads is the law's
 law ps.reads:
-  for nn: Tree.Node
-  for +xx: String
-  {Pick.search.reads(nn, xx) == Laws.search.reads(nn, xx) : Bool}
+  for n: Tree.Node
+  for +x: String
+  {Pick.search.reads(n, x) == Laws.search.reads(n, x) : Bool}
 
-def ps.reads(nn, xx):
-  match nn:
+def ps.reads(n, x):
+  match n:
     case Tree.Leaf{tok}:
       match tok:
         case Lex.Tok{k, t, l, c}:
           {==}
     case Tree.Group{o, +kids, cl}:
-      ps.reads(kids, xx)
+      ps.reads(kids, x)
     case Tree.Stmt{sk, +kids, +body}:
-      ps.or(Pick.search.reads(kids, xx), Laws.search.reads(kids, xx), Pick.search.reads(body, xx),
-        Laws.search.reads(body, xx), ps.reads(kids, xx), ps.reads(body, xx))
+      ps.or(Pick.search.reads(kids, x), Laws.search.reads(kids, x), Pick.search.reads(body, x),
+        Laws.search.reads(body, x), ps.reads(kids, x), ps.reads(body, x))
     case Tree.NCons{+h, +t}:
-      ps.or(Pick.search.reads(h, xx), Laws.search.reads(h, xx), Pick.search.reads(t, xx), Laws.search.reads(t, xx),
-        ps.reads(h, xx), ps.reads(t, xx))
+      ps.or(Pick.search.reads(h, x), Laws.search.reads(h, x), Pick.search.reads(t, x), Laws.search.reads(t, x),
+        ps.reads(h, x), ps.reads(t, x))
     case Tree.NNil{}:
       {==}
 
 # the rule's first, its test carried, is the law's once the test is false
 law ps.first:
-  for nn: Tree.Node
-  for +xx: String
+  for n: Tree.Node
+  for +x: String
   for +prev: Tree.Node
   for hit: Bool
-  {Pick.search.first(nn, xx, prev, hit) == Bool.pick(Tree.Node, hit, prev, Laws.search.first(nn, xx)) : Tree.Node}
+  {Pick.search.first(n, x, prev, hit) == Bool.pick(Tree.Node, hit, prev, Laws.search.first(n, x)) : Tree.Node}
 
-def ps.first(nn, xx, _prev, hit):
-  match nn:
+def ps.first(n, xx, _prev, hit):
+  match n:
     case Tree.NCons{+h, +t}:
       match hit:
         case True{}:
@@ -100,9 +100,9 @@ def ps.first(nn, xx, _prev, hit):
 
 # the rule's cheap is the law's same
 law ps.same:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +cond: String
-  {Pick.search.cheap(nn, cond) == Laws.search.same(nn, cond) : Bool}
+  {Pick.search.cheap(n, cond) == Laws.search.same(n, cond) : Bool}
 
 def ps.same(nn, cond):
   match nn:
@@ -173,11 +173,11 @@ def ps.same(nn, cond):
 
 # the rule's empty is the law's none
 law ps.none:
-  for nn: Tree.Node
-  {Pick.search.empty(nn) == Laws.search.none(nn) : Bool}
+  for n: Tree.Node
+  {Pick.search.empty(n) == Laws.search.none(n) : Bool}
 
-def ps.none(nn):
-  match nn:
+def ps.none(n):
+  match n:
     case Tree.NNil{}:
       {==}
     case Tree.Leaf{x}:
@@ -195,51 +195,51 @@ law ps.verdict:
   for +o: String
   for +after: Tree.Node
   for +kids: Tree.Node
-  for +xx: String
+  for +x: String
   for +args: Tree.Node
   {Bool.and(Bool.and(Bool.and(Bool.and(String.eq(t, "Bool.pick"), String.eq(o, "(")), Pick.search.empty(after)),
-      Bool.and(Bool.not(Bool.or(Pick.search.reads(Calls.arg(Calls.args(kids), 1n), xx),
-        Pick.search.reads(Calls.arg(Calls.args(kids), 2n), xx))), Pick.search.reads(Calls.arg(Calls.args(kids), 3n),
-        xx))), Bool.not(Pick.search.cheap(args, Pick.search.text(Calls.arg(Calls.args(kids), 1n)))))
+      Bool.and(Bool.not(Bool.or(Pick.search.reads(Calls.arg(Calls.args(kids), 1n), x),
+        Pick.search.reads(Calls.arg(Calls.args(kids), 2n), x))), Pick.search.reads(Calls.arg(Calls.args(kids), 3n),
+        x))), Bool.not(Pick.search.cheap(args, Pick.search.text(Calls.arg(Calls.args(kids), 1n)))))
     == Bool.and(Bool.and(Bool.and(Bool.and(String.eq(t, "Bool.pick"), String.eq(o, "(")), Laws.search.none(after)),
-      Laws.search.only(Calls.args(kids), xx)),
+      Laws.search.only(Calls.args(kids), x)),
       Bool.not(Laws.search.same(args, Pick.search.text(Calls.arg(Calls.args(kids), 1n))))) : Bool}
 
-def ps.verdict(t, o, after, kids, xx, args):
+def ps.verdict(t, o, after, kids, x, args):
   +a1 = Calls.arg(Calls.args(kids), 1n)
   +a2 = Calls.arg(Calls.args(kids), 2n)
   +a3 = Calls.arg(Calls.args(kids), 3n)
   +tc = Pick.search.text(a1)
   +so = Bool.and(String.eq(t, "Bool.pick"), String.eq(o, "("))
   %ps.none(after) : {Bool.and(Bool.and(Bool.and(so, Pick.search.empty(after)),
-      Bool.and(Bool.not(Bool.or(Pick.search.reads(a1, xx), Pick.search.reads(a2, xx))), Pick.search.reads(a3, xx))),
+      Bool.and(Bool.not(Bool.or(Pick.search.reads(a1, x), Pick.search.reads(a2, x))), Pick.search.reads(a3, x))),
       Bool.not(Pick.search.cheap(args, tc)))
     == Bool.and(Bool.and(Bool.and(so, _),
-      Bool.and(Bool.not(Bool.or(Laws.search.reads(a1, xx), Laws.search.reads(a2, xx))), Laws.search.reads(a3, xx))),
+      Bool.and(Bool.not(Bool.or(Laws.search.reads(a1, x), Laws.search.reads(a2, x))), Laws.search.reads(a3, x))),
       Bool.not(Laws.search.same(args, tc))) : Bool}
-  %ps.reads(a1, xx) : {Bool.and(Bool.and(Bool.and(so, Pick.search.empty(after)),
-      Bool.and(Bool.not(Bool.or(Pick.search.reads(a1, xx), Pick.search.reads(a2, xx))), Pick.search.reads(a3, xx))),
+  %ps.reads(a1, x) : {Bool.and(Bool.and(Bool.and(so, Pick.search.empty(after)),
+      Bool.and(Bool.not(Bool.or(Pick.search.reads(a1, x), Pick.search.reads(a2, x))), Pick.search.reads(a3, x))),
       Bool.not(Pick.search.cheap(args, tc)))
     == Bool.and(Bool.and(Bool.and(so, Pick.search.empty(after)),
-      Bool.and(Bool.not(Bool.or(_, Laws.search.reads(a2, xx))), Laws.search.reads(a3, xx))),
+      Bool.and(Bool.not(Bool.or(_, Laws.search.reads(a2, x))), Laws.search.reads(a3, x))),
       Bool.not(Laws.search.same(args, tc))) : Bool}
-  %ps.reads(a2, xx) : {Bool.and(Bool.and(Bool.and(so, Pick.search.empty(after)),
-      Bool.and(Bool.not(Bool.or(Pick.search.reads(a1, xx), Pick.search.reads(a2, xx))), Pick.search.reads(a3, xx))),
+  %ps.reads(a2, x) : {Bool.and(Bool.and(Bool.and(so, Pick.search.empty(after)),
+      Bool.and(Bool.not(Bool.or(Pick.search.reads(a1, x), Pick.search.reads(a2, x))), Pick.search.reads(a3, x))),
       Bool.not(Pick.search.cheap(args, tc)))
     == Bool.and(Bool.and(Bool.and(so, Pick.search.empty(after)),
-      Bool.and(Bool.not(Bool.or(Pick.search.reads(a1, xx), _)), Laws.search.reads(a3, xx))),
+      Bool.and(Bool.not(Bool.or(Pick.search.reads(a1, x), _)), Laws.search.reads(a3, x))),
       Bool.not(Laws.search.same(args, tc))) : Bool}
-  %ps.reads(a3, xx) : {Bool.and(Bool.and(Bool.and(so, Pick.search.empty(after)),
-      Bool.and(Bool.not(Bool.or(Pick.search.reads(a1, xx), Pick.search.reads(a2, xx))), Pick.search.reads(a3, xx))),
+  %ps.reads(a3, x) : {Bool.and(Bool.and(Bool.and(so, Pick.search.empty(after)),
+      Bool.and(Bool.not(Bool.or(Pick.search.reads(a1, x), Pick.search.reads(a2, x))), Pick.search.reads(a3, x))),
       Bool.not(Pick.search.cheap(args, tc)))
     == Bool.and(Bool.and(Bool.and(so, Pick.search.empty(after)),
-      Bool.and(Bool.not(Bool.or(Pick.search.reads(a1, xx), Pick.search.reads(a2, xx))), _)),
+      Bool.and(Bool.not(Bool.or(Pick.search.reads(a1, x), Pick.search.reads(a2, x))), _)),
       Bool.not(Laws.search.same(args, tc))) : Bool}
   %ps.same(args, tc) : {Bool.and(Bool.and(Bool.and(so, Pick.search.empty(after)),
-      Bool.and(Bool.not(Bool.or(Pick.search.reads(a1, xx), Pick.search.reads(a2, xx))), Pick.search.reads(a3, xx))),
+      Bool.and(Bool.not(Bool.or(Pick.search.reads(a1, x), Pick.search.reads(a2, x))), Pick.search.reads(a3, x))),
       Bool.not(Pick.search.cheap(args, tc)))
     == Bool.and(Bool.and(Bool.and(so, Pick.search.empty(after)),
-      Bool.and(Bool.not(Bool.or(Pick.search.reads(a1, xx), Pick.search.reads(a2, xx))), Pick.search.reads(a3, xx))),
+      Bool.and(Bool.not(Bool.or(Pick.search.reads(a1, x), Pick.search.reads(a2, x))), Pick.search.reads(a3, x))),
       Bool.not(_)) : Bool}
   {==}
 
@@ -257,20 +257,20 @@ def ps.one(b, c, e, x):
 
 # the rule's judge of a statement counts what the law's pick says
 law ps.judge:
-  for ss: Tree.Node
-  for +xx: String
+  for s: Tree.Node
+  for +x: String
   for +args: Tree.Node
-  for +ll: U32
-  for +cc: U32
+  for +l: U32
+  for +c: U32
   for +name: String
   for +path: String
-  {List.length(&2, F.Finding, Pick.search.judge(ss, xx, args, ll, cc, name, path))
-    == Bool.pick(Nat, Laws.search.pick(ss, xx, args), 1n, 0n) : Nat}
+  {List.length(&2, F.Finding, Pick.search.judge(s, x, args, l, c, name, path))
+    == Bool.pick(Nat, Laws.search.pick(s, x, args), 1n, 0n) : Nat}
 
-def ps.judge(ss, xx, args, ll, cc, name, path):
-  match ss:
-    case Tree.Stmt{sk, kk, body}:
-      match kk:
+def ps.judge(s, xx, args, l, c, name, path):
+  match s:
+    case Tree.Stmt{sk, k, body}:
+      match k:
         case Tree.NCons{h, rest}:
           match h:
             case Tree.Leaf{tok}:
@@ -289,8 +289,8 @@ def ps.judge(ss, xx, args, ll, cc, name, path):
                                   Pick.search.empty(after)), Bool.and(Bool.not(Bool.or(Pick.search.reads(Calls.arg(as,
                                   1n), xx), Pick.search.reads(Calls.arg(as, 2n), xx))), Pick.search.reads(no, xx))),
                                   Bool.not(Pick.search.cheap(args, Pick.search.text(Calls.arg(as, 1n))))),
-                                Laws.search.pick(ss, xx, args), ps.verdict(t, o, after, kids, xx, args),
-                                Pick.search.cite(ll, cc, name, path, Pick.search.lone(no, xx)))
+                                Laws.search.pick(s, xx, args), ps.verdict(t, o, after, kids, xx, args),
+                                Pick.search.cite(l, c, name, path, Pick.search.lone(no, xx)))
                         case Tree.Leaf{x}: {==}
                         case Tree.Stmt{x, y, z}: {==}
                         case Tree.NNil{}: {==}
@@ -332,13 +332,13 @@ def ps.stop(b, _j, _more, ih):
 # past the bound name: the rule's finding counts what the law's call says
 law ps.eq:
   for kx: Lex.TokKind
-  for +xx: String
+  for +x: String
   for r1: Tree.Node
   for +rest: Tree.Node
   for +name: String
   for +path: String
-  {List.length(&2, F.Finding, Pick.search.eq(kx, xx, r1, rest, name, path))
-    == Bool.pick(Nat, Laws.search.call(kx, xx, r1, rest, name), 1n, 0n) : Nat}
+  {List.length(&2, F.Finding, Pick.search.eq(kx, x, r1, rest, name, path))
+    == Bool.pick(Nat, Laws.search.call(kx, x, r1, rest, name), 1n, 0n) : Nat}
 
 def ps.eq(kx, xx, r1, rest, name, path):
   match r1:
@@ -412,8 +412,8 @@ law ps.bound:
   {List.length(&2, F.Finding, Pick.search.bound(nn, rest, name, path))
     == Bool.pick(Nat, Laws.search.bound(nn, rest, name), 1n, 0n) : Nat}
 
-def ps.bound(nn, rest, name, path):
-  match nn:
+def ps.bound(n, rest, name, path):
+  match n:
     case Tree.NCons{h, r1}:
       match h:
         case Tree.Leaf{tok}:

@@ -28,8 +28,8 @@ def bare(kids: Tree.Node, +name: String) -> Bool:
       False{}
 
 # the self-calls not in tail position; skip: the chain is a bare self-call
-def walk(nn: Tree.Node, +name: String, +path: String, skip: Bool) -> List<&2, F.Finding>:
-  match nn:
+def walk(n: Tree.Node, +name: String, +path: String, skip: Bool) -> List<&2, F.Finding>:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, rest}}:
       +call = String.eq(o, "(")
       +me = Bool.and(Bool.and(call, String.eq(t, name)), Bool.not(skip))
@@ -62,6 +62,6 @@ def check.go(ds: List<&2, Calls.Def>, +path: String, acc: List<&2, List<&2, F.Fi
           _u => walk(body, name, path, False{})) <> acc)
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
   check.go(Calls.defs(tree), path, [])

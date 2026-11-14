@@ -11,8 +11,8 @@ import ./defs/CliWordKinds.bend as D1
 law cli_version:
   for +fs: List<&2, String>
   for h: {D1.all_loose(fs) == True{} : Bool}
-  for +mm: Shake.Matched
-  for hp: {Args.parse("--version" <> fs) == Done{mm} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
-  for hv: {Shake.on(mm, "version") == True{} : Bool}
+  for +m: Shake.Matched
+  for hp: {Args.parse("--version" <> fs) == Done{m} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for hv: {Shake.on(m, "version") == True{} : Bool}
   {Args.out(Args.parse("--version" <> fs))
     == Args.Stop{Args.Line{}, "bolt " ++ Args.version.at(Ver.text(), Rev.text()), 0} : Args.Out}

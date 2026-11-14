@@ -39,8 +39,8 @@ import ../src/rules/laws/closed.bend as Closed
 # not a path exemption.
 
 # whether the coverage rule lets a digest's file off
-def scope.exempt(dd: Digest.Digest) -> Bool:
-  match dd:
+def scope.exempt(d: Digest.Digest) -> Bool:
+  match d:
     case Digest.Digest{_path, _norm, _dir, _is_laws, _is_law_file, exempt, _tops, _says, _deps, _laws}:
       exempt
 
@@ -117,9 +117,9 @@ law scope_reach:
     == Reach.check(Src.Src{path, text2, toks2, tree2, bound2, items2}, max) : List<&2, F.Finding>}
 
 # the findings of each rule a LAWS.bend or a PROOF.bend exempts, rule by rule
-def scope.law_file(+ss: Src.Src) -> List<&2, List<&2, F.Finding>>:
-  [Pick.check(ss), Tail.check(ss), Concat.check(ss), Eager.check(ss), Rewalk.check(ss), Strict.check(ss),
-    Index.check(ss), Thunk.check(ss)]
+def scope.law_file(+s: Src.Src) -> List<&2, List<&2, F.Finding>>:
+  [Pick.check(s), Tail.check(s), Concat.check(s), Eager.check(s), Rewalk.check(s), Strict.check(s),
+    Index.check(s), Thunk.check(s)]
 
 # LAW: on a LAWS.bend or a PROOF.bend, the findings of each rule its header
 # exempts there (pick, tail, concat, eager, rewalk, strict, index, thunk)

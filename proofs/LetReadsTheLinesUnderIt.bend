@@ -28,12 +28,12 @@ def Laws.name_under_a_let_is_not_the_let(
 
 # a let that ends in `=` or `<-` has its value under it
 law by.value:
-  for kk: Lex.TokKind
-  for e: {D1.kinds.among(kk, [Lex.TEq{}, Lex.TBind{}]) == True{} : Bool}
-  {Bind.plan.wraps.by(kk) == Bind.UValue{} : Bind.Under}
+  for k: Lex.TokKind
+  for e: {D1.kinds.among(k, [Lex.TEq{}, Lex.TBind{}]) == True{} : Bool}
+  {Bind.plan.wraps.by(k) == Bind.UValue{} : Bind.Under}
 
-def by.value(kk, e):
-  match kk:
+def by.value(k, e):
+  match k:
     case Lex.TName{}:
       Empty.absurd({Bind.plan.wraps.by(Lex.TName{}) == Bind.UValue{} : Bind.Under}, MB.false_true(e))
     case Lex.TUpper{}:
@@ -81,12 +81,12 @@ def by.value(kk, e):
 
 # a let that ends in `=>` has a lambda's body under it
 law by.lambda:
-  for kk: Lex.TokKind
-  for e: {D1.kinds.among(kk, [Lex.TLam{}]) == True{} : Bool}
-  {Bind.plan.wraps.by(kk) == Bind.ULambda{} : Bind.Under}
+  for k: Lex.TokKind
+  for e: {D1.kinds.among(k, [Lex.TLam{}]) == True{} : Bool}
+  {Bind.plan.wraps.by(k) == Bind.ULambda{} : Bind.Under}
 
-def by.lambda(kk, e):
-  match kk:
+def by.lambda(k, e):
+  match k:
     case Lex.TName{}:
       Empty.absurd({Bind.plan.wraps.by(Lex.TName{}) == Bind.ULambda{} : Bind.Under}, MB.false_true(e))
     case Lex.TUpper{}:
@@ -134,12 +134,12 @@ def by.lambda(kk, e):
 
 # a let that ends in anything else has the next statements under it
 law by.next:
-  for kk: Lex.TokKind
-  for e: {D1.kinds.among(kk, [Lex.TEq{}, Lex.TBind{}, Lex.TLam{}]) == False{} : Bool}
-  {Bind.plan.wraps.by(kk) == Bind.UNext{} : Bind.Under}
+  for k: Lex.TokKind
+  for e: {D1.kinds.among(k, [Lex.TEq{}, Lex.TBind{}, Lex.TLam{}]) == False{} : Bool}
+  {Bind.plan.wraps.by(k) == Bind.UNext{} : Bind.Under}
 
-def by.next(kk, e):
-  match kk:
+def by.next(k, e):
+  match k:
     case Lex.TName{}:
       {==}
     case Lex.TUpper{}:
@@ -188,8 +188,8 @@ def by.next(kk, e):
 def Laws.last_of_one_leaf(_kk, _tt, _ll, _cc):
   {==}
 
-def Laws.last_of_a_longer_chain(hh, _h2, _rest):
-  match hh:
+def Laws.last_of_a_longer_chain(h, _h2, _rest):
+  match h:
     case Tree.Leaf{tok}:
       match tok:
         case Lex.Tok{k, t, l, c}:

@@ -14,8 +14,8 @@ import ./lemmas/LexAndTreeFacts.bend as M1
 # reads them back in order.
 
 # Unit for None, Empty for Some: a motive that tells them apart
-def none_ty(mm: Maybe<&2, List<&2, Lex.Tok>>) -> Type:
-  match mm:
+def none_ty(m: Maybe<&2, List<&2, Lex.Tok>>) -> Type:
+  match m:
     case None{}:
       Unit
     case Some{_a}:
@@ -32,8 +32,8 @@ def none_some(_a, e):
   Unit{}
 
 # Unit for 0, Empty for a successor
-def zero_ty(nn: Nat) -> Type:
-  match nn:
+def zero_ty(n: Nat) -> Type:
+  match n:
     case Zero{}:
       Unit
     case Succ{_p}:
@@ -50,16 +50,16 @@ def zero_succ(_p, e):
   Unit{}
 
 # a group's close, if any, onto a known list
-def m_close(mm: Maybe<&2, List<&2, Lex.Tok>>, close: Maybe<&2, Lex.Tok>) -> Maybe<&2, List<&2, Lex.Tok>>:
-  match mm:
+def m_close(m: Maybe<&2, List<&2, Lex.Tok>>, close: Maybe<&2, Lex.Tok>) -> Maybe<&2, List<&2, Lex.Tok>>:
+  match m:
     case None{}:
       None{}
     case Some{a}:
       Some{Tree.leaf_close(close, a)}
 
 # tokens, in order, onto a known list
-def m_toks(mm: Maybe<&2, List<&2, Lex.Tok>>, xs: List<&2, Lex.Tok>) -> Maybe<&2, List<&2, Lex.Tok>>:
-  match mm:
+def m_toks(m: Maybe<&2, List<&2, Lex.Tok>>, xs: List<&2, Lex.Tok>) -> Maybe<&2, List<&2, Lex.Tok>>:
+  match m:
     case None{}:
       None{}
     case Some{a}:
@@ -87,15 +87,15 @@ def rev(x, m, acc):
 
 # a closed group's leaves: its bracket, its kids, then its close, if any
 law close.m:
-  for +mm: Maybe<&2, List<&2, Lex.Tok>>
+  for +m: Maybe<&2, List<&2, Lex.Tok>>
   for +o: Lex.Tok
   for +k: Tree.Node
   for +cl: Maybe<&2, Lex.Tok>
-  {M1.m_leaf(mm, Tree.Group{o, Tree.reverse(k, Tree.NNil{}), cl}) == m_close(M1.m_group(mm, o, k), cl)
+  {M1.m_leaf(m, Tree.Group{o, Tree.reverse(k, Tree.NNil{}), cl}) == m_close(M1.m_group(m, o, k), cl)
     : Maybe<&2, List<&2, Lex.Tok>>}
 
-def close.m(mm, o, k, cl):
-  match mm:
+def close.m(m, o, k, cl):
+  match m:
     case None{}:
       {==}
     case Some{a}:
@@ -121,11 +121,11 @@ def close.group(o, k, rest, cl):
 
 # no close adds nothing
 law m_close.none:
-  for +mm: Maybe<&2, List<&2, Lex.Tok>>
-  {m_close(mm, None{}) == mm : Maybe<&2, List<&2, Lex.Tok>>}
+  for +m: Maybe<&2, List<&2, Lex.Tok>>
+  {m_close(m, None{}) == m : Maybe<&2, List<&2, Lex.Tok>>}
 
-def m_close.none(mm):
-  match mm:
+def m_close.none(m):
+  match m:
     case None{}:
       {==}
     case Some{_a}:
@@ -181,8 +181,8 @@ def close_all(s):
   close_n.none(Tree.groups(s), s)
 
 # are the top n frames of the stack all open groups?
-def at_least(nn: Nat, stack: List<&2, Tree.Frame>) -> Bool:
-  match nn stack:
+def at_least(n: Nat, stack: List<&2, Tree.Frame>) -> Bool:
+  match n stack:
     case Zero{} _s:
       True{}
     case Succ{p} Con{Tree.FGroup{_o, _k}, rest}:
@@ -246,18 +246,18 @@ def al.up(d, _o, _k, _rest, e):
 # the groups a close bracket reaches down to are all open groups
 law at_least.depth:
   for +s: List<&2, Tree.Frame>
-  for +cc: String
-  {at_least(Tree.depth_to(s, cc), s) == True{} : Bool}
+  for +c: String
+  {at_least(Tree.depth_to(s, c), s) == True{} : Bool}
 
-def at_least.depth(s, cc):
+def at_least.depth(s, c):
   match s:
     case Con{Tree.FGroup{Lex.Tok{k, t, l, c2}, kids}, rest}:
-      al.stop(String.eq(Tree.closer(t), cc), 1n,
-        _u => Lazy.stop(Nat, String.eq(cc, ">"), 0n, _v => Tree.depth_to.up(Tree.depth_to(rest, cc))),
+      al.stop(String.eq(Tree.closer(t), c), 1n,
+        _u => Lazy.stop(Nat, String.eq(c, ">"), 0n, _v => Tree.depth_to.up(Tree.depth_to(rest, c))),
         Tree.FGroup{Lex.Tok{k, t, l, c2}, kids} <> rest, {==},
-        al.stop(String.eq(cc, ">"), 0n, _v => Tree.depth_to.up(Tree.depth_to(rest, cc)),
+        al.stop(String.eq(c, ">"), 0n, _v => Tree.depth_to.up(Tree.depth_to(rest, c)),
           Tree.FGroup{Lex.Tok{k, t, l, c2}, kids} <> rest, {==},
-          al.up(Tree.depth_to(rest, cc), Lex.Tok{k, t, l, c2}, kids, rest, at_least.depth(rest, cc))))
+          al.up(Tree.depth_to(rest, c), Lex.Tok{k, t, l, c2}, kids, rest, at_least.depth(rest, c))))
     case Con{Tree.FStmt{_i, _k, _b}, _rest}:
       {==}
     case Con{Tree.FRoot{_b}, _rest}:
@@ -303,12 +303,12 @@ def close_n.some(p, s, cl, e):
 
 # a close that closes a group is that group's last leaf
 law m_close.some:
-  for +mm: Maybe<&2, List<&2, Lex.Tok>>
+  for +m: Maybe<&2, List<&2, Lex.Tok>>
   for +tok: Lex.Tok
-  {m_close(mm, Some{tok}) == M1.m_leaf(mm, Tree.Leaf{tok}) : Maybe<&2, List<&2, Lex.Tok>>}
+  {m_close(m, Some{tok}) == M1.m_leaf(m, Tree.Leaf{tok}) : Maybe<&2, List<&2, Lex.Tok>>}
 
-def m_close.some(mm, _tok):
-  match mm:
+def m_close.some(m, _tok):
+  match m:
     case None{}:
       {==}
     case Some{_a}:
@@ -351,11 +351,11 @@ def close_tok(s, k, t, l, c):
 
 # no tokens add nothing
 law m_toks.nil:
-  for +mm: Maybe<&2, List<&2, Lex.Tok>>
-  {m_toks(mm, []) == mm : Maybe<&2, List<&2, Lex.Tok>>}
+  for +m: Maybe<&2, List<&2, Lex.Tok>>
+  {m_toks(m, []) == m : Maybe<&2, List<&2, Lex.Tok>>}
 
-def m_toks.nil(mm):
-  match mm:
+def m_toks.nil(m):
+  match m:
     case None{}:
       {==}
     case Some{_a}:
@@ -363,12 +363,12 @@ def m_toks.nil(mm):
 
 # a leaf is its one token
 law m_toks.one:
-  for +mm: Maybe<&2, List<&2, Lex.Tok>>
+  for +m: Maybe<&2, List<&2, Lex.Tok>>
   for +tok: Lex.Tok
-  {M1.m_leaf(mm, Tree.Leaf{tok}) == m_toks(mm, [tok]) : Maybe<&2, List<&2, Lex.Tok>>}
+  {M1.m_leaf(m, Tree.Leaf{tok}) == m_toks(m, [tok]) : Maybe<&2, List<&2, Lex.Tok>>}
 
-def m_toks.one(mm, _tok):
-  match mm:
+def m_toks.one(m, _tok):
+  match m:
     case None{}:
       {==}
     case Some{_a}:
@@ -376,13 +376,13 @@ def m_toks.one(mm, _tok):
 
 # a leaf, then tokens: the leaf's token first
 law m_toks.con:
-  for +mm: Maybe<&2, List<&2, Lex.Tok>>
+  for +m: Maybe<&2, List<&2, Lex.Tok>>
   for +tok: Lex.Tok
   for +ys: List<&2, Lex.Tok>
-  {m_toks(M1.m_leaf(mm, Tree.Leaf{tok}), ys) == m_toks(mm, tok <> ys) : Maybe<&2, List<&2, Lex.Tok>>}
+  {m_toks(M1.m_leaf(m, Tree.Leaf{tok}), ys) == m_toks(m, tok <> ys) : Maybe<&2, List<&2, Lex.Tok>>}
 
-def m_toks.con(mm, _tok, _ys):
-  match mm:
+def m_toks.con(m, _tok, _ys):
+  match m:
     case None{}:
       {==}
     case Some{_a}:
@@ -443,12 +443,12 @@ def close_any.at(gt, s, k, t, l, c):
 
 # an open bracket's leaves so far: itself
 law m_group.one:
-  for +mm: Maybe<&2, List<&2, Lex.Tok>>
+  for +m: Maybe<&2, List<&2, Lex.Tok>>
   for +tok: Lex.Tok
-  {M1.m_group(mm, tok, Tree.NNil{}) == m_toks(mm, [tok]) : Maybe<&2, List<&2, Lex.Tok>>}
+  {M1.m_group(m, tok, Tree.NNil{}) == m_toks(m, [tok]) : Maybe<&2, List<&2, Lex.Tok>>}
 
-def m_group.one(mm, _tok):
-  match mm:
+def m_group.one(m, _tok):
+  match m:
     case None{}:
       {==}
     case Some{_a}:
@@ -652,17 +652,17 @@ def stmt_leaves(_kd, k, b, acc):
 
 # a finished statement put in its parent's body keeps the leaves
 law end.m:
-  for +mm: Maybe<&2, List<&2, Lex.Tok>>
+  for +m: Maybe<&2, List<&2, Lex.Tok>>
   for +k2: Tree.Node
   for +b2: Tree.Node
   for +kd: Tree.StmtKind
   for +k: Tree.Node
   for +b: Tree.Node
-  {M1.m_stmt(mm, k2, Tree.NCons{Tree.Stmt{kd, Tree.reverse(k, Tree.NNil{}), Tree.reverse(b, Tree.NNil{})}, b2})
-    == M1.m_stmt(M1.m_stmt(mm, k2, b2), k, b) : Maybe<&2, List<&2, Lex.Tok>>}
+  {M1.m_stmt(m, k2, Tree.NCons{Tree.Stmt{kd, Tree.reverse(k, Tree.NNil{}), Tree.reverse(b, Tree.NNil{})}, b2})
+    == M1.m_stmt(M1.m_stmt(m, k2, b2), k, b) : Maybe<&2, List<&2, Lex.Tok>>}
 
-def end.m(mm, k2, b2, kd, k, b):
-  match mm:
+def end.m(m, k2, b2, kd, k, b):
+  match m:
     case None{}:
       {==}
     case Some{a}:
@@ -715,11 +715,11 @@ def end_n(n, s):
 
 # an empty statement adds nothing
 law m_stmt.nil:
-  for +mm: Maybe<&2, List<&2, Lex.Tok>>
-  {M1.m_stmt(mm, Tree.NNil{}, Tree.NNil{}) == mm : Maybe<&2, List<&2, Lex.Tok>>}
+  for +m: Maybe<&2, List<&2, Lex.Tok>>
+  {M1.m_stmt(m, Tree.NNil{}, Tree.NNil{}) == m : Maybe<&2, List<&2, Lex.Tok>>}
 
-def m_stmt.nil(mm):
-  match mm:
+def m_stmt.nil(m):
+  match m:
     case None{}:
       {==}
     case Some{_a}:
@@ -728,51 +728,51 @@ def m_stmt.nil(mm):
 # a new statement over the ones it leaves open keeps the leaves
 law open.go:
   for +s: List<&2, Tree.Frame>
-  for +cc: U32
+  for +c: U32
   for -r: List<&2, Lex.Tok>
   for e: {M1.vs(s) == Some{r} : Maybe<&2, List<&2, Lex.Tok>>}
-  {M1.vg(Tree.FStmt{cc, Tree.NNil{}, Tree.NNil{}} <> Tree.end_n(Tree.deeper(s, cc), s)) == Some{r}
+  {M1.vg(Tree.FStmt{c, Tree.NNil{}, Tree.NNil{}} <> Tree.end_n(Tree.deeper(s, c), s)) == Some{r}
     : Maybe<&2, List<&2, Lex.Tok>>}
 
-def open.go(s, cc, r, e):
+def open.go(s, c, r, e):
   Equal.trans(Maybe<&2, List<&2, Lex.Tok>>,
-    M1.m_stmt(M1.vs(Tree.end_n(Tree.deeper(s, cc), s)), Tree.NNil{}, Tree.NNil{}),
+    M1.m_stmt(M1.vs(Tree.end_n(Tree.deeper(s, c), s)), Tree.NNil{}, Tree.NNil{}),
     M1.vs(s), Some{r},
     Equal.trans(Maybe<&2, List<&2, Lex.Tok>>,
-      M1.m_stmt(M1.vs(Tree.end_n(Tree.deeper(s, cc), s)), Tree.NNil{}, Tree.NNil{}),
-      M1.vs(Tree.end_n(Tree.deeper(s, cc), s)), M1.vs(s),
-      m_stmt.nil(M1.vs(Tree.end_n(Tree.deeper(s, cc), s))),
-      end_n(Tree.deeper(s, cc), s)),
+      M1.m_stmt(M1.vs(Tree.end_n(Tree.deeper(s, c), s)), Tree.NNil{}, Tree.NNil{}),
+      M1.vs(Tree.end_n(Tree.deeper(s, c), s)), M1.vs(s),
+      m_stmt.nil(M1.vs(Tree.end_n(Tree.deeper(s, c), s))),
+      end_n(Tree.deeper(s, c), s)),
     e)
 
 # a line's start keeps the leaves
 law open_stmt:
   for +s: List<&2, Tree.Frame>
-  for +cc: U32
+  for +c: U32
   for -r: List<&2, Lex.Tok>
   for e: {M1.vg(s) == Some{r} : Maybe<&2, List<&2, Lex.Tok>>}
-  {M1.vg(Tree.open_stmt(s, cc)) == Some{r} : Maybe<&2, List<&2, Lex.Tok>>}
+  {M1.vg(Tree.open_stmt(s, c)) == Some{r} : Maybe<&2, List<&2, Lex.Tok>>}
 
-def open_stmt(s, cc, r, e):
+def open_stmt(s, c, r, e):
   match s:
     case Con{Tree.FGroup{_o, _k}, _rest}:
       e
     case Con{Tree.FStmt{i, k, Tree.NNil{}}, rest}:
-      open.go(Tree.FStmt{i, k, Tree.NNil{}} <> rest, cc, r, e)
+      open.go(Tree.FStmt{i, k, Tree.NNil{}} <> rest, c, r, e)
     case Con{Tree.FStmt{i, k, Tree.NCons{h, t}}, rest}:
-      Empty.absurd({M1.vg(Tree.open_stmt(Tree.FStmt{i, k, Tree.NCons{h, t}} <> rest, cc)) == Some{r}
+      Empty.absurd({M1.vg(Tree.open_stmt(Tree.FStmt{i, k, Tree.NCons{h, t}} <> rest, c)) == Some{r}
         : Maybe<&2, List<&2, Lex.Tok>>}, none_some(r, e))
     case Con{Tree.FStmt{i, k, Tree.Leaf{x}}, rest}:
-      Empty.absurd({M1.vg(Tree.open_stmt(Tree.FStmt{i, k, Tree.Leaf{x}} <> rest, cc)) == Some{r}
+      Empty.absurd({M1.vg(Tree.open_stmt(Tree.FStmt{i, k, Tree.Leaf{x}} <> rest, c)) == Some{r}
         : Maybe<&2, List<&2, Lex.Tok>>}, none_some(r, e))
     case Con{Tree.FStmt{i, k, Tree.Group{x, y, z}}, rest}:
-      Empty.absurd({M1.vg(Tree.open_stmt(Tree.FStmt{i, k, Tree.Group{x, y, z}} <> rest, cc)) == Some{r}
+      Empty.absurd({M1.vg(Tree.open_stmt(Tree.FStmt{i, k, Tree.Group{x, y, z}} <> rest, c)) == Some{r}
         : Maybe<&2, List<&2, Lex.Tok>>}, none_some(r, e))
     case Con{Tree.FStmt{i, k, Tree.Stmt{x, y, z}}, rest}:
-      Empty.absurd({M1.vg(Tree.open_stmt(Tree.FStmt{i, k, Tree.Stmt{x, y, z}} <> rest, cc)) == Some{r}
+      Empty.absurd({M1.vg(Tree.open_stmt(Tree.FStmt{i, k, Tree.Stmt{x, y, z}} <> rest, c)) == Some{r}
         : Maybe<&2, List<&2, Lex.Tok>>}, none_some(r, e))
     case Con{Tree.FRoot{b}, rest}:
-      open.go(Tree.FRoot{b} <> rest, cc, r, e)
+      open.go(Tree.FRoot{b} <> rest, c, r, e)
     case Nil{}:
       e
 
@@ -903,8 +903,8 @@ def pred(nn: Nat) -> Nat:
       p
 
 # a known list's value, [] for none
-def got(mm: Maybe<&2, List<&2, Lex.Tok>>) -> List<&2, Lex.Tok>:
-  match mm:
+def got(m: Maybe<&2, List<&2, Lex.Tok>>) -> List<&2, Lex.Tok>:
+  match m:
     case None{}:
       []
     case Some{a}:

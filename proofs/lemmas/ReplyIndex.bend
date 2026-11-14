@@ -21,15 +21,15 @@ law ri.step:
   for b1: Bool
   for b2: Bool
   for -sub: W.Ix
-  for -tt: W.Ix
+  for -t: W.Ix
   for -rest: Bool
-  for -rr: W.Reply
+  for -r: W.Reply
   for -hs: W.Ix -> List<&2, W.Reply>
-  for ih: {hs(sub) == Bool.pick(List<&2, W.Reply>, rest, rr <> hs(W.ix.near(b1, tt)), hs(W.ix.near(b1, tt)))
+  for ih: {hs(sub) == Bool.pick(List<&2, W.Reply>, rest, r <> hs(W.ix.near(b1, t)), hs(W.ix.near(b1, t)))
     : List<&2, W.Reply>}
-  {hs(W.ix.near(b2, W.ix.join(b1, sub, W.ix.near(Bool.not(b1), tt))))
-    == Bool.pick(List<&2, W.Reply>, Bool.and(M1.ix.bit(b1, b2), rest), rr <> hs(W.ix.near(b2, tt)),
-      hs(W.ix.near(b2, tt))) : List<&2, W.Reply>}
+  {hs(W.ix.near(b2, W.ix.join(b1, sub, W.ix.near(Bool.not(b1), t))))
+    == Bool.pick(List<&2, W.Reply>, Bool.and(M1.ix.bit(b1, b2), rest), r <> hs(W.ix.near(b2, t)),
+      hs(W.ix.near(b2, t))) : List<&2, W.Reply>}
 
 def ri.step(b1, b2, _sub, _tt, _rest, _rr, _hs, ih):
   match b1 b2:
@@ -45,35 +45,35 @@ def ri.step(b1, b2, _sub, _tt, _rest, _rr, _hs, ih):
 # a lookup after a put: the reply put in, at the front, when the two numbers
 # agree in the bits walked, and what was there before
 law ri.put:
-  for dd: Nat
+  for d: Nat
   for +k1: U32
   for +k2: U32
-  for +tt: W.Ix
-  for +rr: W.Reply
-  {W.ix.at(dd, k2, W.ix.put(dd, k1, tt, rr))
-    == Bool.pick(List<&2, W.Reply>, M1.ix.bits(dd, k1, k2), rr <> W.ix.at(dd, k2, tt), W.ix.at(dd, k2, tt))
+  for +t: W.Ix
+  for +r: W.Reply
+  {W.ix.at(d, k2, W.ix.put(d, k1, t, r))
+    == Bool.pick(List<&2, W.Reply>, M1.ix.bits(d, k1, k2), r <> W.ix.at(d, k2, t), W.ix.at(d, k2, t))
     : List<&2, W.Reply>}
 
-def ri.put(dd, k1, k2, tt, rr):
-  match dd:
+def ri.put(d, k1, k2, t, r):
+  match d:
     case 0n:
       {==}
     case 1n+p:
       ri.step(U32.is_even(k1), U32.is_even(k2),
-        W.ix.put(p, U32.shr(k1), W.ix.near(U32.is_even(k1), tt), rr), tt,
-        M1.ix.bits(p, U32.shr(k1), U32.shr(k2)), rr,
+        W.ix.put(p, U32.shr(k1), W.ix.near(U32.is_even(k1), t), r), t,
+        M1.ix.bits(p, U32.shr(k1), U32.shr(k2)), r,
         x => W.ix.at(p, U32.shr(k2), x),
-        ri.put(p, U32.shr(k1), U32.shr(k2), W.ix.near(U32.is_even(k1), tt), rr))
+        ri.put(p, U32.shr(k1), U32.shr(k2), W.ix.near(U32.is_even(k1), t), r))
 
 # two questions the scan finds alike are the same question
 law ri.same:
-  for aa: W.Ask
-  for bb: W.Ask
-  for e: {W.ask.eq(aa, bb) == True{} : Bool}
-  {aa == bb : W.Ask}
+  for a: W.Ask
+  for b: W.Ask
+  for e: {W.ask.eq(a, b) == True{} : Bool}
+  {a == b : W.Ask}
 
-def ri.same(aa, bb, e):
-  match aa bb:
+def ri.same(a, b, e):
+  match a b:
     case W.Entries{x} W.Entries{y}:
       %M3.unsafe.seq(x, y, e) : {W.Entries{x} == W.Entries{_} : W.Ask}
       {==}
@@ -98,14 +98,14 @@ def ri.alike(qr, q, e):
 
 # a test that cannot hold leaves a stop to its rest
 law ri.miss:
-  for ss: Bool
+  for s: Bool
   for -yes: Maybe<&2, W.Answer>
   for -no: Maybe<&2, W.Answer>
-  for imp: {ss == True{} : Bool} -> Empty
-  {no == Lazy.stop(Maybe<&2, W.Answer>, ss, yes, _u => no) : Maybe<&2, W.Answer>}
+  for imp: {s == True{} : Bool} -> Empty
+  {no == Lazy.stop(Maybe<&2, W.Answer>, s, yes, _u => no) : Maybe<&2, W.Answer>}
 
-def ri.miss(ss, yes, no, imp):
-  match ss:
+def ri.miss(s, yes, no, imp):
+  match s:
     case True{}:
       Empty.absurd({no == Lazy.stop(Maybe<&2, W.Answer>, True{}, yes, _u => no) : Maybe<&2, W.Answer>}, imp({==}))
     case False{}:
@@ -114,17 +114,17 @@ def ri.miss(ss, yes, no, imp):
 # a leaf that may hold the reply: the scan of it is the scan with the reply
 # first, since a reply it leaves out is one the scan passes
 law ri.leaf:
-  for bb: Bool
+  for b: Bool
   for +q: W.Ask
   for +qr: W.Ask
   for +a: W.Answer
   for +more: List<&2, W.Reply>
-  for imp: {W.ask.eq(qr, q) == True{} : Bool} -> {bb == True{} : Bool}
-  {W.answer.in(Bool.pick(List<&2, W.Reply>, bb, W.Reply{qr, a} <> more, more), q)
+  for imp: {W.ask.eq(qr, q) == True{} : Bool} -> {b == True{} : Bool}
+  {W.answer.in(Bool.pick(List<&2, W.Reply>, b, W.Reply{qr, a} <> more, more), q)
     == W.answer.in(W.Reply{qr, a} <> more, q) : Maybe<&2, W.Answer>}
 
-def ri.leaf(bb, q, qr, a, more, imp):
-  match bb:
+def ri.leaf(b, q, qr, a, more, imp):
+  match b:
     case True{}:
       {==}
     case False{}:

@@ -46,8 +46,8 @@ import ../src/lazy/lazy.bend as Lazy
 # angles that run closes).
 
 # a comment?
-def wrap.comment(kk: Lex.TokKind) -> Bool:
-  match kk:
+def wrap.comment(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TComment{}:
       True{}
     case other:
@@ -55,24 +55,24 @@ def wrap.comment(kk: Lex.TokKind) -> Bool:
 
 # a token's share of a one-line header's width: none for a comment, else its
 # share of a line as space counts it
-def wrap.cost(+kk: Lex.TokKind, +tx: String) -> U32:
-  Bool.pick(U32, wrap.comment(kk), 0, Space.width_of(kk, tx))
+def wrap.cost(+k: Lex.TokKind, +tx: String) -> U32:
+  Bool.pick(U32, wrap.comment(k), 0, Space.width_of(k, tx))
 
 # some token of the list is a `:`
 def wrap.colons(toks: List<&2, Lex.Tok>) -> Bool:
   match toks:
     case Nil{}:
       False{}
-    case Con{Lex.Tok{kk, tx, ln, cl}, rest}:
-      Bool.or(Wrap.check.is_colon(kk), wrap.colons(rest))
+    case Con{Lex.Tok{k, tx, ln, cl}, rest}:
+      Bool.or(Wrap.check.is_colon(k), wrap.colons(rest))
 
 # the width, acc so far, through the last `:` of the tokens
 def wrap.upto(toks: List<&2, Lex.Tok>, +acc: U32) -> U32:
   match toks:
     case Nil{}:
       acc
-    case Con{Lex.Tok{+kk, +tx, ln, cl}, +rest}:
-      +next = (acc + wrap.cost(kk, tx) : U32)
+    case Con{Lex.Tok{+k, +tx, ln, cl}, +rest}:
+      +next = (acc + wrap.cost(k, tx) : U32)
       Bool.pick(U32, wrap.colons(rest), wrap.upto(rest, next), next)
 
 # the width of all the tokens, acc so far
@@ -80,8 +80,8 @@ def wrap.total(toks: List<&2, Lex.Tok>, +acc: U32) -> U32:
   match toks:
     case Nil{}:
       acc
-    case Con{Lex.Tok{+kk, +tx, ln, cl}, rest}:
-      wrap.total(rest, (acc + wrap.cost(kk, tx) : U32))
+    case Con{Lex.Tok{+k, +tx, ln, cl}, rest}:
+      wrap.total(rest, (acc + wrap.cost(k, tx) : U32))
 
 # a one-line header's width: through its last `:`, else all of it
 def wrap.width(+toks: List<&2, Lex.Tok>) -> U32:
@@ -115,9 +115,9 @@ def wrap.flat(+paren: U32, +bracket: U32, +brace: U32, +angle: U32) -> Bool:
 
 # at the list's own depth: a `)` ends the list, a `,` a parameter, and any
 # other token moves as it would anywhere
-def wrap.edge(+kk: Lex.TokKind, +tx: String, move: Wrap.Act) -> Wrap.Act:
-  Bool.pick(Wrap.Act, Wrap.check.is_cparen(kk, tx), Wrap.AEnd{},
-    Bool.pick(Wrap.Act, Lex.is_comma(kk), Wrap.AComma{}, move))
+def wrap.edge(+k: Lex.TokKind, +tx: String, move: Wrap.Act) -> Wrap.Act:
+  Bool.pick(Wrap.Act, Wrap.check.is_cparen(k, tx), Wrap.AEnd{},
+    Bool.pick(Wrap.Act, Lex.is_comma(k), Wrap.AComma{}, move))
 
 # what a significant token does. Before the list a `(` with no depth open
 # opens it; inside it, with only its `(` open, a `)` or a `,` is an edge;
@@ -125,7 +125,7 @@ def wrap.edge(+kk: Lex.TokKind, +tx: String, move: Wrap.Act) -> Wrap.Act:
 # moves; any other token moves the depths as Wrap.check.brackets reads it
 def wrap.motion(
   at: Wrap.Phase,
-  +kk: Lex.TokKind,
+  +k: Lex.TokKind,
   +tx: String,
   +glued: Bool,
   +paren: U32,
@@ -135,21 +135,21 @@ def wrap.motion(
 ) -> Wrap.Act:
   match at:
     case Wrap.Seek{}:
-      Bool.pick(Wrap.Act, Bool.and(Wrap.check.is_oparen(kk, tx), wrap.shut_all(paren, bracket, brace, angle)),
-        Wrap.AOpen{}, Wrap.check.brackets(kk, tx, glued))
+      Bool.pick(Wrap.Act, Bool.and(Wrap.check.is_oparen(k, tx), wrap.shut_all(paren, bracket, brace, angle)),
+        Wrap.AOpen{}, Wrap.check.brackets(k, tx, glued))
     case Wrap.Args{}:
       Bool.pick(Wrap.Act, wrap.flat(paren, bracket, brace, angle),
-        wrap.edge(kk, tx, Wrap.check.brackets(kk, tx, glued)), Wrap.check.brackets(kk, tx, glued))
+        wrap.edge(k, tx, Wrap.check.brackets(k, tx, glued)), Wrap.check.brackets(k, tx, glued))
     case Wrap.Past{}:
       Wrap.ANone{}
     case Wrap.Shut{}:
-      Bool.pick(Wrap.Act, Bool.or(Wrap.check.is_arrow(kk), Wrap.check.is_colon(kk)), Wrap.AArrow{}, Wrap.AStray{})
+      Bool.pick(Wrap.Act, Bool.or(Wrap.check.is_arrow(k), Wrap.check.is_colon(k)), Wrap.AArrow{}, Wrap.AStray{})
     case Wrap.Loose{}:
       Wrap.ANone{}
 
 # one less, not below zero
-def wrap.less(+nn: U32) -> U32:
-  Lazy.stop(U32, U32.is_eq(nn, 0), 0, _u => (nn - 1 : U32))
+def wrap.less(+n: U32) -> U32:
+  Lazy.stop(U32, U32.is_eq(n, 0), 0, _u => (n - 1 : U32))
 
 # left angles closed, the depth staying at zero once there
 def wrap.lower(left: Nat, +angle: U32) -> U32:
@@ -255,10 +255,10 @@ def wrap.move(
 
 # one token onto the read; a space, a newline or a comment changes nothing
 def wrap.step(+tok: Lex.Tok, +rd: wrap.Read, glued: Bool) -> wrap.Read:
-  Lex.Tok{+kk, +tx, +ln, +cl} = tok
+  Lex.Tok{+k, +tx, +ln, +cl} = tok
   wrap.Read{+at, +paren, +bracket, +brace, +angle, +open, +shut, +cur, +done} = rd
-  Bool.pick(wrap.Read, Lex.significant(kk),
-    wrap.move(wrap.motion(at, kk, tx, glued, paren, bracket, brace, angle), at, paren, bracket, brace, angle, open,
+  Bool.pick(wrap.Read, Lex.significant(k),
+    wrap.move(wrap.motion(at, k, tx, glued, paren, bracket, brace, angle), at, paren, bracket, brace, angle, open,
       shut, cur, done, ln, cl, Wrap.check.ticks_of(tx)),
     wrap.Read{at, paren, bracket, brace, angle, open, shut, cur, done})
 
@@ -270,8 +270,8 @@ def wrap.run(toks: List<&2, Lex.Tok>, rd: wrap.Read, glued: Bool) -> wrap.Read:
       wrap.Read{at, paren, bracket, brace, angle, open, shut, cur, done} = rd
       wrap.Read{at, paren, bracket, brace, angle, open, shut, None{}, wrap.close(cur, done)}
     case Con{+tok, rest}:
-      Lex.Tok{+kk, _tx, _ln, _cl} = tok
-      wrap.run(rest, wrap.step(tok, rd, glued), Lex.is_name(kk))
+      Lex.Tok{+k, _tx, _ln, _cl} = tok
+      wrap.run(rest, wrap.step(tok, rd, glued), Lex.is_name(k))
 
 # some parameter of the list starts on the line
 def wrap.starts_on(ps: List<&2, Wrap.Span>, +ln: U32) -> Bool:
@@ -377,8 +377,8 @@ def wrap.lines(toks: List<&2, Lex.Tok>) -> Bool:
   match toks:
     case Nil{}:
       False{}
-    case Con{Lex.Tok{kk, tx, ln, cl}, rest}:
-      Bool.or(Lex.is_nl(kk), wrap.lines(rest))
+    case Con{Lex.Tok{k, tx, ln, cl}, rest}:
+      Bool.or(Lex.is_nl(k), wrap.lines(rest))
 
 # a header is misshapen: across lines (a newline token in it) by its
 # parameter list, on one line by a width over 120
@@ -390,9 +390,9 @@ def wrap.count(items: List<&2, Outline.Item>) -> Nat:
   match items:
     case Nil{}:
       0n
-    case Con{Outline.Item{kk, _name, _line, +sig, _doc, _pp}, rest}:
+    case Con{Outline.Item{k, _name, _line, +sig, _doc, _pp}, rest}:
       +m = wrap.count(rest)
-      Bool.pick(Nat, Bool.and(Outline.is_def(kk), wrap.bad(sig)), 1n+m, m)
+      Bool.pick(Nat, Bool.and(Outline.is_def(k), wrap.bad(sig)), 1n+m, m)
 
 # LAW: wrap reports exactly one finding for each def header of the outline
 # that is misshapen, and none for anything else

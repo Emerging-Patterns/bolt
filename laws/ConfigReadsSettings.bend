@@ -13,15 +13,15 @@ import ../src/syntax/bind.bend as Bind
 
 # LAW: a token that opens and closes with a quote is read without them
 law unquote_strips_quotes:
-  for +tt: String
-  for e: {Bool.and(String.starts_with(tt, "\""), String.ends_with(tt, "\"")) == True{} : Bool}
-  {Config.unquote(tt) == String.take(String.drop(tt, 1n), (String.length(tt) - 2n : Nat)) : String}
+  for +t: String
+  for e: {Bool.and(String.starts_with(t, "\""), String.ends_with(t, "\"")) == True{} : Bool}
+  {Config.unquote(t) == String.take(String.drop(t, 1n), (String.length(t) - 2n : Nat)) : String}
 
 # LAW: any other token is read as it is
 law unquote_keeps_bare:
-  for +tt: String
-  for e: {Bool.and(String.starts_with(tt, "\""), String.ends_with(tt, "\"")) == False{} : Bool}
-  {Config.unquote(tt) == tt : String}
+  for +t: String
+  for e: {Bool.and(String.starts_with(t, "\""), String.ends_with(t, "\"")) == False{} : Bool}
+  {Config.unquote(t) == t : String}
 
 # LAW: each setting gives its name the level its word names, in file order
 law levels_in_order:

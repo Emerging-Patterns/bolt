@@ -296,8 +296,8 @@ def tail.stmt(_kind, kids, body, rest, name, path, _skip, ih1, ih2, ih3):
       M2.esc.add(List.length(&2, F.Finding, b), Laws.tail.count(body, name, False{}),
         List.length(&2, F.Finding, r), Laws.tail.count(rest, name, False{}), ih2, ih3)))
 
-def Laws.tail_walk_counts(nn, name, path, skip):
-  match nn:
+def Laws.tail_walk_counts(n, name, path, skip):
+  match n:
     case Tree.NCons{h, +rest}:
       match h:
         case Tree.Leaf{Lex.Tok{k, t, l, c}}:

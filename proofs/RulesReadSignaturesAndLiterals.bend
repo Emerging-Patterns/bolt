@@ -25,8 +25,8 @@ def rs.or_else(c, _x):
 def Laws.has_colon_along_the_chain(h, rest):
   rs.or_else(Calls.kind.leaf(~Calls.kind.colon, h), Calls.has_colon(rest))
 
-def Laws.has_colon_needs_a_chain(pp, e):
-  match pp:
+def Laws.has_colon_needs_a_chain(p, e):
+  match p:
     case Tree.NCons{h, r}:
       Empty.absurd({Calls.has_colon(Tree.NCons{h, r}) == False{} : Bool}, M1.true_false(e))
     case Tree.NNil{}:
@@ -41,8 +41,8 @@ def Laws.has_colon_needs_a_chain(pp, e):
 def Laws.has_arrow_along_the_chain(h, rest):
   rs.or_else(Calls.kind.leaf(~Calls.kind.arrow, h), Calls.has_arrow(rest))
 
-def Laws.has_arrow_needs_a_chain(pp, e):
-  match pp:
+def Laws.has_arrow_needs_a_chain(p, e):
+  match p:
     case Tree.NCons{h, r}:
       Empty.absurd({Calls.has_arrow(Tree.NCons{h, r}) == False{} : Bool}, M1.true_false(e))
     case Tree.NNil{}:
@@ -57,8 +57,8 @@ def Laws.has_arrow_needs_a_chain(pp, e):
 def Laws.sign_is_first_operator(_h, _rest):
   {==}
 
-def Laws.sign_needs_a_chain(pp, e):
-  match pp:
+def Laws.sign_needs_a_chain(p, e):
+  match p:
     case Tree.NCons{h, r}:
       Empty.absurd({Calls.is_live.sign(Tree.NCons{h, r}) == False{} : Bool}, M1.true_false(e))
     case Tree.NNil{}:
@@ -107,23 +107,23 @@ def Laws.digits_need_chars(cs, e):
 def Laws.digits_of_one_char(_c):
   {==}
 
-def Laws.code_cuts_a_string(kk, tt, ll, cc, e):
-  %Equal.sym(Bool, Lex.is_str(kk), True{}, e) :
-    {Lex.Tok{kk, Bool.pick(String, _, Tokens.code.cut(tt), tt), ll, cc} == Lex.Tok{kk, Tokens.code.cut(tt), ll, cc}
+def Laws.code_cuts_a_string(k, t, l, c, e):
+  %Equal.sym(Bool, Lex.is_str(k), True{}, e) :
+    {Lex.Tok{k, Bool.pick(String, _, Tokens.code.cut(t), t), l, c} == Lex.Tok{k, Tokens.code.cut(t), l, c}
       : Lex.Tok}
   {==}
 
-def Laws.code_keeps_other_tokens(kk, tt, ll, cc, e):
-  %Equal.sym(Bool, Lex.is_str(kk), False{}, e) :
-    {Lex.Tok{kk, Bool.pick(String, _, Tokens.code.cut(tt), tt), ll, cc} == Lex.Tok{kk, tt, ll, cc} : Lex.Tok}
+def Laws.code_keeps_other_tokens(k, t, l, c, e):
+  %Equal.sym(Bool, Lex.is_str(k), False{}, e) :
+    {Lex.Tok{k, Bool.pick(String, _, Tokens.code.cut(t), t), l, c} == Lex.Tok{k, t, l, c} : Lex.Tok}
   {==}
 
-def Laws.nat_value_reads_the_digits(tt, e):
-  %Equal.sym(Bool, Tokens.nat_ok(String.to_list(tt)), True{}, e) :
-    {Bool.pick(Maybe<&2, U32>, _, U32.read(Tokens.stem(tt)), None{}) == U32.read(Tokens.stem(tt)) : Maybe<&2, U32>}
+def Laws.nat_value_reads_the_digits(t, e):
+  %Equal.sym(Bool, Tokens.nat_ok(String.to_list(t)), True{}, e) :
+    {Bool.pick(Maybe<&2, U32>, _, U32.read(Tokens.stem(t)), None{}) == U32.read(Tokens.stem(t)) : Maybe<&2, U32>}
   {==}
 
-def Laws.nat_value_needs_a_literal(tt, e):
-  %Equal.sym(Bool, Tokens.nat_ok(String.to_list(tt)), False{}, e) :
-    {Bool.pick(Maybe<&2, U32>, _, U32.read(Tokens.stem(tt)), None{}) == None{} : Maybe<&2, U32>}
+def Laws.nat_value_needs_a_literal(t, e):
+  %Equal.sym(Bool, Tokens.nat_ok(String.to_list(t)), False{}, e) :
+    {Bool.pick(Maybe<&2, U32>, _, U32.read(Tokens.stem(t)), None{}) == None{} : Maybe<&2, U32>}
   {==}

@@ -21,8 +21,8 @@ import ../../lazy/lazy.bend as Lazy
 import ../table.bend as Table
 
 # is the chain exactly one number?
-def literal(nn: Tree.Node) -> Bool:
-  match nn:
+def literal(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{Lex.TNum{}, t, l, c}}, Tree.NNil{}}:
       True{}
     case other:
@@ -37,8 +37,8 @@ def held(+list: Bool, coll: Tree.Node, +fixed: List<&2, String>) -> Bool:
       Table.owns(coll, fixed)
 
 # is the call named get, and not the def's own (self)?
-def named(+tt: String, +self: String, +get: String) -> Bool:
-  Bool.and(String.eq(tt, get), Bool.not(String.eq(tt, self)))
+def named(+t: String, +self: String, +get: String) -> Bool:
+  Bool.and(String.eq(t, get), Bool.not(String.eq(t, self)))
 
 # every List.get / String.get call at a computed index, but self's own
 def walk(nn: Tree.Node, +path: String, +fixed: List<&2, String>, +self: String) -> List<&2, F.Finding>:
@@ -80,7 +80,7 @@ def check.go(
           _u => walk(body, path, Table.scope(body, mods), name)) <> acc)
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
   +ds = Calls.defs(tree)
   check.go(ds, Table.modules(ds, []), path, [])

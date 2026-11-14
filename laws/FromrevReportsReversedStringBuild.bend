@@ -17,9 +17,9 @@ import ../src/syntax/outline.bend as Outline
 import ../src/rules/suspicious/fromrev.bend as Fromrev
 import ../src/rules/tokens.bend as T
 
-# True when tt is `String.from_list` and the tokens open with `(`,
+# True when t is `String.from_list` and the tokens open with `(`,
 # `List.reverse` and `(`
-def fromrev_at(+tt: String, toks: List<&2, Lex.Tok>) -> Bool:
+def fromrev_at(+t: String, toks: List<&2, Lex.Tok>) -> Bool:
   match toks:
     case Nil{}:
       False{}
@@ -32,7 +32,7 @@ def fromrev_at(+tt: String, toks: List<&2, Lex.Tok>) -> Bool:
             case Nil{}:
               False{}
             case Con{Lex.Tok{k3, +d, l3, c3}, r3}:
-              Bool.and(Bool.and(String.eq(tt, "String.from_list"), String.eq(a, "(")),
+              Bool.and(Bool.and(String.eq(t, "String.from_list"), String.eq(a, "(")),
                 Bool.and(String.eq(b, "List.reverse"), String.eq(d, "(")))
 
 # how many tokens start a `String.from_list`, `(`, `List.reverse`, `(` run

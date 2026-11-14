@@ -6,5 +6,5 @@ import ../src/rules/suspicious/empty.bend as Empty
 import ../laws/RoleEmptyExempt.bend as Laws
 import ./lemmas/LawFileExemptions.bend as M1
 
-def Laws.role_empty_exempt(rr, e, path, _text, toks, _tree, _bound, _items):
-  M1.ex.stop(Role.is_law_file(rr), e, _u => Empty.walk(T.sig(toks), path, False{}))
+def Laws.role_empty_exempt(r, e, path, _text, toks, _tree, _bound, _items):
+  M1.ex.stop(Role.is_law_file(r), e, _u => Empty.walk(T.sig(toks), path, False{}))

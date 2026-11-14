@@ -11,8 +11,8 @@ import ../src/syntax/lex.bend as Lex
 import ../src/syntax/outline.bend as Outline
 
 # is the item an import? Law vocabulary: bolt never calls it
-def outline.is_import(kk: Outline.ItemKind) -> Bool:
-  match kk:
+def outline.is_import(k: Outline.ItemKind) -> Bool:
+  match k:
     case Outline.IImport{}:
       True{}
     case Outline.IDef{}:
@@ -28,8 +28,8 @@ def outline.is_import(kk: Outline.ItemKind) -> Bool:
 
 # LAW: only an import is an import
 law is_import_only_imports:
-  for kk: Outline.ItemKind
-  {Outline.is_import(kk) == outline.is_import(kk) : Bool}
+  for k: Outline.ItemKind
+  {Outline.is_import(k) == outline.is_import(k) : Bool}
 
 # LAW: the item of a name is the first item that is not an import and has
 # that name
@@ -129,14 +129,14 @@ law starts_upper_needs_a_char:
 # comment is one: each such token decides afresh, and a space or a comment
 # keeps what was decided
 law ends_colon_last_significant:
-  for +kk: Lex.TokKind
+  for +k: Lex.TokKind
   for tx: String
   for ln: U32
   for cl: U32
   for t: List<&2, Lex.Tok>
   for prev: Bool
-  {Outline.ends_colon.go(Lex.Tok{kk, tx, ln, cl} <> t, prev)
-    == Outline.ends_colon.go(t, Bool.pick(Bool, Lex.significant(kk), Outline.ends_colon.is(kk), prev)) : Bool}
+  {Outline.ends_colon.go(Lex.Tok{k, tx, ln, cl} <> t, prev)
+    == Outline.ends_colon.go(t, Bool.pick(Bool, Lex.significant(k), Outline.ends_colon.is(k), prev)) : Bool}
 
 # LAW: with no token left, what was decided stands
 law ends_colon_stands:
@@ -145,5 +145,5 @@ law ends_colon_stands:
 
 # LAW: a line that holds no such token does not end in `:`
 law ends_colon_of_line:
-  for ss: String
-  {Outline.ends_colon(ss) == Outline.ends_colon.go(Lex.tokens(ss), False{}) : Bool}
+  for s: String
+  {Outline.ends_colon(s) == Outline.ends_colon.go(Lex.tokens(s), False{}) : Bool}

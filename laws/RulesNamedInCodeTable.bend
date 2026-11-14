@@ -20,8 +20,8 @@ def project_rules() -> List<&2, String>:
   ["setting", "coverage", "noqa"]
 
 # is the slug one of these?
-def among(+slug: String, ss: List<&2, String>) -> Bool:
-  List.contains(~String, ~String.eq, ss, slug)
+def among(+slug: String, s: List<&2, String>) -> Bool:
+  List.contains(~String, ~String.eq, s, slug)
 
 # the slugs of the run table, in order
 def run_slugs(rs: List<&2, Rules.Run>) -> List<&2, String>:
@@ -32,8 +32,8 @@ def run_slugs(rs: List<&2, Rules.Run>) -> List<&2, String>:
       slug <> run_slugs(rest)
 
 # is there a row?
-def found(mm: Maybe<&2, Codes.Entry>) -> Bool:
-  match mm:
+def found(m: Maybe<&2, Codes.Entry>) -> Bool:
+  match m:
     case None{}:
       False{}
     case Some{_e}:
@@ -44,8 +44,8 @@ def coded(+slug: String) -> Bool:
   found(Codes.find(Codes.table(), slug))
 
 # a run table entry's slug is in the code table; past the end holds
-def run.coded(mm: Maybe<&2, Rules.Run>) -> Bool:
-  match mm:
+def run.coded(m: Maybe<&2, Rules.Run>) -> Bool:
+  match m:
     case None{}:
       True{}
     case Some{Rules.Run{+slug, _w}}:
@@ -53,8 +53,8 @@ def run.coded(mm: Maybe<&2, Rules.Run>) -> Bool:
 
 # a code table row's slug is run per file or is a project rule; past the
 # end holds
-def code.run(mm: Maybe<&2, Codes.Entry>) -> Bool:
-  match mm:
+def code.run(m: Maybe<&2, Codes.Entry>) -> Bool:
+  match m:
     case None{}:
       True{}
     case Some{Codes.Entry{+slug, _id, _grp}}:
@@ -72,8 +72,8 @@ law code_slug_run:
   {code.run(List.get(&2, Codes.Entry, Codes.table(), n)) == True{} : Bool}
 
 # a project rule is in the run table; past the end does not
-def project.run(mm: Maybe<&2, String>) -> Bool:
-  match mm:
+def project.run(m: Maybe<&2, String>) -> Bool:
+  match m:
     case None{}:
       False{}
     case Some{+slug}:

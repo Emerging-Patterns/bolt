@@ -10,23 +10,23 @@ type Files is Type:
     entries: String -> IO(List<&2, String>)}
 
 # None when the file cannot be read
-def read(ff: Files, path: String) -> IO(Maybe<&2, String>):
-  Files{r, _b, _c, _e} = ff
+def read(f: Files, path: String) -> IO(Maybe<&2, String>):
+  Files{r, _b, _c, _e} = f
   r(path)
 
 # the path of Base, from a files service
-def base_path(ff: Files) -> IO(String):
-  Files{_r, b, _c, _e} = ff
+def base_path(f: Files) -> IO(String):
+  Files{_r, b, _c, _e} = f
   b(Unit{})
 
 # the working directory, from the root; "" when it cannot be named
-def cwd(ff: Files) -> IO(String):  # noqa: L001 effect accessor
-  Files{_r, _b, c, _e} = ff
+def cwd(f: Files) -> IO(String):  # noqa: L001 effect accessor
+  Files{_r, _b, c, _e} = f
   c(Unit{})
 
 # a directory's entries, none when it cannot be opened
-def entries(ff: Files, dir: String) -> IO(List<&2, String>):  # noqa: L001 effect accessor
-  Files{_r, _b, _c, e} = ff
+def entries(f: Files, dir: String) -> IO(List<&2, String>):  # noqa: L001 effect accessor
+  Files{_r, _b, _c, e} = f
   e(dir)
 
 # every path read, in order (a missing file is a None)

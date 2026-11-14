@@ -34,8 +34,8 @@ def kept(
   rest: List<&2, C.Var>
 ) -> List<&2, C.Var>:
   match got:
-    case Done{vv}:
-      (name, vv) <> rest
+    case Done{v}:
+      (name, v) <> rest
     case Fail{_e}:
       rest
 
@@ -44,10 +44,10 @@ def vars(names: List<&2, String>) -> IO(List<&2, C.Var>):  # noqa: L001 IO: read
   match names:
     case Nil{}:
       IO.pure(List<&2, C.Var>, [])
-    case Con{+hh, tt}:
-      IO.bind(Result<&1, &1, U32 & String, String>, List<&2, C.Var>, IO.get_env(hh),
-        got => IO.bind(List<&2, C.Var>, List<&2, C.Var>, vars(tt),
-          rest => IO.pure(List<&2, C.Var>, kept(hh, got, rest))))
+    case Con{+h, t}:
+      IO.bind(Result<&1, &1, U32 & String, String>, List<&2, C.Var>, IO.get_env(h),
+        got => IO.bind(List<&2, C.Var>, List<&2, C.Var>, vars(t),
+          rest => IO.pure(List<&2, C.Var>, kept(h, got, rest))))
 
 # the env vars a spec names that are set, each with its value
 def env_vars(spec: C.Cli) -> IO(List<&2, C.Var>):  # noqa: L001 IO: reads env vars (SHAKE-TRUST-5)

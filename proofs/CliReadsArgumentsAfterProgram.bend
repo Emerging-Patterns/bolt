@@ -35,13 +35,13 @@ def Laws.cli_args_kept(_s, _t):
 def Laws.cli_commands_named(_ww):
   {==}
 
-def Laws.cli_help_passes_words(ww, rest, e1, e2):
-  %Equal.sym(Bool, String.eq(ww, "--"), False{}, e1) :
-    {Lazy.and_then(Bool.not(_), _u => Lazy.or_else(String.eq(ww, "--help"), _v => Args.asks_help(rest)))
+def Laws.cli_help_passes_words(w, rest, e1, e2):
+  %Equal.sym(Bool, String.eq(w, "--"), False{}, e1) :
+    {Lazy.and_then(Bool.not(_), _u => Lazy.or_else(String.eq(w, "--help"), _v => Args.asks_help(rest)))
       == Args.asks_help(rest) : Bool}
-  %Equal.sym(Bool, String.eq(ww, "--help"), False{}, e2) :
+  %Equal.sym(Bool, String.eq(w, "--help"), False{}, e2) :
     {Lazy.or_else(_, _v => Args.asks_help(rest)) == Args.asks_help(rest) : Bool}
   {==}
 
-def Laws.cli_help_needs_flag(ww, e1, e2):
-  Laws.cli_help_passes_words(ww, Nil{}, e1, e2)
+def Laws.cli_help_needs_flag(w, e1, e2):
+  Laws.cli_help_passes_words(w, Nil{}, e1, e2)

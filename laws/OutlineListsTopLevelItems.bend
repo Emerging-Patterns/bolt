@@ -32,53 +32,53 @@ def top.strung(toks: List<&2, Lex.Tok>) -> List<&2, Bool>:
       List.append(&2, Bool, top.breaks(t, Lex.is_str(k)), top.strung(rest))
 
 # what ends a name: `(`, `<`, `:`, `{` or a space
-def top.stop(+hh: Char) -> Bool:
-  Bool.or(Char.is_eq(hh, '('),
-    Bool.or(Char.is_eq(hh, '<'),
-      Bool.or(Char.is_eq(hh, ':'),
-        Bool.or(Char.is_eq(hh, '{'), Char.is_eq(hh, ' ')))))
+def top.stop(+h: Char) -> Bool:
+  Bool.or(Char.is_eq(h, '('),
+    Bool.or(Char.is_eq(h, '<'),
+      Bool.or(Char.is_eq(h, ':'),
+        Bool.or(Char.is_eq(h, '{'), Char.is_eq(h, ' ')))))
 
 # the name a header gives: its text up to the first char that ends a name
-def top.name(ss: String) -> String:
-  match ss:
+def top.name(s: String) -> String:
+  match s:
     case SNil{}:
       SNil{}
     case SCon{+h, t}:
       Bool.pick(String, top.stop(h), SNil{}, SCon{h, top.name(t)})
 
 # a word is not empty
-def top.word(ss: String) -> Bool:
-  Bool.not(String.is_empty(ss))
+def top.word(s: String) -> Bool:
+  Bool.not(String.is_empty(s))
 
 # an import line, by its words: named by its fourth, the alias of `import P
 # as A`, when it has four or more; by its path when it has two; else no item
 # (bend reads no other shape)
-def top.import(ws: List<&2, String>, nn: U32) -> Maybe<&2, Outline.Item>:
+def top.import(ws: List<&2, String>, n: U32) -> Maybe<&2, Outline.Item>:
   match ws:
     case Con{_i, Con{_p, Con{_a, Con{alias, _r}}}}:
-      Some{Outline.Item{Outline.IImport{}, alias, nn, "", "", ""}}
+      Some{Outline.Item{Outline.IImport{}, alias, n, "", "", ""}}
     case Con{_i, Con{path, Nil{}}}:
-      Some{Outline.Item{Outline.IImport{}, path, nn, "", "", ""}}
+      Some{Outline.Item{Outline.IImport{}, path, n, "", "", ""}}
     case _other:
       None{}
 
 # the item a line of code opens at column 0, by its kind, name and line nn
-def top.head(+ss: String, +nn: U32) -> Maybe<&2, Outline.Item>:
-  Bool.pick(Maybe<&2, Outline.Item>, String.starts_with(ss, "import "),
-    top.import(List.filter(~String, ~top.word, String.split(ss, ' ')), nn),
-  Bool.pick(Maybe<&2, Outline.Item>, String.starts_with(ss, "def "),
-    Some{Outline.Item{Outline.IDef{}, top.name(String.drop(ss, 4n)), nn, "", "", ""}},
-  Bool.pick(Maybe<&2, Outline.Item>, String.starts_with(ss, "@unsafe def "),
-    Some{Outline.Item{Outline.IDef{}, top.name(String.drop(ss, 12n)), nn, "", "", ""}},
-  Bool.pick(Maybe<&2, Outline.Item>, String.starts_with(ss, "law "),
-    Some{Outline.Item{Outline.ILaw{}, top.name(String.drop(ss, 4n)), nn, "", "", ""}},
-  Bool.pick(Maybe<&2, Outline.Item>, String.starts_with(ss, "type "),
-    Some{Outline.Item{Outline.IType{}, top.name(String.drop(ss, 5n)), nn, "", "", ""}},
+def top.head(+s: String, +nn: U32) -> Maybe<&2, Outline.Item>:
+  Bool.pick(Maybe<&2, Outline.Item>, String.starts_with(s, "import "),
+    top.import(List.filter(~String, ~top.word, String.split(s, ' ')), nn),
+  Bool.pick(Maybe<&2, Outline.Item>, String.starts_with(s, "def "),
+    Some{Outline.Item{Outline.IDef{}, top.name(String.drop(s, 4n)), nn, "", "", ""}},
+  Bool.pick(Maybe<&2, Outline.Item>, String.starts_with(s, "@unsafe def "),
+    Some{Outline.Item{Outline.IDef{}, top.name(String.drop(s, 12n)), nn, "", "", ""}},
+  Bool.pick(Maybe<&2, Outline.Item>, String.starts_with(s, "law "),
+    Some{Outline.Item{Outline.ILaw{}, top.name(String.drop(s, 4n)), nn, "", "", ""}},
+  Bool.pick(Maybe<&2, Outline.Item>, String.starts_with(s, "type "),
+    Some{Outline.Item{Outline.IType{}, top.name(String.drop(s, 5n)), nn, "", "", ""}},
     None{})))))
 
 # an item onto the items, when there is one
-def top.put(mm: Maybe<&2, Outline.Item>, rest: List<&2, Outline.Item>) -> List<&2, Outline.Item>:
-  match mm:
+def top.put(m: Maybe<&2, Outline.Item>, rest: List<&2, Outline.Item>) -> List<&2, Outline.Item>:
+  match m:
     case None{}:
       rest
     case Some{item}:
@@ -100,19 +100,19 @@ def top.later(ins: List<&2, Bool>) -> List<&2, Bool>:
     case Con{_h, t}:
       t
 
-# the items the lines open, the first numbered nn; ins flags the lines that
+# the items the lines open, the first numbered n; ins flags the lines that
 # start inside a string, which open none
-def top.spec(lines: List<&2, String>, +ins: List<&2, Bool>, +nn: U32) -> List<&2, Outline.Item>:
+def top.spec(lines: List<&2, String>, +ins: List<&2, Bool>, +n: U32) -> List<&2, Outline.Item>:
   match lines:
     case Nil{}:
       []
-    case Con{ll, rest}:
-      top.put(Bool.pick(Maybe<&2, Outline.Item>, top.first(ins), None{}, top.head(ll, nn)),
-        top.spec(rest, top.later(ins), (nn + 1 : U32)))
+    case Con{l, rest}:
+      top.put(Bool.pick(Maybe<&2, Outline.Item>, top.first(ins), None{}, top.head(l, n)),
+        top.spec(rest, top.later(ins), (n + 1 : U32)))
 
 # every kind but a constructor
-def top.kept(kk: Outline.ItemKind) -> Bool:
-  match kk:
+def top.kept(k: Outline.ItemKind) -> Bool:
+  match k:
     case Outline.ICtor{}:
       False{}
     case other:
@@ -144,23 +144,23 @@ law outline:
 
 # LAW: a comment line that opens with `# ` is its text after those two chars
 law undoc_drops_hash_and_space:
-  for +ss: String
-  for e: {String.starts_with(ss, "# ") == True{} : Bool}
-  {Outline.undoc(ss) == String.drop(ss, 2n) : String}
+  for +s: String
+  for e: {String.starts_with(s, "# ") == True{} : Bool}
+  {Outline.undoc(s) == String.drop(s, 2n) : String}
 
 # LAW: one that opens with a bare `#` is its text after it
 law undoc_drops_a_bare_hash:
-  for +ss: String
-  for e1: {String.starts_with(ss, "# ") == False{} : Bool}
-  for e2: {String.starts_with(ss, "#") == True{} : Bool}
-  {Outline.undoc(ss) == String.drop(ss, 1n) : String}
+  for +s: String
+  for e1: {String.starts_with(s, "# ") == False{} : Bool}
+  for e2: {String.starts_with(s, "#") == True{} : Bool}
+  {Outline.undoc(s) == String.drop(s, 1n) : String}
 
 # LAW: a line that is no comment is left as it is
 law undoc_keeps_other_lines:
-  for +ss: String
-  for e1: {String.starts_with(ss, "# ") == False{} : Bool}
-  for e2: {String.starts_with(ss, "#") == False{} : Bool}
-  {Outline.undoc(ss) == ss : String}
+  for +s: String
+  for e1: {String.starts_with(s, "# ") == False{} : Bool}
+  for e2: {String.starts_with(s, "#") == False{} : Bool}
+  {Outline.undoc(s) == s : String}
 
 # LAW: an item's doc is its comment lines, each without its `# `, one a line
 law doc_text_joins_lines:

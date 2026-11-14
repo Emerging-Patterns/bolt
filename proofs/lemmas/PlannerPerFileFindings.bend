@@ -20,18 +20,18 @@ import ./SettingRuleFindings.bend as M4
 # one source onto the read failures
 law lint.unread.step:
   for +path: String
-  for mm: Maybe<&2, String>
+  for m: Maybe<&2, String>
   for gs: List<&2, Plan.Got>
   for -us: List<&2, F.Finding>
   for ih: {Plan.unread(gs) == us : List<&2, F.Finding>}
-  {Plan.unread(Plan.Got{path, mm} <> gs) == List.append(&2, F.Finding, D1.unread_at(path, mm), us)
+  {Plan.unread(Plan.Got{path, m} <> gs) == List.append(&2, F.Finding, D1.unread_at(path, m), us)
     : List<&2, F.Finding>}
 
-def lint.unread.step(path, mm, gs, us, ih):
-  match mm:
+def lint.unread.step(path, m, gs, us, ih):
+  match m:
     case None{}:
       Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
-        rr => F.Finding{path, 0, 0, 0, "read", "Cannot read this file."} <> rr, Plan.unread(gs), us, ih)
+        r => F.Finding{path, 0, 0, 0, "read", "Cannot read this file."} <> r, Plan.unread(gs), us, ih)
     case Some{_text}:
       ih
 
@@ -51,19 +51,19 @@ def lint.unread(ps, world):
 # one source onto the parsed sources
 law lint.parsed.step:
   for +path: String
-  for mm: Maybe<&2, String>
+  for m: Maybe<&2, String>
   for gs: List<&2, Plan.Got>
-  for -ss: List<&2, Src.Src>
-  for ih: {Plan.srcs_of(gs) == ss : List<&2, Src.Src>}
-  {Plan.srcs_of(Plan.Got{path, mm} <> gs) == List.append(&2, Src.Src, D1.parsed_at(path, mm), ss)
+  for -s: List<&2, Src.Src>
+  for ih: {Plan.srcs_of(gs) == s : List<&2, Src.Src>}
+  {Plan.srcs_of(Plan.Got{path, m} <> gs) == List.append(&2, Src.Src, D1.parsed_at(path, m), s)
     : List<&2, Src.Src>}
 
-def lint.parsed.step(path, mm, gs, ss, ih):
-  match mm:
+def lint.parsed.step(path, m, gs, s, ih):
+  match m:
     case None{}:
       ih
     case Some{text}:
-      Equal.cong(List<&2, Src.Src>, List<&2, Src.Src>, rr => Src.of(path, text) <> rr, Plan.srcs_of(gs), ss, ih)
+      Equal.cong(List<&2, Src.Src>, List<&2, Src.Src>, r => Src.of(path, text) <> r, Plan.srcs_of(gs), s, ih)
 
 # the planner parses each source it has a text for, in order
 law lint.parsed:
@@ -84,21 +84,21 @@ law lint.on.step:
   for +world: W.World
   for +ms: List<&2, Role.Mark>
   for +path: String
-  for mm: Maybe<&2, String>
+  for m: Maybe<&2, String>
   for +gs: List<&2, Plan.Got>
   for -os: List<&2, F.Finding>
   for ih: {Plan.per_file.role(cs, world, ms, Plan.srcs_of(gs)) == os : List<&2, F.Finding>}
-  {Plan.per_file.role(cs, world, ms, Plan.srcs_of(Plan.Got{path, mm} <> gs))
-    == List.append(&2, F.Finding, D1.on_at(cs, world, ms, path, mm), os) : List<&2, F.Finding>}
+  {Plan.per_file.role(cs, world, ms, Plan.srcs_of(Plan.Got{path, m} <> gs))
+    == List.append(&2, F.Finding, D1.on_at(cs, world, ms, path, m), os) : List<&2, F.Finding>}
 
-def lint.on.step(cs, world, ms, path, mm, gs, os, ih):
-  match mm:
+def lint.on.step(cs, world, ms, path, m, gs, os, ih):
+  match m:
     case None{}:
       ih
     case Some{text}:
       Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
-        rr => List.append(&2, F.Finding, Rules.on.role(Plan.config.at(cs, world, path), Role.of(ms, path),
-          Src.of(path, text)), rr),
+        r => List.append(&2, F.Finding, Rules.on.role(Plan.config.at(cs, world, path), Role.of(ms, path),
+          Src.of(path, text)), r),
         List.append(&2, F.Finding, Plan.per_file.role(cs, world, ms, Plan.srcs_of(gs)), []), os,
         Equal.trans(List<&2, F.Finding>, List.append(&2, F.Finding, Plan.per_file.role(cs, world, ms,
           Plan.srcs_of(gs)), []),

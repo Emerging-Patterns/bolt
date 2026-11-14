@@ -2,15 +2,15 @@
 import Base
 import ./value.bend as V
 
-def escape.nib.go(+nn: U32, digit: Bool) -> Char:
+def escape.nib.go(+n: U32, digit: Bool) -> Char:
   match digit:
     case True{}:
-      Char.from_u32(U32.add(48, nn))
+      Char.from_u32(U32.add(48, n))
     case False{}:
-      Char.from_u32(U32.add(87, nn))
+      Char.from_u32(U32.add(87, n))
 
-def escape.nib(+nn: U32) -> Char:
-  escape.nib.go(nn, U32.is_lt(nn, 10))
+def escape.nib(+n: U32) -> Char:
+  escape.nib.go(n, U32.is_lt(n, 10))
 
 def escape.u(+cp: U32) -> String:
   "\\u00" ++ String.from_list([escape.nib(U32.div(cp, 16)), escape.nib(U32.mod(cp, 16))])

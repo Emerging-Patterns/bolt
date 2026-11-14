@@ -22,8 +22,8 @@ import ./defs/Chains.bend as D2
 # capitalized name with no group after it. In a term, a name with `=>` after
 # it, an `@` with `x:` or `X:` after it, or an `&` with `x:` after it.
 # Nothing else does
-def binds.records(mode: Bind.Mode, kk: Lex.TokKind, +rest: Tree.Node) -> Bool:
-  match mode kk:
+def binds.records(mode: Bind.Mode, k: Lex.TokKind, +rest: Tree.Node) -> Bool:
+  match mode k:
     case Bind.MCtor{} Lex.TUpper{}:
       True{}
     case Bind.MName{} Lex.TName{}:
@@ -68,8 +68,8 @@ def binds.is_item(mode: Bind.Mode) -> Bool:
 # name, capitalized or dotted. In a pattern, a capitalized or dotted name
 # with a group after it (a constructor applied). In a term, a capitalized or
 # dotted name, or a name with no `=>` after it. Nothing else does
-def binds.uses(mode: Bind.Mode, kk: Lex.TokKind, +rest: Tree.Node) -> Bool:
-  match mode kk:
+def binds.uses(mode: Bind.Mode, k: Lex.TokKind, +rest: Tree.Node) -> Bool:
+  match mode k:
     case Bind.MTeleType{_kind} Lex.TName{}:
       True{}
     case Bind.MTeleType{_kind} Lex.TUpper{}:
@@ -138,32 +138,32 @@ law plan_typed_leads:
 # LAW: a leaf records a binder exactly in the forms binds.records lists
 law plan_records:
   for mode: Bind.Mode
-  for kk: Lex.TokKind
+  for k: Lex.TokKind
   for +rest: Tree.Node
-  {Bind.plan.rec(mode, kk, rest) == binds.records(mode, kk, rest) : Bool}
+  {Bind.plan.rec(mode, k, rest) == binds.records(mode, k, rest) : Bool}
 
 # LAW: a recorded binder enters the environment unless it is an item's name
 # or a constructor's
 law plan_pushes:
   for +mode: Bind.Mode
-  for kk: Lex.TokKind
+  for k: Lex.TokKind
   for +rest: Tree.Node
-  {Bind.plan.push(mode, kk, rest) == Bool.and(Bool.not(binds.is_item(mode)), binds.records(mode, kk, rest)) : Bool}
+  {Bind.plan.push(mode, k, rest) == Bool.and(Bool.not(binds.is_item(mode)), binds.records(mode, k, rest)) : Bool}
 
 # LAW: a leaf uses a name exactly in the forms binds.uses lists
 law plan_uses:
   for mode: Bind.Mode
-  for kk: Lex.TokKind
+  for k: Lex.TokKind
   for +rest: Tree.Node
-  {Bind.plan.use(mode, kk, rest) == binds.uses(mode, kk, rest) : Bool}
+  {Bind.plan.use(mode, k, rest) == binds.uses(mode, k, rest) : Bool}
 
 # LAW: the right side of a let sees the names outside it: the leaf that
 # keeps them is the `=` or the `<-` of a pattern or of a pattern's type, and
 # no other
 law plan_keeps:
   for mode: Bind.Mode
-  for +kk: Lex.TokKind
-  {Bind.plan.keep(mode, kk) == Bool.and(binds.is_lhs(mode), D1.kinds.among(kk, [Lex.TEq{}, Lex.TBind{}])) : Bool}
+  for +k: Lex.TokKind
+  {Bind.plan.keep(mode, k) == Bool.and(binds.is_lhs(mode), D1.kinds.among(k, [Lex.TEq{}, Lex.TBind{}])) : Bool}
 
 # do the names a group binds stay bound after it? A signature's parameters
 # and a pattern's binders do. Law vocabulary
@@ -184,8 +184,8 @@ def binds.group_stays(mode: Bind.Mode) -> Bool:
 # fields bind as pattern names; a `:` starts the pattern's type; `=` and `<-`
 # start the term. In a term `@` and `&` step over the name they bind. Any
 # other leaf leaves the mode as it was, a step-over ended. Law vocabulary
-def binds.next(mode: Bind.Mode, kk: Lex.TokKind, +rest: Tree.Node) -> Bind.Mode:
-  match mode kk:
+def binds.next(mode: Bind.Mode, k: Lex.TokKind, +rest: Tree.Node) -> Bind.Mode:
+  match mode k:
     case Bind.MHead{} Lex.TKey{}:
       Bind.MName{}
     case Bind.MTele{+kind} Lex.TOp{}:
@@ -218,8 +218,8 @@ def binds.next(mode: Bind.Mode, kk: Lex.TokKind, +rest: Tree.Node) -> Bind.Mode:
       Bind.plan.skip(other)
 
 # is a node a keyword leaf? Law vocabulary
-def binds.is_key(nn: Tree.Node) -> Bool:
-  match nn:
+def binds.is_key(n: Tree.Node) -> Bool:
+  match n:
     case Tree.Leaf{Lex.Tok{k, _t, _l, _c}}:
       D1.kinds.among(k, [Lex.TKey{}])
     case _other:
@@ -234,22 +234,22 @@ law plan_group_keeps:
 # LAW: after a leaf the rest is read in the mode binds.next gives
 law plan_next_mode:
   for mode: Bind.Mode
-  for kk: Lex.TokKind
+  for k: Lex.TokKind
   for +rest: Tree.Node
-  {Bind.plan.lmode(mode, kk, rest) == binds.next(mode, kk, rest) : Bind.Mode}
+  {Bind.plan.lmode(mode, k, rest) == binds.next(mode, k, rest) : Bind.Mode}
 
 # LAW: a statement's keyword is a keyword leaf, read by its kind and never
 # its text
 law declared_key_is_keyword:
-  for nn: Tree.Node
-  {Bind.declared.key(nn) == binds.is_key(nn) : Bool}
+  for n: Tree.Node
+  {Bind.declared.key(n) == binds.is_key(n) : Bool}
 
 # LAW: a name is the one just put exactly when it heads the list
 law again_at_head:
-  for hh: String
+  for h: String
   for rest: List<&2, String>
   for +name: String
-  {Bind.push_name.again(hh <> rest, name) == String.eq(hh, name) : Bool}
+  {Bind.push_name.again(h <> rest, name) == String.eq(h, name) : Bool}
 
 # LAW: nothing was just put on an empty list
 law again_needs_a_name:
@@ -273,20 +273,20 @@ law aliases_take_last_word:
 
 # LAW: in a declaration as written, spaces surround `->`
 law spaced_arrow:
-  for +tt: String
-  for e: {String.eq(tt, "->") == True{} : Bool}
-  {Bind.spaced(tt) == " -> " : String}
+  for +t: String
+  for e: {String.eq(t, "->") == True{} : Bool}
+  {Bind.spaced(t) == " -> " : String}
 
 # LAW: a space follows `:` and `,`
 law spaced_after_colon_and_comma:
-  for +tt: String
-  for e1: {String.eq(tt, "->") == False{} : Bool}
-  for e2: {Bool.or(String.eq(tt, ":"), String.eq(tt, ",")) == True{} : Bool}
-  {Bind.spaced(tt) == tt ++ " " : String}
+  for +t: String
+  for e1: {String.eq(t, "->") == False{} : Bool}
+  for e2: {Bool.or(String.eq(t, ":"), String.eq(t, ",")) == True{} : Bool}
+  {Bind.spaced(t) == t ++ " " : String}
 
 # LAW: every other token is glued to its neighbours
 law spaced_glues_the_rest:
-  for +tt: String
-  for e1: {String.eq(tt, "->") == False{} : Bool}
-  for e2: {Bool.or(String.eq(tt, ":"), String.eq(tt, ",")) == False{} : Bool}
-  {Bind.spaced(tt) == tt : String}
+  for +t: String
+  for e1: {String.eq(t, "->") == False{} : Bool}
+  for e2: {Bool.or(String.eq(t, ":"), String.eq(t, ",")) == False{} : Bool}
+  {Bind.spaced(t) == t : String}

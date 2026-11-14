@@ -42,10 +42,10 @@ type Cls is Data:
   COther{}
 
 # a char's class
-def cls(+cc: Char) -> Cls:
-  +code = Bool.or(Char.is_alpha(cc), Char.is_digit(cc))
+def cls(+c: Char) -> Cls:
+  +code = Bool.or(Char.is_alpha(c), Char.is_digit(c))
   +tail = Bool.pick(Cls, code, CCode{}, COther{})
-  Bool.pick(Cls, Char.is_eq(cc, ' '), CSpace{}, Bool.pick(Cls, Char.is_eq(cc, ','), CComma{}, tail))
+  Bool.pick(Cls, Char.is_eq(c, ' '), CSpace{}, Bool.pick(Cls, Char.is_eq(c, ','), CComma{}, tail))
 
 # where the code list reader stands: before a code (spaces allowed), inside
 # one, after one (spaces, then a comma or the list's end), or past the list
@@ -66,34 +66,34 @@ def word(buf: List<&2, Char>) -> String:
 
 # before a code: a space waits, a letter or digit starts one, anything else
 # ends the list
-def step.before(kk: Cls, +cc: Char, +acc: List<&2, String>) -> Rd:
-  match kk:
+def step.before(k: Cls, +c: Char, +acc: List<&2, String>) -> Rd:
+  match k:
     case CSpace{}:
       Rd{Before{}, [], acc}
     case CComma{}:
       Rd{Past{}, [], acc}
     case CCode{}:
-      Rd{Inside{}, [cc], acc}
+      Rd{Inside{}, [c], acc}
     case COther{}:
       Rd{Past{}, [], acc}
 
 # inside a code: a letter or digit extends it; a space, a comma or anything
 # else ends it, and a comma expects the next
-def step.inside(kk: Cls, +cc: Char, +buf: List<&2, Char>, +acc: List<&2, String>) -> Rd:
-  match kk:
+def step.inside(k: Cls, +c: Char, +buf: List<&2, Char>, +acc: List<&2, String>) -> Rd:
+  match k:
     case CSpace{}:
       Rd{After{}, [], word(buf) <> acc}
     case CComma{}:
       Rd{Before{}, [], word(buf) <> acc}
     case CCode{}:
-      Rd{Inside{}, cc <> buf, acc}
+      Rd{Inside{}, c <> buf, acc}
     case COther{}:
       Rd{Past{}, [], word(buf) <> acc}
 
 # after a code: a space waits, a comma expects the next, anything else ends
 # the list
-def step.after(kk: Cls, +acc: List<&2, String>) -> Rd:
-  match kk:
+def step.after(k: Cls, +acc: List<&2, String>) -> Rd:
+  match k:
     case CSpace{}:
       Rd{After{}, [], acc}
     case CComma{}:
@@ -104,29 +104,29 @@ def step.after(kk: Cls, +acc: List<&2, String>) -> Rd:
       Rd{Past{}, [], acc}
 
 # the reader after one more char
-def step.at(ph: Phase, +cc: Char, +buf: List<&2, Char>, +acc: List<&2, String>) -> Rd:
+def step.at(ph: Phase, +c: Char, +buf: List<&2, Char>, +acc: List<&2, String>) -> Rd:
   match ph:
     case Before{}:
-      step.before(cls(cc), cc, acc)
+      step.before(cls(c), c, acc)
     case Inside{}:
-      step.inside(cls(cc), cc, buf, acc)
+      step.inside(cls(c), c, buf, acc)
     case After{}:
-      step.after(cls(cc), acc)
+      step.after(cls(c), acc)
     case Past{}:
       Rd{Past{}, buf, acc}
 
 # the reader after one more char
-def step(+cc: Char, rd: Rd) -> Rd:
+def step(+c: Char, rd: Rd) -> Rd:
   Rd{ph, buf, acc} = rd
-  step.at(ph, cc, buf, acc)
+  step.at(ph, c, buf, acc)
 
 # the reader after the text
-def run(tt: String, rd: Rd) -> Rd:
-  match tt:
+def run(t: String, rd: Rd) -> Rd:
+  match t:
     case SNil{}:
       rd
-    case SCon{cc, rest}:
-      run(rest, step(cc, rd))
+    case SCon{c, rest}:
+      run(rest, step(c, rd))
 
 # the codes read, in order, the one still being read included
 def finish.at(ph: Phase, +buf: List<&2, Char>, +acc: List<&2, String>) -> List<&2, String>:
@@ -146,12 +146,12 @@ def finish(rd: Rd) -> List<&2, String>:
   finish.at(ph, buf, acc)
 
 # the codes a text after `noqa:` names
-def codes(tt: String) -> List<&2, String>:
-  finish(run(tt, Rd{Before{}, [], []}))
+def codes(t: String) -> List<&2, String>:
+  finish(run(t, Rd{Before{}, [], []}))
 
 # the text after its leading spaces
-def lead(tt: String) -> String:
-  match tt:
+def lead(t: String) -> String:
+  match t:
     case SCon{' ', rest}:
       lead(rest)
     case other:
@@ -159,8 +159,8 @@ def lead(tt: String) -> String:
 
 # a comment's text past `noqa`: a mark naming the codes after a `:`, a bare
 # one at the end or before a space, and none for anything else (`noqas`)
-def mark.rest(+line: U32, +col: U32, +len: U32, tt: String) -> List<&2, Mark>:
-  match tt:
+def mark.rest(+line: U32, +col: U32, +len: U32, t: String) -> List<&2, Mark>:
+  match t:
     case SNil{}:
       [Mark{line, col, len, []}]
     case SCon{':', rest}:
@@ -171,16 +171,16 @@ def mark.rest(+line: U32, +col: U32, +len: U32, tt: String) -> List<&2, Mark>:
       []
 
 # a comment's text past `#` and its spaces: a mark when it opens with `noqa`
-def mark.word(+line: U32, +col: U32, +len: U32, tt: String) -> List<&2, Mark>:
-  match tt:
+def mark.word(+line: U32, +col: U32, +len: U32, t: String) -> List<&2, Mark>:
+  match t:
     case SCon{'n', SCon{'o', SCon{'q', SCon{'a', rest}}}}:
       mark.rest(line, col, len, rest)
     case other:
       []
 
 # a comment's text: a mark when it is `#`, any spaces, then `noqa`
-def mark.text(+line: U32, +col: U32, +len: U32, tt: String) -> List<&2, Mark>:
-  match tt:
+def mark.text(+line: U32, +col: U32, +len: U32, t: String) -> List<&2, Mark>:
+  match t:
     case SCon{'#', rest}:
       mark.word(line, col, len, lead(rest))
     case other:
@@ -207,8 +207,8 @@ def file(path: String, toks: List<&2, Lex.Tok>) -> Marks:
   Marks{path, marks(toks)}
 
 # each source's marks, in order
-def of_srcs(ss: List<&2, Src.Src>) -> List<&2, Marks>:
-  match ss:
+def of_srcs(s: List<&2, Src.Src>) -> List<&2, Marks>:
+  match s:
     case Nil{}:
       Nil{}
     case Con{Src.Src{path, _text, toks, _tree, _bound, _items}, rest}:
@@ -262,11 +262,11 @@ def keep.fast(+ms: List<&2, Marks>, +ix: Bind.Index, gs: List<&2, F.Graded>) -> 
   match gs:
     case Nil{}:
       Nil{}
-    case Con{F.Graded{ll, F.Finding{+path, +line, col, len, +rule, msg}}, rest}:
+    case Con{F.Graded{l, F.Finding{+path, +line, col, len, +rule, msg}}, rest}:
       +more = keep.fast(ms, ix, rest)
       Bool.pick(List<&2, F.Graded>,
         Lazy.and_then(Bind.indexed(ix, path), _u => silenced(ms, path, line, Codes.code(rule))), more,
-        F.Graded{ll, F.Finding{path, line, col, len, rule, msg}} <> more)
+        F.Graded{l, F.Finding{path, line, col, len, rule, msg}} <> more)
 
 # the graded findings no mark silences, in order. silenced walks every file's
 # marks, and asked for every finding that is the findings times the files

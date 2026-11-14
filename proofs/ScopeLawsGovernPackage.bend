@@ -30,7 +30,7 @@ def scope3.go.step(exempt, tops, cl, norm, path, more, spec, ih):
       ih
     case False{}:
       Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
-        rr => List.append(&2, F.Finding, Law.gaps(tops, cl, norm, path), rr),
+        r => List.append(&2, F.Finding, Law.gaps(tops, cl, norm, path), r),
         more, spec, ih)
 
 # the rule's walk over the files grades every file under law

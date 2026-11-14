@@ -27,48 +27,48 @@ import ../src/rules/style/transcong.bend as Transcong
 # own nodes of a let statement and after a `=` or `<-` leaf in the chain.
 
 # is the node a name leaf spelling the text?
-def transcong.name(nn: Tree.Node, +tt: String) -> Bool:
-  match nn:
+def transcong.name(n: Tree.Node, +tt: String) -> Bool:
+  match n:
     case Tree.Leaf{Lex.Tok{k, t, l, c}}:
       Bool.and(Lex.is_name(k), String.eq(t, tt))
     case other:
       False{}
 
 # is the node a group opened by `(`?
-def transcong.open(nn: Tree.Node) -> Bool:
-  match nn:
+def transcong.open(n: Tree.Node) -> Bool:
+  match n:
     case Tree.Group{Lex.Tok{k, o, l, c}, kids, cl}:
       String.eq(o, "(")
     case other:
       False{}
 
 # is the node a comma leaf?
-def transcong.comma(nn: Tree.Node) -> Bool:
-  match nn:
+def transcong.comma(n: Tree.Node) -> Bool:
+  match n:
     case Tree.Leaf{Lex.Tok{k, t, l, c}}:
       Lex.is_comma(k)
     case other:
       False{}
 
 # is the chain over, or does it go on with a comma?
-def transcong.last(nn: Tree.Node) -> Bool:
-  match nn:
+def transcong.last(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NCons{h, t}:
       transcong.comma(h)
     case other:
       True{}
 
 # a `(` group, then the argument's end
-def transcong.call(nn: Tree.Node) -> Bool:
-  match nn:
+def transcong.call(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NCons{g, after}:
       Bool.and(transcong.open(g), transcong.last(after))
     case other:
       False{}
 
 # does the chain open an argument that is exactly an `Equal.cong` call?
-def transcong.cong(nn: Tree.Node) -> Bool:
-  match nn:
+def transcong.cong(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NCons{h, t}:
       Bool.and(transcong.name(h, "Equal.cong"), transcong.call(t))
     case other:
@@ -104,16 +104,16 @@ def transcong.args(nn: Tree.Node) -> Bool:
       False{}
 
 # do the node and the chain after it open a site?
-def transcong.at(hh: Tree.Node, rest: Tree.Node) -> Bool:
-  match hh:
+def transcong.at(h: Tree.Node, rest: Tree.Node) -> Bool:
+  match h:
     case Tree.Leaf{Lex.Tok{k, t, l, c}}:
       Bool.and(Bool.and(Lex.is_name(k), String.eq(t, "Equal.trans")), transcong.args(rest))
     case other:
       False{}
 
 # is the token kind the lexer gives `=` or `<-`?
-def transcong.bind_kind(kk: Lex.TokKind) -> Bool:
-  match kk:
+def transcong.bind_kind(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TEq{}:
       True{}
     case Lex.TBind{}:
@@ -122,8 +122,8 @@ def transcong.bind_kind(kk: Lex.TokKind) -> Bool:
       False{}
 
 # is the node a `=` or `<-` leaf?
-def transcong.binds(nn: Tree.Node) -> Bool:
-  match nn:
+def transcong.binds(n: Tree.Node) -> Bool:
+  match n:
     case Tree.Leaf{Lex.Tok{k, t, l, c}}:
       transcong.bind_kind(k)
     case other:
@@ -155,10 +155,10 @@ def transcong.count(nn: Tree.Node, +top: Bool) -> Nat:
 # Equal.cong feeds as its fifth or sixth argument, outside a let's own nodes
 # and after no `=` or `<-` in its chain, and none for anything else
 law transcong_walk_counts:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +top: Bool
   for +path: String
-  {List.length(&2, F.Finding, Transcong.walk(nn, top, path)) == transcong.count(nn, top) : Nat}
+  {List.length(&2, F.Finding, Transcong.walk(n, top, path)) == transcong.count(n, top) : Nat}
 
 # LAW: transcong reports exactly those over a file's whole tree, law files and
 # proof files included

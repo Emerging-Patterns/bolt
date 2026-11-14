@@ -44,8 +44,8 @@ def Laws.chain_parent(_dd, _rest):
   {==}
 
 # Unit for False, Empty for True
-def cfg4.false_ty(bb: Bool) -> Type:
-  match bb:
+def cfg4.false_ty(b: Bool) -> Type:
+  match b:
     case False{}:
       Unit
     case True{}:
@@ -70,18 +70,18 @@ law cfg4.weq.arm:
   for ec: {Word.cmp(p, at, bt) == c : Cmp}
   for ih: {Cmp.is_eq(Word.cmp(p, at, bt)) == True{} : Bool} -> {at == bt : Word(p)}
   for ab: Bool
-  for bb: Bool
-  for e: {Cmp.is_eq(Word.cmp.fin(ab, bb, c)) == True{} : Bool}
-  {WCon{ab, at} == WCon{bb, bt} : Word.Con<p>}
+  for b: Bool
+  for e: {Cmp.is_eq(Word.cmp.fin(ab, b, c)) == True{} : Bool}
+  {WCon{ab, at} == WCon{b, bt} : Word.Con<p>}
 
-def cfg4.weq.arm(p, at, bt, c, ec, ih, ab, bb, e):
+def cfg4.weq.arm(p, at, bt, c, ec, ih, ab, b, e):
   match c:
     case LT{}:
-      Empty.absurd({WCon{ab, at} == WCon{bb, bt} : Word.Con<p>}, cfg4.false_true(e))
+      Empty.absurd({WCon{ab, at} == WCon{b, bt} : Word.Con<p>}, cfg4.false_true(e))
     case GT{}:
-      Empty.absurd({WCon{ab, at} == WCon{bb, bt} : Word.Con<p>}, cfg4.false_true(e))
+      Empty.absurd({WCon{ab, at} == WCon{b, bt} : Word.Con<p>}, cfg4.false_true(e))
     case EQ{}:
-      match ab bb:
+      match ab b:
         case False{} False{}:
           Equal.cong(Word(p), Word.Con<p>, w => WCon{False{}, w}, at, bt,
             ih(Equal.cong(Cmp, Bool, x => Cmp.is_eq(x), Word.cmp(p, at, bt), EQ{}, ec)))
@@ -211,18 +211,18 @@ def cfg4.seq(a, b, e):
 # one row of the table: its config when its directory is the one asked for,
 # otherwise what the rows after it give
 law cfg4.find.step:
-  for bb: Bool
+  for b: Bool
   for +d: String
   for +dir: String
   for +world: W.World
   for -rest: List<&2, Plan.Conf>
-  for h: {String.eq(d, dir) == bb : Bool}
+  for h: {String.eq(d, dir) == b : Bool}
   for ih: {Plan.conf.find(rest, world, dir) == Plan.conf.near(world, dir) : Config.Config}
-  {Lazy.stop(Config.Config, bb, Plan.conf.near(world, d), _u => Plan.conf.find(rest, world, dir))
+  {Lazy.stop(Config.Config, b, Plan.conf.near(world, d), _u => Plan.conf.find(rest, world, dir))
     == Plan.conf.near(world, dir) : Config.Config}
 
-def cfg4.find.step(bb, d, dir, world, _rest, h, ih):
-  match bb:
+def cfg4.find.step(b, d, dir, world, _rest, h, ih):
+  match b:
     case True{}:
       Equal.cong(String, Config.Config, z => Plan.conf.near(world, z), d, dir, cfg4.seq(d, dir, h))
     case False{}:
@@ -245,18 +245,18 @@ def cfg4.find(ds, world, dir):
 
 # one candidate onto the rest: the World's answer for it decides
 law cfg4.first.step:
-  for mm: Maybe<&2, W.Answer>
+  for m: Maybe<&2, W.Answer>
   for -ts: List<&2, Maybe<&2, String>>
   for -more: Config.Config
   for ih: {Config.nearest(ts) == more : Config.Config}
-  {Config.nearest(W.text.got(mm) <> ts) == Laws.first_read.at(mm, more) : Config.Config}
+  {Config.nearest(W.text.got(m) <> ts) == Laws.first_read.at(m, more) : Config.Config}
 
-def cfg4.first.step(mm, _ts, _more, ih):
-  match mm:
+def cfg4.first.step(m, _ts, _more, ih):
+  match m:
     case None{}:
       ih
-    case Some{aa}:
-      match aa:
+    case Some{a}:
+      match a:
         case W.Listed{_names}:
           ih
         case W.Read{_text}:

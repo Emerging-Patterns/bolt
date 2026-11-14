@@ -55,8 +55,8 @@ def foreign(root: Tree.Node) -> List<&2, U32>:
       Nil{}
 
 # does a binder of this kind count? Erased and foreign parameters do not
-def reportable(kk: Bind.BindKind, +note: String, +line: U32, +foreign_lines: List<&2, U32>) -> Bool:
-  match kk:
+def reportable(k: Bind.BindKind, +note: String, +line: U32, +foreign_lines: List<&2, U32>) -> Bool:
+  match k:
     case Bind.KLocal{}:
       True{}
     case Bind.KParam{}:
@@ -65,8 +65,8 @@ def reportable(kk: Bind.BindKind, +note: String, +line: U32, +foreign_lines: Lis
       False{}
 
 # a binder's kind, for the message
-def what(kk: Bind.BindKind) -> String:
-  match kk:
+def what(k: Bind.BindKind) -> String:
+  match k:
     case Bind.KParam{}:
       "Parameter"
     case other:
@@ -93,16 +93,16 @@ def depth() -> Nat:
   16n
 
 # a line's way down the index: its low bits, lowest first
-def path(dd: Nat, +key: U32) -> List<&2, Bool>:
-  match dd:
+def path(d: Nat, +key: U32) -> List<&2, Bool>:
+  match d:
     case 0n:
       Nil{}
     case 1n+p:
       U32.is_even(key) <> path(p, U32.shr(key))
 
 # the cells at a leaf, none elsewhere
-def hits.cells(hh: Hits) -> List<&2, Cell>:
-  match hh:
+def hits.cells(h: Hits) -> List<&2, Cell>:
+  match h:
     case HNone{}:
       Nil{}
     case HLeaf{cells}:
@@ -111,8 +111,8 @@ def hits.cells(hh: Hits) -> List<&2, Cell>:
       Nil{}
 
 # a node's low half, empty elsewhere
-def hits.lo(hh: Hits) -> Hits:
-  match hh:
+def hits.lo(h: Hits) -> Hits:
+  match h:
     case HNone{}:
       HNone{}
     case HLeaf{_cells}:
@@ -121,8 +121,8 @@ def hits.lo(hh: Hits) -> Hits:
       lo
 
 # a node's high half, empty elsewhere
-def hits.hi(hh: Hits) -> Hits:
-  match hh:
+def hits.hi(h: Hits) -> Hits:
+  match h:
     case HNone{}:
       HNone{}
     case HLeaf{_cells}:
@@ -131,28 +131,28 @@ def hits.hi(hh: Hits) -> Hits:
       hi
 
 # the half of a node a bit goes down, empty elsewhere
-def hits.near(bb: Bool, hh: Hits) -> Hits:
-  match bb:
+def hits.near(b: Bool, h: Hits) -> Hits:
+  match b:
     case True{}:
-      hits.lo(hh)
+      hits.lo(h)
     case False{}:
-      hits.hi(hh)
+      hits.hi(h)
 
 # a node whose half down a bit is sub, and the other half far
-def hits.join(bb: Bool, sub: Hits, far: Hits) -> Hits:
-  match bb:
+def hits.join(b: Bool, sub: Hits, far: Hits) -> Hits:
+  match b:
     case True{}:
       HNode{sub, far}
     case False{}:
       HNode{far, sub}
 
 # the index with one more cell, down its path
-def put(pp: List<&2, Bool>, +hh: Hits, +cell: Cell) -> Hits:
-  match pp:
+def put(p: List<&2, Bool>, +h: Hits, +cell: Cell) -> Hits:
+  match p:
     case Nil{}:
-      HLeaf{cell <> hits.cells(hh)}
-    case Con{+bb, rest}:
-      hits.join(bb, put(rest, hits.near(bb, hh), cell), hits.near(Bool.not(bb), hh))
+      HLeaf{cell <> hits.cells(h)}
+    case Con{+b, rest}:
+      hits.join(b, put(rest, hits.near(b, h), cell), hits.near(Bool.not(b), h))
 
 # is the cell at (line, col) among these?
 def hits.any(cs: List<&2, Cell>, +line: U32, +col: U32) -> Bool:
@@ -163,24 +163,24 @@ def hits.any(cs: List<&2, Cell>, +line: U32, +col: U32) -> Bool:
       Lazy.or_else(Bool.and(U32.is_eq(l, line), U32.is_eq(c, col)), _u => hits.any(rest, line, col))
 
 # is the cell at (line, col) at the end of a path through the index?
-def find(pp: List<&2, Bool>, hh: Hits, +line: U32, +col: U32) -> Bool:
-  match pp:
+def find(p: List<&2, Bool>, h: Hits, +line: U32, +col: U32) -> Bool:
+  match p:
     case Nil{}:
-      hits.any(hits.cells(hh), line, col)
-    case Con{bb, rest}:
-      find(rest, hits.near(bb, hh), line, col)
+      hits.any(hits.cells(h), line, col)
+    case Con{b, rest}:
+      find(rest, hits.near(b, h), line, col)
 
 # a use's target into the index, when it is a binder of the file
-def index.one(tg: Bind.Target, +hh: Hits) -> Hits:
+def index.one(tg: Bind.Target, +h: Hits) -> Hits:
   match tg:
     case Bind.TLocal{+tl, tc}:
-      put(path(depth(), tl), hh, Cell{tl, tc})
+      put(path(depth(), tl), h, Cell{tl, tc})
     case Bind.TItem{_n}:
-      hh
+      h
     case Bind.TQual{_a, _n}:
-      hh
+      h
     case Bind.TFree{}:
-      hh
+      h
 
 # the index of every use's target
 def index(uses: List<&2, Bind.Use>) -> Hits:
@@ -192,26 +192,26 @@ def index(uses: List<&2, Bind.Use>) -> Hits:
 
 # is the binder at (line, col) the target of any use? The index of the uses
 # answers
-def seen(hh: Hits, +line: U32, +col: U32) -> Bool:
-  find(path(depth(), line), hh, line, col)
+def seen(h: Hits, +line: U32, +col: U32) -> Bool:
+  find(path(depth(), line), h, line, col)
 
-def check.go(binds: List<&2, Bind.Bind>, +hh: Hits, +fl: List<&2, U32>, +path: String) -> List<&2, F.Finding>:
+def check.go(binds: List<&2, Bind.Bind>, +h: Hits, +fl: List<&2, U32>, +path: String) -> List<&2, F.Finding>:
   match binds:
     case Nil{}:
       Nil{}
     case Con{Bind.Bind{+name, +line, +col, +kind, note}, rest}:
-      +more = check.go(rest, hh, fl, path)
+      +more = check.go(rest, h, fl, path)
       +shown = reportable(kind, note, line, fl)
       +hit = Bool.and(shown, Bool.not(String.starts_with(name, "_")))
-      Bool.pick(List<&2, F.Finding>, Lazy.and_then(hit, _u => Bool.not(seen(hh, line, col))),
+      Bool.pick(List<&2, F.Finding>, Lazy.and_then(hit, _u => Bool.not(seen(h, line, col))),
         F.Finding{path, line, col, U32.from_nat(String.length(name)), "unused",
           what(kind) ++ " " ++ name ++ " is never used."} <> more, more)
 
-def check.on(bb: Bind.Bound, fl: List<&2, U32>, path: String) -> List<&2, F.Finding>:
-  Bind.Bound{binds, uses, scopes} = bb
+def check.on(b: Bind.Bound, fl: List<&2, U32>, path: String) -> List<&2, F.Finding>:
+  Bind.Bound{binds, uses, scopes} = b
   check.go(binds, index(uses), fl, path)
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{path, text, toks, tree, bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{path, text, toks, tree, bound, items} = s
   check.on(bound, foreign(tree), path)

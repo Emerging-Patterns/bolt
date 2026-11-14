@@ -88,8 +88,8 @@ def ix.bit(a: Bool, b: Bool) -> Bool:
       False{}
 
 # two numbers alike in their low bits, this many of them
-def ix.bits(dd: Nat, +ka: U32, +kb: U32) -> Bool:
-  match dd:
+def ix.bits(d: Nat, +ka: U32, +kb: U32) -> Bool:
+  match d:
     case 0n:
       True{}
     case 1n+p:
@@ -109,12 +109,12 @@ def ix.bit_refl(b):
 
 # a number is like itself in every bit
 law ix.bits_refl:
-  for dd: Nat
+  for d: Nat
   for +k: U32
-  {ix.bits(dd, k, k) == True{} : Bool}
+  {ix.bits(d, k, k) == True{} : Bool}
 
-def ix.bits_refl(dd, k):
-  match dd:
+def ix.bits_refl(d, k):
+  match d:
     case 0n:
       {==}
     case 1n+p:
@@ -129,13 +129,13 @@ law ix.step:
   for b1: Bool
   for b2: Bool
   for -sub: Bind.Index
-  for -tt: Bind.Index
+  for -t: Bind.Index
   for -rest: Bool
-  for -ss: Bool
+  for -s: Bool
   for -hs: Bind.Index -> Bool
-  for ih: {hs(sub) == Bool.or(Bool.and(rest, ss), hs(Bind.index.near(b1, tt))) : Bool}
-  {hs(Bind.index.near(b2, Bind.index.join(b1, sub, Bind.index.near(Bool.not(b1), tt))))
-    == Bool.or(Bool.and(Bool.and(ix.bit(b1, b2), rest), ss), hs(Bind.index.near(b2, tt))) : Bool}
+  for ih: {hs(sub) == Bool.or(Bool.and(rest, s), hs(Bind.index.near(b1, t))) : Bool}
+  {hs(Bind.index.near(b2, Bind.index.join(b1, sub, Bind.index.near(Bool.not(b1), t))))
+    == Bool.or(Bool.and(Bool.and(ix.bit(b1, b2), rest), s), hs(Bind.index.near(b2, t))) : Bool}
 
 def ix.step(b1, b2, _sub, _tt, _rest, _ss, _hs, ih):
   match b1 b2:
@@ -151,37 +151,37 @@ def ix.step(b1, b2, _sub, _tt, _rest, _ss, _hs, ih):
 # a lookup after a put: the name put in, when the two numbers agree in the
 # bits walked and the scan finds the names alike, or what was there before
 law ix.put:
-  for dd: Nat
+  for d: Nat
   for +k1: U32
   for +k2: U32
-  for +tt: Bind.Index
+  for +t: Bind.Index
   for +nm: String
   for +name: String
-  {Bind.index.has(dd, k2, Bind.index.put(dd, k1, tt, nm), name)
-    == Bool.or(Bool.and(ix.bits(dd, k1, k2), Bind.same(nm, name)), Bind.index.has(dd, k2, tt, name)) : Bool}
+  {Bind.index.has(d, k2, Bind.index.put(d, k1, t, nm), name)
+    == Bool.or(Bool.and(ix.bits(d, k1, k2), Bind.same(nm, name)), Bind.index.has(d, k2, t, name)) : Bool}
 
-def ix.put(dd, k1, k2, tt, nm, name):
-  match dd:
+def ix.put(d, k1, k2, t, nm, name):
+  match d:
     case 0n:
-      M2.put.or(Bind.same(nm, name), Bind.has_item(Bind.index.names(tt), name),
-        Bind.has_item(Bind.index.names(tt), name), {==})
+      M2.put.or(Bind.same(nm, name), Bind.has_item(Bind.index.names(t), name),
+        Bind.has_item(Bind.index.names(t), name), {==})
     case 1n+p:
       ix.step(U32.is_even(k1), U32.is_even(k2),
-        Bind.index.put(p, U32.shr(k1), Bind.index.near(U32.is_even(k1), tt), nm), tt,
+        Bind.index.put(p, U32.shr(k1), Bind.index.near(U32.is_even(k1), t), nm), t,
         ix.bits(p, U32.shr(k1), U32.shr(k2)), Bind.same(nm, name),
         x => Bind.index.has(p, U32.shr(k2), x, name),
-        ix.put(p, U32.shr(k1), U32.shr(k2), Bind.index.near(U32.is_even(k1), tt), nm, name))
+        ix.put(p, U32.shr(k1), U32.shr(k2), Bind.index.near(U32.is_even(k1), t), nm, name))
 
 # an and whose right side, when it holds, makes the left hold is its right
 # side
 law ix.guard:
   for sb: Bool
-  for ss: Bool
-  for imp: {ss == True{} : Bool} -> {sb == True{} : Bool}
-  {Bool.and(sb, ss) == ss : Bool}
+  for s: Bool
+  for imp: {s == True{} : Bool} -> {sb == True{} : Bool}
+  {Bool.and(sb, s) == s : Bool}
 
-def ix.guard(sb, ss, imp):
-  match sb ss:
+def ix.guard(sb, s, imp):
+  match sb s:
     case True{} True{}:
       {==}
     case True{} False{}:

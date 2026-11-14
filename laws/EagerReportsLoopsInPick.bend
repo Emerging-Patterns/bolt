@@ -78,8 +78,8 @@ law eager_counts:
     == eager.file(Calls.defs(tree), Eager.loops(Calls.defs(tree)), path) : Nat}
 
 # True for a leaf that is neither a `=>` nor a comma
-def eager.plain(kk: Lex.TokKind) -> Bool:
-  match kk:
+def eager.plain(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TLam{}:
       False{}
     case Lex.TComma{}:
@@ -112,12 +112,12 @@ law eager_comma:
 
 # LAW: any other leaf leaves the state as it was and may name a call
 law eager_plain:
-  for kk: Lex.TokKind
+  for k: Lex.TokKind
   for +hot: Bool
   for +seg: U32
   for keep: Bool
-  for e: {eager.plain(kk) == True{} : Bool}
-  {(Eager.work.hot(kk, hot, seg, keep), Eager.work.seg(kk, seg), Eager.work.name(kk))
+  for e: {eager.plain(k) == True{} : Bool}
+  {(Eager.work.hot(k, hot, seg, keep), Eager.work.seg(k, seg), Eager.work.name(k))
     == (hot, seg, True{}) : Bool & U32 & Bool}
 
 # does the list hold a name the set has? Law vocabulary: bolt never calls it

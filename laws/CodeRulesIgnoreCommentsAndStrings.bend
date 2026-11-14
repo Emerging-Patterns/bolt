@@ -194,8 +194,8 @@ law inert_doc:
     == Doc.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
 
 # a binder as reach reads it: its note with each string literal cut
-def inert.bind(bb: Bind.Bind) -> Bind.Bind:
-  match bb:
+def inert.bind(b: Bind.Bind) -> Bind.Bind:
+  match b:
     case Bind.Bind{n, l, c, k, +note}:
       Bind.Bind{n, l, c, k, T.code(note)}
 
@@ -352,8 +352,8 @@ law inert_arms:
 
 # a binder as unused reads it: its name, position and kind, and whether its
 # note opens with `-`, and nothing else the note says
-def inert.ubind(bb: Bind.Bind) -> Bind.Bind:
-  match bb:
+def inert.ubind(b: Bind.Bind) -> Bind.Bind:
+  match b:
     case Bind.Bind{n, l, c, k, +note}:
       Bind.Bind{n, l, c, k, Bool.pick(String, String.starts_with(note, "-"), "-", "")}
 

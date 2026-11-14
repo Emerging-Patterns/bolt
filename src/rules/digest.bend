@@ -100,16 +100,16 @@ def spans(root: Tree.Node) -> List<&2, Span>:
       Nil{}
 
 # is the line in one of the spans?
-def within(ss: List<&2, Span>, +ln: U32) -> Bool:
-  match ss:
+def within(s: List<&2, Span>, +ln: U32) -> Bool:
+  match s:
     case Nil{}:
       False{}
     case Con{Span{+from, +upto}, rest}:
       Lazy.or_else(Bool.and(U32.is_le(from, ln), U32.is_le(ln, upto)), _u => within(rest, ln))
 
 # an item behind an alias, when an import names the alias, onto the others
-def aliased(mm: Maybe<&2, String>, +name: String, more: List<&2, Mention>) -> List<&2, Mention>:
-  match mm:
+def aliased(m: Maybe<&2, String>, +name: String, more: List<&2, Mention>) -> List<&2, Mention>:
+  match m:
     case Some{p}:
       Mention{p, name} <> more
     case None{}:
@@ -118,8 +118,8 @@ def aliased(mm: Maybe<&2, String>, +name: String, more: List<&2, Mention>) -> Li
 # what the binder resolved a use to, as a mention onto the others: an item of
 # the law's own file, or an item of the file an import alias names; nothing
 # for a binder, a free name, or an alias no import names
-def target(tt: Bind.Target, +as: List<&2, Alias>, +file: String, more: List<&2, Mention>) -> List<&2, Mention>:
-  match tt:
+def target(t: Bind.Target, +as: List<&2, Alias>, +file: String, more: List<&2, Mention>) -> List<&2, Mention>:
+  match t:
     case Bind.TItem{n}:
       Mention{file, n} <> more
     case Bind.TQual{a, n}:
@@ -129,18 +129,18 @@ def target(tt: Bind.Target, +as: List<&2, Alias>, +file: String, more: List<&2, 
 
 # the mentions of every use the binder records in the statement of a
 # quantified law, in order. Its header's own name is a binder, not a use
-def mentions(us: List<&2, Bind.Use>, +ss: List<&2, Span>, +as: List<&2, Alias>, +file: String) -> List<&2, Mention>:
+def mentions(us: List<&2, Bind.Use>, +s: List<&2, Span>, +as: List<&2, Alias>, +file: String) -> List<&2, Mention>:
   match us:
     case Nil{}:
       Nil{}
-    case Con{Bind.Use{n, +l, c, tt}, rest}:
-      +more = mentions(rest, ss, as, file)
-      +out = Bool.not(within(ss, l))
-      Lazy.stop(List<&2, Mention>, out, more, _u => target(tt, as, file, more))
+    case Con{Bind.Use{n, +l, c, t}, rest}:
+      +more = mentions(rest, s, as, file)
+      +out = Bool.not(within(s, l))
+      Lazy.stop(List<&2, Mention>, out, more, _u => target(t, as, file, more))
 
 # the uses the binder recorded
-def uses.of(bb: Bind.Bound) -> List<&2, Bind.Use>:
-  match bb:
+def uses.of(b: Bind.Bound) -> List<&2, Bind.Use>:
+  match b:
     case Bind.Bound{bs, us, scs}:
       us
 
@@ -161,28 +161,28 @@ def before(us: List<&2, Bind.Use>, +at: U32) -> List<&2, Bind.Use>:
   match us:
     case Nil{}:
       Nil{}
-    case Con{Bind.Use{nm, +l, c, tt}, rest}:
-      Lazy.stop(List<&2, Bind.Use>, U32.is_le(at, l), [], _u => Bind.Use{nm, l, c, tt} <> before(rest, at))
+    case Con{Bind.Use{nm, +l, c, t}, rest}:
+      Lazy.stop(List<&2, Bind.Use>, U32.is_le(at, l), [], _u => Bind.Use{nm, l, c, t} <> before(rest, at))
 
 # the uses from the first one at or past the line on
 def after(us: List<&2, Bind.Use>, +at: U32) -> List<&2, Bind.Use>:
   match us:
     case Nil{}:
       Nil{}
-    case Con{Bind.Use{nm, +l, c, tt}, +rest}:
-      Lazy.stop(List<&2, Bind.Use>, U32.is_le(at, l), Bind.Use{nm, l, c, tt} <> rest, _u => after(rest, at))
+    case Con{Bind.Use{nm, +l, c, t}, +rest}:
+      Lazy.stop(List<&2, Bind.Use>, U32.is_le(at, l), Bind.Use{nm, l, c, t} <> rest, _u => after(rest, at))
 
 # the uses before the line, when there is one; else all of them
-def upto(us: List<&2, Bind.Use>, mm: Maybe<&2, U32>) -> List<&2, Bind.Use>:
-  match mm:
+def upto(us: List<&2, Bind.Use>, m: Maybe<&2, U32>) -> List<&2, Bind.Use>:
+  match m:
     case None{}:
       us
     case Some{at}:
       before(us, at)
 
 # the uses from the line on, when there is one; else none
-def past(us: List<&2, Bind.Use>, mm: Maybe<&2, U32>) -> List<&2, Bind.Use>:
-  match mm:
+def past(us: List<&2, Bind.Use>, m: Maybe<&2, U32>) -> List<&2, Bind.Use>:
+  match m:
     case None{}:
       Nil{}
     case Some{at}:
@@ -204,8 +204,8 @@ def called(us: List<&2, Bind.Use>, +as: List<&2, Alias>, +file: String) -> List<
   match us:
     case Nil{}:
       Nil{}
-    case Con{Bind.Use{n, l, c, tt}, rest}:
-      target(tt, as, file, called(rest, as, file))
+    case Con{Bind.Use{n, l, c, t}, rest}:
+      target(t, as, file, called(rest, as, file))
 
 # the names of the top-level defs that are proofs (Calls.proof: one that
 # returns a proof, or one written with no type, which is how Bend fills the
@@ -283,8 +283,8 @@ def ranged(
 # a law file or a test, by its path alone: not under law. Nothing the file's
 # text mentions exempts it; IO is not an exemption, since an IO equality is a
 # law.
-def is_exempt(+pp: String) -> Bool:
-  Bool.or(Paths.is_law_file(pp), Paths.is_test(pp))
+def is_exempt(+p: String) -> Bool:
+  Bool.or(Paths.is_law_file(p), Paths.is_test(p))
 
 # the laws
 # --------
@@ -295,7 +295,7 @@ def doc_at(items: List<&2, Outline.Item>, +at: U32) -> String:
   match items:
     case Nil{}:
       ""
-    case Con{Outline.Item{kk, nn, +ln, sig, +doc, pp}, rest}:
+    case Con{Outline.Item{k, n, +ln, sig, +doc, p}, rest}:
       Lazy.stop(String, U32.is_le(at, ln), Bool.pick(String, U32.is_eq(ln, at), doc, ""), _u => doc_at(rest, at))
 
 # does the first item sit on or after a line (from_line stops there)?
@@ -303,7 +303,7 @@ def from_line.stop(items: List<&2, Outline.Item>, +at: U32) -> Bool:
   match items:
     case Nil{}:
       True{}
-    case Con{Outline.Item{kk, nn, +ln, sig, doc, pp}, rest}:
+    case Con{Outline.Item{k, n, +ln, sig, doc, p}, rest}:
       U32.is_le(at, ln)
 
 # the items from the first on or after a line; the items are in line order,
@@ -328,8 +328,8 @@ def laws_of(root: Tree.Node, +items: List<&2, Outline.Item>) -> List<&2, Law>:
     case Tree.NCons{Tree.Stmt{Tree.SLaw{}, +kids, body}, rest}:
       +at = Tree.line(kids)
       +left = from_line(items, at, from_line.stop(items, at))
-      dd = doc_at(left, at)
-      Law{Closed.name.of(Bind.declared(kids)), at, Closed.binds(body), String.lines(dd)} <> laws_of(rest, left)
+      d = doc_at(left, at)
+      Law{Closed.name.of(Bind.declared(kids)), at, Closed.binds(body), String.lines(d)} <> laws_of(rest, left)
     case Tree.NCons{h, rest}:
       laws_of(rest, items)
     case other:
@@ -367,12 +367,12 @@ def of(s2: Src.Src) -> Digest:
 
 # one parsed file read down to its digest, told its role (src/role.bend): a
 # law file states the laws that cover defs, and a law or proof file is exempt
-def of.role(+rr: Role.Role, s2: Src.Src) -> Digest:
+def of.role(+r: Role.Role, s2: Src.Src) -> Digest:
   Src.Src{+path, text, toks, +tree, +bound, +items} = s2
   +p = Imports.norm(path)
   +as = aliases(items, p)
-  +laws = Role.is_laws(rr)
-  Digest{path, p, Imports.dir_of(path), laws, Role.is_law_file(rr), Bool.or(Role.is_law_file(rr), Paths.is_test(p)),
+  +laws = Role.is_laws(r)
+  Digest{path, p, Imports.dir_of(path), laws, Role.is_law_file(r), Bool.or(Role.is_law_file(r), Paths.is_test(p)),
     ranged(items, uses.of(bound), as, p, Bind.index(proofs(Calls.defs(tree)))),
     stated(laws, tree, bound, as, p),
     Imports.targets(items, p),

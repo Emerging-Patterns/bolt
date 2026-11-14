@@ -17,12 +17,12 @@ import ./lemmas/UnsafeStringCompare.bend as M2
 law cover.hit:
   for mm: Maybe<&2, U32>
   for +path: String
-  for ll: U32
-  for cc: U32
+  for l: U32
+  for c: U32
   for -more: List<&2, F.Finding>
   for -m: Nat
   for ih: {List.length(&2, F.Finding, more) == m : Nat}
-  {List.length(&2, F.Finding, Arms.cover.hit(mm, path, ll, cc, more))
+  {List.length(&2, F.Finding, Arms.cover.hit(mm, path, l, c, more))
     == Bool.pick(Nat, Maybe.is_some(&2, U32, mm), 1n+m, m) : Nat}
 
 def cover.hit(mm, _path, _ll, _cc, more, m, ih):
@@ -229,12 +229,12 @@ def cover.stmt(kids, body, rest, path, ihb, ihr):
 
 # every statement at any depth, each match's arms read
 law cover.walk:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +path: String
-  {List.length(&2, F.Finding, Arms.cover.walk(nn, path)) == Laws.cover_count(nn) : Nat}
+  {List.length(&2, F.Finding, Arms.cover.walk(n, path)) == Laws.cover_count(n) : Nat}
 
-def cover.walk(nn, path):
-  match nn:
+def cover.walk(n, path):
+  match n:
     case Tree.Leaf{Lex.Tok{+k1, +x1, +l1, +c1}}:
       {==}
     case Tree.Group{+op1, +ks1, +cl1}:
@@ -277,22 +277,22 @@ def cover.none(ps):
 # a lone word against a lone word covers exactly when the test of their
 # texts says so
 law cover.word:
-  for bb: Bool
-  {Arms.covers(Nil{}, Bool.pick(Maybe<&2, List<&2, Arms.Part>>, bb, Some{Nil{}}, None{})) == bb : Bool}
+  for b: Bool
+  {Arms.covers(Nil{}, Bool.pick(Maybe<&2, List<&2, Arms.Part>>, b, Some{Nil{}}, None{})) == b : Bool}
 
-def cover.word(bb):
-  match bb:
+def cover.word(b):
+  match b:
     case True{}:
       {==}
     case False{}:
       {==}
 
-def Laws.arms_cover_word(tt, uu):
-  cover.word(String.eq(tt, uu))
+def Laws.arms_cover_word(t, u):
+  cover.word(String.eq(t, u))
 
-def Laws.arms_cover_same_word(tt):
-  Equal.trans(Bool, Arms.covers([Arms.PWord{tt}], Some{[Arms.PWord{tt}]}), String.eq(tt, tt), True{},
-    cover.word(String.eq(tt, tt)), M2.unsafe.srefl(tt))
+def Laws.arms_cover_same_word(t):
+  Equal.trans(Bool, Arms.covers([Arms.PWord{t}], Some{[Arms.PWord{t}]}), String.eq(t, t), True{},
+    cover.word(String.eq(t, t)), M2.unsafe.srefl(t))
 
 def Laws.arms_cover_binder_word(_tt):
   {==}
@@ -312,8 +312,8 @@ def Laws.arms_cover_binder_plus(_tt):
 def Laws.arms_cover_word_not_binder(_tt):
   {==}
 
-def Laws.arms_cover_same_shape(tt, open, close):
-  %Equal.sym(Bool, String.eq(tt, tt), True{}, M2.unsafe.srefl(tt)) :
+def Laws.arms_cover_same_shape(t, open, close):
+  %Equal.sym(Bool, String.eq(t, t), True{}, M2.unsafe.srefl(t)) :
     {Arms.covers([Arms.POpen{open}, Arms.PAny{}, Arms.PComma{}, Arms.PAny{}, Arms.PClose{close}],
       Bool.pick(Maybe<&2, List<&2, Arms.Part>>, _,
         Some{[Arms.POpen{open}, Arms.PAny{}, Arms.PComma{}, Arms.PAny{}, Arms.PClose{close}]}, None{}))

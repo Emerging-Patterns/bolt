@@ -30,32 +30,32 @@ def chains.after(rest: Tree.Node) -> Tree.Node:
       Tree.NNil{}
 
 # is it a leaf of one of these kinds?
-def chains.leaf_of(ff: Front, ks: List<&2, Lex.TokKind>) -> Bool:
-  match ff:
+def chains.leaf_of(f: Front, ks: List<&2, Lex.TokKind>) -> Bool:
+  match f:
     case FLeaf{k}:
       D1.kinds.among(k, ks)
     case _other:
       False{}
 
 # is it a group?
-def chains.is_group(ff: Front) -> Bool:
-  match ff:
+def chains.is_group(f: Front) -> Bool:
+  match f:
     case FGroup{}:
       True{}
     case _other:
       False{}
 
 # is the chain a node and the rest of a chain?
-def chains.is_cons(nn: Tree.Node) -> Bool:
-  match nn:
+def chains.is_cons(n: Tree.Node) -> Bool:
+  match n:
     case Tree.NCons{_h, _r}:
       True{}
     case _other:
       False{}
 
 # is a node a leaf of one of these kinds?
-def chains.node_of(nn: Tree.Node, ks: List<&2, Lex.TokKind>) -> Bool:
-  match nn:
+def chains.node_of(n: Tree.Node, ks: List<&2, Lex.TokKind>) -> Bool:
+  match n:
     case Tree.Leaf{Lex.Tok{k, _t, _l, _c}}:
       D1.kinds.among(k, ks)
     case _other:

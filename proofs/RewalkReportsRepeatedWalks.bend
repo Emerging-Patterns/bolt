@@ -13,12 +13,12 @@ import ./lemmas/LoopSetIndex.bend as M2
 
 # the rule's names are the law's
 law rewalk.names_eq:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +acc: List<&2, String>
-  {Rewalk.names(nn, acc) == Laws.rewalk.names(nn, acc) : List<&2, String>}
+  {Rewalk.names(n, acc) == Laws.rewalk.names(n, acc) : List<&2, String>}
 
-def rewalk.names_eq(nn, acc):
-  match nn:
+def rewalk.names_eq(n, acc):
+  match n:
     case Tree.Leaf{tok}:
       match tok:
         case Lex.Tok{k, t, l, c}:
@@ -82,12 +82,12 @@ def rewalk.names_eq(nn, acc):
 
 # the rule's let names are the law's
 law rewalk.lhs_eq:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +acc: List<&2, String>
-  {Rewalk.lhs_names(nn, acc) == Laws.rewalk.lhs(nn, acc) : List<&2, String>}
+  {Rewalk.lhs_names(n, acc) == Laws.rewalk.lhs(n, acc) : List<&2, String>}
 
-def rewalk.lhs_eq(nn, acc):
-  match nn:
+def rewalk.lhs_eq(n, acc):
+  match n:
     case Tree.NCons{h, +rest}:
       match h:
         case Tree.Leaf{tok}:
@@ -159,12 +159,12 @@ def rewalk.lhs_eq(nn, acc):
 
 # the rule's lets of a piece are the law's
 law rewalk.binds_eq:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +acc: List<&2, Rewalk.Bind>
-  {Rewalk.binds(nn, acc) == Laws.rewalk.binds(nn, acc) : List<&2, Rewalk.Bind>}
+  {Rewalk.binds(n, acc) == Laws.rewalk.binds(n, acc) : List<&2, Rewalk.Bind>}
 
-def rewalk.binds_eq(nn, acc):
-  match nn:
+def rewalk.binds_eq(n, acc):
+  match n:
     case Tree.NCons{h, +rest}:
       match h:
         case Tree.Stmt{kind, +kids, +body}:
@@ -192,11 +192,11 @@ def rewalk.binds_eq(nn, acc):
                 _) : List<&2, Rewalk.Bind>}
               rewalk.binds_eq(rest, Rewalk.binds(body, acc))
             case Tree.SLet{}:
-              +pp = Rewalk.last_pos(Tree.leaves.go(body, Tree.leaves.go(kids, [])))
+              +p = Rewalk.last_pos(Tree.leaves.go(body, Tree.leaves.go(kids, [])))
               %rewalk.lhs_eq(kids, []) : {Rewalk.binds(rest, Rewalk.binds(body, Rewalk.bind_at(Rewalk.lhs_names(kids,
-                []), pp, acc))) == Laws.rewalk.binds(rest, Laws.rewalk.binds(body, Rewalk.bind_at(_, pp,
+                []), p, acc))) == Laws.rewalk.binds(rest, Laws.rewalk.binds(body, Rewalk.bind_at(_, p,
                   acc))) : List<&2, Rewalk.Bind>}
-              +x = Rewalk.bind_at(Rewalk.lhs_names(kids, []), pp, acc)
+              +x = Rewalk.bind_at(Rewalk.lhs_names(kids, []), p, acc)
               %rewalk.binds_eq(body, x) : {Rewalk.binds(rest, Rewalk.binds(body, x)) == Laws.rewalk.binds(rest,
                 _) : List<&2, Rewalk.Bind>}
               rewalk.binds_eq(rest, Rewalk.binds(body, x))
@@ -313,11 +313,11 @@ def rewalk.args_eq(kids, bs, l, c):
 
 # the rule's sites are the law's
 law rewalk.gather_eq:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +self: String
   for +lp: List<&2, String>
   for +bs: List<&2, Rewalk.Bind>
-  {Rewalk.gather(nn, self, lp, bs) == Laws.rewalk.gather(nn, self, lp, bs) : List<&2, Rewalk.Site>}
+  {Rewalk.gather(n, self, lp, bs) == Laws.rewalk.gather(n, self, lp, bs) : List<&2, Rewalk.Site>}
 
 # a call's own site, to the rule and to the law
 law rewalk.here_eq:
@@ -346,19 +346,19 @@ def rewalk.here_eq(o, r2, t, kids, bs, l, c, self, lp):
 # a site whose arguments are read only when it is one is the site built
 # from them
 law rewalk.at_some:
-  for mm: Maybe<&2, Rewalk.How>
+  for m: Maybe<&2, Rewalk.How>
   for +t: String
   for +kids: Tree.Node
   for +bs: List<&2, Rewalk.Bind>
   for +l: U32
   for +c: U32
   for +len: U32
-  {Rewalk.site_at(mm, t, kids, bs, l, c, len)
-    == Rewalk.site_list(mm, t, Tree.show(kids) ++ Rewalk.stamp(Rewalk.names(kids, []), bs, l, c), l, c, len)
+  {Rewalk.site_at(m, t, kids, bs, l, c, len)
+    == Rewalk.site_list(m, t, Tree.show(kids) ++ Rewalk.stamp(Rewalk.names(kids, []), bs, l, c), l, c, len)
     : List<&2, Rewalk.Site>}
 
-def rewalk.at_some(mm, _t, _kids, _bs, _l, _c, _len):
-  match mm:
+def rewalk.at_some(m, _t, _kids, _bs, _l, _c, _len):
+  match m:
     case None{}:
       {==}
     case Some{how}:
@@ -408,8 +408,8 @@ def rewalk.gather_stmt(kids, body, rest, self, lp, bs, ek, eb, er):
     Rewalk.gather(body, self, lp, bs), Laws.rewalk.gather(body, self, lp, bs), Rewalk.gather(rest, self, lp, bs),
     Laws.rewalk.gather(rest, self, lp, bs), ek, eb, er)
 
-def rewalk.gather_eq(nn, self, lp, bs):
-  match nn:
+def rewalk.gather_eq(n, self, lp, bs):
+  match n:
     case Tree.NCons{h, +rest}:
       match h:
         case Tree.Leaf{tok}:
@@ -541,12 +541,12 @@ def rewalk.retag_eq(sites, note):
 
 # a let's note retags alike
 law rewalk.relet_eq:
-  for mm: Maybe<&2, Rewalk.Note>
+  for m: Maybe<&2, Rewalk.Note>
   for sites: List<&2, Rewalk.Site>
-  {Rewalk.retag_may(mm, sites) == Laws.rewalk.relet(mm, sites) : List<&2, Rewalk.Site>}
+  {Rewalk.retag_may(m, sites) == Laws.rewalk.relet(m, sites) : List<&2, Rewalk.Site>}
 
-def rewalk.relet_eq(mm, sites):
-  match mm:
+def rewalk.relet_eq(m, sites):
+  match m:
     case None{}:
       {==}
     case Some{note}:
@@ -554,9 +554,9 @@ def rewalk.relet_eq(mm, sites):
 
 # the rule's apply is the law's
 law rewalk.apply_eq:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +sites: List<&2, Rewalk.Site>
-  {Rewalk.apply(nn, sites) == Laws.rewalk.apply(nn, sites) : List<&2, Rewalk.Site>}
+  {Rewalk.apply(n, sites) == Laws.rewalk.apply(n, sites) : List<&2, Rewalk.Site>}
 
 # a statement retags its own call, then its body's, then what follows
 law rewalk.apply_stmt:
@@ -574,12 +574,12 @@ law rewalk.apply_stmt:
     : List<&2, Rewalk.Site>}
 
 def rewalk.apply_stmt(kids, body, rest, sites, eb, er):
-  rewalk.then(List<&2, Rewalk.Site>, ss => Rewalk.apply(body, ss), ss => Laws.rewalk.apply(body, ss),
-    ss => Rewalk.apply(rest, ss), ss => Laws.rewalk.apply(rest, ss), Rewalk.retag_may(Rewalk.note_st(kids), sites),
+  rewalk.then(List<&2, Rewalk.Site>, s => Rewalk.apply(body, s), s => Laws.rewalk.apply(body, s),
+    s => Rewalk.apply(rest, s), s => Laws.rewalk.apply(rest, s), Rewalk.retag_may(Rewalk.note_st(kids), sites),
     Laws.rewalk.relet(Rewalk.note_st(kids), sites), rewalk.relet_eq(Rewalk.note_st(kids), sites), eb, er)
 
-def rewalk.apply_eq(nn, sites):
-  match nn:
+def rewalk.apply_eq(n, sites):
+  match n:
     case Tree.NCons{h, +rest}:
       match h:
         case Tree.Stmt{kind, +kids, +body}:
@@ -608,8 +608,8 @@ def rewalk.apply_eq(nn, sites):
               rewalk.apply_stmt(kids, body, rest, sites, rewalk.apply_eq(body, Rewalk.retag_may(Rewalk.note_st(kids),
                 sites)), rewalk.apply_eq(rest, Rewalk.apply(body, Rewalk.retag_may(Rewalk.note_st(kids), sites))))
         case Tree.Group{open, +kids, close}:
-          rewalk.then(List<&2, Rewalk.Site>, ss => Rewalk.apply(kids, ss), ss => Laws.rewalk.apply(kids, ss),
-            ss => Rewalk.apply(rest, ss), ss => Laws.rewalk.apply(rest, ss), sites, sites, {==},
+          rewalk.then(List<&2, Rewalk.Site>, s => Rewalk.apply(kids, s), s => Laws.rewalk.apply(kids, s),
+            s => Rewalk.apply(rest, s), s => Laws.rewalk.apply(rest, s), sites, sites, {==},
             rewalk.apply_eq(kids, sites), rewalk.apply_eq(rest, Rewalk.apply(kids, sites)))
         case Tree.Leaf{tok}:
           rewalk.apply_eq(rest, sites)
@@ -644,8 +644,8 @@ def rewalk.mark_here(b, _t, _kids):
 
 # the rule's marks are the law's
 law rewalk.marks_eq:
-  for nn: Tree.Node
-  {Rewalk.mark(nn) == Laws.rewalk.marks(nn) : List<&2, Rewalk.Pos>}
+  for n: Tree.Node
+  {Rewalk.mark(n) == Laws.rewalk.marks(n) : List<&2, Rewalk.Pos>}
 
 # a statement's marks: its own tokens, its body, then what follows
 law rewalk.marks_stmt:
@@ -676,8 +676,8 @@ def rewalk.marks_two(kids, rest, ek, er):
   rewalk.cat2(Rewalk.Pos, Rewalk.mark(kids), Laws.rewalk.marks(kids), Rewalk.mark(rest), Laws.rewalk.marks(rest), ek,
     er)
 
-def rewalk.marks_eq(nn):
-  match nn:
+def rewalk.marks_eq(n):
+  match n:
     case Tree.NCons{h, +rest}:
       match h:
         case Tree.Leaf{tok}:
@@ -800,13 +800,13 @@ def rewalk.either2(a1, _a2, b1, b2, ea, eb):
 
 # the rule's reads are the law's
 law rewalk.reads_eq:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +name: String
   for +hot: Bool
   for +left: Nat
   for +live: Bool
   for +skip: Bool
-  {Rewalk.hits(nn, name, hot, left, live, skip) == Laws.rewalk.reads(nn, name, hot, left, live, skip) : Rewalk.Hit}
+  {Rewalk.hits(n, name, hot, left, live, skip) == Laws.rewalk.reads(n, name, hot, left, live, skip) : Rewalk.Hit}
 
 # a mention of a name, then the rest of the chain
 law rewalk.reads_name:
@@ -1600,12 +1600,12 @@ def rewalk.reads_eq(nn, name, hot, left, live, skip):
 
 # the rule's narrow is the law's single
 law rewalk.single_eq:
-  for hh: Rewalk.How
+  for h: Rewalk.How
   for +piece: Tree.Node
-  {Rewalk.narrow(hh, piece) == Laws.rewalk.single(hh, piece) : Bool}
+  {Rewalk.narrow(h, piece) == Laws.rewalk.single(h, piece) : Bool}
 
-def rewalk.single_eq(hh, piece):
-  match hh:
+def rewalk.single_eq(h, piece):
+  match h:
     case Rewalk.HWide{}:
       {==}
     case Rewalk.HSlot{}:
@@ -1783,29 +1783,29 @@ def rewalk.report_len(sites, all, body, path, seen):
 
 # the rule's sites of a piece are the law's
 law rewalk.sites_eq:
-  for +nn: Tree.Node
+  for +n: Tree.Node
   for +self: String
   for +lp: List<&2, String>
-  {Rewalk.pin(Rewalk.mark(nn), Rewalk.apply(nn, Rewalk.gather(nn, self, lp, Rewalk.binds(nn, []))))
-    == Laws.rewalk.sites(nn, self, lp) : List<&2, Rewalk.Site>}
+  {Rewalk.pin(Rewalk.mark(n), Rewalk.apply(n, Rewalk.gather(n, self, lp, Rewalk.binds(n, []))))
+    == Laws.rewalk.sites(n, self, lp) : List<&2, Rewalk.Site>}
 
-def rewalk.sites_eq(nn, self, lp):
-  +lhs = Rewalk.pin(Rewalk.mark(nn), Rewalk.apply(nn, Rewalk.gather(nn, self, lp, Rewalk.binds(nn, []))))
-  %rewalk.binds_eq(nn, []) : {lhs == Laws.rewalk.pin(Laws.rewalk.marks(nn), Laws.rewalk.apply(nn,
-    Laws.rewalk.gather(nn, self, lp, _))) : List<&2, Rewalk.Site>}
-  %rewalk.gather_eq(nn, self, lp, Rewalk.binds(nn, [])) : {lhs == Laws.rewalk.pin(Laws.rewalk.marks(nn),
-    Laws.rewalk.apply(nn, _)) : List<&2, Rewalk.Site>}
-  %rewalk.apply_eq(nn, Rewalk.gather(nn, self, lp, Rewalk.binds(nn, []))) : {lhs
-    == Laws.rewalk.pin(Laws.rewalk.marks(nn), _) : List<&2, Rewalk.Site>}
-  %rewalk.marks_eq(nn) : {lhs == Laws.rewalk.pin(_, Rewalk.apply(nn, Rewalk.gather(nn, self, lp, Rewalk.binds(nn,
+def rewalk.sites_eq(n, self, lp):
+  +lhs = Rewalk.pin(Rewalk.mark(n), Rewalk.apply(n, Rewalk.gather(n, self, lp, Rewalk.binds(n, []))))
+  %rewalk.binds_eq(n, []) : {lhs == Laws.rewalk.pin(Laws.rewalk.marks(n), Laws.rewalk.apply(n,
+    Laws.rewalk.gather(n, self, lp, _))) : List<&2, Rewalk.Site>}
+  %rewalk.gather_eq(n, self, lp, Rewalk.binds(n, [])) : {lhs == Laws.rewalk.pin(Laws.rewalk.marks(n),
+    Laws.rewalk.apply(n, _)) : List<&2, Rewalk.Site>}
+  %rewalk.apply_eq(n, Rewalk.gather(n, self, lp, Rewalk.binds(n, []))) : {lhs
+    == Laws.rewalk.pin(Laws.rewalk.marks(n), _) : List<&2, Rewalk.Site>}
+  %rewalk.marks_eq(n) : {lhs == Laws.rewalk.pin(_, Rewalk.apply(n, Rewalk.gather(n, self, lp, Rewalk.binds(n,
     [])))) : List<&2, Rewalk.Site>}
-  rewalk.pin_eq(Rewalk.mark(nn), Rewalk.apply(nn, Rewalk.gather(nn, self, lp, Rewalk.binds(nn, []))))
+  rewalk.pin_eq(Rewalk.mark(n), Rewalk.apply(n, Rewalk.gather(n, self, lp, Rewalk.binds(n, []))))
 
-def Laws.rewalk_local_counts(nn, self, lp, path):
-  +ss = Rewalk.pin(Rewalk.mark(nn), Rewalk.apply(nn, Rewalk.gather(nn, self, lp, Rewalk.binds(nn, []))))
-  %rewalk.sites_eq(nn, self, lp) : {List.length(&2, F.Finding, Rewalk.report(Rewalk.rate(ss, nn), Rewalk.rate(ss, nn),
-    path, [])) == Laws.rewalk.count(_, _, nn, []) : Nat}
-  rewalk.report_len(ss, ss, nn, path, [])
+def Laws.rewalk_local_counts(n, self, lp, path):
+  +s = Rewalk.pin(Rewalk.mark(n), Rewalk.apply(n, Rewalk.gather(n, self, lp, Rewalk.binds(n, []))))
+  %rewalk.sites_eq(n, self, lp) : {List.length(&2, F.Finding, Rewalk.report(Rewalk.rate(s, n), Rewalk.rate(s, n),
+    path, [])) == Laws.rewalk.count(_, _, n, []) : Nat}
+  rewalk.report_len(s, s, n, path, [])
 
 # two finding lists joined: the counts added
 law rewalk.two_len:
@@ -1877,8 +1877,8 @@ def rewalk.visit_case(body, rest, self, lp, path, eb, er):
     path), Laws.rewalk.piece(body, self, lp), Laws.rewalk.arms(body, self, lp), Laws.rewalk.arms(rest, self, lp),
     Laws.rewalk_local_counts(body, self, lp, path), eb, er)
 
-def Laws.rewalk_visit_counts(nn, self, lp, path):
-  match nn:
+def Laws.rewalk_visit_counts(n, self, lp, path):
+  match n:
     case Tree.NCons{h, +rest}:
       match h:
         case Tree.Stmt{kind, +kids, +body}:
@@ -1928,8 +1928,8 @@ def Laws.rewalk_visit_counts(nn, self, lp, path):
 
 # the rule's called names are the law's
 law rewalk.called_eq:
-  for nn: Tree.Node
-  {Rewalk.called(nn) == Laws.rewalk.called(nn) : List<&2, String>}
+  for n: Tree.Node
+  {Rewalk.called(n) == Laws.rewalk.called(n) : List<&2, String>}
 
 # a callee, then what its group and the rest call
 law rewalk.called_call:
@@ -1952,8 +1952,8 @@ def rewalk.called_call(o, t, kids, r2, ek, er):
     rewalk.cat2(String, Rewalk.called(kids), Laws.rewalk.called(kids), Rewalk.called(r2), Laws.rewalk.called(r2), ek,
       er))
 
-def rewalk.called_eq(nn):
-  match nn:
+def rewalk.called_eq(n):
+  match n:
     case Tree.NCons{h, +rest}:
       match h:
         case Tree.Leaf{tok}:

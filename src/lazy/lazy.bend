@@ -16,24 +16,24 @@
 import Base
 
 # `a` when c, else what rest gives: the early exit of a search
-def stop(-A: Type, cc: Bool, aa: A, rest: Unit -> A) -> A:
-  match cc:
+def stop(-A: Type, c: Bool, a: A, rest: Unit -> A) -> A:
+  match c:
     case True{}:
-      aa
+      a
     case False{}:
       rest(Unit{})
 
 # True when a, else what rest gives: `or` that stops at the first True
-def or_else(aa: Bool, rest: Unit -> Bool) -> Bool:
-  match aa:
+def or_else(a: Bool, rest: Unit -> Bool) -> Bool:
+  match a:
     case True{}:
       True{}
     case False{}:
       rest(Unit{})
 
 # what rest gives when a, else False: `and` that stops at the first False
-def and_then(aa: Bool, rest: Unit -> Bool) -> Bool:
-  match aa:
+def and_then(a: Bool, rest: Unit -> Bool) -> Bool:
+  match a:
     case True{}:
       rest(Unit{})
     case False{}:
@@ -41,8 +41,8 @@ def and_then(aa: Bool, rest: Unit -> Bool) -> Bool:
 
 # what yes gives when c, else what no gives: a pick whose two branches each
 # recurse, only the one taken run
-def either(-A: Type, cc: Bool, yes: Unit -> A, no: Unit -> A) -> A:
-  match cc:
+def either(-A: Type, c: Bool, yes: Unit -> A, no: Unit -> A) -> A:
+  match c:
     case True{}:
       yes(Unit{})
     case False{}:

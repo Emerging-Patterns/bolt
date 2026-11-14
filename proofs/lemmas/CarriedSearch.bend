@@ -204,13 +204,13 @@ def cs.params.of(_k, o, _l, _c, kids, _close, rest):
 
 # a hit carried into type_head's walk is its answer
 law cs.head.some:
-  for pp: Tree.Node
+  for p: Tree.Node
   for +after: Bool
   for +s: String
-  {Calls.type_head.go(pp, after, Some{s}) == s : String}
+  {Calls.type_head.go(p, after, Some{s}) == s : String}
 
-def cs.head.some(pp, _after, _s):
-  match pp:
+def cs.head.some(p, _after, _s):
+  match p:
     case Tree.NCons{h, r}: {==}
     case Tree.Leaf{y}: {==}
     case Tree.Group{y, z, w}: {==}
@@ -220,16 +220,16 @@ def cs.head.some(pp, _after, _s):
 # type_head's walk past a test: the pick it stands for
 law cs.head.pick:
   for b: Bool
-  for +pp: Tree.Node
+  for +p: Tree.Node
   for +after: Bool
   for +s: String
-  {Calls.type_head.go(pp, after, Bool.pick(Maybe<&2, String>, b, Some{s}, None{}))
-    == Bool.pick(String, b, s, Calls.type_head.go(pp, after, None{})) : String}
+  {Calls.type_head.go(p, after, Bool.pick(Maybe<&2, String>, b, Some{s}, None{}))
+    == Bool.pick(String, b, s, Calls.type_head.go(p, after, None{})) : String}
 
-def cs.head.pick(b, pp, after, s):
+def cs.head.pick(b, p, after, s):
   match b:
     case True{}:
-      cs.head.some(pp, after, s)
+      cs.head.some(p, after, s)
     case False{}:
       {==}
 

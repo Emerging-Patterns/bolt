@@ -30,43 +30,43 @@ def under.is_let(sk: Tree.StmtKind) -> Bool:
 
 # LAW: a chain's last token is its one node when that is a leaf
 law last_of_one_leaf:
-  for kk: Lex.TokKind
-  for tt: String
-  for ll: U32
-  for cc: U32
-  {Bind.plan.last(Tree.NCons{Tree.Leaf{Lex.Tok{kk, tt, ll, cc}}, Tree.NNil{}}) == kk : Lex.TokKind}
+  for k: Lex.TokKind
+  for t: String
+  for l: U32
+  for c: U32
+  {Bind.plan.last(Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, Tree.NNil{}}) == k : Lex.TokKind}
 
 # LAW: and the last token of the rest when more nodes follow the first
 law last_of_a_longer_chain:
-  for hh: Tree.Node
+  for h: Tree.Node
   for h2: Tree.Node
   for rest: Tree.Node
-  {Bind.plan.last(Tree.NCons{hh, Tree.NCons{h2, rest}}) == Bind.plan.last(Tree.NCons{h2, rest}) : Lex.TokKind}
+  {Bind.plan.last(Tree.NCons{h, Tree.NCons{h2, rest}}) == Bind.plan.last(Tree.NCons{h2, rest}) : Lex.TokKind}
 
 # LAW: under a let whose line ends in `=` or `<-`, the lines are its value
 law value_under_eq_or_bind:
   for kids: Tree.Node
-  for hh: Tree.Node
-  for tt: Tree.Node
+  for h: Tree.Node
+  for t: Tree.Node
   for e: {D1.kinds.among(Bind.plan.last(kids), [Lex.TEq{}, Lex.TBind{}]) == True{} : Bool}
-  {Bind.plan.wraps(Bind.MBlock{}, Tree.SLet{}, kids, Tree.NCons{hh, tt}) == Bind.UValue{} : Bind.Under}
+  {Bind.plan.wraps(Bind.MBlock{}, Tree.SLet{}, kids, Tree.NCons{h, t}) == Bind.UValue{} : Bind.Under}
 
 # LAW: under a let whose line ends in `=>`, they are a lambda's body
 law lambda_under_lam:
   for kids: Tree.Node
-  for hh: Tree.Node
-  for tt: Tree.Node
+  for h: Tree.Node
+  for t: Tree.Node
   for e: {D1.kinds.among(Bind.plan.last(kids), [Lex.TLam{}]) == True{} : Bool}
-  {Bind.plan.wraps(Bind.MBlock{}, Tree.SLet{}, kids, Tree.NCons{hh, tt}) == Bind.ULambda{} : Bind.Under}
+  {Bind.plan.wraps(Bind.MBlock{}, Tree.SLet{}, kids, Tree.NCons{h, t}) == Bind.ULambda{} : Bind.Under}
 
 # LAW: under a let whose line ends in anything else, they are the next
 # statements
 law next_under_a_finished_let:
   for kids: Tree.Node
-  for hh: Tree.Node
-  for tt: Tree.Node
+  for h: Tree.Node
+  for t: Tree.Node
   for e: {D1.kinds.among(Bind.plan.last(kids), [Lex.TEq{}, Lex.TBind{}, Lex.TLam{}]) == False{} : Bool}
-  {Bind.plan.wraps(Bind.MBlock{}, Tree.SLet{}, kids, Tree.NCons{hh, tt}) == Bind.UNext{} : Bind.Under}
+  {Bind.plan.wraps(Bind.MBlock{}, Tree.SLet{}, kids, Tree.NCons{h, t}) == Bind.UNext{} : Bind.Under}
 
 # LAW: a let with no line under it asks nothing of its last token
 law nothing_under_a_let:

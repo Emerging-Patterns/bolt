@@ -63,8 +63,8 @@ def check.broken(toks: List<&2, Lex.Tok>) -> Bool:
   match toks:
     case Nil{}:
       False{}
-    case Con{Lex.Tok{kk, _tx, _ln, _cl}, rest}:
-      Lazy.or_else(Lex.is_nl(kk), _u => check.broken(rest))
+    case Con{Lex.Tok{k, _tx, _ln, _cl}, rest}:
+      Lazy.or_else(Lex.is_nl(k), _u => check.broken(rest))
 
 # one token's share of the header's width: a comment has none
 def check.cost(kd: Lex.TokKind, +tx: String) -> U32:
@@ -79,8 +79,8 @@ def check.add(+acc: U32, kd: Lex.TokKind, +tx: String) -> U32:
   (acc + check.cost(kd, tx) : U32)
 
 # a `:` token?
-def check.is_colon(kk: Lex.TokKind) -> Bool:
-  match kk:
+def check.is_colon(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TColon{}:
       True{}
     case other:
@@ -107,16 +107,16 @@ def check.start() -> Walk:
   Walk{Seek{}, 0, 0, 0, 0, Span{0, 0, 0}, 0, False{}, 0, 0, 0, []}
 
 # `(`
-def check.is_oparen(kk: Lex.TokKind, +tx: String) -> Bool:
-  match kk:
+def check.is_oparen(k: Lex.TokKind, +tx: String) -> Bool:
+  match k:
     case Lex.TOpen{}:
       String.eq(tx, "(")
     case other:
       False{}
 
 # `)`
-def check.is_cparen(kk: Lex.TokKind, +tx: String) -> Bool:
-  match kk:
+def check.is_cparen(k: Lex.TokKind, +tx: String) -> Bool:
+  match k:
     case Lex.TClose{}:
       String.eq(tx, ")")
     case other:
@@ -129,8 +129,8 @@ def check.open_text(+tx: String) -> Act:
       Bool.pick(Act, String.eq(tx, "{"), ABrace{}, ANone{})))
 
 # an opening bracket, as the depth it raises
-def check.on_open(kk: Lex.TokKind, +tx: String) -> Act:
-  match kk:
+def check.on_open(k: Lex.TokKind, +tx: String) -> Act:
+  match k:
     case Lex.TOpen{}:
       check.open_text(tx)
     case other:
@@ -143,16 +143,16 @@ def check.close_text(+tx: String) -> Act:
       Bool.pick(Act, String.eq(tx, "}"), AUnbrace{}, ANone{})))
 
 # a closing bracket, as the depth it lowers
-def check.on_close(kk: Lex.TokKind, +tx: String) -> Act:
-  match kk:
+def check.on_close(k: Lex.TokKind, +tx: String) -> Act:
+  match k:
     case Lex.TClose{}:
       check.close_text(tx)
     case other:
       ANone{}
 
 # an operator token
-def check.is_op(kk: Lex.TokKind) -> Bool:
-  match kk:
+def check.is_op(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TOp{}:
       True{}
     case other:
@@ -217,32 +217,32 @@ def check.angle_op(is_op: Bool, +tx: String, glued: Bool) -> Act:
       check.no_angle(tx, glued)
 
 # angle motion, when the token is an operator
-def check.angle_act(kk: Lex.TokKind, +tx: String, glued: Bool) -> Act:
-  check.angle_op(check.is_op(kk), tx, glued)
+def check.angle_act(k: Lex.TokKind, +tx: String, glued: Bool) -> Act:
+  check.angle_op(check.is_op(k), tx, glued)
 
 # a value used only so a branch can name it
 def check.keep(act: Act, _kk: Lex.TokKind, _tx: String, _glued: Bool) -> Act:
   act
 
 # angle motion when the token was not a bracket, else that bracket
-def check.or_angle(closed: Act, kk: Lex.TokKind, +tx: String, glued: Bool) -> Act:
+def check.or_angle(closed: Act, k: Lex.TokKind, +tx: String, glued: Bool) -> Act:
   match closed:
     case ANone{}:
-      check.angle_act(kk, tx, glued)
+      check.angle_act(k, tx, glued)
     case other:
-      check.keep(other, kk, tx, glued)
+      check.keep(other, k, tx, glued)
 
 # a close bracket, else angle motion
-def check.or_close(opened: Act, +kk: Lex.TokKind, +tx: String, glued: Bool) -> Act:
+def check.or_close(opened: Act, +k: Lex.TokKind, +tx: String, glued: Bool) -> Act:
   match opened:
     case ANone{}:
-      check.or_angle(check.on_close(kk, tx), kk, tx, glued)
+      check.or_angle(check.on_close(k, tx), k, tx, glued)
     case other:
-      check.keep(other, kk, tx, glued)
+      check.keep(other, k, tx, glued)
 
 # the bracket or angle motion of a token, not the parameter list's own breaks
-def check.brackets(+kk: Lex.TokKind, +tx: String, glued: Bool) -> Act:
-  check.or_close(check.on_open(kk, tx), kk, tx, glued)
+def check.brackets(+k: Lex.TokKind, +tx: String, glued: Bool) -> Act:
+  check.or_close(check.on_open(k, tx), k, tx, glued)
 
 # no depth is open
 def check.zero(+paren: U32, +angle: U32, +brace: U32, +bracket: U32) -> Bool:
@@ -274,7 +274,7 @@ def check.seek_open(is_open: Bool, zero: Bool, rest: Act) -> Act:
 
 # motion while still seeking the parameter list
 def check.act_seek(
-  +kk: Lex.TokKind,
+  +k: Lex.TokKind,
   +tx: String,
   glued: Bool,
   +paren: U32,
@@ -282,8 +282,8 @@ def check.act_seek(
   +brace: U32,
   +bracket: U32
 ) -> Act:
-  check.seek_open(check.is_oparen(kk, tx), check.zero(paren, angle, brace, bracket),
-    check.brackets(kk, tx, glued))
+  check.seek_open(check.is_oparen(k, tx), check.zero(paren, angle, brace, bracket),
+    check.brackets(k, tx, glued))
 
 # `)` at the top of the list ends it; a nested one is just a paren
 def check.end_or(flat: Bool, rest: Act) -> Act:
@@ -319,7 +319,7 @@ def check.args_comma(is_comma: Bool, flat: Bool, rest: Act) -> Act:
 
 # motion inside the parameter list
 def check.act_args(
-  +kk: Lex.TokKind,
+  +k: Lex.TokKind,
   +tx: String,
   glued: Bool,
   +paren: U32,
@@ -327,9 +327,9 @@ def check.act_args(
   +brace: U32,
   +bracket: U32
 ) -> Act:
-  check.args_end(check.is_cparen(kk, tx), check.top(paren, angle, brace, bracket),
-    check.args_comma(Lex.is_comma(kk), check.top(paren, angle, brace, bracket),
-      check.brackets(kk, tx, glued)))
+  check.args_end(check.is_cparen(k, tx), check.top(paren, angle, brace, bracket),
+    check.args_comma(Lex.is_comma(k), check.top(paren, angle, brace, bracket),
+      check.brackets(k, tx, glued)))
 
 # past the parameter list nothing moves
 def check.act_done(
@@ -344,8 +344,8 @@ def check.act_done(
   ANone{}
 
 # `->`
-def check.is_arrow(kk: Lex.TokKind) -> Bool:
-  match kk:
+def check.is_arrow(k: Lex.TokKind) -> Bool:
+  match k:
     case Lex.TArrow{}:
       True{}
     case other:
@@ -354,7 +354,7 @@ def check.is_arrow(kk: Lex.TokKind) -> Bool:
 # right after the list's `)`, a `->`, or the `:` of a header with no return
 # type (a def that fills a law), or anything else
 def check.act_shut(
-  +kk: Lex.TokKind,
+  +k: Lex.TokKind,
   _tx: String,
   _glued: Bool,
   _paren: U32,
@@ -362,12 +362,12 @@ def check.act_shut(
   _brace: U32,
   _bracket: U32
 ) -> Act:
-  Bool.pick(Act, Bool.or(check.is_arrow(kk), check.is_colon(kk)), AArrow{}, AStray{})
+  Bool.pick(Act, Bool.or(check.is_arrow(k), check.is_colon(k)), AArrow{}, AStray{})
 
 # the motion of one token
 def check.act(
   ph: Phase,
-  kk: Lex.TokKind,
+  k: Lex.TokKind,
   +tx: String,
   glued: Bool,
   +paren: U32,
@@ -377,15 +377,15 @@ def check.act(
 ) -> Act:
   match ph:
     case Past{}:
-      check.act_done(kk, tx, glued, paren, angle, brace, bracket)
+      check.act_done(k, tx, glued, paren, angle, brace, bracket)
     case Shut{}:
-      check.act_shut(kk, tx, glued, paren, angle, brace, bracket)
+      check.act_shut(k, tx, glued, paren, angle, brace, bracket)
     case Loose{}:
-      check.act_done(kk, tx, glued, paren, angle, brace, bracket)
+      check.act_done(k, tx, glued, paren, angle, brace, bracket)
     case Seek{}:
-      check.act_seek(kk, tx, glued, paren, angle, brace, bracket)
+      check.act_seek(k, tx, glued, paren, angle, brace, bracket)
     case Args{}:
-      check.act_args(kk, tx, glued, paren, angle, brace, bracket)
+      check.act_args(k, tx, glued, paren, angle, brace, bracket)
 
 # the parameter list's own `(`, `)` and commas are not part of a parameter
 def check.is_sep(act: Act) -> Bool:
@@ -400,8 +400,8 @@ def check.is_sep(act: Act) -> Bool:
       False{}
 
 # one less, and not below zero
-def check.dec_u(+nn: U32) -> U32:
-  Lazy.stop(U32, U32.is_eq(nn, 0), 0, _u => (nn - 1 : U32))
+def check.dec_u(+n: U32) -> U32:
+  Lazy.stop(U32, U32.is_eq(n, 0), 0, _u => (n - 1 : U32))
 
 # `left` angle-closes applied to the depth, and not below zero
 def check.sub(left: Nat, +angle: U32) -> U32:
@@ -425,12 +425,12 @@ def check.cons(on: Bool, +pline: U32, +pend: U32, +pcol: U32, spans: List<&2, Sp
 
 # a depth after a bracket: one more when it opens, one less (and not below
 # zero) when it closes
-def check.bump(up: Bool, +nn: U32) -> U32:
+def check.bump(up: Bool, +n: U32) -> U32:
   match up:
     case True{}:
-      (nn + 1 : U32)
+      (n + 1 : U32)
     case False{}:
-      check.dec_u(nn)
+      check.dec_u(n)
 
 # `(` opens the parameter list
 def check.opened(wk: Walk, ln: U32) -> Walk:
@@ -580,8 +580,8 @@ def check.maybe_note(sep: Bool, wk: Walk, tok: Lex.Tok) -> Walk:
 # one significant token
 def check.step_hit(+wk: Walk, +tok: Lex.Tok, glued: Bool) -> Walk:
   Walk{+mode, +paren, +bracket, +brace, +angle, _shut, _open, _on, _pline, _pend, _pcol, _spans} = wk
-  Lex.Tok{+kk, +tx, +ln, cl} = tok
-  +motion = check.act(mode, kk, tx, glued, paren, angle, brace, bracket)
+  Lex.Tok{+k, +tx, +ln, cl} = tok
+  +motion = check.act(mode, k, tx, glued, paren, angle, brace, bracket)
   check.maybe_note(check.is_sep(motion), check.apply(motion, wk, ln, cl, check.ticks_of(tx)), tok)
 
 # a space, a newline or a comment changes nothing
@@ -598,8 +598,8 @@ def check.step_on(sig: Bool, +tok: Lex.Tok, wk: Walk, glued: Bool) -> Walk:
 
 # one token of the header
 def check.step(+tok: Lex.Tok, wk: Walk, glued: Bool) -> Walk:
-  Lex.Tok{+kk, _tx, _ln, _cl} = tok
-  check.step_on(Lex.significant(kk), tok, wk, glued)
+  Lex.Tok{+k, _tx, _ln, _cl} = tok
+  check.step_on(Lex.significant(k), tok, wk, glued)
 
 # the parameter still open at the end of the header
 def check.seal(wk: Walk) -> Walk:
@@ -608,8 +608,8 @@ def check.seal(wk: Walk) -> Walk:
 
 # a name glues a following `<`
 def check.glue_of(tok: Lex.Tok) -> Bool:
-  Lex.Tok{kk, _tx, _ln, _cl} = tok
-  Lex.is_name(kk)
+  Lex.Tok{k, _tx, _ln, _cl} = tok
+  Lex.is_name(k)
 
 # every token of the header
 def check.walk(toks: List<&2, Lex.Tok>, wk: Walk, glued: Bool) -> Walk:
@@ -701,12 +701,12 @@ def check.empty_span(wk: Walk) -> Maybe<&2, Span>:
 
 # the return type off the `)` line, as a finding
 def check.place_loose(
-  mm: Maybe<&2, Span>,
+  m: Maybe<&2, Span>,
   +base: U32,
   +path: String,
   +more: List<&2, F.Finding>
 ) -> List<&2, F.Finding>:
-  match mm:
+  match m:
     case None{}:
       more
     case Some{Span{+line, _end, +col}}:
@@ -717,13 +717,13 @@ def check.place_loose(
 # the `)` on the last parameter's line, as a finding, else the return type
 # off the `)` line
 def check.place_shut(
-  mm: Maybe<&2, Span>,
+  m: Maybe<&2, Span>,
   loose: Maybe<&2, Span>,
   +base: U32,
   +path: String,
   +more: List<&2, F.Finding>
 ) -> List<&2, F.Finding>:
-  match mm:
+  match m:
     case None{}:
       check.place_loose(loose, base, path, more)
     case Some{Span{+line, _end, +col}}:
@@ -733,14 +733,14 @@ def check.place_shut(
 
 # an empty parameter list across lines, as a finding, else a misplaced `)`
 def check.place_empty(
-  mm: Maybe<&2, Span>,
+  m: Maybe<&2, Span>,
   shut: Maybe<&2, Span>,
   loose: Maybe<&2, Span>,
   +base: U32,
   +path: String,
   +more: List<&2, F.Finding>
 ) -> List<&2, F.Finding>:
-  match mm:
+  match m:
     case None{}:
       check.place_shut(shut, loose, base, path, more)
     case Some{Span{+line, _end, +col}}:
@@ -751,7 +751,7 @@ def check.place_empty(
 # the parameter that breaks the shape, else an empty list, a misplaced `)` or
 # a return type off its line, as a finding on the header's lines
 def check.place(
-  mm: Maybe<&2, Span>,
+  m: Maybe<&2, Span>,
   empty: Maybe<&2, Span>,
   shut: Maybe<&2, Span>,
   loose: Maybe<&2, Span>,
@@ -759,7 +759,7 @@ def check.place(
   +path: String,
   +more: List<&2, F.Finding>
 ) -> List<&2, F.Finding>:
-  match mm:
+  match m:
     case None{}:
       check.place_empty(empty, shut, loose, base, path, more)
     case Some{Span{+line, _end, +col}}:
@@ -799,13 +799,13 @@ def check.lexed(+line: U32, +toks: List<&2, Lex.Tok>, +path: String, +more: List
 
 # a def header; anything else is not this rule's
 def check.one(
-  kk: Outline.ItemKind,
+  k: Outline.ItemKind,
   +line: U32,
   +sig: String,
   +path: String,
   +more: List<&2, F.Finding>
 ) -> List<&2, F.Finding>:
-  Lazy.stop(List<&2, F.Finding>, Bool.not(Outline.is_def(kk)), more,
+  Lazy.stop(List<&2, F.Finding>, Bool.not(Outline.is_def(k)), more,
     _u => check.lexed(line, Lex.tokens(sig), path, more))
 
 # every def header of the file
@@ -813,11 +813,11 @@ def check.go(items: List<&2, Outline.Item>, +path: String) -> List<&2, F.Finding
   match items:
     case Nil{}:
       Nil{}
-    case Con{Outline.Item{+kk, _name, +line, +sig, _doc, _pp}, rest}:
+    case Con{Outline.Item{+k, _name, +line, +sig, _doc, _pp}, rest}:
       +more = check.go(rest, path)
-      check.one(kk, line, sig, path, more)
+      check.one(k, line, sig, path, more)
 
 # the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
-  Src.Src{+path, _text, _toks, _tree, _bound, items} = ss
+def check(s: Src.Src) -> List<&2, F.Finding>:
+  Src.Src{+path, _text, _toks, _tree, _bound, items} = s
   check.go(items, path)

@@ -17,16 +17,16 @@ import ./lemmas/LawFileExemptions.bend as M4
 # hit.cont adds one finding exactly when the argument appends onto a
 # reportable name
 law cont.hit:
-  for mm: Maybe<&2, Lex.Tok>
+  for m: Maybe<&2, Lex.Tok>
   for +accs: List<&2, String>
   for +path: String
   for +acc: List<&2, F.Finding>
-  {List.length(&2, F.Finding, Concat.hit.cont(mm, accs, path, acc))
-    == Bool.pick(Nat, Laws.cont.is(mm, accs), 1n+List.length(&2, F.Finding, acc), List.length(&2, F.Finding, acc))
+  {List.length(&2, F.Finding, Concat.hit.cont(m, accs, path, acc))
+    == Bool.pick(Nat, Laws.cont.is(m, accs), 1n+List.length(&2, F.Finding, acc), List.length(&2, F.Finding, acc))
     : Nat}
 
-def cont.hit(mm, accs, path, acc):
-  match mm:
+def cont.hit(m, accs, path, acc):
+  match m:
     case None{}:
       {==}
     case Some{Lex.Tok{k, +t, l, c}}:
@@ -137,16 +137,16 @@ def cont.call(tok, open, kids, _cl, rest, conts, accs, lets, path, ik, ir):
 # cwalk finds what the law's count counts, node by node, whatever lets are
 # in scope
 law cont.walk:
-  for nn: Tree.Node
+  for n: Tree.Node
   for +conts: List<&2, String>
   for +accs: List<&2, String>
   for +lets: List<&2, Concat.Let>
   for +path: String
-  {List.length(&2, F.Finding, Concat.cwalk(nn, conts, accs, lets, path)) == Laws.cont.count(nn, conts, accs, lets)
+  {List.length(&2, F.Finding, Concat.cwalk(n, conts, accs, lets, path)) == Laws.cont.count(n, conts, accs, lets)
     : Nat}
 
-def cont.walk(nn, conts, accs, lets, path):
-  match nn:
+def cont.walk(n, conts, accs, lets, path):
+  match n:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, Tree.NCons{Tree.Group{Lex.Tok{ok, o, ol, oc}, +kids, cl}, +rest}}:
       cont.call(Lex.Tok{k, t, l, c}, Lex.Tok{ok, o, ol, oc}, kids, cl, rest, conts, accs, lets, path,
         cont.walk(kids, conts, accs, lets, path), cont.walk(rest, conts, accs, lets, path))
