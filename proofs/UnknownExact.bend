@@ -74,15 +74,17 @@ def cfg7.group(rows, name):
 law cfg7.known:
   for +rows: List<&2, Codes.Entry>
   for +name: String
-  {Config.known.in(rows, name) == Bool.or(Laws.slug_in(rows, name), Laws.group_in(rows, name)) : Bool}
+  {Config.known.in(rows, name)
+    == Bool.or(Bool.or(Laws.slug_in(rows, name), Laws.group_in(rows, name)), Config.limit.known(name)) : Bool}
 
 def cfg7.known(rows, name):
   a = Equal.sym(Bool, Maybe.is_some(&2, Codes.Entry, Codes.find(rows, name)), Laws.slug_in(rows, name),
     cfg7.slug(rows, name))
-  %a : {Bool.or(_, Config.known.group(rows, name)) == Bool.or(Laws.slug_in(rows, name), Laws.group_in(rows, name))
-    : Bool}
+  %a : {Bool.or(Bool.or(_, Config.known.group(rows, name)), Config.limit.known(name))
+    == Bool.or(Bool.or(Laws.slug_in(rows, name), Laws.group_in(rows, name)), Config.limit.known(name)) : Bool}
   b = Equal.sym(Bool, Config.known.group(rows, name), Laws.group_in(rows, name), cfg7.group(rows, name))
-  %b : {Bool.or(Laws.slug_in(rows, name), _) == Bool.or(Laws.slug_in(rows, name), Laws.group_in(rows, name)) : Bool}
+  %b : {Bool.or(Bool.or(Laws.slug_in(rows, name), _), Config.limit.known(name))
+    == Bool.or(Bool.or(Laws.slug_in(rows, name), Laws.group_in(rows, name)), Config.limit.known(name)) : Bool}
   {==}
 
 def Laws.unknown_exact(ss):
@@ -91,14 +93,15 @@ def Laws.unknown_exact(ss):
       {==}
     case Con{Config.Setting{+n, +w, +line}, +tl}:
       k = Equal.sym(Bool, Config.known.in(Codes.table(), n),
-        Bool.or(Laws.slug_in(Codes.table(), n), Laws.group_in(Codes.table(), n)), cfg7.known(Codes.table(), n))
+        Bool.or(Bool.or(Laws.slug_in(Codes.table(), n), Laws.group_in(Codes.table(), n)), Config.limit.known(n)),
+        cfg7.known(Codes.table(), n))
       %k : {Bool.pick(List<&2, Config.Setting>, _, Config.unknown.in(tl, Codes.table()),
           Config.Setting{n, w, line} <> Config.unknown.in(tl, Codes.table()))
         == Laws.unknown_of(Config.Setting{n, w, line} <> tl) : List<&2, Config.Setting>}
       r = Equal.sym(List<&2, Config.Setting>, Config.unknown.in(tl, Codes.table()), Laws.unknown_of(tl),
         Laws.unknown_exact(tl))
       %r : {Bool.pick(List<&2, Config.Setting>,
-          Bool.or(Laws.slug_in(Codes.table(), n), Laws.group_in(Codes.table(), n)),
+          Bool.or(Bool.or(Laws.slug_in(Codes.table(), n), Laws.group_in(Codes.table(), n)), Config.limit.known(n)),
           _, Config.Setting{n, w, line} <> _)
         == Laws.unknown_of(Config.Setting{n, w, line} <> tl) : List<&2, Config.Setting>}
       {==}

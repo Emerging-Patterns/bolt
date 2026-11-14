@@ -26,19 +26,20 @@ def group_in(rows: List<&2, Codes.Entry>, +name: String) -> Bool:
       Bool.or(String.eq(grp, name), more)
 
 # the settings, in order, whose name is neither the slug nor the group of any
-# row of the code table
+# row of the code table, nor a limit's name
 def unknown_of(ss: List<&2, Config.Setting>) -> List<&2, Config.Setting>:
   match ss:
     case Nil{}:
       Nil{}
     case Con{Config.Setting{+n, w, line}, rest}:
       +more = unknown_of(rest)
-      Bool.pick(List<&2, Config.Setting>, Bool.or(slug_in(Codes.table(), n), group_in(Codes.table(), n)), more,
+      Bool.pick(List<&2, Config.Setting>,
+        Bool.or(Bool.or(slug_in(Codes.table(), n), group_in(Codes.table(), n)), Config.limit.known(n)), more,
         Config.Setting{n, w, line} <> more)
 
 # LAW: of a bolt.bend's settings, `unknown` holds exactly those whose name is
-# neither the slug nor the group of any row of the code table, in file order,
-# one each
+# neither the slug nor the group of any row of the code table, nor a limit's
+# name, in file order, one each
 law unknown_exact:
   for ss: List<&2, Config.Setting>
   {Config.unknown(ss) == unknown_of(ss) : List<&2, Config.Setting>}

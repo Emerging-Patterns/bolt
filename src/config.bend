@@ -2,7 +2,8 @@
 # a file (its own directory, resolved against the working directory by `home`,
 # then each parent up to the root: `chain`, read by the caller, then
 # `nearest`). The file is plain Bend that
-# `bend` can check: a def a setting, its body one string. A group sets every
+# `bend` can check: a def a setting, its body one string (or, for a limit,
+# one number). A group sets every
 # rule in it, a rule set by name wins over its group, and an unset group has
 # its default (correctness at error, pedantic off, the rest at warn):
 #
@@ -15,8 +16,8 @@
 #     def space() -> String:
 #       "warn"
 #
-# A level is "off", "warn" or "error". A setting whose name is no rule's slug
-# and no group is `unknown`, and sets nothing.
+# A level is "off", "warn" or "error". A setting whose name is no rule's
+# slug, no group and no limit's is `unknown`, and sets nothing.
 #
 # A def whose body is a number sets a limit, the most a rule lets by:
 #
@@ -94,15 +95,18 @@ def unquote(+tt: String) -> String:
   Bool.pick(String, Bool.and(String.starts_with(tt, "\""), String.ends_with(tt, "\"")),
     String.take(String.drop(tt, 1n), (String.length(tt) - 2n : Nat)), tt)
 
-# the first string among the tokens
-def first_str(toks: List<&2, Lex.Tok>) -> Maybe<&2, String>:
+# the first string or number among the tokens: a setting's word, a level's
+# or a limit's
+def first_word(toks: List<&2, Lex.Tok>) -> Maybe<&2, String>:
   match toks:
     case Nil{}:
       None{}
     case Con{Lex.Tok{Lex.TStr{}, t, l, c}, rest}:
       Some{unquote(t)}
+    case Con{Lex.Tok{Lex.TNum{}, t, l, c}, rest}:
+      Some{t}
     case Con{h, rest}:
-      first_str(rest)
+      first_word(rest)
 
 # a setting as a bolt.bend writes it: the def's name, the word its body
 # returns, and the line of its `def` (0-based)
@@ -117,12 +121,12 @@ def setting(name: Maybe<&2, String>, word: Maybe<&2, String>, +line: U32) -> Lis
     case _a _b:
       []
 
-# every `def x(): "level"` of a tree
+# every `def x(): "level"` and `def x_max(): 30` of a tree
 def settings.go(root: Tree.Node) -> List<&2, Setting>:
   match root:
     case Tree.NCons{Tree.Stmt{Tree.SDef{}, +kids, body}, rest}:
       +ln = Tree.line(kids)
-      List.append(&2, Setting, setting(Bind.declared(kids), first_str(Tree.leaves(body)), ln), settings.go(rest))
+      List.append(&2, Setting, setting(Bind.declared(kids), first_word(Tree.leaves(body)), ln), settings.go(rest))
     case Tree.NCons{_h, rest}:
       settings.go(rest)
     case _other:
@@ -184,8 +188,17 @@ def parse(+text: String) -> Config:
 # unknown names
 # -------------
 # A name a bolt.bend may set is a rule's slug or a group, as the code table
-# (src/codes.bend) lists them; a setting of any other name sets nothing, so
-# `setting` (C011) reports it.
+# (src/codes.bend) lists them, or a limit's (`limit.names`); a setting of
+# any other name sets nothing, so `setting` (C011) reports it.
+
+# the limits a rule reads: `<slug>_max` for each rule that has one. A rule
+# asks for its limit by one of these names (src/rules.bend's `on.tune`)
+def limit.names() -> List<&2, String>:
+  ["reach_max", "arity_max", "length_max", "depth_max"]
+
+# is the name a limit's?
+def limit.known(+name: String) -> Bool:
+  List.contains(~String, ~String.eq, limit.names(), name)
 
 # some row of the table has the name as its group
 def known.group(rows: List<&2, Codes.Entry>, +name: String) -> Bool:
@@ -195,14 +208,15 @@ def known.group(rows: List<&2, Codes.Entry>, +name: String) -> Bool:
     case Con{Codes.Entry{_s, _id, +grp}, rest}:
       Lazy.or_else(String.eq(grp, name), _u => known.group(rest, name))
 
-# some row of the table has the name as its slug or its group
+# some row of the table has the name as its slug or its group, or it is a
+# limit's name
 def known.in(+rows: List<&2, Codes.Entry>, +name: String) -> Bool:
   +slug = Maybe.is_some(&2, Codes.Entry, Codes.find(rows, name))
   +grp = known.group(rows, name)
-  Bool.or(slug, grp)
+  Bool.or(Bool.or(slug, grp), limit.known(name))
 
 # the settings, in order, whose name no row of the table has as its slug or
-# its group
+# its group and that is no limit's
 def unknown.in(ss: List<&2, Setting>, +rows: List<&2, Codes.Entry>) -> List<&2, Setting>:
   match ss:
     case Nil{}:
@@ -212,8 +226,8 @@ def unknown.in(ss: List<&2, Setting>, +rows: List<&2, Codes.Entry>) -> List<&2, 
       Bool.pick(List<&2, Setting>, known.in(rows, n),
         more, Setting{n, w, line} <> more)
 
-# the settings, in order, whose name is neither a rule's slug nor a group of
-# the code table
+# the settings, in order, whose name is neither a rule's slug, a group of
+# the code table, nor a limit's
 def unknown(ss: List<&2, Setting>) -> List<&2, Setting>:
   unknown.in(ss, Codes.table())
 
