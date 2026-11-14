@@ -309,7 +309,8 @@ statement.
   finding on the def's name, each against its limit:
   `arity`, a def's parameters, type parameters aside (`-A: Type`, `~A:
   Data`), over 8; `length`, its lines from the `def` line to the line of its
-  last token, over 40; `depth`, how deep its statements nest, over 6. The
+  last token, over 40, a table aside (below); `depth`, how deep its
+  statements nest, over 6. The
   statements right under a def are level 1, and one that opens a block
   (`match x:`, `case A:`) puts those under it one level down, so 7 is a
   third `match` inside two. A line an expression wraps onto is no level,
@@ -318,10 +319,16 @@ statement.
   The fixes are structural, so no spelling buys them: parameters that
   travel together become one value of a type, and a step of a long def or
   the inner match of a deep one becomes a helper. A law file, a proof file
-  and a def that is a proof are left alone. The limits sit where public
+  and a def that is a proof are left alone. `length` does not measure a
+  table: a def whose body is one `match` with nothing under it but `case`
+  arms, each holding at most one statement, which opens no block (an
+  opcode dispatch, a glyph for each character). A table has no step to
+  move into a helper; the one way to shorten it is to cut it in two at some
+  line, which helps no reader. The limits sit where public
   Bend 2 code stops (99 in 100 defs have 9 parameters or fewer, 19 lines or
   fewer, 6 levels or fewer); over 82 public repos `arity` reports 646 defs
-  in 34 of them, `length` 116 in 31 and `depth` 285 in 26, of about 77,000.
+  in 34 of them, `length` 94 in 28 (22 more were tables) and `depth` 285 in
+  26, of about 77,000.
 - `noqa` — a noqa comment that silences nothing (see "Suppressing a
   finding"): a bare `# noqa`, or a code it names that no finding of its file
   on its line has, an unknown code included, one finding per code, at the

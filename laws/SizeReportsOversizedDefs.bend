@@ -8,7 +8,12 @@
 # The measures. arity counts a def's parameters that have a lowercase name
 # of their own, so a type parameter is none. length reads the greatest line
 # of a token of the def, each token taking the line over when its own is
-# later. depth puts the statements under one that opens a block (a `:` among
+# later; a table it does not measure, so it reports none. A table is a def
+# whose body is one statement that opens a block, with nothing under it but
+# `case` arms, each holding at most one statement, which opens no block: a
+# second statement in the body, a second in an arm, or a block in an arm
+# makes it no table. depth puts the statements under one that opens a block
+# (a `:` among
 # its own tokens) one level down, and those under one that does not (a line
 # an expression wrapped onto) at the same level.
 #
@@ -140,3 +145,48 @@ law depth_wrapped_line_stays:
   for e: {Calls.has_colon(kids) == False{} : Bool}
   {Size.depth(Tree.NCons{Tree.Stmt{kind, kids, body}, rest}, at, best)
     == Size.depth(rest, at, Size.depth(body, at, Size.most(at, best))) : U32}
+
+# LAW: length measures no lines of a table
+law length_skips_table:
+  for +sig: Tree.Node
+  for +body: Tree.Node
+  for e: {Size.table(body) == True{} : Bool}
+  {Size.measure(Size.DLength{}, sig, body) == 0 : U32}
+
+# LAW: of a def that is no table, length measures its lines
+law length_measures_other_def:
+  for +sig: Tree.Node
+  for +body: Tree.Node
+  for e: {Size.table(body) == False{} : Bool}
+  {Size.measure(Size.DLength{}, sig, body) == Size.length(sig, body) : U32}
+
+# LAW: a body of two statements or more is no table
+law table_needs_one_statement:
+  for first: Tree.Node
+  for second: Tree.Node
+  for rest: Tree.Node
+  {Size.table(Tree.NCons{first, Tree.NCons{second, rest}}) == False{} : Bool}
+
+# LAW: arms after one that is no arm of a table are not the arms of one
+law table_stops_at_other_arm:
+  for kids: Tree.Node
+  for body: Tree.Node
+  for rest: Tree.Node
+  for e: {Size.table.arm(body) == False{} : Bool}
+  {Size.table.arms(Tree.NCons{Tree.Stmt{Tree.SCase{}, kids, body}, rest}) == False{} : Bool}
+
+# LAW: an arm that holds a statement which opens a block is no arm of a
+# table
+law table_arm_holds_no_block:
+  for kind: Tree.StmtKind
+  for kids: Tree.Node
+  for under: Tree.Node
+  for e: {Calls.has_colon(kids) == True{} : Bool}
+  {Size.table.arm(Tree.NCons{Tree.Stmt{kind, kids, under}, Tree.NNil{}}) == False{} : Bool}
+
+# LAW: an arm that holds two statements or more is no arm of a table
+law table_arm_holds_one_statement:
+  for first: Tree.Node
+  for second: Tree.Node
+  for rest: Tree.Node
+  {Size.table.arm(Tree.NCons{first, Tree.NCons{second, rest}}) == False{} : Bool}

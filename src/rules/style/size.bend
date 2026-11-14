@@ -4,7 +4,9 @@
 #   arity   its parameters, type parameters aside (`-A: Type`, `~A: Data`
 #           have no lowercase name of their own): over 8
 #   length  its lines, from the `def` line to the line of its last token:
-#           over 40
+#           over 40. A table is not measured: a def whose body is one
+#           `match` with nothing under it but `case` arms, each holding at
+#           most one statement, which opens no block
 #   depth   how deep its statements nest. The statements right under the def
 #           are level 1, and a statement that opens a block (its own tokens
 #           hold a `:`, as `match x:` and `case A:` do) puts the statements
@@ -20,7 +22,10 @@
 # (src/rules/calls.bend): a proof is as long as its statement needs.
 # The fixes are structural, and a name cannot buy them: parameters that
 # travel together become one value of a type; a step of a long def, or the
-# inner match of a deep one, becomes a helper.
+# inner match of a deep one, becomes a helper. A table has no step to move:
+# its length is how many cases there are, and the one way to shorten it is
+# to cut it in two at some line, which helps no reader. Of the 116 defs
+# `length` reported in 82 public repos, 22 were tables.
 # The limits are where public Bend 2 code stops: 99 in 100 defs have 9
 # parameters or fewer, 19 lines or fewer, and nest 6 levels or fewer.
 import Base
@@ -114,6 +119,41 @@ def length(+sig: Tree.Node, body: Tree.Node) -> U32:
   +first = Tree.line(sig)
   (last(body, last(sig, first)) - first + 1 : U32)
 
+# is this what an arm of a table holds: nothing under the `case` line, or
+# one statement that opens no block?
+def table.arm(body: Tree.Node) -> Bool:
+  match body:
+    case Tree.NNil{}:
+      True{}
+    case Tree.NCons{Tree.Stmt{_kind, kids, _under}, Tree.NNil{}}:
+      Bool.not(Calls.has_colon(kids))
+    case _other:
+      False{}
+
+# are these the arms of a table: `case` statements and nothing else, each
+# holding what an arm of a table holds?
+def table.arms(ns: Tree.Node) -> Bool:
+  match ns:
+    case Tree.NNil{}:
+      True{}
+    case Tree.NCons{Tree.Stmt{Tree.SCase{}, _kids, body}, rest}:
+      Lazy.and_then(table.arm(body), _u => table.arms(rest))
+    case _other:
+      False{}
+
+# is a def's body a table: one statement that opens a block, with the arms
+# of a table under it?
+def table(body: Tree.Node) -> Bool:
+  match body:
+    case Tree.NCons{Tree.Stmt{_kind, kids, arms}, Tree.NNil{}}:
+      Lazy.and_then(Calls.has_colon(kids), _u => table.arms(arms))
+    case _other:
+      False{}
+
+# the lines `length` holds a def to: none for a table
+def length.of(+sig: Tree.Node, +body: Tree.Node) -> U32:
+  Lazy.either(U32, table(body), _u => 0, _v => length(sig, body))
+
 # the level the statements under a statement sit at: one down when it opens
 # a block
 def depth.under(opens: Bool, at: U32) -> U32:
@@ -140,7 +180,7 @@ def measure(dim: Dim, sig: Tree.Node, body: Tree.Node) -> U32:
     case DArity{}:
       arity(sig)
     case DLength{}:
-      length(sig, body)
+      length.of(sig, body)
     case DDepth{}:
       depth(body, 1, 0)
 
