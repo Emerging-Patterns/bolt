@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.60.0](https://github.com/Emerging-Patterns/bolt/compare/v1.59.0...v1.60.0) (2026-11-14)
+
+
+### Bug Fixes
+
+* **rules:** length does not measure a table ([#381](https://github.com/Emerging-Patterns/bolt/issues/381)) ([5cd135e](https://github.com/Emerging-Patterns/bolt/commit/5cd135e25c1951bedf4b70858f6fd07184c6cae6))
+
 ## [1.59.0](https://github.com/Emerging-Patterns/bolt/compare/v1.58.0...v1.59.0) (2026-11-14)
 
 
