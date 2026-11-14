@@ -1,5 +1,5 @@
-# bolt accepts `bolt [lint] [files]`, `bolt check files`, `bolt lsp`, `bolt
-# help [cmd]`, `--help` and `--`; an argv parse error exits 1, and `help`,
+# bolt accepts `bolt [lint] [files]`, `bolt check files`, `bolt fmt [--check]
+# [files]`, `bolt lsp`, `bolt help [cmd]`, `--help` and `--`; an argv parse error exits 1, and `help`,
 # `--help` and `--version` exit 0. What shake answers for each argv is
 # trusted in src/args.bend; the laws prove what bolt does with that answer.
 #
@@ -46,14 +46,15 @@ law cli_help_exits:
   {Args.out(Args.parse(av)) == Args.Stop{Args.Page{}, Args.help_text(ps), 0} : Args.Out}
 
 # LAW: every other argv that parses runs the command it selects (`lint` when
-# none) over the files that command bound
+# none) over the files that command bound, `fmt` told whether its `--check`
+# was set
 law cli_runs:
   for +av: List<&2, String>
   for +mm: Shake.Matched
   for h: {Args.parse(av) == Done{mm} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
   for h_ver: {Shake.on(mm, "version") == False{} : Bool}
   {Args.out(Args.parse(av))
-    == Args.Go{Args.command(String.join(Shake.path_of(mm), "/")), Args.files(mm)} : Args.Out}
+    == Args.Go{Args.command.at(String.join(Shake.path_of(mm), "/"), Args.checks(mm)), Args.files(mm)} : Args.Out}
 
 # LAW: `bolt file..` lints the files, when no word is a flag, `--`, `help` or
 # a subcommand's name (none at all lints the tree). shake's answer, the
@@ -148,6 +149,38 @@ law cli_check_raw:
   for hv: {Shake.on(mm, "version") == False{} : Bool}
   {Args.out(Args.parse("check" <> "--" <> fs)) == Args.Go{Args.CCheck{}, fs} : Args.Out}
 
+# LAW: `bolt fmt file..` formats the files, when no word is a flag, `--` or
+# `help` (none at all formats the tree). shake's answer, the premises: as
+# cli_lint's, `fmt` selected, and its `--check` not set (SHAKE-GET-1)
+law cli_fmt:
+  for +fs: List<&2, String>
+  for h: {all_plain(fs) == True{} : Bool}
+  for +mm: Shake.Matched
+  for +ss: Shake.Matched
+  for hp: {Args.parse("fmt" <> fs) == Done{mm} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for hs: {Shake.path_of(mm) == ["fmt"] : List<&2, String>}
+  for +ha: {Shake.at(mm, Shake.path_of(mm)) == Some{ss} : Maybe<&2, Shake.Matched>}
+  for hf: {Shake.get_all(ss, "files") == fs : List<&2, String>}
+  for hv: {Shake.on(mm, "version") == False{} : Bool}
+  for hc: {Shake.on(ss, "check") == False{} : Bool}
+  {Args.out(Args.parse("fmt" <> fs)) == Args.Go{Args.CFmt{False{}}, fs} : Args.Out}
+
+# LAW: `bolt fmt --check file..` checks the files' format and is told so.
+# shake's answer, the premises: as cli_fmt's, `--check` set on `fmt`
+# (SHAKE-GET-1)
+law cli_fmt_check:
+  for +fs: List<&2, String>
+  for h: {all_plain(fs) == True{} : Bool}
+  for +mm: Shake.Matched
+  for +ss: Shake.Matched
+  for hp: {Args.parse("fmt" <> "--check" <> fs) == Done{mm} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for hs: {Shake.path_of(mm) == ["fmt"] : List<&2, String>}
+  for +ha: {Shake.at(mm, Shake.path_of(mm)) == Some{ss} : Maybe<&2, Shake.Matched>}
+  for hf: {Shake.get_all(ss, "files") == fs : List<&2, String>}
+  for hv: {Shake.on(mm, "version") == False{} : Bool}
+  for hc: {Shake.on(ss, "check") == True{} : Bool}
+  {Args.out(Args.parse("fmt" <> "--check" <> fs)) == Args.Go{Args.CFmt{True{}}, fs} : Args.Out}
+
 # LAW: `bolt lsp` serves an editor. shake's answer, the premises: `lsp`
 # selects its command (SHAKE-PARSE-4), which binds no files (SHAKE-GET-1),
 # and the root's `--version` is not set (SHAKE-GET-1)
@@ -192,14 +225,18 @@ law cli_files_optional:
   {Args.spec.files(help) == Shake.rest("files", help, False{}, None{}, []) : Shake.Arg}
 
 # bolt's program as shake is handed it, written out: the program `bolt` with
-# its `--version` flag and its files, and the commands `lint`, `check` and
-# `lsp`, each word and each help line. Law vocabulary: bolt never calls it
+# its `--version` flag and its files, and the commands `lint`, `check`,
+# `fmt` (with its `--check` flag) and `lsp`, each word and each help line.
+# Law vocabulary: bolt never calls it
 def cli.program() -> Shake.Cli:
   Shake.app("bolt", "A linter, checker and language server for Bend 2.", Some{Args.version()},
     [Shake.flag("version", None{}, Some{"version"}, "Print the version"),
      Shake.rest("files", "Files to lint", False{}, None{}, [])],
     [Shake.sub("lint", "Lint files", [Shake.rest("files", "Files to lint", False{}, None{}, [])], []),
      Shake.sub("check", "Check files", [Shake.rest("files", "Files to check", False{}, None{}, [])], []),
+     Shake.sub("fmt", "Format files",
+       [Shake.flag("check", None{}, Some{"check"}, "List the files that would change and write nothing"),
+        Shake.rest("files", "Files to format", False{}, None{}, [])], []),
      Shake.sub("lsp", "Serve an editor over stdio", [], [])])
 
 # LAW: every argv is parsed against that program

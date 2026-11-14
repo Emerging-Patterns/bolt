@@ -4,5 +4,3 @@
 #
 # also rests on: laws/ExitOnError.bend, laws/LastLineSummary.bend
 import Base
-
-

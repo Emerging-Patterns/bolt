@@ -2,5 +2,3 @@
 import Base
 import ../laws/CliVersionExits.bend as Laws
 import ./lemmas/CliVersionExit.bend as M1
-
-

@@ -12,6 +12,7 @@ foreign defs missing a lane, and laws that reach every def (IO included). Instal
     bolt                every .bend file under the current directory
     bolt a.bend b.bend  the files given
     bolt check a.bend   the checker's errors, in the same shape
+    bolt fmt            format the files (--check: list the ones it would)
     bolt lsp            the language server
     bolt help           usage
 
@@ -686,7 +687,7 @@ keeps the style, not by whether every finding is a defect. What they cover, and 
 
 | a reader pays to | rules | honest fix |
 |------------------|-------|------------|
-| find where things are | `space` `wrap` | mechanical: one layout, a bounded width |
+| find where things are | `space` `wrap`, and `bolt fmt` | mechanical: one layout, a bounded width |
 | learn what an item is for | `doc` | a comment; measured, they are real ones |
 | carry a name in their head | `reach` | a name, or a shorter def |
 | decode a roundabout spelling | `blank` (`transcong`: opt-in) | the plain word, the same value |
@@ -718,6 +719,30 @@ lines), and bolt's own had 22 such defs when the rules landed.
 
 Not planned, because no machine judges them: whether a name is a good
 word, and lists of names nobody may use.
+
+## bolt fmt
+
+`bolt fmt [file..]` formats the files `bolt` would lint: the ones named, or
+every `.bend` file under the current directory (a bolt.bend is not among
+them). It changes blank space and nothing else:
+
+- no blank before a line's end: trailing spaces and tabs go, a comment's
+  included;
+- no two blank lines in a row, and none at the top of a file;
+- one newline at the end of a file. An empty file stays empty.
+
+Indentation, the spaces inside a line and where a line breaks are left as
+they are, so this is the part of `space` that has one right answer, plus
+the blank lines no rule reports; a tab, a line over 120 wide and a def
+header's shape (`wrap`) are still yours to fix. Every token of code is kept
+as it is, in order (laws/FmtChangesOnlyBlankSpace.bend), so a formatted
+file is the same program.
+
+It prints `formatted <path>` for each file it rewrites, or `clean`.
+`bolt fmt --check` writes nothing: it prints `would format <path>` for each
+file that would change and exits 1 when there is one, which is the form for
+a gate. A path that cannot be read is `cannot read <path>` and exit 1
+either way (laws/FmtPlansEdits.bend).
 
 ## One binary
 

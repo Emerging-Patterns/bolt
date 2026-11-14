@@ -2,5 +2,3 @@
 import Base
 import ../laws/LinesInOrder.bend as Laws
 import ./lemmas/PlannerOutputOrder.bend as M1
-
-

@@ -14,7 +14,6 @@ import ../src/syntax/outline.bend as Outline
 import ../src/rules/suspicious/empty.bend as Empty
 import ./defs/EmptyTests.bend as D1
 
-
 # LAW: empty skips a kept test in a law
 law empty_skips_in_law:
   for +path: String

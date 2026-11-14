@@ -3,7 +3,8 @@
 # The one binary. Shake parses the line: `lint`, or a word that is no
 # subcommand, or nothing, lints the files named after it (every `.bend` file
 # under the current directory when none are); `check` runs the checker on
-# them; `lsp` serves an editor over stdio; `help` (or `--help`) prints usage; `--version`
+# them; `fmt` formats them, or with `--check` lists the ones it would; `lsp`
+# serves an editor over stdio; `help` (or `--help`) prints usage; `--version`
 # prints the release and the short commit when the build has one. Build it
 # native (`bend main.bend -o bin/bolt.bin`). `bolt lsp` runs on the cores:
 # with no runtime `--gpu` it is `+RTS --gpu off -RTS lsp`, and
@@ -16,6 +17,7 @@
 import Base
 import ./src/args.bend as Args
 import ./src/lint.bend as Lint
+import ./src/fmt/run.bend as FmtRun
 import ./src/check.bend as Check
 import ./src/lsp/run.bend as Lsp
 import ./src/lsp/checker/bend.bend as BendChecker
@@ -30,6 +32,8 @@ def dispatch(cmd: Args.Cmd, paths: List<&2, String>) -> IO(Unit):  # noqa: L001 
       Check.run(~BendChecker.service(), paths)
     case Args.CLsp{}:
       Lsp.run()
+    case Args.CFmt{check}:
+      FmtRun.run(check, paths)
 
 # what a parsed line does, done
 def perform(oo: Args.Out) -> IO(Unit):  # noqa: L001 IO driver

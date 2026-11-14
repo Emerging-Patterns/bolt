@@ -102,6 +102,8 @@ both (editors/vscode/README.md). After rebuilding bolt, run
 bolt                   every .bend file under the current directory
 bolt a.bend b.bend     the files given
 bolt check a.bend      the checker's errors, in the same shape
+bolt fmt               format every .bend file under the current directory
+bolt fmt --check       list the files that would change; exit 1 if any
 bolt lsp               the language server, over stdio, on the cores
 bolt --version         the release, and the short commit when the build has one
 bolt help              usage

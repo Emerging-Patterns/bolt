@@ -27,10 +27,10 @@ def Laws.cli_error_exits(av, ee, h, h_help):
 def Laws.cli_runs(av, mm, h, h_ver):
   e = Equal.sym(Result<&2, &2, Shake.ParseErr, Shake.Matched>, Args.parse(av), Done{mm}, h)
   %e : {Args.out(_)
-    == Args.Go{Args.command(String.join(Shake.path_of(mm), "/")), Args.files(mm)} : Args.Out}
+    == Args.Go{Args.command.at(String.join(Shake.path_of(mm), "/"), Args.checks(mm)), Args.files(mm)} : Args.Out}
   v = Equal.sym(Bool, Shake.on(mm, "version"), False{}, h_ver)
   %v : {Args.out.run(_, mm)
-    == Args.Go{Args.command(String.join(Shake.path_of(mm), "/")), Args.files(mm)} : Args.Out}
+    == Args.Go{Args.command.at(String.join(Shake.path_of(mm), "/"), Args.checks(mm)), Args.files(mm)} : Args.Out}
   {==}
 
 # a parse that selected the command at `path` and bound it the files runs
@@ -46,14 +46,14 @@ law cli.go:
   for ha: {Shake.at(mm, Shake.path_of(mm)) == Some{ss} : Maybe<&2, Shake.Matched>}
   for hf: {Shake.get_all(ss, "files") == fs : List<&2, String>}
   for hv: {Shake.on(mm, "version") == False{} : Bool}
-  {Args.out(Args.parse(av)) == Args.Go{Args.command(String.join(path, "/")), fs} : Args.Out}
+  {Args.out(Args.parse(av)) == Args.Go{Args.command.at(String.join(path, "/"), Args.checks(mm)), fs} : Args.Out}
 
 def cli.go(av, mm, ss, _path, fs, hp, hs, ha, hf, hv):
-  %hs : {Args.out(Args.parse(av)) == Args.Go{Args.command(String.join(_, "/")), fs} : Args.Out}
+  %hs : {Args.out(Args.parse(av)) == Args.Go{Args.command.at(String.join(_, "/"), Args.checks(mm)), fs} : Args.Out}
   ff = Equal.trans(List<&2, String>, Args.files(mm), Shake.get_all(ss, "files"), fs,
     Laws.cli_files(mm, ss, ha), hf)
   %ff : {Args.out(Args.parse(av))
-    == Args.Go{Args.command(String.join(Shake.path_of(mm), "/")), _} : Args.Out}
+    == Args.Go{Args.command.at(String.join(Shake.path_of(mm), "/"), Args.checks(mm)), _} : Args.Out}
   Laws.cli_runs(av, mm, hp, hv)
 
 def Laws.cli_bare(fs, _h, mm, ss, hp, hs, ha, hf, hv):
@@ -67,6 +67,30 @@ def Laws.cli_lint(fs, _h, mm, ss, hp, hs, ha, hf, hv):
 
 def Laws.cli_lint_raw(fs, mm, ss, hp, hs, ha, hf, hv):
   cli.go("lint" <> "--" <> fs, mm, ss, ["lint"], fs, hp, hs, ha, hf, hv)
+
+# whether the selected command was given `--check` is read from its own
+# Matched
+law cli.checks:
+  for +mm: Shake.Matched
+  for +ss: Shake.Matched
+  for -b: Bool
+  for ha: {Shake.at(mm, Shake.path_of(mm)) == Some{ss} : Maybe<&2, Shake.Matched>}
+  for hc: {Shake.on(ss, "check") == b : Bool}
+  {Args.checks(mm) == b : Bool}
+
+def cli.checks(mm, ss, b, ha, hc):
+  a = Equal.sym(Maybe<&2, Shake.Matched>, Shake.at(mm, Shake.path_of(mm)), Some{ss}, ha)
+  %a : {Args.checks.at(_) == b : Bool}
+  hc
+
+def Laws.cli_fmt(fs, _h, mm, ss, hp, hs, ha, hf, hv, hc):
+  %cli.checks(mm, ss, False{}, ha, hc) : {Args.out(Args.parse("fmt" <> fs)) == Args.Go{Args.CFmt{_}, fs} : Args.Out}
+  cli.go("fmt" <> fs, mm, ss, ["fmt"], fs, hp, hs, ha, hf, hv)
+
+def Laws.cli_fmt_check(fs, _h, mm, ss, hp, hs, ha, hf, hv, hc):
+  %cli.checks(mm, ss, True{}, ha, hc) :
+    {Args.out(Args.parse("fmt" <> "--check" <> fs)) == Args.Go{Args.CFmt{_}, fs} : Args.Out}
+  cli.go("fmt" <> "--check" <> fs, mm, ss, ["fmt"], fs, hp, hs, ha, hf, hv)
 
 def Laws.cli_check(fs, _h, mm, ss, hp, hs, ha, hf, hv):
   cli.go("check" <> fs, mm, ss, ["check"], fs, hp, hs, ha, hf, hv)
@@ -91,4 +115,3 @@ def Laws.cli_files_of_the_root(_mm):
 
 def Laws.cli_help_is_the_spec_s(_path):
   {==}
-

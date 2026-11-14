@@ -1,5 +1,6 @@
 # src/args: bolt's command line, parsed by shake. `bolt [lint] [file..]`,
-# `bolt check file..`, `bolt lsp`, `bolt --version`. A rest positional at the root (and on
+# `bolt check file..`, `bolt fmt [--check] [file..]`, `bolt lsp`,
+# `bolt --version`. A rest positional at the root (and on
 # `lint` / `check`) takes every leftover word, so `bolt a.bend b.bend` lints
 # those files. `help` is shake's usage page, and `--help` asks for the same
 # page (`line`). IO.args gives the program as invoked first, then its
@@ -48,7 +49,8 @@ def argv() -> IO(List<&2, String>):  # noqa: L001 IO: reads argv
 
 # whether a word names a subcommand
 def is_cmd(+ww: String) -> Bool:
-  Bool.or(String.eq(ww, "lint"), Bool.or(String.eq(ww, "check"), String.eq(ww, "lsp")))
+  Bool.or(String.eq(ww, "lint"),
+    Bool.or(String.eq(ww, "check"), Bool.or(String.eq(ww, "fmt"), String.eq(ww, "lsp"))))
 
 # whether `--help` stands among the words before the first `--` (after it,
 # every word is a file); the search stops at either
@@ -101,6 +103,9 @@ def spec() -> Shake.Cli:
      spec.files("Files to lint")],
     [Shake.sub("lint", "Lint files", [spec.files("Files to lint")], []),
      Shake.sub("check", "Check files", [spec.files("Files to check")], []),
+     Shake.sub("fmt", "Format files",
+       [Shake.flag("check", None{}, Some{"check"}, "List the files that would change and write nothing"),
+        spec.files("Files to format")], []),
      Shake.sub("lsp", "Serve an editor over stdio", [], [])])
 
 # argv against bolt's spec
@@ -115,16 +120,22 @@ def help_text(path: List<&2, String>) -> String:
 def err_text(ee: Shake.ParseErr) -> String:
   Shake.err_text(spec(), ee)
 
-# a subcommand
+# a subcommand; fmt carries whether it only checks
 type Cmd is Data:
   CLint{}
   CCheck{}
   CLsp{}
+  CFmt{check: Bool}
 
 # a subcommand by its name; the empty name (no subcommand) is `lint`
 def command(+name: String) -> Cmd:
   Bool.pick(Cmd, String.eq(name, "check"), CCheck{},
     Bool.pick(Cmd, String.eq(name, "lsp"), CLsp{}, CLint{}))
+
+# a subcommand by its name and whether `--check` was set: `fmt` takes the
+# flag, every other name is as `command` reads it
+def command.at(+name: String, check: Bool) -> Cmd:
+  Bool.pick(Cmd, String.eq(name, "fmt"), CFmt{check}, command(name))
 
 # where a line that stops puts its text
 type Stream is Data:
@@ -152,13 +163,26 @@ def files.at(sel: Maybe<&2, Shake.Matched>, +mm: Shake.Matched) -> List<&2, Stri
 def files(+mm: Shake.Matched) -> List<&2, String>:
   files.at(Shake.at(mm, Shake.path_of(mm)), mm)
 
+# whether the selected command was given `--check`: read from its own
+# Matched, as its files are; no command selected has no such flag
+def checks.at(sel: Maybe<&2, Shake.Matched>) -> Bool:
+  match sel:
+    case Some{ss}:
+      Shake.on(ss, "check")
+    case None{}:
+      False{}
+
+# whether a successful parse set `--check` on the command it selected
+def checks(+mm: Shake.Matched) -> Bool:
+  checks.at(Shake.at(mm, Shake.path_of(mm)))
+
 # a successful parse: the version, or the selected command and its files
 def out.run(ask: Bool, +mm: Shake.Matched) -> Out:
   match ask:
     case True{}:
       Stop{Line{}, "bolt " ++ version(), 0}
     case False{}:
-      Go{command(String.join(Shake.path_of(mm), "/")), files(mm)}
+      Go{command.at(String.join(Shake.path_of(mm), "/"), checks(mm)), files(mm)}
 
 # a failed parse, given whether it asked for usage: that usage page, or the
 # error
