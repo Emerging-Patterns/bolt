@@ -121,8 +121,8 @@ def rewalk.gather(
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, +rest}}:
       +args = Tree.show(kids) ++ rewalk.stamp(rewalk.names(kids, []), bs, l, c)
-      List.concat(&2, Rewalk.Site, [Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(rest), t, args, l, c,
-        U32.from_nat(String.length(t)), self, lp), rewalk.gather(kids, self, lp, bs),
+      List.concat(&2, Rewalk.Site, [Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(rest), t, args, Rewalk.Spot{l,
+        c, U32.from_nat(String.length(t))}, self, lp), rewalk.gather(kids, self, lp, bs),
         rewalk.gather(rest, self, lp, bs)])
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
       List.concat(&2, Rewalk.Site, [rewalk.gather(kids, self, lp, bs), rewalk.gather(rest, self, lp, bs)])

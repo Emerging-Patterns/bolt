@@ -71,16 +71,17 @@ law thunk.site.group:
   for kp: Lex.TokKind
   for +pp: String
   for +aa: String
+  for kn: Lex.TokKind
   for +nm: String
   for +ll: U32
   for +cc: U32
   for r3: Tree.Node
   for +name: String
   for +path: String
-  {List.length(&2, F.Finding, Thunk.site.group(kp, pp, aa, nm, ll, cc, r3, name, path))
+  {List.length(&2, F.Finding, Thunk.site.group(kp, pp, aa, Lex.Tok{kn, nm, ll, cc}, r3, name, path))
     == Bool.pick(Nat, Laws.thunk.call(kp, pp, aa, nm, r3, name), 1n, 0n) : Nat}
 
-def thunk.site.group(kp, pp, aa, nm, ll, cc, r3, name, path):
+def thunk.site.group(kp, pp, aa, _kn, nm, ll, cc, r3, name, path):
   match r3:
     case Tree.NCons{h, +after}:
       match h:
@@ -124,7 +125,7 @@ def thunk.site.name(kp, pp, aa, r2, name, path):
       match h:
         case Tree.Leaf{tok}:
           match tok:
-            case Lex.Tok{kn, n, l, c}: thunk.site.group(kp, pp, aa, n, l, c, r3, name, path)
+            case Lex.Tok{kn, n, l, c}: thunk.site.group(kp, pp, aa, kn, n, l, c, r3, name, path)
         case Tree.Group{x, y, z}: {==}
         case Tree.Stmt{x, y, z}: {==}
         case Tree.NNil{}: {==}

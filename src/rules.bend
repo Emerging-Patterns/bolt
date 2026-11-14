@@ -110,7 +110,7 @@ type Run is Data:
 # law or proof file changes (doc, hole, reach, fromrev, prefix, empty, blank,
 # closed) read the role, never the path, and the cost rules check nothing in
 # a law or proof file
-def on.run(ww: Which, +role: Role.Role, +src: Src.Src) -> List<&2, F.Finding>:  # noqa: S010 #365
+def on.run(ww: Which, +role: Role.Role, +src: Src.Src) -> List<&2, F.Finding>:  # noqa: S010 a table, an arm a check
   match ww:
     case WDoc{}:
       Doc.check.role(role, src)

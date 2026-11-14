@@ -474,15 +474,17 @@ def site_list(mm: Maybe<&2, How>, +name: String, +args: String, +line: U32, +col
     case Some{how}:
       [Site{name, args, line, col, len, how}]
 
+# where a call's name sits: its line, its column and its length
+type Spot is Data:
+  Spot{line: U32, col: U32, len: U32}
+
 # one site when this application is an expensive call
-def open_site(  # noqa: S009 #365
-  +open: Bool,
+def open_site(
+  open: Bool,
   +indexed: Bool,
   +tt: String,
   +args: String,
-  +line: U32,
-  +col: U32,
-  +len: U32,
+  at: Spot,
   +self: String,
   +lp: List<&2, String>
 ) -> List<&2, Site>:
@@ -490,6 +492,7 @@ def open_site(  # noqa: S009 #365
     case False{}:
       Nil{}
     case True{}:
+      Spot{line, col, len} = at
       site_list(site_how(expensive(tt, self, lp), indexed), tt, args, line, col, len)
 
 # every name under the node
@@ -602,15 +605,13 @@ def site_at(
 
 # one site when this application is an expensive call, as open_site gives
 # it, its arguments read only then
-def open_at(  # noqa: S009 #365
+def open_at(
   open: Bool,
   indexed: Bool,
   +tt: String,
   kids: Tree.Node,
   bs: List<&2, Bind>,
-  line: U32,
-  col: U32,
-  len: U32,
+  at: Spot,
   self: String,
   lp: List<&2, String>
 ) -> List<&2, Site>:
@@ -618,6 +619,7 @@ def open_at(  # noqa: S009 #365
     case False{}:
       Nil{}
     case True{}:
+      Spot{line, col, len} = at
       site_at(site_how(expensive(tt, self, lp), indexed), tt, kids, bs, line, col, len)
 
 # every expensive call, wide unless the call is indexed on the spot; its
@@ -625,7 +627,8 @@ def open_at(  # noqa: S009 #365
 def gather(nn: Tree.Node, +self: String, +lp: List<&2, String>, +bs: List<&2, Bind>) -> List<&2, Site>:
   match nn:
     case Tree.NCons{Tree.Leaf{Lex.Tok{k, +t, +l, +c}}, Tree.NCons{Tree.Group{Lex.Tok{_, +o, _, _}, +kids, _}, +rest}}:
-      +here = open_at(String.eq(o, "("), indexed(rest), t, kids, bs, l, c, U32.from_nat(String.length(t)), self, lp)
+      +here = open_at(String.eq(o, "("), indexed(rest), t, kids, bs, Spot{l, c, U32.from_nat(String.length(t))}, self,
+        lp)
       List.concat(&2, Site, [here, gather(kids, self, lp, bs), gather(rest, self, lp, bs)])
     case Tree.NCons{Tree.Group{open, +kids, close}, rest}:
       List.concat(&2, Site, [gather(kids, self, lp, bs), gather(rest, self, lp, bs)])
@@ -894,14 +897,12 @@ def report_nar(
       report_fresh(prior, name, line, col, len, path)
 
 # the finding when a duplicate exists and this site is the first narrow one
-def report_dup(  # noqa: S009 #365
-  +dup: Bool,
+def report_dup(
+  dup: Bool,
   +nar: Bool,
   +name: String,
   +args: String,
-  +line: U32,
-  +col: U32,
-  +len: U32,
+  at: Spot,
   +path: String,
   +seen: List<&2, Rated>
 ) -> List<&2, F.Finding>:
@@ -909,13 +910,14 @@ def report_dup(  # noqa: S009 #365
     case False{}:
       Nil{}
     case True{}:
+      Spot{+line, +col, len} = at
       report_nar(nar, earlier(seen, name, args, line, col), name, line, col, len, path)
 
 # one site
 def report_one(rr: Rated, +all: List<&2, Rated>, +path: String, +seen: List<&2, Rated>) -> List<&2, F.Finding>:
   Rated{ss, +nar} = rr
   Site{+name, +args, +line, +col, +len, how} = ss
-  report_dup(other_go(all, name, args, line, col), nar, name, args, line, col, len, path, seen)
+  report_dup(other_go(all, name, args, line, col), nar, name, args, Spot{line, col, len}, path, seen)
 
 # the first narrow site of each duplicated call
 def report(rs: List<&2, Rated>, +all: List<&2, Rated>, +path: String, +seen: List<&2, Rated>) -> List<&2, F.Finding>:

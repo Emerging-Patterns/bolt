@@ -261,20 +261,20 @@ def search.first(nn: Tree.Node, +xx: String, prev: Tree.Node, hit: Bool) -> Tree
         case False{}:
           Tree.NNil{}
 
-# past the bound name, `=` and the callee: a `(` group and nothing after it,
-# and then the finding the first reader of the name gives
-def search.call(  # noqa: S009 #365
+# past the bound name, `=` and the callee (the token that names the call):
+# a `(` group and nothing after it, and then the finding the first reader of
+# the name gives
+def search.call(
   kx: Lex.TokKind,
   +xx: String,
   +ee: String,
-  +nn: String,
-  +ll: U32,
-  +cc: U32,
+  callee: Lex.Tok,
   r3: Tree.Node,
   rest: Tree.Node,
   +name: String,
   +path: String
 ) -> List<&2, F.Finding>:
+  Lex.Tok{_kn, +nn, +ll, +cc} = callee
   match r3:
     case Tree.NCons{Tree.Group{Lex.Tok{_ko, +o, _lo, _co}, +args, _cl}, after}:
       +ok = Bool.and(Bool.and(Lex.is_name(kx), String.eq(ee, "=")),
@@ -295,8 +295,8 @@ def search.callee(
   +path: String
 ) -> List<&2, F.Finding>:
   match r2:
-    case Tree.NCons{Tree.Leaf{Lex.Tok{_kn, +n, +l, +c}}, r3}:
-      search.call(kx, xx, ee, n, l, c, r3, rest, name, path)
+    case Tree.NCons{Tree.Leaf{callee}, r3}:
+      search.call(kx, xx, ee, callee, r3, rest, name, path)
     case _other:
       []
 

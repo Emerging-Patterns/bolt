@@ -331,14 +331,16 @@ law rewalk.here_eq:
   for +self: String
   for +lp: List<&2, String>
   {Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t, Tree.show(kids) ++ Rewalk.stamp(Rewalk.names(kids, []),
-    bs, l, c), l, c, U32.from_nat(String.length(t)), self, lp)
-    == Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t, Tree.show(kids)
-      ++ Laws.rewalk.stamp(Laws.rewalk.names(kids, []), bs, l, c), l, c, U32.from_nat(String.length(t)), self, lp)
+    bs, l, c), Rewalk.Spot{l, c, U32.from_nat(String.length(t))}, self, lp)
+    == Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t,
+      Tree.show(kids) ++ Laws.rewalk.stamp(Laws.rewalk.names(kids, []), bs, l, c), Rewalk.Spot{l, c,
+      U32.from_nat(String.length(t))}, self, lp)
     : List<&2, Rewalk.Site>}
 
 def rewalk.here_eq(o, r2, t, kids, bs, l, c, self, lp):
-  Equal.cong(String, List<&2, Rewalk.Site>, a => Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t, a, l, c,
-    U32.from_nat(String.length(t)), self, lp), Tree.show(kids) ++ Rewalk.stamp(Rewalk.names(kids, []), bs, l, c),
+  Equal.cong(String, List<&2, Rewalk.Site>, a => Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t, a,
+    Rewalk.Spot{l, c, U32.from_nat(String.length(t))}, self, lp), Tree.show(kids) ++ Rewalk.stamp(Rewalk.names(kids,
+    []), bs, l, c),
     Tree.show(kids) ++ Laws.rewalk.stamp(Laws.rewalk.names(kids, []), bs, l, c), rewalk.args_eq(kids, bs, l, c))
 
 # a site whose arguments are read only when it is one is the site built
@@ -375,9 +377,9 @@ law rewalk.at_eq:
   for +len: U32
   for +self: String
   for +lp: List<&2, String>
-  {Rewalk.open_at(open, idx, t, kids, bs, l, c, len, self, lp)
-    == Rewalk.open_site(open, idx, t, Tree.show(kids) ++ Rewalk.stamp(Rewalk.names(kids, []), bs, l, c), l, c, len,
-      self, lp) : List<&2, Rewalk.Site>}
+  {Rewalk.open_at(open, idx, t, kids, bs, Rewalk.Spot{l, c, len}, self, lp)
+    == Rewalk.open_site(open, idx, t, Tree.show(kids) ++ Rewalk.stamp(Rewalk.names(kids, []), bs, l, c),
+      Rewalk.Spot{l, c, len}, self, lp) : List<&2, Rewalk.Site>}
 
 def rewalk.at_eq(open, idx, t, kids, bs, l, c, len, self, lp):
   match open:
@@ -420,22 +422,22 @@ def rewalk.gather_eq(nn, self, lp, bs):
                       match open:
                         case Lex.Tok{ok, +o, ol, oc}:
                           rewalk.cat3(Rewalk.Site,
-                            Rewalk.open_at(String.eq(o, "("), Rewalk.indexed(r2), t, kids, bs, l, c,
-                              U32.from_nat(String.length(t)), self, lp),
-                            Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t, Tree.show(kids)
-                              ++ Laws.rewalk.stamp(Laws.rewalk.names(kids, []), bs, l, c), l, c,
-                              U32.from_nat(String.length(t)), self, lp),
+                            Rewalk.open_at(String.eq(o, "("), Rewalk.indexed(r2), t, kids, bs, Rewalk.Spot{l, c,
+                              U32.from_nat(String.length(t))}, self, lp),
+                            Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t,
+                              Tree.show(kids) ++ Laws.rewalk.stamp(Laws.rewalk.names(kids, []), bs, l, c),
+                              Rewalk.Spot{l, c, U32.from_nat(String.length(t))}, self, lp),
                             Rewalk.gather(kids, self, lp, bs), Laws.rewalk.gather(kids, self, lp, bs),
                             Rewalk.gather(r2, self, lp, bs), Laws.rewalk.gather(r2, self, lp, bs),
                             Equal.trans(List<&2, Rewalk.Site>,
-                              Rewalk.open_at(String.eq(o, "("), Rewalk.indexed(r2), t, kids, bs, l, c,
-                                U32.from_nat(String.length(t)), self, lp),
-                              Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t, Tree.show(kids)
-                                ++ Rewalk.stamp(Rewalk.names(kids, []), bs, l, c), l, c,
-                                U32.from_nat(String.length(t)), self, lp),
-                              Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t, Tree.show(kids)
-                                ++ Laws.rewalk.stamp(Laws.rewalk.names(kids, []), bs, l, c), l, c,
-                                U32.from_nat(String.length(t)), self, lp),
+                              Rewalk.open_at(String.eq(o, "("), Rewalk.indexed(r2), t, kids, bs, Rewalk.Spot{l, c,
+                                U32.from_nat(String.length(t))}, self, lp),
+                              Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t,
+                                Tree.show(kids) ++ Rewalk.stamp(Rewalk.names(kids, []), bs, l, c), Rewalk.Spot{l, c,
+                                U32.from_nat(String.length(t))}, self, lp),
+                              Rewalk.open_site(String.eq(o, "("), Rewalk.indexed(r2), t,
+                                Tree.show(kids) ++ Laws.rewalk.stamp(Laws.rewalk.names(kids, []), bs, l, c),
+                                Rewalk.Spot{l, c, U32.from_nat(String.length(t))}, self, lp),
                               rewalk.at_eq(String.eq(o, "("), Rewalk.indexed(r2), t, kids, bs, l, c,
                                 U32.from_nat(String.length(t)), self, lp),
                               rewalk.here_eq(o, r2, t, kids, bs, l, c, self, lp)),
@@ -1700,7 +1702,7 @@ law rewalk.dup_len:
   for +len: U32
   for +path: String
   for +seen: List<&2, Rewalk.Rated>
-  {List.length(&2, F.Finding, Rewalk.report_dup(d, nar, name, args, line, col, len, path, seen))
+  {List.length(&2, F.Finding, Rewalk.report_dup(d, nar, name, args, Rewalk.Spot{line, col, len}, path, seen))
     == Bool.pick(Nat, Bool.and(d, Bool.and(nar, Bool.not(Rewalk.earlier(seen, name, args, line, col)))), 1n, 0n)
     : Nat}
 

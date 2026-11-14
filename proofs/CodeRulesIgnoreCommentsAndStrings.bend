@@ -3032,11 +3032,11 @@ law inert.strict.lg:
     : List<&2, F.Finding>}
   for ir: {Strict.walk(D1.inert.node(r2), name, path, outer, hot) == Strict.walk(r2, name, path, outer, hot)
     : List<&2, F.Finding>}
-  {Strict.call(D1.inert.keep(D1.inert.blanks(kk), t), l, c, o, name, path, hot,
+  {Strict.call(Lex.Tok{kk, D1.inert.keep(D1.inert.blanks(kk), t), l, c}, o, name, path, hot,
       Strict.walk(D1.inert.node(kids), name, path, Strict.inner(hot, o, D1.inert.keep(D1.inert.blanks(kk), t)),
         Bool.or(Strict.inner(hot, o, D1.inert.keep(D1.inert.blanks(kk), t)), Strict.seg_op(D1.inert.node(kids)))),
       Strict.walk(D1.inert.node(r2), name, path, outer, hot))
-    == Strict.call(t, l, c, o, name, path, hot,
+    == Strict.call(Lex.Tok{kk, t, l, c}, o, name, path, hot,
       Strict.walk(kids, name, path, Strict.inner(hot, o, t), Bool.or(Strict.inner(hot, o, t), Strict.seg_op(kids))),
       Strict.walk(r2, name, path, outer, hot)) : List<&2, F.Finding>}
 
@@ -3045,16 +3045,20 @@ def inert.strict.lg(kk, t, l, c, o, name, path, outer, hot, kids, r2, ef, en, ik
   +i1 = Strict.inner(hot, o, tt)
   +wk = Strict.walk(D1.inert.node(kids), name, path, i1, Bool.or(i1, Strict.seg_op(D1.inert.node(kids))))
   +wr = Strict.walk(D1.inert.node(r2), name, path, outer, hot)
-  +lhs = Strict.call(tt, l, c, o, name, path, hot, wk, wr)
-  %inert.strict.inner(kk, t, o, hot, ef) : {lhs == Strict.call(t, l, c, o, name, path, hot, Strict.walk(kids, name,
+  +lhs = Strict.call(Lex.Tok{kk, tt, l, c}, o, name, path, hot, wk, wr)
+  %inert.strict.inner(kk, t, o, hot, ef) : {lhs == Strict.call(Lex.Tok{kk, t, l, c}, o, name, path, hot,
+    Strict.walk(kids, name,
     path, _,
     Bool.or(_, Strict.seg_op(kids))), Strict.walk(r2, name, path, outer, hot)) : List<&2, F.Finding>}
-  %inert.strict.seg(kids) : {lhs == Strict.call(t, l, c, o, name, path, hot, Strict.walk(kids, name, path, i1,
+  %inert.strict.seg(kids) : {lhs == Strict.call(Lex.Tok{kk, t, l, c}, o, name, path, hot, Strict.walk(kids, name,
+    path, i1,
     Bool.or(i1, _)), Strict.walk(r2, name, path, outer, hot)) : List<&2, F.Finding>}
-  %ik : {lhs == Strict.call(t, l, c, o, name, path, hot, _, Strict.walk(r2, name, path, outer, hot)) : List<&2,
+  %ik : {lhs == Strict.call(Lex.Tok{kk, t, l, c}, o, name, path, hot, _, Strict.walk(r2, name, path, outer,
+    hot)) : List<&2,
     F.Finding>}
-  %ir : {lhs == Strict.call(t, l, c, o, name, path, hot, wk, _) : List<&2, F.Finding>}
-  %M1.inert.eq_keep(D1.inert.blanks(kk), t, name, ef, en) : {Strict.call(tt, l, c, o, name, path, hot, wk, wr)
+  %ir : {lhs == Strict.call(Lex.Tok{kk, t, l, c}, o, name, path, hot, wk, _) : List<&2, F.Finding>}
+  %M1.inert.eq_keep(D1.inert.blanks(kk), t, name, ef, en) : {Strict.call(Lex.Tok{kk, tt, l, c}, o, name, path, hot,
+    wk, wr)
     == Bool.pick(List<&2, F.Finding>, Bool.and(Bool.and(String.eq(o, "("), _), hot),
       F.Finding{path, l, c, U32.from_nat(String.length(name)), "strict",
         name ++ " calls itself inside Bool.and or Bool.or, which evaluate both sides, so there is no short-circuit; match on the Bool in a helper."}
@@ -3123,12 +3127,14 @@ def inert.strict.walk(nn, name, path, outer, hot, en, e):
                           +k1 = Strict.walk(D1.inert.node(kids), name, path, Strict.inner(hot, ot,
                             D1.inert.keep(D1.inert.blanks(k), t)), Bool.or(Strict.inner(hot, ot,
                               D1.inert.keep(D1.inert.blanks(k), t)), Strict.seg_op(D1.inert.node(kids))))
-                          +c1 = Strict.call(D1.inert.keep(D1.inert.blanks(k), t), l, c, ot, name, path, hot, k1,
+                          +c1 = Strict.call(Lex.Tok{k, D1.inert.keep(D1.inert.blanks(k), t), l, c}, ot, name, path,
+                            hot, k1,
                             Strict.walk(D1.inert.node(r2), name, path, outer, hot))
                           +k0 = Strict.walk(kids, name, path, Strict.inner(hot, ot, t), Bool.or(Strict.inner(hot, ot,
                             t),
                             Strict.seg_op(kids)))
-                          +c0 = Strict.call(t, l, c, ot, name, path, hot, k0, Strict.walk(r2, name, path, outer, hot))
+                          +c0 = Strict.call(Lex.Tok{k, t, l, c}, ot, name, path, hot, k0, Strict.walk(r2, name, path,
+                            outer, hot))
                           inert.strict.leaf(k, a1, Strict.walk(rest, name, path, outer, Bool.or(outer,
                             Strict.seg_op(rest))), b1,
                             Strict.walk(rest, name, path, outer, Strict.seg_op(rest)), c1, c0,
@@ -5497,8 +5503,8 @@ law inert.thunk.group:
   for ef: {D1.inert.fits.go(D1.inert.blanks(kn), nm) == True{} : Bool}
   for en: {D1.inert.marked(name) == False{} : Bool}
   {Thunk.site.group(kp, D1.inert.keep(D1.inert.blanks(kp), pp), D1.inert.keep(D1.inert.blanks(ka), aa),
-    D1.inert.keep(D1.inert.blanks(kn), nm), ll, cc, D1.inert.node(r3), name, path)
-    == Thunk.site.group(kp, pp, aa, nm, ll, cc, r3, name, path) : List<&2, F.Finding>}
+    Lex.Tok{kn, D1.inert.keep(D1.inert.blanks(kn), nm), ll, cc}, D1.inert.node(r3), name, path)
+    == Thunk.site.group(kp, pp, aa, Lex.Tok{kn, nm, ll, cc}, r3, name, path) : List<&2, F.Finding>}
 
 def inert.thunk.group(kp, pp, ka, aa, kn, nm, ll, cc, r3, name, path, ea, ef, en):
   match r3:

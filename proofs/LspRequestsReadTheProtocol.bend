@@ -44,6 +44,12 @@ def Laws.request_method_field(_name, _id, _params):
 def Laws.request_id_field(_name, _id, _params):
   {==}
 
+def Laws.opened_text_field(_uri, _text):
+  {==}
+
+def Laws.changed_text_field(_doc, _text, _more):
+  {==}
+
 def Laws.request_uri_field(_uri, _pos):
   {==}
 
