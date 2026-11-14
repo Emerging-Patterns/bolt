@@ -190,3 +190,30 @@ law cli_help:
 law cli_files_optional:
   for +help: String
   {Args.spec.files(help) == Shake.rest("files", help, False{}, None{}, []) : Shake.Arg}
+
+# bolt's program as shake is handed it, written out: the program `bolt` with
+# its `--version` flag and its files, and the commands `lint`, `check` and
+# `lsp`, each word and each help line. Law vocabulary: bolt never calls it
+def cli.program() -> Shake.Cli:
+  Shake.app("bolt", "A linter, checker and language server for Bend 2.", Some{Args.version()},
+    [Shake.flag("version", None{}, Some{"version"}, "Print the version"),
+     Shake.rest("files", "Files to lint", False{}, None{}, [])],
+    [Shake.sub("lint", "Lint files", [Shake.rest("files", "Files to lint", False{}, None{}, [])], []),
+     Shake.sub("check", "Check files", [Shake.rest("files", "Files to check", False{}, None{}, [])], []),
+     Shake.sub("lsp", "Serve an editor over stdio", [], [])])
+
+# LAW: every argv is parsed against that program
+law cli_parses_against_the_spec:
+  for av: List<&2, String>
+  {Args.parse(av) == Shake.parse(cli.program(), av) : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# LAW: and the usage of every command path is that program's
+law cli_help_is_the_spec_s:
+  for path: List<&2, String>
+  {Args.help_text(path) == Shake.help(cli.program(), path) : String}
+
+# LAW: with no command selected, the files are the ones the root bound under
+# `files`
+law cli_files_of_the_root:
+  for +mm: Shake.Matched
+  {Args.files.at(None{}, mm) == Shake.get_all(mm, "files") : List<&2, String>}

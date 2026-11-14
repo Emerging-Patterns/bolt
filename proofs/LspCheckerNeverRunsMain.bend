@@ -37,3 +37,6 @@ def nav.picked_check_only(cc, path, rr, h):
 
 def Laws.followup_check_only(ds, path, rr, h):
   nav.picked_check_only(Bool.and(Argv.only_todos(ds), Paths.is_laws(path)), Argv.proof_path(path), rr, h)
+
+def Laws.proof_beside_its_laws(_path):
+  {==}

@@ -56,3 +56,65 @@ law arrow_names_a_binder:
   {Tree.arrow.named(rest)
     == Bool.and(D2.chains.leaf_of(D2.chains.front(rest), [Lex.TName{}, Lex.TUpper{}]),
       D2.chains.leaf_of(D2.chains.front(D2.chains.after(rest)), [Lex.TColon{}])) : Bool}
+
+# LAW: a line ends the open statement on top when that statement is at its
+# column or deeper, and then asks the one below
+law deeper_ends_a_statement_at_or_past_the_column:
+  for +indent: U32
+  for kids: Tree.Node
+  for body: Tree.Node
+  for +rest: List<&2, Tree.Frame>
+  for +col: U32
+  for e: {U32.is_ge(indent, col) == True{} : Bool}
+  {Tree.deeper(Tree.FStmt{indent, kids, body} <> rest, col) == Succ{Tree.deeper(rest, col)} : Nat}
+
+# LAW: a statement shallower than the line stays open, and so does every one
+# below it
+law deeper_stops_at_a_shallower_statement:
+  for +indent: U32
+  for kids: Tree.Node
+  for body: Tree.Node
+  for +rest: List<&2, Tree.Frame>
+  for +col: U32
+  for e: {U32.is_ge(indent, col) == False{} : Bool}
+  {Tree.deeper(Tree.FStmt{indent, kids, body} <> rest, col) == 0n : Nat}
+
+# LAW: a statement with nothing under it shows as its tokens in brackets
+law show_statement_alone:
+  for kind: Tree.StmtKind
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for e: {String.is_empty(Tree.show(body)) == True{} : Bool}
+  {Tree.show(Tree.Stmt{kind, kids, body}) == "[" ++ Tree.show(kids) ++ "" ++ "]" : String}
+
+# LAW: and with its body in braces after them when it has one
+law show_statement_with_body:
+  for kind: Tree.StmtKind
+  for +kids: Tree.Node
+  for +body: Tree.Node
+  for e: {String.is_empty(Tree.show(body)) == False{} : Bool}
+  {Tree.show(Tree.Stmt{kind, kids, body}) == "[" ++ Tree.show(kids) ++ (" {" ++ Tree.show(body) ++ "}") ++ "]"
+    : String}
+
+# LAW: the last node of a chain shows alone
+law show_last_node:
+  for +hh: Tree.Node
+  for +tt: Tree.Node
+  for e: {String.is_empty(Tree.show(tt)) == True{} : Bool}
+  {Tree.show(Tree.NCons{hh, tt}) == Tree.show(hh) ++ "" : String}
+
+# LAW: any other with a space before what follows it
+law show_node_then_rest:
+  for +hh: Tree.Node
+  for +tt: Tree.Node
+  for e: {String.is_empty(Tree.show(tt)) == False{} : Bool}
+  {Tree.show(Tree.NCons{hh, tt}) == Tree.show(hh) ++ (" " ++ Tree.show(tt)) : String}
+
+# LAW: a group that never closed shows `..` where its close would be
+law show_unclosed_group:
+  for kk: Lex.TokKind
+  for tt: String
+  for ll: U32
+  for cc: U32
+  for kids: Tree.Node
+  {Tree.show(Tree.Group{Lex.Tok{kk, tt, ll, cc}, kids, None{}}) == tt ++ Tree.show(kids) ++ ".." : String}

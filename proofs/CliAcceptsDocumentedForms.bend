@@ -82,3 +82,13 @@ def Laws.cli_lsp_word(ww, ws, _h, ee, hp, hh):
 
 def Laws.cli_files_optional(_help):
   {==}
+
+def Laws.cli_parses_against_the_spec(_av):
+  {==}
+
+def Laws.cli_files_of_the_root(_mm):
+  {==}
+
+def Laws.cli_help_is_the_spec_s(_path):
+  {==}
+

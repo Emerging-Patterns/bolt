@@ -86,3 +86,9 @@ def Laws.legend_wire_names(n):
       {==}
     case 11n+_:
       {==}
+
+def Laws.encoding_reads_params(_msg, _ee):
+  {==}
+
+def Laws.rename_refuses_a_foreign_name(_cc, _at, _uri, _name, _new):
+  {==}

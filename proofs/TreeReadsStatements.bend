@@ -314,3 +314,39 @@ def Laws.arrow_names_a_binder(rest):
       {==}
     case Tree.Stmt{_kd, _ks, _b}:
       {==}
+
+def Laws.deeper_ends_a_statement_at_or_past_the_column(indent, _kids, _body, rest, col, e):
+  %Equal.sym(Bool, U32.is_ge(indent, col), True{}, e) :
+    {Bool.pick(Nat, _, Succ{Tree.deeper(rest, col)}, 0n) == Succ{Tree.deeper(rest, col)} : Nat}
+  {==}
+
+def Laws.deeper_stops_at_a_shallower_statement(indent, _kids, _body, rest, col, e):
+  %Equal.sym(Bool, U32.is_ge(indent, col), False{}, e) :
+    {Bool.pick(Nat, _, Succ{Tree.deeper(rest, col)}, 0n) == 0n : Nat}
+  {==}
+
+def Laws.show_statement_alone(_kind, kids, body, e):
+  %Equal.sym(Bool, String.is_empty(Tree.show(body)), True{}, e) :
+    {"[" ++ Tree.show(kids) ++ Bool.pick(String, _, "", " {" ++ Tree.show(body) ++ "}") ++ "]"
+      == "[" ++ Tree.show(kids) ++ "" ++ "]" : String}
+  {==}
+
+def Laws.show_statement_with_body(_kind, kids, body, e):
+  %Equal.sym(Bool, String.is_empty(Tree.show(body)), False{}, e) :
+    {"[" ++ Tree.show(kids) ++ Bool.pick(String, _, "", " {" ++ Tree.show(body) ++ "}") ++ "]"
+      == "[" ++ Tree.show(kids) ++ (" {" ++ Tree.show(body) ++ "}") ++ "]" : String}
+  {==}
+
+def Laws.show_last_node(hh, tt, e):
+  %Equal.sym(Bool, String.is_empty(Tree.show(tt)), True{}, e) :
+    {Tree.show(hh) ++ Bool.pick(String, _, "", " " ++ Tree.show(tt)) == Tree.show(hh) ++ "" : String}
+  {==}
+
+def Laws.show_node_then_rest(hh, tt, e):
+  %Equal.sym(Bool, String.is_empty(Tree.show(tt)), False{}, e) :
+    {Tree.show(hh) ++ Bool.pick(String, _, "", " " ++ Tree.show(tt)) == Tree.show(hh) ++ (" " ++ Tree.show(tt))
+      : String}
+  {==}
+
+def Laws.show_unclosed_group(_kk, _tt, _ll, _cc, _kids):
+  {==}

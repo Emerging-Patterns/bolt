@@ -18,6 +18,8 @@ import ezjson@1.2.0.0/src/value.bend as J
 import ../src/lsp/enc.bend as Enc
 import ../src/lsp/semantic.bend as Semantic
 import ../src/lsp/server.bend as Server
+import ../src/lsp/nav.bend as Nav
+import ../src/syntax/bind.bend as Bind
 
 # a method's name in the spec; none for a method the server does not know
 def method.wire(mm: Server.Method) -> String:
@@ -121,3 +123,22 @@ law encoding_wire_names:
 law legend_wire_names:
   for +n: Nat
   {List.get(&2, String, Semantic.legend(), n) == List.get(&2, String, legend.wire(), n) : Maybe<&2, String>}
+
+# LAW: the encoding after a message is settled from its method and its
+# `params` member
+law encoding_reads_params:
+  for +msg: J.Json
+  for ee: Enc.Enc
+  {Server.encoding.of(msg, ee) == Server.encoding(Server.method(Server.name_of(msg)), Ezjson.get(msg, "params"), ee)
+    : Enc.Enc}
+
+# LAW: a rename of a name the document does not bind is refused with LSP's
+# RequestFailed, -32803, whatever was asked
+law rename_refuses_a_foreign_name:
+  for cc: Enc.Cols
+  for at: List<&2, Bind.Pos>
+  for uri: String
+  for name: String
+  for new: String
+  {Server.rename.of(cc, Nav.Sites{False{}, at}, uri, name, new)
+    == Server.Refusal{"-32803", "only a name bound in this file can be renamed"} : Server.Answer}

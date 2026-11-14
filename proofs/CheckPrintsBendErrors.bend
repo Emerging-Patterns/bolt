@@ -1491,3 +1491,6 @@ def Laws.proved_failing_shows_its_own(pds, ds, e):
   %Equal.sym(Bool, List.is_empty(&2, Rep.Diag, pds), False{}, e) :
     {Checker.Checked{Bool.pick(List<&2, Rep.Diag>, _, [], ds)} == Checker.Checked{ds} : Checker.Answer}
   {==}
+
+def Laws.rest_lines_indent_each_line(_ll, _tt):
+  {==}

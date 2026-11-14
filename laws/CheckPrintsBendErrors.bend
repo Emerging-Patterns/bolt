@@ -588,3 +588,10 @@ law proved_failing_shows_its_own:
   for +ds: List<&2, Rep.Diag>
   for e: {List.is_empty(&2, Rep.Diag, pds) == False{} : Bool}
   {Checker.proved(Checker.Checked{pds}, ds) == Checker.Checked{ds} : Checker.Answer}
+
+# LAW: each line of a message after its first is printed on a line of its
+# own, two spaces in
+law rest_lines_indent_each_line:
+  for ll: String
+  for tt: List<&2, String>
+  {Check.rest_lines(ll <> tt) == "\n  " ++ ll ++ Check.rest_lines(tt) : String}

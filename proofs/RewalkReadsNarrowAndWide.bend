@@ -213,3 +213,6 @@ def Laws.note_from_one_name(_seen, _extra, _field, _nm, _rhs):
 
 def Laws.note_st_reads_both_sides(_kids):
   {==}
+
+def Laws.heavy_walks_by_name(_tt):
+  {==}

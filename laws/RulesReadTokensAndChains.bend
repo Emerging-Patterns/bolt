@@ -644,3 +644,30 @@ law wrap_other_operator_moves_no_angle:
   for e: {Wrap.check.all_gt(tx) == False{} : Bool}
   {Wrap.check.op_angle(tx, glued) == Wrap.check.prefer_open(Wrap.check.opens_angle(glued, tx), Wrap.ANone{})
     : Wrap.Act}
+
+# pick: a term's text, as two searches are compared by it
+# LAW: a leaf is its token and then a space
+law pick_search_text_of_a_leaf:
+  for kk: Lex.TokKind
+  for tt: String
+  for ll: U32
+  for cc: U32
+  {Pick.search.text(Tree.Leaf{Lex.Tok{kk, tt, ll, cc}}) == tt ++ " " : String}
+
+# LAW: a group is its open bracket, a space, and then what it holds
+law pick_search_text_of_a_group:
+  for kk: Lex.TokKind
+  for oo: String
+  for ll: U32
+  for cc: U32
+  for kids: Tree.Node
+  for cl: Maybe<&2, Lex.Tok>
+  {Pick.search.text(Tree.Group{Lex.Tok{kk, oo, ll, cc}, kids, cl}) == oo ++ " " ++ Pick.search.text(kids) : String}
+
+# table: one use of a name, told apart from its other uses
+# LAW: a use's key is its name, an `@`, and where it stands
+law table_key_is_name_and_place:
+  for +tt: String
+  for +line: U32
+  for +col: U32
+  {Table.key(tt, line, col) == tt ++ "@" ++ U32.show(line) ++ ":" ++ U32.show(col) : String}

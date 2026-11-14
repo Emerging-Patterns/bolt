@@ -19,6 +19,14 @@ import ../src/rules/suspicious/thunk.bend as Thunk
 import ../src/rules/suspicious/prefix.bend as Prefix
 import ../src/rules/suspicious/empty.bend as Empty
 import ../src/rules/pedantic/rewalk.bend as Rewalk
+import ../src/syntax/lex.bend as Lex
+import ../src/syntax/bind.bend as Bind
+import ../src/syntax/outline.bend as Outline
+import ../src/rules/pedantic/foreign.bend as Foreign
+import ../src/rules/laws/closed.bend as Closed
+import ../src/rules/suspicious/unused.bend as Unused
+import ../src/rules/style/reach.bend as Reach
+import ../src/rules/style/doc.bend as Doc
 
 # LAW: table cites a List.get where it is, over the length it is handed
 law table_cites_get:
@@ -316,3 +324,146 @@ law wrap_cites_jammed_parameter_or_next:
   for +more: List<&2, F.Finding>
   {Wrap.check.place(None{}, empty, shut, loose, base, path, more)
     == Wrap.check.place_empty(empty, shut, loose, base, path, more) : List<&2, F.Finding>}
+
+# the word doc opens its message with, by the item's kind: a type, a law, or
+# (a def and anything else) a def. Law vocabulary: bolt never calls it
+def says.item(kk: Outline.ItemKind) -> String:
+  match kk:
+    case Outline.IImport{}:
+      "Def"
+    case Outline.IDef{}:
+      "Def"
+    case Outline.ILaw{}:
+      "Law"
+    case Outline.IType{}:
+      "Type"
+    case Outline.ICtor{}:
+      "Def"
+    case Outline.ILocal{}:
+      "Def"
+
+# the word unused opens its message with, by the binder's kind: a parameter,
+# or (anything else a body binds) a local. Law vocabulary
+def says.binder(kk: Bind.BindKind) -> String:
+  match kk:
+    case Bind.KItem{}:
+      "Local"
+    case Bind.KCtor{}:
+      "Local"
+    case Bind.KParam{}:
+      "Parameter"
+    case Bind.KTypeParam{}:
+      "Local"
+    case Bind.KField{}:
+      "Local"
+    case Bind.KLocal{}:
+      "Local"
+    case Bind.KPat{}:
+      "Local"
+    case Bind.KFor{}:
+      "Local"
+    case Bind.KTypeVar{}:
+      "Local"
+
+# LAW: doc names what lacks a comment by its kind: `Type`, `Law` or `Def`
+law doc_names_the_item_kind:
+  for kk: Outline.ItemKind
+  {Doc.what(kk) == says.item(kk) : String}
+
+# LAW: unused names what is never used by its kind: `Parameter` or `Local`
+law unused_names_the_binder_kind:
+  for kk: Bind.BindKind
+  {Unused.what(kk) == says.binder(kk) : String}
+
+# LAW: a law with no name is called `?` in closed's message
+law closed_names_a_nameless_law:
+  for mm: Maybe<&2, String>
+  {Closed.name.of(mm) == Maybe.default(&2, String, mm, "?") : String}
+
+# LAW: a def with no name is called `?` in foreign's message
+law foreign_names_a_nameless_def:
+  for mm: Maybe<&2, String>
+  {Foreign.name.of(mm) == Maybe.default(&2, String, mm, "?") : String}
+
+# LAW: a `# noqa` that names no code is told to name one, whatever the mark
+# and the findings of its line
+law noqa_tells_a_bare_mark:
+  for line: U32
+  for col: U32
+  for len: U32
+  for +whole: Bool
+  for +path: String
+  for +gs: List<&2, F.Graded>
+  {NoqaRule.check.mark(Noqa.Mark{line, col, len, Nil{}}, whole, path, gs)
+    == [F.Finding{path, line, col, len, "noqa",
+      "`# noqa` names no code, so it silences nothing; name the codes, e.g. `# noqa: L001`."}]
+    : List<&2, F.Finding>}
+
+# LAW: a rule's code that silences nothing is told so, by its code
+law noqa_tells_an_unused_code:
+  for +code: String
+  for e: {NoqaRule.known(code) == True{} : Bool}
+  {NoqaRule.say(code) == "`# noqa: " ++ code ++ "` silences nothing on this line." : String}
+
+# LAW: a code no rule has is told that it is no rule's
+law noqa_tells_an_unknown_code:
+  for +code: String
+  for e: {NoqaRule.known(code) == False{} : Bool}
+  {NoqaRule.say(code) == "`# noqa: " ++ code ++ "` is no rule's code, so it silences nothing." : String}
+
+# LAW: empty says, of a list's length test, the test it found and the one to
+# write, both with the name tested
+law empty_says_the_list_test:
+  for +xx: String
+  {Empty.say(Empty.FList{}, xx)
+    == "Nat.is_eq(List.length(.., " ++ xx ++ "), 0n) counts every cell of " ++ xx ++ ", which is read again; List.is_empty(.., "
+        ++ xx ++ ") looks at one and gives the same answer." : String}
+
+# LAW: and of a string's length test the same, in String's words
+law empty_says_the_string_test:
+  for +xx: String
+  {Empty.say(Empty.FStr{}, xx)
+    == "Nat.is_eq(String.length(" ++ xx ++ "), 0n) counts every char of " ++ xx ++ ", which is read again; String.is_empty("
+        ++ xx ++ ") looks at one and gives the same answer." : String}
+
+# LAW: prefix says the take it found and the starts_with to write, with the
+# string, the count and the literal as they were written
+law prefix_says_the_take:
+  for +ss: String
+  for +kk: String
+  for +lit: String
+  {Prefix.say(ss, kk, lit)
+    == "String.eq(String.take(" ++ ss ++ ", " ++ kk ++ "), " ++ lit ++ ") copies " ++ kk
+    ++ " chars only to compare them; String.starts_with(" ++ ss ++ ", " ++ lit ++ ") gives the same answer in place."
+    : String}
+
+# LAW: in that message a comma is written with a space after it
+law prefix_writes_a_comma:
+  for +tt: String
+  {Prefix.piece(Lex.TComma{}, tt) == ", " : String}
+
+# LAW: and an operator with a space on each side
+law prefix_writes_an_operator:
+  for +tt: String
+  {Prefix.piece(Lex.TOp{}, tt) == " " ++ tt ++ " " : String}
+
+# LAW: reach says the name and the limit it was read past
+law reach_says_the_name_and_limit:
+  for nm: String
+  for max: U32
+  {Reach.say(nm, max)
+    == "Name " ++ nm ++ " is one character, read more than " ++ U32.show(max) ++ " lines below where it is bound;"
+    ++ " name what it holds, or shorten the def." : String}
+
+# LAW: reach cites the binder where it is, over the name's length, as the
+# rule `reach`
+law reach_cites_the_binder:
+  for +nm: String
+  for line: U32
+  for col: U32
+  for path: String
+  for max: U32
+  for more: List<&2, F.Finding>
+  {Reach.found(True{}, nm, line, col, path, max, more)
+    == F.Finding{path, line, col, U32.from_nat(String.length(nm)), "reach", Reach.say(nm, max)} <> more
+    : List<&2, F.Finding>}

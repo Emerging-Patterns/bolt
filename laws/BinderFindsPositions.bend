@@ -260,3 +260,128 @@ law named_sites_read_uses:
   for scopes: List<&2, Bind.Scope>
   for +name: String
   {Bind.named_sites(Bind.Bound{binds, uses, scopes}, name) == Bind.named_sites.go(uses, name) : List<&2, Bind.Pos>}
+
+# LAW: a use whose name covers the position is the one found, and the search
+# goes on only to hand it back
+law use_at_takes_the_use_that_covers:
+  for +name: String
+  for +ll: U32
+  for +cc: U32
+  for +tg: Bind.Target
+  for +rest: List<&2, Bind.Use>
+  for +line: U32
+  for +col: U32
+  for e: {Bind.covers(ll, cc, name, line, col) == True{} : Bool}
+  {Bind.use_at.go(Bind.Use{name, ll, cc, tg} <> rest, line, col, None{})
+    == Bind.use_at.go(rest, line, col, Some{Bind.SUse{Bind.Use{name, ll, cc, tg}}}) : Maybe<&2, Bind.Site>}
+
+# LAW: a use that does not cover it is passed over
+law use_at_passes_other_uses:
+  for +name: String
+  for +ll: U32
+  for +cc: U32
+  for +tg: Bind.Target
+  for +rest: List<&2, Bind.Use>
+  for +line: U32
+  for +col: U32
+  for e: {Bind.covers(ll, cc, name, line, col) == False{} : Bool}
+  {Bind.use_at.go(Bind.Use{name, ll, cc, tg} <> rest, line, col, None{})
+    == Bind.use_at.go(rest, line, col, None{}) : Maybe<&2, Bind.Site>}
+
+# LAW: the names in scope at a line are those of the last statement at or
+# above it: a scope on or before the line replaces what was found
+law visible_takes_a_scope_at_or_above:
+  for +line: U32
+  for +env: List<&2, Bind.Bind>
+  for +rest: List<&2, Bind.Scope>
+  for +qline: U32
+  for +best: List<&2, Bind.Bind>
+  for e: {U32.is_le(line, qline) == True{} : Bool}
+  {Bind.visible.go(Bind.Scope{line, env} <> rest, qline, best) == Bind.visible.go(rest, qline, env)
+    : List<&2, Bind.Bind>}
+
+# LAW: a scope below the line leaves it
+law visible_passes_a_scope_below:
+  for +line: U32
+  for +env: List<&2, Bind.Bind>
+  for +rest: List<&2, Bind.Scope>
+  for +qline: U32
+  for +best: List<&2, Bind.Bind>
+  for e: {U32.is_le(line, qline) == False{} : Bool}
+  {Bind.visible.go(Bind.Scope{line, env} <> rest, qline, best) == Bind.visible.go(rest, qline, best)
+    : List<&2, Bind.Bind>}
+
+# LAW: a binder at or past the line last read takes its note from the lines
+# read forward from there, and the next binder reads on from its line
+law annotate_reads_forward:
+  for +name: String
+  for +line: U32
+  for +col: U32
+  for +kind: Bind.BindKind
+  for +note: String
+  for +rest: List<&2, Bind.Bind>
+  for +lines: List<&2, String>
+  for +at: U32
+  for +cur: List<&2, String>
+  for e: {U32.is_ge(line, at) == True{} : Bool}
+  {Bind.annotate.go(Bind.Bind{name, line, col, kind, note} <> rest, lines, at, cur)
+    == Bind.Bind{name, line, col, kind,
+      Bind.note_for(kind, note, _w => Bind.stripped(Bind.annotate.head(Bind.annotate.ahead(line, at, cur))))}
+      <> Bind.annotate.go(rest, lines, line, Bind.annotate.ahead(line, at, cur)) : List<&2, Bind.Bind>}
+
+# LAW: a binder behind that line reads its own line from the top, and the
+# next binder reads on from where the reading stood
+law annotate_reads_back:
+  for +name: String
+  for +line: U32
+  for +col: U32
+  for +kind: Bind.BindKind
+  for +note: String
+  for +rest: List<&2, Bind.Bind>
+  for +lines: List<&2, String>
+  for +at: U32
+  for +cur: List<&2, String>
+  for e: {U32.is_ge(line, at) == False{} : Bool}
+  {Bind.annotate.go(Bind.Bind{name, line, col, kind, note} <> rest, lines, at, cur)
+    == Bind.Bind{name, line, col, kind,
+      Bind.note_for(kind, note, _w => Bind.stripped(Bind.annotate.back(lines, line)))}
+      <> Bind.annotate.go(rest, lines, at, cur) : List<&2, Bind.Bind>}
+
+# LAW: a scope's binder that stands before the one read last is looked up
+# from the first binder again
+law refresh_starts_over_for_an_earlier_binder:
+  for +name: String
+  for +ll: U32
+  for +cc: U32
+  for +kind: Bind.BindKind
+  for +note: String
+  for +rest: List<&2, Bind.Bind>
+  for +binds: List<&2, Bind.Bind>
+  for +cur: List<&2, Bind.Bind>
+  for +tl: U32
+  for +tc: U32
+  for +acc: List<&2, Bind.Bind>
+  for e: {Bind.before(ll, cc, tl, tc) == True{} : Bool}
+  {Bind.refresh.go(Bind.Bind{name, ll, cc, kind, note} <> rest, binds, cur, tl, tc, acc)
+    == Bind.refresh.go(rest, binds, Bind.seek(binds, ll, cc, Bind.seek.stop(binds, ll, cc)), ll, cc,
+      Bind.noted(Bind.seek.head(Bind.seek(binds, ll, cc, Bind.seek.stop(binds, ll, cc)), ll, cc),
+        Bind.Bind{name, ll, cc, kind, note}) <> acc) : List<&2, Bind.Bind>}
+
+# LAW: any other is looked up on from where the last one was found
+law refresh_reads_on_for_a_later_binder:
+  for +name: String
+  for +ll: U32
+  for +cc: U32
+  for +kind: Bind.BindKind
+  for +note: String
+  for +rest: List<&2, Bind.Bind>
+  for +binds: List<&2, Bind.Bind>
+  for +cur: List<&2, Bind.Bind>
+  for +tl: U32
+  for +tc: U32
+  for +acc: List<&2, Bind.Bind>
+  for e: {Bind.before(ll, cc, tl, tc) == False{} : Bool}
+  {Bind.refresh.go(Bind.Bind{name, ll, cc, kind, note} <> rest, binds, cur, tl, tc, acc)
+    == Bind.refresh.go(rest, binds, Bind.seek(cur, ll, cc, Bind.seek.stop(cur, ll, cc)), ll, cc,
+      Bind.noted(Bind.seek.head(Bind.seek(cur, ll, cc, Bind.seek.stop(cur, ll, cc)), ll, cc),
+        Bind.Bind{name, ll, cc, kind, note}) <> acc) : List<&2, Bind.Bind>}

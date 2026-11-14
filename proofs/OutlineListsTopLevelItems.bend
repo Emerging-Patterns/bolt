@@ -1290,3 +1290,9 @@ def Laws.undoc_keeps_other_lines(ss, e1, e2):
   %Equal.sym(Bool, String.starts_with(ss, "#"), False{}, e2) :
     {Bool.pick(String, _, String.drop(ss, 1n), ss) == ss : String}
   {==}
+
+def Laws.doc_text_joins_lines(_doc):
+  {==}
+
+def Laws.sig_text_joins_lines(_sig):
+  {==}

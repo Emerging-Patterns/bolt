@@ -910,3 +910,11 @@ def Laws.wrap_other_operator_moves_no_angle(tx, glued, e):
       == Wrap.check.prefer_open(Wrap.check.opens_angle(glued, tx), Wrap.ANone{}) : Wrap.Act}
   {==}
 
+def Laws.pick_search_text_of_a_leaf(_kk, _tt, _ll, _cc):
+  {==}
+
+def Laws.pick_search_text_of_a_group(_kk, _oo, _ll, _cc, _kids, _cl):
+  {==}
+
+def Laws.table_key_is_name_and_place(_tt, _line, _col):
+  {==}

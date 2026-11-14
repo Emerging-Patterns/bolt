@@ -290,3 +290,12 @@ law note_st_reads_both_sides:
   {Rewalk.note_st(kids)
     == Rewalk.note_from(Rewalk.eat(kids, Rewalk.Lhs{False{}, False{}, False{}, ""}), Rewalk.rhs_of(kids))
     : Maybe<&2, Rewalk.Note>}
+
+# LAW: the walks of Base a rewalk cares about are these fourteen, by name
+law heavy_walks_by_name:
+  for +tt: String
+  {Rewalk.heavy(tt)
+    == List.contains(~String, ~String.eq, [
+      "List.map", "List.filter", "List.sort", "List.foldl", "List.foldr", "List.reverse", "List.concat",
+      "Array.map", "Array.to_list",
+      "String.reverse", "String.to_upper", "String.to_lower", "String.to_list", "String.from_list"], tt) : Bool}
