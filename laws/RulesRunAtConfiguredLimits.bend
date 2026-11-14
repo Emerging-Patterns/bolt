@@ -53,6 +53,14 @@ law run_size_at_limit:
   for max: U32
   {Rules.on.run(Rules.WSize{dim, max}, rr, ss) == Role.skip(rr, _u => Size.check(dim, ss, max)) : List<&2, F.Finding>}
 
+# LAW: the name each size rule asks its limit by is one a bolt.bend may set:
+# `setting` (C011) does not report it (laws/UnknownExact.bend). `reach`
+# asks by `reach_max`, which the same list holds; with no binder to state it
+# over, that one is kept by review of src/config.bend's `limit.names`
+law size_limit_names_known:
+  for dim: Size.Dim
+  {Config.limit.known(Size.limit_name(dim)) == True{} : Bool}
+
 # LAW: a tuned table runs the same rules in the same order
 law tuned_keeps_slugs:
   for rs: List<&2, Rules.Run>

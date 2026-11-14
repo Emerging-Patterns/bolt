@@ -59,7 +59,7 @@ The limit a file is linted at is the one in the bolt.bend that grades it,
 the nearest above it, so a nested project can set its own; the editor uses
 the same one. Unset, the rule's default holds. A number bolt cannot read as
 a U32 is 0, so a typo shows as findings. A limit under a name no rule has
-(`def reach_mx()`) is not reported yet and sets nothing.
+(`def reach_mx()`) sets nothing, so `setting` (C011) reports it.
 
 A group sets every rule in it; a rule set by name wins over its group; an
 unset group has its default. The groups:
@@ -133,8 +133,8 @@ So are `coverage` and `closed`: what every def must be named by a law, and
 whether a law with no binder is allowed, are a project's policy, not a
 defect, so a project that keeps laws turns them on by name (`def
 coverage() -> String: "warn"`). An unknown level word grades as an error, so a typo shows. A `bolt.bend` is
-read, never linted. A setting whose name is no rule's slug and no group
-sets nothing, so `setting` (C011) reports it. Without one, the defaults apply. This repo's
+read, never linted. A setting whose name is no rule's slug, no group and no
+limit's sets nothing, so `setting` (C011) reports it. Without one, the defaults apply. This repo's
 [bolt.bend](../bolt.bend) sets every group to error and turns the opt-in
 laws rules on: the gate must see `clean`.
 
@@ -559,9 +559,9 @@ statement.
   is only imports, wherever its header's `->` and return type fall. A file headed `# lanes: native`
   needs no `.js`: that exact line must be one of the comment lines before the
   file's first non-comment line.
-- `setting` — a setting in a bolt.bend whose name is no rule's slug and no
-  group (`def wrp() -> String: "off"`, or a retired name such as `quantify`
-  or `shadow`): grading only looks names up, so it sets nothing, and the
+- `setting` — a setting in a bolt.bend whose name is no rule's slug, no
+  group and no limit's (`def wrp() -> String: "off"`, `def reach_mx() ->
+  U32: 30`, or a retired name such as `quantify` or `shadow`): grading only looks names up, so it sets nothing, and the
   typo fails open. It is reported once for each bolt.bend that grades a
   file of the run, at that bolt.bend's path and the setting's `def` line,
   after the per-file findings and before `coverage`'s.

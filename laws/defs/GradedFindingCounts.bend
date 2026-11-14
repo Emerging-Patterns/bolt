@@ -118,7 +118,7 @@ def flagged(+path: String, ss: List<&2, Config.Setting>) -> List<&2, F.Finding>:
     case Nil{}:
       []
     case Con{Config.Setting{n, _w, line}, rest}:
-      F.Finding{path, line, 0, 0, "setting", "`" ++ n ++ "` names no rule or group, so it sets nothing."}
+      F.Finding{path, line, 0, 0, "setting", "`" ++ n ++ "` names no rule, group or limit, so it sets nothing."}
         <> flagged(path, rest)
 
 # a bolt.bend's `setting` findings, its unknown settings, when the World

@@ -1,6 +1,8 @@
 # A bolt.bend sets a rule or a group to a level by a def whose body is one
-# string: `def doc() -> String: "off"`. Each such def is one setting, read in
-# file order: its name, and the string with its quotes dropped. A config is
+# string: `def doc() -> String: "off"`, and a limit by one whose body is a
+# number (laws/ConfigLimitsResolve.bend). Each such def is one setting, read
+# in file order: its name, and its word, the string with its quotes dropped
+# or the number as written. A config is
 # those settings, each at the level its word names, in the same order, so the
 # first setting of a name is the one that grades
 # (laws/ConfigLevelsResolve.bend reads them from the front).
@@ -44,5 +46,5 @@ law settings_in_file_order:
   for rest: Tree.Node
   {Config.settings.go(Tree.NCons{Tree.Stmt{Tree.SDef{}, kids, body}, rest})
     == List.append(&2, Config.Setting,
-      Config.setting(Bind.declared(kids), Config.first_str(Tree.leaves(body)), Tree.line(kids)),
+      Config.setting(Bind.declared(kids), Config.first_word(Tree.leaves(body)), Tree.line(kids)),
       Config.settings.go(rest)) : List<&2, Config.Setting>}

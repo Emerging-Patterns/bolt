@@ -80,7 +80,7 @@ def c011.found(ss, path):
       {==}
     case Con{Config.Setting{+n, _w, +line}, +tl}:
       Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
-        rr => F.Finding{path, line, 0, 0, "setting", "`" ++ n ++ "` names no rule or group, so it sets nothing."} <> rr,
+        rr => F.Finding{path, line, 0, 0, "setting", "`" ++ n ++ "` names no rule, group or limit, so it sets nothing."} <> rr,
         Setting.found(tl, path), D1.flagged(path, tl), c011.found(tl, path))
 
 # one bolt.bend onto the rule's findings

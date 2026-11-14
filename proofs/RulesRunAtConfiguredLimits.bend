@@ -2,6 +2,7 @@
 import Base
 import ../src/config.bend as Config
 import ../src/rules.bend as Rules
+import ../src/rules/style/size.bend as Size
 import ../laws/RulesRunAtConfiguredLimits.bend as Laws
 
 def Laws.tune_reach(_cfg, _max):
@@ -15,6 +16,15 @@ def Laws.tune_size(_cfg, _dim, _max):
 
 def Laws.run_size_at_limit(_rr, _ss, _dim, _max):
   {==}
+
+def Laws.size_limit_names_known(dim):
+  match dim:
+    case Size.DArity{}:
+      {==}
+    case Size.DLength{}:
+      {==}
+    case Size.DDepth{}:
+      {==}
 
 def Laws.tuned_keeps_slugs(rs, cfg):
   match rs:

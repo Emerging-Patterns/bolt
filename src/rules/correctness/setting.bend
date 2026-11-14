@@ -1,6 +1,7 @@
-# rule setting: a setting in a bolt.bend (a `def` whose body holds a string)
-# whose name is neither a rule's slug nor a group, as the code table
-# (src/codes.bend) lists them. Grading only looks names up, so such a setting
+# rule setting: a setting in a bolt.bend (a `def` whose body holds a string
+# or a number) whose name is neither a rule's slug nor a group, as the code
+# table (src/codes.bend) lists them, nor a limit's (`reach_max`,
+# src/config.bend's `limit.names`). Grading only looks names up, so such a setting
 # sets nothing and fails open: `def wrp() -> String: "off"` leaves `wrap` at
 # its group's level, and a retired name (`def quantify()`, `def shadow()`)
 # does nothing at all. Rename it to the rule or group it meant, or delete it.
@@ -24,7 +25,7 @@ def found(ss: List<&2, Config.Setting>, +path: String) -> List<&2, F.Finding>:
     case Nil{}:
       Nil{}
     case Con{Config.Setting{n, _w, line}, rest}:
-      F.Finding{path, line, 0, 0, "setting", "`" ++ n ++ "` names no rule or group, so it sets nothing."}
+      F.Finding{path, line, 0, 0, "setting", "`" ++ n ++ "` names no rule, group or limit, so it sets nothing."}
         <> found(rest, path)
 
 # the findings on a bolt.bend's text: one for each setting whose name is no
