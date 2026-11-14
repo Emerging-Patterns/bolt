@@ -1,7 +1,10 @@
 # `unused` reports exactly an unused let, do-bind, lambda binder or parameter,
 # with the header's exemptions: a foreign def, whose parameters are exempt, is
 # one whose body's first statement is `import`, wherever its header's `->` and
-# return type fall.
+# return type fall (its body is what is under its whole header,
+# laws/DefSignatureRunsToItsColon.bend).
+#
+# also rests on: laws/DefSignatureRunsToItsColon.bend
 import Base
 import ../src/syntax/lex.bend as Lex
 import ../src/finding.bend as F
@@ -11,14 +14,14 @@ import ../src/syntax/tree.bend as Tree
 import ../src/syntax/outline.bend as Outline
 import ../src/rules/tokens.bend as T
 import ../src/rules/suspicious/unused.bend as Unused
+import ../src/rules/calls.bend as Calls
 
 # The binding rule, unused. It reads the binder's lists: every binder, and
 # every use with what it resolves to. A binder counts when it is a let, a
 # do-bind or a lambda binder (KLocal), or a parameter (KParam) that is not
 # erased (its declaration opens with `-`) and does not sit on a header line
-# of a foreign def (its body's first statement, once a header that does not
-# end in `:` has run on through the statements up to one that does, is an
-# `import`); its name does not start with `_`; and no use resolves to
+# of a foreign def (the first statement under its whole header, Calls.under,
+# is an `import`); its name does not start with `_`; and no use resolves to
 # its position. Pattern binders (KPat), a law's `for` names (KFor) and every
 # other kind never count.
 
@@ -30,29 +33,18 @@ def unused.is_import(sk: Tree.StmtKind) -> Bool:
     case other:
       False{}
 
-# does a statement's own chain end in a `:` leaf (Unused.colon, the rule's
-# reading of one)? last: whether the node before the chain did
-def unused.ends(kids: Tree.Node, last: Bool) -> Bool:
-  match kids:
-    case Tree.NCons{h, t}:
-      unused.ends(t, Unused.colon(h))
-    case other:
-      last
-
-# does the body open with an import once the def's header is over? While the
-# header is open (its tokens so far do not end in `:`), each statement of the
-# body is more of it: `-> IO(T):` on the line after `def f(..)`
-def unused.opens(body: Tree.Node, +open: Bool) -> Bool:
+# does a body open with an import statement?
+def unused.opens(body: Tree.Node) -> Bool:
   match body:
     case Tree.NCons{Tree.Stmt{sk, kids, b}, rest}:
-      Bool.pick(Bool, open, unused.opens(rest, Bool.not(unused.ends(kids, False{}))), unused.is_import(sk))
+      unused.is_import(sk)
     case other:
       False{}
 
 # does a def's body open with an import statement, wherever its header's `->`
 # and return type fall? then the def is foreign
 def unused.imported(kids: Tree.Node, body: Tree.Node) -> Bool:
-  unused.opens(body, Bool.not(unused.ends(kids, False{})))
+  unused.opens(Calls.under(kids, body))
 
 # the line of each token
 def unused.token_lines(ts: List<&2, Lex.Tok>) -> List<&2, U32>:

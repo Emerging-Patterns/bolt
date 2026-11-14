@@ -1,9 +1,9 @@
 # `fuel` reports exactly an argument that is one Nat literal token alone, or
 # the dotted name `U32.to_nat` then a `(` group holding one U32 literal token
 # (digits) alone, in a call (not a self-call) to a def of the file that
-# returns no effect (its header holds no top-level `->` token followed right
-# away by the capitalized name token `IO`, nor ends in a `->` whose first
-# statement under the def starts with that token), at a parameter named
+# returns no effect (its header, wrapped over lines or not, holds no
+# top-level `->` token followed right away by the capitalized name token
+# `IO`), at a parameter named
 # `fuel`, `gas`, `steps` or `budget` or starting with `fuel`.
 import Base
 import ../src/syntax/lex.bend as Lex
@@ -21,9 +21,8 @@ import ../src/rules/pedantic/fuel.bend as FuelRule
 # (Calls.params) whose name, its first lowercase name before the colon
 # (Calls.param_name), is `fuel`, `gas`, `steps` or `budget` or starts with
 # `fuel`, with its position. A def returns an effect when its header's
-# top-level tokens hold a `->` leaf followed right away by a capitalized name
-# leaf `IO`, or, when that `->` is the header's last token (a header wrapped
-# after its arrow), the first statement under the def starts with one. Over
+# top-level tokens (the whole header: laws/DefSignatureRunsToItsColon.bend)
+# hold a `->` leaf followed right away by a capitalized name leaf `IO`. Over
 # each top-level statement it then reads every call at any depth, a name
 # token then a `(` group, that is not a call of the statement's own name (a
 # self-call): for each fuel parameter of a def of that name, one finding when
@@ -55,36 +54,18 @@ def fuel.io.next(nn: Tree.Node) -> Bool:
     case other:
       False{}
 
-# the tokens of the first statement under a def, none when there is none
-def fuel.under(body: Tree.Node) -> Tree.Node:
-  match body:
-    case Tree.NCons{Tree.Stmt{kind, kids, inner}, rest}:
-      kids
-    case other:
-      Tree.NNil{}
-
-# after an arrow: the rest of the header when there is one, else the tokens
-# of the line under it (the header wrapped after its `->`)
-def fuel.io.after(rest: Tree.Node, +below: Tree.Node) -> Bool:
-  match rest:
-    case Tree.NCons{h, t}:
-      fuel.io.next(Tree.NCons{h, t})
-    case other:
-      fuel.io.next(below)
-
-# does the header return an effect: some top-level `->` leaf followed by a
-# capitalized name leaf reading `IO`, the first of the line under it when the
-# arrow ends the header?
-def fuel.io(sig: Tree.Node, +below: Tree.Node) -> Bool:
+# does the header return an effect: some top-level `->` leaf followed right
+# away by a capitalized name leaf reading `IO`?
+def fuel.io(sig: Tree.Node) -> Bool:
   match sig:
     case Tree.NCons{h, +rest}:
-      Bool.or(Bool.and(Calls.kind.leaf(~Calls.kind.arrow, h), fuel.io.after(rest, below)), fuel.io(rest, below))
+      Bool.or(Bool.and(Calls.kind.leaf(~Calls.kind.arrow, h), fuel.io.next(rest)), fuel.io(rest))
     case other:
       False{}
 
 # the parameters of a def that returns no effect, none of one that does
-def fuel.params(+sig: Tree.Node, body: Tree.Node) -> List<&2, Tree.Node>:
-  Bool.pick(List<&2, Tree.Node>, fuel.io(sig, fuel.under(body)), [], Calls.params(sig))
+def fuel.params(+sig: Tree.Node) -> List<&2, Tree.Node>:
+  Bool.pick(List<&2, Tree.Node>, fuel.io(sig), [], Calls.params(sig))
 
 # every fuel parameter of every def that returns no effect, in order
 def fuel.slots(ds: List<&2, Calls.Def>) -> List<&2, FuelRule.Fuel>:
@@ -92,7 +73,7 @@ def fuel.slots(ds: List<&2, Calls.Def>) -> List<&2, FuelRule.Fuel>:
     case Nil{}:
       Nil{}
     case Con{Calls.Def{name, sig, body}, rest}:
-      List.append(&2, FuelRule.Fuel, fuel.slots.of(fuel.params(sig, body), name, 0n), fuel.slots(rest))
+      List.append(&2, FuelRule.Fuel, fuel.slots.of(fuel.params(sig), name, 0n), fuel.slots(rest))
 
 # does a call's group hold one number token alone, digits only (a U32
 # literal), when ok says the call is `U32.to_nat(`?

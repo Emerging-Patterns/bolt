@@ -6,6 +6,7 @@ import ../src/syntax/bind.bend as Bind
 import ../src/lazy/lazy.bend as Lazy
 import ../src/syntax/tree.bend as Tree
 import ../src/rules/suspicious/unused.bend as Unused
+import ../src/rules/calls.bend as Calls
 import ../laws/UnusedReportsDeadBinders.bend as Laws
 import ./lemmas/Nat.bend as M1
 import ./lemmas/UnusedBinderPick.bend as M2
@@ -49,25 +50,6 @@ def unused.header(kids, rest, ih):
     Equal.cong(List<&2, U32>, List<&2, U32>, xs => List.append(&2, U32, Laws.unused.token_lines(Tree.leaves(kids)), xs),
       Unused.foreign(rest), Laws.unused.headers(rest), ih))
 
-# the rule's `:` test on a statement's chain is the law's
-law unused.ends:
-  for kids: Tree.Node
-  for last: Bool
-  {Unused.foreign.ends(kids, last) == Laws.unused.ends(kids, last) : Bool}
-
-def unused.ends(kids, _last):
-  match kids:
-    case Tree.NCons{h, t}:
-      unused.ends(t, Unused.colon(h))
-    case Tree.Leaf{x}:
-      {==}
-    case Tree.Group{x, y, z}:
-      {==}
-    case Tree.Stmt{x, y, z}:
-      {==}
-    case Tree.NNil{}:
-      {==}
-
 # the rule's import test is the law's
 law unused.first:
   for sk: Tree.StmtKind
@@ -92,28 +74,17 @@ def unused.first(sk):
     case Tree.STerm{}:
       {==}
 
-# the rule's test for a body that opens with an import once the header is
-# over is the law's, whether the header is still open or not
+# the rule's test for a body that opens with an import is the law's
 law unused.opens:
   for body: Tree.Node
-  for open: Bool
-  {Unused.foreign.opens(body, open) == Laws.unused.opens(body, open) : Bool}
+  {Unused.foreign.opens(body) == Laws.unused.opens(body) : Bool}
 
-def unused.opens(body, open):
+def unused.opens(body):
   match body:
-    case Tree.NCons{h, +rest}:
+    case Tree.NCons{h, rest}:
       match h:
-        case Tree.Stmt{sk, +kids, b}:
-          match open:
-            case True{}:
-              Equal.trans(Bool, Unused.foreign.opens(rest, Bool.not(Unused.foreign.ends(kids, False{}))),
-                Laws.unused.opens(rest, Bool.not(Unused.foreign.ends(kids, False{}))),
-                Laws.unused.opens(rest, Bool.not(Laws.unused.ends(kids, False{}))),
-                unused.opens(rest, Bool.not(Unused.foreign.ends(kids, False{}))),
-                Equal.cong(Bool, Bool, z => Laws.unused.opens(rest, Bool.not(z)), Unused.foreign.ends(kids, False{}),
-                  Laws.unused.ends(kids, False{}), unused.ends(kids, False{})))
-            case False{}:
-              unused.first(sk)
+        case Tree.Stmt{sk, kids, b}:
+          unused.first(sk)
         case Tree.Leaf{x}:
           {==}
         case Tree.Group{x, y, z}:
@@ -137,25 +108,22 @@ law unused.def:
   for +body: Tree.Node
   for +rest: Tree.Node
   for +ih: {Unused.foreign(rest) == Laws.unused.headers(rest) : List<&2, U32>}
-  {Bool.pick(List<&2, U32>, Unused.foreign.opens(body, Bool.not(Unused.foreign.ends(kids, False{}))),
+  {Bool.pick(List<&2, U32>, Unused.foreign.opens(Calls.under(kids, body)),
     Unused.lines(Tree.leaves(kids), Unused.foreign(rest)), Unused.foreign(rest))
     == Bool.pick(List<&2, U32>, Laws.unused.imported(kids, body),
       List.append(&2, U32, Laws.unused.token_lines(Tree.leaves(kids)), Laws.unused.headers(rest)),
       Laws.unused.headers(rest)) : List<&2, U32>}
 
 def unused.def(kids, body, rest, ih):
-  +rc = Unused.foreign.opens(body, Bool.not(Unused.foreign.ends(kids, False{})))
+  +rc = Unused.foreign.opens(Calls.under(kids, body))
   +lc = Laws.unused.imported(kids, body)
   +ra = Unused.lines(Tree.leaves(kids), Unused.foreign(rest))
   +la = List.append(&2, U32, Laws.unused.token_lines(Tree.leaves(kids)), Laws.unused.headers(rest))
-  +ec = Equal.trans(Bool, rc, Laws.unused.opens(body, Bool.not(Unused.foreign.ends(kids, False{}))), lc,
-    unused.opens(body, Bool.not(Unused.foreign.ends(kids, False{}))),
-    Equal.cong(Bool, Bool, z => Laws.unused.opens(body, Bool.not(z)), Unused.foreign.ends(kids, False{}),
-      Laws.unused.ends(kids, False{}), unused.ends(kids, False{})))
   Equal.trans(List<&2, U32>, Bool.pick(List<&2, U32>, rc, ra, Unused.foreign(rest)),
     Bool.pick(List<&2, U32>, lc, ra, Unused.foreign(rest)),
     Bool.pick(List<&2, U32>, lc, la, Laws.unused.headers(rest)),
-    Equal.cong(Bool, List<&2, U32>, z => Bool.pick(List<&2, U32>, z, ra, Unused.foreign(rest)), rc, lc, ec),
+    Equal.cong(Bool, List<&2, U32>, z => Bool.pick(List<&2, U32>, z, ra, Unused.foreign(rest)), rc, lc,
+      unused.opens(Calls.under(kids, body))),
     M2.unused.pick(lc, ra, la, Unused.foreign(rest), Laws.unused.headers(rest), unused.header(kids, rest, ih), ih))
 
 # the rule's foreign lines are the law's header lines

@@ -75,73 +75,27 @@ def fuel.io.next(nn):
     case Tree.Stmt{sk, sks, sb}: {==}
     case Tree.NNil{}: {==}
 
-# the rule's first line under a def is the law's
-law fuel.under:
-  for body: Tree.Node
-  {FuelRule.under(body) == Laws.fuel.under(body) : Tree.Node}
-
-def fuel.under(body):
-  match body:
-    case Tree.NCons{h, r}:
-      match h:
-        case Tree.Stmt{k, kids, inner}: {==}
-        case Tree.Leaf{tok}: {==}
-        case Tree.Group{o, gk, cl}: {==}
-        case Tree.NNil{}: {==}
-        case Tree.NCons{x, y}: {==}
-    case Tree.Leaf{tok}: {==}
-    case Tree.Group{o, gk, cl}: {==}
-    case Tree.Stmt{sk, sks, sb}: {==}
-    case Tree.NNil{}: {==}
-
-# the rule reads what follows an arrow as the law does
-law fuel.after:
-  for rest: Tree.Node
-  for +below: Tree.Node
-  {FuelRule.effect.next(rest, below) == Laws.fuel.io.after(rest, below) : Bool}
-
-def fuel.after(rest, below):
-  match rest:
-    case Tree.NCons{h, t}: fuel.io.next(Tree.NCons{h, t})
-    case Tree.Leaf{tok}: fuel.io.next(below)
-    case Tree.Group{o, gk, cl}: fuel.io.next(below)
-    case Tree.Stmt{sk, sks, sb}: fuel.io.next(below)
-    case Tree.NNil{}: fuel.io.next(below)
-
 # the rule's effect test on a header is the law's
 law fuel.effect:
   for sig: Tree.Node
-  for +below: Tree.Node
-  {FuelRule.effect(sig, below) == Laws.fuel.io(sig, below) : Bool}
+  {FuelRule.effect(sig) == Laws.fuel.io(sig) : Bool}
 
-def fuel.effect(sig, below):
+def fuel.effect(sig):
   match sig:
     case Tree.NCons{h, +rest}:
       +a = Calls.kind.leaf(~Calls.kind.arrow, h)
       Equal.trans(Bool,
-        Bool.or(Bool.and(a, FuelRule.effect.next(rest, below)), FuelRule.effect(rest, below)),
-        Bool.or(Bool.and(a, Laws.fuel.io.after(rest, below)), FuelRule.effect(rest, below)),
-        Bool.or(Bool.and(a, Laws.fuel.io.after(rest, below)), Laws.fuel.io(rest, below)),
-        Equal.cong(Bool, Bool, z => Bool.or(Bool.and(a, z), FuelRule.effect(rest, below)),
-          FuelRule.effect.next(rest, below), Laws.fuel.io.after(rest, below), fuel.after(rest, below)),
-        Equal.cong(Bool, Bool, z => Bool.or(Bool.and(a, Laws.fuel.io.after(rest, below)), z),
-          FuelRule.effect(rest, below), Laws.fuel.io(rest, below), fuel.effect(rest, below)))
+        Bool.or(Bool.and(a, FuelRule.effect.io(rest)), FuelRule.effect(rest)),
+        Bool.or(Bool.and(a, Laws.fuel.io.next(rest)), FuelRule.effect(rest)),
+        Bool.or(Bool.and(a, Laws.fuel.io.next(rest)), Laws.fuel.io(rest)),
+        Equal.cong(Bool, Bool, z => Bool.or(Bool.and(a, z), FuelRule.effect(rest)),
+          FuelRule.effect.io(rest), Laws.fuel.io.next(rest), fuel.io.next(rest)),
+        Equal.cong(Bool, Bool, z => Bool.or(Bool.and(a, Laws.fuel.io.next(rest)), z),
+          FuelRule.effect(rest), Laws.fuel.io(rest), fuel.effect(rest)))
     case Tree.Leaf{tok}: {==}
     case Tree.Group{o, gk, cl}: {==}
     case Tree.Stmt{sk, sks, sb}: {==}
     case Tree.NNil{}: {==}
-
-# a def's effect test, the rule's and the law's
-law fuel.def:
-  for +sig: Tree.Node
-  for +body: Tree.Node
-  {FuelRule.effect(sig, FuelRule.under(body)) == Laws.fuel.io(sig, Laws.fuel.under(body)) : Bool}
-
-def fuel.def(sig, body):
-  Equal.trans(Bool, FuelRule.effect(sig, FuelRule.under(body)), Laws.fuel.io(sig, FuelRule.under(body)),
-    Laws.fuel.io(sig, Laws.fuel.under(body)), fuel.effect(sig, FuelRule.under(body)),
-    Equal.cong(Tree.Node, Bool, z => Laws.fuel.io(sig, z), FuelRule.under(body), Laws.fuel.under(body),
-      fuel.under(body)))
 
 def Laws.fuel_slots(ds):
   match ds:
@@ -149,21 +103,20 @@ def Laws.fuel_slots(ds):
       {==}
     case Con{d, +rest}:
       match d:
-        case Calls.Def{+name, +sig, +body}:
-          +aa = FuelRule.fuels.params(FuelRule.slots(sig, body), name, 0n)
-          +bb = Laws.fuel.slots.of(Laws.fuel.params(sig, body), name, 0n)
+        case Calls.Def{+name, +sig, body}:
+          +aa = FuelRule.fuels.params(FuelRule.slots(sig), name, 0n)
+          +bb = Laws.fuel.slots.of(Laws.fuel.params(sig), name, 0n)
           Equal.trans(List<&2, FuelRule.Fuel>, List.append(&2, FuelRule.Fuel, aa, FuelRule.fuels(rest)),
             List.append(&2, FuelRule.Fuel, bb, FuelRule.fuels(rest)), List.append(&2, FuelRule.Fuel, bb,
               Laws.fuel.slots(rest)),
             Equal.cong(List<&2, FuelRule.Fuel>, List<&2, FuelRule.Fuel>, x => List.append(&2, FuelRule.Fuel, x,
               FuelRule.fuels(rest)),
               aa, bb, Equal.trans(List<&2, FuelRule.Fuel>, aa,
-                FuelRule.fuels.params(Laws.fuel.params(sig, body), name, 0n), bb,
+                FuelRule.fuels.params(Laws.fuel.params(sig), name, 0n), bb,
                 Equal.cong(Bool, List<&2, FuelRule.Fuel>,
                   z => FuelRule.fuels.params(Bool.pick(List<&2, Tree.Node>, z, [], Calls.params(sig)), name, 0n),
-                  FuelRule.effect(sig, FuelRule.under(body)), Laws.fuel.io(sig, Laws.fuel.under(body)),
-                  fuel.def(sig, body)),
-                fuel.of(Laws.fuel.params(sig, body), name, 0n))),
+                  FuelRule.effect(sig), Laws.fuel.io(sig), fuel.effect(sig)),
+                fuel.of(Laws.fuel.params(sig), name, 0n))),
             Equal.cong(List<&2, FuelRule.Fuel>, List<&2, FuelRule.Fuel>, x => List.append(&2, FuelRule.Fuel, bb, x),
               FuelRule.fuels(rest), Laws.fuel.slots(rest), Laws.fuel_slots(rest)))
 

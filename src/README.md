@@ -580,8 +580,8 @@ statement.
   counts, `3n` included. Only an argument that is the literal alone, or
   `U32.to_nat(` it `)`, counts, so a let-bound literal and `(7n)` are not
   seen. A def's own calls are exempt, and so is a def that returns an
-  effect: a header with `->` then the name `IO` (`-> IO(Unit):`), or one
-  that ends in `->` with `IO(..):` on the next line. Its fuel bounds reads,
+  effect: a header with `->` then the name `IO` (`-> IO(Unit):`), however
+  the header is wrapped over lines. Its fuel bounds reads,
   frames or retries the outside world sets (a drain of 256 datagrams a
   tick, a read of 100000 chunks), not the size of an input it was given.
 - `tail` (pedantic) — a self-call that is not a tail call, in a def whose
