@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.54.0](https://github.com/Emerging-Patterns/bolt/compare/v1.53.0...v1.54.0) (2026-11-14)
+
+
+### Features
+
+* **config:** a bolt.bend sets a rule's limit; reach reads reach_max ([#362](https://github.com/Emerging-Patterns/bolt/issues/362)) ([f67964b](https://github.com/Emerging-Patterns/bolt/commit/f67964b8212a80cd55bea6aa0ccf212f13091fa5))
+
+
+### Bug Fixes
+
+* **syntax:** read the lines under a let by what the let's line ends in ([#361](https://github.com/Emerging-Patterns/bolt/issues/361)) ([b82866f](https://github.com/Emerging-Patterns/bolt/commit/b82866f30659597aba12e9d065af776439bbdb33)), closes [#346](https://github.com/Emerging-Patterns/bolt/issues/346)
+
 ## [1.53.0](https://github.com/Emerging-Patterns/bolt/compare/v1.52.0...v1.53.0) (2026-11-14)
 
 
