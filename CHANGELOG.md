@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.63.0](https://github.com/Emerging-Patterns/bolt/compare/v1.62.0...v1.63.0) (2026-11-14)
+
+
+### Features
+
+* **rules:** negate (S012), a negated U32 or Nat comparison has a word ([#391](https://github.com/Emerging-Patterns/bolt/issues/391)) ([eff03f7](https://github.com/Emerging-Patterns/bolt/commit/eff03f78aac355058b7b65d12a8f8ff6cffa40fa)), closes [#388](https://github.com/Emerging-Patterns/bolt/issues/388)
+
 ## [1.62.0](https://github.com/Emerging-Patterns/bolt/compare/v1.61.0...v1.62.0) (2026-11-14)
 
 
