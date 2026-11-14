@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.59.0](https://github.com/Emerging-Patterns/bolt/compare/v1.58.0...v1.59.0) (2026-11-14)
+
+
+### Features
+
+* **fmt:** bolt fmt puts a space after a comma and makes a run of spaces one ([#379](https://github.com/Emerging-Patterns/bolt/issues/379)) ([926d05e](https://github.com/Emerging-Patterns/bolt/commit/926d05e1c90be5edec47511415b5ba963627648b))
+
 ## [1.58.0](https://github.com/Emerging-Patterns/bolt/compare/v1.57.0...v1.58.0) (2026-11-14)
 
 
