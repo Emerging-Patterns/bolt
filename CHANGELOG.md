@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.53.0](https://github.com/Emerging-Patterns/bolt/compare/v1.52.0...v1.53.0) (2026-11-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **rules:** `param` (S004) is removed and its code is not reused. A bolt.bend that still sets `def param()` gets a `setting` finding (C011): delete the def. A `# noqa: S004` comment is now a `noqa` finding (S005). `reach` (S008) is new and graded with `style`: a project with `style` at error gets an error for each one-character name read more than 20 lines below its binder.
+
+### Features
+
+* **rules:** reach (S008) replaces param (S004) ([#357](https://github.com/Emerging-Patterns/bolt/issues/357)) ([cfdc3c6](https://github.com/Emerging-Patterns/bolt/commit/cfdc3c6247d1cf581f676d54d78aac0d311b3f7a))
+
 ## [1.52.0](https://github.com/Emerging-Patterns/bolt/compare/v1.51.0...v1.52.0) (2026-11-13)
 
 
