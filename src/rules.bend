@@ -74,7 +74,7 @@ type Which is Data:
   WHole{}
   WSpace{}
   WWrap{}
-  WReach{}
+  WReach{max: U32}
   WPick{}
   WSearch{}
   WStrict{}
@@ -120,8 +120,8 @@ def on.run(ww: Which, +role: Role.Role, +src: Src.Src) -> List<&2, F.Finding>:
       Space.check(src)
     case WWrap{}:
       Wrap.check(src)
-    case WReach{}:
-      Reach.check.role(role, src)
+    case WReach{max}:
+      Reach.check.role(role, src, max)
     case WPick{}:
       Role.skip(role, _u => Pick.check(src))
     case WSearch{}:
@@ -179,7 +179,7 @@ def on.table() -> List<&2, Run>:
     Run{"hole", WHole{}},
     Run{"space", WSpace{}},
     Run{"wrap", WWrap{}},
-    Run{"reach", WReach{}},
+    Run{"reach", WReach{Reach.limit()}},
     Run{"pick", WPick{}},
     Run{"pick", WSearch{}},
     Run{"strict", WStrict{}},
@@ -223,13 +223,33 @@ def on.all(rs: List<&2, Run>, +rr: Role.Role, +ss: Src.Src) -> List<&2, F.Findin
     case Con{Run{+slug, ww}, rest}:
       List.append(&2, F.Finding, on.slug(slug, on.run(ww, rr, ss)), on.all(rest, rr, ss))
 
-# every per-file rule's findings on a file, told its role
-def on.rules.role(+rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
-  on.all(on.table(), rr, ss)
+# a check at the limit a config sets for its rule (`def reach_max()` in a
+# bolt.bend); a check with no limit, or one the config does not set, is as
+# it was
+def on.tune(cfg: Config.Config, ww: Which) -> Which:
+  match ww:
+    case WReach{max}:
+      WReach{Config.limit(cfg, "reach_max", max)}
+    case other:
+      other
 
-# every rule's findings on a file read once, told its role, each at that file
-def on.role(+rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
-  on.at(on.path(ss), on.rules.role(rr, ss))
+# every entry of a table, each check at the limit a config sets
+def on.tuned(rs: List<&2, Run>, +cfg: Config.Config) -> List<&2, Run>:
+  match rs:
+    case Nil{}:
+      Nil{}
+    case Con{Run{slug, ww}, rest}:
+      Run{slug, on.tune(cfg, ww)} <> on.tuned(rest, cfg)
+
+# every per-file rule's findings on a file, told its role, each rule at the
+# limit the file's config sets
+def on.rules.role(+cfg: Config.Config, +rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
+  on.all(on.tuned(on.table(), cfg), rr, ss)
+
+# every rule's findings on a file read once, told its role and at its
+# config's limits, each at that file
+def on.role(+cfg: Config.Config, +rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
+  on.at(on.path(ss), on.rules.role(cfg, rr, ss))
 
 # Packages (laws/ScopePackageRootsFound.bend). A package root other than `.` is a directory
 # holding a main.bend; a file belongs to the nearest root at or above it, and
@@ -339,4 +359,4 @@ def on.live(rs: List<&2, Run>, +cfg: Config.Config, +rr: Role.Role, +ss: Src.Src
 # the findings on a file of every rule its config does not set off, each at
 # that file
 def on.role.live(+cfg: Config.Config, +rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
-  on.at(on.path(ss), on.live(on.table(), cfg, rr, ss))
+  on.at(on.path(ss), on.live(on.tuned(on.table(), cfg), cfg, rr, ss))

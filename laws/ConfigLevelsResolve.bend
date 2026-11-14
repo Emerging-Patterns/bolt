@@ -32,6 +32,7 @@ law set_level_skip:
 # LAW: a rule with no setting of its own, and not opt-in, is at its group's
 # setting
 law level_group:
+  for lims: List<&2, Config.Limit>
   for +sets: List<&2, Config.LevelSet>
   for +group: String
   for +rule: String
@@ -39,15 +40,16 @@ law level_group:
   for h_rule: {Config.set_level(sets, rule) == None{} : Maybe<&2, Config.Level>}
   for h_opt: {Config.opt_in(rule) == False{} : Bool}
   for h_group: {Config.set_level(sets, group) == Some{l} : Maybe<&2, Config.Level>}
-  {Config.level(Config.Config{sets}, group, rule) == l : Config.Level}
+  {Config.level(Config.Config{sets, lims}, group, rule) == l : Config.Level}
 
 # LAW: a rule with no setting of its own, not opt-in, whose group has no
 # setting either, is at its group's default
 law level_default:
+  for lims: List<&2, Config.Limit>
   for +sets: List<&2, Config.LevelSet>
   for +group: String
   for +rule: String
   for h_rule: {Config.set_level(sets, rule) == None{} : Maybe<&2, Config.Level>}
   for h_opt: {Config.opt_in(rule) == False{} : Bool}
   for h_group: {Config.set_level(sets, group) == None{} : Maybe<&2, Config.Level>}
-  {Config.level(Config.Config{sets}, group, rule) == Config.default(group) : Config.Level}
+  {Config.level(Config.Config{sets, lims}, group, rule) == Config.default(group) : Config.Level}

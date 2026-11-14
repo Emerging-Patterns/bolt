@@ -80,40 +80,47 @@ def lint.parsed(ps, world):
 
 # one source onto the per-file findings
 law lint.on.step:
+  for +cs: List<&2, Plan.Conf>
+  for +world: W.World
   for +ms: List<&2, Role.Mark>
   for +path: String
   for mm: Maybe<&2, String>
   for +gs: List<&2, Plan.Got>
   for -os: List<&2, F.Finding>
-  for ih: {Plan.per_file.role(ms, Plan.srcs_of(gs)) == os : List<&2, F.Finding>}
-  {Plan.per_file.role(ms, Plan.srcs_of(Plan.Got{path, mm} <> gs))
-    == List.append(&2, F.Finding, D1.on_at(ms, path, mm), os) : List<&2, F.Finding>}
+  for ih: {Plan.per_file.role(cs, world, ms, Plan.srcs_of(gs)) == os : List<&2, F.Finding>}
+  {Plan.per_file.role(cs, world, ms, Plan.srcs_of(Plan.Got{path, mm} <> gs))
+    == List.append(&2, F.Finding, D1.on_at(cs, world, ms, path, mm), os) : List<&2, F.Finding>}
 
-def lint.on.step(ms, path, mm, gs, os, ih):
+def lint.on.step(cs, world, ms, path, mm, gs, os, ih):
   match mm:
     case None{}:
       ih
     case Some{text}:
       Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
-        rr => List.append(&2, F.Finding, Rules.on.role(Role.of(ms, path), Src.of(path, text)), rr),
-        List.append(&2, F.Finding, Plan.per_file.role(ms, Plan.srcs_of(gs)), []), os,
-        Equal.trans(List<&2, F.Finding>, List.append(&2, F.Finding, Plan.per_file.role(ms, Plan.srcs_of(gs)), []),
-          Plan.per_file.role(ms, Plan.srcs_of(gs)), os,
-          M3.lint.app_nil(F.Finding, Plan.per_file.role(ms, Plan.srcs_of(gs))), ih))
+        rr => List.append(&2, F.Finding, Rules.on.role(Plan.config.at(cs, world, path), Role.of(ms, path),
+          Src.of(path, text)), rr),
+        List.append(&2, F.Finding, Plan.per_file.role(cs, world, ms, Plan.srcs_of(gs)), []), os,
+        Equal.trans(List<&2, F.Finding>, List.append(&2, F.Finding, Plan.per_file.role(cs, world, ms,
+          Plan.srcs_of(gs)), []),
+          Plan.per_file.role(cs, world, ms, Plan.srcs_of(gs)), os,
+          M3.lint.app_nil(F.Finding, Plan.per_file.role(cs, world, ms, Plan.srcs_of(gs))), ih))
 
 # the planner's per-file findings are each source's with its role, in order
 law lint.on:
+  for +cs: List<&2, Plan.Conf>
   for +ms: List<&2, Role.Mark>
   for ps: List<&2, String>
   for +world: W.World
-  {Plan.per_file.role(ms, Plan.srcs_of(Plan.gots(ps, world))) == D1.on_all(ms, world, ps) : List<&2, F.Finding>}
+  {Plan.per_file.role(cs, world, ms, Plan.srcs_of(Plan.gots(ps, world))) == D1.on_all(cs, ms, world, ps) : List<&2,
+    F.Finding>}
 
-def lint.on(ms, ps, world):
+def lint.on(cs, ms, ps, world):
   match ps:
     case Nil{}:
       {==}
     case Con{+p, +tl}:
-      lint.on.step(ms, p, W.text(world, p), Plan.gots(tl, world), D1.on_all(ms, world, tl), lint.on(ms, tl, world))
+      lint.on.step(cs, world, ms, p, W.text(world, p), Plan.gots(tl, world), D1.on_all(cs, ms, world, tl),
+        lint.on(cs, ms, tl, world))
 
 def L3.scope_findings(world):
   n = Equal.sym(List<&2, F.Finding>,
@@ -123,7 +130,7 @@ def L3.scope_findings(world):
     M3.lint.app_nil(F.Finding, Rules.project(Plan.srcs_of(Plan.gots(Plan.inputs(world), world)),
         Plan.packages(Plan.roots(world)))))
   %n : {List.append(&2, F.Finding, Plan.unread(Plan.gots(Plan.inputs(world), world)),
-      List.append(&2, F.Finding, Plan.per_file.role(Plan.marks.run(W.paths.of(world), world,
+      List.append(&2, F.Finding, Plan.per_file.role(Plan.confs(world), world, Plan.marks.run(W.paths.of(world), world,
           Plan.srcs_of(Plan.gots(Plan.inputs(world), world))),
         Plan.srcs_of(Plan.gots(Plan.inputs(world), world))),
         List.append(&2, F.Finding, Plan.settings(world), _)))
@@ -131,18 +138,21 @@ def L3.scope_findings(world):
   a = Equal.sym(List<&2, F.Finding>, Plan.unread(Plan.gots(Plan.inputs(world), world)),
     D1.unread_all(world, Plan.inputs(world)), lint.unread(Plan.inputs(world), world))
   %a : {List.append(&2, F.Finding, _,
-      List.append(&2, F.Finding, Plan.per_file.role(Plan.marks.run(W.paths.of(world), world,
+      List.append(&2, F.Finding, Plan.per_file.role(Plan.confs(world), world, Plan.marks.run(W.paths.of(world), world,
           Plan.srcs_of(Plan.gots(Plan.inputs(world), world))),
         Plan.srcs_of(Plan.gots(Plan.inputs(world), world))),
         List.append(&2, F.Finding, Plan.settings(world),
           Rules.project(Plan.srcs_of(Plan.gots(Plan.inputs(world), world)), Plan.packages(Plan.roots(world))))))
     == D1.in_scope(world) : List<&2, F.Finding>}
-  b = Equal.sym(List<&2, F.Finding>, Plan.per_file.role(Plan.marks.run(W.paths.of(world), world,
+  b = Equal.sym(List<&2, F.Finding>, Plan.per_file.role(Plan.confs(world), world, Plan.marks.run(W.paths.of(world),
+    world,
       Plan.srcs_of(Plan.gots(Plan.inputs(world), world))),
         Plan.srcs_of(Plan.gots(Plan.inputs(world), world))),
-    D1.on_all(Plan.marks.run(W.paths.of(world), world, Plan.srcs_of(Plan.gots(Plan.inputs(world), world))),
+    D1.on_all(Plan.confs(world), Plan.marks.run(W.paths.of(world), world, Plan.srcs_of(Plan.gots(Plan.inputs(world),
+      world))),
         world, Plan.inputs(world)),
-    lint.on(Plan.marks.run(W.paths.of(world), world, Plan.srcs_of(Plan.gots(Plan.inputs(world), world))),
+    lint.on(Plan.confs(world), Plan.marks.run(W.paths.of(world), world, Plan.srcs_of(Plan.gots(Plan.inputs(world),
+      world))),
         Plan.inputs(world), world))
   %b : {List.append(&2, F.Finding, D1.unread_all(world, Plan.inputs(world)),
       List.append(&2, F.Finding, _, List.append(&2, F.Finding, Plan.settings(world),
@@ -150,7 +160,7 @@ def L3.scope_findings(world):
     == D1.in_scope(world) : List<&2, F.Finding>}
   t = Equal.sym(List<&2, F.Finding>, Plan.settings(world), D1.settings_found(world), L4.setting_reports(world))
   %t : {List.append(&2, F.Finding, D1.unread_all(world, Plan.inputs(world)),
-      List.append(&2, F.Finding, D1.on_all(Plan.marks.run(W.paths.of(world), world,
+      List.append(&2, F.Finding, D1.on_all(Plan.confs(world), Plan.marks.run(W.paths.of(world), world,
           Plan.srcs_of(Plan.gots(Plan.inputs(world), world))), world,
         Plan.inputs(world)), List.append(&2, F.Finding, _,
         Rules.project(Plan.srcs_of(Plan.gots(Plan.inputs(world), world)), Plan.packages(Plan.roots(world))))))
@@ -158,7 +168,7 @@ def L3.scope_findings(world):
   c = Equal.sym(List<&2, Src.Src>, Plan.srcs_of(Plan.gots(Plan.inputs(world), world)),
     D1.parsed_all(world, Plan.inputs(world)), lint.parsed(Plan.inputs(world), world))
   %c : {List.append(&2, F.Finding, D1.unread_all(world, Plan.inputs(world)),
-      List.append(&2, F.Finding, D1.on_all(Plan.marks.run(W.paths.of(world), world,
+      List.append(&2, F.Finding, D1.on_all(Plan.confs(world), Plan.marks.run(W.paths.of(world), world,
           Plan.srcs_of(Plan.gots(Plan.inputs(world), world))), world,
         Plan.inputs(world)),
         List.append(&2, F.Finding, D1.settings_found(world),
@@ -167,7 +177,7 @@ def L3.scope_findings(world):
   k = Equal.sym(List<&2, String>, Plan.packages(Plan.roots(world)), D1.pkgs(Plan.roots(world)),
     L1.package_dirs(Plan.roots(world)))
   %k : {List.append(&2, F.Finding, D1.unread_all(world, Plan.inputs(world)),
-      List.append(&2, F.Finding, D1.on_all(Plan.marks.run(W.paths.of(world), world,
+      List.append(&2, F.Finding, D1.on_all(Plan.confs(world), Plan.marks.run(W.paths.of(world), world,
           Plan.srcs_of(Plan.gots(Plan.inputs(world), world))), world,
         Plan.inputs(world)),
         List.append(&2, F.Finding, D1.settings_found(world),
@@ -178,14 +188,14 @@ def L3.scope_findings(world):
     D2.packed(D1.parsed_all(world, Plan.inputs(world)), D1.pkgs(Plan.roots(world))),
     L2.packages_scoped(D1.parsed_all(world, Plan.inputs(world)), D1.pkgs(Plan.roots(world))))
   %q : {List.append(&2, F.Finding, D1.unread_all(world, Plan.inputs(world)),
-      List.append(&2, F.Finding, D1.on_all(Plan.marks.run(W.paths.of(world), world,
+      List.append(&2, F.Finding, D1.on_all(Plan.confs(world), Plan.marks.run(W.paths.of(world), world,
           Plan.srcs_of(Plan.gots(Plan.inputs(world), world))), world,
         Plan.inputs(world)),
         List.append(&2, F.Finding, D1.settings_found(world), _)))
     == D1.in_scope(world) : List<&2, F.Finding>}
   z = M3.lint.app_nil(F.Finding, D2.packed(D1.parsed_all(world, Plan.inputs(world)), D1.pkgs(Plan.roots(world))))
   %z : {List.append(&2, F.Finding, D1.unread_all(world, Plan.inputs(world)),
-      List.append(&2, F.Finding, D1.on_all(Plan.marks.run(W.paths.of(world), world,
+      List.append(&2, F.Finding, D1.on_all(Plan.confs(world), Plan.marks.run(W.paths.of(world), world,
           Plan.srcs_of(Plan.gots(Plan.inputs(world), world))), world,
         Plan.inputs(world)),
         List.append(&2, F.Finding, D1.settings_found(world), _)))

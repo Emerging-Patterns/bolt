@@ -212,13 +212,14 @@ def inert.binds(bs: List<&2, Bind.Bind>) -> List<&2, Bind.Bind>:
 # have the same findings over the same uses and tokens, what their strings
 # say aside
 law inert_reach:
+  for +max: U32
   for +b1: List<&2, Bind.Bind>
   for +b2: List<&2, Bind.Bind>
   for +uses: List<&2, Bind.Use>
   for +toks: List<&2, Lex.Tok>
   for +path: String
   for e: {inert.binds(b1) == inert.binds(b2) : List<&2, Bind.Bind>}
-  {Reach.check.on(b1, uses, toks, path) == Reach.check.on(b2, uses, toks, path) : List<&2, F.Finding>}
+  {Reach.check.on(b1, uses, toks, path, max) == Reach.check.on(b2, uses, toks, path, max) : List<&2, F.Finding>}
 
 # LAW: reach reads the defs that are proofs from what no comment or string
 # says: two sources whose tokens read the same with comments and strings cut

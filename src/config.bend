@@ -17,6 +17,15 @@
 #
 # A level is "off", "warn" or "error". A setting whose name is no rule's slug
 # and no group is `unknown`, and sets nothing.
+#
+# A def whose body is a number sets a limit, the most a rule lets by:
+#
+#     # a one-character name may be read 30 lines below its binder here
+#     def reach_max() -> U32:
+#       30
+#
+# A rule with a limit names it `<slug>_max`; unset, the rule's own default
+# holds. A number bolt cannot read as a U32 is 0, so a typo shows.
 import Base
 import ./lazy/lazy.bend as Lazy
 import ./syntax/lex.bend as Lex
@@ -35,13 +44,17 @@ type Level is Data:
 type LevelSet is Data:
   LevelSet{name: String, level: Level}
 
-# the settings, in file order
+# a limit's name (`reach_max`) and the most it lets by
+type Limit is Data:
+  Limit{name: String, max: U32}
+
+# the settings and the limits, each in file order
 type Config is Data:
-  Config{sets: List<&2, LevelSet>}
+  Config{sets: List<&2, LevelSet>, lims: List<&2, Limit>}
 
 # no file: the defaults
 def none() -> Config:
-  Config{[]}
+  Config{[], []}
 
 # the word for a level, as a finding is shown
 def show(ll: Level) -> String:
@@ -127,9 +140,46 @@ def levels(ss: List<&2, Setting>) -> List<&2, LevelSet>:
     case Con{Setting{n, w, _line}, rest}:
       LevelSet{n, of_word(w)} <> levels(rest)
 
-# a bolt.bend's text as a config: its settings, each at its level
-def parse(text: String) -> Config:
-  Config{levels(settings(text))}
+# the first number among the tokens
+def first_num(toks: List<&2, Lex.Tok>) -> Maybe<&2, String>:
+  match toks:
+    case Nil{}:
+      None{}
+    case Con{Lex.Tok{Lex.TNum{}, t, l, c}, rest}:
+      Some{t}
+    case Con{h, rest}:
+      first_num(rest)
+
+# a number as a limit reads it: 0 when it is no U32, so a typo shows
+def limit.read(word: String) -> U32:
+  Maybe.default(&2, U32, U32.read(word), 0)
+
+# a def's name and the number it returns, as a limit
+def limit.one(name: Maybe<&2, String>, word: Maybe<&2, String>) -> List<&2, Limit>:
+  match name word:
+    case Some{n} Some{w}:
+      [Limit{n, limit.read(w)}]
+    case _a _b:
+      []
+
+# every `def x_max(): 30` of a tree
+def limits.go(root: Tree.Node) -> List<&2, Limit>:
+  match root:
+    case Tree.NCons{Tree.Stmt{Tree.SDef{}, kids, body}, rest}:
+      List.append(&2, Limit, limit.one(Bind.declared(kids), first_num(Tree.leaves(body))), limits.go(rest))
+    case Tree.NCons{_h, rest}:
+      limits.go(rest)
+    case _other:
+      Nil{}
+
+# every limit of a bolt.bend's text, in file order
+def limits(text: String) -> List<&2, Limit>:
+  limits.go(Tree.parse(text))
+
+# a bolt.bend's text as a config: its settings, each at its level, and its
+# limits
+def parse(+text: String) -> Config:
+  Config{levels(settings(text)), limits(text)}
 
 # unknown names
 # -------------
@@ -296,5 +346,22 @@ def level.of(+sets: List<&2, LevelSet>, +group: String, +rule: String) -> Level:
 
 # the rule's own setting, else its group's, else the group's default
 def level(cfg: Config, group: String, rule: String) -> Level:
-  Config{ss} = cfg
+  Config{ss, _lims} = cfg
   level.of(ss, group, rule)
+
+# limits
+# ------
+
+# the first limit of the name, else the base
+def limit.of(lims: List<&2, Limit>, +name: String, base: U32) -> U32:
+  match lims:
+    case Nil{}:
+      base
+    case Con{Limit{n, m}, rest}:
+      Lazy.stop(U32, String.eq(n, name), m, _u => limit.of(rest, name, base))
+
+# the limit a config sets for a name: its first of that name, else the
+# rule's own default
+def limit(cfg: Config, name: String, base: U32) -> U32:
+  Config{_ss, lims} = cfg
+  limit.of(lims, name, base)

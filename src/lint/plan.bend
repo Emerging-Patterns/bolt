@@ -428,16 +428,85 @@ def srcs_of(gs: List<&2, Got>) -> List<&2, Src.Src>:
     case Con{Got{path, Some{text}}, rest}:
       Src.of(path, text) <> srcs_of(rest)
 
+# a directory and the config its findings are graded by
+type Conf is Data:
+  Conf{dir: String, config: Config.Config}
+
+# what the World holds at each path
+def texts.at(ps: List<&2, String>, +world: W.World) -> List<&2, Maybe<&2, String>>:
+  match ps:
+    case Nil{}:
+      Nil{}
+    case Con{p, rest}:
+      W.text(world, p) <> texts.at(rest, world)
+
+# texts.at, each read off the World's index
+def texts.ix(ps: List<&2, String>, +ix: W.Ix) -> List<&2, Maybe<&2, String>>:
+  match ps:
+    case Nil{}:
+      Nil{}
+    case Con{p, rest}:
+      W.text.ix(ix, p) <> texts.ix(rest, ix)
+
+# a directory's config: the nearest bolt.bend the World could read among its
+# candidates, or the defaults
+def conf.near(+world: W.World, dir: String) -> Config.Config:
+  Config.nearest(texts.at(conf.chain(world, dir), world))
+
+# conf.near, its candidates read off the World's index
+def conf.near.ix(+world: W.World, +ix: W.Ix, dir: String) -> Config.Config:
+  Config.nearest(texts.ix(conf.chain(world, dir), ix))
+
+# each directory's config
+def confs.at(ds: List<&2, String>, +world: W.World) -> List<&2, Conf>:
+  match ds:
+    case Nil{}:
+      Nil{}
+    case Con{+d, rest}:
+      Conf{d, conf.near(world, d)} <> confs.at(rest, world)
+
+# confs.at, each directory's candidates read off the World's index
+def confs.at.ix(ds: List<&2, String>, +world: W.World, +ix: W.Ix) -> List<&2, Conf>:
+  match ds:
+    case Nil{}:
+      Nil{}
+    case Con{+d, rest}:
+      Conf{d, conf.near.ix(world, ix, d)} <> confs.at.ix(rest, world, ix)
+
+# the config of every directory grading needs
+def confs(+world: W.World) -> List<&2, Conf>:
+  confs.at.ix(conf.dirs(inputs(world)), world, W.ix.world(world))
+
+# the config of a directory, from the table; one the table does not hold is
+# worked out the same way (every finding's directory is in the table, so this
+# never happens in a run)
+def conf.find(cs: List<&2, Conf>, +world: W.World, +dir: String) -> Config.Config:
+  match cs:
+    case Nil{}:
+      conf.near(world, dir)
+    case Con{Conf{d, cfg}, rest}:
+      Lazy.stop(Config.Config, String.eq(d, dir), cfg, _u => conf.find(rest, world, dir))
+
+# the config a finding at a path is graded by: its directory's
+def config.at(+cs: List<&2, Conf>, +world: W.World, path: String) -> Config.Config:
+  conf.find(cs, world, Config.dir_of(path))
+
 # every source's findings from the per-file rules, each told its role among
-# the marks (src/role.bend)
-def per_file.role(+ms: List<&2, Role.Mark>, ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
+# the marks (src/role.bend) and run at the limits its directory's config
+# sets
+def per_file.role(
+  +cs: List<&2, Conf>,
+  +world: W.World,
+  +ms: List<&2, Role.Mark>,
+  ss: List<&2, Src.Src>
+) -> List<&2, F.Finding>:
   match ss:
     case Nil{}:
       Nil{}
     case Con{s, rest}:
       Src.Src{+path, text, toks, tree, bound, items} = s
-      List.concat(&2, F.Finding, [Rules.on.role(Role.of(ms, path), Src.Src{path, text, toks, tree, bound, items}),
-        per_file.role(ms, rest)])
+      List.concat(&2, F.Finding, [Rules.on.role(config.at(cs, world, path), Role.of(ms, path),
+        Src.Src{path, text, toks, tree, bound, items}), per_file.role(cs, world, ms, rest)])
 
 # the facts (src/role.bend) of each file the World read, from its text, each
 # at its path resolved against the working directory (abs)
@@ -529,80 +598,22 @@ def settings(+world: W.World) -> List<&2, F.Finding>:
 # answers for them: the read failures, the per-file findings of each source,
 # then `setting`'s over each bolt.bend grading reads, then the project rules'
 # over every source and the other packages
-def found.at(+world: W.World, +gs: List<&2, Got>, +ss: List<&2, Src.Src>) -> List<&2, F.Finding>:
-  List.concat(&2, F.Finding, [unread(gs), per_file.role(marks.run(W.paths.of(world), world, ss), ss), settings(world),
-    Rules.project(ss, packages(roots(world)))])
+def found.at(
+  +cs: List<&2, Conf>,
+  +world: W.World,
+  +gs: List<&2, Got>,
+  +ss: List<&2, Src.Src>
+) -> List<&2, F.Finding>:
+  List.concat(&2, F.Finding, [unread(gs), per_file.role(cs, world, marks.run(W.paths.of(world), world, ss), ss),
+    settings(world), Rules.project(ss, packages(roots(world)))])
 
 # every finding of every rule, ungraded
 def found(+world: W.World) -> List<&2, F.Finding>:
   +gs = gots(inputs(world), world)
-  found.at(world, gs, srcs_of(gs))
+  found.at(confs(world), world, gs, srcs_of(gs))
 
 # ---------------------------------------------------------------------------
 # grading
-
-# a directory and the config its findings are graded by
-type Conf is Data:
-  Conf{dir: String, config: Config.Config}
-
-# what the World holds at each path
-def texts.at(ps: List<&2, String>, +world: W.World) -> List<&2, Maybe<&2, String>>:
-  match ps:
-    case Nil{}:
-      Nil{}
-    case Con{p, rest}:
-      W.text(world, p) <> texts.at(rest, world)
-
-# texts.at, each read off the World's index
-def texts.ix(ps: List<&2, String>, +ix: W.Ix) -> List<&2, Maybe<&2, String>>:
-  match ps:
-    case Nil{}:
-      Nil{}
-    case Con{p, rest}:
-      W.text.ix(ix, p) <> texts.ix(rest, ix)
-
-# a directory's config: the nearest bolt.bend the World could read among its
-# candidates, or the defaults
-def conf.near(+world: W.World, dir: String) -> Config.Config:
-  Config.nearest(texts.at(conf.chain(world, dir), world))
-
-# conf.near, its candidates read off the World's index
-def conf.near.ix(+world: W.World, +ix: W.Ix, dir: String) -> Config.Config:
-  Config.nearest(texts.ix(conf.chain(world, dir), ix))
-
-# each directory's config
-def confs.at(ds: List<&2, String>, +world: W.World) -> List<&2, Conf>:
-  match ds:
-    case Nil{}:
-      Nil{}
-    case Con{+d, rest}:
-      Conf{d, conf.near(world, d)} <> confs.at(rest, world)
-
-# confs.at, each directory's candidates read off the World's index
-def confs.at.ix(ds: List<&2, String>, +world: W.World, +ix: W.Ix) -> List<&2, Conf>:
-  match ds:
-    case Nil{}:
-      Nil{}
-    case Con{+d, rest}:
-      Conf{d, conf.near.ix(world, ix, d)} <> confs.at.ix(rest, world, ix)
-
-# the config of every directory grading needs
-def confs(+world: W.World) -> List<&2, Conf>:
-  confs.at.ix(conf.dirs(inputs(world)), world, W.ix.world(world))
-
-# the config of a directory, from the table; one the table does not hold is
-# worked out the same way (every finding's directory is in the table, so this
-# never happens in a run)
-def conf.find(cs: List<&2, Conf>, +world: W.World, +dir: String) -> Config.Config:
-  match cs:
-    case Nil{}:
-      conf.near(world, dir)
-    case Con{Conf{d, cfg}, rest}:
-      Lazy.stop(Config.Config, String.eq(d, dir), cfg, _u => conf.find(rest, world, dir))
-
-# the config a finding at a path is graded by: its directory's
-def config.at(+cs: List<&2, Conf>, +world: W.World, path: String) -> Config.Config:
-  conf.find(cs, world, Config.dir_of(path))
 
 # every finding graded by the config of its directory, in order, the ones at
 # off dropped
@@ -670,7 +681,7 @@ def final(+world: W.World) -> List<&2, F.Graded>:
   +gs = gots(inputs(world), world)
   +ss = srcs_of(gs)
   +cs = confs(world)
-  after(Noqa.of_srcs(ss), List.is_empty(&2, String, W.paths.of(world)), grade(cs, world, found.at(world, gs, ss)),
+  after(Noqa.of_srcs(ss), List.is_empty(&2, String, W.paths.of(world)), grade(cs, world, found.at(cs, world, gs, ss)),
     fs => grade(cs, world, fs))
 
 # final, a per-file rule its file's config sets off not run: the same graded

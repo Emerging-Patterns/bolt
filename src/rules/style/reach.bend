@@ -2,8 +2,9 @@
 # reader who meets `n` forty lines under its binder has only the letter to go
 # on; within a few lines the binder is in sight and the letter is enough.
 # Reported: a parameter, a let, do-bind or lambda name, or a pattern name,
-# that some use reads from more than 20 lines below the line that binds it,
-# by a name spelled with one character. One finding, on the binder.
+# that some use reads from more than `max` lines below the line that binds
+# it, by a name spelled with one character. One finding, on the binder.
+# `max` is 20 unless the file's bolt.bend sets `def reach_max() -> U32`.
 # A name is spelled with one character when, its `_` aside, it holds one
 # letter or digit, however many times it is written: `n`, `nn`, `n_` and
 # `ttt` are one character each, `xs`, `n2` and `c0` are two. A letter written
@@ -39,7 +40,8 @@ import ../../lazy/lazy.bend as Lazy
 import ../tokens.bend as T
 import ../suspicious/empty.bend as Empty
 
-# how many lines below its binder a one-character name may be read
+# how many lines below its binder a one-character name may be read, unless
+# a bolt.bend says otherwise
 def limit() -> U32:
   20
 
@@ -67,12 +69,12 @@ def one.go(cs: List<&2, Char>) -> Bool:
 def one(name: String) -> Bool:
   one.go(String.to_list(name))
 
-# the binder a use reads from more than the limit below it, by a
+# the binder a use reads from more than max lines below it, by a
 # one-character name: a use of anything but a binder of the file reads none
-def far.hit(name: String, line: U32, tt: Bind.Target) -> Maybe<&2, Bind.Pos>:
+def far.hit(name: String, line: U32, tt: Bind.Target, max: U32) -> Maybe<&2, Bind.Pos>:
   match tt:
     case Bind.TLocal{+tl, tc}:
-      Bool.pick(Maybe<&2, Bind.Pos>, Lazy.and_then(U32.is_gt(line, (tl + limit() : U32)), _u => one(name)),
+      Bool.pick(Maybe<&2, Bind.Pos>, Lazy.and_then(U32.is_gt(line, (tl + max : U32)), _u => one(name)),
         Some{Bind.Pos{tl, tc}}, None{})
     case other:
       None{}
@@ -87,12 +89,12 @@ def far.keep(mm: Maybe<&2, Bind.Pos>, more: List<&2, Bind.Pos>) -> List<&2, Bind
 
 # the binders the uses read from afar by a one-character name, one for each
 # such use
-def far(uses: List<&2, Bind.Use>) -> List<&2, Bind.Pos>:
+def far(uses: List<&2, Bind.Use>, +max: U32) -> List<&2, Bind.Pos>:
   match uses:
     case Nil{}:
       Nil{}
     case Con{Bind.Use{name, line, _col, tt}, rest}:
-      far.keep(far.hit(name, line, tt), far(rest))
+      far.keep(far.hit(name, line, tt, max), far(rest, max))
 
 # is the position this line and column?
 def reaches.at(pp: Bind.Pos, line: U32, col: U32) -> Bool:
@@ -212,8 +214,8 @@ def flagged(
       _v => Lazy.and_then(Bool.not(allowed(kk, nm, note)), _w => Bool.not(has(ps, item)))))
 
 # what a finding says
-def say(nm: String) -> String:
-  "Name " ++ nm ++ " is one character, read more than 20 lines below where it is bound;"
+def say(nm: String, max: U32) -> String:
+  "Name " ++ nm ++ " is one character, read more than " ++ U32.show(max) ++ " lines below where it is bound;"
     ++ " name what it holds, or shorten the def."
 
 # a finding on the binder when it is reported, before the rest
@@ -223,11 +225,12 @@ def found(
   line: U32,
   col: U32,
   path: String,
+  max: U32,
   more: List<&2, F.Finding>
 ) -> List<&2, F.Finding>:
   match hit:
     case True{}:
-      F.Finding{path, line, col, U32.from_nat(String.length(nm)), "reach", say(nm)} <> more
+      F.Finding{path, line, col, U32.from_nat(String.length(nm)), "reach", say(nm, max)} <> more
     case False{}:
       more
 
@@ -238,14 +241,16 @@ def check.go(
   +fr: List<&2, Bind.Pos>,
   +ps: List<&2, U32>,
   +path: String,
-  +item: U32
+  +item: U32,
+  +max: U32
 ) -> List<&2, F.Finding>:
   match binds:
     case Nil{}:
       Nil{}
     case Con{Bind.Bind{+nm, +line, +col, +kind, note}, rest}:
       +at = at_item(kind, line, item)
-      found(flagged(fr, line, col, kind, nm, note, ps, at), nm, line, col, path, check.go(rest, fr, ps, path, at))
+      found(flagged(fr, line, col, kind, nm, note, ps, at), nm, line, col, path, max,
+        check.go(rest, fr, ps, path, at, max))
 
 # the findings, given the binders read from afar: with none there is nothing
 # to report, and the tokens are not read for the defs that are proofs
@@ -253,13 +258,14 @@ def check.far(
   fr: List<&2, Bind.Pos>,
   binds: List<&2, Bind.Bind>,
   toks: List<&2, Lex.Tok>,
-  +path: String
+  +path: String,
+  max: U32
 ) -> List<&2, F.Finding>:
   match fr:
     case Nil{}:
       Nil{}
     case Con{pp, rest}:
-      check.go(binds, pp <> rest, proofs(T.sig(toks)), path, 0)
+      check.go(binds, pp <> rest, proofs(T.sig(toks)), path, 0, max)
 
 # the rule over a file's binders, uses and tokens; a PROOF.bend's names are
 # the law's
@@ -267,18 +273,22 @@ def check.on(
   binds: List<&2, Bind.Bind>,
   uses: List<&2, Bind.Use>,
   toks: List<&2, Lex.Tok>,
-  +path: String
+  +path: String,
+  +max: U32
 ) -> List<&2, F.Finding>:
-  Lazy.stop(List<&2, F.Finding>, Paths.is_proof(path), [], _u => check.far(far(uses), binds, toks, path))
+  Lazy.stop(List<&2, F.Finding>, Paths.is_proof(path), [],
+    _u => check.far(far(uses, max), binds, toks, path, max))
 
-# the rule
-def check(ss: Src.Src) -> List<&2, F.Finding>:
+# the rule, at a limit
+def check(ss: Src.Src, max: U32) -> List<&2, F.Finding>:
   Src.Src{path, _text, toks, _tree, bound, _items} = ss
   Bind.Bound{binds, uses, _scopes} = bound
-  check.on(binds, uses, toks, path)
+  check.on(binds, uses, toks, path, max)
 
-# the rule, told the file's role (src/role.bend): a proof file is skipped
-def check.role(rr: Role.Role, ss: Src.Src) -> List<&2, F.Finding>:
+# the rule at a limit, told the file's role (src/role.bend): a proof file is
+# skipped
+def check.role(rr: Role.Role, ss: Src.Src, +max: U32) -> List<&2, F.Finding>:
   Src.Src{path, _text, toks, _tree, bound, _items} = ss
   Bind.Bound{binds, uses, _scopes} = bound
-  Lazy.stop(List<&2, F.Finding>, Role.is_proof(rr), [], _u => check.far(far(uses), binds, toks, path))
+  Lazy.stop(List<&2, F.Finding>, Role.is_proof(rr), [],
+    _u => check.far(far(uses, max), binds, toks, path, max))

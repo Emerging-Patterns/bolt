@@ -100,6 +100,7 @@ law scope_doc:
 # LAW: reach's findings on a PROOF.bend are the same for any two sources at
 # that path
 law scope_reach:
+  for +max: U32
   for +path: String
   for +text: String
   for +toks: List<&2, Lex.Tok>
@@ -112,8 +113,8 @@ law scope_reach:
   for +bound2: Bind.Bound
   for +items2: List<&2, Outline.Item>
   for +e: {Paths.is_proof(path) == True{} : Bool}
-  {Reach.check(Src.Src{path, text, toks, tree, bound, items})
-    == Reach.check(Src.Src{path, text2, toks2, tree2, bound2, items2}) : List<&2, F.Finding>}
+  {Reach.check(Src.Src{path, text, toks, tree, bound, items}, max)
+    == Reach.check(Src.Src{path, text2, toks2, tree2, bound2, items2}, max) : List<&2, F.Finding>}
 
 # the findings of each rule a LAWS.bend or a PROOF.bend exempts, rule by rule
 def scope.law_file(+ss: Src.Src) -> List<&2, List<&2, F.Finding>>:

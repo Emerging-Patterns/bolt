@@ -48,22 +48,33 @@ def parsed_all(+world: W.World, ps: List<&2, String>) -> List<&2, Src.Src>:
       List.append(&2, Src.Src, parsed_at(p, W.text(world, p)), parsed_all(world, rest))
 
 # the per-file rules on one source, told its role among the marks
-# (src/role.bend)
-def on_at(+ms: List<&2, Role.Mark>, +path: String, mm: Maybe<&2, String>) -> List<&2, F.Finding>:
+# (src/role.bend) and run at the limits its directory's config sets
+def on_at(
+  +cs: List<&2, Plan.Conf>,
+  +world: W.World,
+  +ms: List<&2, Role.Mark>,
+  +path: String,
+  mm: Maybe<&2, String>
+) -> List<&2, F.Finding>:
   match mm:
     case None{}:
       []
     case Some{text}:
-      Rules.on.role(Role.of(ms, path), Src.of(path, text))
+      Rules.on.role(Plan.config.at(cs, world, path), Role.of(ms, path), Src.of(path, text))
 
 # the per-file rules on each source, each told its role among the marks, in
 # file-list order
-def on_all(+ms: List<&2, Role.Mark>, +world: W.World, ps: List<&2, String>) -> List<&2, F.Finding>:
+def on_all(
+  +cs: List<&2, Plan.Conf>,
+  +ms: List<&2, Role.Mark>,
+  +world: W.World,
+  ps: List<&2, String>
+) -> List<&2, F.Finding>:
   match ps:
     case Nil{}:
       []
     case Con{+p, rest}:
-      List.append(&2, F.Finding, on_at(ms, p, W.text(world, p)), on_all(ms, world, rest))
+      List.append(&2, F.Finding, on_at(cs, world, ms, p, W.text(world, p)), on_all(cs, ms, world, rest))
 
 # the path of the first of the paths the World read a text for, as a list of
 # one; none when it read none
@@ -149,15 +160,17 @@ def pkgs(rs: List<&2, String>) -> List<&2, String>:
       Imports.dir_of(r ++ "/main.bend") <> pkgs(rest)
 
 # every finding of a run, ungraded: the read failures, then each source's
-# per-file findings, each rule seeing that one source and its role among the
-# law and proof files (src/role.bend) of the run, or of the whole tree when
+# per-file findings, each rule seeing that one source, its role among the
+# law and proof files (src/role.bend) of the run and the limits its
+# directory's config sets, or of the whole tree when
 # files were named (Plan.marks.run), then `setting`'s,
 # seeing each bolt.bend grading reads, then the project rules over every
 # source in the run, by package
 def in_scope(+world: W.World) -> List<&2, F.Finding>:
   +ps = Plan.inputs(world)
   List.concat(&2, F.Finding, [unread_all(world, ps),
-    on_all(Plan.marks.run(W.paths.of(world), world, Plan.srcs_of(Plan.gots(ps, world))), world, ps),
+    on_all(Plan.confs(world), Plan.marks.run(W.paths.of(world), world, Plan.srcs_of(Plan.gots(ps, world))), world,
+      ps),
     settings_found(world),
     D2.packed(parsed_all(world, ps), pkgs(Plan.roots(world)))])
 

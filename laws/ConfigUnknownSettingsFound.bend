@@ -10,5 +10,5 @@ import ../src/config.bend as Config
 # LAW: the settings `unknown` judges are the ones grading reads: a bolt.bend's
 # config is its settings, in file order, each at the level its word gives
 law settings_graded:
-  for text: String
-  {Config.parse(text) == Config.Config{Config.levels(Config.settings(text))} : Config.Config}
+  for +text: String
+  {Config.parse(text) == Config.Config{Config.levels(Config.settings(text)), Config.limits(text)} : Config.Config}

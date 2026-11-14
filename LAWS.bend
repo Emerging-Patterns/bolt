@@ -31,6 +31,8 @@ import ./laws/CliVersionExits.bend as CliVersionExits
 import ./laws/CliVersionPrintsRelease.bend as CliVersionPrintsRelease
 import ./laws/ConfigGradingDropsOff.bend as ConfigGradingDropsOff
 import ./laws/ConfigGroupDefaultsHold.bend as ConfigGroupDefaultsHold
+import ./laws/ConfigLimitsResolve.bend as ConfigLimitsResolve
+import ./laws/RulesRunAtConfiguredLimits.bend as RulesRunAtConfiguredLimits
 import ./laws/ConfigLevelsResolve.bend as ConfigLevelsResolve
 import ./laws/ConfigNearestFileGrades.bend as ConfigNearestFileGrades
 import ./laws/ConfigOptInStartsOff.bend as ConfigOptInStartsOff

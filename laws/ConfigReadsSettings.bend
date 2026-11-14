@@ -30,10 +30,11 @@ law levels_in_order:
   {Config.levels(Config.Setting{n, w, line} <> rest) == Config.LevelSet{n, Config.of_word(w)} <> Config.levels(rest)
     : List<&2, Config.LevelSet>}
 
-# LAW: a bolt.bend's text is read as the levels of its settings
+# LAW: a bolt.bend's text is read as the levels of its settings, and its
+# limits
 law parse_reads_settings:
-  for text: String
-  {Config.parse(text) == Config.Config{Config.levels(Config.settings(text))} : Config.Config}
+  for +text: String
+  {Config.parse(text) == Config.Config{Config.levels(Config.settings(text)), Config.limits(text)} : Config.Config}
 
 # LAW: a def's setting comes before the settings of the defs after it: the
 # settings are in file order

@@ -47,11 +47,11 @@ def Laws.scope_doc(path, text, toks, tree, bound, items, text2, toks2, tree2, bo
     L1.doc_exempt(path, text, toks, tree, bound, items, e),
     L1.doc_exempt(path, text2, toks2, tree2, bound2, items2, e))
 
-def Laws.scope_reach(path, text, toks, tree, bound, items, text2, toks2, tree2, bound2, items2, e):
-  scope.same(Reach.check(Src.Src{path, text, toks, tree, bound, items}),
-    Reach.check(Src.Src{path, text2, toks2, tree2, bound2, items2}),
-    L1.reach_exempt(path, text, toks, tree, bound, items, e),
-    L1.reach_exempt(path, text2, toks2, tree2, bound2, items2, e))
+def Laws.scope_reach(max, path, text, toks, tree, bound, items, text2, toks2, tree2, bound2, items2, e):
+  scope.same(Reach.check(Src.Src{path, text, toks, tree, bound, items}, max),
+    Reach.check(Src.Src{path, text2, toks2, tree2, bound2, items2}, max),
+    L1.reach_exempt(max, path, text, toks, tree, bound, items, e),
+    L1.reach_exempt(max, path, text2, toks2, tree2, bound2, items2, e))
 
 # two empty heads onto equal tails make equal lists
 law scope.con:
