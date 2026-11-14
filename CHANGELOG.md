@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.55.0](https://github.com/Emerging-Patterns/bolt/compare/v1.54.0...v1.55.0) (2026-11-14)
+
+
+### Features
+
+* **rules:** arity (S009), length (S010) and depth (S011), a def's size ([#366](https://github.com/Emerging-Patterns/bolt/issues/366)) ([da8c4f1](https://github.com/Emerging-Patterns/bolt/commit/da8c4f1bdcc9fcfc58025d44f0296b5601348157))
+
 ## [1.54.0](https://github.com/Emerging-Patterns/bolt/compare/v1.53.0...v1.54.0) (2026-11-14)
 
 
