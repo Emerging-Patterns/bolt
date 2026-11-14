@@ -3,7 +3,10 @@ import Base
 import ../src/syntax/lex.bend as Lex
 import ../src/finding.bend as F
 import ../src/rules/tokens.bend as T
-import ../src/rules/style/param.bend as Param
+import ../src/rules/style/reach.bend as Reach
+import ../src/rules/suspicious/empty.bend as Empty
+import ./ReachReportsFarShortNames.bend as PR
+import ./InertEmpty.bend as PE
 import ../src/syntax/bind.bend as Bind
 import ../src/paths.bend as Paths
 import ../src/lazy/lazy.bend as Lazy
@@ -2684,50 +2687,218 @@ def Laws.inert_doc(path, text, toks, _tree, _bound, items, text2, toks2, _tree2,
               inert.doc.go(items2, path, l2)))),
         Equal.sym(List<&2, F.Finding>, f2, w2, DF.fast_is_go(items2, path, l2)))))
 
-# param
+# reach
 # -----
 
-# param's walk over binders whose notes are already cut
-def inert.param.go(binds: List<&2, Bind.Bind>, +path: String) -> List<&2, F.Finding>:
+# reach's walk over binders whose notes are already cut
+def inert.reach.go(
+  binds: List<&2, Bind.Bind>,
+  +fr: List<&2, Bind.Pos>,
+  +ps: List<&2, U32>,
+  +path: String,
+  +item: U32
+) -> List<&2, F.Finding>:
   match binds:
     case Nil{}: Nil{}
     case Con{Bind.Bind{+nm, +line, +col, +kind, +cn}, rest}:
-      +more = inert.param.go(rest, path)
-      +quant = Bool.or(Bool.not(String.contains(cn, ":")), String.ends_with(cn, ": Quant"))
-      Bool.pick(List<&2, F.Finding>, Lazy.and_then(Param.check.is_param(kind),
-        _u => Lazy.and_then(Param.check.short(nm), _v => Bool.not(Bool.or(Param.check.upper(nm), quant)))),
-        F.Finding{path, line, col, U32.from_nat(String.length(nm)), "param",
-          "Parameter " ++ nm ++ " is too short; use at least 2 characters."} <> more, more)
+      +at = Reach.at_item(kind, line, item)
+      Reach.found(Lazy.and_then(Reach.reaches(fr, line, col),
+        _u => Lazy.and_then(Reach.kind(kind),
+          _v => Lazy.and_then(Bool.not(Lazy.or_else(Reach.upper(nm),
+            _x => Lazy.and_then(Reach.is_param(kind),
+              _y => Bool.or(Bool.not(String.contains(cn, ":")), String.ends_with(cn, ": Quant"))))),
+            _w => Bool.not(Reach.has(ps, at))))),
+        nm, line, col, path, inert.reach.go(rest, fr, ps, path, at))
 
-# param's walk reads each binder's note with its strings cut
-law inert.param.walk:
+# reach's walk reads each binder's note with its strings cut
+law inert.reach.walk:
   for binds: List<&2, Bind.Bind>
+  for +fr: List<&2, Bind.Pos>
+  for +ps: List<&2, U32>
   for +path: String
-  {inert.param.go(Laws.inert.binds(binds), path) == Param.check.go(binds, path) : List<&2, F.Finding>}
+  for +item: U32
+  {inert.reach.go(Laws.inert.binds(binds), fr, ps, path, item) == Reach.check.go(binds, fr, ps, path, item)
+    : List<&2, F.Finding>}
 
-def inert.param.walk(binds, path):
+def inert.reach.walk(binds, fr, ps, path, item):
   match binds:
     case Nil{}: {==}
     case Con{Bind.Bind{+nm, +line, +col, +kind, +note}, +rest}:
-      %inert.param.walk(rest, path) : {inert.param.go(Laws.inert.binds(Bind.Bind{nm, line, col, kind, note} <> rest),
-        path)
-        == Bool.pick(List<&2, F.Finding>, Lazy.and_then(Param.check.is_param(kind),
-          _u => Lazy.and_then(Param.check.short(nm), _v => Bool.not(Param.check.allowed(nm, note)))),
-          F.Finding{path, line, col, U32.from_nat(String.length(nm)), "param",
-            "Parameter " ++ nm ++ " is too short; use at least 2 characters."} <> _, _) : List<&2, F.Finding>}
-      {==}
+      Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
+        z => Reach.found(Reach.flagged(fr, line, col, kind, nm, note, ps, Reach.at_item(kind, line, item)),
+          nm, line, col, path, z),
+        inert.reach.go(Laws.inert.binds(rest), fr, ps, path, Reach.at_item(kind, line, item)),
+        Reach.check.go(rest, fr, ps, path, Reach.at_item(kind, line, item)),
+        inert.reach.walk(rest, fr, ps, path, Reach.at_item(kind, line, item)))
 
-def Laws.inert_param(b1, b2, path, e):
+# the walk finds the same in two binder lists that read the same
+law inert.reach.same:
+  for +b1: List<&2, Bind.Bind>
+  for +b2: List<&2, Bind.Bind>
+  for +fr: List<&2, Bind.Pos>
+  for +ps: List<&2, U32>
+  for +path: String
+  for e: {Laws.inert.binds(b1) == Laws.inert.binds(b2) : List<&2, Bind.Bind>}
+  {Reach.check.go(b1, fr, ps, path, 0) == Reach.check.go(b2, fr, ps, path, 0) : List<&2, F.Finding>}
+
+def inert.reach.same(b1, b2, fr, ps, path, e):
   +v1 = Laws.inert.binds(b1)
   +v2 = Laws.inert.binds(b2)
+  Equal.trans(List<&2, F.Finding>, Reach.check.go(b1, fr, ps, path, 0), inert.reach.go(v1, fr, ps, path, 0),
+    Reach.check.go(b2, fr, ps, path, 0),
+    Equal.sym(List<&2, F.Finding>, inert.reach.go(v1, fr, ps, path, 0), Reach.check.go(b1, fr, ps, path, 0),
+      inert.reach.walk(b1, fr, ps, path, 0)),
+    Equal.trans(List<&2, F.Finding>, inert.reach.go(v1, fr, ps, path, 0), inert.reach.go(v2, fr, ps, path, 0),
+      Reach.check.go(b2, fr, ps, path, 0),
+      Equal.cong(List<&2, Bind.Bind>, List<&2, F.Finding>, z => inert.reach.go(z, fr, ps, path, 0), v1, v2, e),
+      inert.reach.walk(b2, fr, ps, path, 0)))
+
+def Laws.inert_reach(b1, b2, uses, toks, path, e):
+  +fr = Reach.far(uses)
+  +ps = Reach.proofs(T.sig(toks))
   Equal.cong(List<&2, F.Finding>, List<&2, F.Finding>,
-    z => Lazy.stop(List<&2, F.Finding>, Paths.is_proof(path), [], _u => z), Param.check.go(b1, path),
-    Param.check.go(b2, path),
-    Equal.trans(List<&2, F.Finding>, Param.check.go(b1, path), inert.param.go(v1, path), Param.check.go(b2, path),
-      Equal.sym(List<&2, F.Finding>, inert.param.go(v1, path), Param.check.go(b1, path), inert.param.walk(b1, path)),
-      Equal.trans(List<&2, F.Finding>, inert.param.go(v1, path), inert.param.go(v2, path), Param.check.go(b2, path),
-        Equal.cong(List<&2, Bind.Bind>, List<&2, F.Finding>, z => inert.param.go(z, path), v1, v2, e),
-        inert.param.walk(b2, path))))
+    z => Lazy.stop(List<&2, F.Finding>, Paths.is_proof(path), [], _u => z),
+    Reach.check.far(fr, b1, toks, path), Reach.check.far(fr, b2, toks, path),
+    Equal.trans(List<&2, F.Finding>, Reach.check.far(fr, b1, toks, path), Reach.check.go(b1, fr, ps, path, 0),
+      Reach.check.far(fr, b2, toks, path),
+      PR.reach.far(fr, b1, toks, path),
+      Equal.trans(List<&2, F.Finding>, Reach.check.go(b1, fr, ps, path, 0), Reach.check.go(b2, fr, ps, path, 0),
+        Reach.check.far(fr, b2, toks, path),
+        inert.reach.same(b1, b2, fr, ps, path, e),
+        Equal.sym(List<&2, F.Finding>, Reach.check.far(fr, b2, toks, path), Reach.check.go(b2, fr, ps, path, 0),
+          PR.reach.far(fr, b2, toks, path)))))
+
+# a def's header reads as a proof, or not, the same in tokens read that way
+law inert.reach.guard:
+  for b: Bool
+  for rest: List<&2, Lex.Tok>
+  {Lazy.and_then(b, _u => Empty.proofy(D1.inert.toks(rest), 0n, False{}))
+    == Lazy.and_then(b, _u => Empty.proofy(rest, 0n, False{})) : Bool}
+
+def inert.reach.guard(b, rest):
+  match b:
+    case True{}:
+      PE.inert.empty.proofy(rest, 0n, False{})
+    case False{}:
+      {==}
+
+# a `def` heading a proof is one in tokens read that way
+law inert.reach.hit:
+  for k: Lex.TokKind
+  for +t: String
+  for rest: List<&2, Lex.Tok>
+  {Lazy.and_then(Reach.proofs.is_def(k, D1.inert.keep(D1.inert.blanks(k), t)),
+      _u => Empty.proofy(D1.inert.toks(rest), 0n, False{}))
+    == Lazy.and_then(Reach.proofs.is_def(k, t), _u => Empty.proofy(rest, 0n, False{})) : Bool}
+
+def inert.reach.hit(k, t, rest):
+  match k:
+    case Lex.TKey{}:
+      inert.reach.guard(String.eq(t, "def"), rest)
+    case Lex.TName{}:
+      {==}
+    case Lex.TUpper{}:
+      {==}
+    case Lex.TDotted{}:
+      {==}
+    case Lex.TWild{}:
+      {==}
+    case Lex.TNum{}:
+      {==}
+    case Lex.TStr{}:
+      {==}
+    case Lex.TChar{}:
+      {==}
+    case Lex.TComment{}:
+      {==}
+    case Lex.TSpace{}:
+      {==}
+    case Lex.TNewline{}:
+      {==}
+    case Lex.TOp{}:
+      {==}
+    case Lex.TColon{}:
+      {==}
+    case Lex.TEq{}:
+      {==}
+    case Lex.TBind{}:
+      {==}
+    case Lex.TArrow{}:
+      {==}
+    case Lex.TLam{}:
+      {==}
+    case Lex.TAll{}:
+      {==}
+    case Lex.TAmp{}:
+      {==}
+    case Lex.TOpen{}:
+      {==}
+    case Lex.TClose{}:
+      {==}
+    case Lex.TComma{}:
+      {==}
+
+# the first token's line is its line read that way
+law inert.reach.line:
+  for ts: List<&2, Lex.Tok>
+  {Reach.proofs.line(D1.inert.toks(ts)) == Reach.proofs.line(ts) : U32}
+
+def inert.reach.line(ts):
+  match ts:
+    case Nil{}:
+      {==}
+    case Con{Lex.Tok{k, t, l, c}, rest}:
+      {==}
+
+# the proof lines of tokens read that way are the tokens'
+law inert.reach.proofs:
+  for ts: List<&2, Lex.Tok>
+  {Reach.proofs(D1.inert.toks(ts)) == Reach.proofs(ts) : List<&2, U32>}
+
+def inert.reach.proofs(ts):
+  match ts:
+    case Nil{}:
+      {==}
+    case Con{Lex.Tok{+k, +t, +l, +c}, +rest}:
+      +hit = Lazy.and_then(Reach.proofs.is_def(k, t), _u => Empty.proofy(rest, 0n, False{}))
+      %Equal.sym(Bool, Lazy.and_then(Reach.proofs.is_def(k, D1.inert.keep(D1.inert.blanks(k), t)),
+          _u => Empty.proofy(D1.inert.toks(rest), 0n, False{})), hit, inert.reach.hit(k, t, rest)) :
+        {Bool.pick(List<&2, U32>, _, Reach.proofs.line(D1.inert.toks(rest)) <> Reach.proofs(D1.inert.toks(rest)),
+            Reach.proofs(D1.inert.toks(rest)))
+          == Bool.pick(List<&2, U32>, hit, Reach.proofs.line(rest) <> Reach.proofs(rest), Reach.proofs(rest))
+          : List<&2, U32>}
+      %Equal.sym(U32, Reach.proofs.line(D1.inert.toks(rest)), Reach.proofs.line(rest), inert.reach.line(rest)) :
+        {Bool.pick(List<&2, U32>, hit, _ <> Reach.proofs(D1.inert.toks(rest)), Reach.proofs(D1.inert.toks(rest)))
+          == Bool.pick(List<&2, U32>, hit, Reach.proofs.line(rest) <> Reach.proofs(rest), Reach.proofs(rest))
+          : List<&2, U32>}
+      %Equal.sym(List<&2, U32>, Reach.proofs(D1.inert.toks(rest)), Reach.proofs(rest), inert.reach.proofs(rest)) :
+        {Bool.pick(List<&2, U32>, hit, Reach.proofs.line(rest) <> _, _)
+          == Bool.pick(List<&2, U32>, hit, Reach.proofs.line(rest) <> Reach.proofs(rest), Reach.proofs(rest))
+          : List<&2, U32>}
+      {==}
+
+# the proof lines of the significant tokens read no comment or string
+law inert.reach.on:
+  for +ts: List<&2, Lex.Tok>
+  {Reach.proofs(T.sig(D1.inert.toks(ts))) == Reach.proofs(T.sig(ts)) : List<&2, U32>}
+
+def inert.reach.on(ts):
+  Equal.trans(List<&2, U32>, Reach.proofs(T.sig(D1.inert.toks(ts))), Reach.proofs(D1.inert.toks(T.sig(ts))),
+    Reach.proofs(T.sig(ts)),
+    Equal.cong(List<&2, Lex.Tok>, List<&2, U32>, z => Reach.proofs(z), T.sig(D1.inert.toks(ts)),
+      D1.inert.toks(T.sig(ts)), M1.inert.put.sig(ts)),
+    inert.reach.proofs(T.sig(ts)))
+
+def Laws.inert_reach_proofs(toks, toks2, e):
+  Equal.trans(List<&2, U32>, Reach.proofs(T.sig(toks)), Reach.proofs(T.sig(D1.inert.toks(toks))),
+    Reach.proofs(T.sig(toks2)),
+    Equal.sym(List<&2, U32>, Reach.proofs(T.sig(D1.inert.toks(toks))), Reach.proofs(T.sig(toks)),
+      inert.reach.on(toks)),
+    Equal.trans(List<&2, U32>, Reach.proofs(T.sig(D1.inert.toks(toks))), Reach.proofs(T.sig(D1.inert.toks(toks2))),
+      Reach.proofs(T.sig(toks2)),
+      Equal.cong(List<&2, Lex.Tok>, List<&2, U32>, z => Reach.proofs(T.sig(z)), D1.inert.toks(toks),
+        D1.inert.toks(toks2), e),
+      inert.reach.on(toks2)))
 
 # strict
 # ------

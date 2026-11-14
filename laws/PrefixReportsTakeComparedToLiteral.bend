@@ -149,7 +149,7 @@ def prefix_a(+k0: Lex.TokKind, +tt: String, toks: List<&2, Lex.Tok>) -> Bool:
 
 # True when a dotted `String.eq` of text tt, then these, open
 # `String.eq("..", String.take(s, k))`
-def prefix_b(+k0: Lex.TokKind, +tt: String, toks: List<&2, Lex.Tok>) -> Bool:
+def prefix_b(+k0: Lex.TokKind, +text: String, toks: List<&2, Lex.Tok>) -> Bool:
   match toks:
     case Nil{}:
       False{}
@@ -170,7 +170,7 @@ def prefix_b(+k0: Lex.TokKind, +tt: String, toks: List<&2, Lex.Tok>) -> Bool:
                     case Nil{}:
                       False{}
                     case Con{Lex.Tok{k5, +a5, l5, c5}, r5}:
-                      Bool.and(Bool.and(prefix_dotted(k0), Bool.and(String.eq(tt, "String.eq"),
+                      Bool.and(Bool.and(prefix_dotted(k0), Bool.and(String.eq(text, "String.eq"),
                         Bool.and(String.eq(a1, "("), Bool.and(Lex.is_str(k2), Bool.and(String.eq(a3, ","),
                           Bool.and(String.eq(a4, "String.take"), String.eq(a5, "("))))))),
                         prefix_tail_b(prefix_skip(r5, Prefix.SGo{0n}), a2))

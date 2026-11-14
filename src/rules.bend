@@ -28,7 +28,7 @@ import ./rules/suspicious/unused.bend as Unused
 import ./rules/correctness/hole.bend as Hole
 import ./rules/style/space.bend as Space
 import ./rules/style/wrap.bend as Wrap
-import ./rules/style/param.bend as Param
+import ./rules/style/reach.bend as Reach
 import ./rules/style/transcong.bend as Transcong
 import ./rules/correctness/pick.bend as Pick
 import ./rules/laws/law.bend as Law
@@ -74,7 +74,7 @@ type Which is Data:
   WHole{}
   WSpace{}
   WWrap{}
-  WParam{}
+  WReach{}
   WPick{}
   WSearch{}
   WStrict{}
@@ -105,71 +105,71 @@ type Run is Data:
   Run{slug: String, which: Which}
 
 # a check's findings on a file, told its role (src/role.bend): the rules a
-# law or proof file changes (doc, hole, param, fromrev, prefix, empty, blank,
+# law or proof file changes (doc, hole, reach, fromrev, prefix, empty, blank,
 # closed) read the role, never the path, and the cost rules check nothing in
 # a law or proof file
-def on.run(ww: Which, +rr: Role.Role, +ss: Src.Src) -> List<&2, F.Finding>:
+def on.run(ww: Which, +role: Role.Role, +src: Src.Src) -> List<&2, F.Finding>:
   match ww:
     case WDoc{}:
-      Doc.check.role(rr, ss)
+      Doc.check.role(role, src)
     case WUnused{}:
-      Unused.check(ss)
+      Unused.check(src)
     case WHole{}:
-      Hole.check.role(rr, ss)
+      Hole.check.role(role, src)
     case WSpace{}:
-      Space.check(ss)
+      Space.check(src)
     case WWrap{}:
-      Wrap.check(ss)
-    case WParam{}:
-      Param.check.role(rr, ss)
+      Wrap.check(src)
+    case WReach{}:
+      Reach.check.role(role, src)
     case WPick{}:
-      Role.skip(rr, _u => Pick.check(ss))
+      Role.skip(role, _u => Pick.check(src))
     case WSearch{}:
-      Role.skip(rr, _u => Pick.search(ss))
+      Role.skip(role, _u => Pick.search(src))
     case WStrict{}:
-      Role.skip(rr, _u => Strict.check(ss))
+      Role.skip(role, _u => Strict.check(src))
     case WEager{}:
-      Role.skip(rr, _u => Eager.check(ss))
+      Role.skip(role, _u => Eager.check(src))
     case WTail{}:
-      Role.skip(rr, _u => Tail.check(ss))
+      Role.skip(role, _u => Tail.check(src))
     case WConcat{}:
-      Role.skip(rr, _u => Concat.check(ss))
+      Role.skip(role, _u => Concat.check(src))
     case WCont{}:
-      Role.skip(rr, _u => Concat.cont(ss))
+      Role.skip(role, _u => Concat.cont(src))
     case WIndex{}:
-      Role.skip(rr, _u => Index.check(ss))
+      Role.skip(role, _u => Index.check(src))
     case WRewalk{}:
-      Role.skip(rr, _u => Rewalk.check(ss))
+      Role.skip(role, _u => Rewalk.check(src))
     case WThunk{}:
-      Role.skip(rr, _u => Thunk.check(ss))
+      Role.skip(role, _u => Thunk.check(src))
     case WFromrev{}:
-      Fromrev.check.role(rr, ss)
+      Fromrev.check.role(role, src)
     case WPrefix{}:
-      Prefix.check.role(rr, ss)
+      Prefix.check.role(role, src)
     case WEmpty{}:
-      Empty.check.role(rr, ss)
+      Empty.check.role(role, src)
     case WBlank{}:
-      Blank.check.role(rr, ss)
+      Blank.check.role(role, src)
     case WPut{}:
-      Put.check(ss)
+      Put.check(src)
     case WEscape{}:
-      Escape.check(ss)
+      Escape.check(src)
     case WStrings{}:
-      Strings.check(ss)
+      Strings.check(src)
     case WChars{}:
-      Chars.check(ss)
+      Chars.check(src)
     case WArms{}:
-      Arms.check(ss)
+      Arms.check(src)
     case WCover{}:
-      Arms.cover(ss)
+      Arms.cover(src)
     case WForeign{}:
-      Foreign.check(ss)
+      Foreign.check(src)
     case WFuel{}:
-      Fuel.check(ss)
+      Fuel.check(src)
     case WClosed{}:
-      Closed.check.role(rr, ss)
+      Closed.check.role(role, src)
     case WTranscong{}:
-      Transcong.check(ss)
+      Transcong.check(src)
 
 # every per-file rule's entry, in the order their findings come
 def on.table() -> List<&2, Run>:
@@ -179,7 +179,7 @@ def on.table() -> List<&2, Run>:
     Run{"hole", WHole{}},
     Run{"space", WSpace{}},
     Run{"wrap", WWrap{}},
-    Run{"param", WParam{}},
+    Run{"reach", WReach{}},
     Run{"pick", WPick{}},
     Run{"pick", WSearch{}},
     Run{"strict", WStrict{}},

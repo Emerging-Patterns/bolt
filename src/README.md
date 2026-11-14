@@ -53,7 +53,7 @@ unset group has its default. The groups:
 | `correctness` | `hole` `pick` `put` `arms` `escape` `setting`                          | error   |
 | `suspicious`  | `unused` `eager` `concat` `fromrev` `prefix` `empty` (`thunk`: opt-in) | warn    |
 | `perf`        | `strings`                                                              | warn    |
-| `style`       | `doc` `space` `wrap` `param` `noqa` `blank` (`transcong`: opt-in)      | warn    |
+| `style`       | `doc` `space` `wrap` `reach` `noqa` `blank` (`transcong`: opt-in)      | warn    |
 | `laws`        | (`coverage`, `closed`: opt-in)                                         | warn    |
 | `pedantic`    | `chars` `foreign` `strict` `fuel` `index` `rewalk` `tail`              | off     |
 
@@ -64,7 +64,7 @@ The stable codes, assigned once (do not renumber):
 | C001 | retired | U001 | `unused` | S001 | `doc` |
 | C002 | `hole` | U002 | `strict` | S002 | `space` |
 | C003 | `pick` | U003 | `eager` | S003 | `wrap` |
-| C004 | `put` | U004 | `concat` | S004 | `param` |
+| C004 | `put` | U004 | `concat` | S004 | retired |
 | C005 | `arms` | U005 | retired | S005 | `noqa` |
 | C006 | `escape` | U006 | `fuel` | S006 | `transcong` |
 | C007 | retired | U007 | `index` | L001 | `coverage` |
@@ -75,7 +75,7 @@ The stable codes, assigned once (do not renumber):
 | | | U012 | retired | P001 | `tail` |
 | | | U013 | retired | S007 | `blank` |
 | | | U014 | retired | | |
-| | | U015 | `thunk` | | |
+| | | U015 | `thunk` | S008 | `reach` |
 | | | U016 | `fromrev` | | |
 | | | U017 | `prefix` | | |
 | | | U018 | `empty` | | |
@@ -105,7 +105,10 @@ was retired since bend 2.0.32 itself fails a proof that reaches an
 literal twice in a def that calls itself (`case 10 <> 10 <> ..`), was
 retired when the hang it guarded against was gone: bend 2.0.28 still hangs
 on it, bend 2.0.38, the oldest bolt runs on, and 2.0.40 check it at once and
-run it right on both lanes. None of these codes is reused. A bolt.bend that
+run it right on both lanes. S004 `param`, a two-character minimum on
+parameter names, was retired when the names written under it were measured:
+the rule was met by writing the letter twice (see "Style" below), and
+`reach` (S008) took its place. None of these codes is reused. A bolt.bend that
 still sets one of them gets a `setting` finding (C011); delete the def.
 
 `thunk` and `transcong` are opt-in: they are in their groups, but no group
@@ -256,10 +259,30 @@ statement.
   return type, so `):` ends it), or a parameter list across lines with no
   parameter in it (`def none(` then `) -> U32:`: join it onto one line), is
   a finding.
-- `param` — a parameter name shorter than 2 characters. A single uppercase
-  letter is a type parameter (`A`, `T`), and a bare parameter or one typed
-  `Quant` is a quantity. Locals, patterns and a law's `for` names are not
-  parameters. A proof file's parameters are the names its law bound.
+- `reach` — a one-character name read more than 20 lines below the line
+  that binds it: a parameter, a let, do-bind or lambda name, or a pattern
+  name, one finding on the binder. Within a few lines the binder is in sight
+  and a letter is enough; forty lines down the reader has only the letter.
+  A name is one character when, its `_` aside, it is one letter or digit
+  however many times it is written: `n`, `nn`, `n_` and `ttt` are one
+  character each, `xs`, `n2` and `c0` are two. The fix is a name that says
+  what the value is, or a def short enough that the binder stays in sight.
+  Left alone: a single uppercase letter (a type parameter, `A`, `T`), a bare
+  parameter or one typed `Quant` (a quantity), a law's `for` names, and
+  every name of a def that is a proof (`def f(x):`, or one that returns
+  `-> {..}`), whose names are the law's. A proof file is exempt. The 20 is
+  measured: in public Bend 2 code a one-character name is read a median of
+  1 line below its binder and 99 in 100 within 19 (parameters; lets within
+  12, patterns within 9), so the rule reports about 1 in 200 of them (312
+  findings in 82 repos, 31 of them with any). A machine cannot tell a
+  letter that is a convention from one that is a shrug: of 30 findings
+  read by hand, about 6 in 10 were names a word plainly helps (`k`, `c`
+  and `m` of an interpreter's state, the `b` and `t` among eight Bool
+  flags) and the rest were letters a reader knows (`x` and `y` of a
+  position, the `a` to `h` of a hash round, a proof's variables in a def
+  that returns no `{..}`). It is on with `style` all the same: a house
+  style asks that a name carried this far be a word, and where the letter
+  is the word, a `# noqa: S008` says so.
 - `noqa` — a noqa comment that silences nothing (see "Suppressing a
   finding"): a bare `# noqa`, or a code it names that no finding of its file
   on its line has, an unknown code included, one finding per code, at the
@@ -599,9 +622,62 @@ whose miss is a silently wrong result that `bend` never reports (`arms`,
 `escape`, `setting`) may ship on fewer sites, as long as it is **Precise**,
 its fix is legal, and it is **New**.
 
+6. **Honest fix.** The cheapest edit that silences the finding leaves the
+   code better. A rule states a measure, and a writer in a hurry (most Bend
+   is written by agents) meets the measure, not the intent: where the two
+   can part, they will. So before a rule ships, write the least edit that
+   passes it and ask whether that is the code the rule wanted; and after it
+   ships, measure what was written under it against what is written
+   without it. A rule that fails this is reworked or retired, not kept as
+   advice (see `param` under "Style").
+
 A rule is on by default only at near-zero false positives; anything less
-certain starts opt-in or in `pedantic`. A shipped rule that projects often
+certain starts opt-in or in `pedantic`. A `style` rule is held to the house
+style instead (see "Style"): it may report what a careful writer would
+sometimes keep, so long as its fix is honest. A shipped rule that projects often
 `# noqa` is demoted or reworked.
+
+## Style
+
+The `style` rules are for the next reader of the code. Each one names
+something that reader pays for and reports only what a machine can judge of
+it; taste is left to review. Together they are a house style: a project
+that sets `style` asks to read one way throughout, so a style rule is
+judged by whether its fix is honest and its findings rare in code that
+keeps the style, not by whether every finding is a defect. What they cover, and what they do not yet:
+
+| a reader pays to | rules | honest fix |
+|------------------|-------|------------|
+| find where things are | `space` `wrap` | mechanical: one layout, a bounded width |
+| learn what an item is for | `doc` | a comment; measured, they are real ones |
+| carry a name in their head | `reach` | a name, or a shorter def |
+| decode a roundabout spelling | `blank` (`transcong`: opt-in) | the plain word, the same value |
+| trust a suppression | `noqa` | delete the stale comment |
+| hold a whole def in their head | none yet | |
+
+**What was measured (2026-11), linted trees against public code.** Public
+code is 82 repos that do not run bolt; linted trees are six that set
+`style` to error.
+
+- `doc`: 87% of public top-level defs and types have no comment; in the
+  linted trees under 1% have none, the median comment is 8 to 12 words, and
+  about 1% only restate the item's name. The rule is met in its spirit.
+- `param`, retired: it asked for parameter names of 2 characters or more.
+  In public code 30% of parameters are one letter and 0.2% a doubled
+  letter; in the linted trees 0 to 2% were one letter and 22 to 33% a
+  doubled one (`nn`, `ss`, `kk`), a quarter of bolt's own. The rule turned
+  `n` into `nn` and bought no reader anything; where a project set it to
+  warn it was left unanswered. Length was the wrong measure: a one-letter
+  name is read a median of 1 line from its binder, where it needs no more.
+  `reach` measures the distance, and counts a repeated letter once.
+
+**Size is the open dimension.** Bend defs are short (public code: a median
+of 2 lines, 99 in 100 within 19), so few need a rule, but a linted tree can
+hold a long tail: defs of more than 8 parameters, 40 lines or 6 levels of
+nesting. No rule reports those yet.
+
+Not planned, because no machine judges them: whether a name is a good
+word, and lists of names nobody may use.
 
 ## One binary
 

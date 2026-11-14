@@ -247,30 +247,30 @@ def part.op(+tt: String, +more: List<&2, Part>) -> List<&2, Part>:
 # a token's part before the parts after it. brace: a `{` follows it (a
 # plain name is then a constructor); plus: a `+` does (a number is then
 # `kn+`)
-def part(kk: Lex.TokKind, +tt: String, brace: Bool, plus: Bool, more: List<&2, Part>) -> List<&2, Part>:
+def part(kk: Lex.TokKind, +text: String, brace: Bool, plus: Bool, more: List<&2, Part>) -> List<&2, Part>:
   match kk:
     case Lex.TName{}:
-      Bool.pick(Part, brace, PWord{tt}, PAny{}) <> more
+      Bool.pick(Part, brace, PWord{text}, PAny{}) <> more
     case Lex.TWild{}:
       PAny{} <> more
     case Lex.TUpper{}:
-      PWord{tt} <> more
+      PWord{text} <> more
     case Lex.TDotted{}:
-      PWord{tt} <> more
+      PWord{text} <> more
     case Lex.TNum{}:
-      Bool.pick(Part, plus, PPlus{tt}, PWord{tt}) <> more
+      Bool.pick(Part, plus, PPlus{text}, PWord{text}) <> more
     case Lex.TChar{}:
-      PWord{tt} <> more
+      PWord{text} <> more
     case Lex.TStr{}:
       PStr{} <> more
     case Lex.TOpen{}:
-      part.open(tt) <> more
+      part.open(text) <> more
     case Lex.TClose{}:
-      PClose{tt} <> more
+      PClose{text} <> more
     case Lex.TComma{}:
       PComma{} <> more
     case Lex.TOp{}:
-      part.op(tt, more)
+      part.op(text, more)
     case other:
       PBad{} <> more
 

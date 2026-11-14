@@ -1,7 +1,7 @@
 # law files exempt every def, so the rules' walks gather nothing there
 import Base
 import ../../src/finding.bend as F
-import ../../src/rules/style/param.bend as Param
+import ../../src/rules/style/reach.bend as Reach
 import ../../src/syntax/bind.bend as Bind
 import ../../src/paths.bend as Paths
 import ../../src/role.bend as Role
@@ -116,10 +116,10 @@ def L1.doc_exempt(path, text, toks, _tree, _bound, items, e):
   ex.stop(Bool.or(Paths.is_proof(path), Paths.is_test(path)), e,
     _u => Doc.check.fast(items, path, Doc.flags(Doc.lines(text, toks))))
 
-def L1.param_exempt(path, _text, _toks, _tree, bound, _items, e):
+def L1.reach_exempt(path, _text, toks, _tree, bound, _items, e):
   match bound:
-    case Bind.Bound{binds, _uses, _scopes}:
-      ex.stop(Paths.is_proof(path), e, _u => Param.check.go(binds, path))
+    case Bind.Bound{binds, uses, _scopes}:
+      ex.stop(Paths.is_proof(path), e, _u => Reach.check.far(Reach.far(uses), binds, toks, path))
 
 # pick's def walk gathers nothing in a law file
 law ex.pick:
