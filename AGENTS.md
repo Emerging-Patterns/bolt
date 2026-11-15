@@ -48,8 +48,9 @@ A `#|` equality for a proveable claim is a bug. The root `LAWS.bend` and
     nix flake check                the bolt package, checks.proofs (mkProofs
                                    runs `ez prove`: every PROOF.bend),
                                    checks.lint (mkLint: bolt on this tree),
-                                   checks.fmt (`bolt fmt --check` on this
-                                   tree: run `bolt fmt` before you commit) and
+                                   checks.fmt (`bolt format --check` on this
+                                   tree: run `bolt format` before you
+                                   commit) and
                                    checks.lsp (the packaged bolt as an editor
                                    starts it, and the server over the real
                                    checker)

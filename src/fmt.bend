@@ -1,5 +1,5 @@
-# src/fmt: bolt's formatter (`bolt fmt`). It changes blank space and nothing
-# else: every token that is code is kept as it is, in order, and so is each
+# src/fmt: bolt's formatter (`bolt format`). It changes blank space and
+# nothing else: every token that is code is kept as it is, in order, and so is each
 # comment but for the blanks it ends in. Five passes over a file's tokens:
 #   spaces   a comma has a space after it, and a run of spaces between two
 #            tokens of a line is one space (src/fmt/line.bend);

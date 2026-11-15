@@ -47,10 +47,8 @@ def main() -> IO(Unit):
       Snap.text(located), "ok\n")
     helped : String <- Snap.exec(["bin/bolt.bin", "+RTS", "--gpu", "off", "-RTS", "help"])
     eq_str("bolt help prints usage", Snap.code(helped), "0")
-    many : String <- Snap.exec(["bin/bolt.bin", "+RTS", "--gpu", "off", "-RTS",
-      "src/lsp/fixtures/proven/LAWS.bend",
-      "src/lsp/fixtures/proven/PROOF.bend"])
-    eq_str("bolt lints the files it is given", Snap.text(many), "clean\n")
+    bare : String <- Snap.exec(["bin/bolt.bin", "+RTS", "--gpu", "off", "-RTS"])
+    eq_str("bolt alone prints usage and exits 2", Snap.code(bare), "2")
     checked : String <- Snap.exec(["bin/bolt.bin", "+RTS", "--gpu", "off", "-RTS", "check",
       "src/lsp/fixtures/proven/LAWS.bend",
       "src/lsp/fixtures/proven/PROOF.bend"])
@@ -60,5 +58,5 @@ def main() -> IO(Unit):
 #|ok the server answers node, spawned over sockets
 #|ok the extension finds bolt with no symlink to help it
 #|ok bolt help prints usage
-#|ok bolt lints the files it is given
+#|ok bolt alone prints usage and exits 2
 #|ok bolt check takes every leftover file

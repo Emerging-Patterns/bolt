@@ -1,12 +1,12 @@
-# src/fmt/plan: what `bolt fmt` does, decided from a World of answers
+# src/fmt/plan: what `bolt format` does, decided from a World of answers
 # (src/lint/world.bend). Pure: it reads no file and writes none. The files
 # are the ones `bolt` would lint, the files named or every `.bend` file
 # under the working directory (src/lint/plan.bend's `inputs`; a bolt.bend is
 # not among them), and the World is filled by the same questions the lint
 # asks. For each file the World read, formatting (src/fmt.bend) either
 # leaves its text as it is or gives another; a file that changes is an edit,
-# its path and its new text. `bolt fmt` plans every edit and prints
-# `formatted <path>` for each; `bolt fmt --check` plans none, prints
+# its path and its new text. `bolt format` plans every edit and prints
+# `formatted <path>` for each; `bolt format --check` plans none, prints
 # `would format <path>` for each, and exits 1 when there is one. A path the
 # World could not read is `cannot read <path>` and exit 1 either way. A file
 # formatting would change whose text holds U+FFFD is `skipped (not UTF-8)
@@ -176,6 +176,6 @@ def plan.at(+check: Bool, +gs: List<&2, Lint.Got>) -> Plan:
       List.append(&2, String, said("skipped (not UTF-8)", skipped.of(fs)), said(word(check), paths(es))))),
     exit(check, es, bad)}
 
-# what `bolt fmt` does in a World: check says whether it only checks
+# what `bolt format` does in a World: check says whether it only checks
 def plan(check: Bool, +world: W.World) -> Plan:
   plan.at(check, Lint.gots(Lint.inputs(world), world))

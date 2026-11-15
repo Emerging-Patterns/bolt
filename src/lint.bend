@@ -1,4 +1,4 @@
-# src/lint: the interpreter for `bolt` itself. It starts from a World
+# src/lint: the interpreter for `bolt check`. It starts from a World
 # holding the paths it was given and the working directory
 # (src/lint/world.bend), then loops: it asks
 # the planner (src/lint/plan.bend) what is still open, answers each question
@@ -9,7 +9,7 @@
 # decides nothing: which files are linted, which bolt.bend grades each
 # finding, and what is printed are the planner's. That it answers and prints
 # faithfully is trusted, not proved: it is kept small enough to review line
-# by line, as is every interpreter here (src/check.bend, src/lsp/server.bend).
+# by line, as is every interpreter here (src/lsp/server.bend).
 import Base
 import ./lint/world.bend as W
 import ./lint/plan.bend as Plan
@@ -109,7 +109,7 @@ def fill.from(paths: List<&2, String>, +cwd: String) -> IO(W.World):
     _u => loop(Nat.add(Plan.limit(), 2n), W.World{paths, cwd, []}))
 
 # the World of a run over the files given, or the tree below, with every
-# answer the planner asks for: what the lint plans from, and `bolt fmt`
+# answer the planner asks for: what the lint plans from, and `bolt format`
 # (src/fmt/run.bend)
 def fill(paths: List<&2, String>) -> IO(W.World):  # noqa: L001 IO driver
   do IO<W.World>:

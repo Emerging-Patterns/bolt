@@ -1,7 +1,7 @@
 # bolt
 
 The linter, written in Bend over the `syntax/` tree and binder, and the one
-binary (`main.bend`) that is also `bolt check` and `bolt lsp` ([lsp/](lsp/)).
+binary (`main.bend`) that is also `bolt format` and `bolt lsp` ([lsp/](lsp/)).
 It enforces what the checker does not: comments, unused names, the
 binder-vs-def trap, leftover holes, whitespace, recursion that is strict
 where it should stop early or quadratic where it should be linear, unary
@@ -9,12 +9,11 @@ where it should stop early or quadratic where it should be linear, unary
 foreign defs missing a lane, and laws that reach every def (IO included). Install:
 `bend main.bend -o bin/bolt.bin` at the repo root (README.md there).
 
-    bolt                every .bend file under the current directory
-    bolt a.bend b.bend  the files given
-    bolt check a.bend   the checker's errors, in the same shape
-    bolt fmt            format the files (--check: list the ones it would)
+    bolt check          every .bend file under the current directory
+    bolt check a.bend   the files given
+    bolt format         format the files (--check: list the ones it would)
     bolt lsp            the language server
-    bolt help           usage
+    bolt help           usage (bolt alone prints it to stderr, exit 2)
 
 Each finding is one line, `path:line:col: level: CODE: message`, with line
 and column 1-based so a terminal can jump to it; then `clean` or the counts.
@@ -820,7 +819,7 @@ keeps the style, not by whether every finding is a defect. What they cover, and 
 
 | a reader pays to | rules | honest fix |
 |------------------|-------|------------|
-| find where things are | `space` `wrap`, and `bolt fmt` | mechanical: one layout, a bounded width |
+| find where things are | `space` `wrap`, and `bolt format` | mechanical: one layout, a bounded width |
 | learn what an item is for | `doc` | a comment; measured, they are real ones |
 | carry a name in their head | `reach` | a name, or a shorter def |
 | decode a roundabout spelling | `blank` `negate` `numeral` (`transcong`: opt-in) | the plain word, the same value |
@@ -853,9 +852,9 @@ lines), and bolt's own had 22 such defs when the rules landed.
 Not planned, because no machine judges them: whether a name is a good
 word, and lists of names nobody may use.
 
-## bolt fmt
+## bolt format
 
-`bolt fmt [file..]` formats the files `bolt` would lint: the ones named, or
+`bolt format [file..]` formats the files `bolt` would lint: the ones named, or
 every `.bend` file under the current directory (a bolt.bend is not among
 them). It changes blank space and nothing else:
 
@@ -895,7 +894,7 @@ its line is not read. Every token of code is kept as it is, in order
 program.
 
 It prints `formatted <path>` for each file it rewrites, or `clean`.
-`bolt fmt --check` writes nothing: it prints `would format <path>` for each
+`bolt format --check` writes nothing: it prints `would format <path>` for each
 file that would change and exits 1 when there is one, which is the form for
 a gate. A path that cannot be read is `cannot read <path>` and exit 1
 either way. A file formatting would change that is not UTF-8 is `skipped
@@ -911,17 +910,15 @@ fell from 8,920 to 215, of which 194 sit in the skipped files.
 
 ## One binary
 
-`bolt` is also `bolt check file..` (the checker, `bend`, on each file, its
-errors in the same shape, `path:line:1: error: message`; a file bend could
-not be run on is `path:1:1: error: could not run bend`, an error like any
-other, never `clean`) and `bolt lsp`
-(the [language server](lsp/), over stdio). `main.bend` parses the command
+The one binary is `bolt check`, `bolt format` and `bolt lsp` (the [language server](lsp/), over stdio, which also runs Bend's
+checker, `bend`, on each open file; a file bend could not be run on is an
+error there, never clean). `main.bend` parses the command
 line with [shake](https://github.com/Emerging-Patterns/shake)
 (`import shake@0.6.0.0/main.bend`, shake v0.6.0, its
 interface only) and dispatches on
-the selected command; a first word that names no subcommand is a file, so
-`bolt a.bend b.bend` lints those files, and with no files at all `bolt`
-lints every `.bend` file under the current directory (the walk in
+the selected command, ruff's way: `bolt` with no command prints the usage
+to stderr and exits 2, `bolt check a.bend b.bend` lints those files, and
+with no files `bolt check` lints every `.bend` file under the current directory (the walk in
 `lint/plan.bend`, which never descends into a hidden directory or
 `node_modules`). The lint is a pure planner, `lint/plan.bend`, over a
 World of answers, `lint/world.bend`, and a thin interpreter, `lint.bend`,

@@ -1,8 +1,9 @@
-# src/args: bolt's command line, parsed by shake. `bolt [lint] [file..]`,
-# `bolt check file..`, `bolt fmt [--check] [file..]`, `bolt lsp`,
-# `bolt --version`. A rest positional at the root (and on
-# `lint` / `check`) takes every leftover word, so `bolt a.bend b.bend` lints
-# those files. `help` is shake's usage page, and `--help` asks for the same
+# src/args: bolt's command line, parsed by shake, in ruff's shape:
+# `bolt check [file..]`, `bolt format [--check] [file..]`, `bolt lsp`,
+# `bolt --version`. A rest positional on `check` and `format` takes every
+# leftover word. The root takes no files: `bolt` with no command prints the
+# usage to stderr and exits 2, as ruff does, so a lint step that forgot its
+# command fails instead of passing. `help` is shake's usage page, and `--help` asks for the same
 # page (`line`). IO.args gives the program as invoked first, then its
 # arguments (bend 2.0.32); `argv` drops the program. A compiled binary passes
 # its whole line through except its runtime options, which stand between
@@ -49,8 +50,7 @@ def argv() -> IO(List<&2, String>):  # noqa: L001 IO: reads argv
 
 # whether a word names a subcommand
 def is_cmd(+w: String) -> Bool:
-  Bool.or(String.eq(w, "lint"),
-    Bool.or(String.eq(w, "check"), Bool.or(String.eq(w, "fmt"), String.eq(w, "lsp"))))
+  Bool.or(String.eq(w, "check"), Bool.or(String.eq(w, "format"), String.eq(w, "lsp")))
 
 # whether `--help` stands among the words before the first `--` (after it,
 # every word is a file); the search stops at either
@@ -99,11 +99,9 @@ def version() -> String:
 # bolt's program spec
 def spec() -> Shake.Cli:
   Shake.app("bolt", "A linter, checker and language server for Bend 2.", Some{version()},
-    [Shake.flag("version", None{}, Some{"version"}, "Print the version"),
-     spec.files("Files to lint")],
-    [Shake.sub("lint", "Lint files", [spec.files("Files to lint")], []),
-     Shake.sub("check", "Check files", [spec.files("Files to check")], []),
-     Shake.sub("fmt", "Format files",
+    [Shake.flag("version", None{}, Some{"version"}, "Print the version")],
+    [Shake.sub("check", "Lint files", [spec.files("Files to lint")], []),
+     Shake.sub("format", "Format files",
        [Shake.flag("check", None{}, Some{"check"}, "List the files that would change and write nothing"),
         spec.files("Files to format")], []),
      Shake.sub("lsp", "Serve an editor over stdio", [], [])])
@@ -120,22 +118,20 @@ def help_text(path: List<&2, String>) -> String:
 def err_text(e: Shake.ParseErr) -> String:
   Shake.err_text(spec(), e)
 
-# a subcommand; fmt carries whether it only checks
+# a subcommand; format carries whether it only checks
 type Cmd is Data:
-  CLint{}
   CCheck{}
   CLsp{}
-  CFmt{check: Bool}
+  CFormat{check: Bool}
 
-# a subcommand by its name; the empty name (no subcommand) is `lint`
+# a subcommand by its name: `lsp`, or else `check`
 def command(+name: String) -> Cmd:
-  Bool.pick(Cmd, String.eq(name, "check"), CCheck{},
-    Bool.pick(Cmd, String.eq(name, "lsp"), CLsp{}, CLint{}))
+  Bool.pick(Cmd, String.eq(name, "lsp"), CLsp{}, CCheck{})
 
-# a subcommand by its name and whether `--check` was set: `fmt` takes the
+# a subcommand by its name and whether `--check` was set: `format` takes the
 # flag, every other name is as `command` reads it
 def command.at(+name: String, check: Bool) -> Cmd:
-  Bool.pick(Cmd, String.eq(name, "fmt"), CFmt{check}, command(name))
+  Bool.pick(Cmd, String.eq(name, "format"), CFormat{check}, command(name))
 
 # where a line that stops puts its text
 type Stream is Data:
@@ -176,13 +172,22 @@ def checks.at(sel: Maybe<&2, Shake.Matched>) -> Bool:
 def checks(+m: Shake.Matched) -> Bool:
   checks.at(Shake.at(m, Shake.path_of(m)))
 
-# a successful parse: the version, or the selected command and its files
+# a successful parse given the command path it selected: the usage on
+# stderr and exit 2 when it selected none, else that command over its files
+def out.go(path: List<&2, String>, +m: Shake.Matched) -> Out:
+  match path:
+    case Nil{}:
+      Stop{Err{}, help_text([]), 2}
+    case Con{c, cs}:
+      Go{command.at(String.join(c <> cs, "/"), checks(m)), files(m)}
+
+# a successful parse: the version, or what its command path does
 def out.run(ask: Bool, +m: Shake.Matched) -> Out:
   match ask:
     case True{}:
       Stop{Line{}, "bolt " ++ version(), 0}
     case False{}:
-      Go{command.at(String.join(Shake.path_of(m), "/"), checks(m)), files(m)}
+      out.go(Shake.path_of(m), m)
 
 # a failed parse, given whether it asked for usage: that usage page, or the
 # error

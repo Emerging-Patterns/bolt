@@ -1,4 +1,4 @@
-# `bolt fmt` writes the spaces inside a line one way, in two steps over a
+# `bolt format` writes the spaces inside a line one way, in two steps over a
 # file's tokens (src/fmt/line.bend).
 #
 # commas: after it every comma is followed by a space, a newline or a

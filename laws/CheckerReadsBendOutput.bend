@@ -1,116 +1,20 @@
-# `bolt check` prints one `path:line:1: error:` line per error bend reports,
-# on the line bend marks, then a count; it exits 1 when there is any, and
-# treats a failure to run bend as an error.
+# The checker the language server runs on a file reads bend's answer
+# faithfully: when bend ran, its output read as diagnostics; when bend could
+# not be run, or a signal killed it before it reported an error, a failed
+# check (Unrun), never a clean one; and a LAWS.bend whose PROOF.bend checks
+# clean shows no errors of its own, while one whose PROOF.bend fails, or
+# could not be checked, does not settle clean. For every list of errors bend
+# could print in its one shape, the diagnostics read back are one per error,
+# in order, each on the line bend marked when the error is the checked
+# file's, and on line 0 when bend marked none or the error is in another
+# file.
+#
+# exec tags its text (checker/bend.bend's bendcheck.exec; that the tag is
+# honest is trusted in src/lsp/checker/bend.bend), and that bend prints the
+# shape read here is trusted in src/lsp/report.bend.
 import Base
-import ../src/check.bend as Check
 import ../src/lsp/checker/answer.bend as Checker
 import ../src/lsp/report.bend as Rep
-
-# The checker. `bolt check` runs bend on each file (trusted in src/lsp/report.bend
-# for what bend prints, src/lsp/report.bend for how it is read), and
-# Check.out decides, from the diagnostics each file got, every line the
-# command prints and its exit code; Check.run only does it (trusted in src/lint.bend).
-# The laws below quantify over every list of files and every diagnostics
-# each could get, and over a file bend could not be run on: exec tags its
-# text (checker/bend.bend's bendcheck.exec; that the tag is honest is
-# trusted in src/lint.bend), Checker.answer reads the tag, and a file with no check
-# is an error line of its own. "On the line bend marks" is the section after
-# these (check_marked): that bend prints the shape it reads is trusted in src/lsp/report.bend.
-
-# the line for an error bend reported at a 0-based line of a file: the
-# path, the line counted from 1, column 1, and the message
-def chk_line(path: String, d: Rep.Diag) -> String:
-  Rep.Diag{line, msg} = d
-  path ++ ":" ++ U32.show((line + 1 : U32)) ++ ":1: error: " ++ Check.message(msg)
-
-# one file's error lines, in the order bend reported them, onto more
-def chk_file(ds: List<&2, Rep.Diag>, +path: String, more: List<&2, String>) -> List<&2, String>:
-  match ds:
-    case Nil{}:
-      more
-    case Con{d, rest}:
-      chk_line(path, d) <> chk_file(rest, path, more)
-
-# every file's error lines, file by file in the order given
-def chk_lines(runs: List<&2, Check.Run>) -> List<&2, String>:
-  match runs:
-    case Nil{}:
-      []
-    case Con{Check.Run{path, ds}, rest}:
-      chk_file(ds, path, chk_lines(rest))
-    case Con{Check.Failed{path}, rest}:
-      (path ++ ":1:1: error: could not run bend") <> chk_lines(rest)
-
-# how many errors bend reported, over every file, and one for each file
-# bend could not be run on
-def chk_count(runs: List<&2, Check.Run>) -> Nat:
-  match runs:
-    case Nil{}:
-      0n
-    case Con{Check.Run{_path, ds}, rest}:
-      Nat.add(List.length(&2, Rep.Diag, ds), chk_count(rest))
-    case Con{Check.Failed{_path}, rest}:
-      1n+chk_count(rest)
-
-# LAW: `bolt check` prints, for each file in turn, one line per error bend
-# reported, in bend's order, on the line bend marked, and for a file bend
-# could not be run on, `path:1:1: error: could not run bend`
-law check_lines:
-  for runs: List<&2, Check.Run>
-  {Check.lines_of(runs) == chk_lines(runs) : List<&2, String>}
-
-# LAW: there are exactly as many error lines as errors, a file bend could
-# not be run on counting as one
-law check_one_each:
-  for runs: List<&2, Check.Run>
-  {List.length(&2, String, Check.lines_of(runs)) == chk_count(runs) : Nat}
-
-# LAW: with no error in any file, `bolt check` prints `clean` alone and
-# exits 0
-law check_clean:
-  for +runs: List<&2, Check.Run>
-  for h: {chk_count(runs) == 0n : Nat}
-  {Check.out(runs) == Check.Out{["clean"], 0} : Check.Out}
-
-# LAW: with one error, `bolt check` prints its line, then `1 error`, and
-# exits 1
-law check_one:
-  for +runs: List<&2, Check.Run>
-  for h: {chk_count(runs) == 1n : Nat}
-  {Check.out(runs) == Check.Out{List.append(&2, String, chk_lines(runs), ["1 error, 0 warnings"]), 1} : Check.Out}
-
-# LAW: with more errors, `bolt check` prints their lines, then the count,
-# and exits 1
-law check_many:
-  for +runs: List<&2, Check.Run>
-  for +more: Nat
-  for h: {chk_count(runs) == 2n+more : Nat}
-  {Check.out(runs)
-    == Check.Out{List.append(&2, String, chk_lines(runs),
-      [U32.show(U32.from_nat(2n+more)) ++ " errors, 0 warnings"]), 1} : Check.Out}
-
-# an Out's exit code
-def chk_code(o: Check.Out) -> U32:
-  Check.Out{_lines, code} = o
-  code
-
-# LAW: a file bend could not be run on is an error: whatever the other files
-# got, `bolt check` exits 1
-law check_unrun_error:
-  for +path: String
-  for +runs: List<&2, Check.Run>
-  {chk_code(Check.out(Check.Failed{path} <> runs)) == 1 : U32}
-
-# LAW: a file's run is the checker's diagnostics for it
-law check_run_of:
-  for +path: String
-  for ds: List<&2, Rep.Diag>
-  {Check.run_of(path, Checker.Checked{ds}) == Check.Run{path, ds} : Check.Run}
-
-# LAW: a checker that could not run bend gives a failed run, never a clean one
-law check_run_unrun:
-  for +path: String
-  {Check.run_of(path, Checker.Unrun{}) == Check.Failed{path} : Check.Run}
 
 # LAW: when bend ran and exited, however it exited, the checker's answer is
 # what it printed read as diagnostics, as it was before exec tagged its text,
@@ -160,7 +64,7 @@ law check_proof_unrun:
   for ds: List<&2, Rep.Diag>
   {Checker.proved(Checker.Unrun{}, ds) == Checker.Unrun{} : Checker.Answer}
 
-# The line bend marks (laws/CheckPrintsBendErrors.bend). bend prints an error in one shape
+# The line bend marks. bend prints an error in one shape
 # (trusted in src/lsp/report.bend; err_show in bend 2.0.25): `Error:`, the message lines
 # (`- expected : ..` and `- observed : ..`, or `- message  : ..`, then
 # `Context:` and its `- name : type` lines), then, when bend knows where the
@@ -507,73 +411,6 @@ law check_marked:
   for fits: chk.fits(es)
   {Rep.parse_in(names, chk.report(es)) == chk.diags(es, names) : List<&2, Rep.Diag>}
 
-# the number `bolt check` prints for an error: the number bend marked, or 1
-# when bend marked no line or the error is in another file
-def chk.shown(own: Bool, +v: U32) -> U32:
-  Bool.pick(U32, Bool.or(Bool.not(own), U32.is_eq(v, 0)), 1, v)
-
-# the lines `bolt check` prints for the errors bend reported for a file
-def chk.printed(es: List<&2, chk.Err>, +path: String, +names: Maybe<&2, List<&2, String>>) -> List<&2, String>:
-  match es:
-    case Nil{}:
-      []
-    case Con{+e, rest}:
-      +at = chk.err_at(e)
-      (path ++ ":" ++ U32.show(chk.shown(chk.own(names, chk.place(at)), chk.marked(at))) ++ ":1: error: "
-        ++ Check.message(chk.msg(names, e))) <> chk.printed(rest, path, names)
-
-# LAW: `bolt check` prints each error bend reported for a file on the line
-# bend marked, numbered from 1 as bend numbers it, when the error is the
-# file's, and on line 1 when bend marked no line or the error is in another
-# file
-law check_marked_line:
-  for +names: Maybe<&2, List<&2, String>>
-  for +path: String
-  for +es: List<&2, chk.Err>
-  for flat: chk.flat(chk.all(es))
-  for fits: chk.fits(es)
-  {Check.lines_of([Check.Run{path, Rep.parse_in(names, chk.report(es))}]) == chk.printed(es, path, names)
-    : List<&2, String>}
-
-# LAW: an error bend reports in another file, its Location naming no item
-# of the checked file (`sub/m.g`, or `m.g` for `g` in `./m.bend`), is
-# printed on line 1 of the checked file, the message headed by where it is:
-# bend marks no line of the checked file
-law check_import_first:
-  for +names: Maybe<&2, List<&2, String>>
-  for +path: String
-  for +parts: List<&2, chk.Part>
-  for +name: String
-  for +span: Maybe<&2, chk.Span>
-  for +note: Bool
-  for other: {chk.own(names, name) == False{} : Bool}
-  for flat: chk.flat(chk.all([ChkErr{parts, Some{ChkWhere{Some{name}, span}}, note}]))
-  for fits: chk.fits([ChkErr{parts, Some{ChkWhere{Some{name}, span}}, note}])
-  {Check.lines_of([Check.Run{path,
-      Rep.parse_in(names, chk.report([ChkErr{parts, Some{ChkWhere{Some{name}, span}}, note}]))}])
-    == [path ++ ":1:1: error: " ++ Check.message("in " ++ name ++ ":\n" ++ String.join(chk.texts(parts), "\n"))]
-    : List<&2, String>}
-
-# LAW: an error the checked file owns, its Location naming one of the file's
-# items (a def `m.g` of the file included), is printed on the line bend
-# marked, numbered as bend numbers it
-law check_own_marked:
-  for +names: Maybe<&2, List<&2, String>>
-  for +path: String
-  for +parts: List<&2, chk.Part>
-  for +name: String
-  for +span: chk.Span
-  for +note: Bool
-  for own: {chk.own(names, name) == True{} : Bool}
-  for some: {U32.is_eq(chk.marks(Some{span}), 0) == False{} : Bool}
-  for flat: chk.flat(chk.all([ChkErr{parts, Some{ChkWhere{Some{name}, Some{span}}}, note}]))
-  for fits: chk.fits([ChkErr{parts, Some{ChkWhere{Some{name}, Some{span}}}, note}])
-  {Check.lines_of([Check.Run{path,
-      Rep.parse_in(names, chk.report([ChkErr{parts, Some{ChkWhere{Some{name}, Some{span}}}, note}]))}])
-    == [path ++ ":" ++ U32.show(chk.marks(Some{span})) ++ ":1: error: "
-      ++ Check.message(String.join(chk.texts(parts), "\n"))]
-    : List<&2, String>}
-
 # LAW: a LAWS.bend whose PROOF.bend checks clean has no errors of its own to
 # show, whatever bend said of it alone
 law proved_clean_shows_none:
@@ -588,10 +425,3 @@ law proved_failing_shows_its_own:
   for +ds: List<&2, Rep.Diag>
   for e: {List.is_empty(&2, Rep.Diag, pds) == False{} : Bool}
   {Checker.proved(Checker.Checked{pds}, ds) == Checker.Checked{ds} : Checker.Answer}
-
-# LAW: each line of a message after its first is printed on a line of its
-# own, two spaces in
-law rest_lines_indent_each_line:
-  for l: String
-  for t: List<&2, String>
-  {Check.rest_lines(l <> t) == "\n  " ++ l ++ Check.rest_lines(t) : String}
