@@ -1,4 +1,4 @@
-# `bolt fmt` changes blank space and nothing else: the tokens of a file that
+# `bolt format` changes blank space and nothing else: the tokens of a file that
 # are code (every token but spaces, newlines and comments), each by its kind
 # and its text, are the same after formatting as before, in the same order.
 # So a formatted file is the same program. This holds of each pass (the

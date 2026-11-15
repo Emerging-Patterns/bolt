@@ -58,15 +58,20 @@
           # the proof gate: every PROOF.bend on this flake's bend, each passing
           # only on a first line of ALL PROOFS CHECK
           proofs = ez.mkProofs { ez = ezBin; src = self; };
-          # bolt, built from this tree, over this tree: exit 1 on any error
-          lint = ez.mkLint { inherit bolt; src = self; };
-          # bolt fmt --check, built from this tree, over this tree: exit 1
+          # bolt check, built from this tree, over this tree: exit 1 on any
+          # error. mkLint runs `bolt` with no command, which prints the usage
+          # and exits 2, so it is handed a `bolt` that is `bolt check`
+          boltCheck = pkgs.writeShellScriptBin "bolt" ''
+            exec ${bolt}/bin/bolt check "$@"
+          '';
+          lint = ez.mkLint { bolt = boltCheck; src = self; };
+          # bolt format --check, built from this tree, over this tree: exit 1
           # when a file would change, so the tree stays formatted
-          fmt = pkgs.runCommand "bolt-fmt" { } ''
+          fmt = pkgs.runCommand "bolt-format" { } ''
             cp -r ${self} tree
             chmod -R u+w tree
             cd tree
-            ${bolt}/bin/bolt fmt --check
+            ${bolt}/bin/bolt format --check
             touch $out
           '';
           # the packaged bolt as an editor starts it: spawned by node over

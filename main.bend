@@ -1,13 +1,13 @@
 # bolt: a linter, checker and language server for Bend 2.
 #
-# The one binary. Shake parses the line: `lint`, or a word that is no
+# The one binary. Shake parses the line: `check`, or a word that is no
 # subcommand, or nothing, lints the files named after it (every `.bend` file
-# under the current directory when none are); `check` runs the checker on
-# them; `fmt` formats them, or with `--check` lists the ones it would; `lsp`
-# serves an editor over stdio; `help` (or `--help`) prints usage; `--version`
-# prints the release and the short commit when the build has one. Build it
-# native (`bend main.bend -o bin/bolt.bin`). `bolt lsp` runs on the cores:
-# with no runtime `--gpu` it is `+RTS --gpu off -RTS lsp`, and
+# under the current directory when none are); `format` formats them, or with
+# `--check` lists the ones it would; `lsp` serves an editor over stdio (and
+# runs Bend's checker on its files); `help` (or `--help`) prints usage;
+# `--version` prints the release and the short commit when the build has
+# one. Build it native (`bend main.bend -o bin/bolt.bin`). `bolt lsp` runs on
+# the cores: with no runtime `--gpu` it is `+RTS --gpu off -RTS lsp`, and
 # `+RTS --gpu on -RTS` or `+RTS --gpu 4GB -RTS` asks for the device. Runtime
 # options go between `+RTS` and `-RTS` (bend 2.0.38); bolt declares no
 # `--gpu` of its own, so `bolt --gpu off` is an unknown option. What the line
@@ -18,21 +18,17 @@ import Base
 import ./src/args.bend as Args
 import ./src/lint.bend as Lint
 import ./src/fmt/run.bend as FmtRun
-import ./src/check.bend as Check
 import ./src/lsp/run.bend as Lsp
-import ./src/lsp/checker/bend.bend as BendChecker
 import ./src/stop.bend as Stop
 
 # what a subcommand runs, over the files after it
 def dispatch(cmd: Args.Cmd, paths: List<&2, String>) -> IO(Unit):  # noqa: L001 IO driver
   match cmd:
-    case Args.CLint{}:
-      Lint.run(paths)
     case Args.CCheck{}:
-      Check.run(~BendChecker.service(), paths)
+      Lint.run(paths)
     case Args.CLsp{}:
       Lsp.run()
-    case Args.CFmt{check}:
+    case Args.CFormat{check}:
       FmtRun.run(check, paths)
 
 # what a parsed line does, done

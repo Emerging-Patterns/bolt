@@ -268,8 +268,8 @@ def gap.word(rl: Role, brk: Bool, sp: String) -> Gap:
       kept(brk, sp)
 
 # the gap before a token right after a comma inside a parameter: where a
-# line broke, one space, so the comma keeps the space `bolt fmt` gives every
-# comma; none before a closing bracket or another comma
+# line broke, one space, so the comma keeps the space `bolt format`
+# gives every comma; none before a closing bracket or another comma
 def gap.sep(rl: Role, brk: Bool, sp: String) -> Gap:
   match rl:
     case REnd{}:

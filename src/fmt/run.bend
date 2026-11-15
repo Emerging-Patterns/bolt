@@ -1,4 +1,4 @@
-# src/fmt/run: the interpreter for `bolt fmt`. It fills a World as the lint
+# src/fmt/run: the interpreter for `bolt format`. It fills a World as the lint
 # does (src/lint.bend's loop: the same questions, answered by the same IO),
 # then carries out the plan src/fmt/plan.bend makes of it: each edit written
 # over its file, the lines printed, and the exit status. It decides nothing:
@@ -62,7 +62,7 @@ def exec(pl: Fp.Plan) -> IO(Unit):  # noqa: L001 IO driver
     Lint.print_all(lines)
     Status.stop(U32.is_gt(exit, 0))
 
-# `bolt fmt` over the files given, or the tree below; check: list the files
+# `bolt format` over the files given, or the tree below; check: list the files
 # that would change and write none
 def run(check: Bool, paths: List<&2, String>) -> IO(Unit):  # noqa: L001 IO driver
   do IO<Unit>:

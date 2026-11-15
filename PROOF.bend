@@ -7,7 +7,7 @@ import ./proofs/LeaveZero.bend as PLeaveZero
 import ./proofs/SayErr.bend as PSayErr
 import ./proofs/SayLine.bend as PSayLine
 import ./proofs/SayPage.bend as PSayPage
-import ./proofs/CheckPrintsBendErrors.bend as PCheckPrintsBendErrors
+import ./proofs/CheckerReadsBendOutput.bend as PCheckerReadsBendOutput
 import ./proofs/CliAcceptsDocumentedForms.bend as PCliAcceptsDocumentedForms
 import ./proofs/CliDashHelp.bend as PCliDashHelp
 import ./proofs/CliReadsArgumentsAfterProgram.bend as PCliReadsArgumentsAfterProgram

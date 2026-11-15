@@ -1,9 +1,10 @@
 # checker/bend: an effect (CPU event loop only): the diagnostics of the file
 # at a path. It runs `bend` on the file and reads its report. Which runs it
 # makes is argv.bend's, and what its output answers is answer.bend's, both
-# pure; this file only performs them. `service` hands it to the server and
-# to `bolt check`, which take the checker as a service and never import this
-# file, so their proofs reach no foreign code.
+# pure; this file only performs them. `service` hands it to the server,
+# which takes the checker as a service and never imports this file, so its
+# proofs reach no foreign code. Trusted, not proved: the tag exec puts first
+# is honest about how bend went.
 import Base
 import ./answer.bend as S
 import ./argv.bend as Argv

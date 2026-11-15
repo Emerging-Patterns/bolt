@@ -3,12 +3,12 @@
 A linter, checker and language server for [Bend 2](https://github.com/bendlang/bend),
 written in Bend, with a VS Code extension.
 
-- `bolt` lints: comments on every def, unused names, the binder-vs-def trap,
+- `bolt check` lints: comments on every def, unused names, the binder-vs-def trap,
   leftover holes, whitespace, double recursion under `Bool.pick`, and laws
   that reach every def (IO included). A `bolt.bend` at the project root says
   which rules, and how hard (off, warn, error), oxlint-style by group.
-- `bolt check file..` runs Bend's checker and prints its errors in the same
-  shape, `path:line:col: error: message`.
+- `bolt format` formats the files (`--check`: list the ones it would
+  change, and exit 1 if any).
 - `bolt lsp` is the language server: the checker's errors on open and save,
   bolt's findings as you type, hover, go-to-definition, symbols, completion,
   references, rename and semantic tokens.
@@ -22,7 +22,7 @@ bolt needs Bend 2.0.38 or later (its runtime options go between `+RTS` and
 pins. Any install of it will do: the one
 `curl -fsSL https://bend-lang.com/install.sh | sh` installs, one from nix, or
 one built from source. You do not need ez or nix. Building bolt needs clang
-14+ as well, since bolt is one native binary. `bolt check` and `bolt lsp` run
+14+ as well, since bolt is one native binary. `bolt lsp` runs
 the `bend` on your PATH, so that `bend` is the one to keep at the tested
 version.
 
@@ -53,7 +53,7 @@ Or from a clone, at the head of `main`:
 git clone https://github.com/Emerging-Patterns/bolt
 cd bolt
 bend main.bend -o bin/bolt.bin           # the whole build
-bin/bolt.bin                             # lints every .bend under the current directory
+bin/bolt.bin check                       # lints every .bend under the current directory
 ```
 
 bolt imports three small libraries by hub hash (shake, ezjson and snap, see
@@ -69,7 +69,7 @@ With [ez](https://github.com/Emerging-Patterns/ez), to run bolt or install it:
 ezx Emerging-Patterns/bolt
 # or
 ez tool install Emerging-Patterns/bolt
-bolt
+bolt check
 ```
 
 Or with nix, nothing else is needed: the flake takes bend 2 from its own
@@ -78,7 +78,7 @@ builds bolt from it.
 
 ```
 nix profile install github:Emerging-Patterns/bolt   # bolt, with bend on its PATH
-nix run github:Emerging-Patterns/bolt               # or just run it, here
+nix run github:Emerging-Patterns/bolt -- check      # or just run it, here
 ```
 
 The VS Code extension, from the same checkout:
@@ -99,18 +99,19 @@ both (editors/vscode/README.md). After rebuilding bolt, run
 ## Use
 
 ```
-bolt                   every .bend file under the current directory
-bolt a.bend b.bend     the files given
-bolt check a.bend      the checker's errors, in the same shape
-bolt fmt               format every .bend file under the current directory
-bolt fmt --check       list the files that would change; exit 1 if any
+bolt check             every .bend file under the current directory
+bolt check a.bend      the files given
+bolt format            format every .bend file under the current directory
+bolt format --check    list the files that would change; exit 1 if any
 bolt lsp               the language server, over stdio, on the cores
 bolt --version         the release, and the short commit when the build has one
-bolt help              usage
+bolt help              usage (`bolt` alone prints it to stderr and exits 2)
 ```
 
 Each finding is one line, `path:line:col: level: CODE: message`, then
 `clean` or the counts; the exit code is 1 when anything was an error.
+Bend's own checker runs in the editor, through `bolt lsp`; at a shell, run
+`bend file.bend --check-only`.
 
 ### In a project that does not use ez
 
@@ -121,17 +122,17 @@ it as it is:
 
 ```
 cd your-project
-bolt                   # every .bend under here; exit 1 on an error
-bolt src/main.bend     # or just the files you name
+bolt check             # every .bend under here; exit 1 on an error
+bolt check src/main.bend  # or just the files you name
 ```
 
 To run it from a Makefile:
 
 ```make
 lint:
-	bolt
-check:
-	bolt check src/main.bend
+	bolt check
+format:
+	bolt format
 ```
 
 A project with no `bolt.bend` gets the default levels, which make only the

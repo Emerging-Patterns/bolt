@@ -6,7 +6,8 @@ import shake@0.6.0.0/main.bend as Shake
 import ./defs/CliWordKinds.bend as D1
 
 # LAW: `bolt --version` prints bolt, then the release and the commit, and
-# exits 0, with or without files after it. shake's answer, the premises: the
+# exits 0, whatever words shake accepts after it (the root takes no files,
+# so only `bolt --version` itself parses). shake's answer, the premises: the
 # line parses and sets the root's `version` flag (SHAKE-TOK-1, SHAKE-GET-1)
 law cli_version:
   for +fs: List<&2, String>

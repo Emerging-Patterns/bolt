@@ -11,7 +11,7 @@ import ../../src/args.bend as Args
 # decides what the parse does, and main only does it (trusted in src/lint.bend): a Stop
 # prints its text to its stream and exits with its code, and a Go runs its
 # subcommand over the files, which then exits as that command decides
-# (laws/OutputSummaryAndExitStatus.bend for lint).
+# (laws/OutputSummaryAndExitStatus.bend for check).
 #
 # The laws come in two kinds. Those over every parse result
 # (cli_error_exits, cli_help_exits, cli_version_exits, cli_runs, cli_files)
@@ -32,7 +32,7 @@ def plain_word(+w: String) -> Bool:
 # names no subcommand
 def loose_word(+w: String) -> Bool:
   Bool.and(plain_word(w),
-    Bool.not(Bool.or(String.eq("lint", w), Bool.or(String.eq("check", w), String.eq("lsp", w)))))
+    Bool.not(Bool.or(String.eq("check", w), Bool.or(String.eq("format", w), String.eq("lsp", w)))))
 
 # whether every word is loose
 def all_loose(ws: List<&2, String>) -> Bool:

@@ -1,4 +1,4 @@
-# `bolt fmt` writes exactly the files formatting changes and can write back,
+# `bolt format` writes exactly the files formatting changes and can write back,
 # each with its formatted text, in the order the run reads them: a file
 # whose formatted text is its text gets no edit, one whose text changes gets
 # one edit holding the formatted text, and a path the run could not read
@@ -6,7 +6,7 @@
 # holds U+FFFD, which a byte that is not UTF-8 reads as) gets no edit either,
 # whatever formatting would make of it, so a write never changes a file
 # beyond what formatting changes.
-# `bolt fmt --check` writes nothing, whatever it finds, and exits 1 when a
+# `bolt format --check` writes nothing, whatever it finds, and exits 1 when a
 # file would change. A path that could not be read is exit 1 either way, a
 # write run with every path read exits 0, and a run with nothing to say
 # prints `clean` and exits 0.
@@ -45,12 +45,12 @@ law fmt_reads_lint_inputs:
   for +world: W.World
   {Fp.plan(check, world) == Fp.plan.at(check, Lint.gots(Lint.inputs(world), world)) : Fp.Plan}
 
-# LAW: `bolt fmt --check` plans no write, whatever the files hold
+# LAW: `bolt format --check` plans no write, whatever the files hold
 law fmt_check_writes_nothing:
   for +gs: List<&2, Lint.Got>
   {edits_of(Fp.plan.at(True{}, gs)) == Nil{} : List<&2, Fp.Edit>}
 
-# LAW: `bolt fmt` plans every edit, and only those
+# LAW: `bolt format` plans every edit, and only those
 law fmt_writes_every_edit:
   for +gs: List<&2, Lint.Got>
   {edits_of(Fp.plan.at(False{}, gs)) == Fp.edits(gs) : List<&2, Fp.Edit>}

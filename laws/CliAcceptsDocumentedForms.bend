@@ -1,6 +1,7 @@
-# bolt accepts `bolt [lint] [files]`, `bolt check files`, `bolt fmt [--check]
-# [files]`, `bolt lsp`, `bolt help [cmd]`, `--help` and `--`; an argv parse error exits 1, and `help`,
-# `--help` and `--version` exit 0. What shake answers for each argv is
+# bolt accepts `bolt check [files]`, `bolt format [--check] [files]`,
+# `bolt lsp`, `bolt help [cmd]`, `--help` and `--`; an argv parse error exits
+# 1, `help`, `--help` and `--version` exit 0, and `bolt` with no command
+# prints the usage to stderr and exits 2. What shake answers for each argv is
 # trusted in src/args.bend; the laws prove what bolt does with that answer.
 #
 # also rests on: laws/CliDashHelp.bend, laws/CliVersion.bend,
@@ -45,84 +46,44 @@ law cli_help_exits:
   for h_help: {Shake.help_path(e) == Some{ps} : Maybe<&2, List<&2, String>>}
   {Args.out(Args.parse(av)) == Args.Stop{Args.Page{}, Args.help_text(ps), 0} : Args.Out}
 
-# LAW: every other argv that parses runs the command it selects (`lint` when
-# none) over the files that command bound, `fmt` told whether its `--check`
-# was set
+# LAW: every other argv that parses and selects a command runs it over the
+# files it bound, `format` told whether its `--check` was set
 law cli_runs:
+  for +av: List<&2, String>
+  for +m: Shake.Matched
+  for +c: String
+  for +cs: List<&2, String>
+  for h: {Args.parse(av) == Done{m} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for h_ver: {Shake.on(m, "version") == False{} : Bool}
+  for h_cmd: {Shake.path_of(m) == c <> cs : List<&2, String>}
+  {Args.out(Args.parse(av))
+    == Args.Go{Args.command.at(String.join(c <> cs, "/"), Args.checks(m)), Args.files(m)} : Args.Out}
+
+# LAW: an argv that parses, selects no command and asks no version prints
+# the usage to stderr and exits 2
+law cli_no_command:
   for +av: List<&2, String>
   for +m: Shake.Matched
   for h: {Args.parse(av) == Done{m} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
   for h_ver: {Shake.on(m, "version") == False{} : Bool}
-  {Args.out(Args.parse(av))
-    == Args.Go{Args.command.at(String.join(Shake.path_of(m), "/"), Args.checks(m)), Args.files(m)} : Args.Out}
+  for h_cmd: {Shake.path_of(m) == [] : List<&2, String>}
+  {Args.out(Args.parse(av)) == Args.Stop{Args.Err{}, Args.help_text([]), 2} : Args.Out}
 
-# LAW: `bolt file..` lints the files, when no word is a flag, `--`, `help` or
-# a subcommand's name (none at all lints the tree). shake's answer, the
-# premises: the words select no command (SHAKE-PARSE-4) and bind the root's
-# `files` rest in order (SHAKE-TOK-3, SHAKE-PARSE-3), read back by `at` and
-# `get_all` (SHAKE-GET-1, SHAKE-GET-2), and no `--version` is set
-# (SHAKE-GET-1)
+# LAW: `bolt` alone prints the usage to stderr and exits 2. shake's answer,
+# the premises: the empty line parses (SHAKE-PARSE-1), selects no command
+# (SHAKE-PARSE-4) and sets no `--version` (SHAKE-GET-1)
 law cli_bare:
-  for +fs: List<&2, String>
-  for h: {D1.all_loose(fs) == True{} : Bool}
   for +m: Shake.Matched
-  for +s: Shake.Matched
-  for hp: {Args.parse(fs) == Done{m} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for hp: {Args.parse([]) == Done{m} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
   for hs: {Shake.path_of(m) == [] : List<&2, String>}
-  for ha: {Shake.at(m, Shake.path_of(m)) == Some{s} : Maybe<&2, Shake.Matched>}
-  for hf: {Shake.get_all(s, "files") == fs : List<&2, String>}
   for hv: {Shake.on(m, "version") == False{} : Bool}
-  {Args.out(Args.parse(fs)) == Args.Go{Args.CLint{}, fs} : Args.Out}
+  {Args.out(Args.parse([])) == Args.Stop{Args.Err{}, Args.help_text([]), 2} : Args.Out}
 
-# LAW: `bolt -- word..` lints every word after the `--`, whatever it is.
-# shake's answer, the premises: after `--` every word binds the root's
-# `files` rest (SHAKE-TOK-4, SHAKE-PARSE-3) and selects no command
-# (SHAKE-PARSE-4), read back by `at` and `get_all` (SHAKE-GET-1,
-# SHAKE-GET-2), and no `--version` is set (SHAKE-GET-1)
-law cli_bare_raw:
-  for +fs: List<&2, String>
-  for +m: Shake.Matched
-  for +s: Shake.Matched
-  for hp: {Args.parse("--" <> fs) == Done{m} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
-  for hs: {Shake.path_of(m) == [] : List<&2, String>}
-  for ha: {Shake.at(m, Shake.path_of(m)) == Some{s} : Maybe<&2, Shake.Matched>}
-  for hf: {Shake.get_all(s, "files") == fs : List<&2, String>}
-  for hv: {Shake.on(m, "version") == False{} : Bool}
-  {Args.out(Args.parse("--" <> fs)) == Args.Go{Args.CLint{}, fs} : Args.Out}
-
-# LAW: `bolt lint file..` lints the files, when no word is a flag, `--` or
-# `help`. shake's answer, the premises: `lint` selects its command
+# LAW: `bolt check file..` lints the files, when no word is a flag, `--` or
+# `help`. shake's answer, the premises: `check` selects its command
 # (SHAKE-PARSE-4), the words bind its own `files` rest in order (SHAKE-TOK-3,
 # SHAKE-PARSE-3), read back by `at` and `get_all` (SHAKE-GET-1,
 # SHAKE-GET-2), and the root's `--version` is not set (SHAKE-GET-1)
-law cli_lint:
-  for +fs: List<&2, String>
-  for h: {all_plain(fs) == True{} : Bool}
-  for +m: Shake.Matched
-  for +s: Shake.Matched
-  for hp: {Args.parse("lint" <> fs) == Done{m} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
-  for hs: {Shake.path_of(m) == ["lint"] : List<&2, String>}
-  for ha: {Shake.at(m, Shake.path_of(m)) == Some{s} : Maybe<&2, Shake.Matched>}
-  for hf: {Shake.get_all(s, "files") == fs : List<&2, String>}
-  for hv: {Shake.on(m, "version") == False{} : Bool}
-  {Args.out(Args.parse("lint" <> fs)) == Args.Go{Args.CLint{}, fs} : Args.Out}
-
-# LAW: `bolt lint -- word..` lints every word after the `--`. shake's
-# answer, the premises: as cli_lint's, the words bound after `--`
-# (SHAKE-TOK-4)
-law cli_lint_raw:
-  for +fs: List<&2, String>
-  for +m: Shake.Matched
-  for +s: Shake.Matched
-  for hp: {Args.parse("lint" <> "--" <> fs) == Done{m} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
-  for hs: {Shake.path_of(m) == ["lint"] : List<&2, String>}
-  for ha: {Shake.at(m, Shake.path_of(m)) == Some{s} : Maybe<&2, Shake.Matched>}
-  for hf: {Shake.get_all(s, "files") == fs : List<&2, String>}
-  for hv: {Shake.on(m, "version") == False{} : Bool}
-  {Args.out(Args.parse("lint" <> "--" <> fs)) == Args.Go{Args.CLint{}, fs} : Args.Out}
-
-# LAW: `bolt check file..` checks the files, when no word is a flag, `--` or
-# `help`. shake's answer, the premises: as cli_lint's, `check` selected
 law cli_check:
   for +fs: List<&2, String>
   for h: {all_plain(fs) == True{} : Bool}
@@ -135,7 +96,7 @@ law cli_check:
   for hv: {Shake.on(m, "version") == False{} : Bool}
   {Args.out(Args.parse("check" <> fs)) == Args.Go{Args.CCheck{}, fs} : Args.Out}
 
-# LAW: `bolt check -- word..` checks every word after the `--`. shake's
+# LAW: `bolt check -- word..` lints every word after the `--`. shake's
 # answer, the premises: as cli_check's, the words bound after `--`
 # (SHAKE-TOK-4)
 law cli_check_raw:
@@ -149,37 +110,37 @@ law cli_check_raw:
   for hv: {Shake.on(m, "version") == False{} : Bool}
   {Args.out(Args.parse("check" <> "--" <> fs)) == Args.Go{Args.CCheck{}, fs} : Args.Out}
 
-# LAW: `bolt fmt file..` formats the files, when no word is a flag, `--` or
-# `help` (none at all formats the tree). shake's answer, the premises: as
-# cli_lint's, `fmt` selected, and its `--check` not set (SHAKE-GET-1)
-law cli_fmt:
+# LAW: `bolt format file..` formats the files, when no word is a flag, `--`
+# or `help` (none at all formats the tree). shake's answer, the premises: as
+# cli_check's, `format` selected, and its `--check` not set (SHAKE-GET-1)
+law cli_format:
   for +fs: List<&2, String>
   for h: {all_plain(fs) == True{} : Bool}
   for +m: Shake.Matched
   for +s: Shake.Matched
-  for hp: {Args.parse("fmt" <> fs) == Done{m} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
-  for hs: {Shake.path_of(m) == ["fmt"] : List<&2, String>}
+  for hp: {Args.parse("format" <> fs) == Done{m} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for hs: {Shake.path_of(m) == ["format"] : List<&2, String>}
   for +ha: {Shake.at(m, Shake.path_of(m)) == Some{s} : Maybe<&2, Shake.Matched>}
   for hf: {Shake.get_all(s, "files") == fs : List<&2, String>}
   for hv: {Shake.on(m, "version") == False{} : Bool}
   for hc: {Shake.on(s, "check") == False{} : Bool}
-  {Args.out(Args.parse("fmt" <> fs)) == Args.Go{Args.CFmt{False{}}, fs} : Args.Out}
+  {Args.out(Args.parse("format" <> fs)) == Args.Go{Args.CFormat{False{}}, fs} : Args.Out}
 
-# LAW: `bolt fmt --check file..` checks the files' format and is told so.
-# shake's answer, the premises: as cli_fmt's, `--check` set on `fmt`
-# (SHAKE-GET-1)
-law cli_fmt_check:
+# LAW: `bolt format --check file..` checks the files' format and is told
+# so. shake's answer, the premises: as cli_format's, `--check` set on
+# `format` (SHAKE-GET-1)
+law cli_format_check:
   for +fs: List<&2, String>
   for h: {all_plain(fs) == True{} : Bool}
   for +m: Shake.Matched
   for +s: Shake.Matched
-  for hp: {Args.parse("fmt" <> "--check" <> fs) == Done{m} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
-  for hs: {Shake.path_of(m) == ["fmt"] : List<&2, String>}
+  for hp: {Args.parse("format" <> "--check" <> fs) == Done{m} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for hs: {Shake.path_of(m) == ["format"] : List<&2, String>}
   for +ha: {Shake.at(m, Shake.path_of(m)) == Some{s} : Maybe<&2, Shake.Matched>}
   for hf: {Shake.get_all(s, "files") == fs : List<&2, String>}
   for hv: {Shake.on(m, "version") == False{} : Bool}
   for hc: {Shake.on(s, "check") == True{} : Bool}
-  {Args.out(Args.parse("fmt" <> "--check" <> fs)) == Args.Go{Args.CFmt{True{}}, fs} : Args.Out}
+  {Args.out(Args.parse("format" <> "--check" <> fs)) == Args.Go{Args.CFormat{True{}}, fs} : Args.Out}
 
 # LAW: `bolt lsp` serves an editor. shake's answer, the premises: `lsp`
 # selects its command (SHAKE-PARSE-4), which binds no files (SHAKE-GET-1),
@@ -218,23 +179,21 @@ law cli_help:
   {Args.out(Args.parse("help" <> ps)) == Args.Stop{Args.Page{}, Args.help_text(ps), 0} : Args.Out}
 
 # LAW: the files are a rest argument named `files` that need not be given,
-# with no default and no fixed choices, whatever its help line: `bolt` with
-# no file lints the tree
+# with no default and no fixed choices, whatever its help line: `bolt check`
+# with no file lints the tree
 law cli_files_optional:
   for +help: String
   {Args.spec.files(help) == Shake.rest("files", help, False{}, None{}, []) : Shake.Arg}
 
 # bolt's program as shake is handed it, written out: the program `bolt` with
-# its `--version` flag and its files, and the commands `lint`, `check`,
-# `fmt` (with its `--check` flag) and `lsp`, each word and each help line.
+# its `--version` flag, and the commands `check`, `format`
+# (with its `--check` flag) and `lsp`, each word and each help line.
 # Law vocabulary: bolt never calls it
 def cli.program() -> Shake.Cli:
   Shake.app("bolt", "A linter, checker and language server for Bend 2.", Some{Args.version()},
-    [Shake.flag("version", None{}, Some{"version"}, "Print the version"),
-     Shake.rest("files", "Files to lint", False{}, None{}, [])],
-    [Shake.sub("lint", "Lint files", [Shake.rest("files", "Files to lint", False{}, None{}, [])], []),
-     Shake.sub("check", "Check files", [Shake.rest("files", "Files to check", False{}, None{}, [])], []),
-     Shake.sub("fmt", "Format files",
+    [Shake.flag("version", None{}, Some{"version"}, "Print the version")],
+    [Shake.sub("check", "Lint files", [Shake.rest("files", "Files to lint", False{}, None{}, [])], []),
+     Shake.sub("format", "Format files",
        [Shake.flag("check", None{}, Some{"check"}, "List the files that would change and write nothing"),
         Shake.rest("files", "Files to format", False{}, None{}, [])], []),
      Shake.sub("lsp", "Serve an editor over stdio", [], [])])

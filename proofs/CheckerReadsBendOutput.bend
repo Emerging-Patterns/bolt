@@ -1,10 +1,9 @@
-# proofs of laws/CheckPrintsBendErrors.bend
+# proofs of laws/CheckerReadsBendOutput.bend
 import Base
 import ../src/lazy/lazy.bend as Lazy
-import ../src/check.bend as Check
 import ../src/lsp/checker/answer.bend as Checker
 import ../src/lsp/report.bend as Rep
-import ../laws/CheckPrintsBendErrors.bend as Laws
+import ../laws/CheckerReadsBendOutput.bend as Laws
 import ./lemmas/PlannerWalkInduction.bend as M1
 
 # False is not True. shake proves the same two lemmas for its walker
@@ -37,35 +36,6 @@ law bool.true_false:
 def bool.true_false(e):
   bool.false_true(Equal.sym(Bool, True{}, False{}, e))
 
-# a file's error lines, then more, are its lines onto more
-law chk.file:
-  for ds: List<&2, Rep.Diag>
-  for +path: String
-  for +more: List<&2, String>
-  {List.append(&2, String, Check.show_all(ds, path), more) == Laws.chk_file(ds, path, more) : List<&2, String>}
-
-def chk.file(ds, path, more):
-  match ds:
-    case Nil{}:
-      {==}
-    case Con{Rep.Diag{+line, +msg}, rest}:
-      %chk.file(rest, path, more) : {List.append(&2, String, Check.show_all(Rep.Diag{line, msg} <> rest, path), more)
-        == Laws.chk_line(path, Rep.Diag{line, msg}) <> _ : List<&2, String>}
-      {==}
-
-def Laws.check_lines(runs):
-  match runs:
-    case Nil{}:
-      {==}
-    case Con{Check.Run{+path, +ds}, +rest}:
-      %Laws.check_lines(rest) : {List.append(&2, String, Check.show_all(ds, path), Check.lines_of(rest))
-        == Laws.chk_file(ds, path, _) : List<&2, String>}
-      chk.file(ds, path, Check.lines_of(rest))
-    case Con{Check.Failed{+path}, +rest}:
-      %Laws.check_lines(rest) : {(path ++ ":1:1: error: could not run bend") <> Check.lines_of(rest)
-        == (path ++ ":1:1: error: could not run bend") <> _ : List<&2, String>}
-      {==}
-
 # the length of two lists appended is the sum of their lengths
 law chk.len_append:
   for xs: List<&2, String>
@@ -79,36 +49,6 @@ def chk.len_append(xs, ys):
       {==}
     case Con{_x, tl}:
       %chk.len_append(tl, ys) : {1n+List.length(&2, String, List.append(&2, String, tl, ys)) == 1n+_ : Nat}
-      {==}
-
-# a file has one error line per diagnostic
-law chk.len_show:
-  for ds: List<&2, Rep.Diag>
-  for +path: String
-  {List.length(&2, String, Check.show_all(ds, path)) == List.length(&2, Rep.Diag, ds) : Nat}
-
-def chk.len_show(ds, path):
-  match ds:
-    case Nil{}:
-      {==}
-    case Con{Rep.Diag{_line, _msg}, tl}:
-      %chk.len_show(tl, path) : {1n+List.length(&2, String, Check.show_all(tl, path)) == 1n+_ : Nat}
-      {==}
-
-def Laws.check_one_each(runs):
-  match runs:
-    case Nil{}:
-      {==}
-    case Con{Check.Run{+path, +ds}, +rest}:
-      %Laws.check_one_each(rest) : {List.length(&2, String,
-          List.append(&2, String, Check.show_all(ds, path), Check.lines_of(rest)))
-        == Nat.add(List.length(&2, Rep.Diag, ds), _) : Nat}
-      %chk.len_show(ds, path) : {List.length(&2, String,
-          List.append(&2, String, Check.show_all(ds, path), Check.lines_of(rest)))
-        == Nat.add(_, List.length(&2, String, Check.lines_of(rest))) : Nat}
-      chk.len_append(Check.show_all(ds, path), Check.lines_of(rest))
-    case Con{Check.Failed{_path}, +rest}:
-      %Laws.check_one_each(rest) : {1n+List.length(&2, String, Check.lines_of(rest)) == 1n+_ : Nat}
       {==}
 
 # a Nat's type when it is zero: inhabited only at zero
@@ -142,61 +82,6 @@ def chk.nil(xs, h):
       {==}
     case Con{+x, +tl}:
       Empty.absurd({x <> tl == [] : List<&2, String>}, chk.succ_zero(List.length(&2, String, tl), h))
-
-def Laws.check_clean(runs, h):
-  +e1 = Equal.trans(Nat, List.length(&2, String, Check.lines_of(runs)), Laws.chk_count(runs), 0n,
-    Laws.check_one_each(runs), h)
-  e2 = Equal.sym(Nat, List.length(&2, String, Check.lines_of(runs)), 0n, e1)
-  %e2 : {Check.out.at(Check.lines_of(runs), _) == Check.Out{["clean"], 0} : Check.Out}
-  e3 = Equal.sym(List<&2, String>, Check.lines_of(runs), [], chk.nil(Check.lines_of(runs), e1))
-  %e3 : {Check.Out{List.append(&2, String, _, ["clean"]), 0} == Check.Out{["clean"], 0} : Check.Out}
-  {==}
-
-def Laws.check_one(runs, h):
-  e1 = Equal.sym(Nat, List.length(&2, String, Check.lines_of(runs)), 1n,
-    Equal.trans(Nat, List.length(&2, String, Check.lines_of(runs)), Laws.chk_count(runs), 1n,
-      Laws.check_one_each(runs), h))
-  %e1 : {Check.out.at(Check.lines_of(runs), _)
-    == Check.Out{List.append(&2, String, Laws.chk_lines(runs), ["1 error, 0 warnings"]), 1} : Check.Out}
-  %Laws.check_lines(runs) : {Check.Out{List.append(&2, String, Check.lines_of(runs), ["1 error, 0 warnings"]), 1}
-    == Check.Out{List.append(&2, String, _, ["1 error, 0 warnings"]), 1} : Check.Out}
-  {==}
-
-def Laws.check_many(runs, more, h):
-  e1 = Equal.sym(Nat, List.length(&2, String, Check.lines_of(runs)), 2n+more,
-    Equal.trans(Nat, List.length(&2, String, Check.lines_of(runs)), Laws.chk_count(runs), 2n+more,
-      Laws.check_one_each(runs), h))
-  %e1 : {Check.out.at(Check.lines_of(runs), _)
-    == Check.Out{List.append(&2, String, Laws.chk_lines(runs),
-      [U32.show(U32.from_nat(2n+more)) ++ " errors, 0 warnings"]), 1} : Check.Out}
-  %Laws.check_lines(runs) : {Check.Out{List.append(&2, String, Check.lines_of(runs),
-      [U32.show(U32.from_nat(2n+more)) ++ " errors, 0 warnings"]), 1}
-    == Check.Out{List.append(&2, String, _, [U32.show(U32.from_nat(2n+more)) ++ " errors, 0 warnings"]), 1}
-    : Check.Out}
-  {==}
-
-# a count past zero exits 1, whatever the lines
-law chk.code_succ:
-  for ls: List<&2, String>
-  for nn: Nat
-  {Laws.chk_code(Check.out.at(ls, 1n+nn)) == 1 : U32}
-
-def chk.code_succ(_ls, nn):
-  match nn:
-    case 0n:
-      {==}
-    case 1n+_p:
-      {==}
-
-def Laws.check_unrun_error(path, runs):
-  chk.code_succ((path ++ ":1:1: error: could not run bend") <> Check.lines_of(runs),
-    List.length(&2, String, Check.lines_of(runs)))
-
-def Laws.check_run_of(_path, _ds):
-  {==}
-
-def Laws.check_run_unrun(_path):
-  {==}
 
 def Laws.check_exec_ran(_names, _text):
   {==}
@@ -240,7 +125,7 @@ def Laws.check_exec_untagged(names, c, text, h):
 def Laws.check_proof_unrun(_ds):
   {==}
 
-# The line bend marks (laws/CheckPrintsBendErrors.bend). chk.report's text is its lines, each
+# The line bend marks. chk.report's text is its lines, each
 # ended by a newline (mk.lines); Rep.parse walks them a line at a time, and
 # each error's lines leave the parser's state holding that error, the one
 # before it flushed (mk.block, mk.flush).
@@ -1355,133 +1240,6 @@ def mk.shown(b, v):
     case False{}:
       mk.usub(v)
 
-# each diagnostic printed: on the number chk.shown says, with its message
-law mk.show_all:
-  for es: List<&2, Laws.chk.Err>
-  for +path: String
-  for +names: Maybe<&2, List<&2, String>>
-  {Check.show_all(Laws.chk.diags(es, names), path) == Laws.chk.printed(es, path, names) : List<&2, String>}
-
-def mk.show_all(es, path, names):
-  match es:
-    case Nil{}:
-      {==}
-    case Con{+e, +rest}:
-      +own = Laws.chk.own(names, Laws.chk.place(Laws.chk.err_at(e)))
-      +v = Laws.chk.marked(Laws.chk.err_at(e))
-      +msg = Laws.chk.msg(names, e)
-      Equal.trans(List<&2, String>,
-        (path ++ ":" ++ U32.show((Laws.chk.row(own, v) + 1 : U32)) ++ ":1: error: " ++ Check.message(msg))
-          <> Check.show_all(Laws.chk.diags(rest, names), path),
-        (path ++ ":" ++ U32.show(Laws.chk.shown(own, v)) ++ ":1: error: " ++ Check.message(msg))
-          <> Check.show_all(Laws.chk.diags(rest, names), path),
-        Laws.chk.printed(Con{e, rest}, path, names),
-        Equal.cong(U32, List<&2, String>,
-          x => (path ++ ":" ++ U32.show(x) ++ ":1: error: " ++ Check.message(msg))
-            <> Check.show_all(Laws.chk.diags(rest, names), path),
-          (Laws.chk.row(own, v) + 1 : U32), Laws.chk.shown(own, v),
-          mk.shown(Bool.or(Bool.not(own), U32.is_eq(v, 0)), v)),
-        Equal.cong(List<&2, String>, List<&2, String>,
-          xs => (path ++ ":" ++ U32.show(Laws.chk.shown(own,
-            v)) ++ ":1: error: " ++ Check.message(msg)) <> xs,
-          Check.show_all(Laws.chk.diags(rest, names), path), Laws.chk.printed(rest, path, names),
-          mk.show_all(rest, path, names)))
-
-def Laws.check_marked_line(names, path, es, flat, fits):
-  Equal.trans(List<&2, String>,
-    List.append(&2, String, Check.show_all(Rep.parse_in(names, Laws.chk.report(es)), path), []),
-    List.append(&2, String, Check.show_all(Laws.chk.diags(es, names), path), []),
-    Laws.chk.printed(es, path, names),
-    Equal.cong(List<&2, Rep.Diag>, List<&2, String>, ds => List.append(&2, String, Check.show_all(ds, path),
-      []),
-      Rep.parse_in(names, Laws.chk.report(es)), Laws.chk.diags(es, names), Laws.check_marked(names, es,
-        flat, fits)),
-    Equal.trans(List<&2, String>,
-      List.append(&2, String, Check.show_all(Laws.chk.diags(es, names), path), []),
-      Check.show_all(Laws.chk.diags(es, names), path),
-      Laws.chk.printed(es, path, names),
-      M1.lint.app_nil(String, Check.show_all(Laws.chk.diags(es, names), path)),
-      mk.show_all(es, path, names)))
-
-# an error in another file prints on line 1, headed by where it is
-law mk.import.at:
-  for b: Bool
-  for eb: {b == False{} : Bool}
-  for +path: String
-  for +name: String
-  for +v: U32
-  for +body: String
-  {[path ++ ":" ++ U32.show(Bool.pick(U32, Bool.or(Bool.not(b), U32.is_eq(v, 0)), 1, v)) ++ ":1: error: "
-      ++ Check.message(Bool.pick(String, b, body, "in " ++ name ++ ":\n" ++ body))]
-    == [path ++ ":1:1: error: " ++ Check.message("in " ++ name ++ ":\n" ++ body)] : List<&2, String>}
-
-def mk.import.at(b, eb, path, name, v, body):
-  match b:
-    case False{}:
-      {==}
-    case True{}:
-      Empty.absurd({[path ++ ":" ++ U32.show(Bool.pick(U32, Bool.or(False{}, U32.is_eq(v, 0)), 1,
-        v)) ++ ":1: error: "
-          ++ Check.message(Bool.pick(String, True{}, body, "in " ++ name ++ ":\n" ++ body))]
-        == [path ++ ":1:1: error: " ++ Check.message("in " ++ name ++ ":\n" ++ body)] : List<&2, String>},
-        bool.true_false(eb))
-
-def Laws.check_import_first(names, path, parts, name, span, note, other, flat, fits):
-  Equal.trans(List<&2, String>,
-    Check.lines_of([Check.Run{path,
-      Rep.parse_in(names, Laws.chk.report([Laws.ChkErr{parts, Some{Laws.ChkWhere{Some{name}, span}},
-        note}]))}]),
-    Laws.chk.printed([Laws.ChkErr{parts, Some{Laws.ChkWhere{Some{name}, span}}, note}], path, names),
-    [path ++ ":1:1: error: " ++ Check.message("in " ++ name ++ ":\n" ++ String.join(Laws.chk.texts(parts),
-      "\n"))],
-    Laws.check_marked_line(names, path, [Laws.ChkErr{parts, Some{Laws.ChkWhere{Some{name}, span}}, note}],
-      flat, fits),
-    mk.import.at(Laws.chk.own(names, name), other, path, name, Laws.chk.marks(span),
-      String.join(Laws.chk.texts(parts), "\n")))
-
-# an error the file owns, with a marked line, prints on that line
-law mk.own.at:
-  for b: Bool
-  for eb: {b == True{} : Bool}
-  for c: Bool
-  for ec: {c == False{} : Bool}
-  for +path: String
-  for +name: String
-  for +v: U32
-  for +body: String
-  {[path ++ ":" ++ U32.show(Bool.pick(U32, Bool.or(Bool.not(b), c), 1, v)) ++ ":1: error: "
-      ++ Check.message(Bool.pick(String, b, body, "in " ++ name ++ ":\n" ++ body))]
-    == [path ++ ":" ++ U32.show(v) ++ ":1: error: " ++ Check.message(body)] : List<&2, String>}
-
-def mk.own.at(b, eb, c, ec, path, name, v, body):
-  match b c:
-    case True{} False{}:
-      {==}
-    case True{} True{}:
-      Empty.absurd({[path ++ ":" ++ U32.show(Bool.pick(U32, Bool.or(False{}, True{}), 1, v)) ++ ":1: error: "
-          ++ Check.message(Bool.pick(String, True{}, body, "in " ++ name ++ ":\n" ++ body))]
-        == [path ++ ":" ++ U32.show(v) ++ ":1: error: " ++ Check.message(body)] : List<&2, String>},
-        bool.true_false(ec))
-    case False{} _cc:
-      Empty.absurd({[path ++ ":" ++ U32.show(Bool.pick(U32, Bool.or(True{}, _cc), 1, v)) ++ ":1: error: "
-          ++ Check.message(Bool.pick(String, False{}, body, "in " ++ name ++ ":\n" ++ body))]
-        == [path ++ ":" ++ U32.show(v) ++ ":1: error: " ++ Check.message(body)] : List<&2, String>},
-        bool.false_true(eb))
-
-def Laws.check_own_marked(names, path, parts, name, span, note, own, some, flat, fits):
-  Equal.trans(List<&2, String>,
-    Check.lines_of([Check.Run{path,
-      Rep.parse_in(names, Laws.chk.report([Laws.ChkErr{parts, Some{Laws.ChkWhere{Some{name}, Some{span}}},
-        note}]))}]),
-    Laws.chk.printed([Laws.ChkErr{parts, Some{Laws.ChkWhere{Some{name}, Some{span}}}, note}], path, names),
-    [path ++ ":" ++ U32.show(Laws.chk.marks(Some{span})) ++ ":1: error: "
-      ++ Check.message(String.join(Laws.chk.texts(parts), "\n"))],
-    Laws.check_marked_line(names, path, [Laws.ChkErr{parts, Some{Laws.ChkWhere{Some{name}, Some{span}}},
-      note}],
-      flat, fits),
-    mk.own.at(Laws.chk.own(names, name), own, U32.is_eq(Laws.chk.marks(Some{span}), 0), some, path, name,
-      Laws.chk.marks(Some{span}), String.join(Laws.chk.texts(parts), "\n")))
-
 def Laws.proved_clean_shows_none(pds, ds, e):
   %Equal.sym(Bool, List.is_empty(&2, Rep.Diag, pds), True{}, e) :
     {Checker.Checked{Bool.pick(List<&2, Rep.Diag>, _, [], ds)} == Checker.Checked{[]} : Checker.Answer}
@@ -1490,7 +1248,4 @@ def Laws.proved_clean_shows_none(pds, ds, e):
 def Laws.proved_failing_shows_its_own(pds, ds, e):
   %Equal.sym(Bool, List.is_empty(&2, Rep.Diag, pds), False{}, e) :
     {Checker.Checked{Bool.pick(List<&2, Rep.Diag>, _, [], ds)} == Checker.Checked{ds} : Checker.Answer}
-  {==}
-
-def Laws.rest_lines_indent_each_line(_ll, _tt):
   {==}

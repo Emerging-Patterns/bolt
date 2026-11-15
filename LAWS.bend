@@ -22,7 +22,7 @@ import ./laws/LeaveZero.bend as LeaveZero
 import ./laws/SayErr.bend as SayErr
 import ./laws/SayLine.bend as SayLine
 import ./laws/SayPage.bend as SayPage
-import ./laws/CheckPrintsBendErrors.bend as CheckPrintsBendErrors
+import ./laws/CheckerReadsBendOutput.bend as CheckerReadsBendOutput
 import ./laws/CliAcceptsDocumentedForms.bend as CliAcceptsDocumentedForms
 import ./laws/CliDashHelp.bend as CliDashHelp
 import ./laws/CliReadsArgumentsAfterProgram.bend as CliReadsArgumentsAfterProgram
