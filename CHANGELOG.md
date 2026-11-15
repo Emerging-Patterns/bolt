@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.65.0](https://github.com/Emerging-Patterns/bolt/compare/v1.64.0...v1.65.0) (2026-11-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cli:** `bolt lint`, `bolt fmt`, bare `bolt` and `bolt <file>` no longer lint (use `bolt check`, `bolt format`), and `bolt check` lints instead of running bend. ez's mkLint runs bare `bolt`, so it now fails with exit 2 until it runs `bolt check`; this flake hands it a `bolt` that is `bolt check`.
+
+### Features
+
+* **cli:** ruff's shape: bolt check lints, bolt format [--check] formats ([#395](https://github.com/Emerging-Patterns/bolt/issues/395)) ([9bd3dd5](https://github.com/Emerging-Patterns/bolt/commit/9bd3dd54d7c4a09bfe02791897adbbaa8a0d5915))
+
 ## [1.64.0](https://github.com/Emerging-Patterns/bolt/compare/v1.63.0...v1.64.0) (2026-11-14)
 
 
