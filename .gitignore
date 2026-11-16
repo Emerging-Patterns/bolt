@@ -10,3 +10,4 @@ node_modules/
 !.ez/lib
 .ez/lib/*
 .worktrees/
+.direnv/
