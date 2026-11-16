@@ -1,8 +1,8 @@
 # proofs of laws/LspRepliesFollowTheProtocol.bend: each reply by evaluation;
 # a choice by rewriting it with what the law assumes, or case by case
 import Base
-import ezjson@1.2.0.0/main.bend as Ezjson
-import ezjson@1.2.0.0/src/value.bend as J
+import ezjson@1.5.0.0/main.bend as Ezjson
+import ezjson@1.5.0.0/src/value.bend as J
 import ../src/lsp/frame.bend as Frame
 import ../src/syntax/bind.bend as Bind
 import ../src/config.bend as Config

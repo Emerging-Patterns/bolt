@@ -1,7 +1,7 @@
 # bolt from nothing: the binary people run, built by `bend` and nothing else.
 #
 # `bend main.bend -o bin/bolt.bin` is the entire build. shake, ezjson and
-# snap are imported by hub name (`shake@0.6.0.0/...`), so bend fetches them
+# snap are imported by hub name (`shake@0.9.0.0/...`), so bend fetches them
 # from the hub itself: this test runs it with an empty HOME and no BEND_LIB --
 # no ez, no nix, no clones. `ez` is a convenience over that one line and never
 # a prerequisite, in either direction: a project that depends on bolt needs no
@@ -19,7 +19,7 @@
 # it, and it is the slow one, because the compile it drives is a whole build of
 # bolt.
 import Base
-import snap@1.4.0.0/main.bend as Snap
+import snap@1.6.0.0/main.bend as Snap
 
 # `ok name` when the two strings are equal, `FAIL name` when they are not
 def eq_str(name: String, got: String, want: String) -> IO(Unit):

@@ -1,7 +1,7 @@
 # proofs of laws/LspRepliesListEveryEntry.bend
 import Base
-import ezjson@1.2.0.0/main.bend as Ezjson
-import ezjson@1.2.0.0/src/value.bend as J
+import ezjson@1.5.0.0/main.bend as Ezjson
+import ezjson@1.5.0.0/src/value.bend as J
 import ../src/lsp/frame.bend as Frame
 import ../src/lsp/report.bend as Rep
 import ../src/syntax/outline.bend as Outline

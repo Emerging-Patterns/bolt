@@ -8,8 +8,8 @@
 # hash, is trusted to parse and print JSON correctly; it proves that itself.
 import Base
 import ../lazy/lazy.bend as Lazy
-import ezjson@1.2.0.0/main.bend as Ezjson
-import ezjson@1.2.0.0/src/value.bend as J
+import ezjson@1.5.0.0/main.bend as Ezjson
+import ezjson@1.5.0.0/src/value.bend as J
 
 # the encodings the server speaks
 type Enc is Data:

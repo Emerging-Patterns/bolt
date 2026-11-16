@@ -1,6 +1,6 @@
 # proofs of laws/LspPositionsUseNegotiatedEncoding.bend
 import Base
-import ezjson@1.2.0.0/main.bend as Ezjson
+import ezjson@1.5.0.0/main.bend as Ezjson
 import ../src/lsp/server.bend as Server
 import ../src/lsp/proto.bend as Proto
 import ../src/lsp/enc.bend as Enc

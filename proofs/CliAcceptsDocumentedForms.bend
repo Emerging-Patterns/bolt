@@ -1,7 +1,7 @@
 # proofs of laws/CliAcceptsDocumentedForms.bend
 import Base
 import ../src/args.bend as Args
-import shake@0.6.0.0/main.bend as Shake
+import shake@0.9.0.0/main.bend as Shake
 import ../laws/CliAcceptsDocumentedForms.bend as Laws
 import ./lemmas/CliHelpExit.bend as M1
 

@@ -1,7 +1,7 @@
 # Each request gets exactly one response with the same id, in order; an
 # unknown request gets -32601; an unknown notification gets nothing.
 import Base
-import ezjson@1.2.0.0/src/value.bend as J
+import ezjson@1.5.0.0/src/value.bend as J
 import ../src/lsp/server.bend as Server
 import ./defs/MessageTurns.bend as D1
 

@@ -1,6 +1,6 @@
 # dispatching messages into replies, one turn at a time
 import Base
-import ezjson@1.2.0.0/src/value.bend as J
+import ezjson@1.5.0.0/src/value.bend as J
 import ../../src/lsp/server.bend as Server
 
 # dispatch

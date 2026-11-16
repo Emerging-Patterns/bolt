@@ -1,6 +1,6 @@
 # proofs of laws/LspAnswersEachRequestOnce.bend
 import Base
-import ezjson@1.2.0.0/src/value.bend as J
+import ezjson@1.5.0.0/src/value.bend as J
 import ../src/lsp/server.bend as Server
 import ../laws/LspAnswersEachRequestOnce.bend as Laws
 import ../laws/defs/MessageTurns.bend as D1
