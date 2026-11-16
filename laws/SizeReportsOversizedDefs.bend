@@ -12,7 +12,14 @@
 # whose body is one statement that opens a block, with nothing under it but
 # `case` arms, each holding at most one statement, which opens no block: a
 # second statement in the body, a second in an arm, or a block in an arm
-# makes it no table. depth puts the statements under one that opens a block
+# makes it no table. A def whose body is one statement that is a `[` list of
+# data and nothing else, with nothing under it, is a table too. Data is
+# numbers, strings, chars, commas, capitalized and dotted names (a
+# constructor's, or a def's named and not called) and `[..]` and `{..}`
+# groups of data: a plain lowercase name (a variable, or a call's head), an
+# operator, a keyword, a `(..)` group or a statement anywhere in the list
+# makes it no table, and so does a token after the list's `]` or a line
+# under it. depth puts the statements under one that opens a block
 # (a `:` among
 # its own tokens) one level down, and those under one that does not (a line
 # an expression wrapped onto) at the same level.
@@ -32,6 +39,29 @@ import ../src/syntax/bind.bend as Bind
 import ../src/syntax/outline.bend as Outline
 import ../src/rules/calls.bend as Calls
 import ../src/rules/style/size.bend as Size
+
+# a token a list of data holds: a number, a string, a char, a comma, or a
+# capitalized or dotted name
+def literal(k: Lex.TokKind) -> Bool:
+  match k:
+    case Lex.TNum{}:
+      True{}
+    case Lex.TStr{}:
+      True{}
+    case Lex.TChar{}:
+      True{}
+    case Lex.TComma{}:
+      True{}
+    case Lex.TUpper{}:
+      True{}
+    case Lex.TDotted{}:
+      True{}
+    case _other:
+      False{}
+
+# a bracket a group of data opens: `[` or `{`
+def bracket(+t: String) -> Bool:
+  Bool.or(String.eq(t, "["), String.eq(t, "{"))
 
 # is the def one the rule reports: not exempt, and over the limit?
 def over(dim: Size.Dim, path: String, +sig: Tree.Node, body: Tree.Node, max: U32) -> Bool:
@@ -190,3 +220,93 @@ law table_arm_holds_one_statement:
   for second: Tree.Node
   for rest: Tree.Node
   {Size.table.arm(Tree.NCons{first, Tree.NCons{second, rest}}) == False{} : Bool}
+
+# LAW: a body that is one statement holding a `[` list of data, and nothing
+# under it, is a table
+law table_takes_data_list:
+  for kind: Tree.StmtKind
+  for k: Lex.TokKind
+  for l: U32
+  for c: U32
+  for elems: Tree.Node
+  for close: Maybe<&2, Lex.Tok>
+  for e: {Size.data(elems) == True{} : Bool}
+  {Size.table(Tree.NCons{Tree.Stmt{kind, Tree.NCons{Tree.Group{Lex.Tok{k, "[", l, c}, elems, close}, Tree.NNil{}},
+    Tree.NNil{}}, Tree.NNil{}}) == True{} : Bool}
+
+# LAW: a body that is one `[` list holding what is not data, a call or a
+# match, is no table
+law table_list_needs_data:
+  for kind: Tree.StmtKind
+  for k: Lex.TokKind
+  for t: String
+  for l: U32
+  for c: U32
+  for elems: Tree.Node
+  for close: Maybe<&2, Lex.Tok>
+  for e: {Size.data(elems) == False{} : Bool}
+  {Size.table(Tree.NCons{Tree.Stmt{kind, Tree.NCons{Tree.Group{Lex.Tok{k, t, l, c}, elems, close}, Tree.NNil{}},
+    Tree.NNil{}}, Tree.NNil{}}) == False{} : Bool}
+
+# LAW: a `[` list with a line under it is no table
+law table_list_holds_nothing_under:
+  for kind: Tree.StmtKind
+  for k: Lex.TokKind
+  for t: String
+  for l: U32
+  for c: U32
+  for elems: Tree.Node
+  for close: Maybe<&2, Lex.Tok>
+  for first: Tree.Node
+  for rest: Tree.Node
+  {Size.table(Tree.NCons{Tree.Stmt{kind, Tree.NCons{Tree.Group{Lex.Tok{k, t, l, c}, elems, close}, Tree.NNil{}},
+    Tree.NCons{first, rest}}, Tree.NNil{}}) == False{} : Bool}
+
+# LAW: a `[` list with a token after its `]`, as `[..] ++ more`, is no table
+# of data (it is a table only as a `match` is, when a `:` opens a block)
+law table_list_is_whole_statement:
+  for kind: Tree.StmtKind
+  for k: Lex.TokKind
+  for t: String
+  for l: U32
+  for c: U32
+  for elems: Tree.Node
+  for close: Maybe<&2, Lex.Tok>
+  for next: Tree.Node
+  for more: Tree.Node
+  for under: Tree.Node
+  for e: {Calls.has_colon(Tree.NCons{next, more}) == False{} : Bool}
+  {Size.table(Tree.NCons{Tree.Stmt{kind, Tree.NCons{Tree.Group{Lex.Tok{k, t, l, c}, elems, close},
+    Tree.NCons{next, more}}, under}, Tree.NNil{}}) == False{} : Bool}
+
+# LAW: a token is data exactly when it is a number, a string, a char, a
+# comma, or a capitalized or dotted name, and what follows it is data
+law data_reads_token:
+  for k: Lex.TokKind
+  for t: String
+  for l: U32
+  for c: U32
+  for rest: Tree.Node
+  {Size.data(Tree.NCons{Tree.Leaf{Lex.Tok{k, t, l, c}}, rest}) == Bool.and(literal(k), Size.data(rest)) : Bool}
+
+# LAW: a group is data exactly when it opens with `[` or `{` and what it
+# holds and what follows it are data; a `(..)` group, a call's arguments or
+# an expression, is none
+law data_reads_group:
+  for k: Lex.TokKind
+  for t: String
+  for l: U32
+  for c: U32
+  for kids: Tree.Node
+  for close: Maybe<&2, Lex.Tok>
+  for rest: Tree.Node
+  {Size.data(Tree.NCons{Tree.Group{Lex.Tok{k, t, l, c}, kids, close}, rest})
+    == Bool.and(bracket(t), Bool.and(Size.data(kids), Size.data(rest))) : Bool}
+
+# LAW: a statement among a list's elements is no data
+law data_rejects_statement:
+  for kind: Tree.StmtKind
+  for kids: Tree.Node
+  for body: Tree.Node
+  for rest: Tree.Node
+  {Size.data(Tree.NCons{Tree.Stmt{kind, kids, body}, rest}) == False{} : Bool}

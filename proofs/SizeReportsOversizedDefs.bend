@@ -10,6 +10,7 @@ import ../src/rules/calls.bend as Calls
 import ../src/rules/style/size.bend as Size
 import ../laws/SizeReportsOversizedDefs.bend as Laws
 import ./lemmas/LawFileExemptions.bend as M1
+import ./lemmas/HoleEarlyAnd.bend as M2
 
 # a def that is exempt adds nothing, and one that is not adds one exactly
 # when it is over
@@ -154,3 +155,75 @@ def Laws.table_arm_holds_one_statement(first, _second, _rest):
       {==}
     case Tree.NCons{head, tail}:
       {==}
+
+def Laws.table_takes_data_list(_kind, _k, _l, _c, elems, _close, e):
+  s = Equal.sym(Bool, Size.data(elems), True{}, e)
+  %s : {Bool.and(_, True{}) == True{} : Bool}
+  {==}
+
+def Laws.table_list_needs_data(_kind, _k, t, _l, _c, elems, _close, e):
+  s = Equal.sym(Bool, Size.data(elems), False{}, e)
+  %s : {Bool.and(_, String.eq(t, "[")) == False{} : Bool}
+  {==}
+
+def Laws.table_list_holds_nothing_under(_kind, _k, _t, _l, _c, _elems, _close, _first, _rest):
+  {==}
+
+def Laws.table_list_is_whole_statement(_kind, _k, _t, _l, _c, _elems, _close, next, more, under, e):
+  s = Equal.sym(Bool, Calls.has_colon(Tree.NCons{next, more}), False{}, e)
+  %s : {Lazy.or_else(Lazy.and_then(_, _u => Size.table.arms(under)), _u => False{}) == False{} : Bool}
+  {==}
+
+def Laws.data_reads_token(k, _t, _l, _c, _rest):
+  match k:
+    case Lex.TName{}:
+      {==}
+    case Lex.TUpper{}:
+      {==}
+    case Lex.TDotted{}:
+      {==}
+    case Lex.TWild{}:
+      {==}
+    case Lex.TKey{}:
+      {==}
+    case Lex.TNum{}:
+      {==}
+    case Lex.TStr{}:
+      {==}
+    case Lex.TChar{}:
+      {==}
+    case Lex.TComment{}:
+      {==}
+    case Lex.TSpace{}:
+      {==}
+    case Lex.TNewline{}:
+      {==}
+    case Lex.TOp{}:
+      {==}
+    case Lex.TColon{}:
+      {==}
+    case Lex.TEq{}:
+      {==}
+    case Lex.TBind{}:
+      {==}
+    case Lex.TArrow{}:
+      {==}
+    case Lex.TLam{}:
+      {==}
+    case Lex.TAll{}:
+      {==}
+    case Lex.TAmp{}:
+      {==}
+    case Lex.TOpen{}:
+      {==}
+    case Lex.TClose{}:
+      {==}
+    case Lex.TComma{}:
+      {==}
+
+def Laws.data_reads_group(_k, t, _l, _c, kids, _close, rest):
+  M2.hole.and(Size.data.bracket(t), Lazy.and_then(Size.data(kids), _v => Size.data(rest)),
+    Bool.and(Size.data(kids), Size.data(rest)), M2.hole.and(Size.data(kids), Size.data(rest), Size.data(rest), {==}))
+
+def Laws.data_rejects_statement(_kind, _kids, _body, _rest):
+  {==}
