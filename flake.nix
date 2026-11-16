@@ -59,12 +59,8 @@
           # only on a first line of ALL PROOFS CHECK
           proofs = ez.mkProofs { ez = ezBin; src = self; };
           # bolt check, built from this tree, over this tree: exit 1 on any
-          # error. mkLint runs `bolt` with no command, which prints the usage
-          # and exits 2, so it is handed a `bolt` that is `bolt check`
-          boltCheck = pkgs.writeShellScriptBin "bolt" ''
-            exec ${bolt}/bin/bolt check "$@"
-          '';
-          lint = ez.mkLint { bolt = boltCheck; src = self; };
+          # error (mkLint runs `bolt check` when handed a bolt, since ez 1.16)
+          lint = ez.mkLint { inherit bolt; src = self; };
           # bolt format --check, built from this tree, over this tree: exit 1
           # when a file would change, so the tree stays formatted
           fmt = pkgs.runCommand "bolt-format" { } ''
