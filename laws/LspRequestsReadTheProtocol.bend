@@ -16,8 +16,8 @@
 # - The semantic token legend uses the spec's own token type names, in the
 #   order the server numbers them.
 import Base
-import ezjson@1.2.0.0/main.bend as Ezjson
-import ezjson@1.2.0.0/src/value.bend as J
+import ezjson@1.5.0.0/main.bend as Ezjson
+import ezjson@1.5.0.0/src/value.bend as J
 import ../src/lsp/enc.bend as Enc
 import ../src/lsp/semantic.bend as Semantic
 import ../src/lsp/server.bend as Server

@@ -8,7 +8,7 @@
 # laws/CliVersionExits.bend
 import Base
 import ../src/args.bend as Args
-import shake@0.6.0.0/main.bend as Shake
+import shake@0.9.0.0/main.bend as Shake
 import ./defs/CliWordKinds.bend as D1
 
 # whether every word is plain

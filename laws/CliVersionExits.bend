@@ -2,7 +2,7 @@ import Base
 import ../src/args.bend as Args
 import ../src/version.bend as Ver
 import ../src/build_rev.bend as Rev
-import shake@0.6.0.0/main.bend as Shake
+import shake@0.9.0.0/main.bend as Shake
 
 # LAW: every argv that parses with `--version` set prints bolt, then the
 # release and the commit, and exits 0, whatever else it names

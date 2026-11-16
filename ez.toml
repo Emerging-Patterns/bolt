@@ -3,14 +3,14 @@ name = "bolt"
 entry = "main.bend"
 [deps]
 [deps.ezjson]
-hash = "0xa81e161008ecc2f297c0a3065cb9b188"
-hub = "ezjson@1.2.0.0"
+hash = "0x597f8af3f77d8983aacfa076df42d235"
+hub = "ezjson@1.5.0.0"
 entry = "main.bend"
 [deps.snap]
-hash = "0x8e26a6f8c31689519e618374376ee3dd"
-hub = "snap@1.4.0.0"
+hash = "0x868383407d284eb98ec06d42345da047"
+hub = "snap@1.6.0.0"
 entry = "main.bend"
 [deps.shake]
-hash = "0xa383b26a5a0ef35663b3615d7aedf9e3"
-hub = "shake@0.6.0.0"
+hash = "0x64697f57fea19681b5fa4f87014ce63d"
+hub = "shake@0.9.0.0"
 entry = "main.bend"

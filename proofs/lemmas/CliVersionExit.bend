@@ -3,7 +3,7 @@ import Base
 import ../../src/args.bend as Args
 import ../../src/version.bend as Ver
 import ../../src/build_rev.bend as Rev
-import shake@0.6.0.0/main.bend as Shake
+import shake@0.9.0.0/main.bend as Shake
 import ../../laws/CliVersionExits.bend as L1
 
 def L1.cli_version_exits(av, m, h, h_ver):
