@@ -411,7 +411,12 @@ statement.
   and a def that is a proof are left alone. `length` does not measure a
   table: a def whose body is one `match` with nothing under it but `case`
   arms, each holding at most one statement, which opens no block (an
-  opcode dispatch, a glyph for each character). A table has no step to
+  opcode dispatch, a glyph for each character), or whose body is one `[..]`
+  list of data and nothing else: numbers, strings, chars, capitalized and
+  dotted names and `[..]` and `{..}` groups of them, with no plain name (so
+  no variable and no call), no operator and no `(..)` (a generated list of
+  records, such as the HTML Standard's named character references). A
+  table has no step to
   move into a helper; the one way to shorten it is to cut it in two at some
   line, which helps no reader. The limits sit where public
   Bend 2 code stops (99 in 100 defs have 9 parameters or fewer, 19 lines or

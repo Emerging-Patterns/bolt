@@ -6,7 +6,12 @@
 #   length  its lines, from the `def` line to the line of its last token:
 #           over 40. A table is not measured: a def whose body is one
 #           `match` with nothing under it but `case` arms, each holding at
-#           most one statement, which opens no block
+#           most one statement, which opens no block; or a def whose body is
+#           one list of data, a `[..]` holding nothing but numbers, strings,
+#           chars, commas, capitalized and dotted names and `[..]` and
+#           `{..}` groups of them (no plain name, so no variable and no
+#           call; no operator; no `(..)`), with nothing after its `]` and
+#           no line under it
 #   depth   how deep its statements nest. The statements right under the def
 #           are level 1, and a statement that opens a block (its own tokens
 #           hold a `:`, as `match x:` and `case A:` do) puts the statements
@@ -25,7 +30,9 @@
 # inner match of a deep one, becomes a helper. A table has no step to move:
 # its length is how many cases there are, and the one way to shorten it is
 # to cut it in two at some line, which helps no reader. Of the 116 defs
-# `length` reported in 82 public repos, 22 were tables.
+# `length` reported in 82 public repos, 22 were tables. A generated list of
+# records (a standard's 2231 named character references) is a table too:
+# its length is how many rows there are.
 # The limits are where public Bend 2 code stops: 99 in 100 defs have 9
 # parameters or fewer, 19 lines or fewer, and nest 6 levels or fewer.
 import Base
@@ -141,12 +148,71 @@ def table.arms(ns: Tree.Node) -> Bool:
     case _other:
       False{}
 
+# is this token one a list of data holds: a number, a string, a char, a
+# comma, or a capitalized or dotted name (a constructor's, or a def's named
+# and not called)?
+def data.token(k: Lex.TokKind) -> Bool:
+  match k:
+    case Lex.TNum{}:
+      True{}
+    case Lex.TStr{}:
+      True{}
+    case Lex.TChar{}:
+      True{}
+    case Lex.TComma{}:
+      True{}
+    case Lex.TUpper{}:
+      True{}
+    case Lex.TDotted{}:
+      True{}
+    case _other:
+      False{}
+
+# does this bracket open a group of data: `[` or `{`, not a call's `(`?
+def data.bracket(+t: String) -> Bool:
+  Bool.or(String.eq(t, "["), String.eq(t, "{"))
+
+# are these the elements of a list of data: tokens a list of data holds, and
+# `[..]` and `{..}` groups of them, nothing else?
+def data(ns: Tree.Node) -> Bool:
+  match ns:
+    case Tree.NNil{}:
+      True{}
+    case Tree.NCons{Tree.Leaf{Lex.Tok{k, _t, _l, _c}}, rest}:
+      Lazy.and_then(data.token(k), _u => data(rest))
+    case Tree.NCons{Tree.Group{Lex.Tok{_k, t, _l, _c}, kids, _close}, rest}:
+      Lazy.and_then(data.bracket(t), _u => Lazy.and_then(data(kids), _v => data(rest)))
+    case _other:
+      False{}
+
+# is a chain empty?
+def none(n: Tree.Node) -> Bool:
+  match n:
+    case Tree.NNil{}:
+      True{}
+    case _other:
+      False{}
+
+# is a statement a list of data: its own tokens one `[..]` group of data,
+# with nothing under it?
+def table.list(kids: Tree.Node, under: Tree.Node) -> Bool:
+  match kids:
+    case Tree.NCons{Tree.Group{Lex.Tok{_k, t, _l, _c}, elems, _close}, Tree.NNil{}}:
+      Bool.and(none(under), Bool.and(data(elems), String.eq(t, "[")))
+    case _other:
+      False{}
+
+# is a statement, a def's whole body, a table: it opens a block with the arms
+# of a table under it, or it is a list of data
+def table.stmt(+kids: Tree.Node, +under: Tree.Node) -> Bool:
+  Lazy.or_else(Lazy.and_then(Calls.has_colon(kids), _u => table.arms(under)), _u => table.list(kids, under))
+
 # is a def's body a table: one statement that opens a block, with the arms
-# of a table under it?
+# of a table under it, or one statement that is a list of data?
 def table(body: Tree.Node) -> Bool:
   match body:
     case Tree.NCons{Tree.Stmt{_kind, kids, arms}, Tree.NNil{}}:
-      Lazy.and_then(Calls.has_colon(kids), _u => table.arms(arms))
+      table.stmt(kids, arms)
     case _other:
       False{}
 
