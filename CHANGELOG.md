@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.67.0](https://github.com/Emerging-Patterns/bolt/compare/v1.66.0...v1.67.0) (2026-11-16)
+
+
+### Bug Fixes
+
+* **deps:** ezjson 1.5.0, snap 1.6.0, shake 0.9.0 ([#401](https://github.com/Emerging-Patterns/bolt/issues/401)) ([a8a4272](https://github.com/Emerging-Patterns/bolt/commit/a8a4272a62feb6069e43f6f6f2326a61c9706f48))
+
 ## [1.66.0](https://github.com/Emerging-Patterns/bolt/compare/v1.65.0...v1.66.0) (2026-11-16)
 
 
